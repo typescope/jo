@@ -115,8 +115,6 @@ object Desugaring:
     * generated alias — preserving the user's declared receiver type.
     */
   def desugarExtensionDef(extDef: ExtensionDef): List[Def] =
-    val span = extDef.span
-
     // Build section with pre-param methods
     val modifiedFuns =
       extDef.funs.map: fun =>
@@ -129,11 +127,11 @@ object Desugaring:
           preTypeParamCount = extDef.tparams.size
         )(fun.span)
 
-    val section = Section(extDef.ident, modifiedFuns)(span).copyAttachments(extDef)
+    val section = Section(extDef.ident, modifiedFuns)(extDef.span).copyAttachments(extDef)
 
-    val methodRefs: List[(RefTree, Boolean)] =
+    val methodRefs: List[(RefTree, Boolean) | RefTree] =
       extDef.funs.map: fun =>
-        (Select(extDef.ident, fun.ident.name)(fun.ident.span), false)
+        Select(extDef.ident, fun.ident.name)(fun.ident.span)
 
     val extType = ExtensionType(extDef.param.tpt, methodRefs)(extDef.ident.span)
     val tdef = TypeDef(extDef.ident, extDef.tparams, extType, preParamCount = 0)(extDef.ident.span)
@@ -217,24 +215,13 @@ object Desugaring:
     val unionType = UnionType(branchTypes.toList)(enumDef.span)
 
     if enumDef.funs.nonEmpty then
-      // Synthesize extension def: extension <Name>[T, ...](this: <Name>[T, ...]) ...
+      // Synthesize extension def: extension <Name>[T, ...](this: A[U, ...] | B[V, ...] | C) ...
       val extName = Ident(enumDef.ident.name)(enumDef.ident.span)
-      val paramType: TypeTree =
-        if enumDef.tparams.isEmpty then enumDef.ident
-        else AppliedType(enumDef.ident, enumDef.tparams.map(_.ident))(enumDef.span)
-      val thisParam = Param(Ident("this")(enumDef.span), paramType)(enumDef.span)
+      val thisParam = Param(Ident("this")(enumDef.span), unionType)(enumDef.span)
       val extDef = ExtensionDef(extName, enumDef.tparams, thisParam, enumDef.funs)(enumDef.span)
-
-      // Type alias: type <Name>[T, ...] = (A | B | ...) :+ [<Name>.m1, ...]
-      val methodRefs: List[(RefTree, Boolean)] =
-        enumDef.funs.map: fun =>
-          (Select(extName, fun.ident.name)(enumDef.span), false)
-
-
-      val extType = ExtensionType(unionType, methodRefs)(enumDef.span)
-      val tdef = TypeDef(enumDef.ident, enumDef.tparams, extType, preParamCount = 0)(enumDef.span)
           .copyAttachments(enumDef)
-      tdef :: extDef :: classDefs.toList
+
+      extDef :: classDefs.toList
 
     else
       val tdef = TypeDef(enumDef.ident, enumDef.tparams, unionType, preParamCount = 0)(enumDef.span)

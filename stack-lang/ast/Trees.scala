@@ -377,11 +377,14 @@ object Trees:
   /** Representation of an extension type
     *
     * `T :+ [Ext.m1, Ext.m2!, ...]` attaches methods to type `T`.
-    * Each entry is a (methodRef, isOverride) pair; `!` marks intentional shadowing.
+    * Each entry is either:
+    *   - `(ref, isOverride)` — user-written; `!` marks intentional shadowing
+    *   - `ref` alone — from desugaring an `extension` definition; the checker
+    *     looks at the `@shadow` annotation on the resolved method symbol
     * The extension type is equivalent to `T` for all purposes except member resolution.
     */
   case class ExtensionType
-    (base: TypeTree, methods: List[(RefTree, Boolean)])
+    (base: TypeTree, methods: List[(RefTree, Boolean) | RefTree])
     (val span: Span)
   extends TypeTree
 

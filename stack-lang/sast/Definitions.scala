@@ -168,6 +168,7 @@ extends Definitions.Lazy:
   val Named_type       = compile.typeMember("Named")
   val compile_namedArg = compile.termMember("namedArg")
   val intrinsic        = compile.annotationMember("intrinsic")
+  val shadow           = jo.annotationMember("shadow")
 
   // Regex
   val regex = resolveContainer("jo.regex")

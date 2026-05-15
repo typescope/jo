@@ -2096,16 +2096,28 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
         // Resolve each method reference to a symbol
         lazy val extensionsChecked =
-          val resolved = methodEntries.flatMap: (ref, isOverride) =>
-            resolveQualid(ref, Universe.Term) match
-              case Some(sym) =>
-                if Extensions.checkMethod(sym, baseType, ref.pos) then
-                  Some(sym -> isOverride)
-                else
+          val resolved = methodEntries.flatMap:
+            case (ref: Ast.RefTree, isOverride: Boolean) =>
+              resolveQualid(ref, Universe.Term) match
+                case Some(sym) =>
+                  if Extensions.checkMethod(sym, baseType, ref.pos) then
+                    Some(sym -> isOverride)
+                  else
+                    None
+                case None =>
+                  Reporter.error(s"Cannot find method ${ref.show}", ref.pos)
                   None
-              case None =>
-                Reporter.error(s"Cannot find method ${ref.show}", ref.pos)
-                None
+
+            case ref: Ast.RefTree =>
+              resolveQualid(ref, Universe.Term) match
+                case Some(sym) =>
+                  if Extensions.checkMethod(sym, baseType, ref.pos) then
+                    Some(sym -> sym.hasAnnotation(defn.shadow))
+                  else
+                    None
+                case None =>
+                  Reporter.error(s"Cannot find method ${ref.show}", ref.pos)
+                  None
 
           Extensions.checkOverrides(resolved, baseType, baseTpt.pos)
           resolved.map(_._1)

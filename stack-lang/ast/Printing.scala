@@ -489,8 +489,9 @@ object Printing:
         tpe ~ " :- [" ~ adapters.join(", ") ~ "]"
 
       case ExtensionType(base, methods) =>
-        val methodStrs = methods.map: (ref, isOverride) =>
-          if isOverride then ref ~ "!" else ref ~ ""
+        val methodStrs = methods.map:
+          case (ref, isOverride) => if isOverride then ref ~ "!" else ref ~ ""
+          case ref: RefTree => ref ~ ""
         base ~ " :+ [" ~ methodStrs.join(", ") ~ "]"
 
       case AnnotType(tpe, annot) =>
