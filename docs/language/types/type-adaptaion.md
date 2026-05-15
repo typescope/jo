@@ -41,7 +41,7 @@ Adaptation is driven by an expected type, so it appears in places such as:
 Example:
 
 ```jo
-type StringLike = like String with [.toString]
+type StringLike = String :- [.toString]
 
 def printLine(s: StringLike): Unit =
   println s
@@ -80,7 +80,7 @@ Jo supports several adaptation mechanisms depending on the target type.
 Duck types can carry adapter lists:
 
 ```jo
-type Printable = like String with [.toString]
+type Printable = String :- [.toString]
 ```
 
 When a value is checked against `Printable`, Jo tries the adapters in order after direct conformance fails.

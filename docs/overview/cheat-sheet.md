@@ -288,10 +288,10 @@ match shape
 
 ```jo
 // adapt via member (.toString calls x.toString)
-type Printable = like String with [.toString]
+type Printable = String :- [.toString]
 
 // adapt via function (intToStr converts Int to String)
-type NumStr = like String with [intToStr, .toString]
+type NumStr = String :- [intToStr, .toString]
 
 // usage: accepts any type that can be adapted to String
 def log(msg: Printable): Unit = println msg

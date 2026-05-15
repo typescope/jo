@@ -66,7 +66,7 @@ taking the adapters from the adaptation context if the expected type is
 `String`. For example, given the following definition
 
     def typeToStr(tp: Type): String = ...
-    def code(s: like String with [typeToStr]): String = s
+    def code(s: String :- [typeToStr]): String = s
 
 We can write:
 
