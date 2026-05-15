@@ -1,7 +1,7 @@
----------- Error at tests/warn/extension-unused-tparam.jo:13:35 ---------------
-| type PhantomBox = extend Box with Phantom
-|                                   ^^^^^^^
-|                                   Extension method show has type parameters that cannot be inferred from base type
+---------- Error at tests/warn/extension-unused-tparam.jo:13:27 ---------------
+| type PhantomBox = Box :+ [Phantom.show]
+|                           ^^^^^^^^^^^^
+|                           Extension method show has type parameters that cannot be inferred from base type
 
 ---------- Error at tests/warn/extension-unused-tparam.jo:20:3 ---------------
 |   display(b)
@@ -11,4 +11,9 @@
   → [PhantomBox].show ✗ member show not found on type PhantomBox
 
 
-2 error(s), 0 warning(s)
+---------- Error at tests/warn/extension-unused-tparam.jo:11:7 ---------------
+|   def show: String = "phantom"
+|       ^^^^
+|       Extension method show has type parameters that cannot be inferred from base type
+
+3 error(s), 0 warning(s)
