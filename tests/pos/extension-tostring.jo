@@ -25,7 +25,7 @@ type Option[T] = (Some[T] | None) :+ [OptionShow.toString]
 type StringOrInt = (String | Int) :+ [StringOrIntOps.toString]
 
 extension StringOrIntOps(it: StringOrInt)
-  def toString: String =
+  @shadow def toString: String =
     match it
       case s: String => s
       case x: Int => x.toString

@@ -5,7 +5,7 @@ class Foo
 extension FooOps(it: Foo)
   def show: String = "FooOps"
 
-type ExtFoo = extend Foo with FooOps
+type ExtFoo = Foo :+ [FooOps.show]
 
 // Case 2: shadows a direct view method
 interface Displayable
@@ -20,7 +20,7 @@ end
 extension BarOps(it: Bar)
   def display: String = "BarOps"
 
-type ExtBar = extend Bar with BarOps
+type ExtBar = Bar :+ [BarOps.display]
 
 // Case 3: shadows a delegate view method
 interface Loggable
@@ -34,22 +34,14 @@ end
 extension BazOps(it: Baz)
   def log: String = "BazOps"
 
-type ExtBaz = extend Baz with BazOps
+type ExtBaz = Baz :+ [BazOps.log]
 
-// Case 4: duplicate override declaration
+// Case 4: override marker on a method that doesn't shadow anything
 class Qux
   def run: String = "Qux"
 
 extension QuxOps(it: Qux)
   def run: String = "QuxOps"
+  def extra: String = "extra"
 
-type ExtQux = extend Qux with QuxOps override [.run, .run]
-
-// Case 5: non-existent override declaration
-class Zap
-  def ping: String = "Zap"
-
-extension ZapOps(it: Zap)
-  def ping: String = "ZapOps"
-
-type ExtZap = extend Zap with ZapOps override [.ping, .missing]
+type ExtQux = Qux :+ [QuxOps.run!, QuxOps.extra!]

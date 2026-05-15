@@ -7,11 +7,11 @@ section NoPre
   def double(x: Int): Int = x + x
 end
 
-type Bad1 = extend Box with NoPre
+type Bad1 = Box :+ [NoPre.double]
 
 // Case 2: multiple pre-parameters
 section MultiPre
   def (a: Box, b: Int) combine: Int = a.value + b
 end
 
-type Bad2 = extend Box with MultiPre
+type Bad2 = Box :+ [MultiPre.combine]

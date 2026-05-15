@@ -12,7 +12,7 @@ end
 
 // Extension that overrides both class method and view method
 extension BoxOps[T](it: Box[T])
-  def show: String = "BoxOps.show"
+  @shadow def show: String = "BoxOps.show"
 end
 
 type ExtBox[T] = Box[T] :+ [BoxOps.show!]

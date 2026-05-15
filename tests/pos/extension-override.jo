@@ -6,7 +6,7 @@ class Box[T](value: T)
   def show: String = "Box"
 
 extension BoxOps[T](it: Box[T])
-  def show: String = "BoxOps"
+  @shadow def show: String = "BoxOps"
   def extra: String = "extra"
 
 type ExtBox[T] = Box[T] :+ [BoxOps.show!, BoxOps.extra]
@@ -22,7 +22,7 @@ class Widget(label: String)
 end
 
 extension WidgetOps(it: Widget)
-  def display: String = "WidgetOps:" + it.label
+  @shadow def display: String = "WidgetOps:" + it.label
 
 type ExtWidget = Widget :+ [WidgetOps.display!]
 
@@ -41,7 +41,7 @@ class App(logger: Loggable)
 end
 
 extension AppOps(it: App)
-  def log: String = "AppOps:logged"
+  @shadow def log: String = "AppOps:logged"
 
 type ExtApp = App :+ [AppOps.log!]
 

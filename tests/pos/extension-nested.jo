@@ -23,7 +23,7 @@ extension MoreOps[T](it: Option[T])
   def isDefined: Bool = ! it.isEmpty
 
   // Override isEmpty from OptionOps
-  def isEmpty: Bool =
+  @shadow def isEmpty: Bool =
     println "MoreOps.isEmpty called"
     match it
       case _: Some[T] => false

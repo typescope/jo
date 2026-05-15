@@ -9,7 +9,7 @@ class Box(value: Int)
 extension Problematic[T, U](it: T)
   def format(converter: U): String = "formatted"
 
-type RichBox = extend Box with Problematic
+type RichBox = Box :+ [Problematic.format]
 
 def show(x: RichBox)(auto mapper: Mapper[RichBox] with [[RichBox].format]): String =
   mapper(x)

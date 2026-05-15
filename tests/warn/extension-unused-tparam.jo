@@ -10,7 +10,7 @@ class Box(value: Int)
 extension Phantom[T, U](it: T)
   def show: String = "phantom"
 
-type PhantomBox = extend Box with Phantom
+type PhantomBox = Box :+ [Phantom.show]
 
 def display[T](x: T)(auto mapper: Mapper[T] with [[T].show]): String =
   mapper(x)
