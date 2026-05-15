@@ -13,23 +13,32 @@ class Char
   // Comparison operators (work via numeric coercion to Int)
   @intrinsic
   def ==(other: Char): Bool = ...
+
+  @intrinsic
   def !=(other: Char): Bool = !(this == other)
+
   @intrinsic
   def >(other: Char): Bool = ...
+
   @intrinsic
   def <(other: Char): Bool = ...
+
   @intrinsic
   def >=(other: Char): Bool = ...
+
   @intrinsic
   def <=(other: Char): Bool = ...
 
   // Conversion methods
   @intrinsic
   def toByte: Byte = ...
+
   @intrinsic
   def toInt: Int = ...
+
   @intrinsic
   def toFloat: Float = ...
+
   @intrinsic
   def toString: String = ...
 

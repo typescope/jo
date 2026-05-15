@@ -13,24 +13,33 @@ class Float
   // Arithmetic operators as methods
   @intrinsic
   def +(other: Float): Float = ...
+
   @intrinsic
   def -(other: Float): Float = ...
+
   @intrinsic
   def *(other: Float): Float = ...
+
   @intrinsic
   def /(other: Float): Float = ...
 
   // Comparison operators as methods
   @intrinsic
   def >(other: Float): Bool = ...
+
   @intrinsic
   def <(other: Float): Bool = ...
+
   @intrinsic
   def >=(other: Float): Bool = ...
+
   @intrinsic
   def <=(other: Float): Bool = ...
+
   @intrinsic
   def ==(other: Float): Bool = ...
+
+  @intrinsic
   def !=(other: Float): Bool = ! (this == other)
 
   // Prefix negation
@@ -40,6 +49,7 @@ class Float
   // Conversion methods
   @intrinsic
   def toInt: Int = ...
+
   @intrinsic
   def toString: String = ...
 

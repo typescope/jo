@@ -10,23 +10,32 @@ class Byte
   // Comparison operators (work via numeric coercion to Int)
   @intrinsic
   def ==(other: Byte): Bool = ...
+
+  @intrinsic
   def !=(other: Byte): Bool = !(this == other)
+
   @intrinsic
   def >(other: Byte): Bool = ...
+
   @intrinsic
   def <(other: Byte): Bool = ...
+
   @intrinsic
   def >=(other: Byte): Bool = ...
+
   @intrinsic
   def <=(other: Byte): Bool = ...
 
   // Conversion methods
   @intrinsic
   def toInt: Int = ...
+
   @intrinsic
   def toChar: Char = ...
+
   @intrinsic
   def toFloat: Float = ...
+
   @intrinsic
   def toString: String = ...
 

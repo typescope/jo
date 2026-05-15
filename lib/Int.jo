@@ -13,37 +13,51 @@ class Int
   // Arithmetic operators as methods
   @intrinsic
   def +(other: Int): Int = ...
+
   @intrinsic
   def -(other: Int): Int = ...
+
   @intrinsic
   def *(other: Int): Int = ...
+
   @intrinsic
   def /(other: Int): Int = ...
+
   @intrinsic
   def %(other: Int): Int = ...
 
   // Comparison operators as methods
   @intrinsic
   def >(other: Int): Bool = ...
+
   @intrinsic
   def <(other: Int): Bool = ...
+
   @intrinsic
   def >=(other: Int): Bool = ...
+
   @intrinsic
   def <=(other: Int): Bool = ...
+
   @intrinsic
   def ==(other: Int): Bool = ...
+
+  @intrinsic
   def !=(other: Int): Bool = !(this == other)
 
   // Bitwise operators as methods
   @intrinsic
   def >>(other: Int): Int = ...
+
   @intrinsic
   def <<(other: Int): Int = ...
+
   @intrinsic
   def &(other: Int): Int = ...
+
   @intrinsic
   def |(other: Int): Int = ...
+
   @intrinsic
   def ^(other: Int): Int = ...
 
@@ -54,10 +68,13 @@ class Int
   // Conversion methods
   @intrinsic
   def toChar: Char = ...
+
   @intrinsic
   def toByte: Byte = ...
+
   @intrinsic
   def toFloat: Float = ...
+
   @intrinsic
   def toString: String = ...
 
