@@ -126,7 +126,7 @@ interface DB
     ! Security: Only updates documents owned by current user
     !
     ! Example:
-    ! db.update(Title matches "%Report%", [Title := "Archived Report"])
+    ! db.update(Title like "%Report%", [Title := "Archived Report"])
     ! db.update(All, [Title := "New Title", Content := "New Content"])
   //]
   def update(condition: Cond, updates: List[FieldUpdate]): Int
@@ -147,7 +147,7 @@ interface DB
     ! Security: Only deletes documents owned by current user
     !
     ! Example:
-    ! db.delete(Title matches "%Draft%")
+    ! db.delete(Title like "%Draft%")
   //]
   def delete(condition: Cond): Int
 
@@ -180,22 +180,22 @@ param offset: Int = 0
   ! These infix operators provide a natural syntax for building queries and updates:
   !
   ! Query example:
-  ! val cond = (Title matches "%report%") && (CreatedAt > "2024-01-01")
+  ! val cond = (Title like "%report%") && (CreatedAt > "2024-01-01")
   ! val docs = db.query(cond)
   !
   ! Update example:
-  ! db.update(Title matches "%Draft%", [Title := "Archived", Content := "Moved to archive"])
+  ! db.update(Title like "%Draft%", [Title := "Archived", Content := "Moved to archive"])
 //]
 section QueryDSL
   //[ Duck type for values that can be automatically converted to Value ADT
     !
     ! Accepts String, Int, or Bool and converts them via str, int, or bool functions
   //]
-  type ValueLike = like Value with [str, int, bool]
+  type ValueLike = Value :- [str, int, bool]
   // Comparison operators with automatic value conversion
   def (col: Column) == (v: ValueLike): Cond = Eq(col, v)
   def (col: Column) != (v: ValueLike): Cond = Neq(col, v)
-  def (col: Column) matches (pat: String): Cond = Like(col, pat)
+  def (col: Column) like (pat: String): Cond = Like(col, pat)
   def (col: Column) > (v: ValueLike): Cond = Gt(col, v)
   def (col: Column) < (v: ValueLike): Cond = Lt(col, v)
   def (col: Column) >= (v: ValueLike): Cond = Gte(col, v)
