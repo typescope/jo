@@ -40,11 +40,11 @@ def level2(x: Int): Unit =
   level1 x
 
 // Test 9: Varargs with adapters
-def printMany(xs: ..String :- [intToStr, charToStr]): Unit =
+def printMany(xs: ..(String :- [intToStr, charToStr])): Unit =
   for x in xs do println x
 
 // Test 10: Fixed params + varargs with adapters
-def formatList(prefix: String, items: ..String :- [intToStr]): String =
+def formatList(prefix: String, items: ..(String :- [intToStr])): String =
   val content = items.fold: "", (a, b) => a + ", " + b
   prefix + ":" + content
 
