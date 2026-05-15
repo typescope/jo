@@ -28,14 +28,16 @@ class LiftPrimitiveMethods(using defn: Definitions) extends Phase:
     liftedSymMapKey.set(mutable.Map.empty)
 
   def getLiftedSymbol(methodSym: Symbol)(using Context): Symbol =
-    liftedSymMapKey.value.get(methodSym) match
+    val map = liftedSymMapKey.value
+    map.get(methodSym) match
       case Some(sym) => sym
       case None =>
         val classSym = methodSym.owner
         val oldProcType = methodSym.tpe.asProcType
         val thisInfo = classSym.classInfo.self.tpe
         val funType = oldProcType.prepend(NamedInfo("this", thisInfo) :: Nil)
-        TermSymbol.create(
+
+        val liftedSym = TermSymbol.create(
           classSym.name + "$" + methodSym.name,
           funType,
           Flags.Fun | Flags.Synthetic,
@@ -43,6 +45,9 @@ class LiftPrimitiveMethods(using defn: Definitions) extends Phase:
           classSym.owner,
           methodSym.sourcePos
         )
+
+        map(methodSym) = liftedSym
+        liftedSym
 
   override def transformFileUnit(unit: FileUnit)(using Context): FileUnit =
     val newDefs = mutable.ArrayBuffer.empty[Def]
