@@ -11,7 +11,7 @@ type Show[T] = T => String
 def showString: Show[String] = (s: String) => s
 
 // Extension with auto parameter
-extension OptionShow[T](it: Some[T] | None)
+extension Option[T](it: Some[T] | None)
   def toString(auto show: Show[T] with [[T].toString, showString]): String =
     match it
       case s: Some[T] => "Some(" + show(s.value) + ")"
@@ -20,12 +20,8 @@ extension OptionShow[T](it: Some[T] | None)
   end
 end
 
-type Option[T] = (Some[T] | None) :+ [OptionShow.toString]
-
-type StringOrInt = (String | Int) :+ [StringOrIntOps.toString]
-
-extension StringOrIntOps(it: StringOrInt)
-  @shadow def toString: String =
+extension StringOrInt(it: Int | String)
+  def toString: String =
     match it
       case s: String => s
       case x: Int => x.toString
