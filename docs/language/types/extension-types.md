@@ -25,29 +25,27 @@ println r  // Result has the extension member `toString`
 
 ## Syntax
 
-### Extension Type Expression
-
 ```
 extension_type = type ":+" "[" method_ref {"," method_ref} "]"
 method_ref     = qualid ["!"]
 ```
 
-An extension type is written as `T :+ [Ext.m1, Ext.m2, ...]`, where each `Ext.m` refers to
-a pre-parameter method defined in an extension definition or section:
+### Extension Type Expression
+
+An extension type is written as `T :+ [m1, m2, ...]`, where each `m` refers to
+an extension method:
 
 ```jo
-type Option[T] = (Some[T] | None) :+ [OptionOps.isEmpty, OptionOps.getOrElse]
+type Option[T] = (Some[T] | None) :+ [Option.isEmpty, Option.getOrElse]
 
-extension OptionOps[T](it: Some[T] | None)
-  def isEmpty: Bool =
+section Option
+  def [T](it: Some[T] | None) isEmpty: Bool =
     match it
       case Some(_) => false
       case None => true
     end
 end
 ```
-
-Extension definitions are specified in: [Extension Definitions](../definitions/extension-definitions.md).
 
 ### Override Marker
 
@@ -66,7 +64,9 @@ When writing an extension definition, use `@shadow` on the method instead:
 
 ```jo
 extension BoxOps[T](it: Box[T])
-  @shadow def show: String = "BoxOps.show"  // intentionally shadows Box[T].show
+  @shadow
+  def show: String = "BoxOps.show"  // intentionally shadows Box[T].show
+
   def extra: String = "extra"
 end
 ```
@@ -75,7 +75,7 @@ end
 
 ### Type Equivalence
 
-An extension type `T :+ [Ext.m1, ...]` is equivalent to `T` for all purposes **except member resolution**:
+An extension type `T :+ [m1, ...]` is equivalent to `T` for all purposes **except member resolution**:
 
 ```jo
 type Option[T] = (Some[T] | None) :+ [OptionOps.isEmpty, OptionOps.getOrElse]
@@ -99,7 +99,7 @@ Extension types do not introduce new runtime representations. At runtime, an ext
 
 ### Member Resolution
 
-For a value of extension type `T :+ [Ext.m1, Ext.m2, ...]`, member resolution proceeds as follows:
+For a value of extension type `T :+ [m1, m2, ...]`, member resolution proceeds as follows:
 
 1. **Extension lookup**: Search for the member among the listed extension methods by name. If found, infer the extension's type parameters by matching `T` against the method's pre-parameter type, and use the method with those type arguments.
 2. **Base type lookup**: Otherwise, search for the member in `T`.
@@ -129,15 +129,13 @@ end
 Extension methods participate in duck type member adapters, enabling union types to work with adaptation:
 
 ```jo
-extension OptionOps[T](it: Option[T])
+extension Option[T](it: Option[T])
   def toString(auto print: T => String with [[T].toString]): String =
     match it
       case Some(v) => "Some(" + print(v) + ")"
       case None => "None"
     end
 end
-
-type Option[T] = (Some[T] | None) :+ [OptionOps.toString]
 
 val opt: Option[Int] = Some(42)
 println(opt)  // .toString found through extension → "Some(42)"
@@ -148,16 +146,14 @@ println(opt)  // .toString found through extension → "Some(42)"
 Auto parameter member candidates (e.g., `[T].toString`) can resolve to extension methods when `T` is an extension type. This means extension methods are visible not only through direct dot syntax, but also through auto parameter resolution:
 
 ```jo
-type StringOrInt = (String | Int) :+ [StringOrIntOps.toString]
-
-extension StringOrIntOps(it: StringOrInt)
+extension StringOrInt(it: String | Int)
   @shadow def toString: String =
     match it
       case s: String => s
       case x: Int => x.toString
 
 class Box[T](value: T)
-  def toString(auto show: T => String with [[T].toString]): String =
+  def toString(auto show: Show[T] with [[T].toString]): String =
     "Box(" + show(value) + ")"
 end
 
@@ -165,28 +161,9 @@ val box: Box[StringOrInt] = Box(10)
 println(box)  // "Box(10)"
 ```
 
-Here, the member candidate `[T].toString` in `Box` is resolved for `T = StringOrInt`. Since `StringOrInt` is an extension type with a `toString` method from `StringOrIntOps`, the candidate resolves successfully — the auto parameter `show` is synthesized from the extension method.
+Here, the member candidate `[T].toString` in `Box` is resolved for `T = StringOrInt`. Since `StringOrInt` is an extension type with a `toString` method from `StringOrInt`, the candidate resolves successfully — the auto parameter `show` is synthesized from the extension method.
 
 This interaction is important for making extension types work seamlessly with generic code that relies on auto parameters for ad-hoc polymorphism.
-
-## Type Checking
-
-The extension type `T :+ [Ext.m1, Ext.m2, ...]` is represented internally as:
-
-```
-ExtensionType(base: Type, extensions: List[Symbol])
-```
-
-where `extensions` is the list of extension method symbols. Each symbol's type is a `ProcType` with a pre-parameter. For example, `(Some[T] | None) :+ [OptionOps.isEmpty, OptionOps.getOrElse]` produces:
-
-```
-ExtensionType(
-  base = Some[T] | None,
-  extensions = [OptionOps.isEmpty, OptionOps.getOrElse]
-)
-```
-
-The extension's type arguments are not stored — they are inferred from the base type at each use site by matching the base type against the method's pre-parameter type.
 
 ### Validation
 
@@ -198,29 +175,6 @@ When type-checking `T :+ [m1, m2!, ...]`:
 2. Shadow check — for each method, look up a member of the same name in `T`:
     - If found and the method is **not** marked `!`: produce a warning.
     - If marked `!` but no corresponding member exists in `T`: produce a warning.
-
-::: info Override Check
-
-The shadow check is performed at the `:+` expression site. For extension definitions, the
-check is performed separately on the generated type alias (controlled by `@shadow` on the
-method) and on any user-written `:+` expression (controlled by `!` on the method ref).
-
-```jo
-// Warning at extension def: .show shadows a member of Box[T]. Add `@shadow`.
-extension BoxOps[T](it: Box[T])
-  def show: String = "BoxOps"
-end
-
-// Warning at :+ expression: .show shadows a member of Box[T]. Use `show!`.
-type ExtBox[T] = Box[T] :+ [BoxOps.show]
-
-// OK: both markers present
-extension BoxOps[T](it: Box[T])
-  @shadow def show: String = "BoxOps"
-end
-type ExtBox[T] = Box[T] :+ [BoxOps.show!]
-```
-:::
 
 ## Design Rationale
 
