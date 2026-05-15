@@ -16,7 +16,7 @@ extension WrapperOps[T](it: Wrapper[T])
   end
 end
 
-type ExtWrapper[T] = extend Wrapper[T] with WrapperOps
+type ExtWrapper[T] = Wrapper[T] :+ [WrapperOps.formatted]
 
 def main receives IO.stdout =
   val intWrapper: ExtWrapper[Int] = new Wrapper(42)

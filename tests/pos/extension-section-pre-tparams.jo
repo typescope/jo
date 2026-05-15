@@ -10,6 +10,6 @@ section BoxOps
 end
 
 def main =
-  val b: extend Box[Int] with BoxOps = Box(41)
+  val b: Box[Int] :+ [BoxOps.foo, BoxOps.bar] = Box(41)
   println b.foo(10)
   println b.bar(x => (x + 1).toString)

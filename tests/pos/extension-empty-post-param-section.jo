@@ -6,6 +6,6 @@ extension BoxOps(box: Box)
   def inc() = box.x = box.x + 1
 
 def main() =
-  val box: extend Box with BoxOps = new Box
+  val box: Box :+ [BoxOps.inc] = new Box
   box.inc()
   println box.x

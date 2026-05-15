@@ -15,7 +15,7 @@ extension BoxOps[T](it: Box[T])
   def show: String = "BoxOps.show"
 end
 
-type ExtBox[T] = extend Box[T] with BoxOps override [.show]
+type ExtBox[T] = Box[T] :+ [BoxOps.show!]
 
 def main receives IO.stdout =
   val box: ExtBox[Int] = new Box(42)

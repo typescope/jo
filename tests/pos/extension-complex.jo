@@ -2,25 +2,23 @@
 
 class Complex(re: Int, im: Int)
 
-type C = extend Complex with ComplexOps
-
 // Extension with arithmetic operators
-extension ComplexOps(it: Complex)
+extension RichComplex(it: Complex)
   // Accessor methods
   def real: Int = it.re
   def imag: Int = it.im
 
   // Prefix negation operator
-  def ~-(): C = new Complex(- it.re, - it.im)
+  def ~-(): RichComplex = new Complex(- it.re, - it.im)
 
   // Infix operators
-  def +(other: Complex): C =
+  def +(other: Complex): RichComplex =
     new Complex(it.re + other.re, it.im + other.im)
 
-  def -(other: Complex): C =
+  def -(other: Complex): RichComplex =
     new Complex(it.re - other.re, it.im - other.im)
 
-  def *(other: Complex): C =
+  def *(other: Complex): RichComplex =
     // (a + bi)(c + di) = (ac - bd) + (ad + bc)i
     val re = it.re * other.re - it.im * other.im
     val im = it.re * other.im + it.im * other.re
@@ -31,7 +29,7 @@ extension ComplexOps(it: Complex)
     it.re * it.re + it.im * it.im
 
   // Conjugate
-  def ~~ : C =
+  def ~~ : RichComplex =
     new Complex(it.re, - it.im)
 
   // String representation
@@ -43,32 +41,32 @@ extension ComplexOps(it: Complex)
 end
 
 def main receives IO.stdout =
-  val c1: C = new Complex(3, 4)   // 3 + 4i
-  val c2: C = new Complex(1, 2)   // 1 + 2i
+  val c1: RichComplex = new Complex(3, 4)   // 3 + 4i
+  val c2: RichComplex = new Complex(1, 2)   // 1 + 2i
 
   // Test accessors
   println("c1 = " + c1.show)
   println("c2 = " + c2.show)
 
   // Test prefix negation operator
-  val negC1: C = -c1
+  val negC1: RichComplex = -c1
   println("-c1 = " + negC1.show)
 
   // Test addition via operator
-  val sum: C = c1 + c2
+  val sum: RichComplex = c1 + c2
   println("c1 + c2 = " + sum.show)
 
   // Test subtraction via operator
-  val diff: C = c1 - c2
+  val diff: RichComplex = c1 - c2
   println("c1 - c2 = " + diff.show)
 
   // Test multiplication via operator
   // (3 + 4i)(1 + 2i) = 3 + 6i + 4i + 8i^2 = 3 + 10i - 8 = -5 + 10i
-  val prod: C = c1 * c2
+  val prod: RichComplex = c1 * c2
   println("c1 * c2 = " + prod.show)
 
   // Test conjugate
-  val conj: C = ~c1
+  val conj: RichComplex = ~c1
   println("conjugate(c1) = " + conj.show)
 
   // Test magnitude squared: |3 + 4i|^2 = 9 + 16 = 25
@@ -76,6 +74,6 @@ def main receives IO.stdout =
   println("|c1|^2 = " + mag.toString)
 
   // Chain operations: (c1 + c2) * c1.conjugate
-  val chained: C = (c1 + c2) * ~c1
+  val chained: RichComplex = (c1 + c2) * ~c1
   println("(c1 + c2) * conj(c1) = " + chained.show)
 end

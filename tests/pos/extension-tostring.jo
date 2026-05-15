@@ -20,9 +20,9 @@ extension OptionShow[T](it: Some[T] | None)
   end
 end
 
-type Option[T] = extend Some[T] | None with OptionShow
+type Option[T] = (Some[T] | None) :+ [OptionShow.toString]
 
-type StringOrInt = extend String | Int with StringOrIntOps
+type StringOrInt = (String | Int) :+ [StringOrIntOps.toString]
 
 extension StringOrIntOps(it: StringOrInt)
   def toString: String =

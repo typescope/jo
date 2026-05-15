@@ -9,7 +9,7 @@ extension BoxOps[T](it: Box[T])
   def show: String = "BoxOps"
   def extra: String = "extra"
 
-type ExtBox[T] = extend Box[T] with BoxOps override [.show]
+type ExtBox[T] = Box[T] :+ [BoxOps.show!, BoxOps.extra]
 
 // Case 2: override direct view method
 interface Displayable
@@ -24,7 +24,7 @@ end
 extension WidgetOps(it: Widget)
   def display: String = "WidgetOps:" + it.label
 
-type ExtWidget = extend Widget with WidgetOps override [.display]
+type ExtWidget = Widget :+ [WidgetOps.display!]
 
 // Case 3: override delegate view method
 interface Loggable
@@ -43,7 +43,7 @@ end
 extension AppOps(it: App)
   def log: String = "AppOps:logged"
 
-type ExtApp = extend App with AppOps override [.log]
+type ExtApp = App :+ [AppOps.log!]
 
 def main =
   val b: ExtBox[Int] = new Box(42)
