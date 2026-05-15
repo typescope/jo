@@ -301,7 +301,7 @@ class String
     parts + this.substring(lineStart, n - lineStart)
 end
 
-type StringLike = like String with [.toString]
+type StringLike = String :- [.toString]
 
 private section String
   class LineIterator(s: String)
