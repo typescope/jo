@@ -1,0 +1,1 @@
+<div id="app"><h1>Welcome to Jo</h1><p class="intro">A statically typed functional language.</p><h2>Features</h2><ul><li>Pattern matching</li><li>Effect system</li><li>Union types</li></ul><p>Learn more at <a href="https://example.com">example.com</a></p></div>

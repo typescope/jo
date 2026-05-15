@@ -57,7 +57,7 @@ end
 // ===== Part 2: Member Adaptation for Duck Types Through Delegate Views =====
 
 // Case 5: Duck type member adapter should not use class-level private member of delegate view
-type HasCloser = like String with [.closeFile]
+type HasCloser = String :- [.closeFile]
 
 class Processor5
   view FileHandler = new FileHandler()
@@ -69,7 +69,7 @@ class Processor5
 end
 
 // Case 6: Duck type member adapter CAN use container-level private member of delegate view
-type HasOpener = like String with [.openFile]
+type HasOpener = String :- [.openFile]
 
 class Processor6
   view FileHandler = new FileHandler()
@@ -81,7 +81,7 @@ class Processor6
 end
 
 // Case 7: Duck type member adapter CAN use public member of delegate view
-type HasStatus = like String with [.status]
+type HasStatus = String :- [.status]
 
 class Processor7
   view FileHandler = new FileHandler()
@@ -94,7 +94,7 @@ end
 
 // Case 8: Duck type member adapter CANNOT access invisible member of delegate view
 
-type HasFoo = like String with [.foo]
+type HasFoo = String :- [.foo]
 
 class Processor8
   view FileHandler = new FileHandler()

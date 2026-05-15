@@ -5,11 +5,11 @@
 def intToStr(x: Int): String = ...
 def anotherIntToStr(x: Int): String = ...
 
-def test1(s: like String with [intToStr, anotherIntToStr]): Unit =
+def test1(s: String :- [intToStr, anotherIntToStr]): Unit =
   print(s)
 
 // Test 2: Duplicate member adapters should error
-def test2(s: like String with [.length, .length]): Unit =
+def test2(s: String :- [.length, .length]): Unit =
   print(s)
 
 // Test 3: Member adapter shadowing function adapter (val member)
@@ -18,7 +18,7 @@ class Point(x: Int, y: Int, toString: String)
 
 def pointToStr(p: Point): String = p.toString
 
-def test3(s: like String with [.toString, pointToStr]): Unit =
+def test3(s: String :- [.toString, pointToStr]): Unit =
   print(s)
 
 // Test 4: Member adapter shadowing function adapter (parameterless method)
@@ -29,7 +29,7 @@ end
 
 def animalToStr(a: Animal): String = a.toString
 
-def test4(s: like String with [.toString, animalToStr]): Unit =
+def test4(s: String :- [.toString, animalToStr]): Unit =
   print(s)
 
 def main =

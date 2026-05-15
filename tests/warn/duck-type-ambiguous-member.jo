@@ -20,7 +20,7 @@ end
 def Person(name: String, age: Int): Person = new Person(name, age)
 
 // Duck type using member adapter .toString
-type StringLike = like String with [.toString]
+type StringLike = String :- [.toString]
 
 def display(msg: StringLike): Unit =
   println msg

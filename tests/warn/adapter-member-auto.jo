@@ -6,7 +6,7 @@ class Item(name: String)
   def format(auto p: Prefix): String = p.prefix + name
 end
 
-def test(s: like String with [.format]): Unit =
+def test(s: String :- [.format]): Unit =
   print(s)
 
 def main =

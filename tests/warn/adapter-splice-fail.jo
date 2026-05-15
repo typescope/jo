@@ -4,7 +4,7 @@
 def boolToStr(b: Bool): String = ...
 def intToStr(i: Int): String = ...
 
-def show(items: ..like String with [intToStr, boolToStr]): Unit =
+def show(items: ..(String :- [intToStr, boolToStr])): Unit =
   for x in items do println x
 
 def main =

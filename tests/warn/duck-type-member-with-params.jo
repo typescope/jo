@@ -9,7 +9,7 @@ def Formatter: Formatter = new Formatter
 
 // Duck type using member adapter .format
 // Member adapters only support fields and parameterless methods
-type Formattable = like String with [.format]
+type Formattable = String :- [.format]
 
 def process(item: Formattable): Unit =
   println item

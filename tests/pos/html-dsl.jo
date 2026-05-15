@@ -1,0 +1,71 @@
+// HTML DSL using vararg colon-call syntax.
+// String~String pairs become attributes; Node values become children.
+// Elements are called with `tag: child1\n child2\n...` or `tag(attrs...): children...`.
+
+class Text(content: String)
+class Element(tag: String, attrs: List[String ~ String], children: List[Node])
+
+type Node = Text | Element
+type HtmlArg = (String ~ String) | Text | Element
+
+def t(content: String): Node = new Text(content)
+
+def el(tag: String, args: ..HtmlArg): Node =
+  var attrs: List[String ~ String] = []
+  var children: List[Node] = []
+
+  for arg in args do
+    match arg
+      case k ~ v =>
+        attrs = attrs + (k ~ v)
+
+      case n: Text =>
+        children = children + n
+
+      case n: Element =>
+        children = children + n
+
+  new Element(tag, attrs, children)
+
+def div(args: ..HtmlArg): Node = el("div", ..args)
+def span(args: ..HtmlArg): Node = el("span", ..args)
+def p(args: ..HtmlArg): Node = el("p", ..args)
+def h1(args: ..HtmlArg): Node = el("h1", ..args)
+def h2(args: ..HtmlArg): Node = el("h2", ..args)
+def ul(args: ..HtmlArg): Node = el("ul", ..args)
+def li(args: ..HtmlArg): Node = el("li", ..args)
+def a(args: ..HtmlArg): Node = el("a", ..args)
+
+def renderAttr(attr: String ~ String): String =
+  match attr
+    case k ~ v => " " + k + "=\"" + v + "\""
+
+def renderNode(node: Node): String =
+  match node
+    case Text(content) => content
+
+    case Element(tag, attrs, children) =>
+      val attrStr = attrs.map(a => renderAttr(a)).fold: "", (acc, s) => acc + s
+      val childStr = children.map(n => renderNode(n)).fold: "", (acc, s) => acc + s
+      "<" + tag + attrStr + ">" + childStr + "</" + tag + ">"
+
+def main =
+  val doc =
+    div:
+      "id" ~ "app"
+      h1: t("Welcome to Jo")
+      p:
+        "class" ~ "intro"
+        t: "A statically typed functional language."
+      h2: t("Features")
+      ul:
+        li: t("Pattern matching")
+        li: t("Effect system")
+        li: t("Union types")
+      p:
+        t: "Learn more at "
+        a:
+          "href" ~ "https://example.com"
+          t: "example.com"
+
+  println: renderNode(doc)

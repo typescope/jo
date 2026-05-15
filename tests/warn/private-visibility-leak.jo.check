@@ -1,6 +1,6 @@
 ---------- Error at tests/warn/private-visibility-leak.jo:11:15 ---------------
-|   def display(s: like String with [secretConv]): Unit = println s
-|               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   def display(s: String :- [secretConv]): Unit = println s
+|               ^^^^^^^^^^^^^^^^^^^^^^^^
 |               The private symbol secretConv is leaked by the type of display
 
 ---------- Error at tests/warn/private-visibility-leak.jo:20:54 ---------------

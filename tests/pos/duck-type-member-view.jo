@@ -22,7 +22,7 @@ end
 
 // Duck type using member adapter .toString
 // Should work even though Person doesn't define toString directly - found through Stringable view
-type StringLike = like String with [.toString]
+type StringLike = String :- [.toString]
 
 def display(msg: StringLike): Unit =
   println msg

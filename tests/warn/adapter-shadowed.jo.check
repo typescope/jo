@@ -1,25 +1,25 @@
----------- Error at tests/warn/adapter-shadowed.jo:8:42 ---------------
-| def test1(s: like String with [intToStr, anotherIntToStr]): Unit =
-|                                          ^^^^^^^^^^^^^^^
-|                                          Adapter is shadowed: parameter type Int conforms to an earlier adapter's parameter type
+---------- Error at tests/warn/adapter-shadowed.jo:8:35 ---------------
+| def test1(s: String :- [intToStr, anotherIntToStr]): Unit =
+|                                   ^^^^^^^^^^^^^^^
+|                                   Adapter is shadowed: parameter type Int conforms to an earlier adapter's parameter type
 |
 | Earlier adapter intToStr with parameter type Int is defined here
-| def test1(s: like String with [intToStr, anotherIntToStr]): Unit =
-|                                ^^^^^^^^
+| def test1(s: String :- [intToStr, anotherIntToStr]): Unit =
+|                         ^^^^^^^^
 
----------- Error at tests/warn/adapter-shadowed.jo:12:41 ---------------
-| def test2(s: like String with [.length, .length]): Unit =
-|                                         ^^^^^^^
-|                                         Member adapter .length is shadowed by earlier member adapter
+---------- Error at tests/warn/adapter-shadowed.jo:12:34 ---------------
+| def test2(s: String :- [.length, .length]): Unit =
+|                                  ^^^^^^^
+|                                  Member adapter .length is shadowed by earlier member adapter
 
----------- Error at tests/warn/adapter-shadowed.jo:21:43 ---------------
-| def test3(s: like String with [.toString, pointToStr]): Unit =
-|                                           ^^^^^^^^^^
-|                                           Adapter is shadowed by earlier member adapter .toString
+---------- Error at tests/warn/adapter-shadowed.jo:21:36 ---------------
+| def test3(s: String :- [.toString, pointToStr]): Unit =
+|                                    ^^^^^^^^^^
+|                                    Adapter is shadowed by earlier member adapter .toString
 
----------- Error at tests/warn/adapter-shadowed.jo:32:43 ---------------
-| def test4(s: like String with [.toString, animalToStr]): Unit =
-|                                           ^^^^^^^^^^^
-|                                           Adapter is shadowed by earlier member adapter .toString
+---------- Error at tests/warn/adapter-shadowed.jo:32:36 ---------------
+| def test4(s: String :- [.toString, animalToStr]): Unit =
+|                                    ^^^^^^^^^^^
+|                                    Adapter is shadowed by earlier member adapter .toString
 
 4 error(s), 0 warning(s)
