@@ -308,7 +308,7 @@ extension ListOps[T](xs: List[T])
 end
 
 // extension type
-type RichList[T] = extend List[T] with ListOps
+type RichList[T] = List[T] :+ [ListOps.isEmpty, ListOps.head]
 ```
 
 ## Typeclasses and Auto Parameters

@@ -17,7 +17,7 @@ extension ResultOps(it: Int | String)
     end
 end
 
-type Result = extend Int | String with ResultOps
+type Result = (Int | String) :+ [ResultOps.toString]
 
 val r: Result = "success"
 println r  // Result has the extension member `toString`
@@ -25,17 +25,18 @@ println r  // Result has the extension member `toString`
 
 ## Syntax
 
-### Extension Type Definition
+### Extension Type Expression
 
 ```
-extension_type = "extend" type "with" qualid ["override" "[" member_list "]"]
-member_list    = "." ident {"," "." ident}
+extension_type = type ":+" "[" method_ref {"," method_ref} "]"
+method_ref     = qualid ["!"]
 ```
 
-An extension type is defined using `extend T1 with Ext`, where `Ext` names an extension definition:
+An extension type is written as `T :+ [Ext.m1, Ext.m2, ...]`, where each `Ext.m` refers to
+a pre-parameter method defined in an extension definition or section:
 
 ```jo
-type Option[T] = extend Some[T] | None with OptionOps
+type Option[T] = (Some[T] | None) :+ [OptionOps.isEmpty, OptionOps.getOrElse]
 
 extension OptionOps[T](it: Some[T] | None)
   def isEmpty: Bool =
@@ -46,22 +47,38 @@ extension OptionOps[T](it: Some[T] | None)
 end
 ```
 
-When an extension method shadows a method of the same name in the base type, the `override` clause must list the shadowed members. Without it, the compiler produces a warning:
+Extension definitions are specified in: [Extension Definitions](../definitions/extension-definitions.md).
+
+### Override Marker
+
+When an extension method has the same name as a member of the base type, the compiler
+produces a warning. Append `!` to the method reference to suppress it:
 
 ```jo
-type ExtBox[T] = extend Box[T] with BoxOps override [.show, .toString]
+// Warning: .show shadows a member of Box[T]
+type ExtBox[T] = Box[T] :+ [BoxOps.show]
+
+// OK: override intentional
+type ExtBox[T] = Box[T] :+ [BoxOps.show!]
 ```
 
-Extension definitions are specified in: [Extension Definitions](../definitions/extension-definitions.md).
+When writing an extension definition, use `@shadow` on the method instead:
+
+```jo
+extension BoxOps[T](it: Box[T])
+  @shadow def show: String = "BoxOps.show"  // intentionally shadows Box[T].show
+  def extra: String = "extra"
+end
+```
 
 ## Semantics
 
 ### Type Equivalence
 
-An extension type `extend T1 with Ext` is equivalent to `T1` for all purposes **except member resolution**:
+An extension type `T :+ [Ext.m1, ...]` is equivalent to `T` for all purposes **except member resolution**:
 
 ```jo
-type Option[T] = extend Some[T] | None with OptionOps
+type Option[T] = (Some[T] | None) :+ [OptionOps.isEmpty, OptionOps.getOrElse]
 
 // Subtyping works as for the base union type
 val a: Option[Int] = Some(42)    // OK: Some[Int] <: Option[Int]
@@ -82,17 +99,17 @@ Extension types do not introduce new runtime representations. At runtime, an ext
 
 ### Member Resolution
 
-For a value of extension type `extend T1 with Ext`, member resolution proceeds as follows:
+For a value of extension type `T :+ [Ext.m1, Ext.m2, ...]`, member resolution proceeds as follows:
 
-1. **Extension lookup**: Search for the member in extension `Ext`. If found, infer the extension's type parameters by matching `T1` against the extension's parameter type, and use the method with those type arguments.
-2. **Base type lookup**: Otherwise, search for the member in `T1`.
+1. **Extension lookup**: Search for the member among the listed extension methods by name. If found, infer the extension's type parameters by matching `T` against the method's pre-parameter type, and use the method with those type arguments.
+2. **Base type lookup**: Otherwise, search for the member in `T`.
 
 ```jo
-type Option[T] = extend Some[T] | None with OptionOps
+type Option[T] = (Some[T] | None) :+ [OptionOps.isEmpty, OptionOps.getOrElse]
 
 val opt: Option[Int] = Some(42)
-opt.isEmpty       // Step 1: Found in OptionOps → use extension method
-opt.getOrElse(0)  // Step 1: Found in OptionOps → use extension method
+opt.isEmpty       // Step 1: Found in method list → use extension method
+opt.getOrElse(0)  // Step 1: Found in method list → use extension method
 ```
 
 For union types (the primary use case), step 2 never succeeds because union types have no members. The extension methods are the only available members.
@@ -120,7 +137,7 @@ extension OptionOps[T](it: Option[T])
     end
 end
 
-type Option[T] = extend Some[T] | None with OptionOps
+type Option[T] = (Some[T] | None) :+ [OptionOps.toString]
 
 val opt: Option[Int] = Some(42)
 println(opt)  // .toString found through extension → "Some(42)"
@@ -131,10 +148,10 @@ println(opt)  // .toString found through extension → "Some(42)"
 Auto parameter member candidates (e.g., `[T].toString`) can resolve to extension methods when `T` is an extension type. This means extension methods are visible not only through direct dot syntax, but also through auto parameter resolution:
 
 ```jo
-type StringOrInt = extend String | Int with StringOrIntOps
+type StringOrInt = (String | Int) :+ [StringOrIntOps.toString]
 
 extension StringOrIntOps(it: StringOrInt)
-  def toString: String =
+  @shadow def toString: String =
     match it
       case s: String => s
       case x: Int => x.toString
@@ -154,13 +171,13 @@ This interaction is important for making extension types work seamlessly with ge
 
 ## Type Checking
 
-The extension type `extend T1 with Ext` is represented internally as:
+The extension type `T :+ [Ext.m1, Ext.m2, ...]` is represented internally as:
 
 ```
 ExtensionType(base: Type, extensions: List[Symbol])
 ```
 
-where `extensions` is the list of extension method symbols collected from `Ext`. Each symbol's type is a `ProcType` with a pre-parameter. For example, `extend Some[T] | None with OptionOps` produces:
+where `extensions` is the list of extension method symbols. Each symbol's type is a `ProcType` with a pre-parameter. For example, `(Some[T] | None) :+ [OptionOps.isEmpty, OptionOps.getOrElse]` produces:
 
 ```
 ExtensionType(
@@ -171,37 +188,45 @@ ExtensionType(
 
 The extension's type arguments are not stored — they are inferred from the base type at each use site by matching the base type against the method's pre-parameter type.
 
-This representation makes member resolution direct: looking up a method on an extension type is a search over the `extensions` list by name. It also makes adaptation straightforward, since the available methods are explicitly listed.
-
 ### Validation
 
-When type-checking `extend T1 with Ext [override [.a, .b]]`:
+When type-checking `T :+ [m1, m2!, ...]`:
 
-1. `Ext` must be a section.
-2. For each member of `Ext`:
-    - It must have a pre-parameter.
-    - The base type `T1` must be assignable to its pre-parameter type.
-3. For each extension method in `Ext`, look up a member of the same name in `T1`:
-    - If found and not listed in the `override` clause, produce a warning.
-    - If listed in `override` but no corresponding member exists in `T1`, produce a warning.
+1. For each method reference:
+    - The resolved symbol must have a pre-parameter (`preParamCount > 0`).
+    - The base type `T` must conform to its pre-parameter type.
+2. Shadow check — for each method, look up a member of the same name in `T`:
+    - If found and the method is **not** marked `!`: produce a warning.
+    - If marked `!` but no corresponding member exists in `T`: produce a warning.
 
 ::: info Override Check
 
-The override check (rule 3) is performed at the extension type definition site, not the extension definition site — the extension definition does not know which base type it will be applied to.
+The shadow check is performed at the `:+` expression site. For extension definitions, the
+check is performed separately on the generated type alias (controlled by `@shadow` on the
+method) and on any user-written `:+` expression (controlled by `!` on the method ref).
 
 ```jo
-// Warning: .show shadows a member of Box[T]
-type ExtBox[T] = extend Box[T] with BoxOps
+// Warning at extension def: .show shadows a member of Box[T]. Add `@shadow`.
+extension BoxOps[T](it: Box[T])
+  def show: String = "BoxOps"
+end
 
-// OK
-type ExtBox[T] = extend Box[T] with BoxOps override [.show]
+// Warning at :+ expression: .show shadows a member of Box[T]. Use `show!`.
+type ExtBox[T] = Box[T] :+ [BoxOps.show]
+
+// OK: both markers present
+extension BoxOps[T](it: Box[T])
+  @shadow def show: String = "BoxOps"
+end
+type ExtBox[T] = Box[T] :+ [BoxOps.show!]
 ```
 :::
+
 ## Design Rationale
 
 ### Why Not Scope-Based Extension Methods?
 
-Languages like Kotlin and C# allow extension methods to be defined anywhere and resolved through imports. This breaks local reasoning — you cannot know what methods are available on a type without checking all imports. Jo's extension types are tied to the type definition itself: `extend T1 with T2` is visible in the type alias. The set of available methods is determined by the type, not by what's in scope.
+Languages like Kotlin and C# allow extension methods to be defined anywhere and resolved through imports. This breaks local reasoning — you cannot know what methods are available on a type without checking all imports. Jo's extension types are tied to the type definition itself: `T :+ [Ext.m1, ...]` is visible in the type alias. The set of available methods is determined by the type, not by what's in scope.
 
 ### Why Not Interface Conformance?
 

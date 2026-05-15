@@ -127,7 +127,7 @@ The following words are reserved and cannot be used as identifiers:
 allow       annotation  auto        as          case
 break       class       continue    def         defer
 do          else
-end         extend      extension   false       for
+end         extension   false       for
 if          import      in          interface   is
 like        match       namespace   new         object
 param       pattern     private     receives    return
@@ -301,6 +301,7 @@ sequence_item = pattern
 
 type = simple_type {"|" simple_type}                        -- union_type
      | simple_type ":-" "[" adapter_list "]"                -- duck_type
+     | simple_type ":+" "[" method_ref_list "]"             -- extension_type
      | simple_type {simple_type}                            -- expr_type
      | param_types "=>" type [receive_params]               -- lambda_type
 
@@ -310,12 +311,14 @@ simple_type = atom_type
 
 atom_type = qualid
           | qualid "[" type {"," type} "]"                  -- applied_type
-          | "extend" type "with" qualid                     -- extension_type
           | "(" type ")"
 
 adapter_list = adapter {"," adapter}
 adapter = qualid | member_adapter
 member_adapter = "." ident
+
+method_ref_list = method_ref {"," method_ref}
+method_ref = qualid ["!"]                                   -- "!" marks intentional shadowing
 
 param_types = simple_type | "()" | "(" type {"," type} ")"
 receive_params = "receives" qualid {"," qualid}

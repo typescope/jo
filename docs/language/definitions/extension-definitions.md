@@ -1,11 +1,6 @@
 # Extension Definitions
 
-Extension definitions declare methods that can be attached to types.
-
-They are used by:
-
-1. **Extension types** (`extend T with Ext`)
-2. **Class/object extension references** (`extension Ext` inside class/object bodies)
+Extension definitions declare methods that can be attached to types via the `:+` operator.
 
 ## Syntax
 
@@ -41,9 +36,7 @@ end
 
 ## Desugaring
 
-An extension definition is typed like a section whose methods have an extra pre-parameter (the receiver).
-
-Conceptually:
+An extension definition desugars to a generated type alias plus a section:
 
 ```jo
 // Source
@@ -53,30 +46,51 @@ extension Ext[T](it: Box[T])
 end
 ```
 
-is checked like:
+desugars to:
 
 ```jo
+type Ext[T] = Box[T] :+ [Ext.foo, Ext.bar]
+
 section Ext
   def [T](it: Box[T]) foo(x: Int): Int = ...
   def [T](it: Box[T]) bar[S](f: T -> S): S = ...
 end
 ```
 
-This is why extension methods can be selected as members while still being regular functions internally.
+The pre-parameter type in each section method is exactly what the user annotated for `it` —
+the original annotation is preserved, not the generated alias. If the user wants cross-method
+calls via `it.method`, they annotate `it` with a previously defined type alias:
+
+```jo
+type Option[T] = (Some[T] | None) :+ [OptionOps.isEmpty, OptionOps.getOrElse]
+
+extension OptionOps[T](it: Option[T])   // it: Option[T], has extension methods
+  def isEmpty: Bool = it is None
+  def isDefined: Bool = !it.isEmpty     // works: it has extension type
+end
+```
+
+## Shadowing
+
+When an extension method has the same name as a member of the base type, the compiler warns
+at the generated type alias. Mark the method with `@shadow` to suppress the warning:
+
+```jo
+extension BoxOps[T](it: Box[T])
+  @shadow def show: String = "BoxOps.show"  // intentionally shadows Box[T].show
+  def extra: String = "extra"
+end
+```
+
+See [Extension Types](../types/extension-types.md) for the `!` marker used in user-written `:+` expressions.
 
 ## Validation at Attachment Sites
 
-Validation depends on where the extension is attached:
+When an extension definition is attached via a `:+` expression:
 
-1. **Extension type** (`extend T with Ext`):
-
-    - Receiver compatibility is checked against `T`.
-    - Override warnings/checks use the optional `override` list on the extension type.
-
-2. **Class definition** (`extension Ext` in class):
-
-    - Receiver compatibility is checked against the class type.
-    - No type arguments are written at the attachment site (`extension Ext`, not `extension Ext[Int]`).
+- Each method must have a pre-parameter.
+- The base type must conform to the method's pre-parameter type.
+- Shadow warnings are emitted per method (suppressed by `@shadow` or `!`).
 
 The extension definition itself is reusable; base-type compatibility is checked when attached.
 

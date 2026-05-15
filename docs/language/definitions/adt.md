@@ -167,22 +167,28 @@ Methods in a union definition desugar to an [extension type](../types/extension-
 
 ```jo
 // Desugars to:
-extension Option$Ext[T](this: Option[T])
+class Some[T](value: T)
+object None
+
+extension Option[T](this: Some[T] | None)
   def isEmpty: Bool = ...
   def getOrElse(default: T): T = ...
 end
 
-type Option[T] = extend Some[T] | None with Option$Ext
+// The extension def itself desugars to:
+type Option[T] = (Some[T] | None) :+ [Option.isEmpty, Option.getOrElse]
 
-class Some[T](value: T)
-object None
+section Option
+  def [T](this: Some[T] | None) isEmpty: Bool = ...
+  def [T](this: Some[T] | None) getOrElse(default: T): T = ...
+end
 ```
 
 The compiler synthesizes:
 
 1. Branch classes/objects (same as unions without methods)
-2. An extension definition with the union's type params and a `this` parameter typed as the union
-3. A type alias using `extend ... with` instead of a plain union type
+2. An extension definition named after the union, with the union's type params and a `this` parameter typed as the plain union
+3. The extension definition further desugars to a type alias using `:+` and a section, both named after the union
 
 ### Usage
 
