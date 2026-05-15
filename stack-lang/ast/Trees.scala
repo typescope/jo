@@ -376,11 +376,12 @@ object Trees:
 
   /** Representation of an extension type
     *
-    * `extend T with Ext` attaches methods from extension `Ext` to type `T`.
+    * `T :+ [Ext.m1, Ext.m2!, ...]` attaches methods to type `T`.
+    * Each entry is a (methodRef, isOverride) pair; `!` marks intentional shadowing.
     * The extension type is equivalent to `T` for all purposes except member resolution.
     */
   case class ExtensionType
-    (base: TypeTree, ext: RefTree, overrides: List[Ident])
+    (base: TypeTree, methods: List[(RefTree, Boolean)])
     (val span: Span)
   extends TypeTree
 

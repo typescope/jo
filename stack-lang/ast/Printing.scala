@@ -488,10 +488,10 @@ object Printing:
       case DuckType(tpe, adapters) =>
         tpe ~ " :- [" ~ adapters.join(", ") ~ "]"
 
-      case ExtensionType(base, ext, overrides) =>
-        val base_ext = "extend " ~ base ~ " with " ~ ext
-        if overrides.isEmpty then base_ext
-        else base_ext ~ " override [" ~ overrides.map("." ~ _.show).join(", ") ~ "]"
+      case ExtensionType(base, methods) =>
+        val methodStrs = methods.map: (ref, isOverride) =>
+          if isOverride then ref ~ "!" else ref ~ ""
+        base ~ " :+ [" ~ methodStrs.join(", ") ~ "]"
 
       case AnnotType(tpe, annot) =>
         tpe ~ " " ~ showAnnotation(annot)

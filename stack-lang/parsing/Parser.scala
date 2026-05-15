@@ -1271,6 +1271,33 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     adapters.toList
 
 
+  /** Parse method reference list for extension types: [Ext.m1, Ext.m2!, ...]
+    *
+    * Each entry is a (qualid, isOverride) pair. The `!` suffix marks intentional
+    * shadowing of a base type member.
+    *
+    * Returns the list and the span of the closing bracket.
+    */
+  def methodRefList(): (List[(RefTree, Boolean)], Span) =
+    eat(Token.LBRACKET)
+    val methods = mutable.ArrayBuffer[(RefTree, Boolean)]()
+
+    def parseOne(): Unit =
+      val ref = qualid()
+      val isOverride = peek() == Token.Operator("!")
+      if isOverride then next()
+      methods += ((ref, isOverride))
+
+    if peek() != Token.RBRACKET then
+      parseOne()
+      while peek() == Token.COMMA do
+        eat(Token.COMMA)
+        parseOne()
+
+    val endSpan = eat(Token.RBRACKET).span
+    (methods.toList, endSpan)
+
+
   /** Parse candidate list for auto parameters: [candidate1, candidate2, ...]
     * Candidates can be qualified identifiers (value candidates) or [Type].member (member candidates)
     */
@@ -1864,6 +1891,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
           DuckType(tp, adapters)(tp.span | endSpan)
 
+        case Token.Operator(":+") =>
+          next()
+          val (methods, endSpan) = methodRefList()
+          ExtensionType(tp, methods)(tp.span | endSpan)
+
         case _ =>
           val tps = mutable.ArrayBuffer[TypeTree](tp)
 
@@ -1963,21 +1995,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
         else
           id
-
-      case Token.EXTEND =>
-        val extendToken = next()
-        val baseType = typ()
-        eat(Token.WITH)
-        val ext = qualid()
-        if peek() == Token.Name("override") then
-          next()  // eat "override"
-          eat(Token.LBRACKET)
-          val overrides = oneOrMore(() => { eat(Token.DOT); ident() }, Token.COMMA)
-          val endSpan = eat(Token.RBRACKET)
-          ExtensionType(baseType, ext, overrides)(extendToken.span | endSpan.span)
-
-        else
-          ExtensionType(baseType, ext, Nil)(extendToken.span | ext.span)
 
       case _ =>
         null

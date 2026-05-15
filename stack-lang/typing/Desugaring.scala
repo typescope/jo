@@ -95,28 +95,51 @@ object Desugaring:
 
     if defs2.size != defs.size then synthesize(defs2) else defs2
 
-  /** Desugar extension definitions into sections with rewritten methods.
+  /** Desugar extension definitions into a generated type alias and a section.
     *
-    * For each method:
-    * - prepend extension parameter as pre-parameter
-    * - prepend extension type parameters before method type parameters
-    * - mark all extension header type params as pre type params
+    * From
+    *
+    *     extension Name[T](it: Base)
+    *       def m1(...) = ...
+    *       def m2(...) = ...
+    *
+    * to:
+    *
+    *     type Name[T] = Base :+ [Name.m1, Name.m2]
+    *
+    *     section Name
+    *       def [T](it: Base) m1 (...) = ...
+    *       def [T](it: Base) m2 (...) = ...
+    *
+    * The pre-parameter type is the original annotation (`it: Base`), not the
+    * generated alias — preserving the user's declared receiver type.
     */
   def desugarExtensionDef(extDef: ExtensionDef): List[Def] =
+    val span = extDef.span
+
+    // Build section with pre-param methods
     val modifiedFuns =
       extDef.funs.map: fun =>
         val newParams = extDef.param :: fun.params
         val newTparams = extDef.tparams ++ fun.tparams
-        val newPreParamCount = 1
-        val newPreTypeParamCount = extDef.tparams.size
         fun.copy(
           tparams = newTparams,
           params = newParams,
-          preParamCount = newPreParamCount,
-          preTypeParamCount = newPreTypeParamCount
+          preParamCount = 1,
+          preTypeParamCount = extDef.tparams.size
         )(fun.span)
 
-    Section(extDef.ident, modifiedFuns)(extDef.span).copyAttachments(extDef) :: Nil
+    val section = Section(extDef.ident, modifiedFuns)(span).copyAttachments(extDef)
+
+    val methodRefs: List[(RefTree, Boolean)] =
+      extDef.funs.map: fun =>
+        (Select(extDef.ident, fun.ident.name)(fun.ident.span), false)
+
+    val extType = ExtensionType(extDef.param.tpt, methodRefs)(extDef.ident.span)
+    val tdef = TypeDef(extDef.ident, extDef.tparams, extType, preParamCount = 0)(extDef.ident.span)
+      .copyAttachments(extDef)
+
+    tdef :: section :: Nil
 
   /** A union definition
     *
@@ -194,16 +217,21 @@ object Desugaring:
     val unionType = UnionType(branchTypes.toList)(enumDef.span)
 
     if enumDef.funs.nonEmpty then
-      // Synthesize extension def: extension <Name>$Ext[T, ...](this: <Name>[T, ...]) ...
-      val extName = Ident(enumDef.ident.name + "$Ext")(enumDef.ident.span)
+      // Synthesize extension def: extension <Name>[T, ...](this: <Name>[T, ...]) ...
+      val extName = Ident(enumDef.ident.name)(enumDef.ident.span)
       val paramType: TypeTree =
         if enumDef.tparams.isEmpty then enumDef.ident
         else AppliedType(enumDef.ident, enumDef.tparams.map(_.ident))(enumDef.span)
       val thisParam = Param(Ident("this")(enumDef.span), paramType)(enumDef.span)
       val extDef = ExtensionDef(extName, enumDef.tparams, thisParam, enumDef.funs)(enumDef.span)
 
-      // Type alias: type <Name>[T, ...] = extend (A | B | ...) with <Name>$Ext
-      val extType = ExtensionType(unionType, extName, Nil)(enumDef.span)
+      // Type alias: type <Name>[T, ...] = (A | B | ...) :+ [<Name>.m1, ...]
+      val methodRefs: List[(RefTree, Boolean)] =
+        enumDef.funs.map: fun =>
+          (Select(extName, fun.ident.name)(enumDef.span), false)
+
+
+      val extType = ExtensionType(unionType, methodRefs)(enumDef.span)
       val tdef = TypeDef(enumDef.ident, enumDef.tparams, extType, preParamCount = 0)(enumDef.span)
           .copyAttachments(enumDef)
       tdef :: extDef :: classDefs.toList
@@ -211,6 +239,7 @@ object Desugaring:
     else
       val tdef = TypeDef(enumDef.ident, enumDef.tparams, unionType, preParamCount = 0)(enumDef.span)
           .copyAttachments(enumDef)
+
       tdef :: classDefs.toList
 
   /** Desugar a data class definition
@@ -464,10 +493,6 @@ object Desugaring:
   /* Desugaring views
    *
    * 1. Direct views
-   *
-   *    From
-   *
-   *        view T
    *
    *    Direct views are NOT desugared into fields. They remain in the ClassDef's
    *    views list so that Namer can collect them and store them in ClassInfo.directViews.

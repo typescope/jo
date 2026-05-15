@@ -2089,24 +2089,30 @@ class Namer(using Config) extends Applications with SelectionTyper:
         val lambdaType = LambdaType(paramTypes2, resTypeChecked, effs)
         TypeTree(lambdaType)(tpt.span)
 
-      case Ast.ExtensionType(baseTpt, extRef, overrideIdents) =>
+      case Ast.ExtensionType(baseTpt, methodEntries) =>
         // Type-check the base type
         val baseTree = transformValueType(baseTpt)
         val baseType = baseTree.tpe
 
-        // Resolve the extension name to a container symbol
-        resolveContainer(extRef) match
-          case Some(extSym) if extSym.is(Flags.Section) =>
-            val methods = extSym.nameTable.terms
-            lazy val extensionsChecked = Extensions.check(methods, baseType, extRef.pos)
-            Checks.add { extensionsChecked }
-            Checks.add { Extensions.checkOverrides(extensionsChecked, baseType, overrideIdents, extRef.pos) }
-            val extensionType = ExtensionType(baseType)(() => extensionsChecked)
-            TypeTree(extensionType)(tpt.span)
+        // Resolve each method reference to a symbol
+        lazy val extensionsChecked =
+          val resolved = methodEntries.flatMap: (ref, isOverride) =>
+            resolveQualid(ref, Universe.Term) match
+              case Some(sym) =>
+                if Extensions.checkMethod(sym, baseType, ref.pos) then
+                  Some(sym -> isOverride)
+                else
+                  None
+              case None =>
+                Reporter.error(s"Cannot find method ${ref.show}", ref.pos)
+                None
 
-          case _ =>
-            Reporter.error(s"Cannot find extension ${extRef.show}", extRef.pos)
-            TypeTree(ErrorType)(tpt.span)
+          Extensions.checkOverrides(resolved, baseType, baseTpt.pos)
+          resolved.map(_._1)
+
+        Checks.add { extensionsChecked }
+        val extensionType = ExtensionType(baseType)(() => extensionsChecked)
+        TypeTree(extensionType)(tpt.span)
 
       case Ast.AnnotType(innerTpt, astAnnot) =>
         val baseTree = transformValueType(innerTpt)
