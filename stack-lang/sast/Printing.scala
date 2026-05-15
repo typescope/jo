@@ -402,7 +402,7 @@ object Printing:
         val adapterTexts = duckType.adapters.map:
           case ParamAdapter.Function(sym) => Text(sym.name)
           case ParamAdapter.Member(name) => "." ~ name
-        "like " ~ baseType ~ " with [" ~ adapterTexts.join(", ") ~ "]"
+        baseType ~ " :- [" ~ adapterTexts.join(", ") ~ "]"
 
       case ext @ ExtensionType(base) =>
         "extend " ~ base ~ " with [" ~ ext.extensions.join(", ") ~ "]"

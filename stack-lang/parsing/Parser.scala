@@ -1852,6 +1852,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           val span = branches.head.span | branches.last.span
           UnionType(branches.toList)(span)
 
+
+        case Token.Operator(":-") =>
+          next()
+          val adapters = adapterList()
+          val endSpan =
+            if adapters.isEmpty then
+              tp.span
+            else
+              adapters.last.span
+
+          DuckType(tp, adapters)(tp.span | endSpan)
+
         case _ =>
           val tps = mutable.ArrayBuffer[TypeTree](tp)
 
@@ -1951,14 +1963,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
         else
           id
-
-      case Token.LIKE =>
-        val likeToken = next()
-        val targetType = simpleType(prevType = null)
-        eat(Token.WITH)
-        val adapters = adapterList()
-        val endSpan = if adapters.isEmpty then targetType.span else adapters.last.span
-        DuckType(targetType, adapters)(likeToken.span | endSpan)
 
       case Token.EXTEND =>
         val extendToken = next()

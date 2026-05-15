@@ -300,6 +300,7 @@ sequence_item = pattern
 (*================================ types =====================================*)
 
 type = simple_type {"|" simple_type}                        -- union_type
+     | simple_type ":-" "[" adapter_list "]"                -- duck_type
      | simple_type {simple_type}                            -- expr_type
      | param_types "=>" type [receive_params]               -- lambda_type
 
@@ -309,7 +310,6 @@ simple_type = atom_type
 
 atom_type = qualid
           | qualid "[" type {"," type} "]"                  -- applied_type
-          | "like" type "with" "[" adapter_list "]"         -- duck_type
           | "extend" type "with" qualid                     -- extension_type
           | "(" type ")"
 
