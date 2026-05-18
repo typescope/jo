@@ -7,7 +7,7 @@ type Mapper[T] = T => String
 class Box(value: Int)
 
 // U is completely unused — it does not appear in any parameter or result
-extension Phantom[T, U](it: T)
+extension Phantom[T, U] for T
   def show: String = "phantom"
 
 type PhantomBox = Box :+ [Phantom.show]

@@ -6,7 +6,7 @@
 ---------- Error at tests/warn/extension-check.jo:13:21 ---------------
 | type Bad2 = Int :+ [StringOps.reverse]
 |                     ^^^^^^^^^^^^^^^^^
-|                     Base type Int does not conform to parameter type String of extension method reverse
+|                     Base type Int does not conform to parameter type StringOps of extension method reverse
 
 ---------- Error at tests/warn/extension-check.jo:23:36 ---------------
 | type Bad3 = Int :+ [BoxOps.negate, BoxOps.get]

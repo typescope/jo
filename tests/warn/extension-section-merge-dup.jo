@@ -9,6 +9,6 @@ section BoxOps
 end
 
 // Extension def comes after — its generated synthetic section should merge into the user section above
-extension BoxOps(it: Box)
-  def get: Int = it.value  // duplicate: error position should be here (synthetic is secondary)
+extension BoxOps for Box
+  def get: Int = this.value  // duplicate: error position should be here (synthetic is secondary)
 end

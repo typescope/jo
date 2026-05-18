@@ -2,7 +2,7 @@
 class Foo
   def show: String = "Foo"
 
-extension FooOps(it: Foo)
+extension FooOps for Foo
   def show: String = "FooOps"
 
 type ExtFoo = Foo :+ [FooOps.show]
@@ -17,7 +17,7 @@ class Bar
   view Displayable
 end
 
-extension BarOps(it: Bar)
+extension BarOps for Bar
   def display: String = "BarOps"
 
 type ExtBar = Bar :+ [BarOps.display]
@@ -31,7 +31,7 @@ class Baz(logger: Loggable)
   view Loggable = logger
 end
 
-extension BazOps(it: Baz)
+extension BazOps for Baz
   def log: String = "BazOps"
 
 type ExtBaz = Baz :+ [BazOps.log]
@@ -40,7 +40,7 @@ type ExtBaz = Baz :+ [BazOps.log]
 class Qux
   def run: String = "Qux"
 
-extension QuxOps(it: Qux)
+extension QuxOps for Qux
   def run: String = "QuxOps"
   def extra: String = "extra"
 

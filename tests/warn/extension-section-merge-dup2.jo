@@ -3,8 +3,8 @@
 
 class Box(value: Int)
 
-extension BoxOps(it: Box)
-  def get: Int = it.value
+extension BoxOps for Box
+  def get: Int = this.value
 end
 
 section BoxOps

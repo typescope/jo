@@ -6,8 +6,8 @@ end
 type Bad1 = Int :+ [NotExtension.notExtMethod]
 
 // Case 2: base type does not conform to extension parameter type (monomorphic)
-extension StringOps(it: String)
-  def reverse: String = it
+extension StringOps for String
+  def reverse: String = this
 end
 
 type Bad2 = Int :+ [StringOps.reverse]
