@@ -2141,7 +2141,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
               resolveQualid(ref, Universe.Term) match
                 case Some(sym) =>
                   val isOverride = sym.hasAnnotation(defn.shadow)
-                  if Extensions.checkMethod(sym, baseType, isOverride, fromAnnotation = true, ref.pos) then
+                  if Extensions.checkMethod(sym, baseType, isOverride, fromAnnotation = true, sym.sourcePos) then
                     Some(sym)
                   else None
                 case None =>
