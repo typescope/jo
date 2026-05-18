@@ -1,10 +1,10 @@
 ---------- Error at tests/custom/python-annot-negative/targetname-on-extension.jo:2:11 ---------------
-| extension Foo[T](x: T)
+| extension Foo[T] for T
 |           ^^^
 |           @py.targetName is only valid on abstract methods of a @py.interop interface
 
 ---------- Error at tests/custom/python-annot-negative/targetname-on-extension.jo:2:11 ---------------
-| extension Foo[T](x: T)
+| extension Foo[T] for T
 |           ^^^
 |           @py.targetName is only valid on abstract methods of a @py.interop interface
 
