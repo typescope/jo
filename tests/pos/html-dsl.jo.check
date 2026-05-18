@@ -1,1 +1,113 @@
-<div id="app"><h1>Welcome to Jo</h1><p class="intro">A statically typed functional language.</p><h2>Features</h2><ul><li>Pattern matching</li><li>Effect system</li><li>Union types</li></ul><p>Learn more at <a href="https://example.com">example.com</a></p></div>
+<!DOCTYPE html><html lang="en"><head><title>Pixel Bloom</title><style>:root {
+  color-scheme: light;
+  --bg: #f5efe2;
+  --ink: #1f1c18;
+  --panel: #fffaf0;
+  --stage: #10131d;
+}
+
+body {
+  margin: 0;
+  font-family: Georgia, serif;
+  background: radial-gradient(circle at top, #fff6db, var(--bg) 55%);
+  color: var(--ink);
+}
+
+#app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 24px 64px;
+}
+
+.intro {
+  max-width: 42ch;
+  line-height: 1.5;
+}
+
+.art-card {
+  margin: 32px 0;
+  padding: 24px;
+  border: 2px solid rgba(31, 28, 24, 0.12);
+  border-radius: 24px;
+  background: var(--panel);
+  box-shadow: 0 18px 40px rgba(87, 55, 22, 0.08);
+}
+
+.stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 240px;
+  margin: 24px 0 16px;
+  border-radius: 28px;
+  background: linear-gradient(160deg, #121826, #1a2233 55%, #0b0f17);
+  overflow: hidden;
+}
+
+.stage::before {
+  content: "";
+  position: absolute;
+  width: 190px;
+  height: 190px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255, 162, 102, 0.32), rgba(255, 162, 102, 0) 68%);
+  filter: blur(8px);
+}
+
+.grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 28px);
+  gap: 12px;
+  transform: rotate(45deg);
+  animation: spin 10s linear infinite;
+}
+
+.pixel {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  opacity: 0.9;
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.08);
+  animation: bloom 1.8s ease-in-out infinite;
+}
+
+.p1 { background: #ff8a5b; animation-delay: 0s; }
+.p2 { background: #ffd166; animation-delay: 0.2s; }
+.p3 { background: #7bd389; animation-delay: 0.4s; }
+.p4 { background: #48bfe3; animation-delay: 0.6s; }
+.p5 { background: #8093f1; animation-delay: 0.8s; }
+.p6 { background: #f07dea; animation-delay: 1s; }
+.p7 { background: #fb6f92; animation-delay: 1.2s; }
+.p8 { background: #ffb86c; animation-delay: 1.4s; }
+.p9 { background: #9bf6ff; animation-delay: 1.6s; }
+
+.caption {
+  margin: 0;
+  text-align: center;
+  font-style: italic;
+}
+
+section {
+  margin-top: 28px;
+}
+
+@keyframes bloom {
+  0%, 100% {
+    transform: scale(0.72);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.14);
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(45deg);
+  }
+  to {
+    transform: rotate(405deg);
+  }
+}</style></head><body><div id="app"><h1>Pixel Bloom</h1><p class="intro">A small computer-art sketch rendered from a Jo HTML DSL.</p><div class="art-card" id="art"><h2>Rotating Mosaic</h2><div class="stage" aria-hidden="true"><div class="grid"><span class="pixel p1"></span><span class="pixel p2"></span><span class="pixel p3"></span><span class="pixel p4"></span><span class="pixel p5"></span><span class="pixel p6"></span><span class="pixel p7"></span><span class="pixel p8"></span><span class="pixel p9"></span></div></div><p class="caption">Nine glowing tiles bloom on staggered timing while the board turns.</p></div><section id="palette"><h2>Palette</h2><p>Warm paper around the frame, a midnight stage in the center, and ember, mint, coral, and sky colors pulsing inside the grid.</p></section><section id="loop"><h2>Loop</h2><p>The tiles breathe in place while the whole mosaic rotates slowly, so the pattern never settles into the same pose twice.</p></section><section id="notes"><h2>Notes</h2><p>The page keeps the structure readable by moving the animation CSS into <code>pageStyles</code> and using the DSL only for the document tree.</p></section><p>Jump to the <a href="#loop">loop notes</a> or back to the <a href="#art">art board</a></p></div></body></html>
