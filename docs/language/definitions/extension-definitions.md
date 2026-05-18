@@ -1,6 +1,6 @@
 # Extension Definitions
 
-Extension definitions declare methods that can be attached to types via the `:+` operator.
+Extension definitions allow adding behavior to existing types.
 
 ## Syntax
 
@@ -57,8 +57,7 @@ section Ext
 end
 ```
 
-The TypeDef base uses the original annotation (`Box[T]`), which avoids circularity. The section
-pre-param uses the generated alias type (`Ext[T]`), so all sibling extension methods are
+The pre-parameter uses the generated alias type (`Ext[T]`), so all sibling extension methods are
 available on `this` via dot syntax:
 
 ```jo
@@ -80,7 +79,7 @@ extension BoxOps[T] for Box[T]
 end
 ```
 
-See [Extension Types](../types/extension-types.md) for the `!` marker used in user-written `:+` expressions.
+See [Extension Types](../types/extension-types.md) for the `!` marker used in manually creating extension types.
 
 ## Section Merging
 
@@ -100,19 +99,6 @@ end
 val opt = OptionOps.from(42)
 println opt.isEmpty  // false
 ```
-
-The same applies to union definitions with methods: the generated section merges
-with any user-defined section of the same name in the same scope.
-
-## Validation at Attachment Sites
-
-When an extension definition is attached via a `:+` expression:
-
-- Each method must have a pre-parameter.
-- The base type must conform to the method's pre-parameter type.
-- Shadow warnings are emitted per method (suppressed by `@shadow` or `!`).
-
-The extension definition itself is reusable; base-type compatibility is checked when attached.
 
 ## See Also
 
