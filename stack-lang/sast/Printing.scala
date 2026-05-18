@@ -478,11 +478,7 @@ object Printing:
             case effs: List[Symbol] => showEffects(effs)
 
 
-        val receivesText =
-          procType.receivesInfo match
-            case info: ReceivesInfo => showInfo(info)
-            case lazyInfo: LazyReceivesInfo => showInfo(lazyInfo())
-
+        val receivesText = showInfo(procType.receivesInfo)
         tparamText ~ preText ~ postText ~ autoText ~ ": " ~ resType ~ receivesText
 
       case LambdaType(params, resType, receives) =>

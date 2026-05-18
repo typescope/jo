@@ -1270,7 +1270,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         autos = Nil,
         candidates = Nil,
         resultType = VoidType,
-        receivesInfo = () => Nil,
+        receivesInfo = Nil,
         preParamCount = 0,
         preTypeParamCount = 0
       )(() => defaults)
@@ -1473,16 +1473,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
     lazy val annotations =
       transformAnnotations(funDef.annotations, funSym)
 
-    /* The effects of a method symbol stored in the type is different from those
-     * raw effects computed from the code due to the auto provision of optional
-     * context parameters.
-     */
-    val receivesInfo: () => (Symbol | List[Symbol]) = () =>
-      effectPolicy.bound match
-        case Some(effs) => effs
-        case None =>
-          if funSym.is(Flags.Defer) then Nil else funSym
-
     // Eagerly validate post-parameter default shape (syntax-only check)
     val astPostParams = funDef.params.drop(funDef.preParamCount)
     Defaults.validatePostDefaultShape(astPostParams)
@@ -1493,6 +1483,15 @@ class Namer(using Config) extends Applications with SelectionTyper:
       val postParamSyms = paramSyms.drop(funDef.preParamCount)
       lazy val defaults = Defaults.checkPostDefaults(astPostParams, postParamSyms, this)
       Checks.add { defaults }
+
+      /* The effects of a method symbol stored in the type is different from those
+       * raw effects computed from the code due to the auto provision of optional
+       * context parameters.
+       */
+      val receivesInfo: Symbol | List[Symbol] =
+        effectPolicy.bound match
+          case Some(effs) => effs
+          case None => funSym
 
       ProcType(
         tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), candidateSymbols,
