@@ -47,8 +47,8 @@ def strong(args: ..HtmlArg): Node = el("strong", ..args)
 def code(args: ..HtmlArg): Node = el("code", ..args)
 
 def renderAttr(attr: String ~ String): String =
-  match attr
-    case k ~ v => " " + k + "=\"" + v + "\""
+  val k ~ v = attr
+  " " + k + "=\"" + v + "\""
 
 def renderNode(node: Node): String =
   match node
