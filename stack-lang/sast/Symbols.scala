@@ -131,10 +131,13 @@ object Symbols:
       _annotations = annots
       this
 
-    def annotation(annot: Symbol): Option[Annotation] =
+    def annotation(annot: Symbol)(using defn: Definitions): Option[Annotation] =
+      // force symbol to make sure annotations are attached
+      val _ = this.info
       _annotations.find(_.symbol == annot)
 
-    def hasAnnotation(annot: Symbol): Boolean = annotation(annot).nonEmpty
+    def hasAnnotation(annot: Symbol)(using defn: Definitions): Boolean =
+      annotation(annot).nonEmpty
 
     /** Whether this symbol is an extension method (has 1 pre-parameter) */
     def isExtensionMethod(using Definitions): Boolean =
