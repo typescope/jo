@@ -5,10 +5,10 @@
 class Text(content: String)
 class Element(tag: String, attrs: List[String ~ String], children: List[Node])
 
-type Node = Text | Element
-type HtmlArg = (String ~ String) | Text | Element
+type Node = (Text | Element) :- [t]
+type HtmlArg = ((String ~ String) | Text | Element) :- [t]
 
-def t(content: String): Node = new Text(content)
+def t(content: String): Text = new Text(content)
 
 def el(tag: String, args: ..HtmlArg): Node =
   var attrs: List[String ~ String] = []
@@ -53,19 +53,19 @@ def main =
   val doc =
     div:
       "id" ~ "app"
-      h1: t("Welcome to Jo")
+      h1: "Welcome to Jo"
       p:
         "class" ~ "intro"
-        t: "A statically typed functional language."
-      h2: t("Features")
+        "A statically typed functional language."
+      h2: "Features"
       ul:
-        li: t("Pattern matching")
-        li: t("Effect system")
-        li: t("Union types")
+        li: "Pattern matching"
+        li: "Effect system"
+        li: "Union types"
       p:
-        t: "Learn more at "
+        "Learn more at "
         a:
           "href" ~ "https://example.com"
-          t: "example.com"
+          "example.com"
 
   println: renderNode(doc)
