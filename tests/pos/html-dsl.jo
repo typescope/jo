@@ -218,11 +218,17 @@ def main =
           sec:
             "id" := "palette"
             h2: "Palette"
-            p: "Warm paper around the frame, a midnight stage in the center, and ember, mint, coral, and sky colors pulsing inside the grid."
+            p: """
+               Warm paper around the frame, a midnight stage in the center, and
+               ember, mint, coral, and sky colors pulsing inside the grid.
+               """
           sec:
             "id" := "loop"
             h2: "Loop"
-            p: "The tiles breathe in place while the whole mosaic rotates slowly, so the pattern never settles into the same pose twice."
+            p: """
+               The tiles breathe in place while the whole mosaic rotates slowly,
+               so the pattern never settles into the same pose twice.
+               """
           sec:
             "id" := "notes"
             h2: "Notes"
