@@ -1971,7 +1971,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         case _ => atom
 
     var tpt: TypeTree = tp
-    while peek() == Token.AT && atomStart.indent.isIndentOrSameLine(peekItem().indent) do
+    while peek() == Token.AT && atomStart.indent.isSameLine(peekItem().indent) do
       val annot = parseOneAnnotation()
       tpt = AnnotType(tpt, annot)(tpt.span | annot.span)
     tpt
