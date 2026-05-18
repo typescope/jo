@@ -9,9 +9,9 @@ Extension types allow adding methods to a type, enabling the dot syntax for meth
 2. **Adding behavior to existing types.** Sometimes you want to add methods to a type you don't control, or enrich a type with domain-specific operations without modifying its definition.
 
 ```jo
-extension ResultOps(it: Int | String)
+extension ResultOps for Int | String
   def toString: String =
-    match it
+    match this
       case n: Int => n.toString
       case s: String => s
     end
@@ -40,7 +40,7 @@ type Option[T] = (Some[T] | None) :+ [Option.isEmpty, Option.getOrElse]
 
 section Option
   def [T](it: Some[T] | None) isEmpty: Bool =
-    match it
+    match this
       case Some(_) => false
       case None => true
     end
@@ -63,7 +63,7 @@ type ExtBox[T] = Box[T] :+ [BoxOps.show!]
 When writing an extension definition, use `@shadow` on the method instead:
 
 ```jo
-extension BoxOps[T](it: Box[T])
+extension BoxOps[T] for Box[T]
   @shadow
   def show: String = "BoxOps.show"  // intentionally shadows Box[T].show
 
@@ -117,10 +117,10 @@ For union types (the primary use case), step 2 never succeeds because union type
 Extension methods can call other extension methods through the `it` parameter, because `it` has the extension type:
 
 ```jo
-extension OptionOps[T](it: Option[T])
-  def isEmpty: Bool = it is None
+extension OptionOps[T] for Option[T]
+  def isEmpty: Bool = this is None
 
-  def isDefined: Bool = ! it.isEmpty  // Calls isEmpty through extension
+  def isDefined: Bool = ! this.isEmpty  // Calls isEmpty through extension
 end
 ```
 
@@ -129,9 +129,9 @@ end
 Extension methods participate in duck type member adapters, enabling union types to work with adaptation:
 
 ```jo
-extension Option[T](it: Option[T])
+extension Option[T] for Option[T]
   def toString(auto print: T => String with [[T].toString]): String =
-    match it
+    match this
       case Some(v) => "Some(" + print(v) + ")"
       case None => "None"
     end
@@ -146,9 +146,9 @@ println(opt)  // .toString found through extension → "Some(42)"
 Auto parameter member candidates (e.g., `[T].toString`) can resolve to extension methods when `T` is an extension type. This means extension methods are visible not only through direct dot syntax, but also through auto parameter resolution:
 
 ```jo
-extension StringOrInt(it: String | Int)
+extension StringOrInt for String | Int
   @shadow def toString: String =
-    match it
+    match this
       case s: String => s
       case x: Int => x.toString
 

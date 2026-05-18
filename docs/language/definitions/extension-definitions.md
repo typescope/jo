@@ -11,9 +11,9 @@ extension_def = "extension" ident [type_params] "(" ident ":" type ")" {method} 
 Example:
 
 ```jo
-extension OptionOps[T](it: Some[T] | None)
+extension OptionOps[T] for Some[T] | None
   def isEmpty: Bool =
-    match it
+    match this
       case Some(_) => false
       case None => true
     end
@@ -25,7 +25,7 @@ end
 An extension definition can declare type parameters and exactly one receiver parameter.
 
 ```jo
-extension BoxOps[T](it: Box[T])
+extension BoxOps[T] for Box[T]
   def map[S](f: T => S): = ...
 end
 ```
@@ -40,7 +40,7 @@ An extension definition desugars to a generated type alias plus a section:
 
 ```jo
 // Source
-extension Ext[T](it: Box[T])
+extension Ext[T] for Box[T]
   def foo(x: Int): Int = ...
   def bar[S](f: T -> S): S = ...
 end
@@ -62,9 +62,9 @@ pre-param uses the generated alias type (`Ext[T]`), so all sibling extension met
 available on `it` via dot syntax:
 
 ```jo
-extension Option[T](it: Some[T] | None)
-  def isEmpty: Bool = it is None
-  def isDefined: Bool = !it.isEmpty     // works: it has type Option[T]
+extension Option[T] for Some[T] | None
+  def isEmpty: Bool = this is None
+  def isDefined: Bool = !this.isEmpty     // works: it has type Option[T]
 end
 ```
 
@@ -74,7 +74,7 @@ When an extension method has the same name as a member of the base type, the com
 at the generated type alias. Mark the method with `@shadow` to suppress the warning:
 
 ```jo
-extension BoxOps[T](it: Box[T])
+extension BoxOps[T] for Box[T]
   @shadow def show: String = "BoxOps.show"  // intentionally shadows Box[T].show
   def extra: String = "extra"
 end
@@ -88,8 +88,8 @@ The generated section has the same name as the extension definition. If a user-d
 `section` of the same name exists in the same scope, the two are merged automatically:
 
 ```jo
-extension OptionOps[T](it: Some[T] | None)
-  def isEmpty: Bool = it is None
+extension OptionOps[T] for Some[T] | None
+  def isEmpty: Bool = this is None
 end
 
 // Adds factory methods to the same OptionOps namespace — no conflict

@@ -302,7 +302,7 @@ log 42                            // 42.toString applied automatically
 
 ```jo
 // define an extension
-extension ListOps[T](xs: List[T])
+extension ListOps[T] for List[T]
   def isEmpty: Bool = xs is []
   def head: T = match xs case [x, .._] => x
 end

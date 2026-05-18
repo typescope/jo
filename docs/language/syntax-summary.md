@@ -355,7 +355,7 @@ val_decl = ("val" | "var") name ":" type ["=" block]
 union_def = "union" name [tparams] "=" branch {"|" branch} {qualifier def_def} ["end"]
 branch = name [param_section]
 
-extension_def = "extension" name [tparams] "(" name ":" type ")" {qualifier def_def} ["end"]
+extension_def = "extension" name [tparams] "for" type {qualifier def_def} ["end"]
 
 param_def = "param" param ["=" block]
 
