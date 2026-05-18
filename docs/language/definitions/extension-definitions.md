@@ -52,19 +52,19 @@ desugars to:
 type Ext[T] = Box[T] :+ [Ext.foo, Ext.bar]
 
 section Ext
-  def [T](it: Ext[T]) foo(x: Int): Int = ...
-  def [T](it: Ext[T]) bar[S](f: T -> S): S = ...
+  def [T](this: Ext[T]) foo(x: Int): Int = ...
+  def [T](this: Ext[T]) bar[S](f: T -> S): S = ...
 end
 ```
 
 The TypeDef base uses the original annotation (`Box[T]`), which avoids circularity. The section
 pre-param uses the generated alias type (`Ext[T]`), so all sibling extension methods are
-available on `it` via dot syntax:
+available on `this` via dot syntax:
 
 ```jo
 extension Option[T] for Some[T] | None
   def isEmpty: Bool = this is None
-  def isDefined: Bool = !this.isEmpty     // works: it has type Option[T]
+  def isDefined: Bool = !this.isEmpty     // works: this has type Option[T]
 end
 ```
 
