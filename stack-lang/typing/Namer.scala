@@ -1130,13 +1130,17 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val flags = Checker.checkModifiers(pdef) | Flags.Context | extraFlags
 
     val paramSym = TermSymbol.create(pdef.name, flags, Checker.visibility(pdef, sc.owner), sc.owner, pdef.pos)
-    ip.addLazy(paramSym, () => transformValueType(pdef.tpt).tpe)
+    ip.addLazy(paramSym, () => {
+      annotations
+      transformValueType(pdef.tpt).tpe
+    })
+
+    lazy val annotations = transformAnnotations(pdef.annotations, paramSym)
 
     val paramDefSast = () =>
       defn.setDocComment(paramSym, pdef.docComment)
       val tpt = TypeTree(paramSym.tpe)(pdef.tpt.span)
-      val annotApplies = transformAnnotations(pdef.annotations, paramSym)
-      ParamDef(paramSym, tpt)(annotApplies, pdef.span)
+      ParamDef(paramSym, tpt)(annotations, pdef.span)
 
     DelayedDef(paramSym, paramDefSast) :: Nil
 
@@ -1374,7 +1378,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
   private def transformFunDef(funDef: Ast.FunDef, initialFlags: Flags, policy: Effects.Policy)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[FunDef] =
-
     val extraFlags = funDef.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
     val flags = Checker.checkModifiers(funDef) | initialFlags | extraFlags
 
@@ -1463,6 +1466,9 @@ class Namer(using Config) extends Applications with SelectionTyper:
       else
         transformReceives(funDef.receives, policy)
 
+    lazy val annotations =
+      transformAnnotations(funDef.annotations, funSym)
+
     /* The effects of a method symbol stored in the type is different from those
      * raw effects computed from the code due to the auto provision of optional
      * context parameters.
@@ -1478,6 +1484,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
     Defaults.validatePostDefaultShape(astPostParams)
 
     def computeInfo(resultType: Type) =
+      annotations
       val candidateSymbols = candidates.map(_._2)
       val postParamSyms = paramSyms.drop(funDef.preParamCount)
       lazy val defaults = Defaults.checkPostDefaults(astPostParams, postParamSyms, this)
@@ -1494,8 +1501,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       defn.setDocComment(funSym, funDef.docComment)
       val candidateTrees = candidates.map(_._1)
       val tpt = TypeTree(resultType)(funDef.resultType.span)
-      val annotApplies = transformAnnotations(funDef.annotations, funSym)
-      FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(annotApplies, funDef.span)
+      FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(annotations, funDef.span)
 
     DelayedDef(funSym, typer)
 
@@ -1586,6 +1592,8 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
       Block(words.toList)(funDef.body.span)
 
+    lazy val annotations = transformAnnotations(funDef.annotations, funSym)
+
     lazy val typedBody =
       paramSyms
       autoSyms
@@ -1602,6 +1610,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     val tparamSyms = Nil
     def computeInfo(resultType: Type) =
+      annotations
       val candidateSymbols = candidates.map(_._2)
       lazy val defaults = Defaults.checkPostDefaults(astPostParams, paramSyms, this)
       Checks.add { defaults }
@@ -1617,8 +1626,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       defn.setDocComment(funSym, funDef.docComment)
       val candidateTrees = candidates.map(_._1)
       val tpt = TypeTree(resultType)(funDef.resultType.span)
-      val annotApplies = transformAnnotations(funDef.annotations, funSym)
-      FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(annotApplies, funDef.span)
+      FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(annotations, funDef.span)
 
     DelayedDef(funSym, typer)
 
@@ -1672,7 +1680,11 @@ class Namer(using Config) extends Applications with SelectionTyper:
         else
           rhs
 
+
+    lazy val annotations = transformAnnotations(tdef.annotations, typeSym)
+
     def computeInfo(): Denotation =
+      annotations
       if tdef.tparams.isEmpty then
         rhsType
       else
@@ -1689,8 +1701,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val typer = () =>
       defn.setDocComment(typeSym, tdef.docComment)
       val tpt = TypeTree(rhsType)(tdef.rhs.span)
-      val annotApplies = transformAnnotations(tdef.annotations, typeSym)
-      TypeDef(typeSym, tparamSyms, tpt)(annotApplies, tdef.span)
+      TypeDef(typeSym, tparamSyms, tpt)(annotations, tdef.span)
 
     DelayedDef(typeSym, typer)
 
@@ -1724,7 +1735,12 @@ class Namer(using Config) extends Applications with SelectionTyper:
       cdef.views.map: vdecl =>
         transformValueType(vdecl.tpe)
 
+    lazy val annotations =
+      given Definitions = lazyDefn.value
+      transformAnnotations(cdef0.annotations, classSym)
+
     lazy val classInfo: Denotation =
+      annotations
       val directViews = directViewTrees.map(_.tpe)
 
       new ClassInfo(
@@ -1762,10 +1778,13 @@ class Namer(using Config) extends Applications with SelectionTyper:
       val sym = TermSymbol.create(vdef.name, flags, Checker.visibility(vdef, classSym), classSym, vdef.ident.pos)
       shortCutScope.define(sym)
 
+      lazy val annotations =
+        given Definitions = lazyDefn.value
+        transformAnnotations(vdef.annotations, sym)
+
       lazy val fieldDecl: FieldDecl =
         given defn: Definitions = lazyDefn.value
         defn.setDocComment(sym, vdef.docComment)
-        val annotApplies = transformAnnotations(vdef.annotations, sym)
 
         val tpt =
           if vdef.tpt.isEmpty then
@@ -1779,9 +1798,11 @@ class Namer(using Config) extends Applications with SelectionTyper:
           else
             transformValueType(vdef.tpt)
 
-        FieldDecl(sym, tpt)(vdef.span, annotApplies)
+        FieldDecl(sym, tpt)(vdef.span, annotations)
 
-      def checkType() = fieldDecl.tpt.tpe
+      def checkType() =
+        annotations
+        fieldDecl.tpt.tpe
 
       if vdef.name == cdef.name then
         Reporter.error("Class name cannot be used as field name", vdef.pos)
@@ -1821,7 +1842,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val typer = () =>
       given defn: Definitions = lazyDefn.value
       defn.setDocComment(classSym, cdef0.docComment)
-      val annotApplies = transformAnnotations(cdef0.annotations, classSym)
 
       val fields: List[FieldDecl] =
         for delayedField <- delayedFields.toList yield delayedField.force()
@@ -1829,7 +1849,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       val funs: List[FunDef] =
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
-      ClassDef(classSym, thisSym, tparamSyms, fields, funs, directViewTrees)(annotApplies, cdef.span)
+      ClassDef(classSym, thisSym, tparamSyms, fields, funs, directViewTrees)(annotations, cdef.span)
 
     DelayedDef(classSym, typer)
 
@@ -1850,7 +1870,12 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     val methods = new mutable.ArrayBuffer[Symbol]
 
+    lazy val annotations =
+      given Definitions = lazyDefn.value
+      transformAnnotations(idef.annotations, interfaceSym)
+
     lazy val interfaceInfo: Denotation =
+      annotations
       // Reuse ClassInfo but with empty fields
       new ClassInfo(
         interfaceSym,
@@ -1905,8 +1930,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       val methodDefs: List[FunDef] =
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
-      val annotApplies = transformAnnotations(idef.annotations, interfaceSym)
-      InterfaceDef(interfaceSym, selfSym, tparamSyms, methodDefs)(annotApplies, idef.span)
+      InterfaceDef(interfaceSym, selfSym, tparamSyms, methodDefs)(annotations, idef.span)
 
     DelayedDef(interfaceSym, typer)
 
@@ -1924,13 +1948,16 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val delayedDefs = index(section.defs)
     nameTable.freeze()
 
+    lazy val annotations =
+      given Definitions = lazyDefn.value
+      transformAnnotations(section.annotations, sym)
+
     lazy val sast =
       given defn: Definitions = lazyDefn.value
       defn.setDocComment(sym, section.docComment)
       val defs = for delayed <- delayedDefs.toList yield delayed.force()
-      val annotApplies = transformAnnotations(section.annotations, sym)
 
-      Section(sym, defs)(annotApplies, section.span)
+      Section(sym, defs)(annotations, section.span)
 
     DelayedDef(sym, () => sast)
 
