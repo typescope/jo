@@ -106,24 +106,28 @@ object Desugaring:
     * user-defined sections with the same name are left as-is for the Namer.
     */
   private def mergeSections(defs: List[Def]): List[Def] =
-    val syntheticNames = mutable.Set.empty[String]
-    val hasUserSection = mutable.Set.empty[String]
-    val mergedDefs = mutable.Map.empty[String, mutable.ArrayBuffer[Def]]
+    val userSections = mutable.Set.empty[String]
+    val syntheticDefs = mutable.Map.empty[String, mutable.ArrayBuffer[Def]]
 
     for case sec: Section <- defs do
-      if sec.hasKey(SyntheticSection) then syntheticNames += sec.name
-      else hasUserSection += sec.name
-      mergedDefs.getOrElseUpdate(sec.name, mutable.ArrayBuffer()) ++= sec.defs
+      if sec.hasKey(SyntheticSection) then
+        syntheticDefs.getOrElseUpdate(sec.name, mutable.ArrayBuffer()) ++= sec.defs
+      else
+        userSections += sec.name
 
-    val seen = mutable.Set.empty[String]
     defs.flatMap:
-      case sec: Section if syntheticNames(sec.name) =>
+      case sec: Section =>
         // Skip synthetic sections when a user section exists — it will emit the merged defs
-        if sec.hasKey(SyntheticSection) && hasUserSection(sec.name) then
-          Nil
-        else if seen.add(sec.name) then
-          sec.copy(defs = mergedDefs(sec.name).toList)(sec.span) :: Nil
-        else Nil
+        if sec.hasKey(SyntheticSection) then
+          if userSections.contains(sec.name) then
+            Nil
+          else
+            sec :: Nil
+
+        else if syntheticDefs.contains(sec.name) then
+          sec.copy(defs = sec.defs ++ syntheticDefs(sec.name).toList)(sec.span) :: Nil
+
+        else sec :: Nil
 
       case other =>
         other :: Nil
