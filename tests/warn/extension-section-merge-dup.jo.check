@@ -1,0 +1,15 @@
+---------- Error at tests/warn/extension-section-merge-dup.jo:13:7 ---------------
+|   def get: Int = it.value  // duplicate: error position should be here (synthetic is secondary)
+|       ^^^
+|       Redefinition of get
+|
+| The name `get` is already defined at tests/warn/extension-section-merge-dup.jo:8:7
+|   def get: Int = 0
+|       ^^^
+
+---------- Error at tests/warn/extension-section-merge-dup.jo:13:7 ---------------
+|   def get: Int = it.value  // duplicate: error position should be here (synthetic is secondary)
+|       ^^^
+|       Method get is not an extension method
+
+2 error(s), 0 warning(s)

@@ -1,0 +1,14 @@
+// When user section comes first, synthetic defs are merged INTO it (not the reverse).
+// A duplicate method name reveals which is the anchor via the error position.
+
+class Box(value: Int)
+
+// User section comes first
+section BoxOps
+  def get: Int = 0
+end
+
+// Extension def comes after — its generated synthetic section should merge into the user section above
+extension BoxOps(it: Box)
+  def get: Int = it.value  // duplicate: error position should be here (synthetic is secondary)
+end

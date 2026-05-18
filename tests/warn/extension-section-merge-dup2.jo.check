@@ -1,0 +1,10 @@
+---------- Error at tests/warn/extension-section-merge-dup2.jo:11:7 ---------------
+|   def get: Int = 0  // duplicate: synthetic.get is first; error position here
+|       ^^^
+|       Redefinition of get
+|
+| The name `get` is already defined at tests/warn/extension-section-merge-dup2.jo:7:7
+|   def get: Int = it.value
+|       ^^^
+
+1 error(s), 0 warning(s)

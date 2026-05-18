@@ -1,0 +1,12 @@
+// Extension def comes BEFORE the user section — synthetic still merges into user (not reverse).
+// Duplicate method name: error should be at the user section (it's secondary in document order).
+
+class Box(value: Int)
+
+extension BoxOps(it: Box)
+  def get: Int = it.value
+end
+
+section BoxOps
+  def get: Int = 0  // duplicate: synthetic.get is first; error position here
+end
