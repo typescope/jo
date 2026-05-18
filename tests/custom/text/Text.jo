@@ -1,10 +1,5 @@
 namespace jo
 
-//[ A rope-like data structure for efficient representation of large strings
-  !
-//]
-type Text = extend String | Text.Slice | Text.Concat with TextOps
-
 section Text
   class Slice(base: Text, from: Int, len: Int)
   class Concat(size: Int, lhs: Text, rhs: Text)
@@ -223,7 +218,10 @@ section Text
   end
 end
 
-extension TextOps(it: Text)
+//[ A rope-like data structure for efficient representation of large strings
+  !
+//]
+extension Text(it: String | Text.Slice | Text.Concat)
   def size: Int =
     match it
       case s: String => s.size
