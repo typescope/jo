@@ -1,0 +1,21 @@
+// Generated section from union def with methods merges with user-defined section
+
+union Option[T] = Some(value: T) | None
+  def isEmpty: Bool =
+    match this
+      case Some(_) => false
+      case None => true
+    end
+  end
+end
+
+// User-defined section with same name — should merge, not conflict
+section Option
+  def from[T](value: T): Option[T] = Some(value)
+end
+
+def main =
+  val opt: Option[Int] = Option.from(42)
+  val empty: Option[Int] = None
+  println opt.isEmpty
+  println empty.isEmpty
