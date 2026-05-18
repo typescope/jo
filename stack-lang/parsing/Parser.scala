@@ -948,10 +948,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val id = name()
     val tparams = typeParams()
 
-    // Parse exactly one parameter: (it: Type)
-    eat(Token.LPAREN)
-    val p = param(typeOptional = false)
-    eat(Token.RPAREN)
+    // Parse base type: "for" type
+    eat(Token.FOR)
+    val baseTpt = typ()
 
     // Parse methods (same as interface, but bodies are required)
     val members: List[FunDef] = repeated:
@@ -972,9 +971,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     val lastSpan =
       if members.nonEmpty then members.last.span
-      else p.span
+      else baseTpt.span
 
-    ExtensionDef(id, tparams, p, members)(extToken.span | lastSpan).withMods(mods)
+    ExtensionDef(id, tparams, baseTpt, members)(extToken.span | lastSpan).withMods(mods)
 
   def objectDef(mods: List[Modifier]): ObjectDef =
     val obj = eat(Token.OBJECT)

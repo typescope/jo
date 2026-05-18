@@ -157,12 +157,12 @@ object Desugaring:
         val targs = extDef.tparams.map(tp => Ident(tp.name)(tp.ident.span))
         AppliedType(Ident(extDef.ident.name)(extDef.ident.span), targs)(extDef.ident.span)
 
-    val aliasParam = Param(extDef.param.ident, aliasType)(extDef.param.span)
+    // Section pre-param is "this: AliasType" so sibling methods are visible on it
+    val thisParam = Param(Ident("this")(extDef.ident.span), aliasType)(extDef.ident.span)
 
-    // Section uses alias type as pre-param so sibling methods are visible on it
     val modifiedFuns =
       extDef.funs.map: fun =>
-        val newParams = aliasParam :: fun.params
+        val newParams = thisParam :: fun.params
         val newTparams = extDef.tparams ++ fun.tparams
         fun.copy(
           tparams = newTparams,
@@ -174,12 +174,12 @@ object Desugaring:
     val section = Section(extDef.ident, modifiedFuns)(extDef.span).copyAttachments(extDef)
     section.addKey(SyntheticSection, ())
 
-    // TypeDef uses original param type as base (not the alias — avoids circularity)
+    // TypeDef uses baseTpt as base (not the alias — avoids circularity)
     val methodRefs: List[(RefTree, Boolean) | RefTree] =
       extDef.funs.map: fun =>
         Select(extDef.ident, fun.ident.name)(fun.ident.span)
 
-    val extType = ExtensionType(extDef.param.tpt, methodRefs)(extDef.ident.span)
+    val extType = ExtensionType(extDef.baseTpt, methodRefs)(extDef.ident.span)
     val tdef = TypeDef(extDef.ident, extDef.tparams, extType, preParamCount = 0)(extDef.ident.span)
       .copyAttachments(extDef)
 
@@ -261,12 +261,11 @@ object Desugaring:
     val unionType = UnionType(branchTypes.toList)(enumDef.span)
 
     if enumDef.funs.nonEmpty then
-      // Desugar methods via ExtensionDef with unionType as the receiver type.
+      // Desugar methods via ExtensionDef with unionType as the base type.
       // desugarExtensionDef will:
       //   - use unionType as the TypeDef base (non-circular)
       //   - use the alias Name[T] as the Section pre-param (cross-method calls work)
-      val thisParam = Param(Ident("this")(enumDef.span), unionType)(enumDef.span)
-      val extDef = ExtensionDef(enumDef.ident, enumDef.tparams, thisParam, enumDef.funs)(enumDef.span)
+      val extDef = ExtensionDef(enumDef.ident, enumDef.tparams, unionType, enumDef.funs)(enumDef.span)
         .copyAttachments(enumDef)
 
       desugarExtensionDef(extDef) ++ classDefs.toList

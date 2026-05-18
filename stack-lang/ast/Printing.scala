@@ -224,7 +224,7 @@ object Printing:
           if edef.tparams.isEmpty then Text.Empty
           else "[" ~ edef.tparams.join(", ") ~ "]"
 
-        mods ~ "extension " ~ edef.name ~ tparams ~ "(" ~ edef.param ~ ")" ~ indent:
+        mods ~ "extension " ~ edef.name ~ tparams ~ " for " ~ edef.baseTpt ~ indent:
           edef.funs.join(Text.BlankLine)
 
       case odef: ObjectDef =>

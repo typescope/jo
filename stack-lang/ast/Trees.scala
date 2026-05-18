@@ -562,7 +562,7 @@ object Trees:
     * The parameter (e.g., `it`) binds the value of the base type; there is no `this`.
     */
   case class ExtensionDef
-    (ident: Ident, tparams: List[TypeParam], param: Param, funs: List[FunDef])
+    (ident: Ident, tparams: List[TypeParam], baseTpt: TypeTree, funs: List[FunDef])
     (val span: Span)
   extends Def:
     def name: String = ident.name
@@ -570,11 +570,11 @@ object Trees:
     def copy(
         ident: Ident = this.ident,
         tparams: List[TypeParam] = this.tparams,
-        param: Param = this.param,
+        baseTpt: TypeTree = this.baseTpt,
         funs: List[FunDef] = this.funs)
         (span: Span)
     : ExtensionDef =
-      ExtensionDef(ident, tparams, param, funs)(span).copyAttachments(this)
+      ExtensionDef(ident, tparams, baseTpt, funs)(span).copyAttachments(this)
 
   /** Representation of an object definition
     *
