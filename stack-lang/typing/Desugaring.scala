@@ -108,17 +108,28 @@ object Desugaring:
     *     type Name[T] = Base :+ [Name.m1, Name.m2]
     *
     *     section Name
-    *       def [T](it: Base) m1 (...) = ...
-    *       def [T](it: Base) m2 (...) = ...
+    *       def [T](it: Name[T]) m1 (...) = ...
+    *       def [T](it: Name[T]) m2 (...) = ...
     *
-    * The pre-parameter type is the original annotation (`it: Base`), not the
-    * generated alias — preserving the user's declared receiver type.
+    * The Section pre-param uses the generated alias type (`Name[T]`) so that
+    * sibling extension methods are visible on the receiver via dot syntax.
+    * The TypeDef base uses the original annotation (`Base`) to avoid circularity.
     */
   def desugarExtensionDef(extDef: ExtensionDef): List[Def] =
-    // Build section with pre-param methods
+    // Build alias type: Name or Name[T, ...]
+    val aliasType: TypeTree =
+      if extDef.tparams.isEmpty then
+        Ident(extDef.ident.name)(extDef.ident.span)
+      else
+        val targs = extDef.tparams.map(tp => Ident(tp.name)(tp.ident.span))
+        AppliedType(Ident(extDef.ident.name)(extDef.ident.span), targs)(extDef.ident.span)
+
+    val aliasParam = Param(extDef.param.ident, aliasType)(extDef.param.span)
+
+    // Section uses alias type as pre-param so sibling methods are visible on it
     val modifiedFuns =
       extDef.funs.map: fun =>
-        val newParams = extDef.param :: fun.params
+        val newParams = aliasParam :: fun.params
         val newTparams = extDef.tparams ++ fun.tparams
         fun.copy(
           tparams = newTparams,
@@ -129,6 +140,7 @@ object Desugaring:
 
     val section = Section(extDef.ident, modifiedFuns)(extDef.span).copyAttachments(extDef)
 
+    // TypeDef uses original param type as base (not the alias — avoids circularity)
     val methodRefs: List[(RefTree, Boolean) | RefTree] =
       extDef.funs.map: fun =>
         Select(extDef.ident, fun.ident.name)(fun.ident.span)
@@ -215,13 +227,15 @@ object Desugaring:
     val unionType = UnionType(branchTypes.toList)(enumDef.span)
 
     if enumDef.funs.nonEmpty then
-      // Synthesize extension def: extension <Name>[T, ...](this: A[U, ...] | B[V, ...] | C) ...
-      val extName = Ident(enumDef.ident.name)(enumDef.ident.span)
+      // Desugar methods via ExtensionDef with unionType as the receiver type.
+      // desugarExtensionDef will:
+      //   - use unionType as the TypeDef base (non-circular)
+      //   - use the alias Name[T] as the Section pre-param (cross-method calls work)
       val thisParam = Param(Ident("this")(enumDef.span), unionType)(enumDef.span)
-      val extDef = ExtensionDef(extName, enumDef.tparams, thisParam, enumDef.funs)(enumDef.span)
-          .copyAttachments(enumDef)
+      val extDef = ExtensionDef(enumDef.ident, enumDef.tparams, thisParam, enumDef.funs)(enumDef.span)
+        .copyAttachments(enumDef)
 
-      extDef :: classDefs.toList
+      desugarExtensionDef(extDef) ++ classDefs.toList
 
     else
       val tdef = TypeDef(enumDef.ident, enumDef.tparams, unionType, preParamCount = 0)(enumDef.span)
