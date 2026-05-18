@@ -1246,54 +1246,58 @@ class Namer(using Config) extends Applications with SelectionTyper:
       case None =>
         policy
 
-  /** Transform an annotation definition into a FunDef with Flags.Annotation.
-    *
-    * Synthesises an Ast.FunDef and routes through transformFunDef so that
-    * parameter types and any default values are processed by the normal
-    * type-checking machinery. After typing, parameter types are validated to
-    * be Int, String, or Bool only.
-    */
+  /** Transform an annotation definition into a FunDef with Flags.Annotation. */
   private def transformAnnotationDef(adef: Ast.AnnotationDef)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[FunDef] =
 
-    val syntheticFunDef = Ast.FunDef(
-        adef.ident,
-        Nil,                               // no type params
-        adef.params,                       // annotation params
-        Nil,                               // no autos
-        Ast.EmptyTypeTree()(adef.span),    // result type inferred as Unit from empty body
-        None,                              // no receives clause
-        Ast.Block(Nil)(adef.span),         // empty body → Unit
-        0,                                 // no pre-params
-        0                                  // no pre-type-params
-    )(adef.span).withMods(adef.modifiers)
+    val flags = Flags.Fun | Flags.Annotation | Checker.checkModifiers(adef)
+    val funSym = TermSymbol.create(adef.name, flags, Checker.visibility(adef, sc.owner), sc.owner, adef.ident.pos)
 
-    val delayed = transformFunDef(syntheticFunDef, Flags.Fun | Flags.Annotation, Effects.Policy.CheckBound(Nil))
+    given defn: Definitions = lazyDefn.value
+    given funScope: Scope = sc.fresh(funSym)
 
-    // After type-checking, validate namespace and param types.
+    lazy val paramSyms = transformParams(adef.params)
+
+    Defaults.validatePostDefaultShape(adef.params)
+    lazy val defaults = Defaults.checkPostDefaults(adef.params, paramSyms, this)
+    Checks.add { defaults }
+
+    def computeInfo() =
+      ProcType(
+        tparams = Nil,
+        params =paramSyms.map(_.toNamedInfo),
+        autos = Nil,
+        candidates = Nil,
+        resultType = VoidType,
+        receivesInfo = () => Nil,
+        preParamCount = 0,
+        preTypeParamCount = 0
+      )(() => defaults)
+
+    val ip = lazyDefn.infoProvider
+    ip.addLazy(funSym, computeInfo, () => computeInfo())
+
     Checks.add:
-      given defn: Definitions = lazyDefn.value
-      val sym = delayed.symbol
-
-      if !sym.containedIn(defn.jo) then
+      if !funSym.containedIn(defn.jo) then
         Reporter.error(
           s"Annotation definitions are currently restricted to the namespace `${defn.jo.fullName}`",
           adef.ident.pos
         )
+      for (paramSym, astParam) <- paramSyms.zip(adef.params) do
+        val tpe = paramSym.tpe
+        if tpe != defn.IntType && tpe != defn.BoolType && tpe != defn.StringType then
+          Reporter.error(
+            s"Annotation parameter type must be Int, Bool, or String, found ${tpe.show}",
+            astParam.tpt.span.toPos
+          )
 
-      sym.info match
-        case proc: ProcType =>
-          for (param, astParam) <- proc.params.zip(adef.params) do
-            val tpe = param.info
-            if tpe != defn.IntType && tpe != defn.BoolType && tpe != defn.StringType then
-              Reporter.error(
-                s"Annotation parameter type must be Int, Bool, or String, found ${tpe.show}",
-                astParam.tpt.span.toPos
-              )
-        case _ =>
+    val typer = () =>
+      val tpt = TypeTree(VoidType)(adef.span)
+      val body = Block(Nil)(adef.span)
+      FunDef(funSym, Nil, paramSyms, Nil, Nil, tpt, Effects.Policy.CheckBound(Nil), body)(annots = Nil, adef.span)
 
-    delayed
+    DelayedDef(funSym, typer)
 
   /** Resolve AST annotation uses on a definition to SAST Apply nodes, and set them on the symbol.
     *
@@ -1328,7 +1332,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
             // Type-check the call through normal application machinery so that
             // defaults, arity, and param-type checks all run as usual.
-            given TargetType = TargetType.ValueType
+            given TargetType = TargetType.VoidType
             given ControlScope = ControlScope.NoReturn
             val callReporter = rp.fresh(buffer = true)
             val typedCall: Word =
