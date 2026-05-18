@@ -88,8 +88,8 @@ def assert(cond: Bool, error: () => String): Unit =
   !
   ! Example:
   !
-  !   extension IntExt(it: Int)
-  !     @shadow def show: String = "custom"
+  !   extension IntExt for Int
+  !     @shadow def toString: String = "custom"
   !   end
 //]
 annotation shadow

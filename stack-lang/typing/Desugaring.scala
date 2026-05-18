@@ -136,7 +136,7 @@ object Desugaring:
     *
     * From
     *
-    *     extension Name[T](it: Base)
+    *     extension Name[T] for Base
     *       def m1(...) = ...
     *       def m2(...) = ...
     *
