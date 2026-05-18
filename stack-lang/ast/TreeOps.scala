@@ -32,7 +32,7 @@ object TreeOps:
         case DuckType(tpe, _) =>
           this(tpe)
 
-        case ExtensionType(base, _, _) =>
+        case ExtensionType(base, _) =>
           this(base)
 
         case AnnotType(tpe, _) =>

@@ -18,7 +18,7 @@ section OptionOps
   end
 end
 
-type Option[T] = extend Some[T] | None with OptionOps
+type Option[T] = (Some[T] | None) :+ [OptionOps.isEmpty, OptionOps.getOrElse]
 
 def main =
   val opt: Option[Int] = Some(42)

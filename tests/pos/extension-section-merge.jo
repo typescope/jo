@@ -1,0 +1,25 @@
+// Generated section from extension def merges with user-defined section of the same name
+
+class Some[T](value: T)
+object None
+
+extension OptionOps[T] for Some[T] | None
+  def isEmpty: Bool =
+    match this
+      case _: Some[T] => false
+      case _: None => true
+    end
+  end
+end
+
+// User-defined section with same name — should merge, not conflict
+section OptionOps
+  def from[T](value: T): OptionOps[T] = Some(value)
+end
+
+def main =
+  val opt: OptionOps[Int] = OptionOps.from(42)
+  val empty: OptionOps[Int] = None
+  println opt.isEmpty
+  println empty.isEmpty
+  println (OptionOps.from("hello")).isEmpty

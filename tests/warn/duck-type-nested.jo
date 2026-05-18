@@ -3,8 +3,8 @@ def intToStr(x: Int): String = "converted"
 def boolToStr(x: Bool): String = "bool"
 
 // Define a duck type alias
-type StringLike = like String with [intToStr, .toString]
+type StringLike = String :- [intToStr, .toString]
 
 // Try to create a duck type with a base that already has adapters
 // This should produce an error
-type NestedDuck = like StringLike with [boolToStr]
+type NestedDuck = StringLike :- [boolToStr]

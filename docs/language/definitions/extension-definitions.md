@@ -1,11 +1,6 @@
 # Extension Definitions
 
-Extension definitions declare methods that can be attached to types.
-
-They are used by:
-
-1. **Extension types** (`extend T with Ext`)
-2. **Class/object extension references** (`extension Ext` inside class/object bodies)
+Extension definitions allow adding behavior to existing types.
 
 ## Syntax
 
@@ -16,9 +11,9 @@ extension_def = "extension" ident [type_params] "(" ident ":" type ")" {method} 
 Example:
 
 ```jo
-extension OptionOps[T](it: Some[T] | None)
+extension OptionOps[T] for Some[T] | None
   def isEmpty: Bool =
-    match it
+    match this
       case Some(_) => false
       case None => true
     end
@@ -30,7 +25,7 @@ end
 An extension definition can declare type parameters and exactly one receiver parameter.
 
 ```jo
-extension BoxOps[T](it: Box[T])
+extension BoxOps[T] for Box[T]
   def map[S](f: T => S): = ...
 end
 ```
@@ -41,44 +36,69 @@ end
 
 ## Desugaring
 
-An extension definition is typed like a section whose methods have an extra pre-parameter (the receiver).
-
-Conceptually:
+An extension definition desugars to a generated type alias plus a section:
 
 ```jo
 // Source
-extension Ext[T](it: Box[T])
+extension Ext[T] for Box[T]
   def foo(x: Int): Int = ...
   def bar[S](f: T -> S): S = ...
 end
 ```
 
-is checked like:
+desugars to:
 
 ```jo
+type Ext[T] = Box[T] :+ [Ext.foo, Ext.bar]
+
 section Ext
-  def [T](it: Box[T]) foo(x: Int): Int = ...
-  def [T](it: Box[T]) bar[S](f: T -> S): S = ...
+  def [T](this: Ext[T]) foo(x: Int): Int = ...
+  def [T](this: Ext[T]) bar[S](f: T -> S): S = ...
 end
 ```
 
-This is why extension methods can be selected as members while still being regular functions internally.
+The pre-parameter uses the generated alias type (`Ext[T]`), so all sibling extension methods are
+available on `this` via dot syntax:
 
-## Validation at Attachment Sites
+```jo
+extension Option[T] for Some[T] | None
+  def isEmpty: Bool = this is None
+  def isDefined: Bool = !this.isEmpty     // works: this has type Option[T]
+end
+```
 
-Validation depends on where the extension is attached:
+## Shadowing
 
-1. **Extension type** (`extend T with Ext`):
+When an extension method has the same name as a member of the base type, the compiler warns
+at the generated type alias. Mark the method with `@shadow` to suppress the warning:
 
-    - Receiver compatibility is checked against `T`.
-    - Override warnings/checks use the optional `override` list on the extension type.
+```jo
+extension BoxOps[T] for Box[T]
+  @shadow def show: String = "BoxOps.show"  // intentionally shadows Box[T].show
+  def extra: String = "extra"
+end
+```
 
-2. **Class definition** (`extension Ext` in class):
+See [Extension Types](../types/extension-types.md) for the `!` marker used in manually creating extension types.
 
-    - Receiver compatibility is checked against the class type.
-    - No type arguments are written at the attachment site (`extension Ext`, not `extension Ext[Int]`).
+## Section Merging
 
-The extension definition itself is reusable; base-type compatibility is checked when attached.
+The generated section has the same name as the extension definition. If a user-defined
+`section` of the same name exists in the same scope, the two are merged automatically:
+
+```jo
+extension OptionOps[T] for Some[T] | None
+  def isEmpty: Bool = this is None
+end
+
+// Adds factory methods to the same OptionOps namespace — no conflict
+section OptionOps
+  def from[T](value: T): OptionOps[T] = Some(value)
+end
+
+val opt = OptionOps.from(42)
+println opt.isEmpty  // false
+```
 
 ## See Also
 

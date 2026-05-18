@@ -1,0 +1,25 @@
+// User-defined section comes BEFORE the extension def — should still merge
+
+class Some[T](value: T)
+object None
+
+// User section defined first
+section OptionOps
+  def from[T](value: T): OptionOps[T] = Some(value)
+end
+
+// Extension def comes after — its generated section merges into the user section
+extension OptionOps[T] for Some[T] | None
+  def isEmpty: Bool =
+    match this
+      case _: Some[T] => false
+      case _: None => true
+    end
+  end
+end
+
+def main =
+  val opt: OptionOps[Int] = OptionOps.from(42)
+  val empty: OptionOps[Int] = None
+  println opt.isEmpty
+  println empty.isEmpty

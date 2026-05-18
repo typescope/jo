@@ -274,7 +274,6 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "is"        => Token.IS
       case "then"      => Token.THEN
       case "else"      => Token.ELSE
-      case "extend"    => Token.EXTEND
       case "extension" => Token.EXTENSION
       case "match"     => Token.MATCH
       case "case"      => Token.CASE
@@ -310,7 +309,6 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "continue"  => Token.CONTINUE
       case "interface"  => Token.INTERFACE
       case "view"       => Token.VIEW
-      case "like"       => Token.LIKE
       case "this"       => Token.THIS
       case "annotation" => Token.ANNOTATION
       case name         => Token.Name(name)

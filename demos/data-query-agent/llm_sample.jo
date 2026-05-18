@@ -30,9 +30,9 @@ def analyzeDocuments(): Unit receives stdout, db, skills =
   println("=== 2b. Neq: Draft != true ===")
   printDocs(db.query(Draft != true))
 
-  // ── 3. Like / matches ─────────────────────────────────────────────────────
-  println("=== 3. Like: Title matches '%Report%' ===")
-  printDocs(db.query(Title matches "%Report%"))
+  // ── 3. Like ───────────────────────────────────────────────────────────────
+  println("=== 3. Like: Title like '%Report%' ===")
+  printDocs(db.query(Title like "%Report%"))
 
   // ── 4. Gt / Lt ────────────────────────────────────────────────────────────
   println("=== 4. Gt: OwnerId > 0 ===")
@@ -64,12 +64,12 @@ def analyzeDocuments(): Unit receives stdout, db, skills =
   printDocs(db.query(OwnerId isIn [int(1), int(2), int(3)]))
 
   // ── 9. And ────────────────────────────────────────────────────────────────
-  println("=== 9. And: Draft == true && Title matches '%Draft%' ===")
-  printDocs(db.query((Draft == true) && (Title matches "%Draft%")))
+  println("=== 9. And: Draft == true && Title like '%Draft%' ===")
+  printDocs(db.query((Draft == true) && (Title like "%Draft%")))
 
   // ── 10. Or ────────────────────────────────────────────────────────────────
-  println("=== 10. Or: Title matches '%Report%' || Title matches '%Summary%' ===")
-  printDocs(db.query((Title matches "%Report%") || (Title matches "%Summary%")))
+  println("=== 10. Or: Title like '%Report%' || Title like '%Summary%' ===")
+  printDocs(db.query((Title like "%Report%") || (Title like "%Summary%")))
 
   // ── 11. Not ───────────────────────────────────────────────────────────────
   println("=== 11. Not: !(Draft == true) ===")
@@ -109,7 +109,7 @@ def analyzeDocuments(): Unit receives stdout, db, skills =
 
   // ── 16. update ────────────────────────────────────────────────────────────
   println("=== 16. update(condition, updates) ===")
-  val updatedCount = db.update(Title matches "%Draft%", [Title := "Archived", Draft := false])
+  val updatedCount = db.update(Title like "%Draft%", [Title := "Archived", Draft := false])
   println("Updated: " + updatedCount.toString)
 
   // ── 17. updateById ────────────────────────────────────────────────────────

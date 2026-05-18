@@ -1,7 +1,7 @@
----------- Error at tests/warn/adapter-polymorphic.jo:5:30 ---------------
-| def foo(s: like String with [genericAdapter]): Unit =
-|                              ^^^^^^^^^^^^^^
-|                              Adapter cannot have type parameters
+---------- Error at tests/warn/adapter-polymorphic.jo:5:23 ---------------
+| def foo(s: String :- [genericAdapter]): Unit =
+|                       ^^^^^^^^^^^^^^
+|                       Adapter cannot have type parameters
 
 ---------- Error at tests/warn/adapter-polymorphic.jo:9:7 ---------------
 |   foo(42)

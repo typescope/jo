@@ -244,10 +244,22 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     val processedParts = mutable.ArrayBuffer[Word]()
 
+    def appendLit(text: String, span: Span): Unit =
+      if processedParts.nonEmpty then
+        val last = processedParts.last
+        last match
+          case StringLit(content) =>
+            processedParts(processedParts.size - 1) = StringLit(content + text)(last.span | span)
+
+          case _ =>
+            processedParts += StringLit(text)(span)
+      else
+        processedParts += StringLit(text)(span)
+
     for ((part, indent), idx) <- partsWithIndent.zipWithIndex do
       // insert newline for multiline string
       if quoteCount > 2 && idx > 0 && !indent.isSameLine(partsWithIndent(idx - 1)._2) then
-        processedParts += StringLit("\n")(Span(part.span.start - 1, 0))
+        appendLit("\n", Span(part.span.start - 1, 0))
 
       part match
         case StringLit(content) =>
@@ -268,7 +280,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           // Unescape the content
           try
             val unescaped = StringUtil.unescape(strippedContent, escapePolicy)
-            processedParts += StringLit(unescaped)(part.span)
+            appendLit(unescaped, part.span)
           catch
             case e: StringUtil.EscapeError =>
               val errorStart =
@@ -279,7 +291,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
               val errorSpan = Span(errorStart, e.length)
               error(e.message, errorSpan.toPos)
-              processedParts += StringLit("")(part.span)
+              appendLit("", part.span)
 
         case expr =>
           // For multiline, check indentation if it's first of line
@@ -846,7 +858,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     // Parse view declarations and members
     val views = mutable.ArrayBuffer[ViewDecl]()
-    val extensions = mutable.ArrayBuffer[RefTree]()
     val vals = mutable.ArrayBuffer[ValDef]()
     val funs = mutable.ArrayBuffer[FunDef]()
 
@@ -858,9 +869,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       else if item.token == Token.VIEW then
         views += viewDecl()
-
-      else if item.token == Token.EXTENSION then
-        extensions += classExtensionRef()
 
       else
         // Get doc comment from the first token before modifiers
@@ -910,13 +918,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val lastSpan =
       if funs.nonEmpty then funs.last.span
       else if vals.nonEmpty then vals.last.span
-      else if extensions.nonEmpty then extensions.last.span
       else if views.nonEmpty then views.last.span
       else if classParams.nonEmpty then classParams.last.span
       else if tparams.nonEmpty then tparams.last.span
       else id.span
 
-    ClassDef(id, tparams, classParams, views.toList, extensions.toList, vals.toList, funs.toList)(klass.span | lastSpan).withMods(mods)
+    ClassDef(id, tparams, classParams, views.toList, vals.toList, funs.toList)(klass.span | lastSpan).withMods(mods)
 
   def interfaceDef(mods: List[Modifier]): InterfaceDef =
     val interface = eat(Token.INTERFACE)
@@ -953,10 +960,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val id = name()
     val tparams = typeParams()
 
-    // Parse exactly one parameter: (it: Type)
-    eat(Token.LPAREN)
-    val p = param(typeOptional = false)
-    eat(Token.RPAREN)
+    // Parse base type: "for" type
+    eat(Token.FOR)
+    val baseTpt = typ()
 
     // Parse methods (same as interface, but bodies are required)
     val members: List[FunDef] = repeated:
@@ -977,9 +983,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     val lastSpan =
       if members.nonEmpty then members.last.span
-      else p.span
+      else baseTpt.span
 
-    ExtensionDef(id, tparams, p, members)(extToken.span | lastSpan).withMods(mods)
+    ExtensionDef(id, tparams, baseTpt, members)(extToken.span | lastSpan).withMods(mods)
 
   def objectDef(mods: List[Modifier]): ObjectDef =
     val obj = eat(Token.OBJECT)
@@ -997,7 +1003,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     // Parse view declarations and methods (no vals allowed)
     val views = mutable.ArrayBuffer[ViewDecl]()
-    val extensions = mutable.ArrayBuffer[RefTree]()
     val funs = mutable.ArrayBuffer[FunDef]()
 
     var continue = true
@@ -1012,9 +1017,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         if view.rhs.isDefined then
           error("Objects cannot have delegate views (view I = expr)", view.span.toPos)
         views += view
-
-      else if item.token == Token.EXTENSION then
-        extensions += classExtensionRef()
 
       else
         // Get doc comment from the first token before modifiers
@@ -1058,19 +1060,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     val lastSpan =
       if funs.nonEmpty then funs.last.span
-      else if extensions.nonEmpty then extensions.last.span
       else if views.nonEmpty then views.last.span
       else id.span
 
-    ObjectDef(id, views.toList, extensions.toList, funs.toList)(obj.span | lastSpan).withMods(mods)
-
-  private def classExtensionRef(): RefTree =
-    eat(Token.EXTENSION)
-    val ref = qualid()
-    if peek() == Token.LBRACKET then
-      error("Type arguments are not allowed in class/object extension references", peekItem().span.toPos)
-      typeArgs() // consume for error recovery
-    ref
+    ObjectDef(id, views.toList, funs.toList)(obj.span | lastSpan).withMods(mods)
 
   def viewDecl(): ViewDecl =
     val viewToken = eat(Token.VIEW)
@@ -1130,7 +1123,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       val id = ident()
       val paramList = simpleParamSection()
       val endSpan = if paramList.isEmpty then id.span else paramList.last.span
-      ClassDef(id, Nil, paramList, Nil, Nil, Nil, Nil)(id.span | endSpan)
+      ClassDef(id, Nil, paramList, Nil, Nil, Nil)(id.span | endSpan)
 
     val branches = oneOrMore(branch, Token.Operator("|"))
 
@@ -1287,6 +1280,33 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     eat(Token.RBRACKET)
     adapters.toList
+
+
+  /** Parse method reference list for extension types: [Ext.m1, Ext.m2!, ...]
+    *
+    * Each entry is a (qualid, isOverride) pair. The `!` suffix marks intentional
+    * shadowing of a base type member.
+    *
+    * Returns the list and the span of the closing bracket.
+    */
+  def methodRefList(): (List[(RefTree, Boolean)], Span) =
+    eat(Token.LBRACKET)
+    val methods = mutable.ArrayBuffer[(RefTree, Boolean)]()
+
+    def parseOne(): Unit =
+      val ref = qualid()
+      val isOverride = peek() == Token.Operator("!")
+      if isOverride then next()
+      methods += ((ref, isOverride))
+
+    if peek() != Token.RBRACKET then
+      parseOne()
+      while peek() == Token.COMMA do
+        eat(Token.COMMA)
+        parseOne()
+
+    val endSpan = eat(Token.RBRACKET).span
+    (methods.toList, endSpan)
 
 
   /** Parse candidate list for auto parameters: [candidate1, candidate2, ...]
@@ -1870,6 +1890,23 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           val span = branches.head.span | branches.last.span
           UnionType(branches.toList)(span)
 
+
+        case Token.Operator(":-") =>
+          next()
+          val adapters = adapterList()
+          val endSpan =
+            if adapters.isEmpty then
+              tp.span
+            else
+              adapters.last.span
+
+          DuckType(tp, adapters)(tp.span | endSpan)
+
+        case Token.Operator(":+") =>
+          next()
+          val (methods, endSpan) = methodRefList()
+          ExtensionType(tp, methods)(tp.span | endSpan)
+
         case _ =>
           val tps = mutable.ArrayBuffer[TypeTree](tp)
 
@@ -1946,7 +1983,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         case _ => atom
 
     var tpt: TypeTree = tp
-    while peek() == Token.AT && atomStart.indent.isIndentOrSameLine(peekItem().indent) do
+    while peek() == Token.AT && atomStart.indent.isSameLine(peekItem().indent) do
       val annot = parseOneAnnotation()
       tpt = AnnotType(tpt, annot)(tpt.span | annot.span)
     tpt
@@ -1969,29 +2006,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
         else
           id
-
-      case Token.LIKE =>
-        val likeToken = next()
-        val targetType = simpleType(prevType = null)
-        eat(Token.WITH)
-        val adapters = adapterList()
-        val endSpan = if adapters.isEmpty then targetType.span else adapters.last.span
-        DuckType(targetType, adapters)(likeToken.span | endSpan)
-
-      case Token.EXTEND =>
-        val extendToken = next()
-        val baseType = typ()
-        eat(Token.WITH)
-        val ext = qualid()
-        if peek() == Token.Name("override") then
-          next()  // eat "override"
-          eat(Token.LBRACKET)
-          val overrides = oneOrMore(() => { eat(Token.DOT); ident() }, Token.COMMA)
-          val endSpan = eat(Token.RBRACKET)
-          ExtensionType(baseType, ext, overrides)(extendToken.span | endSpan.span)
-
-        else
-          ExtensionType(baseType, ext, Nil)(extendToken.span | ext.span)
 
       case _ =>
         null

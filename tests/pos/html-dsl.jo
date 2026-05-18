@@ -1,0 +1,249 @@
+// HTML DSL using vararg colon-call syntax.
+// String~String pairs become attributes; Node values become children.
+// Elements are called with `tag: child1\n child2\n...` or `tag(attrs...): children...`.
+
+class Text(content: String)
+class Element(tag: String, attrs: List[String ~ String], children: List[Node])
+
+type Node = (Text | Element) :- [t]
+type HtmlArg = ((String ~ String) | Text | Element) :- [t]
+
+def t(content: String): Text = new Text(content)
+
+def (attr: String) := (value: String): String ~ String = attr ~ value
+
+def el(tag: String, args: ..HtmlArg): Node =
+  var attrs: List[String ~ String] = []
+  var children: List[Node] = []
+
+  for arg in args do
+    match arg
+      case k ~ v =>
+        attrs = attrs + (k ~ v)
+
+      case n: Text =>
+        children = children + n
+
+      case n: Element =>
+        children = children + n
+
+  new Element(tag, attrs, children)
+
+def div(args: ..HtmlArg): Node = el("div", ..args)
+def span(args: ..HtmlArg): Node = el("span", ..args)
+def p(args: ..HtmlArg): Node = el("p", ..args)
+def h1(args: ..HtmlArg): Node = el("h1", ..args)
+def h2(args: ..HtmlArg): Node = el("h2", ..args)
+def html(args: ..HtmlArg): Node = el("html", ..args)
+def head(args: ..HtmlArg): Node = el("head", ..args)
+def title(args: ..HtmlArg): Node = el("title", ..args)
+def style(args: ..HtmlArg): Node = el("style", ..args)
+def body(args: ..HtmlArg): Node = el("body", ..args)
+def sec(args: ..HtmlArg): Node = el("section", ..args)
+def ul(args: ..HtmlArg): Node = el("ul", ..args)
+def li(args: ..HtmlArg): Node = el("li", ..args)
+def a(args: ..HtmlArg): Node = el("a", ..args)
+def strong(args: ..HtmlArg): Node = el("strong", ..args)
+def code(args: ..HtmlArg): Node = el("code", ..args)
+
+def renderAttr(attr: String ~ String): String =
+  val k ~ v = attr
+  " " + k + "=\"" + v + "\""
+
+def renderNode(node: Node): String =
+  match node
+    case Text(content) => content
+
+    case Element(tag, attrs, children) =>
+      val attrStr = attrs.map(a => renderAttr(a)).fold: "", (acc, s) => acc + s
+      val childStr = children.map(n => renderNode(n)).fold: "", (acc, s) => acc + s
+      "<" + tag + attrStr + ">" + childStr + "</" + tag + ">"
+
+def renderDocument(root: Node): String =
+  "<!DOCTYPE html>" + renderNode(root)
+
+def pageStyles: String =
+  """
+  :root {
+    color-scheme: light;
+    --bg: #f5efe2;
+    --ink: #1f1c18;
+    --panel: #fffaf0;
+    --stage: #10131d;
+  }
+
+  body {
+    margin: 0;
+    font-family: Georgia, serif;
+    background: radial-gradient(circle at top, #fff6db, var(--bg) 55%);
+    color: var(--ink);
+  }
+
+  #app {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 24px 64px;
+  }
+
+  .intro {
+    max-width: 42ch;
+    line-height: 1.5;
+  }
+
+  .art-card {
+    margin: 32px 0;
+    padding: 24px;
+    border: 2px solid rgba(31, 28, 24, 0.12);
+    border-radius: 24px;
+    background: var(--panel);
+    box-shadow: 0 18px 40px rgba(87, 55, 22, 0.08);
+  }
+
+  .stage {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-height: 240px;
+    margin: 24px 0 16px;
+    border-radius: 28px;
+    background: linear-gradient(160deg, #121826, #1a2233 55%, #0b0f17);
+    overflow: hidden;
+  }
+
+  .stage::before {
+    content: "";
+    position: absolute;
+    width: 190px;
+    height: 190px;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(255, 162, 102, 0.32), rgba(255, 162, 102, 0) 68%);
+    filter: blur(8px);
+  }
+
+  .grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(3, 28px);
+    gap: 12px;
+    transform: rotate(45deg);
+    animation: spin 10s linear infinite;
+  }
+
+  .pixel {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    opacity: 0.9;
+    box-shadow: 0 0 18px rgba(255, 255, 255, 0.08);
+    animation: bloom 1.8s ease-in-out infinite;
+  }
+
+  .p1 { background: #ff8a5b; animation-delay: 0s; }
+  .p2 { background: #ffd166; animation-delay: 0.2s; }
+  .p3 { background: #7bd389; animation-delay: 0.4s; }
+  .p4 { background: #48bfe3; animation-delay: 0.6s; }
+  .p5 { background: #8093f1; animation-delay: 0.8s; }
+  .p6 { background: #f07dea; animation-delay: 1s; }
+  .p7 { background: #fb6f92; animation-delay: 1.2s; }
+  .p8 { background: #ffb86c; animation-delay: 1.4s; }
+  .p9 { background: #9bf6ff; animation-delay: 1.6s; }
+
+  .caption {
+    margin: 0;
+    text-align: center;
+    font-style: italic;
+  }
+
+  section {
+    margin-top: 28px;
+  }
+
+  @keyframes bloom {
+    0%, 100% {
+      transform: scale(0.72);
+      opacity: 0.45;
+    }
+    50% {
+      transform: scale(1.14);
+      opacity: 1;
+    }
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(45deg);
+    }
+    to {
+      transform: rotate(405deg);
+    }
+  }
+  """
+
+def main =
+
+  val doc =
+    html:
+      "lang" := "en"
+      head:
+        title: "Pixel Bloom"
+        style: pageStyles
+      body:
+        div:
+          "id" := "app"
+          h1: "Pixel Bloom"
+          p:
+            "class" := "intro"
+            "A small computer-art sketch rendered from a Jo HTML DSL."
+          div:
+            "class" := "art-card"
+            "id" := "art"
+            h2: "Rotating Mosaic"
+            div:
+              "class" := "stage"
+              "aria-hidden" := "true"
+              div:
+                "class" := "grid"
+                span: "class" := "pixel p1"
+                span: "class" := "pixel p2"
+                span: "class" := "pixel p3"
+                span: "class" := "pixel p4"
+                span: "class" := "pixel p5"
+                span: "class" := "pixel p6"
+                span: "class" := "pixel p7"
+                span: "class" := "pixel p8"
+                span: "class" := "pixel p9"
+            p:
+              "class" := "caption"
+              "Nine glowing tiles bloom on staggered timing while the board turns."
+          sec:
+            "id" := "palette"
+            h2: "Palette"
+            p: """
+               Warm paper around the frame, a midnight stage in the center, and
+               ember, mint, coral, and sky colors pulsing inside the grid.
+               """
+          sec:
+            "id" := "loop"
+            h2: "Loop"
+            p: """
+               The tiles breathe in place while the whole mosaic rotates slowly,
+               so the pattern never settles into the same pose twice.
+               """
+          sec:
+            "id" := "notes"
+            h2: "Notes"
+            p:
+              "The page keeps the structure readable by moving the animation CSS into "
+              code: "pageStyles"
+              " and using the DSL only for the document tree."
+          p:
+            "Jump to the "
+            a:
+              "href" := "#loop"
+              "loop notes"
+            " or back to the "
+            a:
+              "href" := "#art"
+              "art board"
+
+  println: renderDocument(doc)

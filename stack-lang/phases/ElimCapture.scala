@@ -313,7 +313,7 @@ object ElimCapture:
         fields = fieldSyms.toList,
         methods = ctorSym :: applySym :: Nil,
         directViews = directViewTypes
-      )(() => Nil))
+      ))
 
       // Create constructor body: initialize all fields from parameters, then return this
       val ctorBody =

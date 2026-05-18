@@ -10,13 +10,13 @@ def intFormatter: Formatter[Int] = (n: Int) => "Int:" + n
 def strFormatter: Formatter[String] = (s: String) => "Str:" + s
 
 // Extension with auto parameter - candidates declared in definition
-extension WrapperOps[T](it: Wrapper[T])
+extension WrapperOps[T] for Wrapper[T]
   def formatted(auto fmt: Formatter[T] with [intFormatter, strFormatter]): String =
-    fmt(it.value)
+    fmt(this.value)
   end
 end
 
-type ExtWrapper[T] = extend Wrapper[T] with WrapperOps
+type ExtWrapper[T] = Wrapper[T] :+ [WrapperOps.formatted]
 
 def main receives IO.stdout =
   val intWrapper: ExtWrapper[Int] = new Wrapper(42)

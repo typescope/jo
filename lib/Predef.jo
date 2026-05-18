@@ -75,3 +75,21 @@ defer def abort(s: String): Bottom
 
 def assert(cond: Bool, error: () => String): Unit =
   if !cond then abort error()
+
+//------------------------------------------------------------------------------
+//
+// Annotations
+//
+
+//[ Mark an extension method as intentionally shadowing a base-type member
+  !
+  ! When an extension method has the same name as a member of its base type,
+  ! the compiler warns unless the method is annotated with `@shadow`.
+  !
+  ! Example:
+  !
+  !   extension IntExt for Int
+  !     @shadow def toString: String = "custom"
+  !   end
+//]
+annotation shadow

@@ -1,44 +1,87 @@
 namespace jo
 
+import jo.compile.intrinsic
+
 //[ Int is the largest platform integer type
   !
   ! Int can be used in union types.
 //]
+@intrinsic
 class Int
   private def Int() = abort "Cannot create new Int instance"
 
-  extension IntOps
-
   // Arithmetic operators as methods
+  @intrinsic
   def +(other: Int): Int = ...
+
+  @intrinsic
   def -(other: Int): Int = ...
+
+  @intrinsic
   def *(other: Int): Int = ...
+
+  @intrinsic
   def /(other: Int): Int = ...
+
+  @intrinsic
   def %(other: Int): Int = ...
 
   // Comparison operators as methods
+  @intrinsic
   def >(other: Int): Bool = ...
+
+  @intrinsic
   def <(other: Int): Bool = ...
+
+  @intrinsic
   def >=(other: Int): Bool = ...
+
+  @intrinsic
   def <=(other: Int): Bool = ...
+
+  @intrinsic
   def ==(other: Int): Bool = ...
-  def !=(other: Int): Bool = ! (this == other)
+
+  @intrinsic
+  def !=(other: Int): Bool = !(this == other)
 
   // Bitwise operators as methods
+  @intrinsic
   def >>(other: Int): Int = ...
+
+  @intrinsic
   def <<(other: Int): Int = ...
+
+  @intrinsic
   def &(other: Int): Int = ...
+
+  @intrinsic
   def |(other: Int): Int = ...
+
+  @intrinsic
   def ^(other: Int): Int = ...
 
   // Prefix negation
+  @intrinsic
   def ~-(): Int = ...
 
   // Conversion methods
+  @intrinsic
   def toChar: Char = ...
+
+  @intrinsic
   def toByte: Byte = ...
+
+  @intrinsic
   def toFloat: Float = ...
+
+  @intrinsic
   def toString: String = ...
+
+  def compareTo(other: Int): Int = if this > other then 1 else if this < other then -1 else 0
+  def hashCode: Int = this
+  def max(other: Int): Int = if this >= other then this else other
+  def min(other: Int): Int = if this <= other then this else other
 end
 
 //------------------------------------------------------------------------------
@@ -59,13 +102,6 @@ def (a: Int) <= (b: Int): Bool = a <= b
 def (a: Int) == (b: Int): Bool = a == b
 def (a: Int) != (b: Int): Bool = ! (a == b)
 
-extension IntOps(a: Int)
-  def compareTo(other: Int): Int = a - other
-  def hashCode: Int = a
-
-  def max(other: Int): Int = if a >= other then a else other
-  def min(other: Int): Int = if a <= other then a else other
-end
 
 section Int
   //[ Parse signed decimal integer. Returns None on invalid input. //]

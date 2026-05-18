@@ -10,11 +10,11 @@ class DummyShow
   def toString: String = "dummy toString"
 end
 
-extension PointExt(it: Point)
-  def toString: String = "(" + it.x.toString + ", " + it.y.toString + ")"
+extension PointExt for Point
+  @shadow def toString: String = "(" + this.x.toString + ", " + this.y.toString + ")"
 end
 
-type EPoint = extend Point with PointExt override [.toString]
+type EPoint = Point :+ [PointExt.toString!]
 
 def main receives IO.stdout =
   val p: EPoint = Point(3, 4)

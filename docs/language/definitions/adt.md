@@ -167,22 +167,44 @@ Methods in a union definition desugar to an [extension type](../types/extension-
 
 ```jo
 // Desugars to:
-extension Option$Ext[T](this: Option[T])
-  def isEmpty: Bool = ...
-  def getOrElse(default: T): T = ...
-end
-
-type Option[T] = extend Some[T] | None with Option$Ext
-
 class Some[T](value: T)
 object None
+
+type Option[T] = (Some[T] | None) :+ [Option.isEmpty, Option.getOrElse]
+
+section Option
+  def [T](this: Option[T]) isEmpty: Bool = ...
+  def [T](this: Option[T]) getOrElse(default: T): T = ...
+end
 ```
 
 The compiler synthesizes:
 
 1. Branch classes/objects (same as unions without methods)
-2. An extension definition with the union's type params and a `this` parameter typed as the union
-3. A type alias using `extend ... with` instead of a plain union type
+2. A type alias using `:+`, named after the union, with the plain union type as the base
+3. A section named after the union, where each method's pre-param has the alias type (`Option[T]`) so sibling methods are available on `this`
+
+### Section Merging
+
+The generated `section Option` merges with any user-defined `section Option` in the same
+scope. This lets you add factory methods or utilities alongside the union-defined methods
+without conflict:
+
+```jo
+union Option[T] = Some(value: T) | None
+  def isEmpty: Bool = this is None
+end
+
+section Option
+  def from[T](value: T): Option[T] = Some(value)
+end
+
+val opt = Option.from(42)
+println opt.isEmpty  // false
+```
+
+The generated section is always merged into the user-defined section (if one exists), so
+the user section acts as the anchor regardless of declaration order.
 
 ### Usage
 

@@ -1,0 +1,11 @@
+// Extension def comes BEFORE the user section — synthetic still merges into user (not reverse).
+
+class Box(value: Int)
+
+extension BoxOps for Box
+  def get: Int = this.value
+end
+
+section BoxOps
+  def get: Int = 0
+end

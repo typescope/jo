@@ -1,7 +1,7 @@
----------- Error at tests/warn/extension-auto-member-uninferred.jo:12:32 ---------------
-| type RichBox = extend Box with Problematic
-|                                ^^^^^^^^^^^
-|                                Extension method format has type parameters that cannot be inferred from base type
+---------- Error at tests/warn/extension-auto-member-uninferred.jo:12:24 ---------------
+| type RichBox = Box :+ [Problematic.format]
+|                        ^^^^^^^^^^^^^^^^^^
+|                        Extension method format has type parameters that cannot be inferred from base type
 
 ---------- Error at tests/warn/extension-auto-member-uninferred.jo:19:3 ---------------
 |   show(b)
@@ -11,4 +11,9 @@
   → [RichBox].format ✗ member format not found on type RichBox
 
 
-2 error(s), 0 warning(s)
+---------- Error at tests/warn/extension-auto-member-uninferred.jo:10:7 ---------------
+|   def format(converter: U): String = "formatted"
+|       ^^^^^^
+|       Extension method format has type parameters that cannot be inferred from base type
+
+3 error(s), 0 warning(s)

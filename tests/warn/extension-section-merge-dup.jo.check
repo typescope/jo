@@ -1,0 +1,15 @@
+---------- Error at tests/warn/extension-section-merge-dup.jo:12:7 ---------------
+|   def get: Int = this.value
+|       ^^^
+|       Redefinition of get
+|
+| The name `get` is already defined at tests/warn/extension-section-merge-dup.jo:7:7
+|   def get: Int = 0
+|       ^^^
+
+---------- Error at tests/warn/extension-section-merge-dup.jo:7:7 ---------------
+|   def get: Int = 0
+|       ^^^
+|       Method get is not an extension method
+
+2 error(s), 0 warning(s)

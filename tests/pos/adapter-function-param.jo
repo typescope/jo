@@ -8,7 +8,7 @@ class Document(content: String)
 def formatDoc(doc: Document): String receives indent =
   indent.toString + ": " + doc.content
 
-def test(s: like String with [formatDoc]): Unit =
+def test(s: String :- [formatDoc]): Unit =
   println s
 
 def main =

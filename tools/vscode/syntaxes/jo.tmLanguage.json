@@ -177,7 +177,7 @@
         },
         {
           "name": "keyword.other.jo",
-          "match": "\\b(allow|as|auto|defer|import|namespace|new|private|receives|view|like|is|extend|with)\\b"
+          "match": "\\b(allow|as|auto|defer|import|namespace|new|private|receives|view|is|with)\\b"
         }
       ]
     },

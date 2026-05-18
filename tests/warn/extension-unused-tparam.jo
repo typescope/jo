@@ -7,10 +7,10 @@ type Mapper[T] = T => String
 class Box(value: Int)
 
 // U is completely unused — it does not appear in any parameter or result
-extension Phantom[T, U](it: T)
+extension Phantom[T, U] for T
   def show: String = "phantom"
 
-type PhantomBox = extend Box with Phantom
+type PhantomBox = Box :+ [Phantom.show]
 
 def display[T](x: T)(auto mapper: Mapper[T] with [[T].show]): String =
   mapper(x)

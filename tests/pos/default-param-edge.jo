@@ -14,14 +14,12 @@ class CtorBox
 end
 
 class Box(n: Int)
-  extension BoxOps
-end
 
 // Extension methods should support default parameters.
-extension BoxOps(it: Box)
-  def add(step: Int = DEFAULT_STEP, times: Int = DEFAULT_TIMES): Int = it.n + step * times
+extension BoxOps for Box
+  def add(step: Int = DEFAULT_STEP, times: Int = DEFAULT_TIMES): Int = this.n + step * times
 
-  def label(prefix: String = DEFAULT_PREFIX): String = prefix + ":" + it.n.toString
+  def label(prefix: String = DEFAULT_PREFIX): String = prefix + ":" + this.n.toString
 end
 
 // Local functions support default parameters (use literals; reference defaults must be top-level).
@@ -35,7 +33,7 @@ def main(): Unit =
   println(c1.x)
   println(c2.x)
 
-  val b = Box(10)
+  val b: BoxOps = Box(10)
   println(b.add())
   println(b.add(5))
   println(b.add(5, 6))

@@ -1,27 +1,35 @@
 namespace jo
 
+import jo.compile.intrinsic
+
+@intrinsic
 class Bool
   private def Bool() = abort "Cannot create new Bool instance"
 
   //[ Follows short-cut semantics
     !
   //]
-  def &&(other: Bool): Bool = abort("primitive &&")
+  @intrinsic
+  def &&(other: Bool): Bool = ...
 
   //[ Follows short-cut semantics
     !
   //]
-  def ||(other: Bool): Bool = abort("primitive ||")
+  @intrinsic
+  def ||(other: Bool): Bool = ...
 
+  @intrinsic
   def ==(other: Bool): Bool = ...
 
   def !=(other: Bool): Bool = ! (this == other)
 
+  @intrinsic
   def toString: String = ...
 
   //[ Prefix operator !
     !
     ! The tilde is a marker for prefix operator method
   //]
+  @intrinsic
   def ~! : Bool = ...
 end

@@ -7,9 +7,9 @@ type Getter[T] = T => String
 class Dog(name: String)
 class Cat(name: String)
 
-extension Greetable[T](it: T)
+extension Greetable[T] for T
 
-type Pet = extend Dog with NameProvider
+type Pet = Dog :+ [NameProvider.getName]
 
 section NameProvider
   def (d: Dog) getName: String = d.name

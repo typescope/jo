@@ -83,7 +83,10 @@ class PatternTyper(namer: Namer)(using Config):
         patterns.tail.foldLeft(patterns.head): (acc, pat) =>
           OrPattern(acc, pat)(scrutType)
 
+    lazy val annotations = namer.transformAnnotations(patDef.annotations, patSym)
+
     def computeInfo(resultType: Type) =
+      annotations
       val autoTypes = Nil
       ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoTypes, Nil, resultType, receivesInfo = Nil, patDef.preParamCount, preTypeParamCount = 0)()
 
@@ -92,8 +95,7 @@ class PatternTyper(namer: Namer)(using Config):
 
     val typer = () =>
       defn.setDocComment(patSym, patDef.docComment)
-      val annotApplies = namer.transformAnnotations(patDef.annotations, patSym)
-      PatDef(patSym, tparamSyms, paramSyms, resultTypeTree, typedBody)(annotApplies, patDef.span)
+      PatDef(patSym, tparamSyms, paramSyms, resultTypeTree, typedBody)(annotations, patDef.span)
 
     DelayedDef(patSym, typer)
 

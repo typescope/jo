@@ -13,6 +13,7 @@ import scala.collection.mutable
 
 object Desugaring:
   val ExtraFlags = new KeyProps.Key[Flags]("Desugaring.ExtraFlags")
+  val SyntheticSection = new KeyProps.Key[Unit]("Desugaring.SyntheticSection")
 
   /** Convert an expression word to a type tree, if possible.
     *
@@ -84,6 +85,10 @@ object Desugaring:
     Right(out.toList)
 
   def synthesize(defs: List[Def])(using Reporter, Source): List[Def] =
+    mergeSections(synthesizeLoop(defs))
+
+
+  private def synthesizeLoop(defs: List[Def])(using Reporter, Source): List[Def] =
     val defs2 =
       defs.flatMap:
         case edef: UnionDef  => synthesizeUnionDef(edef)
@@ -93,30 +98,96 @@ object Desugaring:
         case odef: ObjectDef => desugarObjectDef(odef)
         case defn => defn :: Nil
 
-    if defs2.size != defs.size then synthesize(defs2) else defs2
+    if defs2.size != defs.size then synthesizeLoop(defs2) else defs2
 
-  /** Desugar extension definitions into sections with rewritten methods.
+  /** Merge same-name sections when at least one is synthetic (generated from an
+    * extension or union definition). Synthetic defs are always merged INTO the
+    * user-defined section (if one exists), never the other way around. Two
+    * user-defined sections with the same name are left as-is for the Namer.
+    */
+  private def mergeSections(defs: List[Def]): List[Def] =
+    val userSections = mutable.Set.empty[String]
+    val syntheticDefs = mutable.Map.empty[String, mutable.ArrayBuffer[Def]]
+
+    for case sec: Section <- defs do
+      if sec.hasKey(SyntheticSection) then
+        syntheticDefs.getOrElseUpdate(sec.name, mutable.ArrayBuffer()) ++= sec.defs
+      else
+        userSections += sec.name
+
+    defs.flatMap:
+      case sec: Section =>
+        // Skip synthetic sections when a user section exists — it will emit the merged defs
+        if sec.hasKey(SyntheticSection) then
+          if userSections.contains(sec.name) then
+            Nil
+          else
+            sec :: Nil
+
+        else if syntheticDefs.contains(sec.name) then
+          sec.copy(defs = sec.defs ++ syntheticDefs(sec.name).toList)(sec.span) :: Nil
+
+        else sec :: Nil
+
+      case other =>
+        other :: Nil
+
+  /** Desugar extension definitions into a generated type alias and a section.
     *
-    * For each method:
-    * - prepend extension parameter as pre-parameter
-    * - prepend extension type parameters before method type parameters
-    * - mark all extension header type params as pre type params
+    * From
+    *
+    *     extension Name[T] for Base
+    *       def m1(...) = ...
+    *       def m2(...) = ...
+    *
+    * to:
+    *
+    *     type Name[T] = Base :+ [Name.m1, Name.m2]
+    *
+    *     section Name
+    *       def [T](it: Name[T]) m1 (...) = ...
+    *       def [T](it: Name[T]) m2 (...) = ...
+    *
+    * The Section pre-param uses the generated alias type (`Name[T]`) so that
+    * sibling extension methods are visible on the receiver via dot syntax.
+    * The TypeDef base uses the original annotation (`Base`) to avoid circularity.
     */
   def desugarExtensionDef(extDef: ExtensionDef): List[Def] =
+    // Build alias type: Name or Name[T, ...]
+    val aliasType: TypeTree =
+      if extDef.tparams.isEmpty then
+        Ident(extDef.ident.name)(extDef.ident.span)
+      else
+        val targs = extDef.tparams.map(tp => Ident(tp.name)(tp.ident.span))
+        AppliedType(Ident(extDef.ident.name)(extDef.ident.span), targs)(extDef.ident.span)
+
+    // Section pre-param is "this: AliasType" so sibling methods are visible on it
+    val thisParam = Param(Ident("this")(extDef.ident.span), aliasType)(extDef.ident.span)
+
     val modifiedFuns =
       extDef.funs.map: fun =>
-        val newParams = extDef.param :: fun.params
+        val newParams = thisParam :: fun.params
         val newTparams = extDef.tparams ++ fun.tparams
-        val newPreParamCount = 1
-        val newPreTypeParamCount = extDef.tparams.size
         fun.copy(
           tparams = newTparams,
           params = newParams,
-          preParamCount = newPreParamCount,
-          preTypeParamCount = newPreTypeParamCount
+          preParamCount = 1,
+          preTypeParamCount = extDef.tparams.size
         )(fun.span)
 
-    Section(extDef.ident, modifiedFuns)(extDef.span).copyAttachments(extDef) :: Nil
+    val section = Section(extDef.ident, modifiedFuns)(extDef.span).copyAttachments(extDef)
+    section.addKey(SyntheticSection, ())
+
+    // TypeDef uses baseTpt as base (not the alias — avoids circularity)
+    val methodRefs: List[(RefTree, Boolean) | RefTree] =
+      extDef.funs.map: fun =>
+        Select(extDef.ident, fun.ident.name)(fun.ident.span)
+
+    val extType = ExtensionType(extDef.baseTpt, methodRefs)(extDef.ident.span)
+    val tdef = TypeDef(extDef.ident, extDef.tparams, extType, preParamCount = 0)(extDef.ident.span)
+      .copyAttachments(extDef)
+
+    tdef :: section :: Nil
 
   /** A union definition
     *
@@ -184,7 +255,7 @@ object Desugaring:
       branchTypes += branchType
 
       if classDef.params.isEmpty then
-        val objDef = ObjectDef(classDef.ident, views = Nil, extensions = Nil, funs = classDef.funs)(classDef.span)
+        val objDef = ObjectDef(classDef.ident, views = Nil, funs = classDef.funs)(classDef.span)
         classDefs += objDef
       else
         val updatedClassDef = classDef.copy(tparams = tparamsReferred)(classDef.span)
@@ -194,23 +265,19 @@ object Desugaring:
     val unionType = UnionType(branchTypes.toList)(enumDef.span)
 
     if enumDef.funs.nonEmpty then
-      // Synthesize extension def: extension <Name>$Ext[T, ...](this: <Name>[T, ...]) ...
-      val extName = Ident(enumDef.ident.name + "$Ext")(enumDef.ident.span)
-      val paramType: TypeTree =
-        if enumDef.tparams.isEmpty then enumDef.ident
-        else AppliedType(enumDef.ident, enumDef.tparams.map(_.ident))(enumDef.span)
-      val thisParam = Param(Ident("this")(enumDef.span), paramType)(enumDef.span)
-      val extDef = ExtensionDef(extName, enumDef.tparams, thisParam, enumDef.funs)(enumDef.span)
+      // Desugar methods via ExtensionDef with unionType as the base type.
+      // desugarExtensionDef will:
+      //   - use unionType as the TypeDef base (non-circular)
+      //   - use the alias Name[T] as the Section pre-param (cross-method calls work)
+      val extDef = ExtensionDef(enumDef.ident, enumDef.tparams, unionType, enumDef.funs)(enumDef.span)
+        .copyAttachments(enumDef)
 
-      // Type alias: type <Name>[T, ...] = extend (A | B | ...) with <Name>$Ext
-      val extType = ExtensionType(unionType, extName, Nil)(enumDef.span)
-      val tdef = TypeDef(enumDef.ident, enumDef.tparams, extType, preParamCount = 0)(enumDef.span)
-          .copyAttachments(enumDef)
-      tdef :: extDef :: classDefs.toList
+      desugarExtensionDef(extDef) ++ classDefs.toList
 
     else
       val tdef = TypeDef(enumDef.ident, enumDef.tparams, unionType, preParamCount = 0)(enumDef.span)
           .copyAttachments(enumDef)
+
       tdef :: classDefs.toList
 
   /** Desugar a data class definition
@@ -319,7 +386,7 @@ object Desugaring:
     Checker.checkModifiers(odef)
 
     // Create the class definition (no type params, no params, no vals)
-    val classDef = ClassDef(id, Nil, Nil, odef.views, odef.extensions, Nil, odef.funs)(odef.span).copyAttachments(odef)
+    val classDef = ClassDef(id, Nil, Nil, odef.views, Nil, odef.funs)(odef.span).copyAttachments(odef)
 
     classDef.addKey(ExtraFlags, Flags.Object)
 
@@ -412,7 +479,7 @@ object Desugaring:
 
         val ctor2 = ctor.copy(body = newBody)(ctor.span)
         val funs2 = ctor2 :: cdef.funs.filter(_.name != cdef.name)
-        cdef.copy(params = Nil, views = directViews, extensions = cdef.extensions, vals = vals.toList, funs = funs2)(cdef.span)
+        cdef.copy(params = Nil, views = directViews, vals = vals.toList, funs = funs2)(cdef.span)
 
       case None =>
         // Generate constructor with field initializations
@@ -429,7 +496,7 @@ object Desugaring:
         )(cdef.span)
 
         // Return new ClassDef with empty params, direct views preserved
-        cdef.copy(params = Nil, views = directViews, extensions = cdef.extensions, vals = vals.toList, funs = ctor :: cdef.funs)(cdef.span)
+        cdef.copy(params = Nil, views = directViews, vals = vals.toList, funs = ctor :: cdef.funs)(cdef.span)
 
   /* Desugaring for an optional context parameter
    *
@@ -464,10 +531,6 @@ object Desugaring:
   /* Desugaring views
    *
    * 1. Direct views
-   *
-   *    From
-   *
-   *        view T
    *
    *    Direct views are NOT desugared into fields. They remain in the ClassDef's
    *    views list so that Namer can collect them and store them in ClassInfo.directViews.

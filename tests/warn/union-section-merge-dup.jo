@@ -1,0 +1,14 @@
+// User section before union def — synthetic section merges INTO the user section.
+
+section Option
+  def isEmpty: Bool = false  // user-defined
+end
+
+union Option[T] = Some(value: T) | None
+  def isEmpty: Bool =
+    match this
+      case Some(_) => false
+      case None => true
+    end
+  end
+end

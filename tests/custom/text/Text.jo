@@ -1,10 +1,5 @@
 namespace jo
 
-//[ A rope-like data structure for efficient representation of large strings
-  !
-//]
-type Text = extend String | Text.Slice | Text.Concat with TextOps
-
 section Text
   class Slice(base: Text, from: Int, len: Int)
   class Concat(size: Int, lhs: Text, rhs: Text)
@@ -223,16 +218,19 @@ section Text
   end
 end
 
-extension TextOps(it: Text)
+//[ A rope-like data structure for efficient representation of large strings
+  !
+//]
+extension Text for String | Text.Slice | Text.Concat
   def size: Int =
-    match it
+    match this
       case s: String => s.size
       case slice: Text.Slice => slice.len
       case cat: Text.Concat => cat.size
 
   def get(i: Int): Char =
-    if i < 0 || i >= it.size then abort "index out of bound"
-    match it
+    if i < 0 || i >= this.size then abort "index out of bound"
+    match this
       case s: String =>
         s[i]
 
@@ -244,22 +242,22 @@ extension TextOps(it: Text)
         if i < lhsN then cat.lhs[i]
         else cat.rhs[i - lhsN]
 
-  def isEmpty: Bool = it.size == 0
+  def isEmpty: Bool = this.size == 0
 
-  def iterator: Iterator[Char] = new Text.TextIterator(it)
+  def iterator: Iterator[Char] = new Text.TextIterator(this)
 
   def slice(from: Int, len: Int): Text =
-    val n = it.size
+    val n = this.size
     if from < 0 then abort "from should not be negative"
     if len < 0 then abort "len should not be negative"
     if from + len > n then abort "slice out of range"
 
     if len == 0 then Text.empty
-    else if from == 0 && len == n then it
+    else if from == 0 && len == n then this
     else
-      match it
+      match this
         case _: String =>
-          Text.Slice(it, from, len)
+          Text.Slice(this, from, len)
 
         case slice0: Text.Slice =>
           Text.Slice(slice0.base, slice0.from + from, len)
@@ -274,24 +272,24 @@ extension TextOps(it: Text)
             rhs.slice(from - lhsN, len)
 
           else
-            Text.Slice(it, from, len)
+            Text.Slice(this, from, len)
 
-  def +(other: Text): Text = Text.concat(it, other)
+  def +(other: Text): Text = Text.concat(this, other)
 
-  def indexOf(target: String, from: Int = 0): Int = Text.indexOfFrom(it, target, from)
+  def indexOf(target: String, from: Int = 0): Int = Text.indexOfFrom(this, target, from)
 
   def startsWith(prefix: Text): Bool =
     val pLen = prefix.size
-    pLen <= it.size && it.slice(0, pLen).toString == prefix.toString
+    pLen <= this.size && this.slice(0, pLen).toString == prefix.toString
 
   def endsWith(suffix: Text): Bool =
-    val n = it.size
+    val n = this.size
     val sfLen = suffix.size
     if sfLen > n then false
-    else it.slice(n - sfLen, sfLen).toString == suffix.toString
+    else this.slice(n - sfLen, sfLen).toString == suffix.toString
 
   def trimStart: Text =
-    val iter = it.iterator
+    val iter = this.iterator
     var start = 0
     var leading = true
     while iter.hasNext && leading do
@@ -301,11 +299,11 @@ extension TextOps(it: Text)
         leading = false
       end
     end
-    if start == 0 then it
-    else it.slice(start, it.size - start)
+    if start == 0 then this
+    else this.slice(start, this.size - start)
 
   def trimEnd: Text =
-    val iter = it.iterator
+    val iter = this.iterator
     var i = 0
     var stop = 0
     while iter.hasNext do
@@ -315,11 +313,11 @@ extension TextOps(it: Text)
       end
       i = i + 1
     end
-    if stop == i then it
-    else it.slice(0, stop)
+    if stop == i then this
+    else this.slice(0, stop)
 
   def trim: Text =
-    val iter = it.iterator
+    val iter = this.iterator
     var i = 0
     var start = -1
     var stop = 0
@@ -334,42 +332,42 @@ extension TextOps(it: Text)
       i = i + 1
     end
     if start < 0 then Text.empty
-    else if start == 0 && stop == i then it
-    else it.slice(start, stop - start)
+    else if start == 0 && stop == i then this
+    else this.slice(start, stop - start)
 
   def replace(target: String, replacement: Text): Text =
     val tLen = target.size
-    if tLen == 0 then it
+    if tLen == 0 then this
     else
       var result = Text.empty
-      val n = it.size
+      val n = this.size
       var start = 0
-      var i = Text.indexOfFrom(it, target, 0)
+      var i = Text.indexOfFrom(this, target, 0)
       while i >= 0 do
-        result = result + it.slice(start, i - start) + replacement
+        result = result + this.slice(start, i - start) + replacement
         start = i + tLen
-        i = Text.indexOfFrom(it, target, start)
+        i = Text.indexOfFrom(this, target, start)
       end
-      result + it.slice(start, n - start)
+      result + this.slice(start, n - start)
 
   def split(separator: String): List[Text] =
     val sepLen = separator.size
     if sepLen == 0 then
-      List.empty[Text] + it
+      [this]
     else
-      val n = it.size
+      val n = this.size
       var parts = List.empty[Text]
       var start = 0
-      var i = Text.indexOfFrom(it, separator, 0)
+      var i = Text.indexOfFrom(this, separator, 0)
       while i >= 0 do
-        parts = parts + it.slice(start, i - start)
+        parts = parts + this.slice(start, i - start)
         start = i + sepLen
-        i = Text.indexOfFrom(it, separator, start)
+        i = Text.indexOfFrom(this, separator, start)
       end
-      parts + it.slice(start, n - start)
+      parts + this.slice(start, n - start)
 
   def lines: List[Text] =
-    val iter = it.iterator
+    val iter = this.iterator
     var parts = List.empty[Text]
     var i = 0
     var lineStart = 0
@@ -379,9 +377,9 @@ extension TextOps(it: Text)
       val ch = iter.next
       if ch == '\n' then
         if pendingCR then
-          parts = parts + it.slice(lineStart, pendingCRIndex - lineStart)
+          parts = parts + this.slice(lineStart, pendingCRIndex - lineStart)
         else
-          parts = parts + it.slice(lineStart, i - lineStart)
+          parts = parts + this.slice(lineStart, i - lineStart)
         end
         lineStart = i + 1
         pendingCR = false
@@ -395,15 +393,15 @@ extension TextOps(it: Text)
       end
       i = i + 1
     end
-    parts + it.slice(lineStart, i - lineStart)
+    parts + this.slice(lineStart, i - lineStart)
 
   def rebalance: Text =
-    val n = it.size
-    if n <= 1 then it
-    else Text.rebalanceRange(it, 0, n)
+    val n = this.size
+    if n <= 1 then this
+    else Text.rebalanceRange(this, 0, n)
 
   def print: Unit receives IO.stdout =
-    Text.printRange(it, 0, it.size)
+    Text.printRange(this, 0, this.size)
 
-  def toString: String = Text.toStringRange(it, 0, it.size)
+  def toString: String = Text.toStringRange(this, 0, this.size)
 end

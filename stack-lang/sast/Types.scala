@@ -581,7 +581,6 @@ object Types:
 
   /** either the fun symbol or a list of effects */
   type ReceivesInfo = Symbol | List[Symbol]
-  type LazyReceivesInfo = () => ReceivesInfo
 
   /** A default value for a post-parameter: either a literal or a parameterless symbol reference */
   enum DefaultValue:
@@ -597,7 +596,7 @@ object Types:
       autos: List[NamedInfo[Type]],
       candidates: List[List[Symbol | MemberCandidate]],
       resultType: Type,
-      receivesInfo: ReceivesInfo | LazyReceivesInfo,
+      receivesInfo: ReceivesInfo,
       preParamCount: Int,
       preTypeParamCount: Int)
     (val defaultsFun: LazyDefaults = () => Nil)
@@ -630,10 +629,6 @@ object Types:
       receivesInfo match
         case sym: Symbol => defn.receives(sym)
         case effs: List[Symbol] => effs
-        case lazyInfo: LazyReceivesInfo =>
-          lazyInfo() match
-            case sym: Symbol => defn.receives(sym)
-            case effs: List[Symbol] => effs
 
     def minimumArgs(using Definitions): Int =
       minimumPostArgs + preParamCount

@@ -198,8 +198,7 @@ object Printing:
           if cdef.params.isEmpty then Text.Empty
           else "(" ~ cdef.params.join(", ")  ~ ")"
 
-        val extRefs = cdef.extensions.map(ext => "extension " ~ ext)
-        val viewsAndMembers = cdef.views.map(showView) ++ extRefs ++ cdef.vals.map(showDef) ++ cdef.funs.map(showDef)
+        val viewsAndMembers = cdef.views.map(showView) ++ cdef.vals.map(showDef) ++ cdef.funs.map(showDef)
 
         mods ~ "class " ~ cdef.name ~ tparams ~ params ~ indent:
           viewsAndMembers.join(Text.BlankLine)
@@ -225,7 +224,7 @@ object Printing:
           if edef.tparams.isEmpty then Text.Empty
           else "[" ~ edef.tparams.join(", ") ~ "]"
 
-        mods ~ "extension " ~ edef.name ~ tparams ~ "(" ~ edef.param ~ ")" ~ indent:
+        mods ~ "extension " ~ edef.name ~ tparams ~ " for " ~ edef.baseTpt ~ indent:
           edef.funs.join(Text.BlankLine)
 
       case odef: ObjectDef =>
@@ -233,8 +232,7 @@ object Printing:
           if odef.modifiers.isEmpty then Text.Empty
           else odef.modifiers.join(" ") ~ " "
 
-        val extRefs = odef.extensions.map(ext => "extension " ~ ext)
-        val viewsAndMembers = odef.views.map(showView) ++ extRefs ++ odef.funs.map(showDef)
+        val viewsAndMembers = odef.views.map(showView) ++ odef.funs.map(showDef)
 
         mods ~ "object " ~ odef.name ~ indent:
           viewsAndMembers.join(Text.BlankLine)
@@ -488,12 +486,13 @@ object Printing:
           tp ~ " receives " ~ receives.join(", ")
 
       case DuckType(tpe, adapters) =>
-        "like " ~ tpe ~ " with [" ~ adapters.join(", ") ~ "]"
+        tpe ~ " :- [" ~ adapters.join(", ") ~ "]"
 
-      case ExtensionType(base, ext, overrides) =>
-        val base_ext = "extend " ~ base ~ " with " ~ ext
-        if overrides.isEmpty then base_ext
-        else base_ext ~ " override [" ~ overrides.map("." ~ _.show).join(", ") ~ "]"
+      case ExtensionType(base, methods) =>
+        val methodStrs = methods.map:
+          case (ref, isOverride) => if isOverride then ref ~ "!" else ref ~ ""
+          case ref: RefTree => ref ~ ""
+        base ~ " :+ [" ~ methodStrs.join(", ") ~ "]"
 
       case AnnotType(tpe, annot) =>
         tpe ~ " " ~ showAnnotation(annot)

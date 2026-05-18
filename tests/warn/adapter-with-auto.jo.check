@@ -1,7 +1,7 @@
----------- Error at tests/warn/adapter-with-auto.jo:7:30 ---------------
-| def foo(s: like String with [showInt]): Unit =
-|                              ^^^^^^^
-|                              Function adapter cannot have auto parameters
+---------- Error at tests/warn/adapter-with-auto.jo:7:23 ---------------
+| def foo(s: String :- [showInt]): Unit =
+|                       ^^^^^^^
+|                       Function adapter cannot have auto parameters
 
 ---------- Error at tests/warn/adapter-with-auto.jo:11:7 ---------------
 |   foo(42)

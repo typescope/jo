@@ -12,7 +12,7 @@ class Box[T](value: T)
 end
 
 // Function that adapts Box[Int] to String using .format member adapter
-def unbox(box: Box[Int]): like String with [.format] =
+def unbox(box: Box[Int]): String :- [.format] =
   // Define a local auto
   auto localFormatter: Formatter[Int] = x => "Unboxed: " + x.toString()
 

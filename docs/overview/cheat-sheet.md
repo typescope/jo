@@ -288,10 +288,10 @@ match shape
 
 ```jo
 // adapt via member (.toString calls x.toString)
-type Printable = like String with [.toString]
+type Printable = String :- [.toString]
 
 // adapt via function (intToStr converts Int to String)
-type NumStr = like String with [intToStr, .toString]
+type NumStr = String :- [intToStr, .toString]
 
 // usage: accepts any type that can be adapted to String
 def log(msg: Printable): Unit = println msg
@@ -302,13 +302,13 @@ log 42                            // 42.toString applied automatically
 
 ```jo
 // define an extension
-extension ListOps[T](xs: List[T])
+extension ListOps[T] for List[T]
   def isEmpty: Bool = xs is []
   def head: T = match xs case [x, .._] => x
 end
 
 // extension type
-type RichList[T] = extend List[T] with ListOps
+type RichList[T] = List[T] :+ [ListOps.isEmpty, ListOps.head]
 ```
 
 ## Typeclasses and Auto Parameters
