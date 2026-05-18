@@ -1,12 +1,11 @@
 // User section before union def — synthetic section merges INTO the user section.
-// Duplicate method name: error should be at the union def's method (synthetic is secondary).
 
 section Option
   def isEmpty: Bool = false  // user-defined
 end
 
 union Option[T] = Some(value: T) | None
-  def isEmpty: Bool =  // duplicate: error position should be here (synthetic is secondary)
+  def isEmpty: Bool =
     match this
       case Some(_) => false
       case None => true

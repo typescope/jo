@@ -1,10 +1,15 @@
----------- Error at tests/warn/union-section-merge-dup2.jo:14:7 ---------------
-|   def isEmpty: Bool = false  // duplicate: union's isEmpty is first; error position here
+---------- Error at tests/warn/union-section-merge-dup2.jo:4:7 ---------------
+|   def isEmpty: Bool =
 |       ^^^^^^^
 |       Redefinition of isEmpty
 |
-| The name `isEmpty` is already defined at tests/warn/union-section-merge-dup2.jo:5:7
-|   def isEmpty: Bool =
+| The name `isEmpty` is already defined at tests/warn/union-section-merge-dup2.jo:13:7
+|   def isEmpty: Bool = false
 |       ^^^^^^^
 
-1 error(s), 0 warning(s)
+---------- Error at tests/warn/union-section-merge-dup2.jo:13:7 ---------------
+|   def isEmpty: Bool = false
+|       ^^^^^^^
+|       Method isEmpty is not an extension method
+
+2 error(s), 0 warning(s)

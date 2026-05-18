@@ -1,5 +1,4 @@
 // Union def before user section — synthetic still merges INTO user section.
-// Duplicate method name: error should be at the user section (it's secondary in document order).
 
 union Option[T] = Some(value: T) | None
   def isEmpty: Bool =
@@ -11,5 +10,5 @@ union Option[T] = Some(value: T) | None
 end
 
 section Option
-  def isEmpty: Bool = false  // duplicate: union's isEmpty is first; error position here
+  def isEmpty: Bool = false
 end

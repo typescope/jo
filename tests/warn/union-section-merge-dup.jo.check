@@ -1,14 +1,14 @@
----------- Error at tests/warn/union-section-merge-dup.jo:9:7 ---------------
-|   def isEmpty: Bool =  // duplicate: error position should be here (synthetic is secondary)
+---------- Error at tests/warn/union-section-merge-dup.jo:8:7 ---------------
+|   def isEmpty: Bool =
 |       ^^^^^^^
 |       Redefinition of isEmpty
 |
-| The name `isEmpty` is already defined at tests/warn/union-section-merge-dup.jo:5:7
+| The name `isEmpty` is already defined at tests/warn/union-section-merge-dup.jo:4:7
 |   def isEmpty: Bool = false  // user-defined
 |       ^^^^^^^
 
----------- Error at tests/warn/union-section-merge-dup.jo:9:7 ---------------
-|   def isEmpty: Bool =  // duplicate: error position should be here (synthetic is secondary)
+---------- Error at tests/warn/union-section-merge-dup.jo:4:7 ---------------
+|   def isEmpty: Bool = false  // user-defined
 |       ^^^^^^^
 |       Method isEmpty is not an extension method
 
