@@ -244,10 +244,22 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     val processedParts = mutable.ArrayBuffer[Word]()
 
+    def appendLit(text: String, span: Span): Unit =
+      if processedParts.nonEmpty then
+        val last = processedParts.last
+        last match
+          case StringLit(content) =>
+            processedParts(processedParts.size - 1) = StringLit(content + text)(last.span | span)
+
+          case _ =>
+            processedParts += StringLit(text)(span)
+      else
+        processedParts += StringLit(text)(span)
+
     for ((part, indent), idx) <- partsWithIndent.zipWithIndex do
       // insert newline for multiline string
       if quoteCount > 2 && idx > 0 && !indent.isSameLine(partsWithIndent(idx - 1)._2) then
-        processedParts += StringLit("\n")(Span(part.span.start - 1, 0))
+        appendLit("\n", Span(part.span.start - 1, 0))
 
       part match
         case StringLit(content) =>
@@ -268,7 +280,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           // Unescape the content
           try
             val unescaped = StringUtil.unescape(strippedContent, escapePolicy)
-            processedParts += StringLit(unescaped)(part.span)
+            appendLit(unescaped, part.span)
           catch
             case e: StringUtil.EscapeError =>
               val errorStart =
@@ -279,7 +291,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
               val errorSpan = Span(errorStart, e.length)
               error(e.message, errorSpan.toPos)
-              processedParts += StringLit("")(part.span)
+              appendLit("", part.span)
 
         case expr =>
           // For multiline, check indentation if it's first of line
