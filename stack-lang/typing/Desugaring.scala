@@ -13,6 +13,7 @@ import scala.collection.mutable
 
 object Desugaring:
   val ExtraFlags = new KeyProps.Key[Flags]("Desugaring.ExtraFlags")
+  val SyntheticSection = new KeyProps.Key[Unit]("Desugaring.SyntheticSection")
 
   /** Convert an expression word to a type tree, if possible.
     *
@@ -84,6 +85,10 @@ object Desugaring:
     Right(out.toList)
 
   def synthesize(defs: List[Def])(using Reporter, Source): List[Def] =
+    mergeSections(synthesizeLoop(defs))
+
+
+  private def synthesizeLoop(defs: List[Def])(using Reporter, Source): List[Def] =
     val defs2 =
       defs.flatMap:
         case edef: UnionDef  => synthesizeUnionDef(edef)
@@ -93,7 +98,35 @@ object Desugaring:
         case odef: ObjectDef => desugarObjectDef(odef)
         case defn => defn :: Nil
 
-    if defs2.size != defs.size then synthesize(defs2) else defs2
+    if defs2.size != defs.size then synthesizeLoop(defs2) else defs2
+
+  /** Merge same-name sections when at least one is synthetic (generated from an
+    * extension or union definition). Synthetic defs are always merged INTO the
+    * user-defined section (if one exists), never the other way around. Two
+    * user-defined sections with the same name are left as-is for the Namer.
+    */
+  private def mergeSections(defs: List[Def]): List[Def] =
+    val syntheticNames = mutable.Set.empty[String]
+    val hasUserSection = mutable.Set.empty[String]
+    val mergedDefs = mutable.Map.empty[String, mutable.ArrayBuffer[Def]]
+
+    for case sec: Section <- defs do
+      if sec.hasKey(SyntheticSection) then syntheticNames += sec.name
+      else hasUserSection += sec.name
+      mergedDefs.getOrElseUpdate(sec.name, mutable.ArrayBuffer()) ++= sec.defs
+
+    val seen = mutable.Set.empty[String]
+    defs.flatMap:
+      case sec: Section if syntheticNames(sec.name) =>
+        // Skip synthetic sections when a user section exists — it will emit the merged defs
+        if sec.hasKey(SyntheticSection) && hasUserSection(sec.name) then
+          Nil
+        else if seen.add(sec.name) then
+          sec.copy(defs = mergedDefs(sec.name).toList)(sec.span) :: Nil
+        else Nil
+
+      case other =>
+        other :: Nil
 
   /** Desugar extension definitions into a generated type alias and a section.
     *
@@ -139,6 +172,7 @@ object Desugaring:
         )(fun.span)
 
     val section = Section(extDef.ident, modifiedFuns)(extDef.span).copyAttachments(extDef)
+    section.addKey(SyntheticSection, ())
 
     // TypeDef uses original param type as base (not the alias — avoids circularity)
     val methodRefs: List[(RefTree, Boolean) | RefTree] =
