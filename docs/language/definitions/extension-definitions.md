@@ -52,21 +52,19 @@ desugars to:
 type Ext[T] = Box[T] :+ [Ext.foo, Ext.bar]
 
 section Ext
-  def [T](it: Box[T]) foo(x: Int): Int = ...
-  def [T](it: Box[T]) bar[S](f: T -> S): S = ...
+  def [T](it: Ext[T]) foo(x: Int): Int = ...
+  def [T](it: Ext[T]) bar[S](f: T -> S): S = ...
 end
 ```
 
-The pre-parameter type in each section method is exactly what the user annotated for `it` —
-the original annotation is preserved, not the generated alias. If the user wants cross-method
-calls via `it.method`, they annotate `it` with a previously defined type alias:
+The TypeDef base uses the original annotation (`Box[T]`), which avoids circularity. The section
+pre-param uses the generated alias type (`Ext[T]`), so all sibling extension methods are
+available on `it` via dot syntax:
 
 ```jo
-type Option[T] = (Some[T] | None) :+ [OptionOps.isEmpty, OptionOps.getOrElse]
-
-extension OptionOps[T](it: Option[T])   // it: Option[T], has extension methods
+extension Option[T](it: Some[T] | None)
   def isEmpty: Bool = it is None
-  def isDefined: Bool = !it.isEmpty     // works: it has extension type
+  def isDefined: Bool = !it.isEmpty     // works: it has type Option[T]
 end
 ```
 
