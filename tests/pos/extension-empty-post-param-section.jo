@@ -2,8 +2,8 @@ class Box
   var x: Int = 0
 end
 
-extension BoxOps(box: Box)
-  def inc() = box.x = box.x + 1
+extension BoxOps for Box
+  def inc(): Unit = this.x = this.x + 1
 
 def main() =
   val box: Box :+ [BoxOps.inc] = new Box

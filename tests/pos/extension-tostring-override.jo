@@ -10,8 +10,8 @@ class DummyShow
   def toString: String = "dummy toString"
 end
 
-extension PointExt(it: Point)
-  @shadow def toString: String = "(" + it.x.toString + ", " + it.y.toString + ")"
+extension PointExt for Point
+  @shadow def toString: String = "(" + this.x.toString + ", " + this.y.toString + ")"
 end
 
 type EPoint = Point :+ [PointExt.toString!]

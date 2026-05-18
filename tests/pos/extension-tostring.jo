@@ -11,18 +11,18 @@ type Show[T] = T => String
 def showString: Show[String] = (s: String) => s
 
 // Extension with auto parameter
-extension Option[T](it: Some[T] | None)
+extension Option[T] for Some[T] | None
   def toString(auto show: Show[T] with [[T].toString, showString]): String =
-    match it
+    match this
       case s: Some[T] => "Some(" + show(s.value) + ")"
       case _: None => "None"
     end
   end
 end
 
-extension StringOrInt(it: Int | String)
+extension StringOrInt for Int | String
   def toString: String =
-    match it
+    match this
       case s: String => s
       case x: Int => x.toString
 

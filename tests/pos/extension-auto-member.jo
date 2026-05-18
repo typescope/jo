@@ -7,7 +7,7 @@ type Getter[T] = T => String
 class Dog(name: String)
 class Cat(name: String)
 
-extension Greetable[T](it: T)
+extension Greetable[T] for T
 
 type Pet = Dog :+ [NameProvider.getName]
 

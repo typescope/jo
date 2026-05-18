@@ -1,38 +1,35 @@
 class Some[T](value: T)
 object None
 
-extension OptionOps[T](it: Some[T] | None)
+extension Option[T] for Some[T] | None
   def isEmpty: Bool =
-    match it
+    match this
       case _: Some[T] => false
       case _: None => true
     end
   end
 
   def getOrElse(default: T): T =
-    match it
+    match this
       case s: Some[T] => s.value
       case _: None => default
   end
 end
 
-type Option[T] = (Some[T] | None) :+ [OptionOps.isEmpty, OptionOps.getOrElse]
-
 // Extend an extension type with more methods
-extension MoreOps[T](it: Option[T])
-  def isDefined: Bool = ! it.isEmpty
+extension RichOption[T] for Option[T]
+  def isDefined: Bool = ! this.isEmpty
 
   // Override isEmpty from OptionOps
   @shadow def isEmpty: Bool =
     println "MoreOps.isEmpty called"
-    match it
+    match this
       case _: Some[T] => false
       case _: None => true
     end
   end
 end
 
-type RichOption[T] = Option[T] :+ [MoreOps.isDefined, MoreOps.isEmpty!]
 
 def main =
   val opt: RichOption[Int] = Some(42)

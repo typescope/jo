@@ -10,9 +10,9 @@ def intFormatter: Formatter[Int] = (n: Int) => "Int:" + n
 def strFormatter: Formatter[String] = (s: String) => "Str:" + s
 
 // Extension with auto parameter - candidates declared in definition
-extension WrapperOps[T](it: Wrapper[T])
+extension WrapperOps[T] for Wrapper[T]
   def formatted(auto fmt: Formatter[T] with [intFormatter, strFormatter]): String =
-    fmt(it.value)
+    fmt(this.value)
   end
 end
 

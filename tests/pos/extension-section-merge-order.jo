@@ -9,9 +9,9 @@ section OptionOps
 end
 
 // Extension def comes after — its generated section merges into the user section
-extension OptionOps[T](it: Some[T] | None)
+extension OptionOps[T] for Some[T] | None
   def isEmpty: Bool =
-    match it
+    match this
       case _: Some[T] => false
       case _: None => true
     end

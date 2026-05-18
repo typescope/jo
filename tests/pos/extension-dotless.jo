@@ -4,15 +4,15 @@
 class Some[T](value: T)
 object None
 
-extension OptionOps[T](it: Some[T] | None)
+extension OptionOps[T] for Some[T] | None
   def isEmpty: Bool =
-    match it
+    match this
       case _: Some[T] => false
       case None => true
   end
 
   def getOrElse(default: T): T =
-    match it
+    match this
       case s: Some[T] => s.value
       case None => default
   end

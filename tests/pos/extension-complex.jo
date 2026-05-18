@@ -3,41 +3,41 @@
 class Complex(re: Int, im: Int)
 
 // Extension with arithmetic operators
-extension RichComplex(it: Complex)
+extension RichComplex for Complex
   // Accessor methods
-  def real: Int = it.re
-  def imag: Int = it.im
+  def real: Int = this.re
+  def imag: Int = this.im
 
   // Prefix negation operator
-  def ~-(): RichComplex = new Complex(- it.re, - it.im)
+  def ~-(): RichComplex = new Complex(- this.re, - this.im)
 
   // Infix operators
   def +(other: Complex): RichComplex =
-    new Complex(it.re + other.re, it.im + other.im)
+    new Complex(this.re + other.re, this.im + other.im)
 
   def -(other: Complex): RichComplex =
-    new Complex(it.re - other.re, it.im - other.im)
+    new Complex(this.re - other.re, this.im - other.im)
 
   def *(other: Complex): RichComplex =
     // (a + bi)(c + di) = (ac - bd) + (ad + bc)i
-    val re = it.re * other.re - it.im * other.im
-    val im = it.re * other.im + it.im * other.re
+    val re = this.re * other.re - this.im * other.im
+    val im = this.re * other.im + this.im * other.re
     new Complex(re, im)
 
   // Magnitude squared
   def magnitudeSquared: Int =
-    it.re * it.re + it.im * it.im
+    this.re * this.re + this.im * this.im
 
   // Conjugate
   def ~~ : RichComplex =
-    new Complex(it.re, - it.im)
+    new Complex(this.re, - this.im)
 
   // String representation
   def show: String =
-    if it.im >= 0 then
-      it.re.toString + " + " + it.im.toString + "i"
+    if this.im >= 0 then
+      this.re.toString + " + " + this.im.toString + "i"
     else
-      it.re.toString + " - " + (- it.im).toString + "i"
+      this.re.toString + " - " + (- this.im).toString + "i"
 end
 
 def main receives IO.stdout =
