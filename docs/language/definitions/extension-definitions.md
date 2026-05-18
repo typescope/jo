@@ -82,6 +82,28 @@ end
 
 See [Extension Types](../types/extension-types.md) for the `!` marker used in user-written `:+` expressions.
 
+## Section Merging
+
+The generated section has the same name as the extension definition. If a user-defined
+`section` of the same name exists in the same scope, the two are merged automatically:
+
+```jo
+extension OptionOps[T](it: Some[T] | None)
+  def isEmpty: Bool = it is None
+end
+
+// Adds factory methods to the same OptionOps namespace — no conflict
+section OptionOps
+  def from[T](value: T): OptionOps[T] = Some(value)
+end
+
+val opt = OptionOps.from(42)
+println opt.isEmpty  // false
+```
+
+The same applies to union definitions with methods: the generated section merges
+with any user-defined section of the same name in the same scope.
+
 ## Validation at Attachment Sites
 
 When an extension definition is attached via a `:+` expression:
