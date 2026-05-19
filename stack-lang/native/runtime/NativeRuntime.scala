@@ -171,7 +171,8 @@ extends Linker:
       Flags.Synthetic | Flags.Fun,
       visibility = Visibility.Default,
       owner = Native,
-      pos = Core_initObjects.sourcePos)
+      pos = Core_initObjects.sourcePos,
+      annotsInfo = Nil)
 
   /** Map from the accessor function to holder address of object address */
   private val accessorValueMap: mutable.Map[Symbol, Label] = mutable.Map.empty
@@ -209,7 +210,8 @@ extends Linker:
         Flags.Synthetic | Flags.Object,
         visibility = Visibility.Default,
         owner = Native,
-        pos = Core_initObjects.sourcePos
+        pos = Core_initObjects.sourcePos,
+        annotsInfo = Nil
       )
 
       dataValueMap(labelSym) = label

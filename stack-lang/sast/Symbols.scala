@@ -69,14 +69,23 @@ object Symbols:
             case Global => false
             case Limit(containerB) => containerB.containedIn(containerA)
 
+
+  type AnnotationsInfo = (() => List[Annotation]) | List[Annotation]
+
   sealed abstract class Symbol(
     val name: String,
     val flags: Flags,
     val visibility: Visibility,
+    val annotsInfo: AnnotationsInfo,
     val owner: Symbol,
     val sourcePos: SourcePosition):
 
     assert(owner != null || flags.is(Flags.NSpace), "symbol = " + name)
+
+    lazy val annotations: List[Annotation] =
+      annotsInfo match
+        case annots: List[Annotation] => annots
+        case provider: (() => List[Annotation]) => provider()
 
     /** Do not cache the result from provider
       *
@@ -123,20 +132,10 @@ object Symbols:
 
     def isPrivate = this.visibility.isInstanceOf[Visibility.Private]
 
-    private var _annotations: List[Annotation] = Nil
+    def annotation(annot: Symbol): Option[Annotation] =
+      annotations.find(_.symbol == annot)
 
-    def annotations: List[Annotation] = _annotations
-
-    def withAnnotations(annots: List[Annotation]): this.type =
-      _annotations = annots
-      this
-
-    def annotation(annot: Symbol)(using defn: Definitions): Option[Annotation] =
-      // force symbol to make sure annotations are attached
-      val _ = this.info
-      _annotations.find(_.symbol == annot)
-
-    def hasAnnotation(annot: Symbol)(using defn: Definitions): Boolean =
+    def hasAnnotation(annot: Symbol): Boolean =
       annotation(annot).nonEmpty
 
     /** Whether this symbol is an extension method (has 1 pre-parameter) */
@@ -319,75 +318,78 @@ object Symbols:
     name: String,
     flags: Flags,
     visibility: Visibility,
+    annotsInfo: AnnotationsInfo,
     owner: Symbol,
     sourcePos: SourcePosition)
-  extends Symbol(name, flags, visibility, owner, sourcePos)
+  extends Symbol(name, flags, visibility, annotsInfo, owner, sourcePos)
 
   final class TermSymbol private[Symbols](
     name: String,
     flags: Flags,
     visibility: Visibility,
+    annotsInfo: AnnotationsInfo,
     owner: Symbol,
     sourcePos: SourcePosition)
-  extends Symbol(name, flags, visibility, owner, sourcePos)
+  extends Symbol(name, flags, visibility, annotsInfo, owner, sourcePos)
 
   final class PatternSymbol private[Symbols](
     name: String,
     flags: Flags,
     visibility: Visibility,
+    annotsInfo: AnnotationsInfo,
     owner: Symbol,
     sourcePos: SourcePosition)
-  extends Symbol(name, flags, visibility, owner, sourcePos)
+  extends Symbol(name, flags, visibility, annotsInfo, owner, sourcePos)
 
   final class ContainerSymbol private[Symbols](
     name: String,
     nameTable: NameTable,
     flags: Flags,
     visibility: Visibility,
+    annotsInfo: AnnotationsInfo,
     owner: Symbol,
     sourcePos: SourcePosition)
-  extends Symbol(name, flags, visibility, owner, sourcePos):
+  extends Symbol(name, flags, visibility, annotsInfo, owner, sourcePos):
     val table: NameTable = nameTable
 
   object TermSymbol:
-    def create(name: String, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition): TermSymbol =
-      new TermSymbol(name, flags, visibility, owner, pos)
+    def create(name: String, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition, annotsInfo: AnnotationsInfo): TermSymbol =
+      new TermSymbol(name, flags, visibility, annotsInfo, owner, pos)
 
     def create
-        (name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
+        (name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition, annotsInfo: AnnotationsInfo)
         (using defn: Definitions)
     : Symbol =
-      val sym = new TermSymbol(name, flags, visibility, owner, pos)
+      val sym = new TermSymbol(name, flags, visibility, annotsInfo, owner, pos)
       defn.add(sym, info)
       sym
 
   object TypeSymbol:
-    def create(kind: Kind, name: String, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition): TypeSymbol =
-      new TypeSymbol(kind, name, flags, visibility, owner, pos)
+    def create(kind: Kind, name: String, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition, annotsInfo: AnnotationsInfo): TypeSymbol =
+      new TypeSymbol(kind, name, flags, visibility, annotsInfo, owner, pos)
 
     def create
-        (kind: Kind, name: String, info: Denotation, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
+        (kind: Kind, name: String, info: Denotation, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition, annotsInfo: AnnotationsInfo)
         (using defn: Definitions)
     : TypeSymbol =
-      val sym = new TypeSymbol(kind, name, flags, visibility, owner, pos)
+      val sym = new TypeSymbol(kind, name, flags, visibility, annotsInfo, owner, pos)
       defn.add(sym, info)
       sym
 
   object PatternSymbol:
-    def create(name: String, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition): PatternSymbol =
-      new PatternSymbol(name, flags, visibility, owner, pos)
+    def create(name: String, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition, annotsInfo: AnnotationsInfo): PatternSymbol =
+      new PatternSymbol(name, flags, visibility, annotsInfo, owner, pos)
 
     def create
-        (name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
+        (name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition, annotsInfo: AnnotationsInfo)
         (using defn: Definitions)
     : PatternSymbol =
-      val sym = new PatternSymbol(name, flags, visibility, owner, pos)
+      val sym = new PatternSymbol(name, flags, visibility, annotsInfo, owner, pos)
       defn.add(sym, info)
       sym
 
   object ContainerSymbol:
     def create
-        (name: String, nameTable: NameTable, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
+        (name: String, nameTable: NameTable, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition, annotsInfo: AnnotationsInfo)
     : Symbol =
-
-      new ContainerSymbol(name, nameTable, flags, visibility, owner, pos)
+      new ContainerSymbol(name, nameTable, flags, visibility, annotsInfo, owner, pos)

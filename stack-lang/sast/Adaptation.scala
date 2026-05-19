@@ -373,7 +373,7 @@ object Adaptation:
     if targetLambdaType.params.nonEmpty then return Result.Failure(Nil)
     if !Subtyping.conforms(word.tpe, targetLambdaType.resultType) then return Result.Failure(Nil)
 
-    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, word.span.toPos(using source))
+    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, word.span.toPos(using source), Nil)
     val lambda = Lambda(lambdaSym, Nil, targetLambdaType.receives, word)(word.span)
     defn.add(lambdaSym, lambda.tpe)
     Result.Success(lambda)
@@ -672,7 +672,7 @@ object Adaptation:
         // Try to resolve auto parameters before creating lambda
         val all: AutoResolution.SearchNode.All = AutoResolution.SearchNode.All(scala.collection.mutable.ArrayBuffer())
         // Collect local autos from the scope where adaptation happens
-        val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos)
+        val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos, Nil)
         val localAutos = scope.collectLocalAutos
         AutoResolution.resolve(memberProcType, localAutos, Vector.empty, all, lambdaSym, span) match
           case Some(autos) =>
@@ -692,7 +692,7 @@ object Adaptation:
             Left(all)
 
       case _ =>
-        val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos)
+        val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos, Nil)
         // No auto parameters or not a parameterless method - create simple lambda
         val lambda = TreeOps.createLambdaWithSymbol(lambdaSym, lambdaType, span): paramIdents =>
           val paramIdent = paramIdents.head

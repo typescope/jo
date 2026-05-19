@@ -101,7 +101,7 @@ enum Scope:
       case Some(sym) => sym
       case None =>
         Reporter.error(s"Undefined term name " + name, pos)
-        TermSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, owner, pos)
+        TermSymbol.create(name, ErrorType, Flags.Synthetic, Visibility.Default, owner, pos, Nil)
 
   def resolveAnnotationOpt(name: String)(using Definitions): Option[Symbol] =
     table.resolveAnnotation(name) match

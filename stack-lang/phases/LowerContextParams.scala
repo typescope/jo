@@ -134,8 +134,8 @@ extends Phase:
     span: Span
   )(using Context): (Symbol, Word) =
     val owner = Phase.owner.value
-    val batchSym = TermSymbol.create("__ctxBatch2", BatchType, Flags.Synthetic, Visibility.Default, owner, owner.sourcePos)
-    val mergedSym = TermSymbol.create("__ctx2", CtxType, Flags.Synthetic, Visibility.Default, owner, owner.sourcePos)
+    val batchSym = TermSymbol.create("__ctxBatch2", BatchType, Flags.Synthetic, Visibility.Default, owner, owner.sourcePos, Nil)
+    val mergedSym = TermSymbol.create("__ctx2", CtxType, Flags.Synthetic, Visibility.Default, owner, owner.sourcePos, Nil)
 
     val startBatch = Ident(startBatchSym)(span).appliedTo(Ident(capturedCtx)(span), IntLit(receives.size)(span))
     val stmts = new mutable.ArrayBuffer[Word]
@@ -203,7 +203,7 @@ extends Phase:
 
     val maybeCtxParam =
       if shouldAddCtxParam(sym) then
-        Some(TermSymbol.create("__ctx", CtxType, Flags.Param | Flags.Synthetic, Visibility.Default, sym, sym.sourcePos))
+        Some(TermSymbol.create("__ctx", CtxType, Flags.Param | Flags.Synthetic, Visibility.Default, sym, sym.sourcePos, Nil))
       else
         None
 
@@ -235,7 +235,7 @@ extends Phase:
 
     val maybeCallCtxParam =
       if receives.nonEmpty then
-        Some(TermSymbol.create("__ctx1", CtxType, Flags.Param | Flags.Synthetic, Visibility.Default, sym, sym.sourcePos))
+        Some(TermSymbol.create("__ctx1", CtxType, Flags.Param | Flags.Synthetic, Visibility.Default, sym, sym.sourcePos, Nil))
       else
         None
 
@@ -270,7 +270,7 @@ extends Phase:
         case Some(sym) =>
           sym
         case None =>
-          val sym = TermSymbol.create("__ctx0", CtxType, Flags.Synthetic, Visibility.Default, owner, owner.sourcePos)
+          val sym = TermSymbol.create("__ctx0", CtxType, Flags.Synthetic, Visibility.Default, owner, owner.sourcePos, Nil)
           stats += Assign(Ident(sym)(word.span), Ident(emptyCtxSym)(word.span).appliedTo())
           sym
     val outerCtxRef = Ident(outerCtxSym)(word.span)
@@ -278,12 +278,12 @@ extends Phase:
     // 1. args are evaluated with the outer context (in source order)
     val argValueSyms = args.map: arg =>
       val paramName = arg.ident.symbol.fullName
-      val argValueSym = TermSymbol.create("arg_" + paramName, arg.rhs.tpe, Flags.Synthetic, Visibility.Default, owner, owner.sourcePos)
+      val argValueSym = TermSymbol.create("arg_" + paramName, arg.rhs.tpe, Flags.Synthetic, Visibility.Default, owner, owner.sourcePos, Nil)
       stats += Assign(Ident(argValueSym)(arg.rhs.span), this(arg.rhs))
       argValueSym
 
     // 2. Build batch in source order and finish to produce __ctxN
-    val batchSym = TermSymbol.create("__ctxBatch", BatchType, Flags.Synthetic, Visibility.Default, owner, owner.sourcePos)
+    val batchSym = TermSymbol.create("__ctxBatch", BatchType, Flags.Synthetic, Visibility.Default, owner, owner.sourcePos, Nil)
     val startBatch = Ident(startBatchSym)(word.span).appliedTo(outerCtxRef, IntLit(args.size)(word.span))
     stats += Assign(Ident(batchSym)(word.span), startBatch)
 
@@ -294,7 +294,7 @@ extends Phase:
       val addBindingFun = TypeApply(Ident(addBindingSym)(arg.span), tparam :: Nil)(arg.span)
       stats += addBindingFun.appliedTo(Ident(batchSym)(arg.span), key, value).dropValue
 
-    val ctxSym = TermSymbol.create("__ctx", CtxType, Flags.Synthetic, Visibility.Default, owner, owner.sourcePos)
+    val ctxSym = TermSymbol.create("__ctx", CtxType, Flags.Synthetic, Visibility.Default, owner, owner.sourcePos, Nil)
     val ctxExpr = Ident(finishBatchSym)(expr.span).appliedTo(Ident(batchSym)(expr.span))
     stats += Assign(Ident(ctxSym)(expr.span), ctxExpr)
 

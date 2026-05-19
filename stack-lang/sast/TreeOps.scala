@@ -123,7 +123,7 @@ object TreeOps:
     // Create parameter symbols for the lambda (with synthetic names)
     val paramSyms =
       for (paramType, i) <- lambdaType.params.zipWithIndex yield
-        TermSymbol.create("p" + i, paramType, Flags.Param, Visibility.Default, lambdaSym, pos)
+        TermSymbol.create("p" + i, paramType, Flags.Param, Visibility.Default, lambdaSym, pos, Nil)
 
     // Generate parameter idents and call the body function
     val paramIdents = paramSyms.map(sym => Ident(sym)(span))
@@ -142,7 +142,7 @@ object TreeOps:
       (using defn: Definitions, source: Source)
   : Word =
     // Create a lambda symbol
-    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos)
+    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos, Nil)
     createLambdaWithSymbol(lambdaSym, lambdaType, span)(body)
 
   /** Eta-expand a function to a lambda
