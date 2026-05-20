@@ -28,31 +28,32 @@ class PatternTyper(namer: Namer)(using Config):
 
     val flags = Checker.checkModifiers(patDef) | Flags.Fun
 
-    lazy val annotations =
+    val annotationsLazy = Namer.lazyValue:
       given Scope = sc
       namer.transformAnnotations(patDef.annotations)
 
     val patSym = PatternSymbol.create(patDef.name, flags, Checker.visibility(patDef, sc.owner), sc.owner, patDef.ident.pos)
     given patScope: Scope = sc.fresh(patSym)
 
-    lazy val tparamSyms = namer.transformTypeParams(patDef.tparams)
+    val tparamSymsLazy = Namer.lazyValue:
+      namer.transformTypeParams(patDef.tparams)
 
-    lazy val paramSyms =
-      tparamSyms
+    val paramSymsLazy = Namer.lazyValue:
+      tparamSymsLazy.value
       for param <- patDef.params yield
         val tpt = namer.transformValueType(param.tpt)
         val paramSym = PatternSymbol.create(param.name, tpt.tpe, Flags.Param, Visibility.Default, patSym, param.pos)
         paramSym
 
-    lazy val resultTypeTree =
+    val resultTypeTreeLazy = Namer.lazyValue:
       assert(!patDef.resultType.isEmpty, "result type of pattern predicates is mandatory")
 
-      tparamSyms
+      tparamSymsLazy.value
       namer.transformValueType(patDef.resultType)
 
-    lazy val typedBody =
-      paramSyms
-      val scrutType = resultTypeTree.tpe.stripPartial
+    val typedBodyLazy = Namer.lazyValue:
+      paramSymsLazy.value
+      val scrutType = resultTypeTreeLazy.value.tpe.stripPartial
 
       val reporterTemp = rp.fresh(buffer = true)
 
@@ -60,13 +61,13 @@ class PatternTyper(namer: Namer)(using Config):
         given Reporter = reporterTemp
         for Ast.Case(pattern, _) <- patDef.cases yield
           given flowScope: FlowScope = new FlowScope(patScope)
-          paramSyms.foreach { param => flowScope.define(param) }
+          paramSymsLazy.value.foreach { param => flowScope.define(param) }
           val patternTyped = Inference.freshIsolate:
             transformPattern(pattern, scrutType)
 
           if !reporterTemp.hasErrors then
             for
-              paramSym <- paramSyms if !flowScope.isPromoted(paramSym)
+              paramSym <- paramSymsLazy.value if !flowScope.isPromoted(paramSym)
             do
               Reporter.error(s"The parameter $paramSym is not bound in the patterns", pattern.pos)
 
@@ -74,7 +75,7 @@ class PatternTyper(namer: Namer)(using Config):
 
       // Elide checks if other errors are present
       if !reporterTemp.hasErrors then
-        checkExhaustivity(patterns, resultTypeTree)
+        checkExhaustivity(patterns, resultTypeTreeLazy.value)
 
       reporterTemp.commit(rp)
 
@@ -89,15 +90,15 @@ class PatternTyper(namer: Namer)(using Config):
 
     def computeInfo(resultType: Type) =
       val autoTypes = Nil
-      ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoTypes, Nil, resultType, receivesInfo = Nil, patDef.preParamCount, preTypeParamCount = 0)()
+      ProcType(tparamSymsLazy.value, paramSymsLazy.value.map(_.toNamedInfo), autoTypes, Nil, resultType, receivesInfo = Nil, patDef.preParamCount, preTypeParamCount = 0)()
 
     val index = lazyDefn.index
-    index.addLazy(patSym, () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
-    index.setAnnotations(patSym, () => annotations.map(TreeOps.applyToAnnotation))
+    index.addLazy(patSym, () => computeInfo(resultTypeTreeLazy.value.tpe), () => computeInfo(ErrorType))
+    index.setAnnotations(patSym, () => annotationsLazy.value.map(TreeOps.applyToAnnotation))
     index.setDocComment(patSym, patDef.docComment)
 
     Namer.lazyDef(patSym):
-      PatDef(patSym, tparamSyms, paramSyms, resultTypeTree, typedBody)(annotations, patDef.span)
+      PatDef(patSym, tparamSymsLazy.value, paramSymsLazy.value, resultTypeTreeLazy.value, typedBodyLazy.value)(annotationsLazy.value, patDef.span)
 
   private def checkExhaustivity(patterns: List[Pattern], coveredTypeTree: TypeTree)
       (using defn: Definitions, rp: Reporter, so: Source): Unit =
