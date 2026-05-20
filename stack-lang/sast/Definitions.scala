@@ -59,31 +59,9 @@ final class Definitions(val index: SymbolIndex) extends Definitions.Lazy:
   // Pair
   val jo_Pair_def      =  jo.termMember("Pair")
 
-  val Array_type      =  jo.typeMember("Array")
-
+  val Array_class     =  jo.typeMember("Array")
   val Array_sec       =  jo.containerMember("Array")
-  val IntArray        =  Array_sec.termMember("IntArray")
-  val FloatArray      =  Array_sec.termMember("FloatArray")
-  val CharArray       =  Array_sec.termMember("CharArray")
-  val ByteArray       =  Array_sec.termMember("ByteArray")
-  val BoolArray       =  Array_sec.termMember("BoolArray")
-  val RefArray     =  Array_sec.termMember("RefArray")
-
-  val IntArray_class    = Array_sec.typeMember("IntArray")
-  val FloatArray_class  = Array_sec.typeMember("FloatArray")
-  val CharArray_class   = Array_sec.typeMember("CharArray")
-  val ByteArray_class   = Array_sec.typeMember("ByteArray")
-  val BoolArray_class   = Array_sec.typeMember("BoolArray")
-  val RefArray_class = Array_sec.typeMember("RefArray")
-
-  val ArrayBuilder       =  jo.typeMember("ArrayBuilder")
-  val ArrayBuilder_sec   =  jo.containerMember("ArrayBuilder")
-
-  val IntArrayBuilder    =  ArrayBuilder_sec.termMember("IntArrayBuilder")
-  val FloatArrayBuilder  =  ArrayBuilder_sec.termMember("FloatArrayBuilder")
-  val CharArrayBuilder   =  ArrayBuilder_sec.termMember("CharArrayBuilder")
-  val ByteArrayBuilder   =  ArrayBuilder_sec.termMember("ByteArrayBuilder")
-  val BoolArrayBuilder   =  ArrayBuilder_sec.termMember("BoolArrayBuilder")
+  val Array_create    =  Array_sec.termMember("create")
 
   // Lists
   val List         =  resolveContainer("jo.List")

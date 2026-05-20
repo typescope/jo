@@ -21,7 +21,7 @@ class PatternMatcher(using defn: Definitions) extends Phase:
   val abortSym = defn.abort
 
   /** The type for holding successful matched values in a PatDef */
-  val ResultArrayType = AppliedType(defn.RefArray_class, AnyType :: Nil)
+  val ResultArrayType = AppliedType(defn.Array_class, AnyType :: Nil)
 
   /** Extract a constant boolean result and the prefix effects needed to compute it.
     *
@@ -447,7 +447,7 @@ class PatternMatcher(using defn: Definitions) extends Phase:
       //
       // Or create a class with mutable fields as transport to avoid boxing.
       val sizeArg = IntLit(procType.paramCount)(span)
-      val arrayCreate = Ident(defn.RefArray)(span)
+      val arrayCreate = Ident(defn.Array_create)(span)
       val arrayAlloc = Assign(resultArrayIdent, arrayCreate.appliedToTypes(AnyType).appliedTo(sizeArg))
 
       val args =

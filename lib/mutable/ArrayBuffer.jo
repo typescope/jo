@@ -5,8 +5,8 @@ import jo.*
 section ArrayBuffer
   def initialCapacity: Int = 16
 
-  def empty[T](auto builder: ArrayBuilder[T]): ArrayBuffer[T] =
-    new ArrayBuffer(builder)
+  def empty[T]: ArrayBuffer[T] =
+    new ArrayBuffer
 
   private[mutable] class ArrayBufferIterator[T](buffer: ArrayBuffer[T])
     var index: Int = 0
@@ -23,7 +23,7 @@ section ArrayBuffer
 end
 
 // Varargs constructor for array buffer literals
-def ArrayBuffer[T](elems: ..T)(auto builder: ArrayBuilder[T]): ArrayBuffer[T] =
+def ArrayBuffer[T](elems: ..T): ArrayBuffer[T] =
   val buf = ArrayBuffer.empty[T]
   for elem in elems do
     buf.append(elem)
@@ -34,12 +34,10 @@ def ArrayBuffer[T](elems: ..T)(auto builder: ArrayBuilder[T]): ArrayBuffer[T] =
 class ArrayBuffer[T]
   var _data: Array[T]
   var _size: Int
-  val _builder: ArrayBuilder[T]
 
-  def ArrayBuffer(builder: ArrayBuilder[T]) =
-    this._data = builder.build(ArrayBuffer.initialCapacity)
+  def ArrayBuffer() =
+    this._data = Array.create(ArrayBuffer.initialCapacity)
     this._size = 0
-    this._builder = builder
 
   def size: Int = _size
 
@@ -52,7 +50,7 @@ class ArrayBuffer[T]
       while newCapacity < n do
         newCapacity = newCapacity * 2
       end
-      val newData = _builder.build(newCapacity)
+      val newData = Array.create[T](newCapacity)
       var i = 0
       while i < _size do
         newData[i] = _data[i]

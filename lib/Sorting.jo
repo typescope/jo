@@ -5,7 +5,7 @@ section Sorting
     !
     ! Time: O(n log n), Space: O(n) auxiliary. Stable sort.
   //]
-  def sortArray[T](arr: Array.RefArray[T], from: Int, to: Int, ord: Ord[T]): Unit =
+  def sortArray[T](arr: Array[T], from: Int, to: Int, ord: Ord[T]): Unit =
     if from < to then
       val mid = from + (to - from) / 2
       sortArray(arr, from, mid, ord)
@@ -13,9 +13,9 @@ section Sorting
       merge(arr, from, mid, to, ord)
 
   // Merge arr[from..mid] and arr[mid+1..to] into a single sorted run in-place.
-  private def merge[T](arr: Array.RefArray[T], from: Int, mid: Int, to: Int, ord: Ord[T]): Unit =
+  private def merge[T](arr: Array[T], from: Int, mid: Int, to: Int, ord: Ord[T]): Unit =
     val n = to - from + 1
-    val temp = Array.RefArray[T](n)
+    val temp = Array.create[T](n)
     var li = from
     var ri = mid + 1
     var k = 0

@@ -6,13 +6,13 @@ class Match
   val from: Int
   val length: Int
   val groupCount: Int
-  private val groups: Array.RefArray[String | None]
+  private val groups: Array[String | None]
   private var groupIndexByName: Map[String, Int] = Map.empty
 
   def Match(
     from: Int,
     length: Int,
-    groups: Array.RefArray[String | None]
+    groups: Array[String | None]
   ) =
 
     this.from = from
