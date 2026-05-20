@@ -851,8 +851,9 @@ class Namer(using Config) extends Applications with SelectionTyper:
       Visibility.Default,
       sc.owner,
       word.pos,
-      Nil
+      annotsInfo = Nil
     )
+
     val loopBody = TermSymbol.create(
       "_loop_body",
       VoidType,
@@ -860,8 +861,9 @@ class Namer(using Config) extends Applications with SelectionTyper:
       Visibility.Default,
       sc.owner,
       word.pos,
-      Nil
+      annotsInfo = Nil
     )
+
     val loopFrame = new LoopFrame(loopEnd, loopBody)
 
     val cond2 =
@@ -1730,15 +1732,19 @@ class Namer(using Config) extends Applications with SelectionTyper:
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[ClassDef] =
 
+    given Definitions = lazyDefn.value
+
     val extraFlags = cdef0.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
     val flags = Checker.checkModifiers(cdef0) | extraFlags | Flags.Class
     val kind = Kind.simpleKinded(cdef0.tparams.size)
+
     lazy val classAnnotations =
-      given Definitions = lazyDefn.value
       given Scope = sc
       transformAnnotations(cdef0.annotations)
-    val classSym = TypeSymbol.create(kind, cdef0.name, flags, Checker.visibility(cdef0, sc.owner), sc.owner, cdef0.ident.pos,
-      annotsInfo = () => classAnnotations.map(TreeOps.applyToAnnotation))
+
+    val annotsInfo = () => classAnnotations.map(TreeOps.applyToAnnotation)
+
+    val classSym = TypeSymbol.create(kind, cdef0.name, flags, Checker.visibility(cdef0, sc.owner), sc.owner, cdef0.ident.pos, annotsInfo)
     val thisSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, classSym, cdef0.ident.pos, annotsInfo = Nil)
 
     // Class desugaring now happens in Desugaring.synthesize
@@ -1796,11 +1802,9 @@ class Namer(using Config) extends Applications with SelectionTyper:
       if vdef.mutable then flags = flags | Flags.Field | Flags.Mutable
       else flags = flags | Flags.Field
 
-      lazy val fieldAnnotations =
-        given Definitions = lazyDefn.value
-        transformAnnotations(vdef.annotations)
-      val sym = TermSymbol.create(vdef.name, flags, Checker.visibility(vdef, classSym), classSym, vdef.ident.pos,
-        annotsInfo = () => fieldAnnotations.map(TreeOps.applyToAnnotation))
+      lazy val fieldAnnotations = transformAnnotations(vdef.annotations)
+      val annotsInfo = () => fieldAnnotations.map(TreeOps.applyToAnnotation)
+      val sym = TermSymbol.create(vdef.name, flags, Checker.visibility(vdef, classSym), classSym, vdef.ident.pos, annotsInfo)
       shortCutScope.define(sym)
 
       lazy val fieldDecl: FieldDecl =
