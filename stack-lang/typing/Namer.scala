@@ -104,7 +104,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       else
         rp.error(s"The $name is already defined as a member at $pos, ", qualid.pos)
         val flags = Flags.NSpace
-        ContainerSymbol.create(sym.name, new NameTable, flags, Visibility.Default, sym.owner, qualid.pos, Nil)
+        ContainerSymbol.create(sym.name, new NameTable, flags, Visibility.Default, sym.owner, qualid.pos)
 
     qualid match
       case Ast.Select(qual, name) =>
@@ -119,7 +119,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
           case None =>
             val flags = Flags.NSpace
-            val sym = ContainerSymbol.create(name, new NameTable, flags, Visibility.Default, nsSym, qualid.pos, Nil)
+            val sym = ContainerSymbol.create(name, new NameTable, flags, Visibility.Default, nsSym, qualid.pos)
             nameTable.define(sym)
             sym
 
@@ -127,7 +127,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         rootNameTable.resolveContainer(name) match
           case None =>
             val flags = Flags.NSpace
-            val sym = ContainerSymbol.create(name, new NameTable, flags, Visibility.Default, owner = null, qualid.pos, Nil)
+            val sym = ContainerSymbol.create(name, new NameTable, flags, Visibility.Default, owner = null, qualid.pos)
             rootNameTable.define(sym)
             sym
 
@@ -776,7 +776,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val paramOpt: Option[Symbol] = resolveQualid(ref, Universe.Term)
 
     def errorSymbol: Symbol =
-      TermSymbol.create(ref.name, ErrorType, Flags.Synthetic, Visibility.Default, sc.owner, ref.pos, Nil)
+      TermSymbol.create(ref.name, ErrorType, Flags.Synthetic, Visibility.Default, sc.owner, ref.pos)
 
     val paramSym =
       paramOpt match
@@ -1090,7 +1090,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
        case None =>
 
-     val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, sc.owner, lambda.pos, Nil)
+     val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, sc.owner, lambda.pos, annotsInfo = Nil)
      val lambdaScope = sc.fresh(lambdaSym)
 
      def inferParamType(i: Int): Type =
@@ -1101,7 +1101,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
      val paramSyms = Checks.eager:
       for (param, i) <- params.zipWithIndex yield
         val tp = if param.tpt.isEmpty then inferParamType(i) else transformValueType(param.tpt).tpe
-        val paramSym = TermSymbol.create(param.name, tp, Flags.Param, Visibility.Default, lambdaSym, param.pos, Nil)
+        val paramSym = TermSymbol.create(param.name, tp, Flags.Param, Visibility.Default, lambdaSym, param.pos)
         lambdaScope.define(paramSym)
         paramSym
 
@@ -1132,8 +1132,10 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val flags = Checker.checkModifiers(pdef) | Flags.Context | extraFlags
 
     lazy val annotations = transformAnnotations(pdef.annotations)
-    val paramSym = TermSymbol.create(pdef.name, flags, Checker.visibility(pdef, sc.owner), sc.owner, pdef.pos,
-      annotsInfo = () => annotations.map(TreeOps.applyToAnnotation))
+    val annotsInfo = () => annotations.map(TreeOps.applyToAnnotation)
+
+    val paramSym = TermSymbol.create(pdef.name, flags, Checker.visibility(pdef, sc.owner), sc.owner, pdef.pos, annotsInfo)
+
     ip.addLazy(paramSym, () => {
       annotations
       transformValueType(pdef.tpt).tpe
@@ -1150,7 +1152,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
     var flags = Checker.checkModifiers(vdef)
     if vdef.mutable then flags = flags | Flags.Mutable
 
-    val sym = TermSymbol.create(vdef.name, flags, Visibility.Default, sc.owner, vdef.ident.pos, Nil)
+    val sym = TermSymbol.create(vdef.name, flags, Visibility.Default, sc.owner, vdef.ident.pos, annotsInfo = Nil)
     defn.setDocComment(sym, vdef.docComment)
 
     lazy val givenType: Type = Checks.eager:
@@ -1177,7 +1179,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
     // Auto definitions always have explicit types and are marked with Auto flag
     val flags = Checker.checkModifiers(adef) | Flags.Auto
 
-    val sym = TermSymbol.create(adef.name, flags, Visibility.Default, sc.owner, adef.ident.pos, Nil)
+    val sym = TermSymbol.create(adef.name, flags, Visibility.Default, sc.owner, adef.ident.pos, annotsInfo = Nil)
     defn.setDocComment(sym, adef.docComment)
 
     val givenType: Type = Checks.eager:
@@ -1199,7 +1201,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
   : List[TypeSymbol] =
     for tparam <- tparams yield
       // Only support simple-kinded type parameters
-      val sym = TypeSymbol.create(Kind.Simple, tparam.name, AnyType, Flags.Param, Visibility.Default, sc.owner, tparam.pos, Nil)
+      val sym = TypeSymbol.create(Kind.Simple, tparam.name, AnyType, Flags.Param, Visibility.Default, sc.owner, tparam.pos)
       sc.define(sym)
       sym
 
@@ -1209,7 +1211,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     for (param, i) <- params.zipWithIndex yield
       val tpt = transformValueType(param.tpt, allowPackType = i == params.size - 1)
-      val paramSym = TermSymbol.create(param.name, tpt.tpe, Flags.Param, Visibility.Default, sc.owner, param.pos, Nil)
+      val paramSym = TermSymbol.create(param.name, tpt.tpe, Flags.Param, Visibility.Default, sc.owner, param.pos)
       sc.define(paramSym)
       paramSym
 
@@ -1220,7 +1222,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     for auto <- autos yield
       val tpt = transformValueType(auto.tpt)
-      val autoSym = TermSymbol.create(auto.name, tpt.tpe, Flags.Param | Flags.Auto, Visibility.Default, sc.owner, auto.pos, Nil)
+      val autoSym = TermSymbol.create(auto.name, tpt.tpe, Flags.Param | Flags.Auto, Visibility.Default, sc.owner, auto.pos)
       sc.define(autoSym)
       autoSym
 
@@ -1254,7 +1256,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
   : DelayedDef[FunDef] =
 
     val flags = Flags.Fun | Flags.Annotation | Checker.checkModifiers(adef)
-    val funSym = TermSymbol.create(adef.name, flags, Checker.visibility(adef, sc.owner), sc.owner, adef.ident.pos, Nil)
+    val funSym = TermSymbol.create(adef.name, flags, Checker.visibility(adef, sc.owner), sc.owner, adef.ident.pos, annotsInfo = Nil)
 
     given defn: Definitions = lazyDefn.value
     given funScope: Scope = sc.fresh(funSym)
@@ -1385,15 +1387,17 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val extraFlags = funDef.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
     val flags = Checker.checkModifiers(funDef) | initialFlags | extraFlags
 
+    given defn: Definitions = lazyDefn.value
+
     lazy val annotations =
-      given Definitions = lazyDefn.value
       given Scope = sc
       transformAnnotations(funDef.annotations)
-    val funSym = TermSymbol.create(funDef.name, flags, Checker.visibility(funDef, sc.owner), sc.owner, funDef.ident.pos,
-      annotsInfo = () => annotations.map(TreeOps.applyToAnnotation))
-    given Scope = sc.fresh(funSym)
 
-    given defn: Definitions = lazyDefn.value
+    val annotsInfo = () => annotations.map(TreeOps.applyToAnnotation)
+
+    val funSym = TermSymbol.create(funDef.name, flags, Checker.visibility(funDef, sc.owner), sc.owner, funDef.ident.pos, annotsInfo)
+
+    given Scope = sc.fresh(funSym)
 
     if flags.is(Flags.Defer) then
       if funDef.resultType.isEmpty then
@@ -1517,12 +1521,17 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val flags = Flags.Fun | Flags.Method | Flags.Constructor
 
     val visibility = Checker.visibility(funDef, classSym)
+
+    given defn: Definitions = lazyDefn.value
+
     lazy val annotations =
-      given Definitions = lazyDefn.value
       given Scope = sc
       transformAnnotations(funDef.annotations)
-    val funSym = TermSymbol.create(Names.Constructor, flags, visibility, classSym, funDef.ident.pos,
-      annotsInfo = () => annotations.map(TreeOps.applyToAnnotation))
+
+    val annotsInfo = () => annotations.map(TreeOps.applyToAnnotation)
+
+    val funSym = TermSymbol.create(Names.Constructor, flags, visibility, classSym, funDef.ident.pos, annotsInfo)
+
     given ctorScope: Scope = sc.fresh(funSym)
 
     if funDef.tparams.nonEmpty then
@@ -1531,7 +1540,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val astPostParams = funDef.params  // constructors have no pre-params
     Defaults.validatePostDefaultShape(astPostParams)
 
-    given defn: Definitions = lazyDefn.value
 
     lazy val paramSyms =
       transformParams(funDef.params)
@@ -1658,14 +1666,15 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     val kind = Kind.simpleKinded(tdef.tparams.size)
 
+    given defn: Definitions = lazyDefn.value
+
     lazy val annotations =
-      given Definitions = lazyDefn.value
       given Scope = sc
       transformAnnotations(tdef.annotations)
-    val typeSym = TypeSymbol.create(kind, tdef.name, flags, Checker.visibility(tdef, sc.owner), sc.owner, tdef.ident.pos,
-      annotsInfo = () => annotations.map(TreeOps.applyToAnnotation))
 
-    given defn: Definitions = lazyDefn.value
+    val annotsInfo = () => annotations.map(TreeOps.applyToAnnotation)
+
+    val typeSym = TypeSymbol.create(kind, tdef.name, flags, Checker.visibility(tdef, sc.owner), sc.owner, tdef.ident.pos, annotsInfo)
 
     given sc2: Scope = sc.fresh(typeSym)
     lazy val tparamSyms = transformTypeParams(tdef.tparams)
@@ -1730,7 +1739,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       transformAnnotations(cdef0.annotations)
     val classSym = TypeSymbol.create(kind, cdef0.name, flags, Checker.visibility(cdef0, sc.owner), sc.owner, cdef0.ident.pos,
       annotsInfo = () => classAnnotations.map(TreeOps.applyToAnnotation))
-    val thisSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, classSym, cdef0.ident.pos, Nil)
+    val thisSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, classSym, cdef0.ident.pos, annotsInfo = Nil)
 
     // Class desugaring now happens in Desugaring.synthesize
     val cdef = Desugaring.desugarClassDef(cdef0, thisSym)
@@ -1871,13 +1880,18 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     val flags = Checker.checkModifiers(idef) | Flags.Interface
     val kind = Kind.simpleKinded(idef.tparams.size)
+
+    given defn: Definitions = lazyDefn.value
+
     lazy val annotations =
-      given Definitions = lazyDefn.value
       given Scope = sc
       transformAnnotations(idef.annotations)
-    val interfaceSym = TypeSymbol.create(kind, idef.name, flags, Checker.visibility(idef, sc.owner), sc.owner, idef.ident.pos,
-      annotsInfo = () => annotations.map(TreeOps.applyToAnnotation))
-    val selfSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, interfaceSym, idef.ident.pos, Nil)
+
+    val annotsInfo = () => annotations.map(TreeOps.applyToAnnotation)
+
+    val interfaceSym = TypeSymbol.create(kind, idef.name, flags, Checker.visibility(idef, sc.owner), sc.owner, idef.ident.pos, annotsInfo)
+
+    val selfSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, interfaceSym, idef.ident.pos, annotsInfo = Nil)
 
     given paramScope: Scope = sc.fresh(interfaceSym)
 
@@ -1937,7 +1951,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
       delayedDefs += delayedDef
 
     val typer = () =>
-      given defn: Definitions = lazyDefn.value
       defn.setDocComment(interfaceSym, idef.docComment)
 
       val methodDefs: List[FunDef] =
@@ -1954,12 +1967,16 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     val flags = Checker.checkModifiers(section) | Flags.Section
     val nameTable = new NameTable
+
+    given defn: Definitions = lazyDefn.value
+
     lazy val annotations =
-      given Definitions = lazyDefn.value
       given Scope = sc
       transformAnnotations(section.annotations)
-    val sym = ContainerSymbol.create(section.name, nameTable, flags, Checker.visibility(section, sc.owner), sc.owner, section.ident.pos,
-      annotsInfo = () => annotations.map(TreeOps.applyToAnnotation))
+
+    val annotsInfo = () => annotations.map(TreeOps.applyToAnnotation)
+
+    val sym = ContainerSymbol.create(section.name, nameTable, flags, Checker.visibility(section, sc.owner), sc.owner, section.ident.pos, annotsInfo)
 
     given secScope: Scope = sc.fresh(sym, nameTable)
 
@@ -1967,7 +1984,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
     nameTable.freeze()
 
     lazy val sast =
-      given defn: Definitions = lazyDefn.value
       defn.setDocComment(sym, section.docComment)
       val defs = for delayed <- delayedDefs.toList yield delayed.force()
 
