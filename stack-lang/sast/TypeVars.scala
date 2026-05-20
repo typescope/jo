@@ -16,10 +16,10 @@ trait TypeVars:
 
   def typeVars: List[TypeVar]
 
-  /** The id of the nested container of type variables
+  /** The id of the container
     *
     * It is used in initializing type variables: for a constraint a1 = a2, the
-    * initialization will prefer the variable with a higher depth.
+    * initialization will prefer the variable with a higher id.
     */
   def id: Int
 

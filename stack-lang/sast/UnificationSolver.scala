@@ -35,8 +35,7 @@ class UnificationSolver(val id: Int) extends TypeVars:
 
     tp match
       case tvar2: TypeVar if !tvar2.isInstantiated =>
-        // Use the order of tvars to avoid the check and ensure in the case of
-        // two tvars X <: Y, we instantite the one with greater id
+        // For two tvars X = Y, we instantite the one with greater id
         if tvar2.container.id > tvar.container.id then
           instantiations = instantiations.updated(tvar2, tvar)
 
