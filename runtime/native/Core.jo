@@ -384,7 +384,7 @@ private section RefArray
   def create[T](size: Int): Array[T] =
     val arr = GC.alloc (size * 4 + 4)
     writeInt arr size
-    arr cast[Array.Platform.IntArray]
+    arr cast[Array[T]]
 
   def get[T](arr: Array[T], i: Int): Int =
     readInt:
