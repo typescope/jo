@@ -22,7 +22,7 @@ import scala.collection.mutable
 class PatternTyper(namer: Namer)(using Config):
   def transformPatDef(patDef: Ast.PatDef)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, checks: Checks)
-  : DelayedDef[PatDef] =
+  : LazyDef[PatDef] =
 
     given defn: Definitions = lazyDefn.value
 
@@ -96,10 +96,8 @@ class PatternTyper(namer: Namer)(using Config):
     index.setAnnotations(patSym, () => annotations.map(TreeOps.applyToAnnotation))
     index.setDocComment(patSym, patDef.docComment)
 
-    val typer = () =>
+    Namer.lazyDef(patSym):
       PatDef(patSym, tparamSyms, paramSyms, resultTypeTree, typedBody)(annotations, patDef.span)
-
-    DelayedDef(patSym, typer)
 
   private def checkExhaustivity(patterns: List[Pattern], coveredTypeTree: TypeTree)
       (using defn: Definitions, rp: Reporter, so: Source): Unit =

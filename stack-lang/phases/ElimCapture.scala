@@ -71,7 +71,7 @@ object ElimCapture:
 
     val oldProcType = oldFunSym.info.as[ProcType]
     val paramInfos = prependParams ++ oldProcType.params ++ appendParams
-    val funType = oldProcType.copy(params = paramInfos)(() => Nil)
+    val funType = oldProcType.copy(params = paramInfos)(LazyValue.eager(Nil))
 
     val funName = flatName(fdef.symbol)
     TermSymbol.create(funName, funType, Flags.Fun | Flags.Synthetic, Visibility.Default, oldFunSym.enclosingContainer, oldFunSym.sourcePos)

@@ -515,8 +515,8 @@ object Types:
     case Member(name: String)
 
   /** Duck type: compile-time duck typing with explicit adapters */
-  case class DuckType(baseType: Type)(adaptersFun: () => List[ParamAdapter]) extends Type:
-    lazy val adapters = adaptersFun()
+  case class DuckType(baseType: Type)(val adaptersLazy: LazyValue[List[ParamAdapter]]) extends Type:
+    def adapters = adaptersLazy.value
 
   /** Extension type: base type with extension methods
     *
@@ -527,8 +527,8 @@ object Types:
     * @param base the underlying type
     * @param extensions flat list of extension method symbols (computed lazily to avoid cycles)
     */
-  case class ExtensionType(base: Type)(extensionsFun: () => List[Symbol]) extends Type:
-    lazy val extensions = extensionsFun()
+  case class ExtensionType(base: Type)(val extensionsLazy: LazyValue[List[Symbol]]) extends Type:
+    def extensions = extensionsLazy.value
 
   /** Annotation type: base type with a compile-time hint annotation.
     *
@@ -587,8 +587,6 @@ object Types:
     case Lit(value: Constant)
     case Ref(symbol: Symbol)
 
-  type LazyDefaults = () => List[DefaultValue]
-
   /** The type of a function, method or pattern predicates */
   case class ProcType
     (tparams: List[Symbol],
@@ -599,12 +597,12 @@ object Types:
       receivesInfo: ReceivesInfo,
       preParamCount: Int,
       preTypeParamCount: Int)
-    (val defaultsFun: LazyDefaults = () => Nil)
+    (val defaultsLazy: LazyValue[List[DefaultValue]] = LazyValue.eager(Nil))
   extends InvokableType:
-    /** Cached default values for trailing post-parameters. Length <= postParamCount. */
-    lazy val defaults: List[DefaultValue] = defaultsFun()
     assert(autos.size == candidates.size)
     assert(preTypeParamCount >= 0 && preTypeParamCount <= tparams.size, s"preTypeParamCount = $preTypeParamCount, tparam.size = ${tparams.size}")
+
+    def defaults: List[DefaultValue] = defaultsLazy.value
 
     val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
     val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
@@ -642,7 +640,7 @@ object Types:
 
     def instantiate(targs: List[Type])(using Definitions): ProcType =
       assert(tparamCount == targs.size, "expect " + tparamCount + ", found = " + targs.size)
-      TypeOps.substSymbols(this.copy(tparams = Nil, preTypeParamCount = 0)(this.defaultsFun), tparams, targs).as[ProcType]
+      TypeOps.substSymbols(this.copy(tparams = Nil, preTypeParamCount = 0)(this.defaultsLazy), tparams, targs).as[ProcType]
 
     /** Instantiate only the prefix type parameters.
       *
@@ -655,15 +653,15 @@ object Types:
       substTp.copy(
         tparams = substTp.tparams.drop(preTypeParamCount),
         preTypeParamCount = 0
-      )(substTp.defaultsFun)
+      )(substTp.defaultsLazy)
 
     def prepend(paramsToAdd: List[NamedInfo[Type]]): ProcType =
-      this.copy(params = paramsToAdd ++ params)(this.defaultsFun)
+      this.copy(params = paramsToAdd ++ params)(this.defaultsLazy)
 
     def append(paramsToAdd: List[NamedInfo[Type]]): ProcType =
       // Appending shifts the trailing post-params, so defaults are no longer valid; drop them.
       // (append is only used post-typer, where defaults have already been expanded at call sites.)
-      this.copy(params = params ++ paramsToAdd)(() => Nil)
+      this.copy(params = params ++ paramsToAdd)(LazyValue.eager(Nil))
 
     def postParamCount = params.size - preParamCount
 
@@ -682,7 +680,7 @@ object Types:
         receivesInfo = receivesInfo,
         preParamCount = 0,
         preTypeParamCount = 0
-      )(defaultsFun)
+      )(this.defaultsLazy)
 
     def resCount = if resultType.isValueType then 1 else 0
 

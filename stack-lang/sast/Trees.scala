@@ -619,11 +619,15 @@ object Trees:
   //----------------------------------------------------------------------------
   // Utility definitions
 
-  class DelayedDef[+T](val symbol: Symbol, val delayed: () => T):
-    private lazy val definition: T = delayed()
+  class LazyDef[+T](val symbol: Symbol, delayed: () => T):
+    private var definition: T | Null = null
     def force()(using Definitions): T =
-      symbol.info // force symbol
-      definition
+      if definition == null then
+        symbol.info // force symbol
+        definition = delayed()
+        definition.nn
+      else
+        definition.nn
 
   //----------------------------------------------------------------------------
   // helpers
