@@ -42,7 +42,7 @@ object Extensions:
     // parameters with fresh vars; method-level type parameters are not inferred
     // at extension attachment sites.
     val preParamType = procType.preParamTypes.head
-    given tvars: TypeVars = new UnificationSolver
+    given tvars: TypeVars = new UnificationSolver(defn.uniqs.unification.next())
     val preParamTypeFlex =
       if procType.preTypeParamCount == 0 then preParamType
       else

@@ -695,6 +695,8 @@ object Types:
 
     override def toString = "TypeVar(" + name + ")"
 
+    def container: TypeVars = context
+
     def isInstantiated: Boolean = context.isInstantiated(this)
 
     def instantiated: Type = context.instantiated(this)

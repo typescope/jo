@@ -129,8 +129,8 @@ object Inference:
     * of new the isolate to interact with uninitialized type vars of existing
     * isolates.
     */
-  def freshIsolate[T](op: TypeVars ?=> T)(using Source, Reporter, Definitions): T =
-    given tvars: TypeVars = new UnificationSolver
+  def freshIsolate[T](op: TypeVars ?=> T)(using so: Source, rp: Reporter, defn: Definitions): T =
+    given tvars: TypeVars = new UnificationSolver(defn.uniqs.unification.next())
     val res = op
     Checker.checkInstantiated(tvars)
     res

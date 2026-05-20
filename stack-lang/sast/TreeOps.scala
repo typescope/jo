@@ -22,11 +22,11 @@ object TreeOps:
     *
     * Called after member resolution has already validated the member exists.
     */
-  def createExtensionApply(sym: Symbol, qual: Word, span: Span)(using Definitions): Word =
+  def createExtensionApply(sym: Symbol, qual: Word, span: Span)(using defn: Definitions): Word =
     var fun: Word = Ident(sym)(span)
     val procType = sym.tpe.asProcType
     if procType.preTypeParamCount > 0 then
-      val solver = new UnificationSolver
+      val solver = new UnificationSolver(defn.uniqs.unification.next())
       val preTargs =
         given TypeVars = solver
         val tvars = procType.preTparams.map(tparam => TypeVar(tparam.name, span))

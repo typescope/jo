@@ -193,12 +193,12 @@ object TypeOps:
       case _ => true
 
   /** If the procType is an extension method type, instantiate the receiver; otherwise return itself */
-  def instantiateExtensionReceiver(procType: ProcType, receiverType: Type)(using Definitions): ProcType =
+  def instantiateExtensionReceiver(procType: ProcType, receiverType: Type)(using defn: Definitions): ProcType =
     if procType.preParamCount == 0 then
       procType
 
     else if procType.preTypeParamCount > 0 then
-      val solver = new UnificationSolver
+      val solver = new UnificationSolver(defn.uniqs.unification.next())
       given TypeVars = solver
       val tvars = procType.preTparams.map(tparam => TypeVar(tparam.name, null))
       val procType2 = procType.instantiatePreTypeParams(tvars)
