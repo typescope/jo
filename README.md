@@ -21,7 +21,7 @@ Jo is a statically-typed object-oriented and functional language that compiles t
 ## Why Jo?
 
 Jo is designed to solve the following authority confinement problem via its
-_type system_ without resorting to sandboxing nor isolation:
+_type system_ that sandboxing cannot do:
 
 > How to safely execute a 3rd party function with the guarantee that it only does what
 it is allowed to do, e.g., read certain rows of a database table according to access control policies, but
@@ -31,7 +31,7 @@ Jo solves the security problem above in the simplest way possible without taking
 away too much freedom from programmers. It brings the following benefits:
 
 - **Authority confinement** - Confine an untrusted function to contracted authorities
-- **Fine-grained control** - Attenuated authorities enable precise control, e.g. only access certain rows of a database table
+- **Fine-grained control** - Fine-grained authorities enable precise control, e.g. only access certain rows of a database table
 - **Easy security auditing** - Compile-time checked authorities and clear security boundaries
 
 Jo's mission is to make secure programming a joy.
@@ -122,12 +122,15 @@ Jo's capability system can confine AI-generated code at compile time:
 
 ```Scala
 //------------------ Interface library ---------------------------
+// No FFI
 class Order(...)
 param GetOrders: (lastDays: Int) => List[Order] // (1)!
 
-//------------------ Framework library ----------------------
 // The signature that the AI generated code need to conform
 defer def aiMain(): Unit receives GetOrders, IO.stdout
+
+//------------------ Framework library ----------------------
+// with FFI
 
 def frameworkMain() =
   val db = connect("orders.db")
@@ -145,6 +148,8 @@ def frameworkMain() =
   // ...
 
 //------------------ AI generated code ----------------------
+// No FFI
+
 // The code can only read orders and use stdout, nothing else
 def aiMain(): Unit receives GetOrders, IO.stdout = // (6)!
   val orders = GetOrders(30)
