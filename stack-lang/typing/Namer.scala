@@ -1254,7 +1254,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val flags = Flags.Fun | Flags.Annotation | Checker.checkModifiers(adef)
     val funSym = TermSymbol.create(adef.name, flags, Checker.visibility(adef, sc.owner), sc.owner, adef.ident.pos)
 
-    given defn: Definitions = lazyDefn.value
     given funScope: Scope = sc.fresh(funSym)
 
     val paramSymsLazy = lazyValue:
@@ -1266,7 +1265,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     Checks.add { defaultsLazy.value }
 
-    def computeInfo() =
+    def computeInfo() = withDefn:
       ProcType(
         tparams = Nil,
         params = paramSymsLazy.value.map(_.toNamedInfo),
@@ -1282,18 +1281,20 @@ class Namer(using Config) extends Applications with SelectionTyper:
     index.addLazy(funSym, computeInfo, () => computeInfo())
 
     Checks.add:
-      if !funSym.containedIn(defn.jo) then
-        Reporter.error(
-          s"Annotation definitions are currently restricted to the namespace `${defn.jo.fullName}`",
-          adef.ident.pos
-        )
-      for (paramSym, astParam) <- paramSymsLazy.value.zip(adef.params) do
-        val tpe = paramSym.tpe
-        if tpe != defn.IntType && tpe != defn.BoolType && tpe != defn.StringType then
+      withDefn:
+        val defn = summon[Definitions]
+        if !funSym.containedIn(defn.jo) then
           Reporter.error(
-            s"Annotation parameter type must be Int, Bool, or String, found ${tpe.show}",
-            astParam.tpt.span.toPos
+            s"Annotation definitions are currently restricted to the namespace `${defn.jo.fullName}`",
+            adef.ident.pos
           )
+        for (paramSym, astParam) <- paramSymsLazy.value.zip(adef.params) do
+          val tpe = paramSym.tpe
+          if tpe != defn.IntType && tpe != defn.BoolType && tpe != defn.StringType then
+            Reporter.error(
+              s"Annotation parameter type must be Int, Bool, or String, found ${tpe.show}",
+              astParam.tpt.span.toPos
+            )
 
     lazyDef(funSym):
       val tpt = TypeTree(VoidType)(adef.span)
@@ -1383,10 +1384,8 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val extraFlags = funDef.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
     val flags = Checker.checkModifiers(funDef) | initialFlags | extraFlags
 
-
     val funSym = TermSymbol.create(funDef.name, flags, Checker.visibility(funDef, sc.owner), sc.owner, funDef.ident.pos)
 
-    given defn: Definitions = lazyDefn.value
     given Scope = sc.fresh(funSym)
 
     if flags.is(Flags.Defer) then
@@ -1426,6 +1425,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       transformValueType(funDef.resultType).tpe
 
     val typedBodyLazy = lazyValue:
+      val defn = summon[Definitions]
       paramSymsLazy.value
       autoSymsLazy.value
 
@@ -1477,7 +1477,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val astPostParams = funDef.params.drop(funDef.preParamCount)
     Defaults.validatePostDefaultShape(astPostParams)
 
-    def computeInfo(resultType: Type) =
+    def computeInfo(resultType: Type) = withDefn:
       val candidates = candidatesLazy.value.map(_._2)
       val postParamSyms = paramSymsLazy.value.drop(funDef.preParamCount)
       val defaults = lazyValue:
@@ -1520,8 +1520,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     val visibility = Checker.visibility(funDef, classSym)
 
-    given defn: Definitions = lazyDefn.value
-
     val annotationsLazy = lazyValue:
       given Scope = sc
       transformAnnotations(funDef.annotations)
@@ -1556,7 +1554,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
       thisSym.tpe
 
-    def checkBody(stats: List[Ast.Word]): Word =
+    def checkBody(stats: List[Ast.Word]): Word = withDefn:
       given ControlScope = ControlScope.NoReturn
       val classInfo = classSym.classInfo
       val uninitialized = mutable.Set.from(classInfo.fields)
@@ -1621,7 +1619,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       transformReceives(funDef.receives, Effects.Policy.Infer)
 
     val tparamSyms = Nil
-    def computeInfo(resultType: Type) =
+    def computeInfo(resultType: Type) = withDefn:
       val candidateSymbols = candidatesLazy.value.map(_._2)
       val defaultsLazy = lazyValue:
         Defaults.checkPostDefaults(astPostParams, paramSymsLazy.value, this)
@@ -1639,7 +1637,10 @@ class Namer(using Config) extends Applications with SelectionTyper:
     lazyDef(funSym):
       val candidateTrees = candidatesLazy.value.map(_._1)
       val tpt = TypeTree(resultTypeLazy.value)(funDef.resultType.span)
-      FunDef(funSym, tparamSyms, paramSymsLazy.value, autoSymsLazy.value, candidateTrees, tpt, effectPolicyLazy.value, typedBodyLazy.value)(annotationsLazy.value, funDef.span)
+      FunDef(
+        funSym, tparamSyms, paramSymsLazy.value, autoSymsLazy.value,
+        candidateTrees, tpt, effectPolicyLazy.value, typedBodyLazy.value
+      )(annotationsLazy.value, funDef.span)
 
   private def transformTypeDef(tdef: Ast.TypeDef)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
@@ -1661,8 +1662,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     val kind = Kind.simpleKinded(tdef.tparams.size)
 
-    given defn: Definitions = lazyDefn.value
-
     val annotationsLazy = lazyValue:
       given Scope = sc
       transformAnnotations(tdef.annotations)
@@ -1674,6 +1673,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       transformTypeParams(tdef.tparams)
 
     val rhsTypeLazy = lazyValue:
+      val defn = summon[Definitions]
       // force creation of symbols for type parameters
       tparamSymsLazy.value
 

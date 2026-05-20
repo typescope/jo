@@ -23,9 +23,6 @@ class PatternTyper(namer: Namer)(using Config):
   def transformPatDef(patDef: Ast.PatDef)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, checks: Checks)
   : LazyDef[PatDef] =
-
-    given defn: Definitions = lazyDefn.value
-
     val flags = Checker.checkModifiers(patDef) | Flags.Fun
 
     val annotationsLazy = Namer.lazyValue:
@@ -79,7 +76,6 @@ class PatternTyper(namer: Namer)(using Config):
 
       reporterTemp.commit(rp)
 
-
       if patterns.isEmpty then
         Reporter.error("Expect case patterns, found none", patDef.pos)
         WildcardPattern()(ErrorType, patDef.span)
@@ -88,9 +84,13 @@ class PatternTyper(namer: Namer)(using Config):
         patterns.tail.foldLeft(patterns.head): (acc, pat) =>
           OrPattern(acc, pat)(scrutType)
 
-    def computeInfo(resultType: Type) =
+    def computeInfo(resultType: Type) = Namer.withDefn:
       val autoTypes = Nil
-      ProcType(tparamSymsLazy.value, paramSymsLazy.value.map(_.toNamedInfo), autoTypes, Nil, resultType, receivesInfo = Nil, patDef.preParamCount, preTypeParamCount = 0)()
+      ProcType(
+        tparamSymsLazy.value, paramSymsLazy.value.map(_.toNamedInfo), autoTypes,
+        Nil, resultType, receivesInfo = Nil, patDef.preParamCount,
+        preTypeParamCount = 0
+      )()
 
     val index = lazyDefn.index
     index.addLazy(patSym, () => computeInfo(resultTypeTreeLazy.value.tpe), () => computeInfo(ErrorType))
