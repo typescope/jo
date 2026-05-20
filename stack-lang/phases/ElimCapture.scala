@@ -74,7 +74,7 @@ object ElimCapture:
     val funType = oldProcType.copy(params = paramInfos)(() => Nil)
 
     val funName = flatName(fdef.symbol)
-    TermSymbol.create(funName, funType, Flags.Fun | Flags.Synthetic, Visibility.Default, oldFunSym.enclosingContainer, oldFunSym.sourcePos, Nil)
+    TermSymbol.create(funName, funType, Flags.Fun | Flags.Synthetic, Visibility.Default, oldFunSym.enclosingContainer, oldFunSym.sourcePos)
 
   /** The information for a lifted function
     *
@@ -134,7 +134,7 @@ object ElimCapture:
       val substs = mutable.Map.empty[Symbol, Symbol]
       val paramSymsCaptured =
         for capture <- captures yield
-          val sym = TermSymbol.create(capture.name, capture.tpe, Flags.Synthetic, Visibility.Default, funSym, fdef.symbol.sourcePos, Nil)
+          val sym = TermSymbol.create(capture.name, capture.tpe, Flags.Synthetic, Visibility.Default, funSym, fdef.symbol.sourcePos)
           substs(capture) = sym
           sym
 
@@ -209,7 +209,7 @@ object ElimCapture:
         Visibility.Default,
         owner.enclosingContainer,
         classPos,
-        Nil
+        annotsInfo = Nil
       )
 
       // Create field symbols for captured variables
@@ -228,8 +228,7 @@ object ElimCapture:
           Flags.Field,
           Visibility.Default,
           classSym,
-          classPos,
-          Nil
+          classPos
         )
         fieldSyms += fieldSym
 
@@ -240,8 +239,7 @@ object ElimCapture:
         Flags.Synthetic,
         Visibility.Default,
         classSym,
-        classPos,
-        Nil
+        classPos
       )
 
       // Create constructor symbol
@@ -251,7 +249,7 @@ object ElimCapture:
         Visibility.Default,
         classSym,
         classPos,
-        Nil
+        annotsInfo = Nil
       )
 
       // Create the apply method symbol
@@ -272,7 +270,7 @@ object ElimCapture:
         Visibility.Default,
         classSym,
         classPos,
-        Nil
+        annotsInfo = Nil
       )
 
       // Create constructor parameters for captured variables
@@ -284,8 +282,7 @@ object ElimCapture:
           Flags.Param,
           Visibility.Default,
           ctorSym,
-          classPos,
-          Nil
+          classPos
         )
         ctorParams += ctorParam
 
@@ -357,8 +354,7 @@ object ElimCapture:
           Flags.Synthetic,
           Visibility.Default,
           applySym,
-          classPos,
-          Nil
+          classPos
         )
         val lhs = Ident(subst)(lam.span)
         val rhs = Select(Ident(selfSym)(lam.span), captureToField(capture))(lam.span)

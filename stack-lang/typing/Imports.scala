@@ -71,19 +71,19 @@ object Imports:
     def createAlias(name: String, sym: Symbol): Unit =
       val alias =
         if sym.isTerm then
-          val link = TermSymbol.create(name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos, Nil)
+          val link = TermSymbol.create(name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos, annotsInfo = Nil)
           ip.add(link, StaticRef(sym))
           link
         else if sym.isType then
-          val link = TypeSymbol.create(sym.asTypeSymbol.kind, name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos, Nil)
+          val link = TypeSymbol.create(sym.asTypeSymbol.kind, name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos, annotsInfo = Nil)
           ip.add(link, StaticRef(sym))
           link
         else if sym.isPattern then
-          val link = PatternSymbol.create(name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos, Nil)
+          val link = PatternSymbol.create(name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos, annotsInfo = Nil)
           ip.add(link, StaticRef(sym))
           link
         else
-          val link = ContainerSymbol.create(name, sym.nameTable, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos, Nil)
+          val link = ContainerSymbol.create(name, sym.nameTable, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos, annotsInfo = Nil)
           ip.add(link, StaticRef(sym))
           link
 

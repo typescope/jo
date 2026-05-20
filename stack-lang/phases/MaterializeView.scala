@@ -37,8 +37,7 @@ class MaterializeView(using defn: Definitions) extends Phase:
       Flags.Fun | Flags.Synthetic,
       Visibility.Default,
       interfaceSym.owner,
-      methodSym.sourcePos,
-      Nil
+      methodSym.sourcePos
     )
 
   private def getLiftedFunSymbol(methodSym: Symbol)(using Context): Symbol =
@@ -105,7 +104,7 @@ class MaterializeView(using defn: Definitions) extends Phase:
           val receiverSym =
             val owner = Phase.owner.value
             given Source = owner.sourcePos.source
-            TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos, Nil)
+            TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
@@ -127,7 +126,7 @@ class MaterializeView(using defn: Definitions) extends Phase:
           val receiverSym =
             val owner = Phase.owner.value
             given Source = owner.sourcePos.source
-            TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos, Nil)
+            TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)

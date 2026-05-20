@@ -230,7 +230,7 @@ object Encoder:
       val nameTable = new sast.NameTable
       val owner2 =
         val copy = unit.owner
-        ContainerSymbol.create(copy.name, nameTable, copy.flags, copy.visibility, copy.owner, copy.sourcePos, Nil)
+        ContainerSymbol.create(copy.name, nameTable, copy.flags, copy.visibility, copy.owner, copy.sourcePos)
 
       val unit2 = Decoder.decode(owner2, nameTable).force()
 

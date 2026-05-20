@@ -78,8 +78,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
       Flags.Fun | Flags.Synthetic,
       Visibility.Default,
       classSym.owner,
-      methodSym.sourcePos,
-      Nil
+      methodSym.sourcePos
     )
 
   private def flattenInterface(idef: InterfaceDef)(using Context): List[Def] =
@@ -285,7 +284,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           val receiverSym =
             val owner = Phase.owner.value
             given Source = Phase.source.value
-            TermSymbol.create("o", qual2.tpe.widen, Flags.Synthetic, Visibility.Default, owner, qual2.pos, Nil)
+            TermSymbol.create("o", qual2.tpe.widen, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
@@ -321,7 +320,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
             val receiverSym =
               val owner = Phase.owner.value
               given Source = Phase.source.value
-              TermSymbol.create("o", qual2.tpe.widen, Flags.Synthetic, Visibility.Default, owner, qual2.pos, Nil)
+              TermSymbol.create("o", qual2.tpe.widen, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
             val receiver = Ident(receiverSym)(qual2.span)
             val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
@@ -340,7 +339,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           val receiverSym =
             val owner = Phase.owner.value
             given Source = Phase.source.value
-            TermSymbol.create("o", qual2.tpe.widen, Flags.Synthetic, Visibility.Default, owner, qual2.pos, Nil)
+            TermSymbol.create("o", qual2.tpe.widen, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
 
           val receiver = Ident(receiverSym)(qual2.span)
           val assign = Assign(Ident(receiverSym)(qual2.span), qual2)

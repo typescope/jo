@@ -43,8 +43,7 @@ class LiftPrimitiveMethods(using defn: Definitions) extends Phase:
           Flags.Fun | Flags.Synthetic,
           Visibility.Default,
           classSym.owner,
-          methodSym.sourcePos,
-          Nil
+          methodSym.sourcePos
         )
 
         map(methodSym) = liftedSym

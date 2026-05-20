@@ -28,7 +28,13 @@ class PatternTyper(namer: Namer)(using Config):
 
     val flags = Checker.checkModifiers(patDef) | Flags.Fun
 
-    val patSym = PatternSymbol.create(patDef.name, flags, Checker.visibility(patDef, sc.owner), sc.owner, patDef.ident.pos, Nil)
+    lazy val annotations =
+      given Scope = sc
+      namer.transformAnnotations(patDef.annotations)
+
+    val annotsInfo = () => annotations.map(TreeOps.applyToAnnotation)
+
+    val patSym = PatternSymbol.create(patDef.name, flags, Checker.visibility(patDef, sc.owner), sc.owner, patDef.ident.pos, annotsInfo)
     given patScope: Scope = sc.fresh(patSym)
 
     lazy val tparamSyms = namer.transformTypeParams(patDef.tparams)
@@ -37,7 +43,7 @@ class PatternTyper(namer: Namer)(using Config):
       tparamSyms
       for param <- patDef.params yield
         val tpt = namer.transformValueType(param.tpt)
-        val paramSym = PatternSymbol.create(param.name, tpt.tpe, Flags.Param, Visibility.Default, patSym, param.pos, Nil)
+        val paramSym = PatternSymbol.create(param.name, tpt.tpe, Flags.Param, Visibility.Default, patSym, param.pos)
         paramSym
 
     lazy val resultTypeTree =
@@ -82,8 +88,6 @@ class PatternTyper(namer: Namer)(using Config):
       else
         patterns.tail.foldLeft(patterns.head): (acc, pat) =>
           OrPattern(acc, pat)(scrutType)
-
-    lazy val annotations = namer.transformAnnotations(patDef.annotations)
 
     def computeInfo(resultType: Type) =
       annotations
@@ -409,7 +413,7 @@ class PatternTyper(namer: Namer)(using Config):
               WildcardPattern()(ErrorType, patSpan)
 
           case None =>
-            val sym = PatternSymbol.create(name, tpe, Flags.empty, Visibility.Default, sc.owner, id.pos, Nil)
+            val sym = PatternSymbol.create(name, tpe, Flags.empty, Visibility.Default, sc.owner, id.pos)
             sc.define(sym)
             sc.promote(sym, id.pos)
 
@@ -450,7 +454,7 @@ class PatternTyper(namer: Namer)(using Config):
             WildcardPattern()(ErrorType, id.span)
 
         case None =>
-          val sym = PatternSymbol.create(name, scrutType, Flags.empty, Visibility.Default, sc.owner, id.pos, Nil)
+          val sym = PatternSymbol.create(name, scrutType, Flags.empty, Visibility.Default, sc.owner, id.pos)
           sc.promote(sym, id.pos)
           sc.define(sym)
 
@@ -484,7 +488,7 @@ class PatternTyper(namer: Namer)(using Config):
 
         case None =>
           val nestedPattern = transformPattern(nested, scrutType)
-          val sym = PatternSymbol.create(name, nestedPattern.valueType, Flags.empty, Visibility.Default, sc.owner, id.pos, Nil)
+          val sym = PatternSymbol.create(name, nestedPattern.valueType, Flags.empty, Visibility.Default, sc.owner, id.pos)
           sc.promote(sym, id.pos)
           sc.define(sym)
 
@@ -672,7 +676,7 @@ class PatternTyper(namer: Namer)(using Config):
 
                  case None =>
                    val resultType = scrutType.termMember("slice").asProcType.resultType
-                   val sym = PatternSymbol.create(id.name, resultType, Flags.Synthetic, Visibility.Default, sc.owner, id.pos, Nil)
+                   val sym = PatternSymbol.create(id.name, resultType, Flags.Synthetic, Visibility.Default, sc.owner, id.pos)
                    sc.define(sym)
                    sc.promote(sym, id.pos)
                    Some(sym)
@@ -746,7 +750,7 @@ class PatternTyper(namer: Namer)(using Config):
 
         else
           Reporter.error(s"A pattern predicate expected, found = " + sym, id.pos)
-          PatternSymbol.create(id.name, ErrorType, Flags.Synthetic, Visibility.Default, sc.owner, id.pos, Nil)
+          PatternSymbol.create(id.name, ErrorType, Flags.Synthetic, Visibility.Default, sc.owner, id.pos)
 
       case None =>
         id match
@@ -756,7 +760,7 @@ class PatternTyper(namer: Namer)(using Config):
           case _ =>
             // error already reported
 
-        PatternSymbol.create(id.name, ErrorType, Flags.Synthetic, Visibility.Default, sc.owner, id.pos, Nil)
+        PatternSymbol.create(id.name, ErrorType, Flags.Synthetic, Visibility.Default, sc.owner, id.pos)
 
   private def transformAssignPattern(
       basePat: Ast.Pattern, assignments: List[(Ast.Ident, Ast.Word)], scrutType: Type)
@@ -795,7 +799,7 @@ class PatternTyper(namer: Namer)(using Config):
             given ControlScope = ControlScope.NoReturn
             namer.transform(expr)
 
-          val sym = PatternSymbol.create(id.name, expr2.tpe, Flags.empty, Visibility.Default, sc.owner, id.pos, Nil)
+          val sym = PatternSymbol.create(id.name, expr2.tpe, Flags.empty, Visibility.Default, sc.owner, id.pos)
           sc.define(sym)
           sc.promote(sym, id.pos)
           Assign(Ident(sym)(id.span), expr2, isDefine = true)
@@ -813,7 +817,7 @@ class PatternTyper(namer: Namer)(using Config):
 
     val span = regexPat.span
     val wildcard = WildcardPattern()(scrutType, span.endPoint)
-    val scrutSym = PatternSymbol.create("_scrut", scrutType, Flags.Synthetic, Visibility.Default, sc.owner, regexPat.pos, Nil)
+    val scrutSym = PatternSymbol.create("_scrut", scrutType, Flags.Synthetic, Visibility.Default, sc.owner, regexPat.pos)
     val scrutId = Ident(scrutSym)(regexPat.pos.span)
     val basePat = BindPattern(scrutId, wildcard)(isDef = true)
 
@@ -879,14 +883,14 @@ class PatternTyper(namer: Namer)(using Config):
                 return None
 
             case None =>
-              val sym = PatternSymbol.create(id.name, matchResultType, Flags.empty, Visibility.Default, sc.owner, id.pos, Nil)
+              val sym = PatternSymbol.create(id.name, matchResultType, Flags.empty, Visibility.Default, sc.owner, id.pos)
               sc.define(sym)
               sc.promote(sym, id.pos)
               isDef = true
               sym
 
         case None =>
-          val sym = PatternSymbol.create("_m", matchResultType, Flags.Synthetic, Visibility.Default, sc.owner, pos, Nil)
+          val sym = PatternSymbol.create("_m", matchResultType, Flags.Synthetic, Visibility.Default, sc.owner, pos)
           isDef = true
           sym
 

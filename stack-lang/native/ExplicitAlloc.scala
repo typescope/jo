@@ -38,7 +38,7 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends Pha
 
     val owner = Phase.owner.value
     val refSym =
-      TermSymbol.create("ref", addrType, Flags.Synthetic, Visibility.Default, owner, word.pos, Nil)
+      TermSymbol.create("ref", addrType, Flags.Synthetic, Visibility.Default, owner, word.pos)
     val ref = Ident(refSym)(word.span)
 
     stats += Assign(ref, allocApply)

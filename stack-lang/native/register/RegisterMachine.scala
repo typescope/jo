@@ -48,8 +48,7 @@ extends Backend(runtime):
   val returnAddrSym = TermSymbol.create("return", AnyType, Flags.Synthetic,
       visibility = Visibility.Default,
       owner = runtime.Native,
-      pos = runtime.Native.sourcePos,
-      annotsInfo = Nil)
+      pos = runtime.Native.sourcePos)
 
   def freshVirtualReg()(using ctx: Context): Int =
     ctx.generator.fresh()

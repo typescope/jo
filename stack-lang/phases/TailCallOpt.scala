@@ -65,8 +65,7 @@ class TailCallOpt(using defn: Definitions) extends Phase:
         Flags.Mutable | Flags.Synthetic,
         Visibility.Default,
         owner,
-        param.sourcePos,
-        Nil
+        param.sourcePos
       )
       param -> copy
     .toMap
@@ -80,8 +79,7 @@ class TailCallOpt(using defn: Definitions) extends Phase:
         Flags.Mutable | Flags.Synthetic,
         Visibility.Default,
         owner,
-        span.toPos,
-        Nil
+        span.toPos
       )
       recv -> copy
     .toMap
@@ -92,8 +90,7 @@ class TailCallOpt(using defn: Definitions) extends Phase:
       Flags.Mutable | Flags.Synthetic,
       Visibility.Default,
       owner,
-      span.toPos,
-      Nil
+      span.toPos
     )
     val continueIdent = Ident(continueSym)(span)
 
@@ -104,8 +101,7 @@ class TailCallOpt(using defn: Definitions) extends Phase:
       Flags.Mutable | Flags.Synthetic,
       Visibility.Default,
       owner,
-      span.toPos,
-      Nil
+      span.toPos
     )
     val resultIdent = Ident(resultSym)(span)
 
@@ -115,8 +111,7 @@ class TailCallOpt(using defn: Definitions) extends Phase:
       Flags.Label | Flags.Synthetic,
       Visibility.Default,
       owner,
-      span.toPos,
-      Nil
+      span.toPos
     )
 
     // paramCopiesInOrder mirrors extractAllArgs: self copy first (if method), then param copies.
@@ -128,8 +123,7 @@ class TailCallOpt(using defn: Definitions) extends Phase:
         Flags.Synthetic,
         Visibility.Default,
         owner,
-        param.sourcePos,
-        Nil
+        param.sourcePos
       )
       param -> snapshot
     .toMap

@@ -268,7 +268,7 @@ object AutoResolution:
       trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetLambda))
       return None
 
-    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos, Nil)
+    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos, annotsInfo = Nil)
 
     // Resolve nested autos if present
     val resolvedAutos =
@@ -334,7 +334,7 @@ object AutoResolution:
       trial.next = SearchNode.Failure(FailureReason.TypeMismatch(lambdaType, targetLambda))
       return None
 
-    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos, Nil)
+    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos, annotsInfo = Nil)
 
     // Resolve nested autos using instantiated proc type
     val resolvedAutos =

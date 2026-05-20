@@ -357,7 +357,7 @@ object Symbols:
       new TermSymbol(name, flags, visibility, annotsInfo, owner, pos)
 
     def create
-        (name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition, annotsInfo: AnnotationsInfo)
+        (name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition, annotsInfo: AnnotationsInfo = Nil)
         (using defn: Definitions)
     : Symbol =
       val sym = new TermSymbol(name, flags, visibility, annotsInfo, owner, pos)
@@ -369,7 +369,7 @@ object Symbols:
       new TypeSymbol(kind, name, flags, visibility, annotsInfo, owner, pos)
 
     def create
-        (kind: Kind, name: String, info: Denotation, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition, annotsInfo: AnnotationsInfo)
+        (kind: Kind, name: String, info: Denotation, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition, annotsInfo: AnnotationsInfo = Nil)
         (using defn: Definitions)
     : TypeSymbol =
       val sym = new TypeSymbol(kind, name, flags, visibility, annotsInfo, owner, pos)
@@ -381,7 +381,7 @@ object Symbols:
       new PatternSymbol(name, flags, visibility, annotsInfo, owner, pos)
 
     def create
-        (name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition, annotsInfo: AnnotationsInfo)
+        (name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition, annotsInfo: AnnotationsInfo = Nil)
         (using defn: Definitions)
     : PatternSymbol =
       val sym = new PatternSymbol(name, flags, visibility, annotsInfo, owner, pos)
@@ -390,6 +390,6 @@ object Symbols:
 
   object ContainerSymbol:
     def create
-        (name: String, nameTable: NameTable, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition, annotsInfo: AnnotationsInfo)
+        (name: String, nameTable: NameTable, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition, annotsInfo: AnnotationsInfo = Nil)
     : Symbol =
       new ContainerSymbol(name, nameTable, flags, visibility, annotsInfo, owner, pos)
