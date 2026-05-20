@@ -42,16 +42,16 @@ private def abort(msg: String): Bottom =
 
 // RefArray operations
 private section RefArray
-  def create[T](size: Int): Array.Platform.RefArray[T] =
-    js.global.Array.call(size).cast[Array.Platform.RefArray[T]]
+  def create[T](size: Int): Array[T] =
+    js.global.Array.call(size).cast[Array[T]]
 
-  def get[T](array: Array.Platform.RefArray[T], index: Int): T =
+  def get[T](array: Array[T], index: Int): T =
     js.dynamic(array)[index].cast[T]
 
-  def set[T](array: Array.Platform.RefArray[T], index: Int, value: T): Unit =
+  def set[T](array: Array[T], index: Int, value: T): Unit =
     js.dynamic(array)[index] = value
 
-  def size[T](array: Array.Platform.RefArray[T]): Int =
+  def size[T](array: Array[T]): Int =
     js.dynamic(array).length.asInt
 end
 
