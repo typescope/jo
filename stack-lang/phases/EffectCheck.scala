@@ -24,7 +24,7 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase:
     val symbol = fdef.symbol
 
     // Check against effects from the concrete body of the function.
-    val effs = defn.effectEngine.getBodyEffects(symbol)
+    val effs = defn.index.effectEngine.getBodyEffects(symbol)
 
     val rejectedDefaults =
       fdef.effectPolicy match
@@ -66,7 +66,7 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase:
     val expr2 = transform(allowExpr.expr)
 
     given Source = Phase.source.value
-    val effsInner = defn.effectEngine.effects(allowExpr.expr)
+    val effsInner = defn.index.effectEngine.effects(allowExpr.expr)
     val allowed = allowExpr.params.map(_.symbol).toSet
 
     val unprovided = effsInner.filter((k, _) => !allowed.contains(k))
@@ -85,7 +85,7 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase:
 
   private def checkTermInPattern(word: Word)(using Context): Word =
     given Source = Phase.source.value
-    val effs = defn.effectEngine.effects(word)
+    val effs = defn.index.effectEngine.effects(word)
 
     for
       (eff, trace) <- effs

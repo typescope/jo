@@ -17,7 +17,7 @@ object Subtyping:
 
   /** Whether `tp1` conforms to `tp2` */
   def conforms(tp1: Type, tp2: Type)(using defn: Definitions): Boolean =
-    defn.cache.conforms(tp1, tp2, cache = true):
+    defn.index.cache.conforms(tp1, tp2, cache = true):
       checkConforms(tp1,tp2)(using new Context())
 
   def isEqualType(tp1: Type, tp2: Type)(using Definitions): Boolean =
@@ -82,7 +82,7 @@ object Subtyping:
 
   private def recur(tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions): Boolean =
     Debug.trace(s"${tp1.show} <: ${tp2.show}", enable = false):
-      defn.cache.conforms(tp1, tp2, cache = true):
+      defn.index.cache.conforms(tp1, tp2, cache = true):
         Subtyping.checkConforms(tp1, tp2)
 
   /** Either `tp1` or `tp2` is proxy type */

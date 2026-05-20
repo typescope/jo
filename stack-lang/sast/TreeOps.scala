@@ -132,7 +132,7 @@ object TreeOps:
     // Create and return the lambda
     val res = Lambda(lambdaSym, paramSyms, lambdaType.receives, bodyWord)(span)
 
-    defn.add(lambdaSym, res.tpe)
+    defn.index.add(lambdaSym, res.tpe)
 
     res
 

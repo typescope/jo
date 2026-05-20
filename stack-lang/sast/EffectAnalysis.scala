@@ -53,7 +53,7 @@ class EffectAnalysis:
     stableBodyEffects.get(fun) match
       case Some(res) => res
       case None =>
-        val fdef = defn.getCode(fun)
+        val fdef = defn.index.getCode(fun)
         given Source = fun.sourcePos.source
         fixpoint(this)(EffectAnalyzer.apply(fdef.body))
 
@@ -66,7 +66,7 @@ class EffectAnalysis:
       Some(procType.receives)
 
     else
-      defn.getCodeOpt(fun) match
+      defn.index.getCodeOpt(fun) match
         case Some(fdef) =>
           // Respect effect policy boundary -- only compute effects for Policy.Infer
           fdef.effectPolicy.bound match
@@ -184,12 +184,12 @@ object EffectAnalysis:
 
     else
       // prefer body effects for better error diagnosis
-      defn.effectEngine.getStableBodyEffects(fun) match
+      defn.index.effectEngine.getStableBodyEffects(fun) match
         case Some(res) => res
 
         case None =>
           // Must have code for non-loaded functions
-          val fdef = defn.getCodeOpt(fun) match
+          val fdef = defn.index.getCodeOpt(fun) match
             case Some(code) => code
             case None => throw new Exception("No code for " + fun)
 

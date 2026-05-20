@@ -180,7 +180,23 @@ When type-checking `T :+ [m1, m2!, ...]`:
 
 ### Why Not Scope-Based Extension Methods?
 
-Languages like Kotlin and C# allow extension methods to be defined anywhere and resolved through imports. This breaks local reasoning — you cannot know what methods are available on a type without checking all imports. Jo's extension types are tied to the type definition itself: `T :+ [Ext.m1, ...]` is visible in the type alias. The set of available methods is determined by the type, not by what's in scope.
+**Core principle: extension methods are a property of the type, not of the scope.**
+
+A value's available methods are determined entirely by its type. You can understand what methods are available by reading the type definition — no import inspection required. Methods travel with the type, not with the import chain.
+
+Languages like Kotlin and C# resolve extensions through imports. This causes well-known practical problems that Jo's design avoids:
+
+- **Import-driven behavior**: adding or removing an import silently changes what methods are available on every type in scope.
+- **Discoverability**: without IDE support, you cannot tell whether a method is an instance member or an extension, or where it comes from.
+- **Silent shadowing**: if a class gains a method with the same name as an in-scope extension, the extension is silently bypassed with no warning (see below).
+
+Jo's extension types are tied to the type definition itself: `T :+ [m1, ...]` is explicit in the type alias. The set of available methods is determined by the type, not by what's in scope.
+
+### Why Explicit Shadowing?
+
+In C# and Kotlin, if a class gains a method with the same name as an in-scope extension after a library upgrade, the extension is silently ignored — no warning, no error. This is a common source of subtle bugs.
+
+Jo requires explicit acknowledgment: the `!` marker (in the extension type) or `@shadow` annotation (on the method definition) must be present when an extension method shadows a base type member. This makes intentional shadowing visible at the type definition and makes accidental shadowing auditable.
 
 ### Why Not Interface Conformance?
 
@@ -192,4 +208,4 @@ In practice, Jo's duck types and member adaptation already serve this purpose. G
 
 ### Why Prefer Extension Methods Over Base Type Methods?
 
-The member resolution rule checks the extension first, then the base type. For union types, this is a non-issue since they have no members. For class types used as the base of an extension, the user has explicitly chosen to extend the type, so preferring extension methods respects that intent. The base type's methods remain accessible through the `it` parameter inside extension methods.
+The member resolution rule checks the extension first, then the base type. For union types, this is a non-issue since they have no members. For class types used as the base of an extension, the user has explicitly chosen to extend the type, so preferring extension methods respects that intent.

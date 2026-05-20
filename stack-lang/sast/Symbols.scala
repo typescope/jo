@@ -69,6 +69,7 @@ object Symbols:
             case Global => false
             case Limit(containerB) => containerB.containedIn(containerA)
 
+
   sealed abstract class Symbol(
     val name: String,
     val flags: Flags,
@@ -85,7 +86,7 @@ object Symbols:
     def info(using defn: Definitions): Denotation =
       this match
         case container: ContainerSymbol if !this.isAlias => container.nameTable
-        case _ => defn.info(this)
+        case _ => defn.index.info(this)
 
     /** The type of this symbol, as a Type. Throws if the symbol is a container. */
     def tpe(using Definitions): Type = info.asType
@@ -123,20 +124,12 @@ object Symbols:
 
     def isPrivate = this.visibility.isInstanceOf[Visibility.Private]
 
-    private var _annotations: List[Annotation] = Nil
+    def annotations(using defn: Definitions): List[Annotation] = defn.index.annotations(this)
 
-    def annotations: List[Annotation] = _annotations
+    def annotation(annot: Symbol)(using Definitions): Option[Annotation] =
+      annotations.find(_.symbol == annot)
 
-    def withAnnotations(annots: List[Annotation]): this.type =
-      _annotations = annots
-      this
-
-    def annotation(annot: Symbol)(using defn: Definitions): Option[Annotation] =
-      // force symbol to make sure annotations are attached
-      val _ = this.info
-      _annotations.find(_.symbol == annot)
-
-    def hasAnnotation(annot: Symbol)(using defn: Definitions): Boolean =
+    def hasAnnotation(annot: Symbol)(using Definitions): Boolean =
       annotation(annot).nonEmpty
 
     /** Whether this symbol is an extension method (has 1 pre-parameter) */
@@ -358,7 +351,7 @@ object Symbols:
         (using defn: Definitions)
     : Symbol =
       val sym = new TermSymbol(name, flags, visibility, owner, pos)
-      defn.add(sym, info)
+      defn.index.add(sym, info)
       sym
 
   object TypeSymbol:
@@ -370,7 +363,7 @@ object Symbols:
         (using defn: Definitions)
     : TypeSymbol =
       val sym = new TypeSymbol(kind, name, flags, visibility, owner, pos)
-      defn.add(sym, info)
+      defn.index.add(sym, info)
       sym
 
   object PatternSymbol:
@@ -382,12 +375,11 @@ object Symbols:
         (using defn: Definitions)
     : PatternSymbol =
       val sym = new PatternSymbol(name, flags, visibility, owner, pos)
-      defn.add(sym, info)
+      defn.index.add(sym, info)
       sym
 
   object ContainerSymbol:
     def create
         (name: String, nameTable: NameTable, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
     : Symbol =
-
       new ContainerSymbol(name, nameTable, flags, visibility, owner, pos)

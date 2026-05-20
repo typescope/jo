@@ -553,7 +553,7 @@ object Trees:
     (val annots: List[Apply], val span: Span)
     (using defn: Definitions)
   extends Word, Def:
-    defn.setCode(symbol, this)
+    defn.index.setCode(symbol, this)
 
     assert(autos.size == candidates.size)
 
@@ -619,11 +619,15 @@ object Trees:
   //----------------------------------------------------------------------------
   // Utility definitions
 
-  class DelayedDef[+T](val symbol: Symbol, val delayed: () => T):
-    private lazy val definition: T = delayed()
+  class LazyDef[+T](val symbol: Symbol, delayed: () => T):
+    private var definition: T | Null = null
     def force()(using Definitions): T =
-      symbol.info // force symbol
-      definition
+      if definition == null then
+        symbol.info // force symbol
+        definition = delayed()
+        definition.nn
+      else
+        definition.nn
 
   //----------------------------------------------------------------------------
   // helpers

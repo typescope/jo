@@ -46,10 +46,10 @@ abstract class TypeMap(using Definitions):
 
       case tp @ DuckType(baseType) =>
         val baseType2 = this(baseType)
-        DuckType(baseType2)(() => tp.adapters)
+        DuckType(baseType2)(tp.adaptersLazy)
 
       case tp @ ExtensionType(base) =>
-        ExtensionType(this(base))(() => tp.extensions)
+        ExtensionType(this(base))(tp.extensionsLazy)
 
       case AnnotType(base, annot) =>
         val base2 = this(base)
@@ -78,4 +78,4 @@ abstract class TypeMap(using Definitions):
 
     val resType2 = this(resType)
     // DefaultValue contains no Types to map; thread defaultsFun through unchanged
-    ProcType(tparams, params2, autos2, candidates2, resType2, receives, preParamCount, preTypeParamCount)(procType.defaultsFun)
+    ProcType(tparams, params2, autos2, candidates2, resType2, receives, preParamCount, preTypeParamCount)(procType.defaultsLazy)

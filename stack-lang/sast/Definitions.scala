@@ -2,13 +2,10 @@ package sast
 
 import Types.*
 import Symbols.*
-import Denotations.Denotation
-import Trees.FunDef
 
 import reporting.Reporter
 
-final class Definitions(nameTable: NameTable, initProvider: InfoProvider)
-extends Definitions.Lazy:
+final class Definitions(val index: SymbolIndex) extends Definitions.Lazy:
   //----------------------------------------------------------------------------
   // Info provider for symbols
   //
@@ -21,88 +18,20 @@ extends Definitions.Lazy:
   def resolveContainer(path: String): Symbol = resolveStatic(path.split('.').toList, Universe.Container)
 
   def resolveStatic(parts: List[String], universe: Universe): Symbol =
-    Definitions.resolveStatic(nameTable, parts, universe) match
+    Definitions.resolveStatic(rootNameTable, parts, universe) match
       case Some(sym) => sym
       case None =>
         throw new Exception("[Internal error] cannot find " + parts.mkString("."))
 
-  def resolveTermOpt(path: String): Option[Symbol] = Definitions.resolveStatic(nameTable, path.split('.').toList, Universe.Term)
-  def resolveContainerOpt(path: String): Option[Symbol] = Definitions.resolveStatic(nameTable, path.split('.').toList, Universe.Container)
+  def resolveTermOpt(path: String): Option[Symbol] = Definitions.resolveStatic(rootNameTable, path.split('.').toList, Universe.Term)
+  def resolveContainerOpt(path: String): Option[Symbol] = Definitions.resolveStatic(rootNameTable, path.split('.').toList, Universe.Container)
 
   //----------------------------------------------------------------------------
   // Definitions.Lazy implementation
   //
 
-  def rootNameTable: NameTable = nameTable
-  def infoProvider: InfoProvider = provider
+  def rootNameTable: NameTable = index.nameTable
   def value: Definitions = this
-
-  private var provider: InfoProvider = initProvider
-
-  private var cacheForInfoProvider: Cache = new Cache
-
-  def cache: Cache = cacheForInfoProvider
-
-  def info(sym: Symbol): Denotation = provider(sym)
-
-  /** Returns symbol info from the provider immediately before the latest installed transform.
-    *
-    * This is useful in lowering phases that both install a transform and still need
-    * access to pre-transform symbol info for decision making.
-    */
-  def prevInfo(sym: Symbol): Denotation = provider.prevInfo(sym)
-
-  def add(sym: Symbol, info: Denotation): Unit =
-    provider.add(sym, info)
-
-  def addLazy(sym: Symbol, infoLazy: () => Denotation, errorType: () => Denotation): Unit =
-    provider.addLazy(sym, infoLazy, errorType)
-
-  def addLazy(sym: Symbol, infoLazy: () => Denotation): Unit =
-    provider.addLazy(sym, infoLazy, () => ErrorType)
-
-  /** Install a transformer for symbols
-    *
-    * Warning: Accessing `sym.info` or `sym.owner` will loop. Use the provided
-    * data instead.
-    */
-  def installTransform(transform: (Symbol, Denotation) => Denotation): Unit =
-    provider = new InfoProvider.InfoTransformer(provider, transform)
-
-    // Invalidate old cache
-    cacheForInfoProvider = new Cache
-
-
-  //----------------------------------------------------------------------------
-  // Effects provider
-  //
-  val effectEngine: EffectAnalysis = new EffectAnalysis
-
-  def receives(sym: Symbol): List[Symbol] = effectEngine.effects(sym).keys.toList
-
-  //----------------------------------------------------------------------------
-  // Code provider
-  //
-
-  private val codeProvider = new CodeProvider
-
-  def getCode(sym: Symbol): FunDef = codeProvider.get(sym).get
-
-  def getCodeOpt(sym: Symbol): Option[FunDef] = codeProvider.get(sym)
-
-  def setCode(sym: Symbol, code: FunDef): Unit = codeProvider.set(sym, code)
-
-  //----------------------------------------------------------------------------
-  // Doc comments
-  //
-
-  private val docComments = scala.collection.mutable.Map[Symbol, List[String]]()
-
-  def setDocComment(sym: Symbol, doc: List[String]): Unit =
-    if doc.nonEmpty then docComments(sym) = doc
-
-  def docComment(sym: Symbol): List[String] =
-    docComments.getOrElse(sym, Nil)
 
   //----------------------------------------------------------------------------
   // Predefined symbols
@@ -230,13 +159,13 @@ end Definitions
 object Definitions:
   abstract class Lazy:
     def rootNameTable: NameTable
-    def infoProvider: InfoProvider
+    def index: SymbolIndex
     def value: Definitions
 
   def Lazy(nameTable: NameTable)(using Reporter) = new Lazy:
     val rootNameTable = nameTable
-    val infoProvider: InfoProvider = new SymInfoProvider
-    lazy val value: Definitions = new Definitions(nameTable, infoProvider)
+    val index: SymbolIndex = new SymbolIndex(rootNameTable, new SymInfoProvider)
+    lazy val value: Definitions = new Definitions(index)
 
   def resolveStatic(nameTable: NameTable, parts: List[String], universe: Universe): Option[Symbol] =
     (parts: @unchecked) match
