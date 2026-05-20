@@ -23,30 +23,6 @@ object Compiler:
 
     "jo.abort"      -> "jo.py.runtime.abort",
 
-    // IntArray operations
-    "jo.Array.IntArray.create" -> "jo.py.runtime.IntArray.create",
-    "jo.Array.IntArray.get"    -> "jo.py.runtime.IntArray.get",
-    "jo.Array.IntArray.set"    -> "jo.py.runtime.IntArray.set",
-    "jo.Array.IntArray.size"   -> "jo.py.runtime.IntArray.size",
-
-    // FloatArray operations
-    "jo.Array.FloatArray.create" -> "jo.py.runtime.FloatArray.create",
-    "jo.Array.FloatArray.get"    -> "jo.py.runtime.FloatArray.get",
-    "jo.Array.FloatArray.set"    -> "jo.py.runtime.FloatArray.set",
-    "jo.Array.FloatArray.size"   -> "jo.py.runtime.FloatArray.size",
-
-    // ByteArray operations
-    "jo.Array.ByteArray.create" -> "jo.py.runtime.ByteArray.create",
-    "jo.Array.ByteArray.get"    -> "jo.py.runtime.ByteArray.get",
-    "jo.Array.ByteArray.set"    -> "jo.py.runtime.ByteArray.set",
-    "jo.Array.ByteArray.size"   -> "jo.py.runtime.ByteArray.size",
-
-    // RefArray operations
-    "jo.Array.RefArray.create" -> "jo.py.runtime.RefArray.create",
-    "jo.Array.RefArray.get"    -> "jo.py.runtime.RefArray.get",
-    "jo.Array.RefArray.set"    -> "jo.py.runtime.RefArray.set",
-    "jo.Array.RefArray.size"   -> "jo.py.runtime.RefArray.size",
-
     // Regex engine hooks
     "jo.regex.Engine.compilePattern" -> "jo.py.runtime.RegexEngine.compilePattern",
     "jo.regex.Engine.execPatternAt"  -> "jo.py.runtime.RegexEngine.execPatternAt",
