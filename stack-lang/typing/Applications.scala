@@ -24,8 +24,7 @@ trait Applications extends DynamicTyper:
       case Ast.Select(qual, name) =>
         val qualTyped =
           given TargetType = TargetType.Member
-          Inference.freshIsolate:
-            transform(qual)
+          transform(qual)
 
         if qualTyped.tpe.isError then return errorWord(apply.span)
 
