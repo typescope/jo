@@ -16,6 +16,13 @@ trait TypeVars:
 
   def typeVars: List[TypeVar]
 
+  /** The id of the nested container of type variables
+    *
+    * It is used in initializing type variables: for a constraint a1 = a2, the
+    * initialization will prefer the variable with a higher depth.
+    */
+  def id: Int
+
   /** The instantiated type associated with the type variable
     *
     * Throws exception is the type var is not yet instantiated.

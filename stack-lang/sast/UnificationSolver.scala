@@ -16,7 +16,7 @@ import Types.*
   * This algorithm is in the same spirit as Cardelli's greedy type inference
   * algorithm (1993).
   */
-class UnificationSolver extends TypeVars:
+class UnificationSolver(val id: Int) extends TypeVars:
   private var tvars = Vector.empty[TypeVar]
   private var instantiations: Map[TypeVar, Type] = Map.empty
 
@@ -32,11 +32,36 @@ class UnificationSolver extends TypeVars:
     // - substitute occurrence in existing substitutions
     // - check that tvar does not occur in tp
     //
-    // They are handled by subtype checking implicitly.
-    if TypeOps.dealias(tp) != tvar then
-      // TODO: Use the order of tvars to avoid the check and ensure in the case of
-      // two tvars X <: Y, we instantite the one with greater id
-      instantiations = instantiations.updated(tvar, tp.widen)
+
+    tp match
+      case tvar2: TypeVar if !tvar2.isInstantiated =>
+        // Use the order of tvars to avoid the check and ensure in the case of
+        // two tvars X <: Y, we instantite the one with greater id
+        if tvar2.container.id > tvar.container.id then
+          instantiations = instantiations.updated(tvar2, tvar)
+
+        else if tvar2.container.id < tvar.container.id then
+          instantiations = instantiations.updated(tvar, tvar2)
+
+        else
+          val index1 = tvars.indexOf(tvar)
+          val index2 = tvars.indexOf(tvar2)
+
+          assert(index1 >= 0, "tvar absent")
+          assert(index2 >= 0, "tvar2 absent")
+
+          if index1 > index2 then
+            instantiations = instantiations.updated(tvar, tvar2)
+
+          else if index1 < index2 then
+            instantiations = instantiations.updated(tvar2, tvar)
+
+          else
+            // do nothing for the same variable
+            ()
+
+      case _ =>
+        instantiations = instantiations.updated(tvar, tp.widen)
 
   private def constrain(tvar: TypeVar, tp: Type, tvarLeft: Boolean)(using defn: Definitions): List[Subtyping.Task] =
     instantiations.get(tvar) match

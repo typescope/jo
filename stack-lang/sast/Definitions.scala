@@ -146,6 +146,13 @@ final class Definitions(val index: SymbolIndex) extends Definitions.Lazy:
 
   val StringLikeType = StaticRef(jo.typeMember("StringLike"))
 
+  //----------------------------------------------------------------------------
+  // Unique ids
+  val uniqs = new Definitions.Uniques
+
+  //----------------------------------------------------------------------------
+  // helper functions
+
   def isNumeric(sym: Symbol): Boolean =
     sym == Byte_type
     || sym == Char_type
@@ -157,6 +164,9 @@ final class Definitions(val index: SymbolIndex) extends Definitions.Lazy:
 end Definitions
 
 object Definitions:
+  class Uniques:
+    val unification = new common.UniqueId
+
   abstract class Lazy:
     def rootNameTable: NameTable
     def index: SymbolIndex

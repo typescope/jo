@@ -16,6 +16,7 @@ files=(
     stack-lang/common/OutOfBand.scala
     stack-lang/common/StringUtil.scala
     stack-lang/common/Text.scala
+    stack-lang/common/UniqueId.scala
     stack-lang/parsing/Parser.scala
     stack-lang/parsing/Regex.scala
     stack-lang/parsing/Scanner.scala
