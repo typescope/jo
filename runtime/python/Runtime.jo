@@ -196,8 +196,7 @@ private def start(): Unit =
     argList.append(argv[argIdx])
     argIdx = argIdx + 1
   end
-  val argsArr: Array.Platform.RefArray[String] = py.dynamic(argList).cast[Array.Platform.RefArray[String]]
-  val args = new IO.Args(argsArr)
+  val argsArr: Array[String] = py.dynamic(argList).cast[Array[String]]
 
   val stdin: () => String =
     () => py.input()
@@ -212,7 +211,7 @@ private def start(): Unit =
     IO.stdin = stdin,
     IO.stdout = stdout,
     IO.stderr = stderr,
-    IO.args = args
+    IO.args = argsArr
   in
     jo.main()
 end

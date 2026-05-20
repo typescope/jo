@@ -32,12 +32,12 @@ end
 
 //------------------------------------------------------------------------------
 
-private def start(args: Array.Platform.RefArray[String]): Unit receives none =
+private def start(args: Array[String]): Unit receives none =
   with
     IO.stdout = createStdOut(),
     IO.stdin = createStdIn(),
     IO.stderr = createStdErr(),
-    IO.args = new IO.Args(args)
+    IO.args = args
   in
     jo.main()
 

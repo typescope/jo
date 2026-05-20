@@ -8,7 +8,7 @@ import jo.compile.intrinsic
 //
 
 private def start(): Unit =
-  var args = new IO.Args(js.global.process.argv.slice(2).cast[Array.Platform.RefArray[String]])
+  var args = js.global.process.argv.slice(2).cast[Array[String]]
 
   val stdin: () => String =
     () => fs.readFileSync(0).toString

@@ -198,9 +198,8 @@ end
 //
 
 private def start(): Unit =
-  val argv: Array.Platform.RefArray[String] =
-    rb.const("ARGV").cast[Array.Platform.RefArray[String]]
-  val args = new IO.Args(argv)
+  val argv: Array[String] =
+    rb.const("ARGV").cast[Array[String]]
 
   val stdin: () => String =
     () => rb.const("STDIN").readline().chomp().asString
@@ -215,7 +214,7 @@ private def start(): Unit =
     IO.stdin = stdin,
     IO.stdout = stdout,
     IO.stderr = stderr,
-    IO.args = args
+    IO.args = argv
   in
     jo.main()
 end
