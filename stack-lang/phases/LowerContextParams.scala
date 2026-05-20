@@ -57,7 +57,7 @@ extends Phase:
 
   override def initContext()(using Context): Unit =
     // Function symbols only. Lambdas are rewritten explicitly in transformLambda.
-    defn.installTransform: (sym, tp) =>
+    defn.index.installTransform: (sym, tp) =>
       tp match
         case procType: ProcType if sym.isFunction && procType.receives.nonEmpty =>
           procType.append(NamedInfo("__ctx", CtxType) :: Nil)
@@ -99,7 +99,7 @@ extends Phase:
         LambdaType(lt.params :+ CtxType, lt.resultType, lt.receives)
 
   private def shouldAddCtxParam(sym: Symbol): Boolean =
-    defn.prevInfo(sym) match
+    defn.index.prevInfo(sym) match
       case pt: ProcType =>
         pt.receives.nonEmpty
       case _ =>
@@ -226,7 +226,7 @@ extends Phase:
 
     val capturedCtxOpt =
       given Source = Phase.source.value
-      val ambientNeeds = defn.effectEngine.effects(body).keySet -- receives.toSet
+      val ambientNeeds = defn.index.effectEngine.effects(body).keySet -- receives.toSet
       if ambientNeeds.nonEmpty then
         assert(currentCtxSym.exists, "Missing ambient context for captured lambda: " + lam.show)
         currentCtxSym.getOpt

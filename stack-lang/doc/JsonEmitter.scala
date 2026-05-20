@@ -129,42 +129,42 @@ object JsonEmitter:
               if cd.symbol.is(Flags.Object) then "object"
               else if cd.symbol.isInterface then "interface"
               else "class"
-            val doc = defn.docComment(cd.symbol).headOption
+            val doc = defn.index.docComment(cd.symbol).headOption
             emitSymbol(cd.symbol, kind, doc)
 
             // Also add methods (excluding constructors)
             for meth <- cd.funs if !meth.symbol.is(Flags.Constructor) && (includePrivate || !meth.symbol.isPrivate) do
-              val methodDoc = defn.docComment(meth.symbol).headOption
+              val methodDoc = defn.index.docComment(meth.symbol).headOption
               emitSymbol(meth.symbol, "method", methodDoc)
 
           case id: InterfaceDef if includePrivate || !id.symbol.isPrivate =>
-            val doc = defn.docComment(id.symbol).headOption
+            val doc = defn.index.docComment(id.symbol).headOption
             emitSymbol(id.symbol, "interface", doc)
 
             // Also add methods
             for meth <- id.methods if includePrivate || !meth.symbol.isPrivate do
-              val methodDoc = defn.docComment(meth.symbol).headOption
+              val methodDoc = defn.index.docComment(meth.symbol).headOption
               emitSymbol(meth.symbol, "method", methodDoc)
 
           // Skip singleton accessor functions (they have Flags.Object)
           case fd: FunDef if !fd.symbol.isMethod && !fd.symbol.is(Flags.Object) =>
-            val doc = defn.docComment(fd.symbol).headOption
+            val doc = defn.index.docComment(fd.symbol).headOption
             emitSymbol(fd.symbol, "function", doc)
 
           case pd: PatDef if !pd.resultType.tpe.isSingletonObjectType =>
-            val doc = defn.docComment(pd.symbol).headOption
+            val doc = defn.index.docComment(pd.symbol).headOption
             emitSymbol(pd.symbol, "pattern", doc)
 
           case td: TypeDef if includePrivate || !td.symbol.isPrivate =>
             val kind = if td.symbol.is(Flags.Defer) then "abstract" else "type"
-            val doc = defn.docComment(td.symbol).headOption
+            val doc = defn.index.docComment(td.symbol).headOption
             emitSymbol(td.symbol, kind, doc)
 
           case sec: Section if hasVisibleMembers(sec, includePrivate) =>
             sec.defs.foreach(processDef)
 
           case pdef: ParamDef if pdef.symbol.is(Flags.Context) =>
-            val doc = defn.docComment(pdef.symbol).headOption
+            val doc = defn.index.docComment(pdef.symbol).headOption
             emitSymbol(pdef.symbol, "context", doc)
 
           case _ => ()
@@ -203,7 +203,7 @@ object JsonEmitter:
     out.println(s"""  "name": ${jsonString(sym.name)},""")
     out.println(s"""  "fullName": ${jsonString(sym.fullName)},""")
 
-    val docLines = defn.docComment(sym)
+    val docLines = defn.index.docComment(sym)
     if docLines.nonEmpty then
       out.println(s"""  "doc": ${jsonString(docLines.mkString("\n"))},""")
     else
@@ -269,7 +269,7 @@ object JsonEmitter:
     out.println(s"""  "name": ${jsonString(sym.name)},""")
     out.println(s"""  "fullName": ${jsonString(sym.fullName)},""")
 
-    val docLines = defn.docComment(sym)
+    val docLines = defn.index.docComment(sym)
     if docLines.nonEmpty then
       out.println(s"""  "doc": ${jsonString(docLines.mkString("\n"))},""")
     else
@@ -364,7 +364,7 @@ object JsonEmitter:
       out.println(s"""$indent  "typeParams": [],""")
 
     // Doc
-    val docLines = defn.docComment(sym)
+    val docLines = defn.index.docComment(sym)
     if docLines.nonEmpty then
       out.println(s"""$indent  "doc": ${jsonString(docLines.mkString("\n"))},""")
     else
@@ -436,7 +436,7 @@ object JsonEmitter:
       out.println(s"""$indent  "typeParams": [],""")
 
     // Doc
-    val docLines = defn.docComment(sym)
+    val docLines = defn.index.docComment(sym)
     if docLines.nonEmpty then
       out.println(s"""$indent  "doc": ${jsonString(docLines.mkString("\n"))},""")
     else
@@ -527,7 +527,7 @@ object JsonEmitter:
     out.println(s"""$indent  "postTypeParams": [${postTypeParams.map(jsonString).mkString(", ")}],""")
 
     // Doc
-    val docLines = defn.docComment(sym)
+    val docLines = defn.index.docComment(sym)
     if docLines.nonEmpty then
       out.println(s"""$indent  "doc": ${jsonString(docLines.mkString("\n"))}$extras,""")
     else
@@ -571,7 +571,7 @@ object JsonEmitter:
     out.println(s"""$indent  "returnType": ${emitType(meth.resultType.tpe)},""")
 
     // Doc
-    val docLines = defn.docComment(sym)
+    val docLines = defn.index.docComment(sym)
     if docLines.nonEmpty then
       out.println(s"""$indent  "doc": ${jsonString(docLines.mkString("\n"))}""")
     else
@@ -628,7 +628,7 @@ object JsonEmitter:
         out.println(s"""$indent  "modifier": "alias",""")
 
       // Doc
-      val docLines = defn.docComment(sym)
+      val docLines = defn.index.docComment(sym)
       if docLines.nonEmpty then
         out.println(s"""$indent  "doc": ${jsonString(docLines.mkString("\n"))},""")
       else
@@ -671,7 +671,7 @@ object JsonEmitter:
       out.println(s"""$indent  "returnType": ${emitType(pd.resultType.tpe)},""")
 
       // Doc
-      val docLines = defn.docComment(sym)
+      val docLines = defn.index.docComment(sym)
       if docLines.nonEmpty then
         out.println(s"""$indent  "doc": ${jsonString(docLines.mkString("\n"))},""")
       else
@@ -698,7 +698,7 @@ object JsonEmitter:
       out.println(s"""$indent  "type": ${emitType(pdef.tpt.tpe)},""")
 
       // Doc
-      val docLines = defn.docComment(sym)
+      val docLines = defn.index.docComment(sym)
       if docLines.nonEmpty then
         out.println(s"""$indent  "doc": ${jsonString(docLines.mkString("\n"))},""")
       else

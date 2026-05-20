@@ -1,18 +1,15 @@
 package sast
 
 import sast.Denotations.Denotation
-import sast.Symbols.Symbol
+import sast.Symbols.*
 import sast.Types.*
 import sast.Trees.FunDef
 
 import scala.collection.mutable
 
-class SymbolIndex(val nameTable: NameTable):
-  private var provider: InfoProvider = new SymInfoProvider
-
+class SymbolIndex(val nameTable: NameTable, val initProvider: InfoProvider):
+  private var provider: InfoProvider = initProvider
   private var cacheForInfoProvider: Cache = new Cache
-
-  def infoProvider: InfoProvider = provider
 
   def cache: Cache = cacheForInfoProvider
 
@@ -51,7 +48,8 @@ class SymbolIndex(val nameTable: NameTable):
   //
   val effectEngine: EffectAnalysis = new EffectAnalysis
 
-  def receives(sym: Symbol): List[Symbol] = effectEngine.effects(sym).keys.toList
+  def receives(sym: Symbol)(using Definitions): List[Symbol] =
+    effectEngine.effects(sym).keys.toList
 
   //----------------------------------------------------------------------------
   // Code provider

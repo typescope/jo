@@ -1150,7 +1150,7 @@ object Encoder:
         encodeNat(level)
 
   private def encodeDocComment(sym: Symbol)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
-    val docLines = definitions.docComment(sym)
+    val docLines = definitions.index.docComment(sym)
     repeated(docLines) { line => encodeString(line) }
 
   private def encodeBool(b: Boolean)(using buf: WriteBuffer): Unit =

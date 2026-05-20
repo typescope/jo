@@ -13,7 +13,7 @@ object Types:
   sealed abstract class Type extends Denotation:
     /** Approximate this type to by dealiasing and widening */
     def approx(using defn: Definitions): Type =
-      defn.cache.approximate(this):
+      defn.index.cache.approximate(this):
         TypeOps.approx(this)
 
     /** Whether the type is an error type
@@ -627,7 +627,7 @@ object Types:
       */
     def receives(using defn: Definitions): List[Symbol] =
       receivesInfo match
-        case sym: Symbol => defn.receives(sym)
+        case sym: Symbol => defn.index.receives(sym)
         case effs: List[Symbol] => effs
 
     def minimumArgs(using Definitions): Int =

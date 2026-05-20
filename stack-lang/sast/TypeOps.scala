@@ -18,7 +18,7 @@ object TypeOps:
     */
   def substSymbols(tpe: Type, tparams: List[Symbol], targs: List[Type])(using defn: Definitions): Type =
     Debug.trace(s"substSymbols(${tpe.show}), targs = " + targs, (_: Type).show, enable = false):
-      defn.cache.substitute(tpe, targs):
+      defn.index.cache.substitute(tpe, targs):
         val subst = tparams.zip(targs).toMap
         substSymbols(tpe, subst)
 

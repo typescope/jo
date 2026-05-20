@@ -15,21 +15,21 @@ object Imports:
 
   def checkValidContainer
       (sym: Symbol, path: Ast.Word)
-      (using rp: Reporter, so: Source, ip: InfoProvider)
+      (using rp: Reporter, so: Source, index: SymbolIndex)
   : Option[NameTable] =
 
     if sym.isContainer then
       Some(sym.nameTable)
 
     else
-      if ip.info(sym) != ErrorType then
+      if index.info(sym) != ErrorType then
         rp.error("Only a namespace or section can be selected", path.pos)
 
       None
 
   def resolveContainer
       (qualid: Ast.RefTree, scope: Scope, rootNameTable: NameTable)
-      (using rp: Reporter, so: Source, ip: InfoProvider)
+      (using rp: Reporter, so: Source, index: SymbolIndex)
   : Option[NameTable] =
 
     qualid match
@@ -62,7 +62,7 @@ object Imports:
 
   def doImport
       (qualid: Ast.RefTree, alias: Option[String], importScope: Scope, rootNameTable: NameTable)
-      (using rp: Reporter, so: Source, ip: InfoProvider)
+      (using rp: Reporter, so: Source, index: SymbolIndex)
   : List[Symbol] =
 
     val imports = new mutable.ArrayBuffer[Symbol]
@@ -72,19 +72,19 @@ object Imports:
       val alias =
         if sym.isTerm then
           val link = TermSymbol.create(name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos)
-          ip.add(link, StaticRef(sym))
+          index.add(link, StaticRef(sym))
           link
         else if sym.isType then
           val link = TypeSymbol.create(sym.asTypeSymbol.kind, name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos)
-          ip.add(link, StaticRef(sym))
+          index.add(link, StaticRef(sym))
           link
         else if sym.isPattern then
           val link = PatternSymbol.create(name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos)
-          ip.add(link, StaticRef(sym))
+          index.add(link, StaticRef(sym))
           link
         else
           val link = ContainerSymbol.create(name, sym.nameTable, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos)
-          ip.add(link, StaticRef(sym))
+          index.add(link, StaticRef(sym))
           link
 
       imports += alias

@@ -283,7 +283,7 @@ object ElimCapture:
         )
         ctorParams += ctorParam
 
-      defn.add(ctorSym, ProcType(
+      defn.index.add(ctorSym, ProcType(
         tparams = Nil,
         params = ctorParams.map(_.toNamedInfo).toList,
         autos = Nil,
@@ -294,7 +294,7 @@ object ElimCapture:
         preTypeParamCount = 0
       )())
 
-      defn.add(applySym, ProcType(
+      defn.index.add(applySym, ProcType(
         tparams = Nil,
         params = params.map(_.toNamedInfo),
         autos = Nil,
@@ -306,7 +306,7 @@ object ElimCapture:
       )())
 
       // Register the ClassInfo with the method symbols
-      defn.add(classSym, new ClassInfo(
+      defn.index.add(classSym, new ClassInfo(
         classSym,
         tparams = Nil,
         self = selfSym,
@@ -500,7 +500,7 @@ object ElimCapture:
             if !capture.is(Flags.Fun) && !all.contains(capture) then
               all += capture
             else if capture.is(Flags.Fun) then
-              recur(defn.getCode(capture))
+              recur(defn.index.getCode(capture))
       end recur
 
       // Process initial captures
@@ -510,7 +510,7 @@ object ElimCapture:
         if !capture.is(Flags.Fun) && !all.contains(capture) then
           all += capture
         else if capture.is(Flags.Fun) then
-          recur(defn.getCode(capture))
+          recur(defn.index.getCode(capture))
 
       all.toList
     end computeTransitiveCapture

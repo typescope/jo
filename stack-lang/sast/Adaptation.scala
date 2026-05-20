@@ -375,7 +375,7 @@ object Adaptation:
 
     val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, word.span.toPos(using source))
     val lambda = Lambda(lambdaSym, Nil, targetLambdaType.receives, word)(word.span)
-    defn.add(lambdaSym, lambda.tpe)
+    defn.index.add(lambdaSym, lambda.tpe)
     Result.Success(lambda)
 
 

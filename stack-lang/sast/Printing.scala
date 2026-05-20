@@ -468,7 +468,7 @@ object Printing:
         def showInfo(info: Symbol | List[Symbol]): Text =
           info match
             case sym: Symbol =>
-              defn.effectEngine.getKnownEffects(sym) match
+              defn.index.effectEngine.getKnownEffects(sym) match
                 case None =>
                   // Unknown effs, different from "receives none"
                   Text.Empty

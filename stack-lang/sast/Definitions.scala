@@ -2,8 +2,6 @@ package sast
 
 import Types.*
 import Symbols.*
-import Denotations.Denotation
-import Trees.FunDef
 
 import reporting.Reporter
 
@@ -166,7 +164,7 @@ object Definitions:
 
   def Lazy(nameTable: NameTable)(using Reporter) = new Lazy:
     val rootNameTable = nameTable
-    val index: SymbolIndex = new SymbolIndex(rootNameTable)
+    val index: SymbolIndex = new SymbolIndex(rootNameTable, new SymInfoProvider)
     lazy val value: Definitions = new Definitions(index)
 
   def resolveStatic(nameTable: NameTable, parts: List[String], universe: Universe): Option[Symbol] =

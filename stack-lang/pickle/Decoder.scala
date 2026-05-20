@@ -220,7 +220,7 @@ object Decoder:
       state.registerInternalSymbol(id, sym)
 
 
-      defn.add(sym, StaticRef(target))
+      defn.index.add(sym, StaticRef(target))
 
       sym
 
@@ -1347,7 +1347,7 @@ object Decoder:
     val res = Lambda(lambdaSymbol, params, receives, body)(span)
 
     // Not really useful, but maintain the invariant that each symbol has info
-    defn.add(lambdaSymbol, res.tpe)
+    defn.index.add(lambdaSymbol, res.tpe)
 
     res
 

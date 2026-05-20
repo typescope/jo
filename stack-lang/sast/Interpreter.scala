@@ -384,7 +384,7 @@ object Interpreter:
 
     for unit <- units do index(unit.defs)
 
-    val fdef: FunDef = defn.getCode(main)
+    val fdef: FunDef = defn.index.getCode(main)
 
     val argList = new ArrayVal(args.map(StringVal.apply).toArray)
 
@@ -520,7 +520,7 @@ object Interpreter:
             case None =>
               if sym.is(Flags.Default) then
                 val defaultSym = sym.defaultFunction
-                val fdef = defn.getCode(defaultSym).asInstanceOf[FunDef]
+                val fdef = defn.index.getCode(defaultSym).asInstanceOf[FunDef]
                 val defaultVal = call(fdef, Nil).head.asInstanceOf[Value]
                 defaultVal :: Nil
               else
@@ -578,7 +578,7 @@ object Interpreter:
 
                     val ownerClassInfo = target.owner.classInfo
                     env2.bind(ownerClassInfo.self, objVal)
-                    val fdef = defn.getCode(target).asInstanceOf[FunDef]
+                    val fdef = defn.index.getCode(target).asInstanceOf[FunDef]
 
                     call(fdef, argVals)(using env2)
 
@@ -636,7 +636,7 @@ object Interpreter:
 
                 else if name == "iterator" then
                   assert(argVals.isEmpty)
-                  val fdef = defn.getCode(runtime.stringIterator).asInstanceOf[FunDef]
+                  val fdef = defn.index.getCode(runtime.stringIterator).asInstanceOf[FunDef]
                   call(fdef, strVal :: Nil)(using env.root)
 
                 else
@@ -644,7 +644,7 @@ object Interpreter:
                   val stringClassInfo = defn.String_type.classInfo
                   env.bind(stringClassInfo.self, strVal)
                   val sym = stringClassInfo.memberSymbol(name)
-                  val fdef = defn.getCode(sym).asInstanceOf[FunDef]
+                  val fdef = defn.index.getCode(sym).asInstanceOf[FunDef]
                   call(fdef, argVals)(using env)
 
               case floatVal: FloatVal =>
@@ -853,12 +853,12 @@ object Interpreter:
                     case MemberRef(_, sym) if !sym.is(Flags.Defer) && sym.owner.isOneOf(Flags.Class | Flags.Interface) =>
                       val ownerClassInfo = sym.owner.classInfo
                       env2.bind(ownerClassInfo.self, objVal)
-                      defn.getCode(sym).asInstanceOf[FunDef]
+                      defn.index.getCode(sym).asInstanceOf[FunDef]
 
                     case _ =>
                       env2.bind(objVal.self, objVal)
                       val sym = objVal.funs(name)
-                      defn.getCode(sym).asInstanceOf[FunDef]
+                      defn.index.getCode(sym).asInstanceOf[FunDef]
 
                 call(fdef, argVals)(using env2)
 
@@ -879,7 +879,7 @@ object Interpreter:
                   IntVal(0) :: Nil
 
                 else
-                  val fdef = defn.getCode(sym)
+                  val fdef = defn.index.getCode(sym)
                   call(fdef, argVals)(using env)
 
               case clos: ClosureVal =>

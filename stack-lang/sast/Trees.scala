@@ -553,7 +553,7 @@ object Trees:
     (val annots: List[Apply], val span: Span)
     (using defn: Definitions)
   extends Word, Def:
-    defn.setCode(symbol, this)
+    defn.index.setCode(symbol, this)
 
     assert(autos.size == candidates.size)
 

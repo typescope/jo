@@ -86,7 +86,7 @@ object Symbols:
     def info(using defn: Definitions): Denotation =
       this match
         case container: ContainerSymbol if !this.isAlias => container.nameTable
-        case _ => defn.info(this)
+        case _ => defn.index.info(this)
 
     /** The type of this symbol, as a Type. Throws if the symbol is a container. */
     def tpe(using Definitions): Type = info.asType

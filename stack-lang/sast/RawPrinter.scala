@@ -125,7 +125,7 @@ object RawPrinter:
 
     val id = state.getInternalSymbolId(symbol)
 
-    val docComment = defn.docComment(symbol)
+    val docComment = defn.index.docComment(symbol)
     val docText =
       if docComment.isEmpty then
         Text("[]")
@@ -174,7 +174,7 @@ object RawPrinter:
   private def printAnnots(annots: List[Apply])(using Definitions, State, Source): Text =
     "[" ~ annots.join(",") ~ "]"
 
-  private def printSymbolAnnots(symbol: Symbol)(using State): Text =
+  private def printSymbolAnnots(symbol: Symbol)(using Definitions, State): Text =
     "[" ~ symbol.annotations.join(",") ~ "]"
 
   private def printDef(defn: Def)(using definitions: Definitions, state: State, src: Source): Text =
