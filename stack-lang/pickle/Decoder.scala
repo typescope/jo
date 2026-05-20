@@ -278,7 +278,7 @@ object Decoder:
       val tpt = decodeTypeTree(absoluteStart)
       val endDelta = decodeInt()
       val span = Span(absoluteStart, tpt.span.endOffset + endDelta - absoluteStart)
-      lazy val paramDef = ParamDef(symbol, tpt)(annots, span)
+      val paramDef = ParamDef(symbol, tpt)(annots, span)
     end paramData
 
     // Supply type for symbol
@@ -717,7 +717,7 @@ object Decoder:
     // Add symbol info lazily
     val index = defnLazy.index
     index.addLazy(symbol, () => delayed.tpe)
-    index.setAnnotations(symbol, delayed.annots.map(TreeOps.applyToAnnotation))
+    index.setAnnotations(symbol, () => delayed.annots.map(TreeOps.applyToAnnotation))
 
     val typeDefFun = () =>
       TypeDef(symbol, delayed.tparams, delayed.rhs)(delayed.annots, delayed.span)

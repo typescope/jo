@@ -93,7 +93,7 @@ class PatternTyper(namer: Namer)(using Config):
 
     val index = lazyDefn.index
     index.addLazy(patSym, () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
-    index.setAnnotations(patSym, annotations.map(TreeOps.applyToAnnotation))
+    index.setAnnotations(patSym, () => annotations.map(TreeOps.applyToAnnotation))
     index.setDocComment(patSym, patDef.docComment)
 
     val typer = () =>

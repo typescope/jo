@@ -1722,13 +1722,12 @@ class Namer(using Config) extends Applications with SelectionTyper:
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[ClassDef] =
 
-    given defn: Definitions = lazyDefn.value
-
     val extraFlags = cdef0.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
     val flags = Checker.checkModifiers(cdef0) | extraFlags | Flags.Class
     val kind = Kind.simpleKinded(cdef0.tparams.size)
 
     lazy val classAnnotations =
+      given Definitions = lazyDefn.value
       given Scope = sc
       transformAnnotations(cdef0.annotations)
 
@@ -1791,7 +1790,10 @@ class Namer(using Config) extends Applications with SelectionTyper:
       if vdef.mutable then flags = flags | Flags.Field | Flags.Mutable
       else flags = flags | Flags.Field
 
-      lazy val fieldAnnotations = transformAnnotations(vdef.annotations)
+      lazy val fieldAnnotations =
+        given Definitions = lazyDefn.value
+        transformAnnotations(vdef.annotations)
+
       val sym = TermSymbol.create(vdef.name, flags, Checker.visibility(vdef, classSym), classSym, vdef.ident.pos)
       shortCutScope.define(sym)
 
@@ -1872,10 +1874,8 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val flags = Checker.checkModifiers(idef) | Flags.Interface
     val kind = Kind.simpleKinded(idef.tparams.size)
 
-    val index = lazyDefn.index
-    given defn: Definitions = lazyDefn.value
-
     lazy val annotations =
+      given Definitions = lazyDefn.value
       given Scope = sc
       transformAnnotations(idef.annotations)
 
@@ -1903,6 +1903,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         directViews = Nil
       )
 
+    val index = lazyDefn.index
     index.addLazy(interfaceSym, () => interfaceInfo)
     index.setAnnotations(interfaceSym, () => annotations.map(TreeOps.applyToAnnotation))
     index.setDocComment(interfaceSym, idef.docComment)
@@ -1942,6 +1943,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       delayedDefs += delayedDef
 
     val typer = () =>
+      given Definitions = lazyDefn.value
       val methodDefs: List[FunDef] =
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
@@ -1957,9 +1959,8 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val flags = Checker.checkModifiers(section) | Flags.Section
     val nameTable = new NameTable
 
-    given defn: Definitions = lazyDefn.value
-
     lazy val annotations =
+      given Definitions = lazyDefn.value
       given Scope = sc
       transformAnnotations(section.annotations)
 
@@ -1971,6 +1972,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
     nameTable.freeze()
 
     lazy val sast =
+      given Definitions = lazyDefn.value
       val defs = for delayed <- delayedDefs.toList yield delayed.force()
       Section(sym, defs)(annotations, section.span)
 
