@@ -40,51 +40,6 @@ private def abort(msg: String): Bottom =
 // Array support
 //
 
-// IntArray operations
-private section IntArray
-  def create(size: Int): Array.Platform.IntArray =
-    js.global.Array.call(size).cast[Array.Platform.IntArray]
-
-  def get(array: Array.Platform.IntArray, index: Int): Int =
-    js.dynamic(array)[index].asInt
-
-  def set(array: Array.Platform.IntArray, index: Int, value: Int): Unit =
-    js.dynamic(array)[index] = value
-
-  def size(array: Array.Platform.IntArray): Int =
-    js.dynamic(array).length.asInt
-end
-
-// FloatArray operations
-private section FloatArray
-  def create(size: Int): Array.Platform.FloatArray =
-    js.init(js.global.Float64Array, size).cast[Array.Platform.FloatArray]
-
-  def get(array: Array.Platform.FloatArray, index: Int): Float =
-    js.dynamic(array)[index].asFloat
-
-  def set(array: Array.Platform.FloatArray, index: Int, value: Float): Unit =
-    js.dynamic(array)[index] = value
-
-  def size(array: Array.Platform.FloatArray): Int =
-    js.dynamic(array).length.asInt
-end
-
-// ByteArray operations
-private section ByteArray
-  def create(size: Int): Array.Platform.ByteArray =
-    js.init(js.global.Int8Array, size).cast[Array.Platform.ByteArray]
-
-  def get(array: Array.Platform.ByteArray, index: Int): Byte =
-    js.dynamic(array)[index].cast[Byte]
-
-  def set(array: Array.Platform.ByteArray, index: Int, value: Byte): Unit =
-    js.dynamic(array)[index] = value
-
-  def size(array: Array.Platform.ByteArray): Int =
-    js.dynamic(array).length.asInt
-end
-
 // RefArray operations
 private section RefArray
   def create[T](size: Int): Array.Platform.RefArray[T] =
