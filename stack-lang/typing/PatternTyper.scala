@@ -32,9 +32,7 @@ class PatternTyper(namer: Namer)(using Config):
       given Scope = sc
       namer.transformAnnotations(patDef.annotations)
 
-    val annotsInfo = () => annotations.map(TreeOps.applyToAnnotation)
-
-    val patSym = PatternSymbol.create(patDef.name, flags, Checker.visibility(patDef, sc.owner), sc.owner, patDef.ident.pos, annotsInfo)
+    val patSym = PatternSymbol.create(patDef.name, flags, Checker.visibility(patDef, sc.owner), sc.owner, patDef.ident.pos)
     given patScope: Scope = sc.fresh(patSym)
 
     lazy val tparamSyms = namer.transformTypeParams(patDef.tparams)
@@ -90,15 +88,15 @@ class PatternTyper(namer: Namer)(using Config):
           OrPattern(acc, pat)(scrutType)
 
     def computeInfo(resultType: Type) =
-      annotations
       val autoTypes = Nil
       ProcType(tparamSyms, paramSyms.map(_.toNamedInfo), autoTypes, Nil, resultType, receivesInfo = Nil, patDef.preParamCount, preTypeParamCount = 0)()
 
-    val ip = lazyDefn.infoProvider
-    ip.addLazy(patSym, () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
+    val index = lazyDefn.index
+    index.addLazy(patSym, () => computeInfo(resultTypeTree.tpe), () => computeInfo(ErrorType))
+    index.setAnnotations(patSym, annotations.map(TreeOps.applyToAnnotation))
+    index.setDocComment(patSym, patDef.docComment)
 
     val typer = () =>
-      defn.setDocComment(patSym, patDef.docComment)
       PatDef(patSym, tparamSyms, paramSyms, resultTypeTree, typedBody)(annotations, patDef.span)
 
     DelayedDef(patSym, typer)

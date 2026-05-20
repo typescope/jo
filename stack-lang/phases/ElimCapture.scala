@@ -208,8 +208,7 @@ object ElimCapture:
         Flags.Synthetic | Flags.Class,
         Visibility.Default,
         owner.enclosingContainer,
-        classPos,
-        annotsInfo = Nil
+        classPos
       )
 
       // Create field symbols for captured variables
@@ -248,8 +247,7 @@ object ElimCapture:
         Flags.Fun | Flags.Method | Flags.Constructor,
         Visibility.Default,
         classSym,
-        classPos,
-        annotsInfo = Nil
+        classPos
       )
 
       // Create the apply method symbol
@@ -269,8 +267,7 @@ object ElimCapture:
         Flags.Method | Flags.Fun | Flags.Synthetic,
         Visibility.Default,
         classSym,
-        classPos,
-        annotsInfo = Nil
+        classPos
       )
 
       // Create constructor parameters for captured variables

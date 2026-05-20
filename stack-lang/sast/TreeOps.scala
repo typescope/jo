@@ -132,7 +132,7 @@ object TreeOps:
     // Create and return the lambda
     val res = Lambda(lambdaSym, paramSyms, lambdaType.receives, bodyWord)(span)
 
-    defn.add(lambdaSym, res.tpe)
+    defn.index.add(lambdaSym, res.tpe)
 
     res
 
@@ -142,7 +142,7 @@ object TreeOps:
       (using defn: Definitions, source: Source)
   : Word =
     // Create a lambda symbol
-    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos, annotsInfo = Nil)
+    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos)
     createLambdaWithSymbol(lambdaSym, lambdaType, span)(body)
 
   /** Eta-expand a function to a lambda

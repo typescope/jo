@@ -44,7 +44,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       (using defnLazy: Definitions.Lazy, rp: Reporter)
   : List[FileUnit] = Checks.delayed:
 
-    given ip: InfoProvider = defnLazy.infoProvider
+    given SymbolIndex = defnLazy.index
 
     val delayedImports = new mutable.ArrayBuffer[() => Unit]
     val delayedUnits = new mutable.ArrayBuffer[(() => FileUnit, Source)]
@@ -92,7 +92,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
     */
   def resolveNamespace
       (qualid: Ast.RefTree, rootNameTable: NameTable)
-      (using rp: Reporter, so: Source, ip: InfoProvider)
+      (using rp: Reporter, so: Source)
   : Symbol =
 
     def check(sym: Symbol): Symbol =
@@ -850,8 +850,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       Flags.Label | Flags.Synthetic,
       Visibility.Default,
       sc.owner,
-      word.pos,
-      annotsInfo = Nil
+      word.pos
     )
 
     val loopBody = TermSymbol.create(
@@ -860,8 +859,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       Flags.Label | Flags.Synthetic,
       Visibility.Default,
       sc.owner,
-      word.pos,
-      annotsInfo = Nil
+      word.pos
     )
 
     val loopFrame = new LoopFrame(loopEnd, loopBody)
@@ -1092,7 +1090,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
        case None =>
 
-     val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, sc.owner, lambda.pos, annotsInfo = Nil)
+     val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, sc.owner, lambda.pos)
      val lambdaScope = sc.fresh(lambdaSym)
 
      def inferParamType(i: Int): Type =
@@ -1116,7 +1114,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
      val res = Lambda(lambdaSym, paramSyms, receives, bodyTyped)(lambda.span)
 
      // Not really useful, but maintain the invariant that each symbol has info
-     defn.add(lambdaSym, res.tpe)
+     defn.index.add(lambdaSym, res.tpe)
 
      res
 
@@ -1125,7 +1123,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
   : List[DelayedDef[Def]] =
     assert(pdef.default.isEmpty, "optional context param not desugared: " + pdef)
 
-    val ip = lazyDefn.infoProvider
+    val index = lazyDefn.index
 
     // given definitions are lazy
     given defn: Definitions = lazyDefn.value
@@ -1133,18 +1131,15 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val extraFlags = pdef.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
     val flags = Checker.checkModifiers(pdef) | Flags.Context | extraFlags
 
+    val paramSym = TermSymbol.create(pdef.name, flags, Checker.visibility(pdef, sc.owner), sc.owner, pdef.pos)
+
     lazy val annotations = transformAnnotations(pdef.annotations)
-    val annotsInfo = () => annotations.map(TreeOps.applyToAnnotation)
 
-    val paramSym = TermSymbol.create(pdef.name, flags, Checker.visibility(pdef, sc.owner), sc.owner, pdef.pos, annotsInfo)
-
-    ip.addLazy(paramSym, () => {
-      annotations
-      transformValueType(pdef.tpt).tpe
-    })
+    index.addLazy(paramSym, () => transformValueType(pdef.tpt).tpe)
+    index.setAnnotations(paramSym, () => annotations.map(TreeOps.applyToAnnotation))
+    index.setDocComment(paramSym, pdef.docComment)
 
     val paramDefSast = () =>
-      defn.setDocComment(paramSym, pdef.docComment)
       val tpt = TypeTree(paramSym.tpe)(pdef.tpt.span)
       ParamDef(paramSym, tpt)(annotations, pdef.span)
 
@@ -1154,8 +1149,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
     var flags = Checker.checkModifiers(vdef)
     if vdef.mutable then flags = flags | Flags.Mutable
 
-    val sym = TermSymbol.create(vdef.name, flags, Visibility.Default, sc.owner, vdef.ident.pos, annotsInfo = Nil)
-    defn.setDocComment(sym, vdef.docComment)
+    val sym = TermSymbol.create(vdef.name, flags, Visibility.Default, sc.owner, vdef.ident.pos)
 
     lazy val givenType: Type = Checks.eager:
       transformValueType(vdef.tpt).tpe
@@ -1173,7 +1167,9 @@ class Namer(using Config) extends Applications with SelectionTyper:
       if vdef.tpt.isEmpty then rhs.tpe.widen
       else givenType
 
-    defn.add(sym, tp)
+    val index = defn.index
+    index.add(sym, tp)
+    index.setDocComment(sym, vdef.docComment)
 
     Assign(Ident(sym)(vdef.ident.span), rhs, isDefine = true)
 
@@ -1181,8 +1177,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
     // Auto definitions always have explicit types and are marked with Auto flag
     val flags = Checker.checkModifiers(adef) | Flags.Auto
 
-    val sym = TermSymbol.create(adef.name, flags, Visibility.Default, sc.owner, adef.ident.pos, annotsInfo = Nil)
-    defn.setDocComment(sym, adef.docComment)
+    val sym = TermSymbol.create(adef.name, flags, Visibility.Default, sc.owner, adef.ident.pos)
 
     val givenType: Type = Checks.eager:
       transformValueType(adef.tpt).tpe
@@ -1194,7 +1189,9 @@ class Namer(using Config) extends Applications with SelectionTyper:
       Inference.freshIsolate:
         transform(adef.rhs)
 
-    defn.add(sym, givenType)
+    val index = defn.index
+    index.add(sym, givenType)
+    index.setDocComment(sym, adef.docComment)
 
     Assign(Ident(sym)(adef.ident.span), rhs, isDefine = true)
 
@@ -1258,7 +1255,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
   : DelayedDef[FunDef] =
 
     val flags = Flags.Fun | Flags.Annotation | Checker.checkModifiers(adef)
-    val funSym = TermSymbol.create(adef.name, flags, Checker.visibility(adef, sc.owner), sc.owner, adef.ident.pos, annotsInfo = Nil)
+    val funSym = TermSymbol.create(adef.name, flags, Checker.visibility(adef, sc.owner), sc.owner, adef.ident.pos)
 
     given defn: Definitions = lazyDefn.value
     given funScope: Scope = sc.fresh(funSym)
@@ -1281,8 +1278,8 @@ class Namer(using Config) extends Applications with SelectionTyper:
         preTypeParamCount = 0
       )(() => defaults)
 
-    val ip = lazyDefn.infoProvider
-    ip.addLazy(funSym, computeInfo, () => computeInfo())
+    val index = lazyDefn.index
+    index.addLazy(funSym, computeInfo, () => computeInfo())
 
     Checks.add:
       if !funSym.containedIn(defn.jo) then
@@ -1389,16 +1386,10 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val extraFlags = funDef.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
     val flags = Checker.checkModifiers(funDef) | initialFlags | extraFlags
 
+
+    val funSym = TermSymbol.create(funDef.name, flags, Checker.visibility(funDef, sc.owner), sc.owner, funDef.ident.pos)
+
     given defn: Definitions = lazyDefn.value
-
-    lazy val annotations =
-      given Scope = sc
-      transformAnnotations(funDef.annotations)
-
-    val annotsInfo = () => annotations.map(TreeOps.applyToAnnotation)
-
-    val funSym = TermSymbol.create(funDef.name, flags, Checker.visibility(funDef, sc.owner), sc.owner, funDef.ident.pos, annotsInfo)
-
     given Scope = sc.fresh(funSym)
 
     if flags.is(Flags.Defer) then
@@ -1411,6 +1402,10 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     else if Config.explicitReturnType.value && funDef.resultType.isEmpty && !flags.is(Flags.Annotation) then
       Reporter.error("This project requires functions to have explicit return type", funDef.ident.pos)
+
+    lazy val annotations =
+      given Scope = sc
+      transformAnnotations(funDef.annotations)
 
     lazy val tparamSyms =
       transformTypeParams(funDef.tparams)
@@ -1486,7 +1481,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
     Defaults.validatePostDefaultShape(astPostParams)
 
     def computeInfo(resultType: Type) =
-      annotations
       val candidateSymbols = candidates.map(_._2)
       val postParamSyms = paramSyms.drop(funDef.preParamCount)
       lazy val defaults = Defaults.checkPostDefaults(astPostParams, postParamSyms, this)
@@ -1505,11 +1499,12 @@ class Namer(using Config) extends Applications with SelectionTyper:
         tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), candidateSymbols,
         resultType, receivesInfo, funDef.preParamCount, funDef.preTypeParamCount)(() => defaults)
 
-    val ip = lazyDefn.infoProvider
-    ip.addLazy(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
+    val index = lazyDefn.index
+    index.addLazy(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
+    index.setAnnotations(funSym, () => annotations.map(TreeOps.applyToAnnotation))
+    index.setDocComment(funSym, funDef.docComment)
 
     val typer = () =>
-      defn.setDocComment(funSym, funDef.docComment)
       val candidateTrees = candidates.map(_._1)
       val tpt = TypeTree(resultType)(funDef.resultType.span)
       FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(annotations, funDef.span)
@@ -1530,9 +1525,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       given Scope = sc
       transformAnnotations(funDef.annotations)
 
-    val annotsInfo = () => annotations.map(TreeOps.applyToAnnotation)
-
-    val funSym = TermSymbol.create(Names.Constructor, flags, visibility, classSym, funDef.ident.pos, annotsInfo)
+    val funSym = TermSymbol.create(Names.Constructor, flags, visibility, classSym, funDef.ident.pos)
 
     given ctorScope: Scope = sc.fresh(funSym)
 
@@ -1541,7 +1534,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     val astPostParams = funDef.params  // constructors have no pre-params
     Defaults.validatePostDefaultShape(astPostParams)
-
 
     lazy val paramSyms =
       transformParams(funDef.params)
@@ -1628,7 +1620,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     val tparamSyms = Nil
     def computeInfo(resultType: Type) =
-      annotations
       val candidateSymbols = candidates.map(_._2)
       lazy val defaults = Defaults.checkPostDefaults(astPostParams, paramSyms, this)
       Checks.add { defaults }
@@ -1637,11 +1628,12 @@ class Namer(using Config) extends Applications with SelectionTyper:
         tparamSyms, paramSyms.map(_.toNamedInfo), autoSyms.map(_.toNamedInfo), candidateSymbols,
         resultType, funSym, funDef.preParamCount, funDef.preTypeParamCount)(() => defaults)
 
-    val ip = lazyDefn.infoProvider
-    ip.addLazy(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
+    val index = lazyDefn.index
+    index.addLazy(funSym, () => computeInfo(resultType), () => computeInfo(ErrorType))
+    index.setAnnotations(funSym, () => annotations.map(TreeOps.applyToAnnotation))
+    index.setDocComment(funSym, funDef.docComment)
 
     val typer = () =>
-      defn.setDocComment(funSym, funDef.docComment)
       val candidateTrees = candidates.map(_._1)
       val tpt = TypeTree(resultType)(funDef.resultType.span)
       FunDef(funSym, tparamSyms, paramSyms, autoSyms, candidateTrees, tpt, effectPolicy, typedBody)(annotations, funDef.span)
@@ -1674,9 +1666,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       given Scope = sc
       transformAnnotations(tdef.annotations)
 
-    val annotsInfo = () => annotations.map(TreeOps.applyToAnnotation)
-
-    val typeSym = TypeSymbol.create(kind, tdef.name, flags, Checker.visibility(tdef, sc.owner), sc.owner, tdef.ident.pos, annotsInfo)
+    val typeSym = TypeSymbol.create(kind, tdef.name, flags, Checker.visibility(tdef, sc.owner), sc.owner, tdef.ident.pos)
 
     given sc2: Scope = sc.fresh(typeSym)
     lazy val tparamSyms = transformTypeParams(tdef.tparams)
@@ -1706,7 +1696,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
 
     def computeInfo(): Denotation =
-      annotations
       if tdef.tparams.isEmpty then
         rhsType
       else
@@ -1716,12 +1705,13 @@ class Namer(using Config) extends Applications with SelectionTyper:
       if tdef.tparams.isEmpty then ErrorType
       else TypeOperatorInfo(tparamSyms, ErrorType, tdef.preParamCount)
 
-    val ip = lazyDefn.infoProvider
-    ip.addLazy(typeSym, computeInfo, errorType)
+    val index = lazyDefn.index
+    index.addLazy(typeSym, computeInfo, errorType)
+    index.setDocComment(typeSym, tdef.docComment)
+    index.setAnnotations(typeSym, () => annotations.map(TreeOps.applyToAnnotation))
 
     // check type symbols after completion to allow cycles, type A = A
     val typer = () =>
-      defn.setDocComment(typeSym, tdef.docComment)
       val tpt = TypeTree(rhsType)(tdef.rhs.span)
       TypeDef(typeSym, tparamSyms, tpt)(annotations, tdef.span)
 
@@ -1732,7 +1722,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : DelayedDef[ClassDef] =
 
-    given Definitions = lazyDefn.value
+    given defn: Definitions = lazyDefn.value
 
     val extraFlags = cdef0.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
     val flags = Checker.checkModifiers(cdef0) | extraFlags | Flags.Class
@@ -1742,10 +1732,8 @@ class Namer(using Config) extends Applications with SelectionTyper:
       given Scope = sc
       transformAnnotations(cdef0.annotations)
 
-    val annotsInfo = () => classAnnotations.map(TreeOps.applyToAnnotation)
-
-    val classSym = TypeSymbol.create(kind, cdef0.name, flags, Checker.visibility(cdef0, sc.owner), sc.owner, cdef0.ident.pos, annotsInfo)
-    val thisSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, classSym, cdef0.ident.pos, annotsInfo = Nil)
+    val classSym = TypeSymbol.create(kind, cdef0.name, flags, Checker.visibility(cdef0, sc.owner), sc.owner, cdef0.ident.pos)
+    val thisSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, classSym, cdef0.ident.pos)
 
     // Class desugaring now happens in Desugaring.synthesize
     val cdef = Desugaring.desugarClassDef(cdef0, thisSym)
@@ -1767,7 +1755,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
         transformValueType(vdecl.tpe)
 
     lazy val classInfo: Denotation =
-      classAnnotations
       val directViews = directViewTrees.map(_.tpe)
 
       new ClassInfo(
@@ -1779,8 +1766,10 @@ class Namer(using Config) extends Applications with SelectionTyper:
         directViews
       )
 
-    val ip = lazyDefn.infoProvider
-    ip.addLazy(classSym, () => classInfo)
+    val index = lazyDefn.index
+    index.addLazy(classSym, () => classInfo)
+    index.setAnnotations(classSym, () => classAnnotations.map(TreeOps.applyToAnnotation))
+    index.setDocComment(classSym, cdef0.docComment)
 
     // Add this to scope
     val thisScope = paramScope.fresh()
@@ -1792,7 +1781,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       if tparamSyms.isEmpty then classRef
       else AppliedType(classSym, tparamSyms.map(StaticRef.apply))
 
-    ip.addLazy(thisSym, () => thisInfo)
+    index.addLazy(thisSym, () => thisInfo)
 
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
     val delayedFields = new mutable.ArrayBuffer[DelayedDef[FieldDecl]]
@@ -1803,13 +1792,11 @@ class Namer(using Config) extends Applications with SelectionTyper:
       else flags = flags | Flags.Field
 
       lazy val fieldAnnotations = transformAnnotations(vdef.annotations)
-      val annotsInfo = () => fieldAnnotations.map(TreeOps.applyToAnnotation)
-      val sym = TermSymbol.create(vdef.name, flags, Checker.visibility(vdef, classSym), classSym, vdef.ident.pos, annotsInfo)
+      val sym = TermSymbol.create(vdef.name, flags, Checker.visibility(vdef, classSym), classSym, vdef.ident.pos)
       shortCutScope.define(sym)
 
       lazy val fieldDecl: FieldDecl =
         given defn: Definitions = lazyDefn.value
-        defn.setDocComment(sym, vdef.docComment)
 
         val tpt =
           if vdef.tpt.isEmpty then
@@ -1825,9 +1812,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
         FieldDecl(sym, tpt)(vdef.span, fieldAnnotations)
 
-      def checkType() =
-        fieldAnnotations
-        fieldDecl.tpt.tpe
+      def checkType() = fieldDecl.tpt.tpe
 
       if vdef.name == cdef.name then
         Reporter.error("Class name cannot be used as field name", vdef.pos)
@@ -1835,7 +1820,10 @@ class Namer(using Config) extends Applications with SelectionTyper:
       else
         fields += sym
 
-        ip.addLazy(sym, () => checkType())
+        index.addLazy(sym, () => checkType())
+        index.setAnnotations(sym, () => fieldAnnotations.map(TreeOps.applyToAnnotation))
+        index.setDocComment(sym, vdef.docComment)
+
         delayedFields += DelayedDef(sym, () => fieldDecl)
 
     for fdef <- cdef.funs do
@@ -1866,7 +1854,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     val typer = () =>
       given defn: Definitions = lazyDefn.value
-      defn.setDocComment(classSym, cdef0.docComment)
 
       val fields: List[FieldDecl] =
         for delayedField <- delayedFields.toList yield delayedField.force()
@@ -1885,17 +1872,16 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val flags = Checker.checkModifiers(idef) | Flags.Interface
     val kind = Kind.simpleKinded(idef.tparams.size)
 
+    val index = lazyDefn.index
     given defn: Definitions = lazyDefn.value
 
     lazy val annotations =
       given Scope = sc
       transformAnnotations(idef.annotations)
 
-    val annotsInfo = () => annotations.map(TreeOps.applyToAnnotation)
+    val interfaceSym = TypeSymbol.create(kind, idef.name, flags, Checker.visibility(idef, sc.owner), sc.owner, idef.ident.pos)
 
-    val interfaceSym = TypeSymbol.create(kind, idef.name, flags, Checker.visibility(idef, sc.owner), sc.owner, idef.ident.pos, annotsInfo)
-
-    val selfSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, interfaceSym, idef.ident.pos, annotsInfo = Nil)
+    val selfSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, interfaceSym, idef.ident.pos)
 
     given paramScope: Scope = sc.fresh(interfaceSym)
 
@@ -1917,8 +1903,9 @@ class Namer(using Config) extends Applications with SelectionTyper:
         directViews = Nil
       )
 
-    val ip = lazyDefn.infoProvider
-    ip.addLazy(interfaceSym, () => interfaceInfo)
+    index.addLazy(interfaceSym, () => interfaceInfo)
+    index.setAnnotations(interfaceSym, () => annotations.map(TreeOps.applyToAnnotation))
+    index.setDocComment(interfaceSym, idef.docComment)
 
     // Add self to scope for use in default method implementations
     val selfScope = paramScope.fresh()
@@ -1930,7 +1917,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       if tparamSyms.isEmpty then interfaceRef
       else AppliedType(interfaceSym, tparamSyms.map(StaticRef.apply))
 
-    ip.addLazy(selfSym, () => selfInfo)
+    index.addLazy(selfSym, () => selfInfo)
 
     val delayedDefs = new mutable.ArrayBuffer[DelayedDef[FunDef]]
     for fdef <- idef.members do
@@ -1955,8 +1942,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
       delayedDefs += delayedDef
 
     val typer = () =>
-      defn.setDocComment(interfaceSym, idef.docComment)
-
       val methodDefs: List[FunDef] =
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
@@ -1978,20 +1963,20 @@ class Namer(using Config) extends Applications with SelectionTyper:
       given Scope = sc
       transformAnnotations(section.annotations)
 
-    val annotsInfo = () => annotations.map(TreeOps.applyToAnnotation)
+    val sym = ContainerSymbol.create(section.name, nameTable, flags, Checker.visibility(section, sc.owner), sc.owner, section.ident.pos)
 
-    val sym = ContainerSymbol.create(section.name, nameTable, flags, Checker.visibility(section, sc.owner), sc.owner, section.ident.pos, annotsInfo)
-
-    given secScope: Scope = sc.fresh(sym, nameTable)
+    given Scope = sc.fresh(sym, nameTable)
 
     val delayedDefs = index(section.defs)
     nameTable.freeze()
 
     lazy val sast =
-      defn.setDocComment(sym, section.docComment)
       val defs = for delayed <- delayedDefs.toList yield delayed.force()
-
       Section(sym, defs)(annotations, section.span)
+
+    val idx = lazyDefn.index
+    idx.setAnnotations(sym, () => annotations.map(TreeOps.applyToAnnotation))
+    idx.setDocComment(sym, section.docComment)
 
     DelayedDef(sym, () => sast)
 

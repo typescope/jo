@@ -109,7 +109,7 @@ object Decoder:
             case Some(existing) => (existing, existing.nameTable)
             case None =>
               val t = new NameTable
-              val sym = ContainerSymbol.create(name, t, Flags.NSpace, Visibility.Default, owner, null, Nil)
+              val sym = ContainerSymbol.create(name, t, Flags.NSpace, Visibility.Default, owner, null)
               nameTable.define(sym)
               (sym, t)
           recur(file, owner2, table)
@@ -208,14 +208,14 @@ object Decoder:
       val flags = target.flags | Flags.Alias
       val sym =
         if target.isTerm then
-          TermSymbol.create(name, flags, Visibility.Default, owner, span.toPos(using state.source), Nil)
+          TermSymbol.create(name, flags, Visibility.Default, owner, span.toPos(using state.source))
 
         else if target.isType then
           val kind = target.asTypeSymbol.kind
-          TypeSymbol.create(kind, name, flags, Visibility.Default, owner, span.toPos(using state.source), Nil)
+          TypeSymbol.create(kind, name, flags, Visibility.Default, owner, span.toPos(using state.source))
 
         else
-          PatternSymbol.create(name, flags, Visibility.Default, owner, span.toPos(using state.source), Nil)
+          PatternSymbol.create(name, flags, Visibility.Default, owner, span.toPos(using state.source))
 
       state.registerInternalSymbol(id, sym)
 
@@ -264,8 +264,7 @@ object Decoder:
     val symSpanLength = decodeNat()
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
-    var _annotsProvider: () => List[Annotation] = () => Nil
-    val symbol = TermSymbol.create(name, flags, visibility, owner, symSpan.toPos, () => _annotsProvider())
+    val symbol = TermSymbol.create(name, flags, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
     val typeStartPos = buf.position
@@ -273,7 +272,7 @@ object Decoder:
       given defn: Definitions = defnLazy.value
       given ReadBuffer = state.fresh(typeStartPos)
       val docLines = repeated { decodeString() }
-      if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
+      if docLines.nonEmpty then defn.index.setDocComment(symbol, docLines)
       val annots: List[Apply] = repeated:
         decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
       val tpt = decodeTypeTree(absoluteStart)
@@ -282,10 +281,10 @@ object Decoder:
       lazy val paramDef = ParamDef(symbol, tpt)(annots, span)
     end paramData
 
-    _annotsProvider = () => paramData.annots.map(TreeOps.applyToAnnotation)
-
     // Supply type for symbol
-    defnLazy.infoProvider.addLazy(symbol, () => paramData.tpt.tpe)
+    val index = defnLazy.index
+    index.addLazy(symbol, () => paramData.tpt.tpe)
+    index.setAnnotations(symbol, () => paramData.annots.map(TreeOps.applyToAnnotation))
 
     // Set buffer position at end
     buf.setPosition(pos + length)
@@ -308,8 +307,7 @@ object Decoder:
     val symSpanLength = decodeNat()
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
-    var _annotsProvider: () => List[Annotation] = () => Nil
-    val symbol = TermSymbol.create(name, flags, visibility, owner, symSpan.toPos, () => _annotsProvider())
+    val symbol = TermSymbol.create(name, flags, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
     given defn: Definitions = defnLazy.value
@@ -320,7 +318,7 @@ object Decoder:
       given sigBuf: ReadBuffer = state.fresh(tparamsStartPos)
 
       val docLines = repeated { decodeString() }
-      if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
+      if docLines.nonEmpty then defn.index.setDocComment(symbol, docLines)
 
       val annots: List[Apply] = repeated:
         decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
@@ -335,7 +333,7 @@ object Decoder:
         val tparamSpan = Span(absoluteStart + tparamStartDelta, tparamSpanLength)
 
         val kind = decodeKind()
-        val tparam = TypeSymbol.create(kind, tparamName, AnyType, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos, Nil)
+        val tparam = TypeSymbol.create(kind, tparamName, AnyType, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
 
@@ -350,7 +348,7 @@ object Decoder:
 
         val paramInfo = decodeType()
 
-        val param = TermSymbol.create(paramName, paramInfo, Flags.Param, Visibility.Default, symbol, paramSpan.toPos, Nil)
+        val param = TermSymbol.create(paramName, paramInfo, Flags.Param, Visibility.Default, symbol, paramSpan.toPos)
         state.registerInternalSymbol(paramId, param)
 
         param
@@ -366,7 +364,7 @@ object Decoder:
 
         val autoInfo = decodeType()
 
-        val auto = TermSymbol.create(autoName, autoInfo, Flags.Param | Flags.Auto, Visibility.Default, symbol, autoSpan.toPos, Nil)
+        val auto = TermSymbol.create(autoName, autoInfo, Flags.Param | Flags.Auto, Visibility.Default, symbol, autoSpan.toPos)
         state.registerInternalSymbol(autoId, auto)
 
         auto
@@ -417,8 +415,6 @@ object Decoder:
       val signatureEndPos = sigBuf.position
     end sig
 
-    _annotsProvider = () => sig.annots.map(TreeOps.applyToAnnotation)
-
     // Add symbol info
     lazy val funInfo: ProcType =
       val receives = sig.receives
@@ -429,7 +425,9 @@ object Decoder:
         sig.preTypeParamCount
       )(() => sig.defaults)
 
-    defnLazy.infoProvider.addLazy(symbol, () => funInfo)
+    val index = defnLazy.index
+    index.addLazy(symbol, () => funInfo)
+    index.setAnnotations(symbol, () => sig.annots.map(TreeOps.applyToAnnotation))
 
 
     val delayedFun = () =>
@@ -465,10 +463,10 @@ object Decoder:
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
     // Create and register symbol immediately
-    var _annotsProvider: () => List[Annotation] = () => Nil
-    val symbol = TypeSymbol.create(kind, name, flags, visibility, owner, symSpan.toPos, () => _annotsProvider())
+    val symbol = TypeSymbol.create(kind, name, flags, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
+    val index = defnLazy.index
     given defn: Definitions = defnLazy.value
 
     // Read class content lazily
@@ -477,7 +475,7 @@ object Decoder:
       given ReadBuffer = state.fresh(contentStartPos)
 
       val docLines = repeated { decodeString() }
-      if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
+      if docLines.nonEmpty then index.setDocComment(symbol, docLines)
 
       val annots: List[Apply] = repeated:
         decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
@@ -493,7 +491,7 @@ object Decoder:
 
         val tparamKind = decodeKind()
 
-        val tparam = TypeSymbol.create(tparamKind, tparamName, AnyType, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos, Nil)
+        val tparam = TypeSymbol.create(tparamKind, tparamName, AnyType, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
 
@@ -505,7 +503,7 @@ object Decoder:
 
       val selfId = decodeNat()
       val selfName = decodeString()
-      val self = TermSymbol.create(selfName, selfInfo, Flags.Synthetic, Visibility.Default, symbol, symbol.sourcePos, Nil)
+      val self = TermSymbol.create(selfName, selfInfo, Flags.Synthetic, Visibility.Default, symbol, symbol.sourcePos)
       state.registerInternalSymbol(selfId, self)
 
       // Decode val members
@@ -524,10 +522,12 @@ object Decoder:
           decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
         val valTypeTree = decodeTypeTree(absoluteStart)
 
-        val valSym = TermSymbol.create(valName, valTypeTree.tpe, valFlags, visibility, symbol, valSpan.toPos,
-          annotsInfo = annots.map(TreeOps.applyToAnnotation))
+        val valSym = TermSymbol.create(valName, valTypeTree.tpe, valFlags, visibility, symbol, valSpan.toPos)
         state.registerInternalSymbol(valId, valSym)
-        if valDocLines.nonEmpty then defn.setDocComment(valSym, valDocLines)
+
+        if valDocLines.nonEmpty then index.setDocComment(valSym, valDocLines)
+        index.setAnnotations(valSym, annots.map(TreeOps.applyToAnnotation))
+
         FieldDecl(valSym, valTypeTree)(valSpan, annots)
 
       // Decode direct views as TypeTrees
@@ -548,9 +548,8 @@ object Decoder:
 
     end content
 
-    _annotsProvider = () => content.annots.map(TreeOps.applyToAnnotation)
-
-    defnLazy.infoProvider.addLazy(symbol, () => content.symInfo)
+    index.setAnnotations(symbol, () => content.annots.map(TreeOps.applyToAnnotation))
+    index.addLazy(symbol, () => content.symInfo)
 
     val delayed = () =>
       var lastOffset = absoluteStart
@@ -584,8 +583,7 @@ object Decoder:
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
     // Create and register symbol immediately
-    var _annotsProvider: () => List[Annotation] = () => Nil
-    val symbol = TypeSymbol.create(kind, name, Flags.Interface, visibility, owner, symSpan.toPos, () => _annotsProvider())
+    val symbol = TypeSymbol.create(kind, name, Flags.Interface, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
     given defn: Definitions = defnLazy.value
@@ -596,7 +594,7 @@ object Decoder:
       given ReadBuffer = state.fresh(contentStartPos)
 
       val docLines = repeated { decodeString() }
-      if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
+      if docLines.nonEmpty then defn.index.setDocComment(symbol, docLines)
 
       val annots: List[Apply] = repeated:
         decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
@@ -612,7 +610,7 @@ object Decoder:
 
         val tparamKind = decodeKind()
 
-        val tparam = TypeSymbol.create(tparamKind, tparamName, AnyType, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos, Nil)
+        val tparam = TypeSymbol.create(tparamKind, tparamName, AnyType, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
 
@@ -624,7 +622,7 @@ object Decoder:
 
       val selfId = decodeNat()
       val selfName = decodeString()
-      val self = TermSymbol.create(selfName, selfInfo, Flags.Synthetic, Visibility.Default, symbol, symbol.sourcePos, Nil)
+      val self = TermSymbol.create(selfName, selfInfo, Flags.Synthetic, Visibility.Default, symbol, symbol.sourcePos)
       state.registerInternalSymbol(selfId, self)
 
       // Decode direct views
@@ -644,9 +642,9 @@ object Decoder:
 
     end content
 
-    _annotsProvider = () => content.annots.map(TreeOps.applyToAnnotation)
-
-    defnLazy.infoProvider.addLazy(symbol, () => content.symInfo)
+    val index = defnLazy.index
+    index.addLazy(symbol, () => content.symInfo)
+    index.setAnnotations(symbol, () => content.annots.map(TreeOps.applyToAnnotation))
 
     val delayed = () =>
       var lastOffset = absoluteStart
@@ -680,8 +678,7 @@ object Decoder:
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
     // Create symbol immediately but delay type reading
-    var _annotsProvider: () => List[Annotation] = () => Nil
-    val symbol = TypeSymbol.create(kind, name, flags, visibility, owner, symSpan.toPos, () => _annotsProvider())
+    val symbol = TypeSymbol.create(kind, name, flags, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
     given defn: Definitions = defnLazy.value
@@ -692,7 +689,7 @@ object Decoder:
       given ReadBuffer = state.fresh(typeStartPos)
 
       val docLines = repeated { decodeString() }
-      if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
+      if docLines.nonEmpty then defn.index.setDocComment(symbol, docLines)
 
       val annots: List[Apply] = repeated:
         decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
@@ -707,7 +704,7 @@ object Decoder:
         val tparamSpan = Span(symbol.span.start + tparamStartDelta, tparamLength)
 
         val tparamKind = decodeKind()
-        val tparam = TypeSymbol.create(tparamKind, tparamName, AnyType, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos, Nil)
+        val tparam = TypeSymbol.create(tparamKind, tparamName, AnyType, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
       val preParamCount = if tparams.isEmpty then 0 else decodeNat()
@@ -717,10 +714,10 @@ object Decoder:
       val span = Span(absoluteStart, rhs.span.endOffset + endDelta - absoluteStart)
     end delayed
 
-    _annotsProvider = () => delayed.annots.map(TreeOps.applyToAnnotation)
-
     // Add symbol info lazily
-    defnLazy.infoProvider.addLazy(symbol, () => delayed.tpe)
+    val index = defnLazy.index
+    index.addLazy(symbol, () => delayed.tpe)
+    index.setAnnotations(symbol, delayed.annots.map(TreeOps.applyToAnnotation))
 
     val typeDefFun = () =>
       TypeDef(symbol, delayed.tparams, delayed.rhs)(delayed.annots, delayed.span)
@@ -745,8 +742,7 @@ object Decoder:
     val symSpanLength = decodeNat()
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
-    var _annotsProvider: () => List[Annotation] = () => Nil
-    val symbol = PatternSymbol.create(name, Flags.Fun, visibility, owner, symSpan.toPos, () => _annotsProvider())
+    val symbol = PatternSymbol.create(name, Flags.Fun, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
     given defn: Definitions = defnLazy.value
@@ -757,7 +753,7 @@ object Decoder:
       given sigBuf: ReadBuffer = state.fresh(tparamsStartPos)
 
       val docLines = repeated { decodeString() }
-      if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
+      if docLines.nonEmpty then defn.index.setDocComment(symbol, docLines)
 
       val annots: List[Apply] = repeated:
         decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
@@ -773,7 +769,7 @@ object Decoder:
 
         val kind = decodeKind()
 
-        val tparam = TypeSymbol.create(kind, tparamName, AnyType, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos, Nil)
+        val tparam = TypeSymbol.create(kind, tparamName, AnyType, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
 
@@ -788,7 +784,7 @@ object Decoder:
 
         val paramInfo = decodeType()
 
-        val param = PatternSymbol.create(paramName, paramInfo, Flags.Param, Visibility.Default, symbol, paramSpan.toPos, Nil)
+        val param = PatternSymbol.create(paramName, paramInfo, Flags.Param, Visibility.Default, symbol, paramSpan.toPos)
         state.registerInternalSymbol(paramId, param)
 
         param
@@ -800,8 +796,6 @@ object Decoder:
       val signatureEndPos = sigBuf.position
     end sig
 
-    _annotsProvider = () => sig.annots.map(TreeOps.applyToAnnotation)
-
     // Add symbol info
     lazy val patInfo: ProcType =
       val receives = sig.receives
@@ -809,7 +803,9 @@ object Decoder:
         sig.tparams, sig.params.map(_.toNamedInfo), Nil, Nil,
         sig.resultType.tpe, receives, sig.preParamCount, sig.preTypeParamCount)()
 
-    defnLazy.infoProvider.addLazy(symbol, () => patInfo)
+    val index = defnLazy.index
+    index.addLazy(symbol, () => patInfo)
+    index.setAnnotations(symbol, () => sig.annots.map(TreeOps.applyToAnnotation))
 
     val delayedPatDef = () =>
       given ReadBuffer = state.fresh(sig.signatureEndPos)
@@ -846,8 +842,7 @@ object Decoder:
 
     // Create and register symbol immediately
     val nameTable = new NameTable()
-    var _annotsProvider: () => List[Annotation] = () => Nil
-    val symbol = ContainerSymbol.create(name, nameTable, Flags.Section, visibility, owner, symSpan.toPos, () => _annotsProvider())
+    val symbol = ContainerSymbol.create(name, nameTable, Flags.Section, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
     // Decode nested definitions as DelayedDef
@@ -866,7 +861,7 @@ object Decoder:
       given ReadBuffer = state.fresh(docCommentPos)
 
       val docLines = repeated { decodeString() }
-      if docLines.nonEmpty then defn.setDocComment(symbol, docLines)
+      if docLines.nonEmpty then defn.index.setDocComment(symbol, docLines)
       val annots: List[Apply] = repeated:
         decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
 
@@ -879,7 +874,7 @@ object Decoder:
       val span = Span(absoluteStart, lastOffset + endDelta - absoluteStart)
     end sectionData
 
-    _annotsProvider = () => sectionData.annots.map(TreeOps.applyToAnnotation)
+    defnLazy.index.setAnnotations(symbol, () => sectionData.annots.map(TreeOps.applyToAnnotation))
 
     val delayed = () => Section(symbol, sectionData.nestedDefs)(sectionData.annots, sectionData.span)
 
@@ -1171,7 +1166,7 @@ object Decoder:
       val symSpan = Span(prevOffset + symStartDelta, symSpanLength)
       val info = decodeType()
 
-      val sym = TermSymbol.create(name, info, flags, Visibility.Default, owner, symSpan.toPos(using state.source), Nil)
+      val sym = TermSymbol.create(name, info, flags, Visibility.Default, owner, symSpan.toPos(using state.source))
       state.registerInternalSymbol(id, sym)
 
       val identStartDelta = decodeInt()
@@ -1228,7 +1223,7 @@ object Decoder:
     val resultType = decodeType()
 
     // Label symbol is local to this labeled block and only used as a control-flow target.
-    val label = TermSymbol.create(labelName, VoidType, Flags.Label | Flags.Synthetic, Visibility.Default, owner, Span(startOffset, 0).toPos, Nil)
+    val label = TermSymbol.create(labelName, VoidType, Flags.Label | Flags.Synthetic, Visibility.Default, owner, Span(startOffset, 0).toPos)
     state.registerInternalSymbol(labelId, label)
 
     val body = decodeWord(owner, startOffset)
@@ -1325,7 +1320,7 @@ object Decoder:
     val symbolLength = decodeNat()
 
     val symbolSpan = Span(startOffset + symbolDelta, symbolLength)
-    val lambdaSymbol = TermSymbol.create(symbolName, symbolFlags, Visibility.Default, owner, symbolSpan.toPos, Nil)
+    val lambdaSymbol = TermSymbol.create(symbolName, symbolFlags, Visibility.Default, owner, symbolSpan.toPos)
     state.registerInternalSymbol(symbolId, lambdaSymbol)
 
     val params = repeated:
@@ -1338,7 +1333,7 @@ object Decoder:
 
       val paramInfo = decodeType()
 
-      val param = TermSymbol.create(paramName, paramInfo, Flags.Param, Visibility.Default, lambdaSymbol, paramSpan.toPos, Nil)
+      val param = TermSymbol.create(paramName, paramInfo, Flags.Param, Visibility.Default, lambdaSymbol, paramSpan.toPos)
       state.registerInternalSymbol(paramId, param)
 
       param
@@ -1376,7 +1371,7 @@ object Decoder:
             val name = decodeString()
             val info = nested.valueType
 
-            val symbol = PatternSymbol.create(name, info, Flags.empty, Visibility.Default, owner, span.toPos(using state.source), Nil)
+            val symbol = PatternSymbol.create(name, info, Flags.empty, Visibility.Default, owner, span.toPos(using state.source))
             state.registerInternalSymbol(id, symbol)
             symbol
           else
@@ -1495,7 +1490,7 @@ object Decoder:
             val name = decodeString()
             val span = Span(decodeInt() + startOffset, decodeNat())
             val info = decodeType()
-            val sym = PatternSymbol.create(name, info, Flags.empty, Visibility.Default, owner, span.toPos(using state.source), Nil)
+            val sym = PatternSymbol.create(name, info, Flags.empty, Visibility.Default, owner, span.toPos(using state.source))
             state.registerInternalSymbol(id, sym)
             Some(sym)
 
