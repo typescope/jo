@@ -589,6 +589,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           else if cls == defn.Float_type then "float"
           else if cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then "int"
           else if cls == defn.Bool_type then "bool"
+          else if cls == defn.Array_class then "list"
           else pythonName(cls)
 
         // Type test is pure if argxpr is pure

@@ -538,6 +538,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else if cls == defn.Float_type || cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then
             JS.BinOp(JS.UnaryOp("typeof", argExpr), "==", JS.StringLit("number"))
 
+          else if cls == defn.Array_class then
+            JS.Call(Some(JS.Ident("Array")), "isArray", argExpr :: Nil)
+
           else
             JS.InstanceOf(argExpr, jsName(cls))
 

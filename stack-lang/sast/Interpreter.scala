@@ -486,6 +486,8 @@ object Interpreter:
 
           case _: BoolVal => BoolVal(cls == defn.Bool_type) :: Nil
 
+          case _: ArrayVal => BoolVal(cls == defn.Array_class) :: Nil
+
           case _: IntVal =>
             // No two numeric types can appear in union types
             val isMatch =
