@@ -110,7 +110,7 @@ section Text
       if m > searchN then -1
       else
         // Build pattern chars once to avoid repeated Unicode decoding from String.get.
-        val pat = Array.CharArray(m)
+        val pat = Array.create[Char](m) // TODO: use CharArray
         val patIter = target.iterator
         var p = 0
         while p < m do
@@ -119,7 +119,7 @@ section Text
         end
 
         // KMP prefix table (LPS: longest proper prefix that is also suffix).
-        val lps = Array.IntArray(m)
+        val lps = Array.create[Int](m)  // TODO: use IntArray
         lps[0] = 0
         var len = 0
         var i = 1
