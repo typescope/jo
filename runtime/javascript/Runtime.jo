@@ -53,6 +53,9 @@ private section RefArray
 
   def size[T](array: Array[T]): Int =
     js.dynamic(array).length.asInt
+
+  def clone[T](array: Array[T]): Array[T] =
+    js.dynamic(array).slice(0).cast[Array[T]]
 end
 
 //------------------------------------------------------------------------------

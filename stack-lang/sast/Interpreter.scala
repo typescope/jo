@@ -194,6 +194,11 @@ object Interpreter:
         IntVal(arrayVal.content.length) :: Nil
       },
 
+      "cloneRefArray" -> { (args: List[Value]) =>
+        val (arrayVal: ArrayVal) :: Nil = args: @unchecked
+        ArrayVal(arrayVal.content.clone()) :: Nil
+      },
+
       "abort" -> { (args: List[Value]) =>
         val StringVal(v) :: Nil = args: @unchecked
         throw new Exception(v)

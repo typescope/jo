@@ -27,6 +27,9 @@ private section RefArray
 
   def size[T](arr: Array[T]): Int =
     platformCall1("sizeArray", arr)
+
+  def clone[T](arr: Array[T]): Array[T] =
+    platformCall1("cloneRefArray", arr)
 end
 
 

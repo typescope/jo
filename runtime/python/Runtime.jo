@@ -38,6 +38,9 @@ private section RefArray
   def size[T](arr: Any): Int = py.len(arr)
 
   def set[T](arr: Any, i: Int, elem: T): Unit = py.dynamic(arr)[i] = elem
+
+  def clone[T](arr: Any): Array[T] =
+    py.dynamic(arr).callDynamic("copy").cast[Array[T]]
 end
 
 //------------------------------------------------------------------------------

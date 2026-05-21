@@ -26,6 +26,9 @@ private section RefArray
 
   def size[T](arr: Array[T]): Int =
     rb.dynamic(arr).callDynamic("length").asInt
+
+  def clone[T](arr: Array[T]): Array[T] =
+    rb.dynamic(arr).callDynamic("dup").cast[Array[T]]
 end
 
 //------------------------------------------------------------------------------

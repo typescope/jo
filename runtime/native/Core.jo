@@ -410,6 +410,16 @@ private section RefArray
 
   def size[T](arr: Array[T]): Int =
     readInt: addAddr (arr cast[Addr]) 4
+
+  def clone[T](arr: Array[T]): Array[T] =
+    val n = size arr
+    val arr2 = create[T] n
+    var i = 0
+    while i < n do
+      arr2[i] = arr[i]
+      i = i + 1
+    end
+    arr2
 end
 
 
