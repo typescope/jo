@@ -30,9 +30,26 @@ class Array[T]
 
   @intrinsic
   def clone: Array[T] = ...
+
+  def toString(auto elementShow: Show[T] with [[T].toString]): String =
+    // Show at most 100
+    var res = "["
+    var index = 0
+    while index < 100 && index < this.size do
+      val text = elementShow.show this[index]
+      if index == 0 then
+        res = res + text
+      else
+        res = res + ", " + text
+      index = index + 1
+    end
+    if index == 100 then res = res + ", ..."
+    res = res + "]"
+    res
+
 end
 
 section Array
   //[ create an object Array   //]
   defer def create[T](size: Int): Array[T]
-end // Array
+end

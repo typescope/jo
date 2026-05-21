@@ -90,7 +90,7 @@ class LiftPrimitiveMethods(arrayOpsSection: String)(using defn: Definitions) ext
       case Select(qual, name) =>
         val methodSym = fun.tpe.as[MemberRef].symbol
 
-        if methodSym.owner == defn.Array_class then
+        if methodSym.owner == defn.Array_class && methodSym.hasAnnotation(defn.intrinsic) then
           val qual2 = transform(qual)
           val args2 = for arg <- args yield transform(arg)
           val argsAll = qual2 :: args2

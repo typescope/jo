@@ -4,7 +4,7 @@ type IntArrayOrString = Array[Int] | String
 
 def show(v: IntArrayOrString): String =
   match v
-    case arr: Array[Int] => "Array of size " + arr.size
+    case arr: Array[Int] => "Array: " + arr
     case s: String => "String: " + s
 
 def main =
