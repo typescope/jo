@@ -40,8 +40,22 @@ class LiftPrimitiveMethods(arrayOpsSection: String)(using defn: Definitions) ext
       case None =>
         val classSym = methodSym.owner
         val oldProcType = methodSym.tpe.asProcType
-        val thisInfo = classSym.classInfo.self.tpe
-        val funType = oldProcType.prepend(NamedInfo("this", thisInfo) :: Nil)
+        val classInfo = classSym.classInfo
+        val thisInfo = classInfo.self.tpe
+
+        assert(classInfo.tparams.size < 2, "Expect class to have at most 1 type parameter: " + classSym)
+        assert(oldProcType.tparams.isEmpty, "Expect method to have no type parameter: " + methodSym)
+
+        val funType = ProcType(
+          tparams = classInfo.tparams,
+          params = NamedInfo("this", thisInfo) :: oldProcType.params,
+          autos = oldProcType.autos,
+          candidates = oldProcType.candidates,
+          resultType = oldProcType.resultType,
+          receivesInfo = oldProcType.receivesInfo,
+          preParamCount = 1,
+          preTypeParamCount = classInfo.tparams.size
+        )(oldProcType.defaultsLazy)
 
         val liftedSym = TermSymbol.create(
           classSym.name + "$" + methodSym.name,
@@ -83,11 +97,23 @@ class LiftPrimitiveMethods(arrayOpsSection: String)(using defn: Definitions) ext
 
     FileUnit(unit.owner, unit.imports, newDefs.toList, unit.source)
 
+  private def getTypeArgument(tpe: Type, cls: Symbol): Type =
+    tpe.approx match
+      case appType @ AppliedType(`cls`, tps) =>
+        assert(cls == defn.Array_class && tps.size == 1, "Unexpected receiver type " + appType.show)
+        tps.head
+
+      case tp =>
+        throw new Exception("Unexpected receiver type " + tp.show)
+
   override def transformApply(apply: Apply)(using ctx: Context): Word =
     val Apply(fun, args, autos) = apply
 
     fun match
       case Select(qual, name) =>
+        // None-of the methods for primitives we are interested are polymorphic,
+        // thus Select node covers all of them.
+
         val methodSym = fun.tpe.as[MemberRef].symbol
 
         if methodSym.owner == defn.Array_class && methodSym.hasAnnotation(defn.intrinsic) then
@@ -95,14 +121,7 @@ class LiftPrimitiveMethods(arrayOpsSection: String)(using defn: Definitions) ext
           val args2 = for arg <- args yield transform(arg)
           val argsAll = qual2 :: args2
 
-          val elemType = qual.tpe.approx match
-             case appType @ AppliedType(cls, tps) =>
-               assert(cls == defn.Array_class && tps.size == 1, "Unexpected receiver type " + appType.show)
-               tps.head
-
-             case tp =>
-               throw new Exception("Unexpected receiver type " + tp.show)
-
+          val elemType = getTypeArgument(qual.tpe, methodSym.owner)
           Ident(ArrayOps.termMember(name))(fun.span).appliedToTypes(elemType).appliedTo(argsAll*)
         else
 
@@ -114,7 +133,17 @@ class LiftPrimitiveMethods(arrayOpsSection: String)(using defn: Definitions) ext
             val qual2  = this.transform(qual)
             val args2  = args.map(this.transform)
             val autos2 = autos.map(this.transform)
-            Apply(Ident(liftedSym)(fun.span), qual2 :: args2, autos2)(apply.span)
+            val funRef = Ident(liftedSym)(fun.span)
+
+            val fun2 =
+              if liftedSym.tpe.isPolyType then
+                // See the invariant in getLiftedSymbol: only class may have one
+                // type parameter, method may not have type parameters.
+                funRef.appliedToTypes(getTypeArgument(qual2.tpe, methodSym.owner))
+              else
+                funRef
+
+            Apply(fun2, qual2 :: args2, autos2)(apply.span)
 
           else
             super.transformApply(apply)
