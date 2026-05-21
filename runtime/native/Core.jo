@@ -242,7 +242,7 @@ private def state: State receives none =
 @intrinsic
 private def initObjects(): Unit receives none = ...
 
-private def start(argsRaw: Array[Addr]): Unit receives none =
+private def start(argsRaw: Addr): Unit receives none =
   // Must not use any global objects before batch initialization
   GC.init()
 
@@ -250,11 +250,12 @@ private def start(argsRaw: Array[Addr]): Unit receives none =
   initObjects()
 
   // Convert arguments from C string to Jo string
-  val size = RefArray.size(argsRaw)
+  val size = readInt argsRaw
   val strArr = Array.create[String](size - 1)
   // skip the first arg: program name
   for i in 1 until size do
-    val str = StringOps.fromCString(argsRaw[i])
+    val addr = readInt: addAddr argsRaw (i * 4)
+    val str = StringOps.fromCString(cast[Addr] addr)
     strArr[i - 1] = str
 
   with
