@@ -159,7 +159,7 @@ object TypeOps:
         case app @ AppliedType(tctor, targs) =>
           tctor.info match
             case toi: TypeOperatorInfo =>
-              if tctor.is(Flags.Defer) then app
+              if tctor.isGroundType then app
               else recur(toi.instantiate(targs))
 
             case _: ClassInfo => app

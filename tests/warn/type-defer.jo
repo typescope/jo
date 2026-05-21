@@ -1,0 +1,2 @@
+type A
+def foo: A = 3
