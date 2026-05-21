@@ -19,7 +19,7 @@ object FrontEnd:
   val rewireMap: InternalSetting[Map[Symbol, Symbol]] = InternalSetting(Map.empty, "mapping for rewiring functions")
 
   def run
-      (defaultRuntimePackages: List[String], sources: List[String], defaultMappings: Map[String, String])
+      (defaultRuntimePackages: List[String], sources: List[String], defaultMappings: Map[String, String], arrayOpsSection: String)
       (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
   : List[FileUnit] =
     val (nss, nssDelayed) = sources |> Typer.parseStep |> Typer.typeStep
@@ -31,7 +31,7 @@ object FrontEnd:
         common.IO.ensureExists(dir)
         for unit <- nss do pickle.Encoder.store(unit, dir, testPickling = false, verbose = false)
 
-      nss |> linkStep(nssDelayed, defaultRuntimePackages, defaultMappings) |> translateStep
+      nss |> linkStep(nssDelayed, defaultRuntimePackages, defaultMappings) |> translateStep(arrayOpsSection)
 
   def linkStep
       (lazyLibs: pickle.LazyFileUnits, defaultRuntimePackages: List[String], defaultMappings: Map[String, String])
@@ -103,9 +103,9 @@ object FrontEnd:
           linkData.resolve()
 
 
-  def translateStep(using defn: Definitions, rp: Reporter, cf: Config): ProcessStep =
+  def translateStep(arrayOpsSection: String)(using defn: Definitions, rp: Reporter, cf: Config): ProcessStep =
     Step("Normalize", (units: List[FileUnit]) => {
-      val liftPrim    = new phases.LiftPrimitiveMethods
+      val liftPrim    = new phases.LiftPrimitiveMethods(arrayOpsSection)
       val patmat      = new phases.PatternMatcher
       val tailcallopt = new phases.TailCallOpt
       units        |>

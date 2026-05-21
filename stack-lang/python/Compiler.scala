@@ -23,6 +23,8 @@ object Compiler:
 
     "jo.abort"      -> "jo.py.runtime.abort",
 
+    "jo.Array.create" -> "jo.py.runtime.RefArray.create",
+
     // Regex engine hooks
     "jo.regex.Engine.compilePattern" -> "jo.py.runtime.RegexEngine.compilePattern",
     "jo.regex.Engine.execPatternAt"  -> "jo.py.runtime.RegexEngine.execPatternAt",
@@ -64,7 +66,8 @@ object Compiler:
       val defaultRuntimePackages =
         if Config.useRuntimeApi.value.contains("python") then Nil
         else Config.PythonRuntimePath :: Nil
-      val units = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings) <| "Frontend"
+
+      val units = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, "jo.py.runtime.RefArray") <| "Frontend"
 
       locally {
         given Definitions = lazyDefn.value

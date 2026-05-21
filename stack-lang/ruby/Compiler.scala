@@ -22,6 +22,8 @@ object Compiler:
   val defaultLinkMappings = Map(
     "jo.abort"      -> "jo.rb.runtime.abort",
 
+    "jo.Array.create" -> "jo.rb.runtime.RefArray.create",
+
     // Regex engine hooks
     "jo.regex.Engine.compilePattern" -> "jo.rb.runtime.RegexEngine.compilePattern",
     "jo.regex.Engine.execPatternAt"  -> "jo.rb.runtime.RegexEngine.execPatternAt",
@@ -61,7 +63,8 @@ object Compiler:
       val defaultRuntimePackages =
         if Config.useRuntimeApi.value.contains("ruby") then Nil
         else Config.RubyRuntimePath :: Nil
-      val units = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings) <| "Frontend"
+
+      val units = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, "jo.rb.runtime.RefArray") <| "Frontend"
 
       locally {
         given Definitions = lazyDefn.value

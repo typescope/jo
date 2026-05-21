@@ -20,7 +20,8 @@ object Interpreter:
   //----------------------------------------------------------------------------
   // Default link mappings for Interpreter runtime
   val defaultLinkMappings = Map(
-    "jo.abort"      -> "jo.runtime.interpreter.abort",
+    "jo.abort" -> "jo.runtime.interpreter.abort",
+    "jo.Array.create" -> "jo.runtime.interpreter.RefArray.create",
     "jo.regex.Engine.compilePattern" -> "jo.runtime.interpreter.RegexEngine.compilePattern",
     "jo.regex.Engine.execPatternAt"  -> "jo.runtime.interpreter.RegexEngine.execPatternAt",
   )
@@ -888,7 +889,7 @@ object Interpreter:
 
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      val nss = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings) <| "FrontEnd"
+      val nss = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, "jo.runtime.interpreter.RefArray") <| "FrontEnd"
       locally:
         given defn: Definitions = lazyDefn.value
         given Runtime = new Runtime(defn)

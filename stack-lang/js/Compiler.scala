@@ -22,6 +22,8 @@ object Compiler:
   val defaultLinkMappings = Map(
     "jo.abort"      -> "jo.js.runtime.abort",
 
+    "jo.Array.create" -> "jo.js.runtime.RefArray.create",
+
     // Regex engine hooks
     "jo.regex.Engine.compilePattern" -> "jo.js.runtime.RegexEngine.compilePattern",
     "jo.regex.Engine.execPatternAt"  -> "jo.js.runtime.RegexEngine.execPatternAt",
@@ -62,7 +64,8 @@ object Compiler:
       val defaultRuntimePackages =
         if Config.useRuntimeApi.value.contains("js") then Nil
         else Config.JSRuntimePath :: Nil
-      val units = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings) <| "Frontend"
+
+      val units = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, "jo.js.runtime.RefArray") <| "Frontend"
 
       locally {
         given Definitions = lazyDefn.value

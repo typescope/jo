@@ -31,6 +31,8 @@ object Compiler:
   val defaultLinkMappings = Map(
     "jo.abort"      -> "jo.runtime.native.abortImpl",
 
+    "jo.Array.create" -> "jo.runtime.native.RefArray.create",
+
     // Regex engine hooks
     "jo.regex.Engine.compilePattern" -> "jo.runtime.native.regex.Regex.compilePattern",
     "jo.regex.Engine.execPatternAt"  -> "jo.runtime.native.regex.Regex.execPatternAt",
@@ -70,7 +72,8 @@ object Compiler:
       val defaultRuntimePackages =
         if Config.useRuntimeApi.value.contains("native") then Nil
         else Config.NativeRuntimePath :: Nil
-      val namespacesSAST = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings) <| "Frontend"
+
+      val namespacesSAST = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, "jo.runtime.native.RefArray") <| "Frontend"
 
       locally {
         given Definitions = lazyDefn.value
