@@ -251,11 +251,11 @@ private def start(argsRaw: Array[Addr]): Unit receives none =
 
   // Convert arguments from C string to Jo string
   val size = RefArray.size(argsRaw)
-  val strArr: Array[String] = RefArray.create[String](size - 1)
+  val strArr = Array.create[String](size - 1)
   // skip the first arg: program name
   for i in 1 until size do
-    val str = StringOps.fromCString(RefArray.get(argsRaw, i))
-    RefArray.set(strArr, i - 1, str)
+    val str = StringOps.fromCString(argsRaw[i])
+    strArr[i - 1] = str
 
   with
     IO.stdin = createStdIn(),
@@ -393,18 +393,20 @@ private section RefArray
 
     arr cast[Array[T]]
 
-  def get[T](arr: Array[T], i: Int): Int =
-    readInt:
-      addAddr:
-        arr cast[Addr]
-        i * 4 + 8
+  def get[T](arr: Array[T], i: Int): T =
+    val v =
+      readInt:
+        addAddr:
+          arr cast[Addr]
+          i * 4 + 8
+    v cast[T]
 
-  def set[T](arr: Array[T], i: Int, value: Int): Unit =
+  def set[T](arr: Array[T], i: Int, value: T): Unit =
     writeInt:
       addAddr:
         arr cast[Addr]
         i * 4 + 8
-      value
+      value cast[Int]
 
   def size[T](arr: Array[T]): Int =
     readInt: addAddr (arr cast[Addr]) 4

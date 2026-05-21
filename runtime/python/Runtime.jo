@@ -130,7 +130,7 @@ private section RegexEngine
       val m: py.Dynamic = result
       val from: Int    = m.start(0).asInt
       val text: String = m.group(0).asString
-      val groups = Array.RefArray[String | None](m.groups().cast[py.Tuple].size + 1)
+      val groups = Array.create[String | None](m.groups().cast[py.Tuple].size + 1)
       var i = 0
       val len = groups.size
       while i < len do

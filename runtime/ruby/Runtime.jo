@@ -16,7 +16,7 @@ def abort(msg: String): Bottom =
 
 private section RefArray
   def create[T](size: Int): Array[T] =
-    rb.const("Array").callDynamic("new", size, rb.nil).cast[Array.Array[T]]
+    rb.const("Array").callDynamic("new", size, rb.nil).cast[Array[T]]
 
   def get[T](arr: Array[T], i: Int): T =
     rb.dynamic(arr)[i].cast[T]
@@ -98,7 +98,7 @@ private section RegexEngine
     else
       val from: Int    = m.callDynamic("begin", 0).asInt
       val text: String = m[0].asString
-      val groups = Array.RefArray[String | None](m.callDynamic("length").asInt)
+      val groups = Array.create[String | None](m.length.asInt)
       var i = 0
       val len = groups.size
 

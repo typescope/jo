@@ -108,5 +108,5 @@ private section RegexEngine
         val value: Bottom = RefArray.get(data, 2)
         value
 
-      new regex.Match(from, length, new Array.RefArray(groups))
+      new regex.Match(from, length, groups)
 end

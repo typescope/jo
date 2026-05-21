@@ -182,7 +182,7 @@ private section RegexEngine
       val from = StringOps.utf16ToCodePointIndex(input, matchIndexUtf16)
       val text = m[0].asString
 
-      val groups = Array.RefArray[String | None](m.length.asInt)
+      val groups = Array.create[String | None](m.length.asInt)
       var i = 0
       val len = groups.size
       while i < len do

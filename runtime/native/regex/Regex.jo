@@ -49,7 +49,7 @@ section Regex
 
     match Engine.runSearchThreadWithNfaFrom(input, re.nfa, pos, re.groupCount, re.options)
       case Some(thread) =>
-        val groups = Array.RefArray[String | None](re.groupCount + 1)
+        val groups = Array.create[String | None](re.groupCount + 1)
         groups[0] = input.substring(thread.start, thread.step - thread.start)
 
         var i = 1
