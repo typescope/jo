@@ -254,7 +254,7 @@ private def start(argsRaw: Addr): Unit receives none =
   val strArr = Array.create[String](size - 1)
   // skip the first arg: program name
   for i in 1 until size do
-    val addr = readInt: addAddr argsRaw (i * 4)
+    val addr = readInt: addAddr argsRaw (i * 4 + 4)
     val str = StringOps.fromCString(cast[Addr] addr)
     strArr[i - 1] = str
 
