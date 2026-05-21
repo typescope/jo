@@ -40,11 +40,11 @@ private def addAddr(arr: Addr, offset: Int): Addr receives none =
   abort "native addAddr"
 
 @intrinsic
-def (arr: Any) cast[T]: T receives none = abort("runtime cast")
+def cast[T](arr: Any): T receives none = abort("runtime cast")
 
 private def debug(s: String): Unit receives none =
-  writeString 0 (s cast[StringRepr])
-  writeString 0 ("\n" cast[StringRepr])
+  writeString: 0, cast[StringRepr] s
+  writeString: 0, cast[StringRepr] "\n"
 
 //------------------------------------------------------------------------------
 //
@@ -72,10 +72,10 @@ private def getInterfaceTable[T]: Any receives none = ...
   ! Returns the method pointer as an Int (address)
 //]
 private def findInterfaceMethod(itable: Any, interfaceId: Int, methodOrder: Int): Int receives none =
-  val itableAddr = itable cast[Addr]
+  val itableAddr = cast[Addr] itable
 
   // Check if itable is null (no interfaces implemented)
-  if (itableAddr cast[Int]) == 0 then
+  if (cast[Int] itableAddr) == 0 then
     abort "Interface not implemented (null itable)"
 
   // Read number of interfaces
@@ -84,7 +84,7 @@ private def findInterfaceMethod(itable: Any, interfaceId: Int, methodOrder: Int)
   // Linear search through interface table
   var index = 0
   var found = false
-  var vtablePtr = 0 cast[Addr]
+  var vtablePtr = cast[Addr] 0
 
   while index < count && !found do
     // Read interface ID at position: 1 + index * 2
@@ -94,7 +94,7 @@ private def findInterfaceMethod(itable: Any, interfaceId: Int, methodOrder: Int)
       // Found matching interface, get vtable pointer
       // Vtable pointer at position: 1 + index * 2 + 1
       val vtablePtrInt = readInt (addAddr itableAddr ((1 + index * 2 + 1) * 4))
-      vtablePtr = vtablePtrInt cast[Addr]
+      vtablePtr = cast[Addr] vtablePtrInt
       found = true
     else
       index = index + 1
@@ -277,7 +277,7 @@ private def finish: Unit receives none =
 //
 
 private def abortImpl(msg: String): Bottom receives none =
-  writeString 0 (msg cast[StringRepr])
+  writeString: 0, cast[StringRepr] msg
   Syscall.sys_exit 1
 
 //------------------------------------------------------------------------------
@@ -317,7 +317,7 @@ private def charToStr(c: Char): String =
     writeByte (addAddr content 2) (0x80 | ((codePoint >> 6) & 0x3F)).toByte
     writeByte (addAddr content 3) (0x80 | (codePoint & 0x3F)).toByte
 
-  Raw(len, 1, content) cast[String]
+  cast[String]: Raw(len, 1, content)
 
 private def intToStr(n: Int): String =
   // MAX_VALUE =  2147483647
@@ -358,7 +358,7 @@ private def intToStr(n: Int): String =
         writeByte (addAddr buf copyIndex) c
         copyIndex = copyIndex + 1
 
-    Raw(len, len, buf) cast[String]
+    cast[String]: Raw(len, len, buf)
 
 private def floatToStr(f: Float): String =
   // TODO: Implement proper float to string conversion
@@ -391,25 +391,24 @@ private section RefArray
       addAddr arr 4
       size
 
-    arr cast[Array[T]]
+    cast[Array[T]] arr
 
   def get[T](arr: Array[T], i: Int): T =
-    val v =
+    cast[T]:
       readInt:
         addAddr:
-          arr cast[Addr]
+          cast[Addr] arr
           i * 4 + 8
-    v cast[T]
 
   def set[T](arr: Array[T], i: Int, value: T): Unit =
     writeInt:
       addAddr:
-        arr cast[Addr]
+        cast[Addr] arr
         i * 4 + 8
-      value cast[Int]
+      cast[Int] value
 
   def size[T](arr: Array[T]): Int =
-    readInt: addAddr (arr cast[Addr]) 4
+    readInt: addAddr (cast[Addr] arr) 4
 
   def clone[T](arr: Array[T]): Array[T] =
     val n = size arr
@@ -439,11 +438,11 @@ private def writeString(fd: Int, repr: StringRepr): Unit =
     case Concat(_, _, lhs, rhs) =>
       writeString:
         fd
-        lhs cast[StringRepr]
+        cast[StringRepr] lhs
 
       writeString:
         fd
-        rhs cast[StringRepr]
+        cast[StringRepr] rhs
 
 
 private def createStdIn(): () => String =
@@ -457,7 +456,7 @@ private def createStdIn(): () => String =
       val bytesRead = Syscall.sys_read 0 buffer 256
 
       if bytesRead > 0 then
-        val str = Raw(bytesRead, StringOps.countUtf8CodePoints(buffer, bytesRead), buffer) cast[String]
+        val str = cast[String]: Raw(bytesRead, StringOps.countUtf8CodePoints(buffer, bytesRead), buffer)
         res = res + str
       end
 
@@ -467,7 +466,7 @@ private def createStdIn(): () => String =
     res
 
 private def createStdOut(): String => Unit =
-  (s: String) => writeString 1 (s cast[StringRepr])
+  (s: String) => writeString: 1, cast[StringRepr] s
 
 private def createStdErr(): String => Unit =
-  (s: String) => writeString 2 (s cast[StringRepr])
+  (s: String) => writeString: 2, cast[StringRepr] s

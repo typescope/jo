@@ -65,11 +65,11 @@ private[native] section StringOps
 
   // This function is called to convert a UTF-8 string to a proper string object.
   def fromByteString(byteArray: Any): String =
-    val byteSize = readInt (byteArray cast[Addr])
-    val contentAddr = addAddr (byteArray cast[Addr]) 4
+    val byteSize = readInt: cast[Addr] byteArray
+    val contentAddr = addAddr: (cast[Addr] byteArray), 4
     val cpCount = countUtf8CodePoints(contentAddr, byteSize)
 
-    Raw(byteSize, cpCount, contentAddr) cast[String]
+    cast[String]: Raw(byteSize, cpCount, contentAddr)
 
   // Convert a null-terminated C UTF-8 string pointer to Jo String.
   def fromCString(addr: Addr): String =
@@ -81,20 +81,20 @@ private[native] section StringOps
     end
 
     val cpCount = countUtf8CodePoints(addr, byteSize)
-    Raw(byteSize, cpCount, addr) cast[String]
+    cast[String]: Raw(byteSize, cpCount, addr)
 
   def byteSize(repr: String): Int =
-    match repr cast[StringRepr]
+    match cast[StringRepr] repr
       case Raw(n, _, _) => n
       case Concat(n, _, _, _) => n
 
   def size(repr: String): Int =
-    match repr cast[StringRepr]
+    match cast[StringRepr] repr
       case Raw(_, n, _) => n
       case Concat(_, n, _, _) => n
 
   def get(repr: String, i: Int): Char =
-    match repr cast[StringRepr]
+    match cast[StringRepr] repr
       case Raw(byteN, cpN, content) =>
         if i >= cpN || i < 0 then abort "index out of bound"
 
@@ -115,7 +115,7 @@ private[native] section StringOps
   def (lhs: String) + (rhs: String): String =
     val cpN = lhs.size + rhs.size
     val byteN = byteSize(lhs) + byteSize(rhs)
-    Concat(byteN, cpN, lhs, rhs) cast[String]
+    cast[String] Concat(byteN, cpN, lhs, rhs)
 
   def (lhs: String) == (rhs: String): Bool =
     val bytesN = byteSize(lhs)
@@ -125,8 +125,8 @@ private[native] section StringOps
       val rhsBytes = bytes(rhs)
       var i = 0
       while isEqual && i < bytesN do
-        val l = readByte(addAddr (lhsBytes cast[Addr]) i)
-        val r = readByte(addAddr (rhsBytes cast[Addr]) i)
+        val l = readByte: addAddr (cast[Addr] lhsBytes) i
+        val r = readByte: addAddr (cast[Addr] rhsBytes) i
         isEqual = l == r
         i = i + 1
       end
@@ -142,7 +142,7 @@ private[native] section StringOps
     else
       val allBytes = bytes(source)
       val totalByteN = byteSize(source)
-      val content = allBytes cast[Addr]
+      val content = cast[Addr] allBytes
       val startByte =
         if totalByteN == cpN then from
         else codePointToByteOffset(content, totalByteN, from)
@@ -152,7 +152,7 @@ private[native] section StringOps
       val subByteN = endByte - startByte
       val buf = GC.alloc subByteN
       copyBytes(buf, addAddr(content, startByte), subByteN)
-      Raw(subByteN, len, buf) cast[String]
+      cast[String] Raw(subByteN, len, buf)
 
   def indexOf(source: String, other: String, from: Int): Int =
     val n = source.size
@@ -226,15 +226,15 @@ private[native] section StringOps
           from + byteN
 
         case Concat(_, _, lhs, rhs) =>
-          val index = recur (lhs cast[StringRepr]) from
-          recur (rhs cast[StringRepr]) index
+          val index = recur (cast[StringRepr] lhs) from
+          recur (cast[StringRepr] rhs) index
 
-    recur (repr cast[StringRepr]) 0
+    recur (cast[StringRepr] repr) 0
     bytes
 end
 
 private[native] class StringIterator(source: String)
-  val content: Addr = StringOps.bytes(source) cast[Addr]
+  val content: Addr = cast[Addr] StringOps.bytes(source)
   val byteN: Int = StringOps.byteSize(source)
   var off: Int = 0
 
