@@ -19,7 +19,7 @@ The `defer` keyword indicates that this function has no implementation in the cu
 Use the `--link` compiler option to bind deferred functions to their implementations:
 
 ```bash
-bin/jo compile myapp.jo --link Source.deferredFunc=Target.concreteFunc -o myapp
+bin/jo compile --python myapp.jo --link Source.deferredFunc=Target.concreteFunc -o myapp.py
 ```
 
 The syntax is: `--link <deferred-function-path>=<implementation-path>`
@@ -89,12 +89,12 @@ def cleanup(): Unit = println "Done"
 
 Compile with:
 ```bash
-bin/jo compile \
+bin/jo compile --python \
   --link jo.main=Framework.runApp \
   --link Framework.init=MyApp.init \
   --link Framework.process=MyApp.process \
   --link Framework.cleanup=MyApp.cleanup \
-  framework.jo implementation.jo -o app
+  framework.jo implementation.jo -o app.py
 ```
 
 ### Dependency Injection
@@ -119,16 +119,16 @@ Link to different implementations for production vs. testing:
 
 ```bash
 # Production
-bin/jo compile service.jo \
+bin/jo compile --python service.jo \
   --link Service.getDatabase=Production.PostgresDB \
   --link Service.getLogger=Production.FileLogger \
-  -o service-prod
+  -o service-prod.py
 
 # Testing
-bin/jo compile service.jo \
+bin/jo compile --python service.jo \
   --link Service.getDatabase=Testing.MockDB \
   --link Service.getLogger=Testing.MemoryLogger \
-  -o service-test
+  -o service-test.py
 ```
 
 ### Custom Entry Points
@@ -146,7 +146,7 @@ def startup: Unit =
 
 Compile with:
 ```bash
-bin/jo compile myapp.jo --link jo.main=MyApp.startup -o myapp
+bin/jo compile --python myapp.jo --link jo.main=MyApp.startup -o myapp.py
 ```
 
 This is particularly useful for:
@@ -225,14 +225,14 @@ Deferred functions work seamlessly with separate compilation:
 
 1. Build framework as a library:
    ```bash
-   bin/jo compile --sast framework.jo -d lib/
+   bin/jo compile --sast lib/ framework.jo
    ```
 
 2. Build application linking to framework:
    ```bash
-   bin/jo compile app.jo --lib lib/ \
+   bin/jo compile --python app.jo --lib lib/ \
      --link Framework.func=App.impl \
-     -o app
+     -o app.py
    ```
 
 ### Context Parameters
@@ -255,10 +255,10 @@ def process(): Unit =
 Link across different namespaces and modules:
 
 ```bash
-bin/jo compile \
+bin/jo compile --python \
   --link Framework.Core.init=Plugins.SQLite.initialize \
   --link Framework.Core.query=Plugins.SQLite.executeQuery \
-  framework.jo plugins.jo -o app
+  framework.jo plugins.jo -o app.py
 ```
 
 ## Error Handling

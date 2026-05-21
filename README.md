@@ -47,12 +47,12 @@ Jo's mission is to make secure programming a joy.
 ## Getting Started 🚀
 
 ```bash
-# Build Ruby (default)
-bin/jo build tests/pos/hello.jo -o hello.rb
+# Build Ruby
+bin/jo compile --ruby tests/pos/hello.jo -o hello.rb
 ruby hello.rb
 
 # Build Python
-bin/jo build -python tests/pos/hello.jo -o hello.py
+bin/jo compile --python tests/pos/hello.jo -o hello.py
 python hello.py
 ```
 

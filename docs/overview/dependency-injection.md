@@ -174,14 +174,14 @@ Supply the implementation at compile time with `--link`:
 
 ```bash
 # Production build — use the HTML renderer
-bin/jo compile app.jo \
+bin/jo compile --python app.jo \
   --link Report.newRenderer=HtmlLib.newHtmlRenderer \
-  -o app
+  -o app.py
 
 # Test build — use an in-memory stub
-bin/jo compile app.jo \
+bin/jo compile --python app.jo \
   --link Report.newRenderer=TestLib.newStubRenderer \
-  -o app-test
+  -o app-test.py
 ```
 
 Because `report` carries no imports, it remains a depth-0 library. The concrete renderer package is a concern of the application, not the library. The dependency graph is inverted.
@@ -205,11 +205,11 @@ def run(): Unit =
 ```
 
 ```bash
-bin/jo compile framework.jo app.jo \
+bin/jo compile --python framework.jo app.jo \
   --link jo.main=Framework.run \
   --link Framework.init=App.init \
   --link Framework.handle=App.handle \
-  -o server
+  -o server.py
 ```
 
 The framework defines the contract; the application fills it in; the linker connects them. No base classes, no annotations, no runtime container.
@@ -228,6 +228,6 @@ The framework defines the contract; the application fills it in; the linker conn
 ## See Also
 
 - [Context Parameters](../language/concepts/context-parameters.md) - Full reference for `param`, `with`, `allow`, and `receives`
-- [Deferred Functions](../language/definitions/deferred-functions.md) - Full reference for `defer` and `-link`
+- [Deferred Functions](../language/definitions/deferred-functions.md) - Full reference for `defer` and `--link`
 - [Dependency Depth](../usage/concepts/dependency-depth.md) - How deferred functions keep libraries shallow
 - [Capability-Oriented Programming](capabilities.md) - Using the same mechanisms for security and confinement
