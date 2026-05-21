@@ -22,29 +22,7 @@ object Compiler:
   val defaultLinkMappings = Map(
     "jo.abort"      -> "jo.js.runtime.abort",
 
-    // IntArray operations
-    "jo.Array.IntArray.create" -> "jo.js.runtime.IntArray.create",
-    "jo.Array.IntArray.get"    -> "jo.js.runtime.IntArray.get",
-    "jo.Array.IntArray.set"    -> "jo.js.runtime.IntArray.set",
-    "jo.Array.IntArray.size"   -> "jo.js.runtime.IntArray.size",
-
-    // FloatArray operations
-    "jo.Array.FloatArray.create" -> "jo.js.runtime.FloatArray.create",
-    "jo.Array.FloatArray.get"    -> "jo.js.runtime.FloatArray.get",
-    "jo.Array.FloatArray.set"    -> "jo.js.runtime.FloatArray.set",
-    "jo.Array.FloatArray.size"   -> "jo.js.runtime.FloatArray.size",
-
-    // ByteArray operations
-    "jo.Array.ByteArray.create" -> "jo.js.runtime.ByteArray.create",
-    "jo.Array.ByteArray.get"    -> "jo.js.runtime.ByteArray.get",
-    "jo.Array.ByteArray.set"    -> "jo.js.runtime.ByteArray.set",
-    "jo.Array.ByteArray.size"   -> "jo.js.runtime.ByteArray.size",
-
-    // RefArray operations
-    "jo.Array.RefArray.create" -> "jo.js.runtime.RefArray.create",
-    "jo.Array.RefArray.get"    -> "jo.js.runtime.RefArray.get",
-    "jo.Array.RefArray.set"    -> "jo.js.runtime.RefArray.set",
-    "jo.Array.RefArray.size"   -> "jo.js.runtime.RefArray.size",
+    "jo.Array.create" -> "jo.js.runtime.RefArray.create",
 
     // Regex engine hooks
     "jo.regex.Engine.compilePattern" -> "jo.js.runtime.RegexEngine.compilePattern",
@@ -86,7 +64,8 @@ object Compiler:
       val defaultRuntimePackages =
         if Config.useRuntimeApi.value.contains("js") then Nil
         else Config.JSRuntimePath :: Nil
-      val units = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings) <| "Frontend"
+
+      val units = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, "jo.js.runtime.RefArray") <| "Frontend"
 
       locally {
         given Definitions = lazyDefn.value

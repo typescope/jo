@@ -135,6 +135,8 @@ extends Linker:
   val Core_String_Raw = Native.typeMember("Raw")
   val Core_String_Concat = Native.typeMember("Concat")
 
+  val Core_RefArray_ArrayClassId = defn.resolveTerm("jo.runtime.native.RefArray.ArrayClassId")
+
   val GC = defn.resolveContainer("jo.runtime.native.GC")
   val GC_alloc = GC.termMember("alloc")
 

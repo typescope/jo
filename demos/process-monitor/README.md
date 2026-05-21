@@ -144,17 +144,18 @@ bin/jo compile --sast out/api PlatformAPI.jo
 
 ### Stage 2 — Platform Runtime
 ```bash
-bin/jo build-lib PlatformRuntime.jo \
-  -lib out/api \
-  -d out/runtime
+bin/jo compile --sast out/runtime --use-runtime-api python \
+  os.jo subprocess.jo time.jo PlatformRuntime.jo \
+  --lib out/api
 ```
 
 ### Stage 3 — User Application
 ```bash
-bin/pyc \
-  -link jo.main=SystemRuntime.platformMain \
-  -lib out/api \
-  -runtime out/runtime \
+bin/jo compile --python \
+  --link jo.main=SystemRuntime.platformMain \
+  --link SystemAPI.startMonitor=ProcessMonitor.startMonitor \
+  --lib out/api \
+  --link-lib out/runtime \
   UserApp.jo \
   -o out/monitor.py
 ```

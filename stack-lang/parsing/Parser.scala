@@ -973,7 +973,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val doc = processComments(peekItem().precedingComments)
         val annots = annotations()
         val mods = modifiers()
-        Some(defDef(needBody = true, bodyAllowed = true).withAnnotations(annots).withMods(mods).withDocComment(doc))
+        Some(defDef(needBody = false, bodyAllowed = true).withAnnotations(annots).withMods(mods).withDocComment(doc))
       else
         error("Expect method definition in extension, found = " + item.token, item.span.toPos)
         next()

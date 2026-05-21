@@ -20,29 +20,8 @@ object Interpreter:
   //----------------------------------------------------------------------------
   // Default link mappings for Interpreter runtime
   val defaultLinkMappings = Map(
-    "jo.abort"      -> "jo.runtime.interpreter.abort",
-
-    // Typed array operations (all use the same implementation in interpreter)
-    "jo.Array.IntArray.create" -> "jo.runtime.interpreter.IntArray.create",
-    "jo.Array.IntArray.get"    -> "jo.runtime.interpreter.IntArray.get",
-    "jo.Array.IntArray.set"    -> "jo.runtime.interpreter.IntArray.set",
-    "jo.Array.IntArray.size"   -> "jo.runtime.interpreter.IntArray.size",
-
-    "jo.Array.FloatArray.create" -> "jo.runtime.interpreter.FloatArray.create",
-    "jo.Array.FloatArray.get"    -> "jo.runtime.interpreter.FloatArray.get",
-    "jo.Array.FloatArray.set"    -> "jo.runtime.interpreter.FloatArray.set",
-    "jo.Array.FloatArray.size"   -> "jo.runtime.interpreter.FloatArray.size",
-
-    "jo.Array.ByteArray.create" -> "jo.runtime.interpreter.ByteArray.create",
-    "jo.Array.ByteArray.get"    -> "jo.runtime.interpreter.ByteArray.get",
-    "jo.Array.ByteArray.set"    -> "jo.runtime.interpreter.ByteArray.set",
-    "jo.Array.ByteArray.size"   -> "jo.runtime.interpreter.ByteArray.size",
-
-    "jo.Array.RefArray.create" -> "jo.runtime.interpreter.RefArray.create",
-    "jo.Array.RefArray.get"    -> "jo.runtime.interpreter.RefArray.get",
-    "jo.Array.RefArray.set"    -> "jo.runtime.interpreter.RefArray.set",
-    "jo.Array.RefArray.size"   -> "jo.runtime.interpreter.RefArray.size",
-
+    "jo.abort" -> "jo.runtime.interpreter.abort",
+    "jo.Array.create" -> "jo.runtime.interpreter.RefArray.create",
     "jo.regex.Engine.compilePattern" -> "jo.runtime.interpreter.RegexEngine.compilePattern",
     "jo.regex.Engine.execPatternAt"  -> "jo.runtime.interpreter.RegexEngine.execPatternAt",
   )
@@ -194,38 +173,6 @@ object Interpreter:
   private val UnitValue: List[Value] = IntVal(0) :: Nil
 
   val platformCalls: Map[String, List[Value] => List[Value]] = Map(
-      "createIntArray" -> { (args: List[Value]) =>
-        val IntVal(size) :: Nil = args: @unchecked
-        ArrayVal(new Array[Int](size)) :: Nil
-      },
-
-      "getIntArray" -> { (args: List[Value]) =>
-        val (arrayVal: ArrayVal) :: IntVal(index) :: Nil = args: @unchecked
-        IntVal(arrayVal.content(index).asInstanceOf[Int]) :: Nil
-      },
-
-      "setIntArray" -> { (args: List[Value]) =>
-        val (arrayVal: ArrayVal) :: IntVal(index) :: IntVal(v) :: Nil = args: @unchecked
-        arrayVal.content.asInstanceOf[Array[Int]](index) = v
-        UnitValue
-      },
-
-      "createFloatArray" -> { (args: List[Value]) =>
-        val IntVal(size) :: Nil = args: @unchecked
-        ArrayVal(new Array[Double](size)) :: Nil
-      },
-
-      "getFloatArray" -> { (args: List[Value]) =>
-        val (arrayVal: ArrayVal) :: IntVal(index) :: Nil = args: @unchecked
-        FloatVal(arrayVal.content(index).asInstanceOf[Double]) :: Nil
-      },
-
-      "setFloatArray" -> { (args: List[Value]) =>
-        val (arrayVal: ArrayVal) :: IntVal(index) :: FloatVal(v) :: Nil = args: @unchecked
-        arrayVal.content.asInstanceOf[Array[Double]](index) = v
-        UnitValue
-      },
-
       "createRefArray" -> { (args: List[Value]) =>
         val IntVal(size) :: Nil = args: @unchecked
         ArrayVal(new Array[Value](size)) :: Nil
@@ -245,6 +192,11 @@ object Interpreter:
       "sizeArray" -> { (args: List[Value]) =>
         val (arrayVal: ArrayVal) :: Nil = args: @unchecked
         IntVal(arrayVal.content.length) :: Nil
+      },
+
+      "cloneRefArray" -> { (args: List[Value]) =>
+        val (arrayVal: ArrayVal) :: Nil = args: @unchecked
+        ArrayVal(arrayVal.content.clone()) :: Nil
       },
 
       "abort" -> { (args: List[Value]) =>
@@ -538,6 +490,8 @@ object Interpreter:
           case _: FloatVal => BoolVal(cls == defn.Float_type) :: Nil
 
           case _: BoolVal => BoolVal(cls == defn.Bool_type) :: Nil
+
+          case _: ArrayVal => BoolVal(cls == defn.Array_class) :: Nil
 
           case _: IntVal =>
             // No two numeric types can appear in union types
@@ -942,7 +896,7 @@ object Interpreter:
 
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      val nss = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings) <| "FrontEnd"
+      val nss = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, "jo.runtime.interpreter.RefArray") <| "FrontEnd"
       locally:
         given defn: Definitions = lazyDefn.value
         given Runtime = new Runtime(defn)

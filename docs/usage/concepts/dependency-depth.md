@@ -148,10 +148,10 @@ def findRelevant(question: String, k: Int): List[String] =
 The library defines the *shape* of its dependencies without taking a dependency on any embedding or search package. Concrete implementations are supplied at link time by the application:
 
 ```bash
-bin/jo build app.jo \
-  -link AgentAPI.embed=OpenAI.embed \
-  -link AgentAPI.vectorSearch=Pinecone.search \
-  -o app
+bin/jo compile --python app.jo \
+  --link AgentAPI.embed=OpenAI.embed \
+  --link AgentAPI.vectorSearch=Pinecone.search \
+  -o app.py
 ```
 
 Because `agent-api` carries no imports, it remains depth-0. The concrete packages (`openai`, `pinecone`) are wired in only at the application layer, where the extra depth is already expected. The dependency graph is inverted: the library no longer depends on its collaborators — the application does.

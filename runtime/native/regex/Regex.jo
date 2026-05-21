@@ -41,15 +41,15 @@ section Regex
 
   def compilePattern(source: String, flags: String): Pattern =
     match Regex.compileWithOptionsResult(source, compileOptions(flags))
-      case re: Regex => re native.cast[Pattern]
+      case re: Regex => native.cast[Pattern] re
       case err: Error => abort(err.message)
 
   def execPatternAt(pat: Pattern, input: String, pos: Int): jo.regex.Match | None =
-    val re = pat native.cast[Regex]
+    val re = native.cast[Regex] pat
 
     match Engine.runSearchThreadWithNfaFrom(input, re.nfa, pos, re.groupCount, re.options)
       case Some(thread) =>
-        val groups = Array.RefArray[String | None](re.groupCount + 1)
+        val groups = Array.create[String | None](re.groupCount + 1)
         groups[0] = input.substring(thread.start, thread.step - thread.start)
 
         var i = 1

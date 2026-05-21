@@ -27,8 +27,8 @@ private def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
   def loop(cur: Ctx): T =
     match cur
       case Entry(curKey, value, next) =>
-        if (curKey native.cast[Int]) == (key native.cast[Int]) then
-          value native.cast[T]
+        if (native.cast[Int] curKey) == (native.cast[Int] key) then
+          native.cast[T] value
         else
           loop(next)
 
@@ -41,7 +41,7 @@ private def startBatch(ctx: Ctx, count: Int): Batch receives none =
   new Batch(ctx)
 
 private def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
-  batch.ctx = Entry(key, value native.cast[Any], batch.ctx)
+  batch.ctx = Entry(key, value, batch.ctx)
 
 private def finish(batch: Batch): Ctx receives none =
   batch.ctx

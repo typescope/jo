@@ -20,84 +20,27 @@ private def abort(msg: String): Bottom =
 
 private def builtins: py.Dynamic = py.module("builtins")
 
-private section IntArray
-  def create(size: Int): Array.Platform.IntArray =
-    // Use builtins.list() via callDynamic instead of py.list() to avoid bootstrap
-    // recursion: py.list() passes its vararg as a jo_List, and the jo_List
-    // constructor calls jo_Array_RefArray for pattern matching on its size.
-    val result: py.List = builtins.callDynamic("list").cast[py.List]
-    var i = 0
-    while i < size do
-      result.append(0)
-      i = i + 1
-    end
-    py.dynamic(result).cast[Array.Platform.IntArray]
-
-  def get(arr: Any, i: Int): Int = py.dynamic(arr)[i].asInt
-
-  def size(arr: Any): Int = py.len(arr)
-
-  def set(arr: Any, i: Int, elem: Int): Unit = py.dynamic(arr)[i] = elem
-end
-
-private section FloatArray
-  def create(size: Int): Array.Platform.FloatArray =
-    // Use builtins.list() via callDynamic instead of py.list() to avoid bootstrap
-    // recursion: py.list() passes its vararg as a jo_List, and the jo_List
-    // constructor calls jo_Array_RefArray for pattern matching on its size.
-    val result: py.List = builtins.callDynamic("list").cast[py.List]
-    var i = 0
-    while i < size do
-      result.append(0.0)
-      i = i + 1
-    end
-    py.dynamic(result).cast[Array.Platform.FloatArray]
-
-  def get(arr: Any, i: Int): Float = py.dynamic(arr)[i].asFloat
-
-  def size(arr: Any): Int = py.len(arr)
-
-  def set(arr: Any, i: Int, elem: Float): Unit = py.dynamic(arr)[i] = elem
-end
-
-private section ByteArray
-  def create(size: Int): Array.Platform.ByteArray =
-    // Use builtins.list() via callDynamic instead of py.list() to avoid bootstrap
-    // recursion: py.list() passes its vararg as a jo_List, and the jo_List
-    // constructor calls jo_Array_RefArray for pattern matching on its size.
-    val result: py.List = builtins.callDynamic("list").cast[py.List]
-    var i = 0
-    while i < size do
-      result.append(0)
-      i = i + 1
-    end
-    py.dynamic(result).cast[Array.Platform.ByteArray]
-
-  def get(arr: Any, i: Int): Byte = py.dynamic(arr)[i].cast[Byte]
-
-  def size(arr: Any): Int = py.len(arr)
-
-  def set(arr: Any, i: Int, elem: Byte): Unit = py.dynamic(arr)[i] = elem
-end
-
 private section RefArray
-  def create[T](size: Int): Array.Platform.RefArray[T] =
+  def create[T](size: Int): Array[T] =
     // Use builtins.list() via callDynamic instead of py.list() to avoid bootstrap
     // recursion: py.list() passes its vararg as a jo_List, and the jo_List
     // constructor calls jo_Array_RefArray for pattern matching on its size.
-    val result: py.List = builtins.callDynamic("list").cast[py.List]
+    val result: py.List = builtins.list().cast[py.List]
     var i = 0
     while i < size do
       result.append(py.none)
       i = i + 1
     end
-    py.dynamic(result).cast[Array.Platform.RefArray[T]]
+    py.dynamic(result).cast[Array[T]]
 
   def get[T](arr: Any, i: Int): T = py.dynamic(arr)[i].cast[T]
 
   def size[T](arr: Any): Int = py.len(arr)
 
   def set[T](arr: Any, i: Int, elem: T): Unit = py.dynamic(arr)[i] = elem
+
+  def clone[T](arr: Any): Array[T] =
+    py.dynamic(arr).callDynamic("copy").cast[Array[T]]
 end
 
 //------------------------------------------------------------------------------
@@ -190,7 +133,7 @@ private section RegexEngine
       val m: py.Dynamic = result
       val from: Int    = m.start(0).asInt
       val text: String = m.group(0).asString
-      val groups = Array.RefArray[String | None](m.groups().cast[py.Tuple].size + 1)
+      val groups = Array.create[String | None](m.groups().cast[py.Tuple].size + 1)
       var i = 0
       val len = groups.size
       while i < len do
@@ -256,8 +199,7 @@ private def start(): Unit =
     argList.append(argv[argIdx])
     argIdx = argIdx + 1
   end
-  val argsArr: Array.Platform.RefArray[String] = py.dynamic(argList).cast[Array.Platform.RefArray[String]]
-  val args = new IO.Args(argsArr)
+  val argsArr: Array[String] = py.dynamic(argList).cast[Array[String]]
 
   val stdin: () => String =
     () => py.input()
@@ -272,7 +214,7 @@ private def start(): Unit =
     IO.stdin = stdin,
     IO.stdout = stdout,
     IO.stderr = stderr,
-    IO.args = args
+    IO.args = argsArr
   in
     jo.main()
 end

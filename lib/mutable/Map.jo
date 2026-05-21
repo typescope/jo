@@ -8,9 +8,10 @@ section Map
   def empty[K, V]
       (auto
         eq: Eq[K] with [[K].==],
-        hash: Hash[K] with [[K].hashCode])
+        hash: Hash[K] with [[K].hashCode]
+      )
   : Map[K, V] =
-    val buckets = Array.RefArray[List[K ~ V]](Map.initialCapacity)
+    val buckets = Array.create[List[K ~ V]](Map.initialCapacity)
     var i = 0
     while i < Map.initialCapacity do
       buckets[i] = List.empty[K ~ V]
@@ -63,7 +64,7 @@ class Map[K, V]
   private def rehash(newCapacity: Int): Unit =
     val oldBuckets = buckets
     val oldCapacity = oldBuckets.size
-    val newBuckets = Array.RefArray[List[K ~ V]](newCapacity)
+    val newBuckets = Array.create[List[K ~ V]](newCapacity)
     var i = 0
     while i < newCapacity do
       newBuckets[i] = List.empty[K ~ V]

@@ -1,0 +1,20 @@
+// Test that Array[T] can be used in union types
+
+type IntArrayOrString = Array[Int] | String
+
+def show(v: IntArrayOrString): String =
+  match v
+    case arr: Array[Int] => "Array: " + arr
+    case s: String => "String: " + s
+
+def main =
+  val arr = Array.create[Int] 3
+  arr[0] = 1
+  arr[1] = 2
+  arr[2] = 3
+
+  val v1: IntArrayOrString = arr
+  val v2: IntArrayOrString = "hello"
+
+  println(show v1)
+  println(show v2)

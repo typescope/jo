@@ -12,7 +12,7 @@ def printMaybeNamed(input: String, named: Map[String, Segment], name: String) =
     case None =>
       println "<none>"
 
-def printMaybeIndexed(input: String, indexed: Array.RefArray[Option[Segment]], i: Int) =
+def printMaybeIndexed(input: String, indexed: Array[Option[Segment]], i: Int) =
   match indexed[i]
     case Some(seg) =>
       println segmentText(input, seg)
@@ -27,7 +27,7 @@ def compileOrAbort(pat: String, flags: String = ""): Regex =
       abort(err.message)
 
 def runFull(input: String, re: Regex): regex.Match | None =
-  Regex.execPatternAt(re native.cast[Pattern], input, 0)
+  Regex.execPatternAt: native.cast[Pattern] re, input, 0
 
 def printRunFull(input: String, re: Regex) =
   match runFull(input, re)

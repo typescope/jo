@@ -31,11 +31,11 @@ Warning: Never re-build the whole project during development. Use the following 
 The `bin/jo` command provides a unified interface to all compilation backends:
 
 - **Interpreter**: `bin/jo run <file.jo>` - Direct interpretation
-- **Build application (native/register)**: `bin/jo build <file.jo> -o <executable>` - Default backend
-- **Build application (native/stack)**: `bin/jo build -stack <file.jo> -o <executable>` - Stack machine backend
-- **Build application (JavaScript)**: `bin/jo build -js <file.jo> -o <output.js>` - JavaScript backend
-- **Build library**: `bin/jo build-lib <file.jo> -d <dir>` - Generate .sast files
-- **Use precompiled library**: `bin/jo build <file.jo> -lib <dir> -o <executable>` - Build with precompiled library
+- **Build application (native/register)**: `bin/jo compile --reg <file.jo> -o <executable>` - Register machine backend
+- **Build application (native/stack)**: `bin/jo compile --stack <file.jo> -o <executable>` - Stack machine backend
+- **Build application (JavaScript)**: `bin/jo compile --js <file.jo> -o <output.js>` - JavaScript backend
+- **Build library**: `bin/jo compile --sast <dir> <file.jo>` - Generate `.sast` files
+- **Use precompiled library**: `bin/jo compile --reg <file.jo> --lib <dir> -o <executable>` - Build with a precompiled library
 - **Direct run**: `bin/jo <file.jo>` - Shorthand for `run` command
 
 ### Test Organization

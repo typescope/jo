@@ -409,6 +409,10 @@ extends Backend(runtime):
         else if sym == defn.jo_pass then
           push(Int32(0))
 
+        else if sym == runtime.Core_RefArray_ArrayClassId then
+          val cid = runtime.itable.getClassId(defn.Array_class)
+          push(Int32(cid))
+
         else if sym.is(Flags.Object) && !this.isLoweringObjectInitProc then
           assert(app.args.isEmpty, "Unexpected args for accessor: " + app.show)
           // make the accessor reachable

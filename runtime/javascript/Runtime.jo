@@ -8,7 +8,7 @@ import jo.compile.intrinsic
 //
 
 private def start(): Unit =
-  var args = new IO.Args(js.global.process.argv.slice(2).cast[Array.Platform.RefArray[String]])
+  var args = js.global.process.argv.slice(2).cast[Array[String]]
 
   val stdin: () => String =
     () => fs.readFileSync(0).toString
@@ -40,64 +40,22 @@ private def abort(msg: String): Bottom =
 // Array support
 //
 
-// IntArray operations
-private section IntArray
-  def create(size: Int): Array.Platform.IntArray =
-    js.global.Array.call(size).cast[Array.Platform.IntArray]
-
-  def get(array: Array.Platform.IntArray, index: Int): Int =
-    js.dynamic(array)[index].asInt
-
-  def set(array: Array.Platform.IntArray, index: Int, value: Int): Unit =
-    js.dynamic(array)[index] = value
-
-  def size(array: Array.Platform.IntArray): Int =
-    js.dynamic(array).length.asInt
-end
-
-// FloatArray operations
-private section FloatArray
-  def create(size: Int): Array.Platform.FloatArray =
-    js.init(js.global.Float64Array, size).cast[Array.Platform.FloatArray]
-
-  def get(array: Array.Platform.FloatArray, index: Int): Float =
-    js.dynamic(array)[index].asFloat
-
-  def set(array: Array.Platform.FloatArray, index: Int, value: Float): Unit =
-    js.dynamic(array)[index] = value
-
-  def size(array: Array.Platform.FloatArray): Int =
-    js.dynamic(array).length.asInt
-end
-
-// ByteArray operations
-private section ByteArray
-  def create(size: Int): Array.Platform.ByteArray =
-    js.init(js.global.Int8Array, size).cast[Array.Platform.ByteArray]
-
-  def get(array: Array.Platform.ByteArray, index: Int): Byte =
-    js.dynamic(array)[index].cast[Byte]
-
-  def set(array: Array.Platform.ByteArray, index: Int, value: Byte): Unit =
-    js.dynamic(array)[index] = value
-
-  def size(array: Array.Platform.ByteArray): Int =
-    js.dynamic(array).length.asInt
-end
-
 // RefArray operations
 private section RefArray
-  def create[T](size: Int): Array.Platform.RefArray[T] =
-    js.global.Array.call(size).cast[Array.Platform.RefArray[T]]
+  def create[T](size: Int): Array[T] =
+    js.global.Array.call(size).cast[Array[T]]
 
-  def get[T](array: Array.Platform.RefArray[T], index: Int): T =
+  def get[T](array: Array[T], index: Int): T =
     js.dynamic(array)[index].cast[T]
 
-  def set[T](array: Array.Platform.RefArray[T], index: Int, value: T): Unit =
+  def set[T](array: Array[T], index: Int, value: T): Unit =
     js.dynamic(array)[index] = value
 
-  def size[T](array: Array.Platform.RefArray[T]): Int =
+  def size[T](array: Array[T]): Int =
     js.dynamic(array).length.asInt
+
+  def clone[T](array: Array[T]): Array[T] =
+    js.dynamic(array).slice(0).cast[Array[T]]
 end
 
 //------------------------------------------------------------------------------
@@ -227,7 +185,7 @@ private section RegexEngine
       val from = StringOps.utf16ToCodePointIndex(input, matchIndexUtf16)
       val text = m[0].asString
 
-      val groups = Array.RefArray[String | None](m.length.asInt)
+      val groups = Array.create[String | None](m.length.asInt)
       var i = 0
       val len = groups.size
       while i < len do

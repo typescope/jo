@@ -14,60 +14,21 @@ def abort(msg: String): Bottom =
 // Array operations
 //
 
-private section IntArray
-  def create(size: Int): Array.Platform.IntArray =
-    rb.const("Array").callDynamic("new", size, 0).cast[Array.Platform.IntArray]
-
-  def get(arr: Array.Platform.IntArray, i: Int): Int =
-    rb.dynamic(arr)[i].asInt
-
-  def set(arr: Array.Platform.IntArray, i: Int, v: Int): Unit =
-    rb.dynamic(arr)[i] = v
-
-  def size(arr: Array.Platform.IntArray): Int =
-    rb.dynamic(arr).callDynamic("length").asInt
-end
-
-private section FloatArray
-  def create(size: Int): Array.Platform.FloatArray =
-    rb.const("Array").callDynamic("new", size, 0.0).cast[Array.Platform.FloatArray]
-
-  def get(arr: Array.Platform.FloatArray, i: Int): Float =
-    rb.dynamic(arr)[i].asFloat
-
-  def set(arr: Array.Platform.FloatArray, i: Int, v: Float): Unit =
-    rb.dynamic(arr)[i] = v
-
-  def size(arr: Array.Platform.FloatArray): Int =
-    rb.dynamic(arr).callDynamic("length").asInt
-end
-
-private section ByteArray
-  def create(size: Int): Array.Platform.ByteArray =
-    rb.const("Array").callDynamic("new", size, 0).cast[Array.Platform.ByteArray]
-
-  def get(arr: Array.Platform.ByteArray, i: Int): Byte =
-    rb.dynamic(arr)[i].cast[Byte]
-
-  def set(arr: Array.Platform.ByteArray, i: Int, v: Byte): Unit =
-    rb.dynamic(arr)[i] = v
-
-  def size(arr: Array.Platform.ByteArray): Int =
-    rb.dynamic(arr).callDynamic("length").asInt
-end
-
 private section RefArray
-  def create[T](size: Int): Array.Platform.RefArray[T] =
-    rb.const("Array").callDynamic("new", size, rb.nil).cast[Array.Platform.RefArray[T]]
+  def create[T](size: Int): Array[T] =
+    rb.const("Array").callDynamic("new", size, rb.nil).cast[Array[T]]
 
-  def get[T](arr: Array.Platform.RefArray[T], i: Int): T =
+  def get[T](arr: Array[T], i: Int): T =
     rb.dynamic(arr)[i].cast[T]
 
-  def set[T](arr: Array.Platform.RefArray[T], i: Int, v: T): Unit =
+  def set[T](arr: Array[T], i: Int, v: T): Unit =
     rb.dynamic(arr)[i] = v
 
-  def size[T](arr: Array.Platform.RefArray[T]): Int =
+  def size[T](arr: Array[T]): Int =
     rb.dynamic(arr).callDynamic("length").asInt
+
+  def clone[T](arr: Array[T]): Array[T] =
+    rb.dynamic(arr).callDynamic("dup").cast[Array[T]]
 end
 
 //------------------------------------------------------------------------------
@@ -140,7 +101,7 @@ private section RegexEngine
     else
       val from: Int    = m.callDynamic("begin", 0).asInt
       val text: String = m[0].asString
-      val groups = Array.RefArray[String | None](m.callDynamic("length").asInt)
+      val groups = Array.create[String | None](m.length.asInt)
       var i = 0
       val len = groups.size
 
@@ -240,9 +201,8 @@ end
 //
 
 private def start(): Unit =
-  val argv: Array.Platform.RefArray[String] =
-    rb.const("ARGV").cast[Array.Platform.RefArray[String]]
-  val args = new IO.Args(argv)
+  val argv: Array[String] =
+    rb.const("ARGV").cast[Array[String]]
 
   val stdin: () => String =
     () => rb.const("STDIN").readline().chomp().asString
@@ -257,7 +217,7 @@ private def start(): Unit =
     IO.stdin = stdin,
     IO.stdout = stdout,
     IO.stderr = stderr,
-    IO.args = args
+    IO.args = argv
   in
     jo.main()
 end

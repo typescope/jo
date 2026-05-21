@@ -11,8 +11,12 @@ import Phase.PhaseKey
 
 import scala.collection.mutable
 
-/** Lifts non-intrinsic methods of primitive classes (Int, Byte, Char, Float, Bool, String)
-  * to top-level functions and rewrites all call sites.
+/** This phase handles several aspects of primitives
+  *
+  * 1. Lifts non-intrinsic methods of primitive classes (Int, Byte, Char, Float,
+  * Bool, String) to top-level functions and rewrites all call sites.
+  *
+  * 2. Rewire methods on Array to backend support methods
   *
   * This runs as a common frontend phase so that all backends see the lifted functions
   * instead of Select calls on primitive types for those methods.
@@ -21,7 +25,9 @@ import scala.collection.mutable
   * Intrinsic methods (those also annotated with `@intrinsic`) are left in place —
   * backends handle them via their own primitive dispatch.
   */
-class LiftPrimitiveMethods(using defn: Definitions) extends Phase:
+class LiftPrimitiveMethods(arrayOpsSection: String)(using defn: Definitions) extends Phase:
+  private val ArrayOps = defn.resolveContainer(arrayOpsSection)
+
   private val liftedSymMapKey: PhaseKey[mutable.Map[Symbol, Symbol]] = new PhaseKey("liftedSymMap")
 
   override def initContext()(using Context): Unit =
@@ -34,8 +40,22 @@ class LiftPrimitiveMethods(using defn: Definitions) extends Phase:
       case None =>
         val classSym = methodSym.owner
         val oldProcType = methodSym.tpe.asProcType
-        val thisInfo = classSym.classInfo.self.tpe
-        val funType = oldProcType.prepend(NamedInfo("this", thisInfo) :: Nil)
+        val classInfo = classSym.classInfo
+        val thisInfo = classInfo.self.tpe
+
+        assert(classInfo.tparams.size < 2, "Expect class to have at most 1 type parameter: " + classSym)
+        assert(oldProcType.tparams.isEmpty, "Expect method to have no type parameter: " + methodSym)
+
+        val funType = ProcType(
+          tparams = classInfo.tparams,
+          params = NamedInfo("this", thisInfo) :: oldProcType.params,
+          autos = oldProcType.autos,
+          candidates = oldProcType.candidates,
+          resultType = oldProcType.resultType,
+          receivesInfo = oldProcType.receivesInfo,
+          preParamCount = 1,
+          preTypeParamCount = classInfo.tparams.size
+        )(oldProcType.defaultsLazy)
 
         val liftedSym = TermSymbol.create(
           classSym.name + "$" + methodSym.name,
@@ -77,25 +97,56 @@ class LiftPrimitiveMethods(using defn: Definitions) extends Phase:
 
     FileUnit(unit.owner, unit.imports, newDefs.toList, unit.source)
 
+  private def getTypeArgument(tpe: Type, cls: Symbol): Type =
+    tpe.approx match
+      case appType @ AppliedType(`cls`, tps) =>
+        assert(cls == defn.Array_class && tps.size == 1, "Unexpected receiver type " + appType.show)
+        tps.head
+
+      case tp =>
+        throw new Exception("Unexpected receiver type " + tp.show)
+
   override def transformApply(apply: Apply)(using ctx: Context): Word =
     val Apply(fun, args, autos) = apply
 
     fun match
-      case Select(qual, _) =>
+      case Select(qual, name) =>
+        // None-of the methods for primitives we are interested are polymorphic,
+        // thus Select node covers all of them.
+
         val methodSym = fun.tpe.as[MemberRef].symbol
 
-        val needRewrite =
-          methodSym.owner.hasAnnotation(defn.intrinsic) && !methodSym.hasAnnotation(defn.intrinsic)
+        if methodSym.owner == defn.Array_class && methodSym.hasAnnotation(defn.intrinsic) then
+          val qual2 = transform(qual)
+          val args2 = for arg <- args yield transform(arg)
+          val argsAll = qual2 :: args2
 
-        if needRewrite then
-          val liftedSym = getLiftedSymbol(methodSym)
-          val qual2  = this.transform(qual)
-          val args2  = args.map(this.transform)
-          val autos2 = autos.map(this.transform)
-          Apply(Ident(liftedSym)(fun.span), qual2 :: args2, autos2)(apply.span)
-
+          val elemType = getTypeArgument(qual.tpe, methodSym.owner)
+          Ident(ArrayOps.termMember(name))(fun.span).appliedToTypes(elemType).appliedTo(argsAll*)
         else
-          super.transformApply(apply)
+
+          val needRewrite =
+            methodSym.owner.hasAnnotation(defn.intrinsic) && !methodSym.hasAnnotation(defn.intrinsic)
+
+          if needRewrite then
+            val liftedSym = getLiftedSymbol(methodSym)
+            val qual2  = this.transform(qual)
+            val args2  = args.map(this.transform)
+            val autos2 = autos.map(this.transform)
+            val funRef = Ident(liftedSym)(fun.span)
+
+            val fun2 =
+              if liftedSym.tpe.isPolyType then
+                // See the invariant in getLiftedSymbol: only class may have one
+                // type parameter, method may not have type parameters.
+                funRef.appliedToTypes(getTypeArgument(qual2.tpe, methodSym.owner))
+              else
+                funRef
+
+            Apply(fun2, qual2 :: args2, autos2)(apply.span)
+
+          else
+            super.transformApply(apply)
 
       case _ =>
         super.transformApply(apply)

@@ -32,14 +32,12 @@ object AutoResolution:
     case PolymorphicFunction(sym: Symbol)
     case UninstantiatedTypeVars(sym: Symbol)
     case NestedResolutionFailed
-    case NotKnownTypeForArrayBuilder(tp: Type)
 
   /** Candidate types for auto resolution */
   enum Candidate:
     case ValueCandidate(sym: Symbol)
     case MemberCandidate(tp: Type, name: String)
     case LocalAutoCandidate(sym: Symbol)
-    case ArrayBuilderSynthesis(tp: Type)
     case IdentitySynthesis(tp: Type)
 
   /** For error reporting */
@@ -117,16 +115,8 @@ object AutoResolution:
 
     if candRes.nonEmpty then return candRes
 
-    // Last resort: synthesize ArrayBuilder[T] for known types
-    targetType match
-      case AppliedType(sym, List(elemType)) if sym == defn.ArrayBuilder =>
-        val trial = new SearchNode.Trial(Candidate.ArrayBuilderSynthesis(targetType), next = null)
-        choice.children += trial
-
-        trySynthesizeArrayBuilder(elemType, trial, owner, span)
-
-      case _ =>
-        trySynthesizeIdentity(targetType, choice, owner, span)
+    // Last resort: try identity
+    trySynthesizeIdentity(targetType, choice, owner, span)
 
   def tryValue
       (sym: Symbol, targetType: Type, trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, localAutos: List[Symbol], span: Span)
@@ -388,68 +378,6 @@ object AutoResolution:
     trial.next = SearchNode.Success
     Some(lambda)
 
-
-  /** Auto-synthesize ArrayBuilder[T] for known types
-    *
-    * For numeric types (Int, Float, Char, Byte), returns the corresponding existing
-    * ArrayBuilder object (IntArrayBuilder, FloatArrayBuilder, etc.).
-    *
-    * For type parameters and non-numeric types, synthesizes: (size: Int) => RefArray[T](size)
-    * (boxing happens at generic method boundaries, so this is always correct).
-    */
-  def trySynthesizeArrayBuilder(elemType: Type, trial: SearchNode.Trial, owner: Symbol, span: Span)
-      (using defn: Definitions, so: Source)
-  : Option[Word] =
-    if elemType match
-      case tvar: TypeVar if !tvar.isInstantiated => true
-      case _ => false
-    then
-      trial.next = SearchNode.Failure(FailureReason.NotKnownTypeForArrayBuilder(elemType))
-      None
-
-    // For numeric types, use the existing ArrayBuilder objects
-    else if elemType.isSubtype(defn.IntType) then
-      trial.next = SearchNode.Success
-      Some(Ident(defn.IntArrayBuilder)(span).appliedTo())
-
-    else if elemType.isSubtype(defn.FloatType) then
-      trial.next = SearchNode.Success
-      Some(Ident(defn.FloatArrayBuilder)(span).appliedTo())
-
-    else if elemType.isSubtype(defn.CharType) then
-      trial.next = SearchNode.Success
-      Some(Ident(defn.CharArrayBuilder)(span).appliedTo())
-
-    else if elemType.isSubtype(defn.ByteType) then
-      trial.next = SearchNode.Success
-      Some(Ident(defn.ByteArrayBuilder)(span).appliedTo())
-
-    else if elemType.isSubtype(defn.BoolType) then
-      trial.next = SearchNode.Success
-      Some(Ident(defn.BoolArrayBuilder)(span).appliedTo())
-
-    // For non-numeric types, synthesize RefArray[T] call
-    else
-      // Create the result type: Array[T]
-      val arrayType = AppliedType(defn.Array_type, List(elemType))
-
-      // Synthesize: (size: Int) => RefArray[T](size)
-      val intType = defn.IntType
-      val lambdaType = LambdaType(List(intType), arrayType, Nil)
-
-      val lambda = TreeOps.createLambda(lambdaType, owner, span): params =>
-        val sizeParam = params.head
-        // Create: RefArray[elemType](size)
-        val objectArrayIdent = Ident(defn.RefArray)(span)
-        val typeApplied = TypeApply(objectArrayIdent, List(TypeTree(elemType)(span)))(span)
-        Apply(typeApplied, List(sizeParam), Nil)(span)
-
-      trial.next = SearchNode.Success
-      val arrayBuilderType = AppliedType(defn.ArrayBuilder, List(elemType))
-      Adaptation.adaptToLambdaInterface(lambda, arrayBuilderType) match
-        case None => throw new Exception("Unexpected error in synthesizing " + arrayBuilderType.show)
-        case res => res
-
   /** Synthesize an identity function when the target type is T => T.
     *
     * If the target is a lambda type (T) => T or a lambda interface with
@@ -497,7 +425,6 @@ object AutoResolution:
       case Candidate.ValueCandidate(sym) => sym.name
       case Candidate.MemberCandidate(tp, name) => s"[${tp.show}].$name"
       case Candidate.LocalAutoCandidate(sym) => s"(local: ${sym.name}: ${sym.tpe.show})"
-      case Candidate.ArrayBuilderSynthesis(tp) => s"synthesizing ${tp.show}"
       case Candidate.IdentitySynthesis(tp) => s"identity ${tp.show}"
 
     def formatFailureReason(reason: FailureReason): String = reason match
@@ -521,9 +448,6 @@ object AutoResolution:
 
       case FailureReason.NestedResolutionFailed =>
         "nested auto resolution failed"
-
-      case FailureReason.NotKnownTypeForArrayBuilder(tp) =>
-        s"Failure to synthesize because ${tp.show} is not a known type"
 
     def formatChoice(choice: SearchNode.Choice, indent: String): Unit =
       sb.append(s"${indent}? ${choice.auto.show}\n")

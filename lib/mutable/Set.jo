@@ -10,7 +10,7 @@ section Set
         eq: Eq[T] with [[T].==],
         hash: Hash[T] with [[T].hashCode])
   : Set[T] =
-    val buckets = Array.RefArray[List[T]](initialCapacity)
+    val buckets = Array.create[List[T]](initialCapacity)
     var i = 0
     while i < initialCapacity do
       buckets[i] = List.empty[T]
@@ -63,7 +63,7 @@ class Set[T]
   private def rehash(newCapacity: Int): Unit =
     val oldBuckets = buckets
     val oldCapacity = oldBuckets.size
-    val newBuckets = Array.RefArray[List[T]](newCapacity)
+    val newBuckets = Array.create[List[T]](newCapacity)
     var i = 0
     while i < newCapacity do
       newBuckets[i] = List.empty[T]

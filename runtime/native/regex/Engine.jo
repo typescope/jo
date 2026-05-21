@@ -6,8 +6,8 @@ import jo.runtime.native.regex.Ast.*
 class Segment(from: Int, to: Int)
 
 section Engine
-  def createIndexed(groupCount: Int): Array.RefArray[Option[Segment]] =
-    val arr = Array.RefArray[Option[Segment]](groupCount + 1)
+  def createIndexed(groupCount: Int): Array[Option[Segment]] =
+    val arr = Array.create[Option[Segment]](groupCount + 1)
     var i = 0
     while i <= groupCount do
       arr[i] = None
@@ -19,7 +19,7 @@ section Engine
     var start: Int
     var step: Int
     var captureStack: List[CaptureId ~ Int]
-    var indexed: Array.RefArray[Option[Segment]]
+    var indexed: Array[Option[Segment]]
     var named: Map[String, Segment]
     var priority: List[Int]
 
@@ -27,7 +27,7 @@ section Engine
         start: Int,
         step: Int,
         captureStack: List[CaptureId ~ Int],
-        indexed: Array.RefArray[Option[Segment]],
+        indexed: Array[Option[Segment]],
         named: Map[String, Segment],
         priority: List[Int]) =
       this.start = start

@@ -42,7 +42,7 @@ class Vector[T]
     if (_size >> (5 * (_depth + 1))) > 0 then
       // Root is full; grow by one level
       val newBranch = VectorImpl.newPath(_depth, v)
-      val newChildren = Array.RefArray[VectorImpl.Node[T]](2)
+      val newChildren = Array.create[VectorImpl.Node[T]](2)
       newChildren[0] = root
       newChildren[1] = newBranch
       new Vector(VectorImpl.Internal(newChildren), _size + 1, _depth + 1)
@@ -251,7 +251,7 @@ class Vector[T]
       Some(best)
 
   def toList: List[T] =
-    val array = Array.RefArray[T](_size)
+    val array = Array.create[T](_size)
     var i = 0
     while i < _size do
       array[i] = this.get(i)
@@ -274,7 +274,7 @@ class Vector[T]
 
 section Vector
   def empty[T]: Vector[T] =
-    val arr = Array.RefArray[T](0)
+    val arr = Array.create[T](0)
     new Vector(VectorImpl.Leaf(arr), 0, 0)
 end
 
@@ -282,8 +282,8 @@ end
 private section VectorImpl
 
   union Node[T] =
-      Internal(children: Array.RefArray[Node[T]])
-    | Leaf(values: Array.RefArray[T])
+      Internal(children: Array[Node[T]])
+    | Leaf(values: Array[T])
 
   class VectorIterator[T](vec: Vector[T])
     var i: Int = 0
@@ -305,9 +305,9 @@ private section VectorImpl
         lookup(children[idx], i, depth - 1)
 
   // Copy arr and append one element (for T values)
-  def copyAppendT[T](arr: Array.RefArray[T], value: T): Array.RefArray[T] =
+  def copyAppendT[T](arr: Array[T], value: T): Array[T] =
     val n = arr.size
-    val res = Array.RefArray[T](n + 1)
+    val res = Array.create[T](n + 1)
     var i = 0
     while i < n do
       res[i] = arr[i]
@@ -316,9 +316,9 @@ private section VectorImpl
     res
 
   // Copy arr and append one element (for Node[T] values)
-  def copyAppendNode[T](arr: Array.RefArray[Node[T]], value: Node[T]): Array.RefArray[Node[T]] =
+  def copyAppendNode[T](arr: Array[Node[T]], value: Node[T]): Array[Node[T]] =
     val n = arr.size
-    val res = Array.RefArray[Node[T]](n + 1)
+    val res = Array.create[Node[T]](n + 1)
     var i = 0
     while i < n do
       res[i] = arr[i]
@@ -327,9 +327,9 @@ private section VectorImpl
     res
 
   // Copy arr and replace element at idx with value (for T values)
-  def copySetT[T](arr: Array.RefArray[T], idx: Int, value: T): Array.RefArray[T] =
+  def copySetT[T](arr: Array[T], idx: Int, value: T): Array[T] =
     val n = arr.size
-    val res = Array.RefArray[T](n)
+    val res = Array.create[T](n)
     var i = 0
     while i < n do
       res[i] = arr[i]
@@ -338,9 +338,9 @@ private section VectorImpl
     res
 
   // Copy arr and replace element at idx with value (for Node[T] values)
-  def copySetNode[T](arr: Array.RefArray[Node[T]], idx: Int, value: Node[T]): Array.RefArray[Node[T]] =
+  def copySetNode[T](arr: Array[Node[T]], idx: Int, value: Node[T]): Array[Node[T]] =
     val n = arr.size
-    val res = Array.RefArray[Node[T]](n)
+    val res = Array.create[Node[T]](n)
     var i = 0
     while i < n do
       res[i] = arr[i]
@@ -351,12 +351,12 @@ private section VectorImpl
   // Create a new rightmost path from depth down to a leaf holding value
   def newPath[T](depth: Int, value: T): Node[T] =
     if depth == 0 then
-      val arr = Array.RefArray[T](1)
+      val arr = Array.create[T](1)
       arr[0] = value
       Leaf(arr)
     else
       val child = newPath(depth - 1, value)
-      val arr = Array.RefArray[Node[T]](1)
+      val arr = Array.create[Node[T]](1)
       arr[0] = child
       Internal(arr)
 

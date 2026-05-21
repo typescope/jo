@@ -31,29 +31,7 @@ object Compiler:
   val defaultLinkMappings = Map(
     "jo.abort"      -> "jo.runtime.native.abortImpl",
 
-    // IntArray operations
-    "jo.Array.IntArray.create" -> "jo.runtime.native.IntArray.create",
-    "jo.Array.IntArray.get"    -> "jo.runtime.native.IntArray.get",
-    "jo.Array.IntArray.set"    -> "jo.runtime.native.IntArray.set",
-    "jo.Array.IntArray.size"   -> "jo.runtime.native.IntArray.size",
-
-    // FloatArray operations
-    "jo.Array.FloatArray.create" -> "jo.runtime.native.FloatArray.create",
-    "jo.Array.FloatArray.get"    -> "jo.runtime.native.FloatArray.get",
-    "jo.Array.FloatArray.set"    -> "jo.runtime.native.FloatArray.set",
-    "jo.Array.FloatArray.size"   -> "jo.runtime.native.FloatArray.size",
-
-    // ByteArray operations
-    "jo.Array.ByteArray.create" -> "jo.runtime.native.ByteArray.create",
-    "jo.Array.ByteArray.get"    -> "jo.runtime.native.ByteArray.get",
-    "jo.Array.ByteArray.set"    -> "jo.runtime.native.ByteArray.set",
-    "jo.Array.ByteArray.size"   -> "jo.runtime.native.ByteArray.size",
-
-    // RefArray operations
-    "jo.Array.RefArray.create" -> "jo.runtime.native.RefArray.create",
-    "jo.Array.RefArray.get"    -> "jo.runtime.native.RefArray.get",
-    "jo.Array.RefArray.set"    -> "jo.runtime.native.RefArray.set",
-    "jo.Array.RefArray.size"   -> "jo.runtime.native.RefArray.size",
+    "jo.Array.create" -> "jo.runtime.native.RefArray.create",
 
     // Regex engine hooks
     "jo.regex.Engine.compilePattern" -> "jo.runtime.native.regex.Regex.compilePattern",
@@ -94,7 +72,8 @@ object Compiler:
       val defaultRuntimePackages =
         if Config.useRuntimeApi.value.contains("native") then Nil
         else Config.NativeRuntimePath :: Nil
-      val namespacesSAST = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings) <| "Frontend"
+
+      val namespacesSAST = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, "jo.runtime.native.RefArray") <| "Frontend"
 
       locally {
         given Definitions = lazyDefn.value
