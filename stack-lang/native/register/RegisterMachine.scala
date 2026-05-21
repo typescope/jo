@@ -501,6 +501,10 @@ extends Backend(runtime):
         else if sym == defn.jo_pass then
           ctx.vs.push(Int32(0))
 
+        else if sym == runtime.Core_RefArray_ArrayClassId then
+          val cid = runtime.itable.getClassId(defn.Array_class)
+          ctx.vs.push(Int32(cid))
+
         else if sym.is(Flags.Object) && !this.isLoweringObjectInitProc then
           // make the accessor reachable
           getFunAddress(sym)
