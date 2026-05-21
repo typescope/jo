@@ -16,16 +16,16 @@ private def platformCall3(fn: String, arg1: Any, arg2: Any, arg3: Any): Bottom =
 private def abort(s: String): Bottom = platformCall1("abort", s)
 
 private section RefArray
-  def create[T](size: Int): Array.Platform.RefArray[T] =
+  def create[T](size: Int): Array[T] =
     platformCall1("createRefArray", size)
 
-  def get[T](arr: Array.Platform.RefArray[T], i: Int): T =
+  def get[T](arr: Array[T], i: Int): T =
     platformCall2("getRefArray", arr, i)
 
-  def set[T](arr: Array.Platform.RefArray[T], i: Int, value: T): Unit =
+  def set[T](arr: Array[T], i: Int, value: T): Unit =
     platformCall3("setRefArray", arr, i, value)
 
-  def size[T](arr: Array.Platform.RefArray[T]): Int =
+  def size[T](arr: Array[T]): Int =
     platformCall1("sizeArray", arr)
 end
 
@@ -97,14 +97,14 @@ private section RegexEngine
     platformCall2("compileRegexPattern", source, flags)
 
   def execPatternAt(pat: regex.Engine.Pattern, input: String, pos: Int): regex.Match | None =
-    val data: Array.Platform.RefArray[Bottom] = platformCall3("execRegexPatternAt", pat, input, pos)
+    val data: Array[Bottom] = platformCall3("execRegexPatternAt", pat, input, pos)
     if RefArray.size(data) == 0 then
       None
     else
       // Use type ascription as workaround for type inference
       val from: Bottom = RefArray.get(data, 0)
       val length: Bottom = RefArray.get(data, 1)
-      val groups: Array.Platform.RefArray[String | None] =
+      val groups: Array[String | None] =
         val value: Bottom = RefArray.get(data, 2)
         value
 
