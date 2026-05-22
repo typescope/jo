@@ -70,12 +70,12 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
 
     word match
       case Select(qual, name) =>
-        val qual2 = eraseWord(qual, expectedType = null, returnType)
+        val qual2 = eraseWord(qual, expectedType = eraseType(qual.tpe), returnType)
         val select2 = if qual2.eq(qual) then word else Select(qual2, name)(word.span)
         adapt(select2)
 
       case Encoded(repr) =>
-        val repr2 = eraseWord(repr, expectedType = null, returnType)
+        val repr2 = eraseWord(repr, expectedType = eraseType(repr.tpe), returnType)
         val tp2 = eraseType(word.tpe)
         // no adaptation needed for Encoded
         if repr2.eq(repr) && tp2.eq(word.tpe) then word
@@ -101,7 +101,7 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
           auto2
 
         val apply2 =
-          if changed then
+          if changed || !Subtyping.conforms(apply.tpe, invokeType.resultType) then
             Apply(fun2, args2, autos2)(apply.span, apply.isPartialApply)
           else
             apply
@@ -111,16 +111,16 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
       case New(tpt) =>
         val tp2 = eraseType(tpt.tpe)
         if tp2.eq(tpt.tpe) then
-          New(TypeTree(tp2)(tpt.span))(word.span)
-        else
           word
+        else
+          New(TypeTree(tp2)(tpt.span))(word.span)
 
       case Assign(id, rhs, isDefined) =>
         val rhs2 = eraseWord(rhs, id.symbol.tpe, returnType)
         if rhs.eq(rhs2) then word else Assign(id, rhs2, isDefined)
 
       case FieldAssign(select @ Select(qual, name), rhs) =>
-        val qual2 = eraseWord(qual, expectedType = null, returnType)
+        val qual2 = eraseWord(qual, expectedType = eraseType(qual.tpe), returnType)
         val select2 = if qual2.eq(qual) then select else Select(qual2, name)(word.span)
         val expectType = select2.tpe.widen
         val rhs2 = eraseWord(rhs, expectType, returnType)
@@ -132,8 +132,8 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
       case ifElse: If =>
         val If(cond, thenp, elsep) = ifElse
         val cond2 = eraseWord(cond, expectedType = defn.BoolType, returnType)
-        val thenp2 = eraseWord(cond, expectedType, returnType)
-        val elsep2 = eraseWord(cond, expectedType, returnType)
+        val thenp2 = eraseWord(thenp, expectedType, returnType)
+        val elsep2 = eraseWord(elsep, expectedType, returnType)
 
         val tp2 = eraseType(ifElse.tpe)
 
