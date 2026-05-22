@@ -49,7 +49,7 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
 
   def eraseType(tp: Type): Type = eraseTypeMap.apply(tp)(using ())
 
-  def eraseWord(word: Word, expectedType: Type | Null, returnType: Type)(using Context): Word =
+  def eraseWord(word: Word, expectedType: Type | Null, returnType: Type)(using Context): Word = common.Debug.trace("erase " + word.show, (_: Word).show, enable = false):
     // type adaptation and boxing/unboxing of primitive types
     //
     // Only nodes that may have a type of type paramter or primitive type need
@@ -66,12 +66,16 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
         // backend will decide whether the cast involves unboxing
         val needCast = !Subtyping.conforms(value.tpe, expectedType)
 
+        // println("value.tpe = " + value.tpe.show + ", expect = " + expectedType.show)
+
         if needBoxing || needCast then Encoded(value)(expectedType) else value
 
     word match
       case Select(qual, name) =>
         val qual2 = eraseWord(qual, expectedType = eraseType(qual.tpe), returnType)
-        val select2 = if qual2.eq(qual) then word else Select(qual2, name)(word.span)
+        val select2 =
+          if qual2.eq(qual) then word
+          else Select(qual2, name)(word.span)
         adapt(select2)
 
       case Encoded(repr) =>
@@ -100,8 +104,9 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
           changed ||= auto2 `ne` auto
           auto2
 
+        // TODO: type change can be achieved by mutating the type for better performance
         val apply2 =
-          if changed || !Subtyping.conforms(apply.tpe, invokeType.resultType) then
+          if changed || !Subtyping.conforms(invokeType.resultType, apply.tpe) then
             Apply(fun2, args2, autos2)(apply.span, apply.isPartialApply)
           else
             apply
