@@ -8,6 +8,10 @@ import sast.Denotations.*
 /** Erase type parameters and make boxing/unboxing of primitive values explicit
   *
   * Optional: Add bridge methods to classes for boxing mismatch of abstract interface methods.
+  *
+  * @param primitiveTagged whether primitive values are tagged for the target platform (true for JS/Ruby/Python)
+  * @param anyTagged       whether the erased result type Any is a tagged type for the target platform (true for Java/JS/Ruby/Python, false for reg/stac)
+  * @param eraseUnion      whether union type should be erased to Any (true for Java)
   */
 class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)(using defn: Definitions) extends Phase:
   private val eraseTypeMap = new Erasure.EraseTypeMap(eraseUnion)
@@ -50,7 +54,19 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
     //
     // Only nodes that may have a type of type paramter or primitive type need
     // adaptation
-    def adapt(value: Word): Word = ???
+    def adapt(value: Word): Word =
+      if expectedType == null then
+        value
+      else
+        val needBoxing =
+           value.tpe.isNumericOrBoolType
+           && !primitiveTagged
+           && (expectedType.isAnyType && anyTagged || expectedType.isUnionType)
+
+        // backend will decide whether the cast involves unboxing
+        val needCast = !Subtyping.conforms(value.tpe, expectedType)
+
+        if needBoxing || needCast then Encoded(value)(expectedType) else value
 
     word match
       case Select(qual, name) =>
