@@ -81,6 +81,7 @@ object Compiler:
         val backend = backendBuilder.createLinux86(FrontEnd.rewireMap.value)
         val backendStep = Step("backend", backend.compile)
 
+        val erasure = new Erasure(primitiveTagged = false, anyTagged = false, eraseUnion = false)
         val closureConvert = new ElimCapture
         val contextParamsLower = new phases.LowerContextParams(
             backend.runtime.ParamSupport_paramKey,
@@ -100,6 +101,7 @@ object Compiler:
         )
         namespacesSAST     |>
         contextParamsLower |>
+        erasure            |>
         closureConvert     |>
         runtimeLowerer     |>
         boxing             |>

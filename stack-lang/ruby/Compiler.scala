@@ -78,6 +78,7 @@ object Compiler:
             rubyRuntime.addBinding,
             rubyRuntime.finishBatch)
 
+        val erasure = new Erasure(primitiveTagged = true, anyTagged = true, eraseUnion = false)
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView
         val codeGen = new RubyCodeGen(rubyRuntime, FrontEnd.rewireMap.value)
@@ -87,6 +88,7 @@ object Compiler:
           )
         units               |>
         contextParamsLower  |>
+        erasure             |>
         closureConvert      |>
         viewMaterializer    |>
         backend

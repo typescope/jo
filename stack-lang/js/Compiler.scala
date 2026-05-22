@@ -79,6 +79,7 @@ object Compiler:
             jsRuntime.addBinding,
             jsRuntime.finishBatch)
 
+        val erasure = new Erasure(primitiveTagged = true, anyTagged = true, eraseUnion = false)
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView
         val backend: Step[List[FileUnit], Unit] =
@@ -88,6 +89,7 @@ object Compiler:
           })
         units               |>
         contextParamsLower  |>
+        erasure             |>
         closureConvert      |>
         viewMaterializer    |>
         backend
