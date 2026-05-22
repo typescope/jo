@@ -22,47 +22,25 @@ object Checker:
     *
     * Note: Do not access info of type symbols.
     */
-  def checkKind(tctor: TypeTree, targs: List[TypeTree])(using Reporter, Source): Boolean =
-    tctor.tpe.kind match
-      case None =>
-        Reporter.error(s"Invalid type constructor", tctor.pos)
-        false
+  def checkKind(tctor: TypeTree, targs: List[TypeTree], kind: Kind)(using Reporter, Source): Boolean =
+    kind match
+      case Kind.Arrow(args, to) =>
+        if args.size == targs.size then
+          // only simple kinded type parameters are supported
+          true
 
-      case Some(kind) =>
-        kind match
-          case Kind.Arrow(args, to) =>
-            if args.size == targs.size then
-              // only simple kinded type parameters are supported
-              true
+        else
+          val size = args.size
+          Reporter.error(s"The type constructor specifies $size parameter(s), found = ${targs.size}", tctor.pos)
+          false
 
-            else
-              val size = args.size
-              Reporter.error(s"The type constructor specifies $size parameter(s), found = ${targs.size}", tctor.pos)
-              false
+      case Kind.Simple =>
+        if targs.size != 0 then
+          Reporter.error(s"The type does not take parameters", tctor.pos)
+          false
 
-          case Kind.Simple =>
-            if targs.size != 0 then
-              Reporter.error(s"The type does not take parameters", tctor.pos)
-              false
-
-            else
-              true
-
-  def checkSimpleKind(tctor: TypeTree)(using Reporter, Source): Boolean =
-    tctor.tpe.kind match
-      case None =>
-        Reporter.error(s"Invalid type", tctor.pos)
-        false
-
-      case Some(kind) =>
-        kind match
-          case Kind.Arrow(args, to) =>
-            val size = args.size
-            Reporter.error(s"The type constructor specifies $size parameter(s), found = 0", tctor.pos)
-            false
-
-          case Kind.Simple =>
-            true
+        else
+          true
 
   def checkTypeApply(fun: Word, targs: List[TypeTree], span: Span)(using Definitions, Reporter, Source): Word =
     if !fun.tpe.isPolyType then

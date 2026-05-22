@@ -75,7 +75,7 @@ object Imports:
           index.add(link, StaticRef(sym))
           link
         else if sym.isType then
-          val link = TypeSymbol.create(sym.asTypeSymbol.kind, name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos)
+          val link = TypeSymbol.create(sym.asTypeSymbol.initKind, name, sym.flags | Flags.Alias, Visibility.Default, importScope.owner, qualid.pos)
           index.add(link, StaticRef(sym))
           link
         else if sym.isPattern then

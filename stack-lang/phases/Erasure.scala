@@ -86,16 +86,16 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
           case TypeApply(fun, _) => eraseWord(fun, expectedType = null, returnType)
           case _ => eraseWord(fun, expectedType = null, returnType)
 
-        val procType = fun2.tpe.asProcType
+        val invokeType = fun2.tpe.asInvokableType
 
         var changed = fun2 `ne` fun
 
-        val args2 = args.zip(procType.paramTypes).map: (arg, paramType) =>
+        val args2 = args.zip(invokeType.paramTypes).map: (arg, paramType) =>
           val arg2 = eraseWord(arg, paramType, returnType)
           changed ||= arg2 `ne` arg
           arg2
 
-        val autos2 = autos.zip(procType.autoTypes).map: (auto, autoType) =>
+        val autos2 = autos.zip(invokeType.autoTypes).map: (auto, autoType) =>
           val auto2 = eraseWord(auto, autoType, returnType)
           changed ||= auto2 `ne` auto
           auto2
@@ -263,7 +263,7 @@ object Erasure:
             for auto <- procType.autos
             yield auto.copy(info = this(auto.info))
 
-          val candidates2 = Nil
+          val candidates2 = procType.candidates.map(_ => Nil)
 
           val resType2 = this(procType.resultType)
           // DefaultValue contains no Types to map; thread defaultsFun through unchanged
