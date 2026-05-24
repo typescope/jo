@@ -103,7 +103,6 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     for fdef <- cdef.funs yield try
       val liftedSym = getLiftedFunSymbol(fdef.symbol)
 
-      // TODO: type erasure to properly handle type parameters
       val body2 =
         Phase.owner.set(liftedSym)
         this.transform(fdef.body)

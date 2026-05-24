@@ -61,8 +61,10 @@ extends Phase:
       tp match
         case procType: ProcType if sym.isFunction && procType.receives.nonEmpty =>
           procType.append(NamedInfo("__ctx", CtxType) :: Nil)
-        case lambdaType: LambdaType if sym.isFunction && lambdaType.receives.nonEmpty =>
+
+        case lambdaType: LambdaType if lambdaType.receives.nonEmpty =>
           LambdaType(lambdaType.params :+ CtxType, lambdaType.resultType, lambdaType.receives)
+
         case _ =>
           tp
 
