@@ -81,7 +81,7 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
         if conforms && (tagged(valueType) || !tagged(expectedType)) then
           value
 
-        else if !conforms && valueType.isAnyType then
+        else if !conforms && valueType.widenTermRef.isAnyType then
           // Backend will decide whether the cast involves unboxing
           Encoded(value)(expectedType)
 
