@@ -114,28 +114,6 @@ class MaterializeView(using defn: Definitions) extends Phase:
 
           Block(assign :: apply2 :: Nil)(apply.span)
 
-      case TypeApply(sel @ Select(qual, name), targs) if isConcreteInterfaceMethod(sel.tpe) =>
-        // TODO: after type erasure, the special handling here can be removed
-        val qual2 = this(qual)
-
-        if qual2.isIdempotent then
-          val fun2 = getFunTarget(qual2, name, targs)
-          Apply(fun2, qual2 :: args2, autos2)(apply.span)
-
-        else
-          val receiverSym =
-            val owner = Phase.owner.value
-            given Source = owner.sourcePos.source
-            TermSymbol.create("o", qual2.tpe, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
-
-          val receiver = Ident(receiverSym)(qual2.span)
-          val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
-
-          val fun2 = getFunTarget(receiver, name, targs)
-          val apply2 = Apply(fun2, receiver :: args2, autos2)(apply.span)
-
-          Block(assign :: apply2 :: Nil)(apply.span)
-
       case _ =>
         Apply(transform(fun), args2, autos2)(apply.span)
 
