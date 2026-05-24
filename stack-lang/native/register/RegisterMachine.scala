@@ -119,24 +119,6 @@ extends Backend(runtime):
 
       case app: Apply => compile(app)
 
-      case TypeApply(fun, targs) =>
-        fun match
-          case Ident(sym) if sym == runtime.Core_getInterfaceTable =>
-            val targ = targs.head
-            val classInfo = targ.tpe.classInfo
-            val label = runtime.itable.getInterfaceTable(classInfo)
-
-            // Mark all interface methods reachable
-            for meth <- runtime.itable.getInterfaceImplementations(classInfo) do
-              getFunAddress(meth)
-
-            val reg = freshVirtualReg()
-            gen(Instr.Move(label, reg))
-            ctx.vs.push(Reg(reg))
-
-          case _ =>
-            compile(fun)
-
       case assign: Assign => compile(assign)
 
       case ifElse: If => compile(ifElse)
@@ -170,9 +152,9 @@ extends Backend(runtime):
 
       case id: Ident => compile(id)
 
-      case _: Def         | _: With      | _: Allow  | _: Select  |
+      case _: Def         | _: With      | _: Allow  | _: Select    |
            _: FieldAssign | _: RecordLit | _: Match  | _: PatValDef |
-           _: New         | _: IsExpr    | _: Lambda | _: ClassTest
+           _: New         | _: IsExpr    | _: Lambda | _: ClassTest | _: TypeApply
       =>
         throw new Exception("Unexpected " + word)
 
@@ -513,6 +495,19 @@ extends Backend(runtime):
           val objAddr = runtime.getObjectHolder(sym)
           val reg = freshVirtualReg()
           gen(Instr.Load(objAddr, reg, Size.B32))
+          ctx.vs.push(Reg(reg))
+
+        else if sym == runtime.Core_getInterfaceTable then
+          val Literal(Constant.String(path)) = app.args.head.runtimeChecked
+          val classInfo = defn.resolveType(path).classInfo
+          val label = runtime.itable.getInterfaceTable(classInfo)
+
+          // Mark all interface methods reachable
+          for meth <- runtime.itable.getInterfaceImplementations(classInfo) do
+            getFunAddress(meth)
+
+          val reg = freshVirtualReg()
+          gen(Instr.Move(label, reg))
           ctx.vs.push(Reg(reg))
 
         else

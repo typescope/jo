@@ -54,11 +54,9 @@ private def debug(s: String): Unit receives none =
 //[ Stub function for EncodeClass phase to retrieve interface table address
   !
   ! The backend intrinsifies this call to a static address.
-  !
-  ! The type `T` must be a class type.
 //]
 @intrinsic
-private def getInterfaceTable[T]: Any receives none = ...
+private def getInterfaceTable(fullName: String): Any receives none = ...
 
 //[ Find a method pointer in an interface table
   !

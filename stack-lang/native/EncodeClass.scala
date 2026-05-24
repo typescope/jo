@@ -148,7 +148,8 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     members += Memory.ClassID -> IntLit(classId)(newExpr.span)
 
     // Add interface table
-    val itable = Ident(runtime.Core_getInterfaceTable)(newExpr.span).appliedToTypes(newExpr.tpe)
+    val fullName = StringLit(newExpr.tpe.classSymbol.fullName)(newExpr.span)
+    val itable = Ident(runtime.Core_getInterfaceTable)(newExpr.span).appliedTo(fullName)
     members += Memory.ITable -> itable
 
     for field <- classSym.classInfo.fields yield

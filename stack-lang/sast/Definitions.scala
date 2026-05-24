@@ -22,6 +22,7 @@ final class Definitions(private var _index: SymbolIndex) extends Definitions.Laz
   // Name lookup
 
   def resolveTerm(path: String): Symbol = resolveStatic(path.split('.').toList, Universe.Term)
+  def resolveType(path: String): Symbol = resolveStatic(path.split('.').toList, Universe.Type)
   def resolveContainer(path: String): Symbol = resolveStatic(path.split('.').toList, Universe.Container)
 
   def resolveStatic(parts: List[String], universe: Universe): Symbol =
