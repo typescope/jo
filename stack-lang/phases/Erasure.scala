@@ -264,7 +264,7 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
         val body2 = eraseWord(body, eraseType(body.tpe), returnType = null)
 
         val paramChanged = params.exists: param =>
-          val tp1 = param.tpe(using prevDefinitions)
+          val tp1 = defn.index.prevInfo(param).asType
           val tp2 = eraseType(tp1)
           tp1 `ne` tp2
 
