@@ -86,11 +86,13 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
           Encoded(value)(expectedType)
 
         else
-          assert(valueType.isLambdaType, "value not lambda, value type = " + valueType.show + ", expected type = " + expectedType.show)
+          assert(valueType.isLambdaType, "value not lambda, value type = " + valueType.show + ", expected type = " + expectedType.show + ", value = " + value.show)
           assert(expectedType.isLambdaType, "expected type not lambda: " + expectedType.show)
 
           val lambdaType1 @ LambdaType(paramTypes1, resType1, _) = valueType.asLambdaType
           val lambdaType2 @ LambdaType(paramTypes2, resType2, _)  = expectedType.asLambdaType
+
+          // println("lambda1 = " + lambdaType1.show + ", lambda2 = " + lambdaType2.show)
 
           assert(
             paramTypes1.size == paramTypes2.size,
@@ -256,12 +258,13 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
             if changed then Block(init2 :+ last2)(word.span) else word
 
       case lambda @ Lambda(symbol, params, receives, body) =>
-        val lambdaType = symbol.tpe.asLambdaType
         // Return may not cross lambda boundary
-        val body2 = eraseWord(body, lambdaType.resultType, returnType = null)
-        val paramChanged = params.forall: param =>
-          val tpe = param.tpe
-          eraseType(tpe) `ne` tpe
+        val body2 = eraseWord(body, eraseType(body.tpe), returnType = null)
+
+        val paramChanged = params.exists: param =>
+          val tp1 = param.tpe(using prevDefinitions)
+          val tp2 = eraseType(tp1)
+          tp1 `ne` tp2
 
         val lambda2 =
           if body2.ne(body) || paramChanged then
