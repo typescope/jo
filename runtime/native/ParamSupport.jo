@@ -1,5 +1,7 @@
 namespace jo.runtime.native.ParamSupport
 
+import jo.compile.intrinsic
+
 import jo.runtime.native
 import jo.runtime.native.Addr
 
@@ -17,6 +19,7 @@ private class Batch
 
 // Stub function to be replaced at backend.
 // id must be an Ident pointing to the context parameter.
+@intrinsic
 private def paramKey[T](id: T): Key[T] receives none =
   native.abortImpl "paramKey should be replaced by backend"
 

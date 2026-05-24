@@ -157,6 +157,7 @@ private section ParamSupport
 
   // Stub function to be replaced at backend
   // id must be an Ident pointing to the context parameter
+  @intrinsic
   def paramKey[T](id: T): Key[T] receives none =
     abort "paramSymbol should be replaced by backend"
 

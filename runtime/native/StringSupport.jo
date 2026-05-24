@@ -21,7 +21,7 @@ private[native] section StringOps
     var cp = 0
     var off = 0
     while off < byteSize do
-      val step = utf8SeqLen(readByte(addAddr content off))
+      val step = utf8SeqLen: readByte(addAddr content off)
       off = off + step
       cp = cp + 1
     end
@@ -31,7 +31,7 @@ private[native] section StringOps
     var cp = 0
     var off = 0
     while cp < cpIndex && off < byteSize do
-      val step = utf8SeqLen(readByte(addAddr content off))
+      val step = utf8SeqLen: readByte(addAddr content off)
       off = off + step
       cp = cp + 1
     end
