@@ -118,12 +118,27 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
         adapt(select2, expectedType)
 
       case Encoded(repr) =>
-        // TODO: interface encoding
-        val repr2 = eraseWord(repr, expectedType = eraseType(repr.tpe), returnType)
-        val tp2 = eraseType(word.tpe)
-        // no adaptation needed for Encoded
-        if repr2.eq(repr) && tp2.eq(word.tpe) then word
-        else Encoded(repr2)(tp2)
+        val isVoid = word.tpe.isVoidType
+        repr match
+          case lambda: Lambda if !isVoid =>
+            // interface encoding
+            assert(word.tpe.isLambdaInterface, "Non-lambda interface: " + word.tpe.show)
+            val interfaceType = eraseType(word.tpe)
+            val Some(lambdaType) = interfaceType.getLambdaInterfaceType.runtimeChecked
+            // Return cannot cross lambda boundary
+            val lambda2 = eraseWord(lambda, expectedType = lambdaType, returnType = null)
+            Encoded(lambda2)(interfaceType)
+
+          case _ =>
+            if isVoid then
+              // value drop
+              assert(expectedType.isVoidType, "expected type is non-void: " + expectedType.show)
+              Encoded(eraseWord(repr, expectedType = eraseType(repr.tpe), returnType))(VoidType)
+
+            else
+              // pattern type cast, re-do the cast if needed
+              val word2 = eraseWord(repr, expectedType = eraseType(word.tpe), returnType)
+              adapt(word2, expectedType)
 
       case apply @ Apply(fun, args, autos) =>
         val fun2 = fun match
