@@ -66,6 +66,10 @@ object Assembler:
       for label <- pb.getDefinedLabels() do
         elf.addFunSymbol(label.name, labelMap(label), secIndex)
 
+      val locMarks = pb.getLocMarks()
+      if locMarks.nonEmpty then
+        elf.addDebugLineSection(locMarks)
+
     ////////////////// write file /////////////////
 
     val segments = elf.layoutSegments()
@@ -111,7 +115,14 @@ object Assembler:
       this(baseAddr, new mutable.ArrayBuffer, labelMap, new mutable.ArrayBuffer)
 
     /** New labels defined for the current PatchableBuffer */
-    private  val newLabels : mutable.ArrayBuffer[Label] = new mutable.ArrayBuffer
+    private val newLabels : mutable.ArrayBuffer[Label] = new mutable.ArrayBuffer
+
+    private val locMarks: mutable.ArrayBuffer[(String, Int, Int)] = new mutable.ArrayBuffer
+
+    def addLocMark(file: String, line: Int): Unit =
+      locMarks.addOne((file, line, currentAddr()))
+
+    def getLocMarks(): List[(String, Int, Int)] = locMarks.toList
 
     def addByte(data : Byte): Unit = buffer.addOne(data)
 

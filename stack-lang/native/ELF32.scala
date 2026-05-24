@@ -137,6 +137,133 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
     val sym = Symbol(addName(name), addr, 0, (STB_GLOBAL << 4) | STT_OBJECT, secIndex)
     symbols.addOne(sym)
 
+  def addDebugLineSection(locMarks: List[(String, Int, Int)]): Unit =
+    val validMarks = locMarks.filter(_._1.nonEmpty)
+    if validMarks.isEmpty then return
+
+    val buf = new mutable.ArrayBuffer[Byte]
+
+    def addByte(b: Int): Unit = buf += b.toByte
+    def addInt16(v: Int): Unit = { addByte(v); addByte(v >> 8) }
+    def addInt32(v: Int): Unit = { addByte(v); addByte(v >> 8); addByte(v >> 16); addByte(v >> 24) }
+    def patchInt32(pos: Int, v: Int): Unit =
+      buf(pos)     = v.toByte
+      buf(pos + 1) = (v >> 8).toByte
+      buf(pos + 2) = (v >> 16).toByte
+      buf(pos + 3) = (v >> 24).toByte
+    def addStr(s: String): Unit =
+      for b <- s.getBytes(StandardCharsets.UTF_8) do buf += b
+      buf += 0
+    def uleb128(value: Int): Unit =
+      var v = value
+      while
+        val b = v & 0x7F
+        v >>>= 7
+        if v != 0 then buf += (b | 0x80).toByte
+        else buf += b.toByte
+        v != 0
+      do ()
+    def sleb128(value: Int): Unit =
+      var v = value
+      var more = true
+      while more do
+        val b = v & 0x7F
+        v >>= 7
+        if (v == 0 && (b & 0x40) == 0) || (v == -1 && (b & 0x40) != 0) then
+          buf += b.toByte
+          more = false
+        else
+          buf += (b | 0x80).toByte
+
+    // Build directory and file tables
+    val uniqueFiles = validMarks.map(_._1).distinct
+    val uniqueDirs  = uniqueFiles.map { p => val i = p.lastIndexOf('/'); if i >= 0 then p.substring(0, i) else "" }
+                                 .distinct.filter(_.nonEmpty)
+    val dirIndex  = uniqueDirs.zipWithIndex.map((d, i) => d -> (i + 1)).toMap
+    val fileIndex = uniqueFiles.zipWithIndex.map((f, i) => f -> (i + 1)).toMap
+
+    // ---- Header ----
+    val unitLengthOffset = buf.size
+    addInt32(0)      // unit_length placeholder
+    addInt16(2)      // DWARF version 2
+    val headerLengthOffset = buf.size
+    addInt32(0)      // header_length placeholder
+    val headerBodyStart = buf.size
+
+    addByte(1)       // minimum_instruction_length
+    addByte(1)       // default_is_stmt
+    addByte(-5)      // line_base (signed)
+    addByte(14)      // line_range
+    addByte(13)      // opcode_base
+    for n <- Array(0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1) do addByte(n)
+
+    for dir <- uniqueDirs do addStr(dir)
+    addByte(0)       // end of include_directories
+
+    for filePath <- uniqueFiles do
+      val slash = filePath.lastIndexOf('/')
+      val basename = if slash >= 0 then filePath.substring(slash + 1) else filePath
+      val dIdx     = if slash >= 0 then dirIndex.getOrElse(filePath.substring(0, slash), 0) else 0
+      addStr(basename)
+      uleb128(dIdx)
+      uleb128(0)     // mtime
+      uleb128(0)     // file size
+    addByte(0)       // end of file_names
+
+    patchInt32(headerLengthOffset, buf.size - headerBodyStart)
+
+    // ---- Line number program ----
+    val LINE_BASE    = -5
+    val LINE_RANGE   = 14
+    val OPCODE_BASE  = 13
+
+    var curAddr = 0
+    var curFile = 1
+    var curLine = 1
+
+    val sorted = validMarks.sortBy(_._3)
+
+    // DW_LNE_set_address for the first entry
+    addByte(0); uleb128(5); addByte(2); addInt32(sorted.head._3)
+    curAddr = sorted.head._3
+
+    for (file, line, addr) <- sorted do
+      val fIdx = fileIndex(file)
+
+      if fIdx != curFile then
+        addByte(4); uleb128(fIdx)
+        curFile = fIdx
+
+      val addrDelta = addr - curAddr
+      val lineDelta = line - curLine
+      val special   = (lineDelta - LINE_BASE) + LINE_RANGE * addrDelta + OPCODE_BASE
+
+      if lineDelta >= LINE_BASE && lineDelta < LINE_BASE + LINE_RANGE &&
+         addrDelta >= 0 && special <= 255 then
+        addByte(special)
+      else
+        if addrDelta != 0 then { addByte(2); uleb128(addrDelta) }
+        if lineDelta != 0 then { addByte(3); sleb128(lineDelta) }
+        addByte(1)   // DW_LNS_copy
+
+      curAddr = addr
+      curLine = line
+
+    // DW_LNE_end_sequence
+    addByte(0); uleb128(1); addByte(1)
+
+    patchInt32(unitLengthOffset, buf.size - unitLengthOffset - 4)
+
+    // ---- Register section ----
+    val bytes = buf.toArray
+    val chunk = new DataChunk:
+      val fileSize   = bytes.length
+      val memorySize = bytes.length
+      def fileBytes() = bytes
+
+    addSection(".debug_line", baseAddr = 0, chunk, flags = 0)
+  end addDebugLineSection
+
   def layoutSegments(): List[Segment] =
     layout.run(builders.toMap)
 

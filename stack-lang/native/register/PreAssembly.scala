@@ -133,6 +133,8 @@ object PreAssembly:
       case Instr.JZero(reg: Reg, label: Label) =>
         useRegs += reg.index
 
+      case Instr.LocMark(_, _) =>
+
     end match
 
     RegInfo(defRegs.toList, useRegs.toList)
@@ -179,6 +181,9 @@ object PreAssembly:
 
       case Instr.JZero(Reg(index), label: Label) =>
         Instr.JZero(Reg(substReg(index)), label) :: Nil
+
+      case Instr.LocMark(_, _) =>
+        instr :: Nil
     end match
 
   def substDest(instr: Instr, regAlloc: Map[Int, Int]): Instr =
@@ -201,6 +206,9 @@ object PreAssembly:
         instr
 
       case Instr.JZero(reg: Reg, label: Label) =>
+        instr
+
+      case Instr.LocMark(_, _) =>
         instr
 
     end match
@@ -242,6 +250,9 @@ object PreAssembly:
 
       case Instr.JZero(Reg(index), label: Label) =>
         Instr.JZero(Reg(substReg(index)), label)
+
+      case Instr.LocMark(_, _) =>
+        instr
 
     end match
 

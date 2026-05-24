@@ -3,6 +3,8 @@ package native.stack
 import common.Debug
 import reporting.Reporter
 
+import ast.Positions.Source
+
 import sast.*
 import sast.Trees.*
 import sast.Symbols.*
@@ -36,7 +38,8 @@ extends Backend(runtime):
   final class FunctionContext(
     val localAddr: Map[Symbol, Addr],
     val funResCount: Int,
-    val localReturnTargets: mutable.Map[Symbol, Label]
+    val localReturnTargets: mutable.Map[Symbol, Label],
+    val source: Source
   )
 
   val String_fromByteString = runtime.Core_String_fromByteString
@@ -78,6 +81,12 @@ extends Backend(runtime):
     for word <- block.words do compile(word)
 
   def compile(word: Word)(using fctx: FunctionContext, cb: CodeBuffer): Unit = Debug.trace("Compiling " + word.show, enable = false):
+    word match
+      case _: Apply | _: If | _: While | _: Assign | _: Return | _: Labeled =>
+        val src = fctx.source
+        cb.mark(src.file, src.offsetToLine(word.span.start) + 1)
+      case _ =>
+
     word match
       case Literal(c) =>
         c match
@@ -153,6 +162,9 @@ extends Backend(runtime):
 
     cb.mark(label)
 
+    val src = sym.source
+    cb.mark(src.file, src.offsetToLine(sym.span.start) + 1)
+
     val symAddrMap = mutable.Map.empty[Symbol, Addr]
 
     // bind param address relative to FP_REG
@@ -170,7 +182,7 @@ extends Backend(runtime):
     cb.add(Instr.Move(Reg(SP_REG), FP_REG))
     cb.add(Instr.Sub(Reg(SP_REG), Int32(sizeLocals), SP_REG))
 
-    given FunctionContext = new FunctionContext(symAddrMap.toMap, resCount, mutable.Map.empty)
+    given FunctionContext = new FunctionContext(symAddrMap.toMap, resCount, mutable.Map.empty, src)
     compile(fdef.body)
     ret(resCount)
   catch
