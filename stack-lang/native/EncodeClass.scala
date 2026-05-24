@@ -85,13 +85,12 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     val self = idef.self
     for fdef <- idef.methods if !fdef.symbol.is(Flags.Defer) yield
       val liftedSym = getLiftedFunSymbol(fdef.symbol)
-      // TODO: type erasure to properly handle type parameters
       val body2 =
         Phase.owner.set(liftedSym)
         this.transform(fdef.body)
 
       FunDef(
-        liftedSym, fdef.tparams,
+        liftedSym, tparams = Nil,
         self :: fdef.params,
         fdef.autos, fdef.candidates,
         fdef.resultType,
@@ -110,7 +109,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         this.transform(fdef.body)
 
       FunDef(
-        liftedSym, fdef.tparams,
+        liftedSym, tparams = Nil,
         self :: fdef.params,
         fdef.autos, fdef.candidates,
         fdef.resultType,
@@ -210,13 +209,11 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         case MemberRef(_, sym) => sym.owner.isInterface && sym.is(Flags.Defer)
         case _ => false
 
-    def rewriteApply(receiverRef: Word, name: String, targs: List[TypeTree]): Word =
+    def rewriteApply(receiverRef: Word, name: String): Word =
       val memberRef = receiverRef.tpe.termMember(name).as[RefType]
       val isAbstractCall = isAbstractInterfaceMethod(memberRef)
 
-      val procType =
-        if targs.isEmpty then memberRef.asProcType
-        else memberRef.asProcType.instantiate(targs.map(_.tpe))
+      val procType = memberRef.asProcType
 
       val liftedFun =
         if isAbstractCall then
@@ -314,7 +311,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           val qual2 = this(qual)
 
           if qual2.isIdempotent then
-            rewriteApply(qual2, name, targs = Nil)
+            rewriteApply(qual2, name)
 
           else
             val receiverSym =
@@ -325,27 +322,8 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
             val receiver = Ident(receiverSym)(qual2.span)
             val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
 
-            val apply2 = rewriteApply(receiver, name, targs = Nil)
+            val apply2 = rewriteApply(receiver, name)
             Block(assign :: apply2 :: Nil)(apply.span)
-
-      case TypeApply(Select(qual, name), targs) if qual.tpe.isClassInfoType =>
-        // TODO: after type erasure, the special handling here can be removed
-        val qual2 = this(qual)
-
-        if qual2.isIdempotent then
-          rewriteApply(qual2, name, targs)
-
-        else
-          val receiverSym =
-            val owner = Phase.owner.value
-            given Source = Phase.source.value
-            TermSymbol.create("o", qual2.tpe.widen, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
-
-          val receiver = Ident(receiverSym)(qual2.span)
-          val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
-
-          val apply2 = rewriteApply(receiver, name, targs)
-          Block(assign :: apply2 :: Nil)(apply.span)
 
       case _ =>
         Apply(transform(fun), args2, autos2)(apply.span)
