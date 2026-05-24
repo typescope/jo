@@ -627,8 +627,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   /** Unpack a packed vararg list (List.empty + a + b + c) into [a, b, c] */
   private def unpackVarargList(word: Word): List[Word] =
     word match
-      case Apply(TypeApply(Ident(sym), _), Nil, _) if sym == defn.List_empty =>
-        Nil
       case Apply(Ident(sym), Nil, _) if sym == defn.List_empty =>
         Nil
       case Apply(Select(prev, "+"), List(arg), _) =>
@@ -639,8 +637,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   /** Unpack a @js.interop vararg pack (List.empty + a + b ++ xs) into JS exprs, splicing Lists as ...js.list(xs) */
   private def compileVarargItems(word: Word)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], List[JS.Expr]) =
     word match
-      case Apply(TypeApply(Ident(sym), _), Nil, _) if sym == defn.List_empty =>
-        (Nil, Nil)
       case Apply(Ident(sym), Nil, _) if sym == defn.List_empty =>
         (Nil, Nil)
 
@@ -1050,10 +1046,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
           else
             (stats, call)
-
-      case TypeApply(fun2, _) =>
-        // Strip type application and recurse
-        compileCall(fun2, args, enforcePurity)
 
       case Encoded(repr) =>
         // Strip encoding and recurse
