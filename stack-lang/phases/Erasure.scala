@@ -78,7 +78,7 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
         def taggingConforms(valueType: Type, expectedType: Type) =
           tagged(valueType) == tagged(expectedType)
 
-        if conforms && taggingConforms(valueType, expectedType) then
+        if conforms && (tagged(valueType) || !tagged(expectedType)) then
           value
 
         else if !conforms && valueType.isAnyType then
@@ -86,7 +86,7 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
           Encoded(value)(expectedType)
 
         else
-          assert(valueType.isLambdaType, "value not lambda: " + valueType.show)
+          assert(valueType.isLambdaType, "value not lambda, value type = " + valueType.show + ", expected type = " + expectedType.show)
           assert(expectedType.isLambdaType, "expected type not lambda: " + expectedType.show)
 
           val lambdaType1 @ LambdaType(paramTypes1, resType1, _) = valueType.asLambdaType
@@ -136,9 +136,11 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
               Encoded(eraseWord(repr, expectedType = eraseType(repr.tpe), returnType))(VoidType)
 
             else
+              // TODO: add union type assertion
               // pattern type cast, re-do the cast if needed
-              val word2 = eraseWord(repr, expectedType = eraseType(word.tpe), returnType)
-              adapt(word2, expectedType)
+              val word2 = eraseWord(repr, expectedType = eraseType(repr.tpe), returnType)
+              val encodedType2 = eraseType(word.tpe)
+              adapt(Encoded(word2)(encodedType2), expectedType)
 
       case apply @ Apply(fun, args, autos) =>
         val fun2 = fun match
@@ -257,8 +259,12 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
         val lambdaType = symbol.tpe.asLambdaType
         // Return may not cross lambda boundary
         val body2 = eraseWord(body, lambdaType.resultType, returnType = null)
+        val paramChanged = params.forall: param =>
+          val tpe = param.tpe
+          eraseType(tpe) `ne` tpe
+
         val lambda2 =
-          if body2 `ne` body then
+          if body2.ne(body) || paramChanged then
             Lambda(symbol, params, receives, body2)(lambda.span)
           else
             lambda
