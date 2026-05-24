@@ -92,6 +92,12 @@ extends Backend(runtime):
 
   def compile(word: Word)(using ctx: Context): Unit = Debug.trace("Compiling " + word.show, enable = false):
     word match
+      case _: Apply | _: If | _: While | _: Assign | _: Return | _: Labeled =>
+        val src = ctx.fun.source
+        gen(Instr.LocMark(src.file, src.offsetToLine(word.span.start) + 1))
+      case _ =>
+
+    word match
       case Literal(c) =>
         c match
           case Constant.Bool(b) =>
@@ -216,6 +222,9 @@ extends Backend(runtime):
 
     // callee-saved registers
     gen(PlaceHolder.CalleeSaveRegisters)
+
+    val src = sym.source
+    gen(Instr.LocMark(src.file, src.offsetToLine(sym.span.start) + 1))
 
     val base = Rel(FP_REG, (inProto.stackItemCount - 1) << 2)
 
