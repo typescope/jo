@@ -90,7 +90,7 @@ object Compiler:
             backend.runtime.ParamSupport_startBatch,
             backend.runtime.ParamSupport_addBinding,
             backend.runtime.ParamSupport_finishBatch)
-        val runtimeLowerer = new native.LowerRuntime(backend.runtime)
+
         val encodeClass = new native.EncodeClass(backend.runtime)
         val boxing = new native.Boxing(backend.runtime)
         val explicitAlloc = new native.ExplicitAlloc(backend.runtime)
@@ -103,7 +103,6 @@ object Compiler:
         contextParamsLower |>
         erasure            |>
         closureConvert     |>
-        runtimeLowerer     |>
         boxing             |>
         encodeClass        |>
         explicitAlloc      |>

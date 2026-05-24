@@ -308,6 +308,12 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           val qual2 = this(qual)
           Apply(Ident(primitiveSym)(fun.span), qual2 :: args2, autos2)(apply.span)
 
+        else if qual.tpe.isSubtype(defn.StringType) then
+          val qual2 = transform(qual)
+          val argsAll = qual2 :: args2
+
+          Ident(runtime.Core_StringOps.termMember(name))(fun.span).appliedTo(argsAll*)
+
         else
           val qual2 = this(qual)
 
@@ -325,6 +331,10 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
             val apply2 = rewriteApply(receiver, name)
             Block(assign :: apply2 :: Nil)(apply.span)
+
+      case Ident(sym) if sym == runtime.Core_cast =>
+        assert(args2.size == 1, args)
+        args2.head
 
       case _ =>
         Apply(transform(fun), args2, autos2)(apply.span)
