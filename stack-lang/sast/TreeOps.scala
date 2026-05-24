@@ -4,7 +4,7 @@ import Trees.*
 import Symbols.*
 import Types.*
 
-import ast.Positions.{Span, Source}
+import ast.Positions.Span
 
 import scala.collection.mutable
 
@@ -116,9 +116,9 @@ object TreeOps:
   def createLambdaWithSymbol
       (lambdaSym: Symbol, lambdaType: LambdaType, span: Span)
       (body: List[Ident] => Word)
-      (using defn: Definitions, source: Source)
+      (using defn: Definitions)
   : Word =
-    val pos = span.toPos
+    val pos = span.toPos(using lambdaSym.source)
 
     // Create parameter symbols for the lambda (with synthetic names)
     val paramSyms =
@@ -139,10 +139,10 @@ object TreeOps:
   def createLambda
       (lambdaType: LambdaType, owner: Symbol, span: Span)
       (body: List[Ident] => Word)
-      (using defn: Definitions, source: Source)
+      (using defn: Definitions)
   : Word =
     // Create a lambda symbol
-    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos)
+    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos(using owner.source))
     createLambdaWithSymbol(lambdaSym, lambdaType, span)(body)
 
   /** Eta-expand a function to a lambda
@@ -150,7 +150,7 @@ object TreeOps:
     * Converts: f
     * To: (arg1: T1, ...) => f(arg1, ...)
     */
-  def etaExpand(fun: Symbol, owner: Symbol, receives: List[Symbol], span: Span)(using defn: Definitions, source: Source): Word =
+  def etaExpand(fun: Symbol, owner: Symbol, receives: List[Symbol], span: Span)(using defn: Definitions): Word =
     val procType = fun.tpe.asProcType
 
     assert(procType.autos.isEmpty, "Autos not supported in etaExpand: " + fun)

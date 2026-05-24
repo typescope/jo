@@ -49,36 +49,75 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
 
   def eraseType(tp: Type): Type = eraseTypeMap.apply(tp)(using ())
 
-  def eraseWord(word: Word, expectedType: Type | Null, returnType: Type)(using Context): Word = common.Debug.trace("erase " + word.show, (_: Word).show, enable = false):
-    // type adaptation and boxing/unboxing of primitive types
-    //
-    // Only nodes that may have a type of type paramter or primitive type need
-    // adaptation
-    def adapt(value: Word): Word =
-      if expectedType == null then
-        value
+  /** Type adaptation for boxing/unboxing of primitive types and cast
+    *
+    * Only nodes that may have a type of type paramter or primitive type need
+    * adaptation.
+    */
+  def adapt(value: Word, expectedType: Type)(using Context): Word =
+    if !expectedType.isValueType then
+      value
+    else
+      val valueType = value.tpe
+
+      val conforms = Subtyping.conforms(value.tpe, expectedType)
+
+      // println("value.tpe = " + value.tpe.show + ", expect = " + expectedType.show)
+
+      if primitiveTagged then
+        // fast path for JS/Ruby/Python
+        // Lambdas do not matter because all values are tagged
+        if conforms then value else Encoded(value)(expectedType)
+
       else
-        val needBoxing =
-           value.tpe.isNumericOrBoolType
-           && !primitiveTagged
-           && (expectedType.isAnyType && anyTagged || expectedType.isUnionType)
+        // assume !primitiveTagged
+        def tagged(tp: Type): Boolean =
+          !valueType.isNumericOrBoolType && (anyTagged || !tp.isAnyType)
 
-        // backend will decide whether the cast involves unboxing
-        val needCast = !Subtyping.conforms(value.tpe, expectedType)
+        def taggingConforms(valueType: Type, expectedType: Type) =
+          tagged(valueType) == tagged(expectedType)
 
-        // println("value.tpe = " + value.tpe.show + ", expect = " + expectedType.show)
+        if conforms && taggingConforms(valueType, expectedType) then
+          value
 
-        if needBoxing || needCast then Encoded(value)(expectedType) else value
+        else if !conforms && valueType.isAnyType then
+          // Backend will decide whether the cast involves unboxing
+          Encoded(value)(expectedType)
 
+        else
+          assert(valueType.isLambdaType, "value not lambda: " + valueType.show)
+          assert(expectedType.isLambdaType, "expected type not lambda: " + expectedType.show)
+
+          val lambdaType1 @ LambdaType(paramTypes1, resType1, _) = valueType.asLambdaType
+          val lambdaType2 @ LambdaType(paramTypes2, resType2, _)  = expectedType.asLambdaType
+
+          assert(
+            paramTypes1.size == paramTypes2.size,
+            "lambda arity not equal. lambda1 = " + lambdaType1.show + ", lambda2 = " + lambdaType2.show
+          )
+
+          val taggingOK = taggingConforms(resType1, resType2) && paramTypes1.zip(paramTypes2).forall((tp1, tp2) => taggingConforms(tp1, tp2))
+          if taggingOK then
+            if conforms then value else Encoded(value)(expectedType)
+
+          else
+            TreeOps.createLambda(lambdaType2, Phase.owner.value, value.span): paramRefs =>
+              val args = paramRefs.zip(paramTypes1).map: (paramRef, paramType) =>
+                adapt(paramRef, paramType)
+
+              Apply(value, args, autos = Nil)(value.span)
+
+  def eraseWord(word: Word, expectedType: Type, returnType: Type)(using Context): Word = common.Debug.trace("erase " + word.show, (_: Word).show, enable = false):
     word match
       case Select(qual, name) =>
         val qual2 = eraseWord(qual, expectedType = eraseType(qual.tpe), returnType)
         val select2 =
           if qual2.eq(qual) then word
           else Select(qual2, name)(word.span)
-        adapt(select2)
+        adapt(select2, expectedType)
 
       case Encoded(repr) =>
+        // TODO: interface encoding
         val repr2 = eraseWord(repr, expectedType = eraseType(repr.tpe), returnType)
         val tp2 = eraseType(word.tpe)
         // no adaptation needed for Encoded
@@ -87,8 +126,8 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
 
       case apply @ Apply(fun, args, autos) =>
         val fun2 = fun match
-          case TypeApply(fun, _) => eraseWord(fun, expectedType = null, returnType)
-          case _ => eraseWord(fun, expectedType = null, returnType)
+          case TypeApply(fun, _) => eraseWord(fun, expectedType = eraseType(fun.tpe), returnType)
+          case _ => eraseWord(fun, expectedType = eraseType(fun.tpe), returnType)
 
         val invokeType = fun2.tpe.asInvokableType
 
@@ -111,10 +150,11 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
           else
             apply
 
-        adapt(apply2)
+        adapt(apply2, expectedType)
 
       case New(tpt) =>
         val tp2 = eraseType(tpt.tpe)
+        // No adaptation for New
         if tp2.eq(tpt.tpe) then
           word
         else
@@ -140,13 +180,12 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
         val thenp2 = eraseWord(thenp, expectedType, returnType)
         val elsep2 = eraseWord(elsep, expectedType, returnType)
 
-        val tp2 = eraseType(ifElse.tpe)
-
         // adaptation happens in each branch
-        if cond2.eq(cond) && thenp2.eq(thenp) && elsep2.eq(elsep) && tp2.eq(ifElse.tpe) then
+        if cond2.eq(cond) && thenp2.eq(thenp) && elsep2.eq(elsep) then
+          // TODO: set type to expectedType?
           ifElse
         else
-          If(cond2, thenp2, elsep2)(tp2, ifElse.span)
+          If(cond2, thenp2, elsep2)(expectedType, ifElse.span)
 
       case whileDo: While =>
         val While(cond, body) = whileDo
@@ -167,7 +206,7 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
           else
             Labeled(label, resultType2, body2)(word.span)
 
-        adapt(word2)
+        adapt(word2, expectedType)
 
       case ret @ Return(label, value) =>
         val value2 = eraseWord(ret.value, returnType, returnType)
@@ -175,11 +214,11 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
         else Return(label, value2)(word.span)
 
       case classTest @ ClassTest(value, cls) =>
-        val value2 = eraseWord(value, expectedType = null, returnType)
+        val value2 = eraseWord(value, expectedType = eraseType(value.tpe), returnType)
         if value2.eq(value) then
-          adapt(classTest)
+          adapt(classTest, expectedType)
         else
-          adapt(ClassTest(value2, cls)(classTest.span))
+          adapt(ClassTest(value2, cls)(classTest.span), expectedType)
 
       case Block(words) =>
         (words: @unchecked) match
@@ -202,12 +241,15 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
         val lambdaType = symbol.tpe.asLambdaType
         // Return may not cross lambda boundary
         val body2 = eraseWord(body, lambdaType.resultType, returnType = null)
-        if body2 `ne` body then
-          Lambda(symbol, params, receives, body2)(lambda.span)
-        else
-          lambda
+        val lambda2 =
+          if body2 `ne` body then
+            Lambda(symbol, params, receives, body2)(lambda.span)
+          else
+            lambda
 
-      case _: Literal | _: Ident => adapt(word)
+        adapt(lambda2, expectedType)
+
+      case _: Literal | _: Ident => adapt(word, expectedType)
 
       case _: With | _: Allow | _: Match | _: PatValDef | _: RecordLit |
            _: PatDef | _: IsExpr | _: TypeApply =>
@@ -218,6 +260,8 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
   /** Leave the def tree in original info, which are harmless */
   override def transformFunDef(fdef: FunDef)(using Context): FunDef = try
     val sym = fdef.symbol
+
+    Phase.owner.set(sym)
 
     val body2 =
       val resType = sym.tpe.asProcType.resultType
