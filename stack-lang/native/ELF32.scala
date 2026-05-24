@@ -137,6 +137,72 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
     val sym = Symbol(addName(name), addr, 0, (STB_GLOBAL << 4) | STT_OBJECT, secIndex)
     symbols.addOne(sym)
 
+  def addDebugAbbrevSection(): Unit =
+    val buf = new mutable.ArrayBuffer[Byte]
+    def addByte(b: Int): Unit = buf += b.toByte
+    def uleb128(v: Int): Unit =
+      var x = v
+      while { val b = x & 0x7F; x >>>= 7; if x != 0 then buf += (b | 0x80).toByte else buf += b.toByte; x != 0 } do ()
+
+    uleb128(1)              // abbreviation code 1
+    uleb128(0x11)           // DW_TAG_compile_unit
+    addByte(0)              // DW_CHILDREN_no
+    uleb128(0x10); uleb128(0x06)   // DW_AT_stmt_list,  DW_FORM_data4
+    uleb128(0x1b); uleb128(0x08)   // DW_AT_comp_dir,   DW_FORM_string
+    uleb128(0x03); uleb128(0x08)   // DW_AT_name,       DW_FORM_string
+    uleb128(0x13); uleb128(0x05)   // DW_AT_language,   DW_FORM_data2
+    addByte(0); addByte(0)         // end of attributes
+    addByte(0)                     // end of abbreviation table
+
+    val bytes = buf.toArray
+    val chunk = new DataChunk:
+      val fileSize   = bytes.length
+      val memorySize = bytes.length
+      def fileBytes() = bytes
+    addSection(".debug_abbrev", baseAddr = 0, chunk, flags = 0)
+  end addDebugAbbrevSection
+
+  def addDebugInfoSection(primaryFile: String, compDir: String): Unit =
+    val buf = new mutable.ArrayBuffer[Byte]
+    def addByte(b: Int): Unit = buf += b.toByte
+    def addInt16(v: Int): Unit = { addByte(v); addByte(v >> 8) }
+    def addInt32(v: Int): Unit = { addByte(v); addByte(v >> 8); addByte(v >> 16); addByte(v >> 24) }
+    def patchInt32(pos: Int, v: Int): Unit =
+      buf(pos)     = v.toByte
+      buf(pos + 1) = (v >> 8).toByte
+      buf(pos + 2) = (v >> 16).toByte
+      buf(pos + 3) = (v >> 24).toByte
+    def addStr(s: String): Unit =
+      for b <- s.getBytes(StandardCharsets.UTF_8) do buf += b
+      buf += 0
+    def uleb128(v: Int): Unit =
+      var x = v
+      while { val b = x & 0x7F; x >>>= 7; if x != 0 then buf += (b | 0x80).toByte else buf += b.toByte; x != 0 } do ()
+
+    // CU header
+    val unitLengthOffset = buf.size
+    addInt32(0)    // unit_length placeholder
+    addInt16(2)    // DWARF version 2
+    addInt32(0)    // debug_abbrev_offset = 0 (start of .debug_abbrev)
+    addByte(4)     // address_size = 4
+
+    // Single DIE: DW_TAG_compile_unit (abbrev code 1)
+    uleb128(1)
+    addInt32(0)         // DW_AT_stmt_list = 0 (offset into .debug_line)
+    addStr(compDir)     // DW_AT_comp_dir
+    addStr(primaryFile) // DW_AT_name
+    addInt16(1)         // DW_AT_language = DW_LANG_C (1)
+
+    patchInt32(unitLengthOffset, buf.size - unitLengthOffset - 4)
+
+    val bytes = buf.toArray
+    val chunk = new DataChunk:
+      val fileSize   = bytes.length
+      val memorySize = bytes.length
+      def fileBytes() = bytes
+    addSection(".debug_info", baseAddr = 0, chunk, flags = 0)
+  end addDebugInfoSection
+
   def addDebugLineSection(locMarks: List[(String, Int, Int)]): Unit =
     val validMarks = locMarks.filter(_._1.nonEmpty)
     if validMarks.isEmpty then return

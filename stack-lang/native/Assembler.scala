@@ -68,6 +68,10 @@ object Assembler:
 
       val locMarks = pb.getLocMarks()
       if locMarks.nonEmpty then
+        val primaryFile = locMarks.map(_._1).filter(_.nonEmpty).lastOption.getOrElse("")
+        val compDir     = System.getProperty("user.dir")
+        elf.addDebugAbbrevSection()
+        elf.addDebugInfoSection(primaryFile, compDir)
         elf.addDebugLineSection(locMarks)
 
     ////////////////// write file /////////////////
