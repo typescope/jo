@@ -163,7 +163,7 @@ extends Phase:
         val key = makeParamSymbol(sym, word.span)
         val tparam = TypeTree(sym.tpe)(word.span)
         val getParamFun = TypeApply(Ident(getParamSym)(word.span), tparam :: Nil)(word.span)
-        Encoded(getParamFun.appliedTo(ctx, key))(word.tpe)
+        getParamFun.appliedTo(ctx, key)
 
       case Ident(sym) if sym.isFunction && shouldAddCtxParam(sym) =>
         // Rebuild function identifiers whose type changed via installTransform,
