@@ -14,7 +14,8 @@ import sast.Denotations.*
   * @param eraseUnion      whether union type should be erased to Any (true for Java)
   */
 class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)(using defn: Definitions) extends Phase:
-  private val eraseTypeMap = new Erasure.EraseTypeMap(eraseUnion)
+  private val prevDefinitions = defn.snapshot
+  private val eraseTypeMap = new Erasure.EraseTypeMap(eraseUnion)(using prevDefinitions)
 
   override def initContext()(using Context): Unit =
     defn.index.installTransform: (_, denot) =>
@@ -274,6 +275,10 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
     throw ex
 
 object Erasure:
+  /** Erasure type parameters of classes and functions
+    *
+    * Type erasure should use the original type of symbols.
+    */
   class EraseTypeMap(eraseUnion: Boolean)(using Definitions) extends TypeMap:
     type Context = Unit
 
@@ -281,6 +286,10 @@ object Erasure:
       tp match
         case StaticRef(sym) =>
           if sym.isTypeParameter then AnyType else tp
+
+        case mref: MemberRef =>
+          if mref.symbol.isField then this(mref.info)
+          else mref.copy(prefix = this(mref.prefix))
 
         case UnionType(branches) =>
           if eraseUnion then
@@ -296,8 +305,7 @@ object Erasure:
           if tctor.isOneOf(Flags.Class | Flags.Interface) then
             StaticRef(tctor)
           else
-            val targs2 = for targ <- targs yield this(targ)
-            AppliedType(tctor, targs2)
+            if tctor.isGroundType then tp else this(tp.dealias)
 
         case procType: ProcType =>
           val tparams2 = Nil

@@ -7,9 +7,11 @@ import sast.Trees.FunDef
 
 import scala.collection.mutable
 
-class SymbolIndex(val nameTable: NameTable, val initProvider: InfoProvider):
+class SymbolIndex(val nameTable: NameTable, val initProvider: InfoProvider) extends Cloneable:
   private var provider: InfoProvider = initProvider
   private var cacheForInfoProvider: Cache = new Cache
+
+  def snapshot: SymbolIndex = this.clone().asInstanceOf[SymbolIndex]
 
   def cache: Cache = cacheForInfoProvider
 
