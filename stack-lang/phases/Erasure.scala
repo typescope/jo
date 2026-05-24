@@ -128,8 +128,10 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
             val interfaceType = eraseType(word.tpe)
             val Some(lambdaType) = interfaceType.getLambdaInterfaceType.runtimeChecked
             // Return cannot cross lambda boundary
-            val lambda2 = eraseWord(lambda, expectedType = lambdaType, returnType = null)
-            Encoded(lambda2)(interfaceType)
+            eraseWord(lambda, expectedType = lambdaType, returnType = null) match
+              case Encoded(lambda2: Lambda) => Encoded(lambda2)(interfaceType)
+              case lambda2: Lambda => Encoded(lambda2)(interfaceType)
+              case word => throw new Exception("Unexpected lambda interface: " + word.show)
 
           case _ =>
             if isVoid then
