@@ -33,6 +33,7 @@ export default defineConfig({
       { text: 'AI Security', link: '/security/security-problem' },
       { text: 'Build Tool', link: '/usage/getting-started' },
       { text: 'Language Reference', link: '/language/design-principles' },
+      { text: 'Blog', link: '/blog/' },
     ],
 
     sidebar: {
@@ -156,6 +157,15 @@ export default defineConfig({
             { text: 'jo lock', link: '/usage/commands/lock' },
             { text: 'jo clean', link: '/usage/commands/clean' },
             { text: 'jo compile', link: '/usage/commands/compile' },
+          ]
+        }
+      ],
+
+      '/blog/': [
+        {
+          text: 'Blog',
+          items: [
+            { text: 'All Posts', link: '/blog/' },
           ]
         }
       ],
