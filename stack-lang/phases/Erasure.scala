@@ -210,11 +210,8 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
         val elsep2 = eraseWord(elsep, expectedType, returnType)
 
         // adaptation happens in each branch
-        if cond2.eq(cond) && thenp2.eq(thenp) && elsep2.eq(elsep) then
-          // TODO: set type to expectedType?
-          ifElse
-        else
-          If(cond2, thenp2, elsep2)(expectedType, ifElse.span)
+        // TODO: set type to expectedType?
+        If(cond2, thenp2, elsep2)(expectedType, ifElse.span)
 
       case whileDo: While =>
         val While(cond, body) = whileDo
