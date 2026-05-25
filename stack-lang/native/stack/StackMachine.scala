@@ -100,9 +100,7 @@ extends Backend(runtime):
               cb.add(Instr.Move(label, r))
               push(Reg(r))
 
-            // Context parameter runtime expects raw string as input
-            if !word.tpe.isAnyType then
-              call(String_fromByteString)
+            call(String_fromByteString)
 
           case Constant.Int(n) =>
             push(Int32(n))
