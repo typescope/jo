@@ -46,11 +46,11 @@ class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
 
   /** Check if boxing is needed: numeric -> union/any containing that numeric */
   private def needsBoxing(reprType: Type, targetType: Type): Boolean =
-    (targetType.isAnyType || targetType.isUnionType) && reprType.isNumericOrBoolType
+    targetType.isAnyType && reprType.isNumericOrBoolType
 
   /** Check if unboxing is needed: union/any -> numeric */
   private def needsUnboxing(reprType: Type, targetType: Type): Boolean =
-    (reprType.isAnyType || reprType.isUnionType) && targetType.isNumericOrBoolType
+    reprType.widenTermRef.isAnyType && targetType.isNumericOrBoolType
 
   /** Box a numeric value into a union type */
   private def boxValue(word: Word, unionType: Type, span: Span): Word =
