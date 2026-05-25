@@ -184,22 +184,6 @@ type Large = Int | String | Bool
 def foo(x: Small): Large = x  // Valid: implicit widening
 ```
 
-::: warning Int is not a subtype of Int | String
-
-For platform portability, we impose a constraint in the type system:
-**a numeric type is never a subtype of a union type**.
-
-For example, while `String` is a subtype of `String | Int`, `Int` is not.
-This is the minimal constraint we impose on the type system to make union
-types work smoothly across target platforms (Python, Ruby, JVM).
-
-This will not impact ordinary usage, as users may still write:
-
-    val a: Int | String = 5
-
-The code above works thanks to an automatic adaptation from numeric types to
-union types.
-:::
 ### Type Adaptation and Member Selection
 
 Union types **do not support member selection** directly:
