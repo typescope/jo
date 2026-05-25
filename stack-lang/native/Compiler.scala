@@ -81,7 +81,7 @@ object Compiler:
         val backend = backendBuilder.createLinux86(FrontEnd.rewireMap.value)
         val backendStep = Step("backend", backend.compile)
 
-        val erasure = new Erasure(primitiveTagged = false, anyTagged = true, eraseUnion = false)
+        val erasure = new Erasure(primitiveTagged = false)
         val closureConvert = new ElimCapture
         val contextParamsLower = new phases.LowerContextParams(
             backend.runtime.ParamSupport_paramKey,

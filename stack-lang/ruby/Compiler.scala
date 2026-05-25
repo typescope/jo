@@ -78,7 +78,7 @@ object Compiler:
             rubyRuntime.addBinding,
             rubyRuntime.finishBatch)
 
-        val erasure = new Erasure(primitiveTagged = true, anyTagged = true, eraseUnion = false)
+        val erasure = new Erasure(primitiveTagged = true)
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView
         val codeGen = new RubyCodeGen(rubyRuntime, FrontEnd.rewireMap.value)

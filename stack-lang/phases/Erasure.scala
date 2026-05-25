@@ -10,12 +10,10 @@ import sast.Denotations.*
   * Optional: Add bridge methods to classes for boxing mismatch of abstract interface methods.
   *
   * @param primitiveTagged whether primitive values are tagged for the target platform (true for JS/Ruby/Python)
-  * @param anyTagged       whether the erased result type Any is a tagged type for the target platform (true for Java/JS/Ruby/Python, false for reg/stac)
-  * @param eraseUnion      whether union type should be erased to Any (true for Java)
   */
-class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)(using defn: Definitions) extends Phase:
+class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
   private val prevDefinitions = defn.snapshot
-  private val eraseTypeMap = new Erasure.EraseTypeMap(eraseUnion)(using prevDefinitions)
+  private val eraseTypeMap = new Erasure.EraseTypeMap(using prevDefinitions)
 
   override def initContext()(using Context): Unit =
     defn.index.installTransform: (_, denot) =>
@@ -72,8 +70,7 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
 
       else
         // assume !primitiveTagged
-        def tagged(tp: Type): Boolean =
-          !tp.isNumericOrBoolType && (anyTagged || !tp.isAnyType)
+        def tagged(tp: Type): Boolean = !tp.isNumericOrBoolType
 
         def taggingConforms(valueType: Type, expectedType: Type) =
           tagged(valueType) == tagged(expectedType)
@@ -309,7 +306,7 @@ object Erasure:
     *
     * Type erasure should use the original type of symbols.
     */
-  class EraseTypeMap(eraseUnion: Boolean)(using defn: Definitions) extends TypeMap:
+  class EraseTypeMap(using defn: Definitions) extends TypeMap:
     type Context = Unit
 
     def apply(tp: Type)(using Context): Type =
@@ -321,15 +318,7 @@ object Erasure:
           if mref.symbol.isField then this(mref.info)
           else mref.copy(prefix = this(mref.prefix))
 
-        case UnionType(branches) =>
-          if eraseUnion then
-            AnyType
-          else
-            val branches2 =
-              for branch <- branches
-              yield this(branch)
-
-            UnionType(branches2)
+        case UnionType(branches) => AnyType
 
         case AppliedType(tctor, targs) =>
           if tctor.isOneOf(Flags.Class | Flags.Interface) then
