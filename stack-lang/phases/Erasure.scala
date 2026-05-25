@@ -73,13 +73,17 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
       else
         // assume !primitiveTagged
         def tagged(tp: Type): Boolean =
-          !valueType.isNumericOrBoolType && (anyTagged || !tp.isAnyType)
+          !tp.isNumericOrBoolType && (anyTagged || !tp.isAnyType)
 
         def taggingConforms(valueType: Type, expectedType: Type) =
           tagged(valueType) == tagged(expectedType)
 
-        if conforms && (tagged(valueType) || !tagged(expectedType)) then
-          value
+        if conforms && !expectedType.isLambdaType then
+          if tagged(valueType) || !tagged(expectedType) then
+            value
+
+          else
+            Encoded(value)(expectedType)
 
         else if !conforms && valueType.widenTermRef.isAnyType then
           // Backend will decide whether the cast involves unboxing
