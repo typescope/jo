@@ -330,18 +330,21 @@ class PatternMatcher(using defn: Definitions) extends Phase:
         val cond = transformPattern(scrut, nested)
         // It is more performant to always assign
         val assign = Assign(id, scrut.encodedAs(id.symbol.tpe))
-        Block(assign :: cond :: Nil)(pat.span)
+        val success = Block(assign :: BoolLit(true)(nested.span) :: Nil)(id.span)
+        If(cond, success, BoolLit(false)(id.span))(BoolType, pat.span)
 
       case TypePattern(tpt, nested) =>
         val cond = transformTypeTest(scrut, tpt.tpe, tpt.span)
 
-        val owner = Phase.owner.value
-        val newScrutSym = TermSymbol.create("scrut", tpt.tpe, Flags.Synthetic, Visibility.Default, owner, tpt.pos)
-        val newScrut = Ident(newScrutSym)(tpt.span)
-        val assign = Assign(newScrut, scrut.encodedAs(tpt.tpe))
+        if nested.isInstanceOf[WildcardPattern] then cond
+        else
+          val owner = Phase.owner.value
+          val newScrutSym = TermSymbol.create("scrut", tpt.tpe, Flags.Synthetic, Visibility.Default, owner, tpt.pos)
+          val newScrut = Ident(newScrutSym)(tpt.span)
+          val assign = Assign(newScrut, scrut.encodedAs(tpt.tpe))
 
-        val block = Block(assign :: transformPattern(newScrut, nested) :: Nil)(nested.span)
-        If(cond, block, BoolLit(false)(tpt.span))(BoolType, pat.span)
+          val block = Block(assign :: transformPattern(newScrut, nested) :: Nil)(nested.span)
+          If(cond, block, BoolLit(false)(tpt.span))(BoolType, pat.span)
 
       case appPat: ApplyPattern =>
         transformApplyPattern(scrut, appPat)
