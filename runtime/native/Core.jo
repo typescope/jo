@@ -39,8 +39,15 @@ private def readByte(arr: Addr): Byte receives none =
 private def addAddr(arr: Addr, offset: Int): Addr receives none =
   abort "native addAddr"
 
+//[ cast a type to a non-primitive type
+  !
+//]
 @intrinsic
 def cast[T](arr: Any): T receives none = abort("runtime cast")
+
+//[ cast a type to Int   //]
+@intrinsic
+def castInt(arr: Any): Int receives none = abort("runtime cast")
 
 private def debug(s: String): Unit receives none =
   writeString: 0, cast[StringRepr] s
@@ -56,7 +63,7 @@ private def debug(s: String): Unit receives none =
   ! The backend intrinsifies this call to a static address.
 //]
 @intrinsic
-private def getInterfaceTable(classId: Int): Any receives none = ...
+private def getInterfaceTable(classId: Int): Addr receives none = ...
 
 //[ Find a method pointer in an interface table
   !
@@ -69,11 +76,9 @@ private def getInterfaceTable(classId: Int): Any receives none = ...
   !
   ! Returns the method pointer as an Int (address)
 //]
-private def findInterfaceMethod(itable: Any, interfaceId: Int, methodOrder: Int): Int receives none =
-  val itableAddr = cast[Addr] itable
-
+private def findInterfaceMethod(itableAddr: Addr, interfaceId: Int, methodOrder: Int): Int receives none =
   // Check if itable is null (no interfaces implemented)
-  if (cast[Int] itableAddr) == 0 then
+  if (castInt itableAddr) == 0 then
     abort "Interface not implemented (null itable)"
 
   // Read number of interfaces
@@ -404,7 +409,7 @@ private section RefArray
       addAddr:
         cast[Addr] arr
         i * 4 + 8
-      cast[Int] value
+      castInt value
 
   def size[T](arr: Array[T]): Int =
     readInt: addAddr (cast[Addr] arr) 4

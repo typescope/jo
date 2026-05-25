@@ -31,6 +31,7 @@ extends Linker:
   val Core_initObjects = Native.termMember("initObjects")
 
   val Core_cast = Native.termMember("cast")
+  val Core_castInt = Native.termMember("castInt")
   val Core_state = Native.termMember("state")
   val Core_debug = Native.termMember("debug")
 

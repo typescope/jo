@@ -64,9 +64,9 @@ private[native] section StringOps
     end
 
   // This function is called to convert a UTF-8 string to a proper string object.
-  def fromByteString(byteArray: Any): String =
-    val byteSize = readInt: cast[Addr] byteArray
-    val contentAddr = addAddr: (cast[Addr] byteArray), 4
+  def fromByteString(byteArray: Addr): String =
+    val byteSize = readInt: byteArray
+    val contentAddr = addAddr: byteArray, 4
     val cpCount = countUtf8CodePoints(contentAddr, byteSize)
 
     cast[String]: Raw(byteSize, cpCount, contentAddr)
@@ -206,7 +206,7 @@ private[native] section StringOps
   def iterator(source: String): Iterator[Char] =
     new StringIterator(source)
 
-  def bytes(repr: String): Any =
+  def bytes(repr: String): Addr =
     val bytes = GC.alloc byteSize(repr)
 
     def recur(repr: StringRepr, from: Int): Int =

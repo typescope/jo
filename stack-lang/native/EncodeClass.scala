@@ -33,6 +33,8 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
   export runtime.itable.getClassId
   export runtime.itable.getInterfaceId
 
+  val AddrType = StaticRef(runtime.Core_Addr)
+
   private def getLiftedFunSymbol(methodSym: Symbol): Symbol =
     runtime.itable.getLiftedMethodOrUpdate(methodSym, createLiftedFunSymbol(methodSym))
 
@@ -229,7 +231,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           // Create a minimal record type with just cid and itable fields to access itable
           val itableRecordType = RecordType(
             NamedInfo(Memory.ClassID, defn.IntType) ::
-            NamedInfo(Memory.ITable, AnyType) ::
+            NamedInfo(Memory.ITable, AddrType) ::
             Nil
           )
           val itable = Select(Encoded(receiverRef)(itableRecordType), Memory.ITable)(fun.span)
@@ -333,6 +335,10 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
       case Ident(sym) if sym == runtime.Core_cast =>
         assert(args2.size == 1, args)
         args2.head
+
+      case Ident(sym) if sym == runtime.Core_castInt =>
+        assert(args2.size == 1, args)
+        Encoded(args2.head)(defn.IntType)
 
       case _ =>
         Apply(transform(fun), args2, autos2)(apply.span)

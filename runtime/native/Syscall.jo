@@ -13,7 +13,7 @@ def sys_brk(size: Int): Int receives none =
 def sys_exit(code: Int): Bottom receives none =
   Primitives.__sys_exit 1 code
 
-def sys_open(name: Any, flags: Int, mode: Int): Int receives none =
+def sys_open(name: Addr, flags: Int, mode: Int): Int receives none =
   Primitives.__sys_open 5 name flags mode
 
 def sys_close(fd: Int): Int receives none =
@@ -40,7 +40,7 @@ private section Primitives
   def __sys_exit(no: Int, code: Int): Bottom = abort "sys_exit"
 
   @intrinsic
-  def __sys_open(no: Int, name: Any, flags: Int, mode: Int): Int = abort "sys_open"
+  def __sys_open(no: Int, name: Addr, flags: Int, mode: Int): Int = abort "sys_open"
 
   @intrinsic
   def __sys_close(no: Int, fd: Int): Int = abort "sys_close"
