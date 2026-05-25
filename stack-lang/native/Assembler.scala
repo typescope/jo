@@ -83,12 +83,12 @@ object Assembler:
 
     ////////////////// debug sections (outside PT_LOAD) /////////////////
 
-    if debugLocMarks.nonEmpty then
+    for lineChunk <- Dwarf.lineSection(debugLocMarks) do
       val primaryFile = debugLocMarks.map(_._1).filter(_.nonEmpty).headOption.getOrElse("")
       val compDir     = System.getProperty("user.dir")
-      elf.addDebugAbbrevSection()
-      elf.addDebugInfoSection(primaryFile, compDir, debugLowPc, debugHighPc)
-      elf.addDebugLineSection(debugLocMarks)
+      elf.addSection(".debug_abbrev", baseAddr = 0, Dwarf.abbrevSection(), flags = 0)
+      elf.addSection(".debug_info",   baseAddr = 0, Dwarf.infoSection(primaryFile, compDir, debugLowPc, debugHighPc), flags = 0)
+      elf.addSection(".debug_line",   baseAddr = 0, lineChunk, flags = 0)
 
     ////////////////// write file /////////////////
 
