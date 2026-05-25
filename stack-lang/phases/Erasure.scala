@@ -305,7 +305,7 @@ object Erasure:
     *
     * Type erasure should use the original type of symbols.
     */
-  class EraseTypeMap(eraseUnion: Boolean)(using Definitions) extends TypeMap:
+  class EraseTypeMap(eraseUnion: Boolean)(using defn: Definitions) extends TypeMap:
     type Context = Unit
 
     def apply(tp: Type)(using Context): Type =
@@ -331,7 +331,15 @@ object Erasure:
           if tctor.isOneOf(Flags.Class | Flags.Interface) then
             StaticRef(tctor)
           else
-            if tctor.isGroundType then tp else this(tp.dealias)
+            if tctor.isGroundType then
+              tp
+
+            else if tctor == defn.jo_Pack then
+              // keep vararg mark
+              AppliedType(tctor, AnyType :: Nil)
+
+            else
+              this(tp.dealias)
 
         case procType: ProcType =>
           val tparams2 = Nil
