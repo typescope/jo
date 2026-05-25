@@ -1,0 +1,68 @@
+// Erasure test: lambda boxing/unboxing in generic contexts
+// On native, lambdas are tagged (heap pointers) while Int is untagged
+// When a lambda is stored or retrieved through a generic (Any) field, it needs boxing
+// This exercises Erasure.adapt for lambda types with tagging mismatch
+
+class FunBox[T, U](f: T => U)
+
+class FunPair[A, B](left: A => A, right: B => B)
+
+def applyFunBox[T, U](fb: FunBox[T, U], x: T): U = fb.f x
+
+def makeAdder[T](op: (T, T) => T): T => T => T =
+  x => y => op x y
+
+def myFold[T](list: List[T], init: T, f: (T, T) => T): T =
+  list.fold[T](init, f)
+
+def myMap[T, U](list: List[T], f: T => U): List[U] =
+  list.map[U](f)
+
+def applyAll[T](fns: List[T => T], x: T): T =
+  fns.fold[T](x, (acc, f) => f acc)
+
+def main =
+  // FunBox with Int → Int: lambda stored as generic field (Any after erasure)
+  val intFun = FunBox[Int, Int](x => x * x)
+  println (applyFunBox[Int, Int](intFun, 5))    // 25
+
+  // FunBox with Int → String
+  val strFun = FunBox[Int, String](x => "sq=" + (x * x))
+  println (applyFunBox[Int, String](strFun, 4))  // sq=16
+
+  // FunBox with Bool → Bool
+  val boolFun = FunBox[Bool, Bool](x => !x)
+  println (applyFunBox[Bool, Bool](boolFun, true))   // false
+  println (applyFunBox[Bool, Bool](boolFun, false))  // true
+
+  // FunPair: two lambda fields, different type parameters
+  val fp = FunPair[Int, Bool](x => x + 10, b => !b)
+  println (fp.left 5)     // 15
+  println (fp.right true) // false
+
+  // makeAdder: curried via generic lambda
+  val addInts = makeAdder[Int]((x, y) => x + y)
+  val add5 = addInts 5
+  println (add5 3)   // 8
+  println (add5 10)  // 15
+
+  val mulInts = makeAdder[Int]((x, y) => x * y)
+  val mul3 = mulInts 3
+  println (mul3 7)   // 21
+
+  // myFold: lambda (Any, Any) => Any after erasure wrapping (Int, Int) => Int
+  val nums = [1, 2, 3, 4, 5]
+  println (myFold[Int](nums, 0, (acc, x) => acc + x))  // 15
+  println (myFold[Int](nums, 1, (acc, x) => acc * x))  // 120
+
+  // myMap: lambda Any => Any wrapping Int => String
+  val strs = myMap[Int, String](nums, x => "n" + x)
+  for s in strs do println s
+
+  // applyAll: List of lambdas applied sequentially
+  val transforms: List[Int => Int] = [
+    x => x + 1,
+    x => x * 2,
+    x => x - 3
+  ]
+  println (applyAll[Int](transforms, 5))  // (5+1)*2-3 = 9
