@@ -103,7 +103,10 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
             "lambda arity not equal. lambda1 = " + lambdaType1.show + ", lambda2 = " + lambdaType2.show
           )
 
-          val taggingOK = taggingConforms(resType1, resType2) && paramTypes1.zip(paramTypes2).forall((tp1, tp2) => taggingConforms(tp1, tp2))
+          val taggingOK =
+            taggingConforms(resType1, resType2)
+            && paramTypes1.zip(paramTypes2).forall((tp1, tp2) => taggingConforms(tp1, tp2))
+
           if taggingOK then
             if conforms then value else Encoded(value)(expectedType)
 
@@ -112,7 +115,7 @@ class Erasure(primitiveTagged: Boolean, anyTagged: Boolean, eraseUnion: Boolean)
               val args = paramRefs.zip(paramTypes1).map: (paramRef, paramType) =>
                 adapt(paramRef, paramType)
 
-              Apply(value, args, autos = Nil)(value.span)
+              adapt(Apply(value, args, autos = Nil)(value.span), resType2)
 
   def eraseWord(word: Word, expectedType: Type, returnType: Type)(using Context): Word = common.Debug.trace("erase " + word.show, (_: Word).show, enable = false):
     word match
