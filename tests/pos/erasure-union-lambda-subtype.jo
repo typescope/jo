@@ -1,0 +1,124 @@
+// Erasure test: lambdas whose parameter/return type is a numeric union type,
+// used in generic (type-erased) contexts where adapter lambdas are needed.
+//
+// On native, a union like (Int | String) is a tagged value, but the erased Any
+// is untagged. When a lambda (Num => X) is passed where (Any => Any) is expected,
+// erasure must wrap it with an adapter that unboxes Num from Any on entry and
+// boxes the result back to Any on exit.
+
+type Num = (Int | String) :+ [Num.toString]
+
+section Num
+  def (n: Num) toString: String =
+    match n
+      case i: Int => "Int:" + i
+      case s: String => "Str:" + s
+end
+
+// Generic function: T erased to Any; adapter lambda needed when T = Num
+def apply[T, U](f: T => U, x: T): U = f x
+
+// Generic fold: (Any, Any) => Any wraps (Num, Num) => Num at erasure
+def myFold[T](items: List[T], init: T, f: (T, T) => T): T =
+  items.fold[T](init, f)
+
+// Generic compose: lambdas with union params go through Any at erasure boundary
+def compose[A, B, C](f: A => B, g: B => C): A => C = x => g (f x)
+
+// Generic map on list
+def myMap[T, U](items: List[T], f: T => U): List[U] =
+  items.map[U](f)
+
+// Generic filter
+def mySelect[T](items: List[T], p: T => Bool): List[T] =
+  items.select(p)
+
+// Class whose field type T gets erased to Any: stores Num => Num lambda as Any => Any
+class FunBox[T, U](f: T => U)
+
+def applyBox[T, U](b: FunBox[T, U], x: T): U = b.f x
+
+def main =
+  // --- apply[Num, String]: lambda (Num => String) used as (Any => Any) ---
+  val showFn: Num => String = n => n.toString
+  println (apply[Num, String](showFn, 42))       // Int:42
+  println (apply[Num, String](showFn, "hello"))  // Str:hello
+
+  // --- apply[Num, Num]: lambda (Num => Num) used as (Any => Any) ---
+  // Both param and return type are tagged unions on native
+  val doubleFn: Num => Num = n =>
+    match n
+      case i: Int => i * 2
+      case s: String => s + s
+
+  match (apply[Num, Num](doubleFn, 7))
+    case i: Int => println i    // 14
+    case s: String => println s
+
+  match (apply[Num, Num](doubleFn, "ab"))
+    case i: Int => println i
+    case s: String => println s  // abab
+
+  // --- apply[Num, Int]: return type is plain Int (untagged on native) ---
+  val lenFn: Num => Int = n =>
+    match n
+      case i: Int => i
+      case s: String => s.length
+
+  println (apply[Num, Int](lenFn, 99))      // 99
+  println (apply[Num, Int](lenFn, "hello")) // 5
+
+  // --- myFold[Num]: binary lambda (Num, Num) => Num as (Any, Any) => Any ---
+  val items: List[Num] = [1, "two", 3, "four"]
+
+  val joined = myFold[Num](items, "", (acc, v) =>
+    match acc
+      case _: Int => v.toString
+      case s: String => s + "|" + v.toString
+  )
+  println joined   // |Int:1|Str:two|Int:3|Str:four
+
+  // --- compose[Num, Int, String]: chain lambda with union params ---
+  val numToLen = compose[Num, Int, String](lenFn, x => "[" + x + "]")
+  println (numToLen 42)       // [2]   (length of "42")
+  println (numToLen "hello")  // [5]
+
+  // --- myMap[Num, String]: (Any => Any) adapter for (Num => String) ---
+  val strs = myMap[Num, String](items, n => n.toString)
+  for s in strs do println s
+  // Int:1, Str:two, Int:3, Str:four
+
+  // --- mySelect[Num]: (Any => Bool) adapter for (Num => Bool) ---
+  val ints = mySelect[Num](items, n =>
+    match n
+      case _: Int => true
+      case _: String => false
+  )
+  for v in ints do
+    match v
+      case i: Int => println i
+      case s: String => println s
+  // 1, 3
+
+  // --- FunBox[Num, Int]: lambda stored as generic Any field ---
+  val box = FunBox[Num, Int](n =>
+    match n
+      case i: Int => i * 10
+      case s: String => s.length * 100
+  )
+  println (applyBox[Num, Int](box, 5))       // 50
+  println (applyBox[Num, Int](box, "ab"))    // 200
+
+  // --- FunBox[Num, Num]: both param and return are union (tagged) ---
+  val numBox = FunBox[Num, Num](n =>
+    match n
+      case i: Int => i + 1
+      case s: String => "!" + s
+  )
+  match (applyBox[Num, Num](numBox, 9))
+    case i: Int => println i   // 10
+    case s: String => println s
+
+  match (applyBox[Num, Num](numBox, "ok"))
+    case i: Int => println i
+    case s: String => println s  // !ok
