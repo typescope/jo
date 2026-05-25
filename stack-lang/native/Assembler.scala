@@ -68,10 +68,12 @@ object Assembler:
 
       val locMarks = pb.getLocMarks()
       if locMarks.nonEmpty then
-        val primaryFile = locMarks.map(_._1).filter(_.nonEmpty).lastOption.getOrElse("")
+        val primaryFile = locMarks.map(_._1).filter(_.nonEmpty).headOption.getOrElse("")
         val compDir     = System.getProperty("user.dir")
+        val lowPc       = locMarks.map(_._3).min
+        val highPc      = pb.currentAddr()
         elf.addDebugAbbrevSection()
-        elf.addDebugInfoSection(primaryFile, compDir)
+        elf.addDebugInfoSection(primaryFile, compDir, lowPc, highPc)
         elf.addDebugLineSection(locMarks)
 
     ////////////////// write file /////////////////

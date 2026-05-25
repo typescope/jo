@@ -147,6 +147,8 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
     uleb128(1)              // abbreviation code 1
     uleb128(0x11)           // DW_TAG_compile_unit
     addByte(0)              // DW_CHILDREN_no
+    uleb128(0x11); uleb128(0x01)   // DW_AT_low_pc,     DW_FORM_addr
+    uleb128(0x12); uleb128(0x01)   // DW_AT_high_pc,    DW_FORM_addr
     uleb128(0x10); uleb128(0x06)   // DW_AT_stmt_list,  DW_FORM_data4
     uleb128(0x1b); uleb128(0x08)   // DW_AT_comp_dir,   DW_FORM_string
     uleb128(0x03); uleb128(0x08)   // DW_AT_name,       DW_FORM_string
@@ -162,7 +164,7 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
     addSection(".debug_abbrev", baseAddr = 0, chunk, flags = 0)
   end addDebugAbbrevSection
 
-  def addDebugInfoSection(primaryFile: String, compDir: String): Unit =
+  def addDebugInfoSection(primaryFile: String, compDir: String, lowPc: Int, highPc: Int): Unit =
     val buf = new mutable.ArrayBuffer[Byte]
     def addByte(b: Int): Unit = buf += b.toByte
     def addInt16(v: Int): Unit = { addByte(v); addByte(v >> 8) }
@@ -188,6 +190,8 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
 
     // Single DIE: DW_TAG_compile_unit (abbrev code 1)
     uleb128(1)
+    addInt32(lowPc)     // DW_AT_low_pc
+    addInt32(highPc)    // DW_AT_high_pc
     addInt32(0)         // DW_AT_stmt_list = 0 (offset into .debug_line)
     addStr(compDir)     // DW_AT_comp_dir
     addStr(primaryFile) // DW_AT_name
