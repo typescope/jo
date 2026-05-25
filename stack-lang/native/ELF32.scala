@@ -22,7 +22,8 @@ import java.nio.charset.StandardCharsets
 
 
 class ELF32(outFile: String, layout: Layout, machine: Short):
-  private val strtable: mutable.ArrayBuffer[Byte   ] = new mutable.ArrayBuffer
+  private val strtable:      mutable.ArrayBuffer[Byte   ] = new mutable.ArrayBuffer
+  private val strtableIndex: mutable.Map[String, Int]    = mutable.Map.empty
   private val sections: mutable.ArrayBuffer[Section] = new mutable.ArrayBuffer
   private val symbols:  mutable.ArrayBuffer[Symbol ] = new mutable.ArrayBuffer
 
@@ -75,10 +76,12 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
     CONTENT_START_OFFSET + content.fileSize
 
   private def addName(str: String): Int =
-    val offset = strtable.size
-    strtable.addAll(str.getBytes(StandardCharsets.UTF_8))
-    strtable.addOne(0)
-    offset
+    strtableIndex.getOrElseUpdate(str, {
+      val offset = strtable.size
+      strtable.addAll(str.getBytes(StandardCharsets.UTF_8))
+      strtable.addOne(0)
+      offset
+    })
 
   /** Create a new segment in the ELF file */
   def newSegment(id: String, tp: Int, flags: Int)(fn: Int => Unit): Unit =
@@ -137,171 +140,147 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
     val sym = Symbol(addName(name), addr, 0, (STB_GLOBAL << 4) | STT_OBJECT, secIndex)
     symbols.addOne(sym)
 
-  def addDebugAbbrevSection(): Unit =
-    val buf = new mutable.ArrayBuffer[Byte]
-    def addByte(b: Int): Unit = buf += b.toByte
-    def uleb128(v: Int): Unit =
-      var x = v
-      while { val b = x & 0x7F; x >>>= 7; if x != 0 then buf += (b | 0x80).toByte else buf += b.toByte; x != 0 } do ()
+  /** Byte buffer with DWARF encoding helpers, used by the three debug-section methods. */
+  private class DwarfBuffer:
+    private val buf = new mutable.ArrayBuffer[Byte]
 
-    uleb128(1)              // abbreviation code 1
-    uleb128(0x11)           // DW_TAG_compile_unit
-    addByte(0)              // DW_CHILDREN_no
-    uleb128(0x11); uleb128(0x01)   // DW_AT_low_pc,     DW_FORM_addr
-    uleb128(0x12); uleb128(0x01)   // DW_AT_high_pc,    DW_FORM_addr
-    uleb128(0x10); uleb128(0x06)   // DW_AT_stmt_list,  DW_FORM_data4
-    uleb128(0x1b); uleb128(0x08)   // DW_AT_comp_dir,   DW_FORM_string
-    uleb128(0x03); uleb128(0x08)   // DW_AT_name,       DW_FORM_string
-    uleb128(0x13); uleb128(0x05)   // DW_AT_language,   DW_FORM_data2
-    addByte(0); addByte(0)         // end of attributes
-    addByte(0)                     // end of abbreviation table
-
-    val bytes = buf.toArray
-    val chunk = new DataChunk:
-      val fileSize   = bytes.length
-      val memorySize = bytes.length
-      def fileBytes() = bytes
-    addSection(".debug_abbrev", baseAddr = 0, chunk, flags = 0)
-  end addDebugAbbrevSection
-
-  def addDebugInfoSection(primaryFile: String, compDir: String, lowPc: Int, highPc: Int): Unit =
-    val buf = new mutable.ArrayBuffer[Byte]
-    def addByte(b: Int): Unit = buf += b.toByte
-    def addInt16(v: Int): Unit = { addByte(v); addByte(v >> 8) }
-    def addInt32(v: Int): Unit = { addByte(v); addByte(v >> 8); addByte(v >> 16); addByte(v >> 24) }
-    def patchInt32(pos: Int, v: Int): Unit =
+    def byte(b: Int): Unit = buf += b.toByte
+    def int16(v: Int): Unit = { byte(v); byte(v >> 8) }
+    def int32(v: Int): Unit = { byte(v); byte(v >> 8); byte(v >> 16); byte(v >> 24) }
+    def patch32(pos: Int, v: Int): Unit =
       buf(pos)     = v.toByte
       buf(pos + 1) = (v >> 8).toByte
       buf(pos + 2) = (v >> 16).toByte
       buf(pos + 3) = (v >> 24).toByte
-    def addStr(s: String): Unit =
+    def str(s: String): Unit =
       for b <- s.getBytes(StandardCharsets.UTF_8) do buf += b
       buf += 0
     def uleb128(v: Int): Unit =
       var x = v
-      while { val b = x & 0x7F; x >>>= 7; if x != 0 then buf += (b | 0x80).toByte else buf += b.toByte; x != 0 } do ()
+      while
+        val b = x & 0x7F
+        x >>>= 7
+        if x != 0 then buf += (b | 0x80).toByte else buf += b.toByte
+        x != 0
+      do ()
+    def sleb128(v: Int): Unit =
+      var x = v
+      var more = true
+      while more do
+        val b = x & 0x7F
+        x >>= 7
+        if (x == 0 && (b & 0x40) == 0) || (x == -1 && (b & 0x40) != 0) then
+          buf += b.toByte; more = false
+        else
+          buf += (b | 0x80).toByte
+    def size: Int = buf.size
+    def toDataChunk: DataChunk =
+      val bytes = buf.toArray
+      new DataChunk:
+        val fileSize   = bytes.length
+        val memorySize = bytes.length
+        def fileBytes() = bytes
+  end DwarfBuffer
 
-    // CU header
-    val unitLengthOffset = buf.size
-    addInt32(0)    // unit_length placeholder
-    addInt16(2)    // DWARF version 2
-    addInt32(0)    // debug_abbrev_offset = 0 (start of .debug_abbrev)
-    addByte(4)     // address_size = 4
+  def addDebugAbbrevSection(): Unit =
+    val dw = new DwarfBuffer
+    import dw.*
+
+    uleb128(1); uleb128(0x11); byte(0)   // abbrev 1: DW_TAG_compile_unit, no children
+    uleb128(0x11); uleb128(0x01)          // DW_AT_low_pc,    DW_FORM_addr
+    uleb128(0x12); uleb128(0x01)          // DW_AT_high_pc,   DW_FORM_addr
+    uleb128(0x10); uleb128(0x06)          // DW_AT_stmt_list, DW_FORM_data4
+    uleb128(0x1b); uleb128(0x08)          // DW_AT_comp_dir,  DW_FORM_string
+    uleb128(0x03); uleb128(0x08)          // DW_AT_name,      DW_FORM_string
+    uleb128(0x13); uleb128(0x05)          // DW_AT_language,  DW_FORM_data2
+    byte(0); byte(0)                      // end of attributes
+    byte(0)                               // end of abbreviation table
+
+    addSection(".debug_abbrev", baseAddr = 0, dw.toDataChunk, flags = 0)
+  end addDebugAbbrevSection
+
+  def addDebugInfoSection(primaryFile: String, compDir: String, lowPc: Int, highPc: Int): Unit =
+    val dw = new DwarfBuffer
+    import dw.*
+
+    val unitLengthOffset = size
+    int32(0)    // unit_length placeholder
+    int16(2)    // DWARF version 2
+    int32(0)    // debug_abbrev_offset = 0
+    byte(4)     // address_size = 4
 
     // Single DIE: DW_TAG_compile_unit (abbrev code 1)
     uleb128(1)
-    addInt32(lowPc)     // DW_AT_low_pc
-    addInt32(highPc)    // DW_AT_high_pc
-    addInt32(0)         // DW_AT_stmt_list = 0 (offset into .debug_line)
-    addStr(compDir)     // DW_AT_comp_dir
-    addStr(primaryFile) // DW_AT_name
-    addInt16(1)         // DW_AT_language = DW_LANG_C (1)
+    int32(lowPc)     // DW_AT_low_pc
+    int32(highPc)    // DW_AT_high_pc
+    int32(0)         // DW_AT_stmt_list = 0 (offset into .debug_line)
+    str(compDir)     // DW_AT_comp_dir
+    str(primaryFile) // DW_AT_name
+    int16(1)         // DW_AT_language = DW_LANG_C (1)
 
-    patchInt32(unitLengthOffset, buf.size - unitLengthOffset - 4)
+    patch32(unitLengthOffset, size - unitLengthOffset - 4)
 
-    val bytes = buf.toArray
-    val chunk = new DataChunk:
-      val fileSize   = bytes.length
-      val memorySize = bytes.length
-      def fileBytes() = bytes
-    addSection(".debug_info", baseAddr = 0, chunk, flags = 0)
+    addSection(".debug_info", baseAddr = 0, dw.toDataChunk, flags = 0)
   end addDebugInfoSection
 
   def addDebugLineSection(locMarks: List[(String, Int, Int)]): Unit =
     val validMarks = locMarks.filter(_._1.nonEmpty)
     if validMarks.isEmpty then return
 
-    val buf = new mutable.ArrayBuffer[Byte]
-
-    def addByte(b: Int): Unit = buf += b.toByte
-    def addInt16(v: Int): Unit = { addByte(v); addByte(v >> 8) }
-    def addInt32(v: Int): Unit = { addByte(v); addByte(v >> 8); addByte(v >> 16); addByte(v >> 24) }
-    def patchInt32(pos: Int, v: Int): Unit =
-      buf(pos)     = v.toByte
-      buf(pos + 1) = (v >> 8).toByte
-      buf(pos + 2) = (v >> 16).toByte
-      buf(pos + 3) = (v >> 24).toByte
-    def addStr(s: String): Unit =
-      for b <- s.getBytes(StandardCharsets.UTF_8) do buf += b
-      buf += 0
-    def uleb128(value: Int): Unit =
-      var v = value
-      while
-        val b = v & 0x7F
-        v >>>= 7
-        if v != 0 then buf += (b | 0x80).toByte
-        else buf += b.toByte
-        v != 0
-      do ()
-    def sleb128(value: Int): Unit =
-      var v = value
-      var more = true
-      while more do
-        val b = v & 0x7F
-        v >>= 7
-        if (v == 0 && (b & 0x40) == 0) || (v == -1 && (b & 0x40) != 0) then
-          buf += b.toByte
-          more = false
-        else
-          buf += (b | 0x80).toByte
+    val dw = new DwarfBuffer
+    import dw.*
 
     // Build directory and file tables
     val uniqueFiles = validMarks.map(_._1).distinct
-    val uniqueDirs  = uniqueFiles.map { p => val i = p.lastIndexOf('/'); if i >= 0 then p.substring(0, i) else "" }
-                                 .distinct.filter(_.nonEmpty)
+    val uniqueDirs  = uniqueFiles
+                        .map { p => val i = p.lastIndexOf('/'); if i >= 0 then p.substring(0, i) else "" }
+                        .distinct.filter(_.nonEmpty)
     val dirIndex  = uniqueDirs.zipWithIndex.map((d, i) => d -> (i + 1)).toMap
     val fileIndex = uniqueFiles.zipWithIndex.map((f, i) => f -> (i + 1)).toMap
 
     // ---- Header ----
-    val unitLengthOffset = buf.size
-    addInt32(0)      // unit_length placeholder
-    addInt16(2)      // DWARF version 2
-    val headerLengthOffset = buf.size
-    addInt32(0)      // header_length placeholder
-    val headerBodyStart = buf.size
+    val unitLengthOffset = size
+    int32(0)     // unit_length placeholder
+    int16(2)     // DWARF version 2
+    val headerLengthOffset = size
+    int32(0)     // header_length placeholder
+    val headerBodyStart = size
 
-    addByte(1)       // minimum_instruction_length
-    addByte(1)       // default_is_stmt
-    addByte(-5)      // line_base (signed)
-    addByte(14)      // line_range
-    addByte(13)      // opcode_base
-    for n <- Array(0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1) do addByte(n)
+    byte(1); byte(1); byte(-5); byte(14); byte(13)   // mil, default_is_stmt, line_base, line_range, opcode_base
+    for n <- Array(0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1) do byte(n)
 
-    for dir <- uniqueDirs do addStr(dir)
-    addByte(0)       // end of include_directories
+    for dir <- uniqueDirs do str(dir)
+    byte(0)      // end of include_directories
 
     for filePath <- uniqueFiles do
       val slash = filePath.lastIndexOf('/')
       val basename = if slash >= 0 then filePath.substring(slash + 1) else filePath
       val dIdx     = if slash >= 0 then dirIndex.getOrElse(filePath.substring(0, slash), 0) else 0
-      addStr(basename)
-      uleb128(dIdx)
-      uleb128(0)     // mtime
-      uleb128(0)     // file size
-    addByte(0)       // end of file_names
+      str(basename); uleb128(dIdx); uleb128(0); uleb128(0)   // name, dir, mtime, size
+    byte(0)      // end of file_names
 
-    patchInt32(headerLengthOffset, buf.size - headerBodyStart)
+    patch32(headerLengthOffset, size - headerBodyStart)
 
     // ---- Line number program ----
-    val LINE_BASE    = -5
-    val LINE_RANGE   = 14
-    val OPCODE_BASE  = 13
+    val LINE_BASE   = -5
+    val LINE_RANGE  = 14
+    val OPCODE_BASE = 13
 
     var curAddr = 0
     var curFile = 1
     var curLine = 1
 
-    val sorted = validMarks.sortBy(_._3)
+    // Sort and deduplicate: skip rows identical to the previous (same addr, file, line)
+    val rows = validMarks.sortBy(_._3).distinctBy(m => (m._3, m._1, m._2))
 
-    // DW_LNE_set_address for the first entry
-    addByte(0); uleb128(5); addByte(2); addInt32(sorted.head._3)
-    curAddr = sorted.head._3
+    byte(0); uleb128(5); byte(2); int32(rows.head._3)   // DW_LNE_set_address
+    curAddr = rows.head._3
 
-    for (file, line, addr) <- sorted do
+    for (file, line, addr) <- rows do
       val fIdx = fileIndex(file)
 
       if fIdx != curFile then
-        addByte(4); uleb128(fIdx)
+        byte(4); uleb128(fIdx)   // DW_LNS_set_file
         curFile = fIdx
 
       val addrDelta = addr - curAddr
@@ -310,28 +289,20 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
 
       if lineDelta >= LINE_BASE && lineDelta < LINE_BASE + LINE_RANGE &&
          addrDelta >= 0 && special <= 255 then
-        addByte(special)
+        byte(special)
       else
-        if addrDelta != 0 then { addByte(2); uleb128(addrDelta) }
-        if lineDelta != 0 then { addByte(3); sleb128(lineDelta) }
-        addByte(1)   // DW_LNS_copy
+        if addrDelta != 0 then { byte(2); uleb128(addrDelta) }   // DW_LNS_advance_pc
+        if lineDelta != 0 then { byte(3); sleb128(lineDelta) }   // DW_LNS_advance_line
+        byte(1)                                                    // DW_LNS_copy
 
       curAddr = addr
       curLine = line
 
-    // DW_LNE_end_sequence
-    addByte(0); uleb128(1); addByte(1)
+    byte(0); uleb128(1); byte(1)   // DW_LNE_end_sequence
 
-    patchInt32(unitLengthOffset, buf.size - unitLengthOffset - 4)
+    patch32(unitLengthOffset, size - unitLengthOffset - 4)
 
-    // ---- Register section ----
-    val bytes = buf.toArray
-    val chunk = new DataChunk:
-      val fileSize   = bytes.length
-      val memorySize = bytes.length
-      def fileBytes() = bytes
-
-    addSection(".debug_line", baseAddr = 0, chunk, flags = 0)
+    addSection(".debug_line", baseAddr = 0, dw.toDataChunk, flags = 0)
   end addDebugLineSection
 
   def layoutSegments(): List[Segment] =
@@ -485,7 +456,6 @@ object ELF32:
   final val SHF_ALLOC = 0x2
   final val SHF_EXEC  = 0x4
 
-  final val STB_LOCAL  = 0
   final val STB_GLOBAL = 1
 
   final val STT_OBJECT = 1
