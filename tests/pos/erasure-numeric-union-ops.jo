@@ -1,0 +1,110 @@
+// Erasure test: numeric types in union type operations
+// On native, Int/Bool are untagged while String/class are tagged
+// Union types with numerics require careful boxing in patterns and generic calls
+
+type IntOrString = Int | String
+
+type BoolOrString = Bool | String
+
+type MaybeInt = Int | String
+
+def showIntOrString(v: IntOrString): String =
+  match v
+    case i: Int => "Int:" + i
+    case s: String => "Str:" + s
+
+def showBoolOrString(v: BoolOrString): String =
+  match v
+    case b: Bool => "Bool:" + b
+    case s: String => "Str:" + s
+
+def doubleIntOrString(v: IntOrString): IntOrString =
+  match v
+    case i: Int => i * 2
+    case s: String => s + s
+
+def flipBoolOrString(v: BoolOrString): BoolOrString =
+  match v
+    case b: Bool => !b
+    case s: String => s + "!"
+
+def transformMaybe(m: MaybeInt, f: Int => Int): MaybeInt =
+  match m
+    case i: Int => f i
+    case s: String => s
+
+def countInts(items: List[IntOrString]): Int =
+  items.fold[Int](0, (acc, v) =>
+    match v
+      case _: Int => acc + 1
+      case _: String => acc
+  )
+
+def main =
+  // Basic IntOrString
+  val v1: IntOrString = 42
+  val v2: IntOrString = "hello"
+
+  println (showIntOrString v1)
+  println (showIntOrString v2)
+
+  // doubleIntOrString
+  match (doubleIntOrString v1)
+    case i: Int => println i
+    case s: String => println s
+
+  match (doubleIntOrString v2)
+    case i: Int => println i
+    case s: String => println s
+
+  // BoolOrString
+  val b1: BoolOrString = true
+  val b2: BoolOrString = "world"
+
+  println (showBoolOrString b1)
+  println (showBoolOrString b2)
+
+  match (flipBoolOrString b1)
+    case b: Bool => println b
+    case s: String => println s
+
+  match (flipBoolOrString b2)
+    case b: Bool => println b
+    case s: String => println s
+
+  // MaybeInt with lambda transformation
+  val m1: MaybeInt = 7
+  val m2: MaybeInt = "keep"
+
+  match (transformMaybe m1 (x => x * 10))
+    case i: Int => println i
+    case s: String => println s
+
+  match (transformMaybe m2 (x => x + 1))
+    case i: Int => println i
+    case s: String => println s
+
+  // List[IntOrString]: stores union values as Any
+  val mixed: List[IntOrString] = [1, "two", 3, "four", 5]
+  println (countInts mixed)
+
+  // map on List[IntOrString]
+  val doubled = mixed.map[IntOrString](v =>
+    match v
+      case i: Int => i * 2
+      case s: String => s + s
+  )
+
+  for v in doubled do
+    match v
+      case i: Int => println i
+      case s: String => println s
+
+  // Nested pattern match on list with Bool union
+  val bools: List[BoolOrString] = [true, "maybe", false]
+  val flipped = bools.map[BoolOrString](v => flipBoolOrString v)
+
+  for v in flipped do
+    match v
+      case b: Bool => println b
+      case s: String => println s
