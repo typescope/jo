@@ -338,7 +338,7 @@ extends Backend(runtime):
   /** Compile a reference */
   def compile(ref: Ident)(using fctx: FunctionContext, cb: CodeBuffer): Unit =
     val sym = ref.symbol
-    if sym.is(Flags.Fun) then
+    if sym.isFunction then
       val label = getFunAddress(sym)
       push(label)
     else
@@ -428,6 +428,7 @@ extends Backend(runtime):
             push(Reg(r))
 
         else
+          assert(!sym.hasAnnotation(defn.intrinsic) || runtime.locate(sym).nonEmpty, "intrinsic function not intrinsified: " + sym.fullName)
           for arg <- app.allArgs do compile(arg)
           call(sym)
 

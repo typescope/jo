@@ -518,6 +518,8 @@ extends Backend(runtime):
           ctx.vs.push(Reg(reg))
 
         else
+          assert(!sym.hasAnnotation(defn.intrinsic) || runtime.locate(sym).nonEmpty, "intrinsic function not intrinsified: " + sym.fullName)
+
           for arg <- app.allArgs do compile(arg)
           call(sym)
 
