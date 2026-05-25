@@ -1,0 +1,95 @@
+// Erasure test: lambda wrapper generation for tagging mismatch
+// When a concrete lambda (Int => Int) is used where an erased lambda (Any => Any)
+// is expected, and the tagging of params/return types differs on native, the erasure
+// phase wraps the lambda to handle boxing/unboxing at the boundary
+
+// Generic interfaces: after erasure, methods use Any instead of T
+interface Transform[T]
+  def apply(x: T): T
+end
+
+interface Predicate[T]
+  def test(x: T): Bool
+end
+
+interface Reducer[T]
+  def reduce(a: T, b: T): T
+end
+
+interface Converter[T, U]
+  def convert(x: T): U
+end
+
+def runTransform[T](t: Transform[T], x: T): T = t.apply x
+
+def runPredicate[T](p: Predicate[T], x: T): Bool = p.test x
+
+def runReducer[T](r: Reducer[T], a: T, b: T): T = r.reduce a b
+
+def runConverter[T, U](c: Converter[T, U], x: T): U = c.convert x
+
+// Generic function that takes a lambda where T is erased to Any
+def mapWithErase[T, U](items: List[T], f: T => U): List[U] =
+  items.map[U](f)
+
+def filterWith[T](items: List[T], p: T => Bool): List[T] =
+  items.select(p)
+
+def foldWith[T, U](items: List[T], init: U, f: (U, T) => U): U =
+  items.fold[U](init, f)
+
+def main =
+  // Transform[Int]: lambda (Any => Any) wraps (Int => Int) at interface boundary
+  val doubler: Transform[Int] = x => x * 2
+  println (runTransform[Int](doubler, 7))     // 14
+
+  val inc: Transform[Int] = x => x + 100
+  println (runTransform[Int](inc, 5))          // 105
+
+  // Transform[Bool]
+  val negate: Transform[Bool] = x => !x
+  println (runTransform[Bool](negate, true))   // false
+  println (runTransform[Bool](negate, false))  // true
+
+  // Predicate[Int]: result type Bool is untagged
+  val isEven: Predicate[Int] = x => x % 2 == 0
+  println (runPredicate[Int](isEven, 4))   // true
+  println (runPredicate[Int](isEven, 7))   // false
+
+  // Predicate[String]
+  val nonEmpty: Predicate[String] = s => s.length > 0
+  println (runPredicate[String](nonEmpty, "hi"))  // true
+  println (runPredicate[String](nonEmpty, ""))    // false
+
+  // Reducer[Int]: (Any, Any) => Any wrapping (Int, Int) => Int
+  val sumR: Reducer[Int] = (a, b) => a + b
+  println (runReducer[Int](sumR, 10, 20))  // 30
+
+  val maxR: Reducer[Int] = (a, b) => if a > b then a else b
+  println (runReducer[Int](maxR, 7, 3))    // 7
+
+  // Converter[Int, String]: (Any => Any) wrapping (Int => String)
+  val conv: Converter[Int, String] = x => "[" + x + "]"
+  println (runConverter[Int, String](conv, 42))  // [42]
+
+  // Converter[Bool, Int]
+  val boolToInt: Converter[Bool, Int] = b => if b then 1 else 0
+  println (runConverter[Bool, Int](boolToInt, true))   // 1
+  println (runConverter[Bool, Int](boolToInt, false))  // 0
+
+  // mapWithErase: (Any => Any) from (Int => String)
+  val nums = [1, 2, 3, 4]
+  val strs = mapWithErase[Int, String](nums, x => "[" + x + "]")
+  for s in strs do println s
+
+  // mapWithErase: (Any => Any) from (Int => Int)
+  val tripled = mapWithErase[Int, Int](nums, x => x * 3)
+  for n in tripled do println n
+
+  // filterWith: (Any => Bool) from (Int => Bool)
+  val evens = filterWith[Int](nums, x => x % 2 == 0)
+  for n in evens do println n
+
+  // foldWith: (Any, Any) => Any from (String, Int) => String
+  val joined = foldWith[Int, String](nums, "", (acc, x) => acc + x)
+  println joined   // 1234
