@@ -124,12 +124,12 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
           //   Reporter.error(s"Field $name is not mutable", word.pos)
 
           if !Subtyping.conforms(rhs.tpe, lhs.tpe.widenTermRef) then
-            Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${lhs.show}", word.pos)
+            Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${lhs.show}", rhs.pos)
 
       case Assign(ident, rhs, _) =>
         // Pattern translation uses Assign directly for pattern bound variables.
         if !Subtyping.conforms(rhs.tpe, ident.symbol.tpe) then
-          Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${ident.symbol.tpe.show}", word.pos)
+          Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${ident.symbol.tpe.show}", rhs.pos)
 
       case Apply(fun, args, autos) =>
         fun.tpe.asInvokableType match
