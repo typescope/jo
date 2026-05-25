@@ -1,0 +1,12 @@
+type Num = Int | String
+
+def apply[T, U](f: T => U, x: T): U = f x
+
+def main =
+  val showFn: Num => String = n =>
+    match n
+      case i: Int => "Int:" + i
+      case s: String => "Str:" + s
+
+  println (apply[Num, String](showFn, 42))
+  println (apply[Num, String](showFn, "hello"))
