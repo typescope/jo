@@ -14,6 +14,7 @@ import scala.collection.mutable
 class InterfaceTable(runtime: NativeRuntime):
   private val methodToLiftedMap = mutable.Map.empty[Symbol, Symbol]
   private val classIds = mutable.Map.empty[Symbol, Int]
+  private val reverseClassIds = mutable.Map.empty[Int, Symbol]
   private val interfaceIds = mutable.Map.empty[Symbol, Int]
 
   /** Map from a class to its interface table address */
@@ -43,7 +44,10 @@ class InterfaceTable(runtime: NativeRuntime):
       case None =>
         val id = classIds.size
         classIds(cls) = id
+        reverseClassIds(id) = cls
         id
+
+  def getClassSymbol(classId: Int): Symbol = reverseClassIds(classId)
 
   def getInterfaceId(interface: Symbol): Int =
     interfaceIds.get(interface) match

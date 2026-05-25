@@ -457,15 +457,10 @@ extends Backend(runtime):
           gen(Instr.Load(objAddr, reg, Size.B32))
           ctx.vs.push(Reg(reg))
 
-        else if sym.owner == runtime.Native then
-          callRuntime(sym, app)
+        else if sym.hasAnnotation(defn.intrinsic) then
+          callIntrinsic(sym, app)
 
         else
-          assert(
-            !sym.hasAnnotation(defn.intrinsic) || runtime.locate(sym).nonEmpty || sym == runtime.Core_initObjects,
-            "intrinsic function not intrinsified: " + sym.fullName
-          )
-
           for arg <- app.allArgs do compile(arg)
           call(sym)
 
@@ -587,7 +582,7 @@ extends Backend(runtime):
     throw new Exception("Float primitive operations not yet implemented in native backend: " + sym)
   end callFloatPrimitive
 
-  def callRuntime(sym: Symbol, app: Apply)(using ctx: Context): Unit =
+  def callIntrinsic(sym: Symbol, app: Apply)(using ctx: Context): Unit =
     if sym == runtime.ParamSupport_paramKey then
       val paramSym = app.args.headOption match
         case Some(Ident(paramSym)) => paramSym
@@ -605,8 +600,8 @@ extends Backend(runtime):
       ctx.vs.push(Reg(targetReg))
 
     else if sym == runtime.Core_getInterfaceTable then
-      val Literal(Constant.String(path)) = app.args.head.runtimeChecked
-      val classInfo = defn.resolveType(path).classInfo
+      val Literal(Constant.Int(classId)) = app.args.head.runtimeChecked
+      val classInfo = runtime.itable.getClassSymbol(classId).classInfo
       val label = runtime.itable.getInterfaceTable(classInfo)
 
       // Mark all interface methods reachable
@@ -642,6 +637,9 @@ extends Backend(runtime):
     else if sym == runtime.Core_RefArray_ArrayClassId then
       val cid = runtime.itable.getClassId(defn.Array_class)
       ctx.vs.push(Int32(cid))
+
+    else if sym == runtime.Core_initObjects then
+      call(sym)
 
     else
       for arg <- app.allArgs do compile(arg)
@@ -688,7 +686,10 @@ extends Backend(runtime):
           gen(Instr.Load(Reg(reg), regResult, Size.B8))
           ctx.vs.push(Reg(regResult))
 
-        case _ => throw new Exception("Unknown runtime symbol: " + sym.fullName)
+        case _ =>
+          runtime.locate(sym) match
+            case Some(_) => call(sym)
+            case None => throw new Exception("Unknown runtime symbol: " + sym.fullName)
 
   /** Load a value relative to the stack pointer.
     *

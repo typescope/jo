@@ -56,7 +56,7 @@ private def debug(s: String): Unit receives none =
   ! The backend intrinsifies this call to a static address.
 //]
 @intrinsic
-private def getInterfaceTable(fullName: String): Any receives none = ...
+private def getInterfaceTable(classId: Int): Any receives none = ...
 
 //[ Find a method pointer in an interface table
   !

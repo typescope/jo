@@ -371,15 +371,10 @@ extends Backend(runtime):
             cb.add(Instr.Load(runtime.getObjectHolder(sym), r, Size.B32))
             push(Reg(r))
 
-        else if sym.owner == runtime.Native then
-          callRuntime(sym, app)
+        else if sym.hasAnnotation(defn.intrinsic) then
+          callIntrinsic(sym, app)
 
         else
-          assert(
-            !sym.hasAnnotation(defn.intrinsic) || runtime.locate(sym).nonEmpty || sym == runtime.Core_initObjects,
-            "intrinsic function not intrinsified: " + sym.fullName
-          )
-
           for arg <- app.allArgs do compile(arg)
           call(sym)
 
@@ -517,7 +512,7 @@ extends Backend(runtime):
     throw new Exception("Float primitive operations not yet implemented in native backend: " + sym)
   end callFloatPrimitive
 
-  def callRuntime(sym: Symbol, app: Apply)(using fctx: FunctionContext, cb: CodeBuffer): Unit =
+  def callIntrinsic(sym: Symbol, app: Apply)(using fctx: FunctionContext, cb: CodeBuffer): Unit =
     if sym == runtime.ParamSupport_paramKey then
       val paramSym = app.args.headOption match
         case Some(Ident(paramSym)) => paramSym
@@ -530,8 +525,8 @@ extends Backend(runtime):
       push(runtime.runtimeStateLabel)
 
     else if sym == runtime.Core_getInterfaceTable then
-      val Literal(Constant.String(path)) = app.args.head.runtimeChecked
-      val classInfo = defn.resolveType(path).classInfo
+      val Literal(Constant.Int(classId)) = app.args.head.runtimeChecked
+      val classInfo = runtime.itable.getClassSymbol(classId).classInfo
       val label = runtime.itable.getInterfaceTable(classInfo)
 
       // Mark all interface methods reachable
@@ -565,6 +560,9 @@ extends Backend(runtime):
     else if sym == runtime.Core_RefArray_ArrayClassId then
       val cid = runtime.itable.getClassId(defn.Array_class)
       push(Int32(cid))
+
+    else if sym == runtime.Core_initObjects then
+      call(sym)
 
     else
       for arg <- app.allArgs do compile(arg)
@@ -600,7 +598,10 @@ extends Backend(runtime):
             cb.add(Instr.Load(Reg(r1), r2, Size.B8))
             push(Reg(r2))
 
-        case _ => throw new Exception("Unknown runtime symbol: " + sym.fullName)
+        case _ =>
+          runtime.locate(sym) match
+            case Some(_) => call(sym)
+            case None => throw new Exception("Unknown runtime symbol: " + sym.fullName)
 
   /** Duplicate the value on the top of stack. */
   def dup(size: Size)(using CodeBuffer) =
