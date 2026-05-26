@@ -251,6 +251,10 @@ object Trees:
   case class Encoded
     (repr: Word)(val tpe: Type)
   extends Word with DerivedSpan:
+    tpe match
+      case ref: RefType => assert(ref.symbol.isType, "Non-widened tpe: " + ref.symbol)
+      case _ =>
+
     def deriveSpan: Span = repr.span
     def isValueDrop: Boolean = tpe.isVoidType
 
