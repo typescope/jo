@@ -35,4 +35,4 @@ private[native] def alloc(size: Int): Addr receives none =
   // update data
   state.freeFrom = newFreeFrom
 
-  native.cast[Addr] res
+  native.intToAddr res

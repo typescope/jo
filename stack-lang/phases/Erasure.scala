@@ -201,7 +201,9 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
             if isVoid then
               // value drop
               assert(expectedType.isVoidType, "expected type is non-void: " + expectedType.show)
-              Encoded(eraseWord(repr, expectedType = eraseType(repr.tpe), returnType))(VoidType)
+              val repr2 = eraseWord(repr, expectedType = eraseType(repr.tpe), returnType)
+
+              if repr2.eq(repr) then word else Encoded(repr2)(VoidType)
 
             else
               // TODO: add union type assertion
@@ -255,6 +257,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
         val select2 = if qual2.eq(qual) then select else Select(qual2, name)(word.span)
         val expectType = select2.tpe.widen
         val rhs2 = eraseWord(rhs, expectType, returnType)
+
         if select2.eq(select) && rhs2.eq(rhs) then word
         else FieldAssign(select2, rhs2)
 

@@ -340,5 +340,9 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         assert(args2.size == 1, args)
         Encoded(args2.head)(defn.IntType)
 
+      case Ident(sym) if sym == runtime.Core_intToAddr =>
+        assert(args2.size == 1, args)
+        Encoded(args2.head)(AddrType)
+
       case _ =>
         Apply(transform(fun), args2, autos2)(apply.span)

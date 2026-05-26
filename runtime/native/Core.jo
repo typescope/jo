@@ -45,9 +45,13 @@ private def addAddr(arr: Addr, offset: Int): Addr receives none =
 @intrinsic
 def cast[T](arr: Any): T receives none = abort("runtime cast")
 
-//[ cast a type to Int   //]
+//[ cast non-primitive type to Int   //]
 @intrinsic
 def castInt(arr: Any): Int receives none = abort("runtime cast")
+
+//[ cast Int to Addr   //]
+@intrinsic
+def intToAddr(n: Int): Addr receives none = abort("runtime cast")
 
 private def debug(s: String): Unit receives none =
   writeString: 0, cast[StringRepr] s

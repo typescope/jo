@@ -50,7 +50,7 @@ class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
 
   /** Check if boxing is needed: numeric -> union/any containing that numeric */
   private def needsBoxing(reprType: Type, targetType: Type): Boolean =
-    targetType.isAnyType && reprType.isNumericOrBoolType
+    targetType.dealias.isAnyType && reprType.isNumericOrBoolType
 
   /** Check if unboxing is needed: union/any -> numeric */
   private def needsUnboxing(reprType: Type, targetType: Type): Boolean =
