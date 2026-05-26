@@ -1,6 +1,6 @@
 # Jo Programming Language
 
-Jo is a statically-typed functional language. Its capability-based security is enforced by the type system — not by sandboxing or runtime isolation.
+Jo is a statically-typed object-oriented language. Its type system enforces [capability-based security](capabilities.md) at compile time.
 
 ## Why Jo?
 
@@ -10,7 +10,7 @@ Jo's type system solves a fundamental problem in secure software:
 
 Jo solves the problem by supporting capability contracted authority based on its type system:
 
-- **Authority confinement** — Restrict untrusted code to exactly the permissions it needs, at any granularity.
+- **Authority confinement** — Restrict untrusted code to exactly the granted permissions it needs, at any granularity.
 - **Fine-grained control** — Scope permissions precisely: a specific directory, a single API request, or rows belonging to one user.
 - **Auditable by design** — Security boundaries are visible in types, not hidden in runtime configuration.
 
