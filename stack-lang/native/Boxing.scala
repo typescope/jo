@@ -21,7 +21,7 @@ import native.runtime.NativeRuntime
   *
   * This phase runs after pattern translation, so patterns should not exist.
   *
-  * Thanks to Encoded nodes inserted during type checking and pattern translation,
+  * Thanks to Encoded nodes inserted during pattern translation and erasure,
   * we only need to override transformEncoded to inspect these markers.
   */
 class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
@@ -36,9 +36,11 @@ class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
     if needsBoxing(reprType, targetType) then
       // Create boxed value
       boxValue(repr2, targetType, encoded.span)
+
     else if needsUnboxing(reprType, targetType) then
       // Extract numeric from union/any
       unboxValue(repr2, targetType, encoded.span)
+
     else
       // No boxing/unboxing needed, keep the encoding
       if repr2 eq repr then encoded
@@ -46,11 +48,11 @@ class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
 
   /** Check if boxing is needed: numeric -> union/any containing that numeric */
   private def needsBoxing(reprType: Type, targetType: Type): Boolean =
-    targetType.isAnyType && reprType.isNumericOrBoolType
+    targetType.approx.isAnyType && reprType.isNumericOrBoolType
 
   /** Check if unboxing is needed: union/any -> numeric */
   private def needsUnboxing(reprType: Type, targetType: Type): Boolean =
-    reprType.widenTermRef.isAnyType && targetType.isNumericOrBoolType
+    reprType.approx.isAnyType && targetType.isNumericOrBoolType
 
   /** Box a numeric value into a union type */
   private def boxValue(word: Word, unionType: Type, span: Span): Word =

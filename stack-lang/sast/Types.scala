@@ -146,7 +146,7 @@ object Types:
     /** Widen a term reference to its underlying type */
     def widenTermRef(using Definitions): Type =
       this match
-        case refType: RefType if !refType.symbol.isType => refType.info.widenTermRef
+        case refType: RefType if !refType.symbol.isType => refType.info
         case _ => this
 
     /** Widen a constant type to its underlying type */
