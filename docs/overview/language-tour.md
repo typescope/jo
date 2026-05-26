@@ -54,15 +54,6 @@ connect("example.com", port = 443, secure = true) // named arguments
 connect("example.com", 443, true)                 // positional
 ```
 
-A pre-parameter placed before the function name makes it callable as a method:
-
-```jo
-def (xs: List[Int]) sum: Int =   // xs is the receiver
-  xs.foldLeft(0, (a, b) => a + b)
-
-[1, 2, 3].sum   // => 6
-```
-
 Lambdas use `=>` syntax:
 
 ```jo
@@ -146,13 +137,11 @@ Algebraic data types are defined with `union`:
 union Shape =
     Circle(radius: Float)
   | Rectangle(w: Float, h: Float)
-  | Dot
 
 def area(shape: Shape): Float =
   match shape
     case Circle r => 3.14 * r * r
     case Rectangle w h => w * h
-    case Dot => 0.0
 ```
 
 ## Extension
