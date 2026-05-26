@@ -1,0 +1,15 @@
+type Num = Int | String
+
+def showNum(n: Num): String =
+  match n
+    case i: Int => "Int:" + i
+    case s: String => "Str:" + s
+
+interface Mapper[T]
+  def mapWith(f: T => T, x: T): T
+end
+
+def main =
+  val numMapper: Mapper[Num] = (f, x) => x
+  val r: Num = numMapper.mapWith(n => n, 7)
+  println (showNum r)
