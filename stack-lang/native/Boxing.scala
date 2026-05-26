@@ -23,6 +23,8 @@ import native.runtime.NativeRuntime
   *
   * Thanks to Encoded nodes inserted during pattern translation and erasure,
   * we only need to override transformEncoded to inspect these markers.
+  *
+  * TODO: merge into the phase Erasure
   */
 class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
 

@@ -186,8 +186,15 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
             val Some(lambdaType) = interfaceType.getLambdaInterfaceType.runtimeChecked
             // Return cannot cross lambda boundary
             eraseWord(lambda, expectedType = lambdaType, returnType = null) match
-              case Encoded(lambda2: Lambda) => Encoded(lambda2)(interfaceType)
-              case lambda2: Lambda => Encoded(lambda2)(interfaceType)
+              case Encoded(lambda2: Lambda) =>
+                Encoded(lambda2)(interfaceType)
+
+              case lambda2: Lambda =>
+                // TODO: This is not good enough for JVM once it's supported
+                //
+                // In that case, an adaptation lambda needs to be created.
+                Encoded(lambda2)(interfaceType)
+
               case word => throw new Exception("Unexpected lambda interface: " + word.show)
 
           case _ =>
