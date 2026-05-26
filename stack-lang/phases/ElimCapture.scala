@@ -65,9 +65,9 @@ object ElimCapture:
     fun.ownersIterator.foldLeft(fun.name): (acc, owner) =>
       if !owner.isContainer then owner.name + "$" + acc else acc
 
-  def createLiftedFunSym(
-      fdef: FunDef, prependParams: List[NamedInfo[Type]], appendParams: List[NamedInfo[Type]])(
-      using defn: Definitions)
+  def createLiftedFunSym
+      (fdef: FunDef, prependParams: List[NamedInfo[Type]], appendParams: List[NamedInfo[Type]])
+      (using defn: Definitions)
   : Symbol =
 
     val oldFunSym = fdef.symbol
@@ -377,7 +377,6 @@ object ElimCapture:
         effectPolicy = Effects.Policy.CheckBound(receives),
         body = body3
       )(annots = Nil, span = lam.span)
-
 
       // Create the lifted class
       val classDef =

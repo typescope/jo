@@ -95,7 +95,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
         Visibility.Default,
         methImpl.owner,
         methImpl.sourcePos
-      )
+      )(using prevDefinitions)
 
       Some(bridge)
 
@@ -159,11 +159,13 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
             if conforms then value else Encoded(value)(expectedType)
 
           else
-            TreeOps.createLambda(lambdaType2, Phase.owner.value, value.span): paramRefs =>
+            // New symbols should go to old info, so they can be found during eraseType
+            TreeOps.createLambda(lambdaType2, Phase.owner.value, value.span)(paramRefs => {
               val args = paramRefs.zip(paramTypes1).map: (paramRef, paramType) =>
                 adapt(paramRef, paramType)
 
               adapt(Apply(value, args, autos = Nil)(value.span), resType2)
+            })(using prevDefinitions)
 
   def eraseWord(word: Word, expectedType: Type, returnType: Type | Null)(using Context): Word = common.Debug.trace("erase " + word.show, (_: Word).show, enable = false):
     word match
@@ -335,6 +337,17 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
 
         throw new Exception("Unexpected tree: " + word)
 
+  def createBridges(classSym: Symbol, bridgePairs: List[(Symbol, Symbol)])(using Context): List[FunDef] =
+    for (bridgeSym, targetSym) <- bridgePairs yield
+      val procType = bridgeSym.tpe.asProcType
+      TreeOps.createFunDef(bridgeSym)((paramRefs, autoRefs) => {
+        val targetRef = Ident(classSym.classInfo.self)(bridgeSym.span).select(targetSym.name)
+        val app = Apply(targetRef, paramRefs, autoRefs)(bridgeSym.span)
+        val resType = procType.resultType
+        eraseWord(app, expectedType = resType, returnType = resType)
+      })(using prevDefinitions)
+    end for
+
   override def transformClassDef(cdef: ClassDef)(using Context): ClassDef =
     val classSym = cdef.symbol
     Phase.owner.set(classSym)
@@ -347,16 +360,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
       cdef.copy(funs = funs)(cdef.annots, cdef.span)
 
     else
-      val bridges =
-        for (bridgeSym, targetSym) <- bridgeSymbols yield
-          val procType = bridgeSym.tpe.asProcType
-          TreeOps.createFunDef(bridgeSym): (paramRefs, autoRefs) =>
-            val targetRef = Ident(classSym.classInfo.self)(bridgeSym.span).select(targetSym.name)
-            val app = Apply(targetRef, paramRefs, autoRefs)(bridgeSym.span)
-            val resType = procType.resultType
-            eraseWord(app, expectedType = resType, returnType = resType)
-        end for
-
+      val bridges = createBridges(classSym, bridgeSymbols)
       cdef.copy(funs = funs ++ bridges)(cdef.annots, cdef.span)
 
   /** Leave the def tree in original info, which are harmless */
