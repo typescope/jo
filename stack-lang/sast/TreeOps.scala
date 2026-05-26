@@ -173,6 +173,39 @@ object TreeOps:
       Apply(funWithTargs, paramIdents, Nil)(span)
     }
 
+  def createFunDef
+      (sym: Symbol)
+      (bodyFun: (List[Ident], List[Ident]) => Word)
+      (using defn: Definitions)
+  : FunDef =
+    val procType = sym.tpe.asProcType
+
+    assert(procType.tparams.isEmpty, "Only monomorphic functions supported: " + procType.show)
+
+    val paramSyms =
+      for NamedInfo(name, paramType) <- procType.params yield
+        TermSymbol.create(name, paramType, Flags.Param, Visibility.Default, sym, sym.sourcePos)
+
+    val autoSyms =
+      for NamedInfo(name, paramType) <- procType.autos yield
+        TermSymbol.create(name, paramType, Flags.Param | Flags.Auto, Visibility.Default, sym, sym.sourcePos)
+
+    // Generate parameter idents and call the body function
+    val paramRefs = paramSyms.map(sym => Ident(sym)(sym.span))
+    val autoRefs = autoSyms.map(sym => Ident(sym)(sym.span))
+    val body = bodyFun(paramRefs, autoRefs)
+
+    FunDef(
+      sym,
+      tparams = Nil,
+      paramSyms,
+      autoSyms,
+      candidates = Nil,
+      resultType = TypeTree(procType.resultType)(sym.span),
+      effectPolicy = Effects.Policy.CheckBound(procType.receives),
+      body
+    )(annots = Nil, sym.span | body.span)
+
   /** Returns (locals, free) */
   def variableCensus(fdef: FunDef)(using Definitions): (List[Symbol], List[Symbol]) =
     val census = new VariableCensus

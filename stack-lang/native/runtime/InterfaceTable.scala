@@ -3,6 +3,7 @@ package runtime
 
 import sast.Definitions
 import sast.Flags
+import sast.Names
 import sast.Symbols.Symbol
 import sast.Denotations.*
 
@@ -57,11 +58,18 @@ class InterfaceTable(runtime: NativeRuntime):
         interfaceIds(interface) = id
         id
 
-  /** Return lifted implementation function of the given interface method in the given class */
-  def getLiftedImplementation(classInfo: ClassInfo, meth: Symbol): Symbol =
-    classInfo.getMemberSymbol(meth.name) match
+  /** Return lifted implementation function of the given interface method in the given class
+    *
+    * It handles bridge methods.
+    */
+  def getImplementation(classInfo: ClassInfo, name: String): Symbol =
+    classInfo.getMemberSymbol(name + Names.BridgeSuffix) match
       case Some(sym) => methodToLiftedMap(sym)
-      case None => throw new Exception(s"Implementation missing for ${meth} in class ${classInfo.classSymbol}")
+      case None =>
+        classInfo.getMemberSymbol(name) match
+          case Some(sym) => methodToLiftedMap(sym)
+          case None =>
+            throw new Exception(s"Implementation missing for $name in class ${classInfo.classSymbol}")
 
   /** Return lifted implementation functions of interface methods in the given class */
   def getInterfaceImplementations(classInfo: ClassInfo)(using Definitions): List[Symbol] =
@@ -72,7 +80,7 @@ class InterfaceTable(runtime: NativeRuntime):
       val interfaceInfo = viewType.classInfo
 
       for method <- interfaceInfo.methods if method.is(Flags.Defer) do
-        result += getLiftedImplementation(classInfo, method)
+        result += getImplementation(classInfo, method.name)
       end for
     end for
 
@@ -96,7 +104,7 @@ class InterfaceTable(runtime: NativeRuntime):
           vtableMap(interfaceSym) = pb.currentAddr()
 
           for method <- interfaceInfo.methods if method.is(Flags.Defer) do
-            val implMethod = getLiftedImplementation(classInfo, method)
+            val implMethod = getImplementation(classInfo, method.name)
             val label = runtime.funLabelMap(implMethod)
 
             // The code segment can be lowered later or before data segment

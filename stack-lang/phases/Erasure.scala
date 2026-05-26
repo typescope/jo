@@ -1,9 +1,12 @@
 package phases
 
 import sast.*
+import sast.Symbols.*
 import sast.Trees.*
 import sast.Types.*
 import sast.Denotations.*
+
+import scala.collection.mutable
 
 /** Erase type parameters and make boxing/unboxing of primitive values explicit
   *
@@ -16,26 +19,42 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
   private val eraseTypeMap = new Erasure.EraseTypeMap(using prevDefinitions)
 
   override def initContext()(using Context): Unit =
+    Erasure.bridges.set(mutable.Map.empty)
     defn.index.installTransform: (_, denot) =>
       eraseDenotation(denot)
 
-  def eraseDenotation(denot: Denotation): Denotation =
+  def eraseDenotation(denot: Denotation)(using Context): Denotation =
     denot match
       case info: ClassInfo =>
+        val bridges = new mutable.ArrayBuffer[(Symbol, Symbol)]
         var changed = false
         val directViews2 = info.directViews.map: tp =>
           val tp2 = eraseType(tp)
           changed = changed || tp2.ne(tp)
+
+          if !primitiveTagged then
+            val interfaceInfo = tp2.classInfo
+            for method <- interfaceInfo.methods if method.is(Flags.Defer) do
+              val implMeth = info.memberSymbol(method.name)
+              makeBridge(method, implMeth) match
+                case Some(bridge) => bridges += bridge -> implMeth
+                case None =>
+            end for
+          end if
+
           tp2
 
-        if !changed && info.tparams.isEmpty then return denot
+        val bridgeList = bridges.toList
+        Erasure.bridges.value(info.classSymbol) = bridgeList
+
+        if !changed && info.tparams.isEmpty && bridges.isEmpty then return denot
 
         ClassInfo(
           info.classSymbol,
           Nil, // tparams
           info.self,
           info.fields,
-          info.methods,
+          info.methods ++ bridgeList.map(_._1),
           if changed then directViews2 else info.directViews
         )
 
@@ -47,6 +66,38 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
       case tp: Type => eraseType(tp)
 
   def eraseType(tp: Type): Type = eraseTypeMap.apply(tp)(using ())
+
+  /** Create a bridge method symbol
+    *
+    * Assume !primitiveTagged
+    */
+  def makeBridge(methDefer: Symbol, methImpl: Symbol): Option[Symbol] =
+    val procType1 = methDefer.tpe.asProcType
+    val procType2 = methImpl.tpe.asProcType
+
+    // assume !primitiveTagged
+    def tagged(tp: Type): Boolean = !tp.isNumericOrBoolType
+
+    def taggingConforms(tp1: Type, tp2: Type) = tagged(tp1) == tagged(tp2)
+
+    val taggingOK =
+      taggingConforms(procType1.resultType, procType2.resultType)
+      && procType1.paramTypes.zip(procType2.paramTypes).forall((tp1, tp2) => taggingConforms(tp1, tp2))
+
+    if taggingOK && Subtyping.conforms(procType2, procType1) then
+      None
+
+    else
+      val bridge = TermSymbol.create(
+        methDefer.name + Names.BridgeSuffix,
+        procType2,
+        Flags.Fun | Flags.Method | Flags.Synthetic,
+        Visibility.Default,
+        methImpl.owner,
+        methImpl.sourcePos
+      )
+
+      Some(bridge)
 
   /** Type adaptation for boxing/unboxing of primitive types and cast
     *
@@ -114,7 +165,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
 
               adapt(Apply(value, args, autos = Nil)(value.span), resType2)
 
-  def eraseWord(word: Word, expectedType: Type, returnType: Type)(using Context): Word = common.Debug.trace("erase " + word.show, (_: Word).show, enable = false):
+  def eraseWord(word: Word, expectedType: Type, returnType: Type | Null)(using Context): Word = common.Debug.trace("erase " + word.show, (_: Word).show, enable = false):
     word match
       case Select(qual, name) =>
         val qual2 = eraseWord(qual, expectedType = eraseType(qual.tpe), returnType)
@@ -284,6 +335,29 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
 
         throw new Exception("Unexpected tree: " + word)
 
+  override def transformClassDef(cdef: ClassDef)(using Context): ClassDef =
+    val classSym = cdef.symbol
+    Phase.owner.set(classSym)
+    val funs = cdef.funs.map(transformFunDef)
+
+    classSym.info
+    val bridgeSymbols = Erasure.bridges.value(classSym)
+
+    if bridgeSymbols.isEmpty then
+      cdef.copy(funs = funs)(cdef.annots, cdef.span)
+
+    else
+      val bridges =
+        for (bridgeSym, targetSym) <- bridgeSymbols yield
+          val procType = bridgeSym.tpe.asProcType
+          TreeOps.createFunDef(bridgeSym): (paramRefs, autoRefs) =>
+            val targetRef = Ident(classSym.classInfo.self)(bridgeSym.span).select(targetSym.name)
+            val app = Apply(targetRef, paramRefs, autoRefs)(bridgeSym.span)
+            val resType = procType.resultType
+            eraseWord(app, expectedType = resType, returnType = resType)
+        end for
+
+      cdef.copy(funs = funs ++ bridges)(cdef.annots, cdef.span)
 
   /** Leave the def tree in original info, which are harmless */
   override def transformFunDef(fdef: FunDef)(using Context): FunDef = try
@@ -302,6 +376,9 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
     throw ex
 
 object Erasure:
+  val bridges: Phase.PhaseKey[mutable.Map[Symbol, List[(Symbol, Symbol)]]] =
+    new Phase.PhaseKey("bridges")
+
   /** Erasure type parameters of classes and functions
     *
     * Type erasure should use the original type of symbols.
