@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: "Jo"
-  text: "Safe by Design for the AI Era"
+  text: "Secure programming for the AI Era"
   tagline: Give AI agents only the capabilities they need — guaranteed by the type system, not a runtime sandbox.
   actions:
     - theme: brand
@@ -41,7 +41,7 @@ features:
   - icon:
       src: /icons/badge-check.svg
     title: Type-Safe by Design
-    details: If it compiles, it runs. Clear errors at compile time, no crashes at runtime. No nulls, no undefined behaviour.
+    details: No runtime type errors, the compiler catches what other languages let slip through.
     link: /language/design-principles
     linkText: Design principles
 
