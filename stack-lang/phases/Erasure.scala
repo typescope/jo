@@ -125,7 +125,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
         def tagged(tp: Type): Boolean = !tp.isNumericOrBoolType
 
         def taggingConforms(tp1: Type, tp2: Type) =
-          tagged(tp1) == tagged(tp1) && (!tp1.isLambdaType || !tp2.isLambdaType)
+          tagged(tp1) == tagged(tp2) && (!tp1.isLambdaType || !tp2.isLambdaType)
 
         if !expectedType.isLambdaType || !valueType.isLambdaType then
           if conforms then
@@ -214,7 +214,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
 
       case apply @ Apply(fun, args, autos) =>
         val fun2 = fun match
-          case TypeApply(fun, _) => eraseWord(fun, expectedType = eraseType(fun.tpe), returnType)
+          case TypeApply(funInner, _) => eraseWord(funInner, expectedType = eraseType(funInner.tpe), returnType)
           case _ => eraseWord(fun, expectedType = eraseType(fun.tpe), returnType)
 
         val invokeType = fun2.tpe.asInvokableType
@@ -295,6 +295,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
         adapt(word2, expectedType)
 
       case ret @ Return(label, value) =>
+        assert(returnType != null, "return type is null")
         val value2 = eraseWord(ret.value, returnType, returnType)
         if value2.eq(value) then word
         else Return(label, value2)(word.span)
