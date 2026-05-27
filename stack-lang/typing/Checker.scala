@@ -68,7 +68,7 @@ object Checker:
       def error(kind: Option[Kind]): Boolean =
         val explain = kind match
           case Some(kind) => ", but found a type of kind " + kind.show
-          case None => ", but a non-value type"
+          case None => ", but found a non-value type"
 
         Reporter.error(s"Expect value type" + explain, pos)
         false
