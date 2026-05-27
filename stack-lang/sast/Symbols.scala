@@ -308,13 +308,24 @@ object Symbols:
   end Symbol
 
   final class TypeSymbol private[Symbols](
-    val kind: Kind,
+    val initKind: Kind,
     name: String,
     flags: Flags,
     visibility: Visibility,
     owner: Symbol,
     sourcePos: SourcePosition)
-  extends Symbol(name, flags, visibility, owner, sourcePos)
+  extends Symbol(name, flags, visibility, owner, sourcePos):
+    def kind(using Definitions): Kind =
+      this.info match
+        case classInfo: ClassInfo if classInfo.tparams.nonEmpty =>
+          val tparamKinds = classInfo.tparams.map(tparam => tparam.asTypeSymbol.kind)
+          Kind.Arrow(tparamKinds, Kind.Simple)
+
+        case toi: TypeOperatorInfo =>
+          val tparamKinds = toi.tparams.map(tparam => tparam.asTypeSymbol.kind)
+          Kind.Arrow(tparamKinds, Kind.Simple)
+
+        case _ => Kind.Simple
 
   final class TermSymbol private[Symbols](
     name: String,

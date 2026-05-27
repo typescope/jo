@@ -420,7 +420,6 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   /** Unpack a packed vararg list (List.empty + a + b + ...) into [a, b, ...]. */
   private def unpackVarargList(word: Word): List[Word] =
     word match
-      case Apply(TypeApply(Ident(sym), _), Nil, _) if sym == defn.List_empty => Nil
       case Apply(Ident(sym), Nil, _) if sym == defn.List_empty               => Nil
       case Apply(Select(prev, "+"), List(arg), _)                            => unpackVarargList(prev) :+ arg
       case _ => throw new Exception("rb.Dynamic.callDynamic args must be a direct vararg list, got: " + word.show)
@@ -436,8 +435,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     */
   private def compileVarargItems(word: Word)(using scope: UniqueName, ctx: Context): List[R.Tree] =
     word match
-      case Apply(TypeApply(Ident(sym), _), Nil, _) if sym == defn.List_empty => Nil
-      case Apply(Ident(sym), Nil, _) if sym == defn.List_empty               => Nil
+      case Apply(Ident(sym), Nil, _) if sym == defn.List_empty => Nil
 
       case Apply(Select(prev, "+"), List(item), _) =>
         val compiled = item match
@@ -498,8 +496,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case Ident(sym) if sym.isFunction =>
         if sym == runtime.paramKey then
           val paramSym = args.head match
-            case Ident(paramSym) => paramSym
-            case Literal(Constant.String(path)) => defn.resolveTerm(path) // special support for entry method
+            case Encoded(Ident(paramSym)) => paramSym
             case word => throw new Exception("Unsupported argument to paramKey: " + word)
 
           val globalName = runtime.getOrCreateParamId(paramSym)
@@ -675,10 +672,6 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
             else
               compileCallArgListWithTypes(args, procType.params ++ procType.autos)
           R.Call(Some(compileExpr(qual)), memberName, rubyArgs)
-
-      case TypeApply(fun2, _) =>
-        // Strip type application and recurse
-        compileCall(fun2, args)
 
       case Encoded(repr) =>
         // Strip encoding and recurse

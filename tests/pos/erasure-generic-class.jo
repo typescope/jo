@@ -1,0 +1,71 @@
+// Erasure test: generic classes with numeric type arguments
+// When T = Int/Bool/Float, stored fields are untagged on native but class fields are Any
+// Tests boxing/unboxing when reading/writing generic fields
+
+class Box[T](value: T)
+
+class Pair[A, B](first: A, second: B)
+
+def getBox[T](b: Box[T]): T = b.value
+
+def swapPair[A, B](p: Pair[A, B]): Pair[B, A] =
+  Pair[B, A](p.second, p.first)
+
+def mapBox[T, U](b: Box[T], f: T => U): Box[U] =
+  Box[U](f b.value)
+
+def pairMap[A, B, C, D](p: Pair[A, B], f: A => C, g: B => D): Pair[C, D] =
+  Pair[C, D](f p.first, g p.second)
+
+def main =
+  // Box with primitive types: field stored as Any, unboxed on get
+  val intBox = Box[Int](42)
+  val boolBox = Box[Bool](true)
+  val strBox = Box[String]("hello")
+
+  println getBox[Int](intBox)
+  println boolBox.value
+  println getBox[String](strBox)
+
+  // Pair with mixed numeric/reference types
+  val p1 = Pair[Int, Bool](10, false)
+  println p1.first
+  println p1.second
+
+  val p2 = Pair[String, Int]("world", 99)
+  println p2.first
+  println p2.second
+
+  // swapPair: fields must be unboxed and re-boxed correctly
+  val p1s = swapPair[Int, Bool](p1)
+  println p1s.first    // false
+  println p1s.second   // 10
+
+  // mapBox: lambda applied to unboxed Int
+  val doubled = mapBox[Int, Int](intBox, x => x * 2)
+  println (getBox[Int] doubled)   // 84
+
+  val asString = mapBox[Int, String](intBox, x => "n=" + x)
+  println (getBox[String] asString)   // n=42
+
+  val negated = mapBox[Bool, Bool](boolBox, x => !x)
+  println (getBox[Bool] negated)   // false
+
+  // pairMap: transform both fields
+  val pm = pairMap[Int, Bool, String, Int](
+    p1,
+    x => "i=" + x,
+    x => if x then 1 else 0
+  )
+  println pm.first    // i=10
+  println pm.second   // 0
+
+  // Nested generic: Box[Pair[Int, Bool]]
+  val nested = Box[Pair[Int, Bool]](Pair[Int, Bool](7, true))
+  val inner = getBox[Pair[Int, Bool]](nested)
+  println inner.first    // 7
+  println inner.second   // true
+
+  // Box[Box[Int]]
+  val doubleBox = Box[Box[Int]](Box[Int](99))
+  println (getBox[Int](getBox[Box[Int]](doubleBox)))   // 99

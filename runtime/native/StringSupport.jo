@@ -21,7 +21,7 @@ private[native] section StringOps
     var cp = 0
     var off = 0
     while off < byteSize do
-      val step = utf8SeqLen(readByte(addAddr content off))
+      val step = utf8SeqLen: readByte(addAddr content off)
       off = off + step
       cp = cp + 1
     end
@@ -31,7 +31,7 @@ private[native] section StringOps
     var cp = 0
     var off = 0
     while cp < cpIndex && off < byteSize do
-      val step = utf8SeqLen(readByte(addAddr content off))
+      val step = utf8SeqLen: readByte(addAddr content off)
       off = off + step
       cp = cp + 1
     end
@@ -64,9 +64,9 @@ private[native] section StringOps
     end
 
   // This function is called to convert a UTF-8 string to a proper string object.
-  def fromByteString(byteArray: Any): String =
-    val byteSize = readInt: cast[Addr] byteArray
-    val contentAddr = addAddr: (cast[Addr] byteArray), 4
+  def fromByteString(byteArray: Addr): String =
+    val byteSize = readInt: byteArray
+    val contentAddr = addAddr: byteArray, 4
     val cpCount = countUtf8CodePoints(contentAddr, byteSize)
 
     cast[String]: Raw(byteSize, cpCount, contentAddr)
@@ -125,8 +125,8 @@ private[native] section StringOps
       val rhsBytes = bytes(rhs)
       var i = 0
       while isEqual && i < bytesN do
-        val l = readByte: addAddr (cast[Addr] lhsBytes) i
-        val r = readByte: addAddr (cast[Addr] rhsBytes) i
+        val l = readByte: addAddr lhsBytes i
+        val r = readByte: addAddr rhsBytes i
         isEqual = l == r
         i = i + 1
       end
@@ -140,9 +140,8 @@ private[native] section StringOps
     if from + len > cpN then abort "substring out of range"
     if len == 0 then ""
     else
-      val allBytes = bytes(source)
+      val content = bytes(source)
       val totalByteN = byteSize(source)
-      val content = cast[Addr] allBytes
       val startByte =
         if totalByteN == cpN then from
         else codePointToByteOffset(content, totalByteN, from)
@@ -206,7 +205,7 @@ private[native] section StringOps
   def iterator(source: String): Iterator[Char] =
     new StringIterator(source)
 
-  def bytes(repr: String): Any =
+  def bytes(repr: String): Addr =
     val bytes = GC.alloc byteSize(repr)
 
     def recur(repr: StringRepr, from: Int): Int =
@@ -234,7 +233,7 @@ private[native] section StringOps
 end
 
 private[native] class StringIterator(source: String)
-  val content: Addr = cast[Addr] StringOps.bytes(source)
+  val content: Addr = StringOps.bytes(source)
   val byteN: Int = StringOps.byteSize(source)
   var off: Int = 0
 

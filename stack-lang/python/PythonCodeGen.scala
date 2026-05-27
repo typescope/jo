@@ -738,20 +738,21 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     */
   private def compileVarargItems(packed: Word, enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], List[P.Expr]) =
     packed match
-      case Apply(TypeApply(Ident(sym), _), Nil, _) if sym == defn.List_empty =>
-        (Nil, Nil)
       case Apply(Ident(sym), Nil, _) if sym == defn.List_empty =>
         (Nil, Nil)
+
       case Apply(Select(prev, "+"), List(arg), _) =>
         val (prevStats, prevExprs) = compileVarargItems(prev, enforcePurity)
         val (argStats, argExpr) = compileCallArg(arg, enforcePurity = false)
         (prevStats ++ argStats, prevExprs :+ argExpr)
+
       case Apply(Select(prev, "++"), List(xs), _) =>
         val (prevStats, prevExprs) = compileVarargItems(prev, enforcePurity)
         val (xsStats, xsExpr) = compileExpr(xs, enforcePurity = false)
         // Convert Jo List to Python list so Python *-unpacking works
         val pyList = P.Call(None, pythonName(runtime.py_list), List(xsExpr))
         (prevStats ++ xsStats, prevExprs :+ P.Starred(pyList))
+
       case _ =>
         abortBadFfiCallArgs(packed)
 
@@ -773,8 +774,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
         else if sym == runtime.paramKey then
           val paramSym = args.head match
-            case Ident(paramSym) => paramSym
-            case Literal(Constant.String(path)) => defn.resolveTerm(path) // special support for entry method
+            case Encoded(Ident(paramSym)) => paramSym
             case word => throw new Exception("Unsupported argument to paramKey: " + word)
 
           val keyId = runtime.getOrCreateParamId(paramSym)
@@ -1027,10 +1027,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             (stats :+ P.Assign(tempName, call), P.Ident(tempName))
           else
             (stats, call)
-
-      case TypeApply(fun2, _) =>
-        // Strip type application and recurse
-        compileCall(fun2, args, enforcePurity)
 
       case Encoded(repr) =>
         // Strip encoding and recurse

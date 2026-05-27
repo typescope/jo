@@ -1,0 +1,6 @@
+---------- Error at tests/warn/type-defer.jo:2:14 ---------------
+| def foo: A = 3
+|              ^
+|              Expect type A, found = Int
+
+1 error(s), 0 warning(s)

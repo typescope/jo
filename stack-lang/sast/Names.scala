@@ -4,4 +4,6 @@ package sast
 object Names:
   val Constructor = "<init>"
 
-  val prefix_not = "~!"
+  val PrefixNot = "~!"
+
+  val BridgeSuffix = "$bridge"

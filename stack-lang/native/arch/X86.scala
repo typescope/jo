@@ -108,6 +108,9 @@ object X86 extends Assembler:
       case Instr.JZero(r, label) =>
         jzero(r.index, label)
 
+      case Instr.LocMark(file, line) =>
+        pb.addLocMark(file, line)
+
   def lower(binOp: Instr.Binary)(using pb: PatchableBuffer): Unit =
     binOp match
       case Instr.Binary(op, r1: Reg, r2: Reg, destReg) =>

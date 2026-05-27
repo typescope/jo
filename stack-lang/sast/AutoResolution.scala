@@ -355,7 +355,7 @@ object AutoResolution:
   def tryValueMember
       (resultType: Type, receiverType: Type, memberName: String,
         targetLambda: LambdaType, trial: SearchNode.Trial, owner: Symbol, span: Span)
-      (using defn: Definitions, so: Source)
+      (using defn: Definitions)
   : Option[Word] =
 
     // Create the lambda type for type checking (receiver => resultType)
@@ -385,7 +385,7 @@ object AutoResolution:
     */
   def trySynthesizeIdentity
       (targetType: Type, choice: SearchNode.Choice, owner: Symbol, span: Span)
-      (using defn: Definitions, source: Source)
+      (using defn: Definitions)
   : Option[Word] =
     val isLambdaIface = targetType.isLambdaInterface
 

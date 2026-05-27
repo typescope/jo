@@ -1,0 +1,74 @@
+// Erasure test: higher-order generic functions
+// Exercises wrapper lambda generation when lambda param/return type tagging differs
+
+def compose[A, B, C](f: A => B, g: B => C): A => C =
+  x => g (f x)
+
+def flip[A, B, C](f: (A, B) => C): (B, A) => C =
+  (b, a) => f a b
+
+def twice[A](f: A => A): A => A =
+  x => f (f x)
+
+def applyN[A](n: Int, f: A => A): A => A =
+  x =>
+    var result = x
+    var i = 0
+    while i < n do
+      result = f result
+      i = i + 1
+    result
+
+def pipeline[A, B, C, D](f: A => B, g: B => C, h: C => D): A => D =
+  x => h (g (f x))
+
+def main =
+  // compose Int => Int => Int
+  val add1 = (x: Int) => x + 1
+  val mul2 = (x: Int) => x * 2
+  val add1ThenMul2 = compose[Int, Int, Int](add1, mul2)
+  println (add1ThenMul2 5)   // (5+1)*2 = 12
+
+  // compose Int => Int => String
+  val toStr = compose[Int, Int, String](add1, x => "val=" + x)
+  println (toStr 9)           // val=10
+
+  // compose String => Int => String
+  val strLen = compose[String, Int, String](s => s.length, n => "[" + n + "]")
+  println (strLen "hello")    // [5]
+
+  // flip: (Int, Int) => Int becomes (Int, Int) => Int
+  val sub = (x: Int, y: Int) => x - y
+  val flippedSub = flip[Int, Int, Int] sub
+  println (flippedSub 3 10)   // 10 - 3 = 7
+
+  // flip: (Int, String) => String becomes (String, Int) => String
+  val prefix = (n: Int, s: String) => "[" + n + "]" + s
+  val flippedPrefix = flip[Int, String, String] prefix
+  println (flippedPrefix "hi" 7)  // [7]hi
+
+  // twice Int
+  println (twice[Int](mul2)(3))   // (3*2)*2 = 12
+
+  // twice Bool
+  val flipBool = (x: Bool) => !x
+  println (twice[Bool](flipBool)(true))   // true
+
+  // applyN: apply add1 four times
+  val add4 = applyN[Int](4, add1)
+  println (add4 10)    // 14
+
+  // applyN with zero iterations
+  println (applyN[Int](0, mul2)(5))   // 5
+
+  // pipeline: Int => Int => String => String
+  val pipe = pipeline[Int, Int, String, String](
+    add1,
+    x => "n=" + x,
+    s => "(" + s + ")"
+  )
+  println (pipe 6)    // (n=7)
+
+  // compose twice to build quadruple
+  val quadruple = compose[Int, Int, Int](mul2, mul2)
+  println (quadruple 3)    // 12

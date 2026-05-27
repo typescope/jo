@@ -1,0 +1,9 @@
+// Tests that stack overflow produces "Stack overflow" on stderr and exits with
+// code 1, rather than crashing with a bare segmentation fault.
+//
+// Uses non-tail recursion to ensure the call stack actually grows.
+def recurse(n: Int): Int = 1 + recurse(n + 1)
+
+def main =
+  recurse 0
+  println "unreachable"

@@ -31,6 +31,8 @@ extends Linker:
   val Core_initObjects = Native.termMember("initObjects")
 
   val Core_cast = Native.termMember("cast")
+  val Core_castInt = Native.termMember("castInt")
+  val Core_intToAddr = Native.termMember("intToAddr")
   val Core_state = Native.termMember("state")
   val Core_debug = Native.termMember("debug")
 
@@ -136,6 +138,9 @@ extends Linker:
   val Core_String_Concat = Native.typeMember("Concat")
 
   val Core_RefArray_ArrayClassId = defn.resolveTerm("jo.runtime.native.RefArray.ArrayClassId")
+
+  val Core_stackOverflowHandler        = Native.termMember("stackOverflowHandler")
+  val Core_stackOverflowHandlerAddress = Native.termMember("stackOverflowHandlerAddress")
 
   val GC = defn.resolveContainer("jo.runtime.native.GC")
   val GC_alloc = GC.termMember("alloc")

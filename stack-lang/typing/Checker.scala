@@ -22,47 +22,25 @@ object Checker:
     *
     * Note: Do not access info of type symbols.
     */
-  def checkKind(tctor: TypeTree, targs: List[TypeTree])(using Reporter, Source): Boolean =
-    tctor.tpe.kind match
-      case None =>
-        Reporter.error(s"Invalid type constructor", tctor.pos)
-        false
+  def checkKind(tctor: TypeTree, targs: List[TypeTree], kind: Kind)(using Reporter, Source): Boolean =
+    kind match
+      case Kind.Arrow(args, to) =>
+        if args.size == targs.size then
+          // only simple kinded type parameters are supported
+          true
 
-      case Some(kind) =>
-        kind match
-          case Kind.Arrow(args, to) =>
-            if args.size == targs.size then
-              // only simple kinded type parameters are supported
-              true
+        else
+          val size = args.size
+          Reporter.error(s"The type constructor specifies $size parameter(s), found = ${targs.size}", tctor.pos)
+          false
 
-            else
-              val size = args.size
-              Reporter.error(s"The type constructor specifies $size parameter(s), found = ${targs.size}", tctor.pos)
-              false
+      case Kind.Simple =>
+        if targs.size != 0 then
+          Reporter.error(s"The type does not take parameters", tctor.pos)
+          false
 
-          case Kind.Simple =>
-            if targs.size != 0 then
-              Reporter.error(s"The type does not take parameters", tctor.pos)
-              false
-
-            else
-              true
-
-  def checkSimpleKind(tctor: TypeTree)(using Reporter, Source): Boolean =
-    tctor.tpe.kind match
-      case None =>
-        Reporter.error(s"Invalid type", tctor.pos)
-        false
-
-      case Some(kind) =>
-        kind match
-          case Kind.Arrow(args, to) =>
-            val size = args.size
-            Reporter.error(s"The type constructor specifies $size parameter(s), found = 0", tctor.pos)
-            false
-
-          case Kind.Simple =>
-            true
+        else
+          true
 
   def checkTypeApply(fun: Word, targs: List[TypeTree], span: Span)(using Definitions, Reporter, Source): Word =
     if !fun.tpe.isPolyType then
@@ -76,27 +54,41 @@ object Checker:
       else
         TypeApply(fun, targs)(span)
 
-  def checkValueType(word: Word)(using Definitions, Reporter, Source): Unit =
+  /** Should not take Definitions to avoid forcing symbols */
+  def checkValueType(word: Word)(using Reporter, Source): Unit =
     checkValueType(word.tpe, word.pos)
 
-  def checkValueType(tpt: TypeTree)(using Definitions, Reporter, Source): Boolean =
-    checkValueType(tpt.tpe, tpt.pos)
-
-  def checkValueType(tp: Type, pos: SourcePosition)(using Definitions, Reporter): Boolean =
-    if tp.isValueType then
-      true
-
-    else if tp.isProcType then
+  /** Should not take Definitions to avoid forcing symbols */
+  def checkValueType(tp: Type, pos: SourcePosition)(using Reporter): Boolean =
+    if tp.isInstanceOf[ProcType] then
       Reporter.error(s"Expect value type, found a function", pos)
       false
 
     else
-      val explain = tp.kind match
-        case Some(kind) => ", but found a type of kind " + kind.show
-        case None => ", but a non-value type"
+      def error(kind: Option[Kind]): Boolean =
+        val explain = kind match
+          case Some(kind) => ", but found a type of kind " + kind.show
+          case None => ", but found a non-value type"
 
-      Reporter.error(s"Expect value type" + explain, pos)
-      false
+        Reporter.error(s"Expect value type" + explain, pos)
+        false
+
+      tp match
+        case VoidType | _: ProcType => error(None)
+
+        case refType: RefType =>
+          val sym = refType.symbol
+
+          if sym.isType then
+            sym.asTypeSymbol.initKind match
+              case Kind.Simple => return true
+              case kind => error(Some(kind))
+
+          else
+            if sym.isFunction || sym.isContainer then error(None)
+            else true
+
+        case _ => true
 
   def checkMutable(sym: Symbol, pos: SourcePosition)(using Reporter): Unit =
     if !sym.isMutable then

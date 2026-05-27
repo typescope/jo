@@ -1,0 +1,7 @@
+param limit: Int
+
+def main receives IO.stdout =
+  val f: () => Unit receives limit = () => println: 10 + limit
+  val g: () => Unit receives limit = () => println: 20 + limit
+
+  (if 3 > 2 then f else g)()

@@ -1,0 +1,126 @@
+// Erasure test: generic data structures holding numeric values
+// On native, when a generic class Box[T] stores T=Int, the field is typed as Any
+// Reading/writing requires explicit boxing (Encoded nodes inserted by Erasure.adapt)
+// Also tests Option-like generic unions with Int/Bool type arguments
+
+union Opt[T] = Present(value: T) | Absent
+  def getOrElse(default: T): T =
+    match this
+      case Present v => v
+      case _: Absent => default
+    end
+  end
+
+  def map[U](f: T => U): Opt[U] =
+    match this
+      case Present v => Present[U](f v)
+      case _: Absent => Absent
+    end
+  end
+
+  def flatMap[U](f: T => Opt[U]): Opt[U] =
+    match this
+      case Present v => f v
+      case _: Absent => Absent
+    end
+  end
+end
+
+class Stack[T](capacity: Int)
+  val data: Array[T] = Array.create[T](capacity)
+  var top: Int = 0
+
+  def push(x: T) =
+    data[top] = x
+    top = top + 1
+
+  def pop: T =
+    top = top - 1
+    data[top]
+
+  def peek: T = data[top - 1]
+
+  def size: Int = top
+
+  def isEmpty: Bool = top == 0
+
+  def get(i: Int): T = data[i]
+end
+
+def sumStack(s: Stack[Int]): Int =
+  var total = 0
+  var i = 0
+  while i < s.size do
+    total = total + s.get(i)
+    i = i + 1
+  total
+
+def main =
+  // Opt[Int]: getOrElse/map unbox Int from Any
+  val o1: Opt[Int] = Present[Int](42)
+  val o2: Opt[Int] = Absent
+
+  println (o1.getOrElse 0)   // 42
+  println (o2.getOrElse 0)   // 0
+
+  // Opt[Bool]
+  val ob1: Opt[Bool] = Present[Bool](true)
+  val ob2: Opt[Bool] = Absent
+
+  println (ob1.getOrElse false)  // true
+  println (ob2.getOrElse false)  // false
+
+  // map: lambda (Any => Any) wrapping (Int => Int)
+  val doubled = o1.map[Int](x => x * 2)
+  println (doubled.getOrElse 0)  // 84
+
+  val toStr = o1.map[String](x => "v=" + x)
+  match toStr
+    case Present s => println s
+    case _: Absent => println "absent"
+  // v=42
+
+  // flatMap: lambda returning Opt[Int]
+  val chained = o1.flatMap[Int](x => if x > 10 then Present[Int](x * 2) else Absent)
+  println (chained.getOrElse (-1))  // 84
+
+  val empty = o2.flatMap[Int](x => Present[Int](x + 1))
+  println (empty.getOrElse (-1))   // -1
+
+  // Stack[Int]: push/pop exercises boxing via generic Array[T]
+  val s = new Stack[Int](10)
+  s.push 1
+  s.push 2
+  s.push 3
+  s.push 5
+  s.push 8
+
+  println s.size           // 5
+  println s.peek           // 8
+  println (s.pop)          // 8
+  println s.size           // 4
+  println (s.pop)          // 5
+  println (sumStack s)     // 1+2+3 = 6
+
+  // Stack[Bool]
+  val bs = new Stack[Bool](5)
+  bs.push true
+  bs.push false
+  bs.push true
+
+  println (bs.pop)   // true
+  println (bs.pop)   // false
+  println (bs.pop)   // true
+
+  // List[Opt[Int]]: nested generic boxing/unboxing
+  val opts: List[Opt[Int]] = [
+    Present[Int](1),
+    Absent,
+    Present[Int](3),
+    Absent,
+    Present[Int](5)
+  ]
+
+  val values = opts.map[Int](opt => opt.getOrElse (-1))
+  for v in values do println v
+  // 1, -1, 3, -1, 5

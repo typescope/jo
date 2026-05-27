@@ -39,8 +39,19 @@ private def readByte(arr: Addr): Byte receives none =
 private def addAddr(arr: Addr, offset: Int): Addr receives none =
   abort "native addAddr"
 
+//[ cast a type to a non-primitive type
+  !
+//]
 @intrinsic
 def cast[T](arr: Any): T receives none = abort("runtime cast")
+
+//[ cast non-primitive type to Int   //]
+@intrinsic
+def castInt(arr: Any): Int receives none = abort("runtime cast")
+
+//[ cast Int to Addr   //]
+@intrinsic
+def intToAddr(n: Int): Addr receives none = abort("runtime cast")
 
 private def debug(s: String): Unit receives none =
   writeString: 0, cast[StringRepr] s
@@ -54,11 +65,9 @@ private def debug(s: String): Unit receives none =
 //[ Stub function for EncodeClass phase to retrieve interface table address
   !
   ! The backend intrinsifies this call to a static address.
-  !
-  ! The type `T` must be a class type.
 //]
 @intrinsic
-private def getInterfaceTable[T]: Any receives none = ...
+private def getInterfaceTable(classId: Int): Addr receives none = ...
 
 //[ Find a method pointer in an interface table
   !
@@ -71,11 +80,9 @@ private def getInterfaceTable[T]: Any receives none = ...
   !
   ! Returns the method pointer as an Int (address)
 //]
-private def findInterfaceMethod(itable: Any, interfaceId: Int, methodOrder: Int): Int receives none =
-  val itableAddr = cast[Addr] itable
-
+private def findInterfaceMethod(itableAddr: Addr, interfaceId: Int, methodOrder: Int): Int receives none =
   // Check if itable is null (no interfaces implemented)
-  if (cast[Int] itableAddr) == 0 then
+  if (castInt itableAddr) == 0 then
     abort "Interface not implemented (null itable)"
 
   // Read number of interfaces
@@ -84,7 +91,7 @@ private def findInterfaceMethod(itable: Any, interfaceId: Int, methodOrder: Int)
   // Linear search through interface table
   var index = 0
   var found = false
-  var vtablePtr = cast[Addr] 0
+  var vtablePtr = intToAddr 0
 
   while index < count && !found do
     // Read interface ID at position: 1 + index * 2
@@ -94,7 +101,7 @@ private def findInterfaceMethod(itable: Any, interfaceId: Int, methodOrder: Int)
       // Found matching interface, get vtable pointer
       // Vtable pointer at position: 1 + index * 2 + 1
       val vtablePtrInt = readInt (addAddr itableAddr ((1 + index * 2 + 1) * 4))
-      vtablePtr = cast[Addr] vtablePtrInt
+      vtablePtr = intToAddr vtablePtrInt
       found = true
     else
       index = index + 1
@@ -113,81 +120,81 @@ private def findInterfaceMethod(itable: Any, interfaceId: Int, methodOrder: Int)
 // These are wrappers that will be inlined by the backends
 
 private section IntOps
-  def (a: Int) + (b: Int): Int = abort "native Int.+"
-  def (a: Int) - (b: Int): Int = abort "native Int.-"
-  def (a: Int) * (b: Int): Int = abort "native Int.*"
-  def (a: Int) / (b: Int): Int = abort "native Int./"
-  def (a: Int) % (b: Int): Int = abort "native Int.%"
-  def (a: Int) > (b: Int): Bool = abort "native Int.>"
-  def (a: Int) < (b: Int): Bool = abort "native Int.<"
-  def (a: Int) >= (b: Int): Bool = abort "native Int.>="
-  def (a: Int) <= (b: Int): Bool = abort "native Int.<="
-  def (a: Int) == (b: Int): Bool = abort "native Int.=="
-  def (a: Int) != (b: Int): Bool = abort "native Int.!="
-  def (a: Int) >> (b: Int): Int = abort "native Int.>>"
-  def (a: Int) << (b: Int): Int = abort "native Int.<<"
-  def (a: Int) & (b: Int): Int = abort "native Int.&"
-  def (a: Int) | (b: Int): Int = abort "native Int.|"
-  def (a: Int) ^ (b: Int): Int = abort "native Int.^"
-  def (a: Int) toChar: Char = abort "native Int.toChar"
-  def (a: Int) toByte: Byte = abort "native Int.toByte"
-  def (a: Int) toFloat: Float = abort "native Int.toFloat"
-  def ~- (a: Int): Int = abort "native Int.~-"
+  @intrinsic def (a: Int) + (b: Int): Int = abort "native Int.+"
+  @intrinsic def (a: Int) - (b: Int): Int = abort "native Int.-"
+  @intrinsic def (a: Int) * (b: Int): Int = abort "native Int.*"
+  @intrinsic def (a: Int) / (b: Int): Int = abort "native Int./"
+  @intrinsic def (a: Int) % (b: Int): Int = abort "native Int.%"
+  @intrinsic def (a: Int) > (b: Int): Bool = abort "native Int.>"
+  @intrinsic def (a: Int) < (b: Int): Bool = abort "native Int.<"
+  @intrinsic def (a: Int) >= (b: Int): Bool = abort "native Int.>="
+  @intrinsic def (a: Int) <= (b: Int): Bool = abort "native Int.<="
+  @intrinsic def (a: Int) == (b: Int): Bool = abort "native Int.=="
+  @intrinsic def (a: Int) != (b: Int): Bool = abort "native Int.!="
+  @intrinsic def (a: Int) >> (b: Int): Int = abort "native Int.>>"
+  @intrinsic def (a: Int) << (b: Int): Int = abort "native Int.<<"
+  @intrinsic def (a: Int) & (b: Int): Int = abort "native Int.&"
+  @intrinsic def (a: Int) | (b: Int): Int = abort "native Int.|"
+  @intrinsic def (a: Int) ^ (b: Int): Int = abort "native Int.^"
+  @intrinsic def (a: Int) toChar: Char = abort "native Int.toChar"
+  @intrinsic def (a: Int) toByte: Byte = abort "native Int.toByte"
+  @intrinsic def (a: Int) toFloat: Float = abort "native Int.toFloat"
+  @intrinsic def ~- (a: Int): Int = abort "native Int.~-"
   def (a: Int) toString: String = intToStr a
 end
 
 private section ByteOps
   // Byte operators (via numeric coercion to Int)
-  def (a: Byte) == (b: Byte): Bool = abort "native Byte.=="
-  def (a: Byte) != (b: Byte): Bool = abort "native Byte.!="
-  def (a: Byte) > (b: Byte): Bool = abort "native Byte.>"
-  def (a: Byte) < (b: Byte): Bool = abort "native Byte.<"
-  def (a: Byte) >= (b: Byte): Bool = abort "native Byte.>="
-  def (a: Byte) <= (b: Byte): Bool = abort "native Byte.<="
-  def (a: Byte) toInt: Int = abort "native Byte.toInt"
-  def (a: Byte) toChar: Char = abort "native Byte.toChar"
-  def (a: Byte) toFloat: Float = abort "native Byte.toFloat"
+  @intrinsic def (a: Byte) == (b: Byte): Bool = abort "native Byte.=="
+  @intrinsic def (a: Byte) != (b: Byte): Bool = abort "native Byte.!="
+  @intrinsic def (a: Byte) > (b: Byte): Bool = abort "native Byte.>"
+  @intrinsic def (a: Byte) < (b: Byte): Bool = abort "native Byte.<"
+  @intrinsic def (a: Byte) >= (b: Byte): Bool = abort "native Byte.>="
+  @intrinsic def (a: Byte) <= (b: Byte): Bool = abort "native Byte.<="
+  @intrinsic def (a: Byte) toInt: Int = abort "native Byte.toInt"
+  @intrinsic def (a: Byte) toChar: Char = abort "native Byte.toChar"
+  @intrinsic def (a: Byte) toFloat: Float = abort "native Byte.toFloat"
   def (a: Byte) toString: String = intToStr (a.toInt)
 end
 
 private section CharOps
   // Char operators (via numeric coercion to Int)
-  def (a: Char) == (b: Char): Bool = abort "native Char.=="
-  def (a: Char) != (b: Char): Bool = abort "native Char.!="
-  def (a: Char) > (b: Char): Bool = abort "native Char.>"
-  def (a: Char) < (b: Char): Bool = abort "native Char.<"
-  def (a: Char) >= (b: Char): Bool = abort "native Char.>="
-  def (a: Char) <= (b: Char): Bool = abort "native Char.<="
-  def (a: Char) toByte: Byte = abort "native Char.toByte"
-  def (a: Char) toInt: Int = abort "native Char.toInt"
-  def (a: Char) toFloat: Float = abort "native Char.toFloat"
+  @intrinsic def (a: Char) == (b: Char): Bool = abort "native Char.=="
+  @intrinsic def (a: Char) != (b: Char): Bool = abort "native Char.!="
+  @intrinsic def (a: Char) > (b: Char): Bool = abort "native Char.>"
+  @intrinsic def (a: Char) < (b: Char): Bool = abort "native Char.<"
+  @intrinsic def (a: Char) >= (b: Char): Bool = abort "native Char.>="
+  @intrinsic def (a: Char) <= (b: Char): Bool = abort "native Char.<="
+  @intrinsic def (a: Char) toByte: Byte = abort "native Char.toByte"
+  @intrinsic def (a: Char) toInt: Int = abort "native Char.toInt"
+  @intrinsic def (a: Char) toFloat: Float = abort "native Char.toFloat"
   def (a: Char) toString: String = charToStr a
 end
 
 private section BoolOps
-  def (a: Bool) && (b: Bool): Bool = abort "native Bool.&&"
-  def (a: Bool) || (b: Bool): Bool = abort "native Bool.||"
-  def (a: Bool) == (b: Bool): Bool = abort "native Bool.=="
-  def (a: Bool) != (b: Bool): Bool = abort "native Bool.!="
-  def ~! (a: Bool): Bool = abort "native Bool.~!"
+  @intrinsic def (a: Bool) && (b: Bool): Bool = abort "native Bool.&&"
+  @intrinsic def (a: Bool) || (b: Bool): Bool = abort "native Bool.||"
+  @intrinsic def (a: Bool) == (b: Bool): Bool = abort "native Bool.=="
+  @intrinsic def (a: Bool) != (b: Bool): Bool = abort "native Bool.!="
+  @intrinsic def ~! (a: Bool): Bool = abort "native Bool.~!"
   def (a: Bool) toString: String =
     if a then "true" else "false"
 end
 
 private section FloatOps
   // Float operators (Double precision floating-point)
-  def (a: Float) + (b: Float): Float = abort "native Float.+"
-  def (a: Float) - (b: Float): Float = abort "native Float.-"
-  def (a: Float) * (b: Float): Float = abort "native Float.*"
-  def (a: Float) / (b: Float): Float = abort "native Float./"
-  def (a: Float) > (b: Float): Bool = abort "native Float.>"
-  def (a: Float) < (b: Float): Bool = abort "native Float.<"
-  def (a: Float) >= (b: Float): Bool = abort "native Float.>="
-  def (a: Float) <= (b: Float): Bool = abort "native Float.<="
-  def (a: Float) == (b: Float): Bool = abort "native Float.=="
-  def (a: Float) != (b: Float): Bool = abort "native Float.!="
-  def ~- (a: Float): Float = abort "native Float.~-"
-  def (a: Float) toInt: Int = abort "native Float.toInt"
+  @intrinsic def (a: Float) + (b: Float): Float = abort "native Float.+"
+  @intrinsic def (a: Float) - (b: Float): Float = abort "native Float.-"
+  @intrinsic def (a: Float) * (b: Float): Float = abort "native Float.*"
+  @intrinsic def (a: Float) / (b: Float): Float = abort "native Float./"
+  @intrinsic def (a: Float) > (b: Float): Bool = abort "native Float.>"
+  @intrinsic def (a: Float) < (b: Float): Bool = abort "native Float.<"
+  @intrinsic def (a: Float) >= (b: Float): Bool = abort "native Float.>="
+  @intrinsic def (a: Float) <= (b: Float): Bool = abort "native Float.<="
+  @intrinsic def (a: Float) == (b: Float): Bool = abort "native Float.=="
+  @intrinsic def (a: Float) != (b: Float): Bool = abort "native Float.!="
+  @intrinsic def ~- (a: Float): Float = abort "native Float.~-"
+  @intrinsic def (a: Float) toInt: Int = abort "native Float.toInt"
   def (a: Float) toString: String = floatToStr a
 end
 
@@ -242,9 +249,49 @@ private def state: State receives none =
 @intrinsic
 private def initObjects(): Unit receives none = ...
 
+// Signal handler registered for SIGSEGV.
+//
+// The Linux kernel calls this in C calling convention with one argument:
+//   [ESP+0] = return trampoline, [ESP+4] = signum
+// A 0-arg Jo function has the same entry: [ESP+0] = return address.
+// We never return (sys_exit terminates the process), so the mismatch doesn't matter.
+private def stackOverflowHandler(): Bottom receives none =
+  writeString: 2, cast[StringRepr] "Stack overflow\n"
+  Syscall.sys_exit 1
+
+// Backend intrinsifies this to the raw machine-code address of stackOverflowHandler.
+@intrinsic
+private def stackOverflowHandlerAddress: Int = ...
+
+// Called once at startup (after GC.init) to install the SIGSEGV handler on an
+// alternate stack so it fires even when the main stack has overflowed.
+private def installStackOverflowHandler(): Unit receives none =
+  // Alternate stack: 4 KB (> MINSIGSTKSZ=2048; our handler barely uses any stack)
+  val altMem = GC.alloc 4096
+  val ss = GC.alloc 12
+  writeInt ss (castInt altMem)       // ss_sp
+  writeInt (addAddr ss 4) 0          // ss_flags = 0
+  writeInt (addAddr ss 8) 4096       // ss_size
+  Syscall.sys_sigaltstack ss 0
+
+  // sigaction: { sa_handler, sa_flags=SA_ONSTACK, sa_restorer=0, sa_mask[2]=0 }
+  val act = GC.alloc 20
+  writeInt act stackOverflowHandlerAddress     // sa_handler = raw fn address
+  writeInt (addAddr act 4) 0x08000000          // sa_flags = SA_ONSTACK
+  writeInt (addAddr act 8) 0                   // sa_restorer = NULL
+  writeInt (addAddr act 12) 0                  // sa_mask[0]
+  writeInt (addAddr act 16) 0                  // sa_mask[1]
+  Syscall.sys_rt_sigaction 11 act 0 8          // SIGSEGV=11, oldact=NULL, sigsetsize=8
+
 private def start(argsRaw: Addr): Unit receives none =
-  // Must not use any global objects before batch initialization
+  // GC must be up before installStackOverflowHandler (which uses GC.alloc).
   GC.init()
+
+  // Install SIGSEGV handler so stack overflow prints a clear message.
+  installStackOverflowHandler()
+
+  // Must not use any global objects before batch initialization
+  // (GC is now up but singleton objects are not yet initialized)
 
   // Initialize singleton object after runtime is ready
   initObjects()
@@ -255,7 +302,7 @@ private def start(argsRaw: Addr): Unit receives none =
   // skip the first arg: program name
   for i in 1 until size do
     val addr = readInt: addAddr argsRaw (i * 4 + 4)
-    val str = StringOps.fromCString(cast[Addr] addr)
+    val str = StringOps.fromCString(intToAddr addr)
     strArr[i - 1] = str
 
   with
@@ -395,18 +442,20 @@ private section RefArray
     cast[Array[T]] arr
 
   def get[T](arr: Array[T], i: Int): T =
-    cast[T]:
+    val addr = intToAddr:
       readInt:
         addAddr:
           cast[Addr] arr
           i * 4 + 8
+
+    cast[T]: addr
 
   def set[T](arr: Array[T], i: Int, value: T): Unit =
     writeInt:
       addAddr:
         cast[Addr] arr
         i * 4 + 8
-      cast[Int] value
+      castInt value
 
   def size[T](arr: Array[T]): Int =
     readInt: addAddr (cast[Addr] arr) 4

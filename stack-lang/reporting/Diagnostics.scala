@@ -119,7 +119,7 @@ object Diagnostics:
 
     override def toString() =
       val traceText =
-        if trace.size > 1 then
+        if trace.size > 0 then
           System.lineSeparator() * 2
           + "The following is the trace that leads to the problem:"
           + System.lineSeparator() + buildStacktrace(trace)
@@ -129,7 +129,7 @@ object Diagnostics:
       item.toString() + traceText
 
   private def buildStacktrace(trace: Trace): String =
-    assert(trace.size > 1, trace.size)
+    assert(trace.size > 0, trace.size)
 
     val lines: mutable.ArrayBuffer[String] = new mutable.ArrayBuffer
     for pos <- trace do

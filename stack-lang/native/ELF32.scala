@@ -22,7 +22,8 @@ import java.nio.charset.StandardCharsets
 
 
 class ELF32(outFile: String, layout: Layout, machine: Short):
-  private val strtable: mutable.ArrayBuffer[Byte   ] = new mutable.ArrayBuffer
+  private val strtable:      mutable.ArrayBuffer[Byte   ] = new mutable.ArrayBuffer
+  private val strtableIndex: mutable.Map[String, Int]    = mutable.Map.empty
   private val sections: mutable.ArrayBuffer[Section] = new mutable.ArrayBuffer
   private val symbols:  mutable.ArrayBuffer[Symbol ] = new mutable.ArrayBuffer
 
@@ -75,10 +76,12 @@ class ELF32(outFile: String, layout: Layout, machine: Short):
     CONTENT_START_OFFSET + content.fileSize
 
   private def addName(str: String): Int =
-    val offset = strtable.size
-    strtable.addAll(str.getBytes(StandardCharsets.UTF_8))
-    strtable.addOne(0)
-    offset
+    strtableIndex.getOrElseUpdate(str, {
+      val offset = strtable.size
+      strtable.addAll(str.getBytes(StandardCharsets.UTF_8))
+      strtable.addOne(0)
+      offset
+    })
 
   /** Create a new segment in the ELF file */
   def newSegment(id: String, tp: Int, flags: Int)(fn: Int => Unit): Unit =
@@ -288,7 +291,6 @@ object ELF32:
   final val SHF_ALLOC = 0x2
   final val SHF_EXEC  = 0x4
 
-  final val STB_LOCAL  = 0
   final val STB_GLOBAL = 1
 
   final val STT_OBJECT = 1

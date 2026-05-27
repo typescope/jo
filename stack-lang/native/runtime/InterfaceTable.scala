@@ -3,6 +3,7 @@ package runtime
 
 import sast.Definitions
 import sast.Flags
+import sast.Names
 import sast.Symbols.Symbol
 import sast.Denotations.*
 
@@ -14,6 +15,7 @@ import scala.collection.mutable
 class InterfaceTable(runtime: NativeRuntime):
   private val methodToLiftedMap = mutable.Map.empty[Symbol, Symbol]
   private val classIds = mutable.Map.empty[Symbol, Int]
+  private val reverseClassIds = mutable.Map.empty[Int, Symbol]
   private val interfaceIds = mutable.Map.empty[Symbol, Int]
 
   /** Map from a class to its interface table address */
@@ -43,7 +45,10 @@ class InterfaceTable(runtime: NativeRuntime):
       case None =>
         val id = classIds.size
         classIds(cls) = id
+        reverseClassIds(id) = cls
         id
+
+  def getClassSymbol(classId: Int): Symbol = reverseClassIds(classId)
 
   def getInterfaceId(interface: Symbol): Int =
     interfaceIds.get(interface) match
@@ -53,11 +58,18 @@ class InterfaceTable(runtime: NativeRuntime):
         interfaceIds(interface) = id
         id
 
-  /** Return lifted implementation function of the given interface method in the given class */
-  def getLiftedImplementation(classInfo: ClassInfo, meth: Symbol): Symbol =
-    classInfo.getMemberSymbol(meth.name) match
+  /** Return lifted implementation function of the given interface method in the given class
+    *
+    * It handles bridge methods.
+    */
+  def getImplementation(classInfo: ClassInfo, name: String): Symbol =
+    classInfo.getMemberSymbol(name + Names.BridgeSuffix) match
       case Some(sym) => methodToLiftedMap(sym)
-      case None => throw new Exception(s"Implementation missing for ${meth} in class ${classInfo.classSymbol}")
+      case None =>
+        classInfo.getMemberSymbol(name) match
+          case Some(sym) => methodToLiftedMap(sym)
+          case None =>
+            throw new Exception(s"Implementation missing for $name in class ${classInfo.classSymbol}")
 
   /** Return lifted implementation functions of interface methods in the given class */
   def getInterfaceImplementations(classInfo: ClassInfo)(using Definitions): List[Symbol] =
@@ -68,7 +80,7 @@ class InterfaceTable(runtime: NativeRuntime):
       val interfaceInfo = viewType.classInfo
 
       for method <- interfaceInfo.methods if method.is(Flags.Defer) do
-        result += getLiftedImplementation(classInfo, method)
+        result += getImplementation(classInfo, method.name)
       end for
     end for
 
@@ -92,7 +104,7 @@ class InterfaceTable(runtime: NativeRuntime):
           vtableMap(interfaceSym) = pb.currentAddr()
 
           for method <- interfaceInfo.methods if method.is(Flags.Defer) do
-            val implMethod = getLiftedImplementation(classInfo, method)
+            val implMethod = getImplementation(classInfo, method.name)
             val label = runtime.funLabelMap(implMethod)
 
             // The code segment can be lowered later or before data segment

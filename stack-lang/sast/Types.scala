@@ -22,7 +22,7 @@ object Types:
       */
     def isError(using Definitions): Boolean =
       this.eq(ErrorType) || this.match
-        case StaticRef(sym) =>
+        case StaticRef(sym) if sym.isTerm =>
           // Don't recur to avoid loops
           sym.info `eq` ErrorType
 
@@ -102,7 +102,7 @@ object Types:
         case procType: ProcType => procType.tparams.nonEmpty
         case _ => false
 
-    def isValueType: Boolean =
+    def isValueType(using Definitions): Boolean =
       this match
         case VoidType | _: ProcType => false
 
@@ -115,7 +115,7 @@ object Types:
         case _ => true
 
     /** Return the kind of type symbols and return None for non-value type. */
-    def kind: Option[Kind] =
+    def kind(using Definitions): Option[Kind] =
       this match
         case VoidType | _: ProcType =>
           None
@@ -146,7 +146,7 @@ object Types:
     /** Widen a term reference to its underlying type */
     def widenTermRef(using Definitions): Type =
       this match
-        case refType: RefType if !refType.symbol.isType => refType.info.widenTermRef
+        case refType: RefType if !refType.symbol.isType => refType.info
         case _ => this
 
     /** Widen a constant type to its underlying type */
@@ -682,7 +682,7 @@ object Types:
         preTypeParamCount = 0
       )(this.defaultsLazy)
 
-    def resCount = if resultType.isValueType then 1 else 0
+    def resCount = if resultType.isVoidType then 0 else 1
 
   case class AppliedType
     (tctor: Symbol, targs: List[Type])

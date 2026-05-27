@@ -245,20 +245,15 @@ object Subtyping:
       }
 
   private def checkConformsClassTypeToUnionType(tp1: Type, tp2: UnionType)(using ctx: Context, defn: Definitions): Boolean =
-    // Disallow numeric types to subtype to union types
-    // This forces boxing via explicit coercion/adaptation
-    if tp1.isNumericOrBoolType then
-      false
-    else
-      def check(cls: Symbol): Boolean =
-        tp2.getClassType(cls) match
-          case Some(classType2) => recur(tp1, classType2)
-          case None => false
+    def check(cls: Symbol): Boolean =
+      tp2.getClassType(cls) match
+        case Some(classType2) => recur(tp1, classType2)
+        case None => false
 
-      tp1 match
-        case StaticRef(cls) => check(cls)
-        case AppliedType(cls, _) => check(cls)
-        case _ => false
+    tp1 match
+      case StaticRef(cls) => check(cls)
+      case AppliedType(cls, _) => check(cls)
+      case _ => false
 
   /** Check if tp1 is a class with a direct view that matches tp2
     *

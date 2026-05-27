@@ -4,7 +4,7 @@ import Trees.*
 import Symbols.*
 import Types.*
 
-import ast.Positions.{Span, Source}
+import ast.Positions.Span
 
 import scala.collection.mutable
 
@@ -116,9 +116,9 @@ object TreeOps:
   def createLambdaWithSymbol
       (lambdaSym: Symbol, lambdaType: LambdaType, span: Span)
       (body: List[Ident] => Word)
-      (using defn: Definitions, source: Source)
+      (using defn: Definitions)
   : Word =
-    val pos = span.toPos
+    val pos = span.toPos(using lambdaSym.source)
 
     // Create parameter symbols for the lambda (with synthetic names)
     val paramSyms =
@@ -139,10 +139,10 @@ object TreeOps:
   def createLambda
       (lambdaType: LambdaType, owner: Symbol, span: Span)
       (body: List[Ident] => Word)
-      (using defn: Definitions, source: Source)
+      (using defn: Definitions)
   : Word =
     // Create a lambda symbol
-    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos)
+    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, span.toPos(using owner.source))
     createLambdaWithSymbol(lambdaSym, lambdaType, span)(body)
 
   /** Eta-expand a function to a lambda
@@ -150,7 +150,7 @@ object TreeOps:
     * Converts: f
     * To: (arg1: T1, ...) => f(arg1, ...)
     */
-  def etaExpand(fun: Symbol, owner: Symbol, receives: List[Symbol], span: Span)(using defn: Definitions, source: Source): Word =
+  def etaExpand(fun: Symbol, owner: Symbol, receives: List[Symbol], span: Span)(using defn: Definitions): Word =
     val procType = fun.tpe.asProcType
 
     assert(procType.autos.isEmpty, "Autos not supported in etaExpand: " + fun)
@@ -172,6 +172,39 @@ object TreeOps:
       // Apply regular arguments (auto arguments will be resolved at call site)
       Apply(funWithTargs, paramIdents, Nil)(span)
     }
+
+  def createFunDef
+      (sym: Symbol)
+      (bodyFun: (List[Ident], List[Ident]) => Word)
+      (using defn: Definitions)
+  : FunDef =
+    val procType = sym.tpe.asProcType
+
+    assert(procType.tparams.isEmpty, "Only monomorphic functions supported: " + procType.show)
+
+    val paramSyms =
+      for NamedInfo(name, paramType) <- procType.params yield
+        TermSymbol.create(name, paramType, Flags.Param, Visibility.Default, sym, sym.sourcePos)
+
+    val autoSyms =
+      for NamedInfo(name, paramType) <- procType.autos yield
+        TermSymbol.create(name, paramType, Flags.Param | Flags.Auto, Visibility.Default, sym, sym.sourcePos)
+
+    // Generate parameter idents and call the body function
+    val paramRefs = paramSyms.map(sym => Ident(sym)(sym.span))
+    val autoRefs = autoSyms.map(sym => Ident(sym)(sym.span))
+    val body = bodyFun(paramRefs, autoRefs)
+
+    FunDef(
+      sym,
+      tparams = Nil,
+      paramSyms,
+      autoSyms,
+      candidates = Nil,
+      resultType = TypeTree(procType.resultType)(sym.span),
+      effectPolicy = Effects.Policy.CheckBound(procType.receives),
+      body
+    )(annots = Nil, sym.span | body.span)
 
   /** Returns (locals, free) */
   def variableCensus(fdef: FunDef)(using Definitions): (List[Symbol], List[Symbol]) =

@@ -54,7 +54,7 @@ jobs:
 
 
       - name: build
-        run: ./build -native
+        run: ./build --native
 
       - name: run tests
         run: ./ci

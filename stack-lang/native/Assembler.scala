@@ -35,6 +35,11 @@ object Assembler:
   def lower(elf: ELF32, prog: Prog, assembler: Assembler, linker: Linker): Unit =
     val labelMap: mutable.Map[Label, Int] = mutable.Map.empty
 
+    // Captured inside the code-segment callback and consumed after layoutSegments.
+    var debugLocMarks: List[(String, Int, Int)] = Nil
+    var debugLowPc    = 0
+    var debugHighPc   = 0
+
     /////////////// data segment ////////////
 
     // TODO: separate read-only and bss data into different segments
@@ -45,7 +50,7 @@ object Assembler:
 
       val chunk = ELF32.dataChunk(pb)
       val flags = ELF32.SHF_WRITE | ELF32.SHF_ALLOC
-      val secIndex = elf.addSection(".bss", baseAddr, chunk, flags)
+      val secIndex = elf.addSection(".data", baseAddr, chunk, flags)
 
       for label <- pb.getDefinedLabels() do
         elf.addDataSymbol(label.name, labelMap(label), secIndex)
@@ -66,9 +71,26 @@ object Assembler:
       for label <- pb.getDefinedLabels() do
         elf.addFunSymbol(label.name, labelMap(label), secIndex)
 
-    ////////////////// write file /////////////////
+      val locMarks = pb.getLocMarks()
+      if locMarks.nonEmpty then
+        debugLocMarks = locMarks
+        debugLowPc    = locMarks.head._3   // marks are in address order
+        debugHighPc   = pb.currentAddr()
+
+    ////////////////// layout segments /////////////////
 
     val segments = elf.layoutSegments()
+
+    ////////////////// debug sections (outside PT_LOAD) /////////////////
+
+    for lineChunk <- Dwarf.lineSection(debugLocMarks) do
+      val primaryFile = debugLocMarks.map(_._1).filter(_.nonEmpty).headOption.getOrElse("")
+      val compDir     = System.getProperty("user.dir")
+      elf.addSection(".debug_abbrev", baseAddr = 0, Dwarf.abbrevSection(), flags = 0)
+      elf.addSection(".debug_info",   baseAddr = 0, Dwarf.infoSection(primaryFile, compDir, debugLowPc, debugHighPc), flags = 0)
+      elf.addSection(".debug_line",   baseAddr = 0, lineChunk, flags = 0)
+
+    ////////////////// write file /////////////////
 
     labelMap.get(prog.entry) match
       case Some(entry) =>
@@ -111,7 +133,14 @@ object Assembler:
       this(baseAddr, new mutable.ArrayBuffer, labelMap, new mutable.ArrayBuffer)
 
     /** New labels defined for the current PatchableBuffer */
-    private  val newLabels : mutable.ArrayBuffer[Label] = new mutable.ArrayBuffer
+    private val newLabels : mutable.ArrayBuffer[Label] = new mutable.ArrayBuffer
+
+    private val locMarks: mutable.ArrayBuffer[(String, Int, Int)] = new mutable.ArrayBuffer
+
+    def addLocMark(file: String, line: Int): Unit =
+      locMarks.addOne((file, line, currentAddr()))
+
+    def getLocMarks(): List[(String, Int, Int)] = locMarks.toList
 
     def addByte(data : Byte): Unit = buffer.addOne(data)
 

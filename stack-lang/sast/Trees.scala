@@ -23,14 +23,14 @@ object Trees:
         case Block(Nil) => true
         case _ => false
 
-    def dropValue: Word =
+    def dropValue(using Definitions): Word =
       assert(this.tpe.isValueType, this.tpe)
       Encoded(this)(VoidType)
 
-    def ensureDropValue: Word =
+    def ensureDropValue(using Definitions): Word =
       if this.tpe.isValueType then dropValue else this
 
-    def dropIfVoid(target: Type): Word =
+    def dropIfVoid(target: Type)(using Definitions): Word =
       if target.isVoidType then dropValue else this
 
     def show(using Definitions): String = Printing.show(this)
@@ -251,8 +251,12 @@ object Trees:
   case class Encoded
     (repr: Word)(val tpe: Type)
   extends Word with DerivedSpan:
-    def deriveSpan = repr.span
-    def isValueDrop = repr.tpe.isValueType && tpe.isVoidType
+    tpe match
+      case ref: RefType => assert(ref.symbol.isType, "Non-widened tpe: " + ref.symbol)
+      case _ =>
+
+    def deriveSpan: Span = repr.span
+    def isValueDrop: Boolean = tpe.isVoidType
 
   case class TypeTree
     (tpe: Type)

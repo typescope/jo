@@ -7,9 +7,11 @@ import sast.Trees.FunDef
 
 import scala.collection.mutable
 
-class SymbolIndex(val nameTable: NameTable, val initProvider: InfoProvider):
+class SymbolIndex(val nameTable: NameTable, val initProvider: InfoProvider) extends Cloneable:
   private var provider: InfoProvider = initProvider
   private var cacheForInfoProvider: Cache = new Cache
+
+  def snapshot: SymbolIndex = this.clone().asInstanceOf[SymbolIndex]
 
   def cache: Cache = cacheForInfoProvider
 
@@ -33,8 +35,7 @@ class SymbolIndex(val nameTable: NameTable, val initProvider: InfoProvider):
 
   /** Install a transformer for symbols
     *
-    * Warning: Accessing `sym.info` or `sym.owner` will loop. Use the provided
-    * data instead.
+    * Warning: Accessing `sym.info` will loop. Use the provided data instead.
     */
   def installTransform(transform: (Symbol, Denotation) => Denotation): Unit =
     provider = new InfoProvider.InfoTransformer(provider, transform)

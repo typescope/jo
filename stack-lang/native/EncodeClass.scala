@@ -33,6 +33,8 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
   export runtime.itable.getClassId
   export runtime.itable.getInterfaceId
 
+  val AddrType = StaticRef(runtime.Core_Addr)
+
   private def getLiftedFunSymbol(methodSym: Symbol): Symbol =
     runtime.itable.getLiftedMethodOrUpdate(methodSym, createLiftedFunSymbol(methodSym))
 
@@ -85,13 +87,12 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     val self = idef.self
     for fdef <- idef.methods if !fdef.symbol.is(Flags.Defer) yield
       val liftedSym = getLiftedFunSymbol(fdef.symbol)
-      // TODO: type erasure to properly handle type parameters
       val body2 =
         Phase.owner.set(liftedSym)
         this.transform(fdef.body)
 
       FunDef(
-        liftedSym, fdef.tparams,
+        liftedSym, tparams = Nil,
         self :: fdef.params,
         fdef.autos, fdef.candidates,
         fdef.resultType,
@@ -104,13 +105,12 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     for fdef <- cdef.funs yield try
       val liftedSym = getLiftedFunSymbol(fdef.symbol)
 
-      // TODO: type erasure to properly handle type parameters
       val body2 =
         Phase.owner.set(liftedSym)
         this.transform(fdef.body)
 
       FunDef(
-        liftedSym, fdef.tparams,
+        liftedSym, tparams = Nil,
         self :: fdef.params,
         fdef.autos, fdef.candidates,
         fdef.resultType,
@@ -145,11 +145,11 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     val classSym = newExpr.tpe.classSymbol
     val members = new mutable.ArrayBuffer[(String, Word)]
 
-    val classId = getClassId(classSym)
-    members += Memory.ClassID -> IntLit(classId)(newExpr.span)
+    val classId = IntLit(getClassId(classSym))(newExpr.span)
+    members += Memory.ClassID -> classId
 
     // Add interface table
-    val itable = Ident(runtime.Core_getInterfaceTable)(newExpr.span).appliedToTypes(newExpr.tpe)
+    val itable = Ident(runtime.Core_getInterfaceTable)(newExpr.span).appliedTo(classId)
     members += Memory.ITable -> itable
 
     for field <- classSym.classInfo.fields yield
@@ -210,13 +210,11 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         case MemberRef(_, sym) => sym.owner.isInterface && sym.is(Flags.Defer)
         case _ => false
 
-    def rewriteApply(receiverRef: Word, name: String, targs: List[TypeTree]): Word =
+    def rewriteApply(receiverRef: Word, name: String): Word =
       val memberRef = receiverRef.tpe.termMember(name).as[RefType]
       val isAbstractCall = isAbstractInterfaceMethod(memberRef)
 
-      val procType =
-        if targs.isEmpty then memberRef.asProcType
-        else memberRef.asProcType.instantiate(targs.map(_.tpe))
+      val procType = memberRef.asProcType
 
       val liftedFun =
         if isAbstractCall then
@@ -233,7 +231,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           // Create a minimal record type with just cid and itable fields to access itable
           val itableRecordType = RecordType(
             NamedInfo(Memory.ClassID, defn.IntType) ::
-            NamedInfo(Memory.ITable, AnyType) ::
+            NamedInfo(Memory.ITable, AddrType) ::
             Nil
           )
           val itable = Select(Encoded(receiverRef)(itableRecordType), Memory.ITable)(fun.span)
@@ -310,11 +308,17 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           val qual2 = this(qual)
           Apply(Ident(primitiveSym)(fun.span), qual2 :: args2, autos2)(apply.span)
 
+        else if qual.tpe.isSubtype(defn.StringType) then
+          val qual2 = this(qual)
+          val argsAll = qual2 :: args2
+
+          Ident(runtime.Core_StringOps.termMember(name))(fun.span).appliedTo(argsAll*)
+
         else
           val qual2 = this(qual)
 
           if qual2.isIdempotent then
-            rewriteApply(qual2, name, targs = Nil)
+            rewriteApply(qual2, name)
 
           else
             val receiverSym =
@@ -325,27 +329,18 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
             val receiver = Ident(receiverSym)(qual2.span)
             val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
 
-            val apply2 = rewriteApply(receiver, name, targs = Nil)
+            val apply2 = rewriteApply(receiver, name)
             Block(assign :: apply2 :: Nil)(apply.span)
 
-      case TypeApply(Select(qual, name), targs) if qual.tpe.isClassInfoType =>
-        // TODO: after type erasure, the special handling here can be removed
-        val qual2 = this(qual)
+      case Ident(sym) if sym == runtime.Core_cast =>
+        assert(!args2.head.isInstanceOf[Encoded], "Unexpected encoded for cast (primitives not allowed): " + args2.head)
+        args2.head
 
-        if qual2.isIdempotent then
-          rewriteApply(qual2, name, targs)
+      case Ident(sym) if sym == runtime.Core_castInt =>
+        Encoded(args2.head)(defn.IntType)
 
-        else
-          val receiverSym =
-            val owner = Phase.owner.value
-            given Source = Phase.source.value
-            TermSymbol.create("o", qual2.tpe.widen, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
-
-          val receiver = Ident(receiverSym)(qual2.span)
-          val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
-
-          val apply2 = rewriteApply(receiver, name, targs)
-          Block(assign :: apply2 :: Nil)(apply.span)
+      case Ident(sym) if sym == runtime.Core_intToAddr =>
+        Encoded(args2.head)(AddrType)
 
       case _ =>
         Apply(transform(fun), args2, autos2)(apply.span)

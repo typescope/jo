@@ -22,6 +22,8 @@ abstract class LinuxSyscall()(using defn: Definitions) extends Linker:
     Syscall.termMember("__sys_write"),
     Syscall.termMember("__sys_seek"),
     Syscall.termMember("__sys_newfstat"),
+    Syscall.termMember("__sys_sigaltstack"),
+    Syscall.termMember("__sys_rt_sigaction"),
   )
 
   val syscallMap = mutable.Map.empty[Symbol, Label]

@@ -62,7 +62,7 @@ class Memory(runtime: NativeRuntime)(using defn: Definitions):
       addr = addAddrFun.appliedTo(Encoded(qual)(AddrType), offsetLit)
 
     val readIntFun = Ident(runtime.Core_readInt)(select.span)
-    Encoded(readIntFun.appliedTo(addr))(select.tpe)
+    Encoded(readIntFun.appliedTo(addr))(select.tpe.widen)
 
   def writeClassMember(classInfo: ClassInfo, member: String, ref: Word, rhs: Word): Word =
     val recordType = Memory.encodeClassType(classInfo)

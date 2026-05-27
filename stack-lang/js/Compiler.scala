@@ -71,14 +71,8 @@ object Compiler:
         given Definitions = lazyDefn.value
 
         val jsRuntime = new JSRuntime
-        val contextParamsLower = new LowerContextParams(
-            jsRuntime.paramKey,
-            jsRuntime.emptyCtx,
-            jsRuntime.getParam,
-            jsRuntime.startBatch,
-            jsRuntime.addBinding,
-            jsRuntime.finishBatch)
-
+        val contextParamsLower = new LowerContextParams(jsRuntime.ParamSupport)
+        val erasure = new Erasure(primitiveTagged = true)
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView
         val backend: Step[List[FileUnit], Unit] =
@@ -88,6 +82,7 @@ object Compiler:
           })
         units               |>
         contextParamsLower  |>
+        erasure             |>
         closureConvert      |>
         viewMaterializer    |>
         backend

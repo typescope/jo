@@ -32,7 +32,7 @@ abstract class InfoProvider:
   def apply(sym: Symbol): Denotation =
     get(sym) match
       case Some(info) => info
-      case _ => throw new Exception("Not found info for " + sym)
+      case _ => throw new Exception("Not found info for " + sym + " @ " + sym.source.file + ", owner = " + sym.owner)
 
 object InfoProvider:
   class InfoTransformer(provider: InfoProvider, transform: (Symbol, Denotation) => Denotation) extends InfoProvider:

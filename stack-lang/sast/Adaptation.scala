@@ -20,7 +20,6 @@ object Adaptation:
     case Function(sym: Symbol)
     case View(tp: Type)
     case LambdaInterface
-    case NumericUnion(numericType: Type, unionType: Type)
 
   enum Error:
     case MissingMember
@@ -51,9 +50,6 @@ object Adaptation:
 
           case Trial.LambdaInterface =>
             sb.append(s"\n  - lambda interface: not compatible  ✗")
-
-          case Trial.NumericUnion(numericType, unionType) =>
-            sb.append(s"\n  - numeric to union: ${numericType.show} is not a branch of ${unionType.show}  ✗")
 
           case Trial.Member(tp, member, error) =>
             error match
@@ -122,17 +118,6 @@ object Adaptation:
 
       else
         val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
-
-        // Try to adapt numeric types to union types
-        // This is needed because we disallow subtyping from numeric types to unions
-        if targetType.isUnionType && curType.isNumericOrBoolType then
-          val unionType = targetType.asUnionType
-          // Check if the numeric type is a valid branch in the union
-          val isValidBranch = unionType.branches.exists(branch => Subtyping.conforms(curType, branch))
-          if isValidBranch then
-            return Encoded(word)(targetType)
-          else
-            trials += Trial.NumericUnion(curType, targetType)
 
         if word.tpe.isLambdaType && targetType.isLambdaInterface then
           adaptToLambdaInterface(word, targetType) match

@@ -264,7 +264,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         transformLambda(lambda).adapt
 
       case Ast.Fence(phrase) =>
-        transform(phrase)
+        Block(transform(phrase) :: Nil)(word.span)
 
       case app: Ast.Apply =>
         transformCall(app)
@@ -975,7 +975,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
           Return(label, value)(ret.span)
 
   private def transformBreak(brk: Ast.Break)
-      (using rp: Reporter, so: Source, cs: ControlScope): Word =
+      (using rp: Reporter, so: Source, cs: ControlScope, defn: Definitions): Word =
     cs.loops.headOption match
       case None =>
         Reporter.error("break is only allowed inside while/for", brk.pos)
@@ -985,7 +985,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         Return(loopFrame.breakLabel, Block(Nil)(brk.span))(brk.span).dropValue
 
   private def transformContinue(cont: Ast.Continue)
-      (using rp: Reporter, so: Source, cs: ControlScope): Word =
+      (using rp: Reporter, so: Source, cs: ControlScope, defn: Definitions): Word =
     cs.loops.headOption match
       case None =>
         Reporter.error("continue is only allowed inside while/for", cont.pos)
@@ -2087,8 +2087,8 @@ class Namer(using Config) extends Applications with SelectionTyper:
         val tctor2 = transformType(tctor, allowPackType)
         val targs2 = for targ <- targs yield transformValueType(targ, allowPackType = false)
         tctor2.tpe match
-          case StaticRef(tctorSym) =>
-            if tctor2.tpe == ErrorType || !Checker.checkKind(tctor2, targs2) then
+          case StaticRef(tctorSym) if tctorSym.isType =>
+            if tctor2.tpe == ErrorType || !Checker.checkKind(tctor2, targs2, tctorSym.asTypeSymbol.initKind) then
               TypeTree(ErrorType)(tpt.span)
             else
               val tp = AppliedType(tctorSym, targs2.map(_.tpe))

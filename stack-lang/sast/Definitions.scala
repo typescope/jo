@@ -5,16 +5,24 @@ import Symbols.*
 
 import reporting.Reporter
 
-final class Definitions(val index: SymbolIndex) extends Definitions.Lazy:
+final class Definitions(private var _index: SymbolIndex) extends Definitions.Lazy, Cloneable:
   //----------------------------------------------------------------------------
   // Info provider for symbols
   //
   given Definitions = this
 
+  def snapshot: Definitions =
+    val image = this.clone().asInstanceOf[Definitions]
+    image._index = this._index.snapshot
+    image
+
+  def index: SymbolIndex = _index
+
   //----------------------------------------------------------------------------
   // Name lookup
 
   def resolveTerm(path: String): Symbol = resolveStatic(path.split('.').toList, Universe.Term)
+  def resolveType(path: String): Symbol = resolveStatic(path.split('.').toList, Universe.Type)
   def resolveContainer(path: String): Symbol = resolveStatic(path.split('.').toList, Universe.Container)
 
   def resolveStatic(parts: List[String], universe: Universe): Symbol =

@@ -50,21 +50,24 @@ class ElimCapture(using Definitions) extends Phase:
       case defn => super.transformDef(defn) :: Nil
 
 object ElimCapture:
-  def transformFunDef(fdef: FunDef)(using Definitions): (FunDef, List[Def]) =
+  def transformFunDef(fdef: FunDef)(using Definitions): (FunDef, List[Def]) = try
     given ctx: Context = new Context()
     val lifter = new Lifter(fdef.symbol)
     val body = lifter.apply(fdef.body)
     val lifted = ctx.lifted.toList
 
     (fdef.copy(body = body)(fdef.annots, fdef.span), lifted)
+  catch case ex: Exception =>
+    println("lifting failed: " + fdef.show)
+    throw ex
 
   def flatName(fun: Symbol): String =
     fun.ownersIterator.foldLeft(fun.name): (acc, owner) =>
       if !owner.isContainer then owner.name + "$" + acc else acc
 
-  def createLiftedFunSym(
-      fdef: FunDef, prependParams: List[NamedInfo[Type]], appendParams: List[NamedInfo[Type]])(
-      using defn: Definitions)
+  def createLiftedFunSym
+      (fdef: FunDef, prependParams: List[NamedInfo[Type]], appendParams: List[NamedInfo[Type]])
+      (using defn: Definitions)
   : Symbol =
 
     val oldFunSym = fdef.symbol
@@ -374,7 +377,6 @@ object ElimCapture:
         effectPolicy = Effects.Policy.CheckBound(receives),
         body = body3
       )(annots = Nil, span = lam.span)
-
 
       // Create the lifted class
       val classDef =

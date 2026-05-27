@@ -72,6 +72,9 @@ object Assembly:
     // TODO: Change to JCond --- conditional jump
     case JZero(reg: Reg, label: Label)
 
+    /** Pseudo-instruction: records source position; emits no machine bytes. */
+    case LocMark(file: String, line: Int)
+
   enum Size:
     case B8, B32
 
@@ -110,6 +113,9 @@ object Assembly:
           case l: Label =>
             sb.append(s"${l.name}:\n")
 
+          case Instr.LocMark(f, l) =>
+            sb.append(s"  ; $f:$l\n")
+
           case _ =>
             sb.append(s"$i\t$instr\n")
             i += 1
@@ -142,5 +148,7 @@ object Assembly:
     def add(instr : Instr      ): Unit = codeSection.addOne(instr)
 
     def mark(label: Label): Unit = codeSection.addOne(label)
+
+    def mark(file: String, line: Int): Unit = codeSection.addOne(Instr.LocMark(file, line))
 
     def getResult(): Prog = Prog(dataSection.toList, codeSection.toList, entry)

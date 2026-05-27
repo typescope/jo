@@ -19,37 +19,51 @@ abstract class TypeMap(using Definitions):
         if tvar.isInstantiated then this(tvar.instantiated)
         else tvar
 
-      case mref: MemberRef =>
-        mref.copy(prefix = this(mref.prefix))
-
-      case RecordType(fields) =>
-        val fields2 =
-          for field <- fields
-          yield field.copy(info = this(field.info))
-        RecordType(fields2)
+      case mref @ MemberRef(prefix, _) =>
+        val prefix2 = this(prefix)
+        if prefix2 `eq` prefix then mref
+        else mref.copy(prefix = prefix2)
 
       case UnionType(branches) =>
+        var changed = false
         val branches2 =
-          for branch <- branches
-          yield this(branch)
+          for branch <- branches yield
+            val branch2 = this(branch)
+            changed ||= branch2 `ne` branch
+            branch2
 
-        UnionType(branches2)
+        if changed then UnionType(branches2) else tp
 
       case AppliedType(tctor, targs) =>
-        val targs2 = for targ <- targs yield this(targ)
-        AppliedType(tctor, targs2)
+        var changed = false
+        val targs2 = for targ <- targs yield
+          val targ2 = this(targ)
+          changed ||= targ2 `ne` targ
+          targ2
+
+        if changed then AppliedType(tctor, targs2) else tp
 
       case LambdaType(params, resType, receives) =>
-        val params2 = params.map(this.apply)
+        var changed = false
+        val params2 = for param <- params yield
+          val param2 = this(param)
+          changed ||= param2 `ne` param
+          param2
+
         val resType2 = this(resType)
-        LambdaType(params2, resType2, receives)
+        changed ||= resType2 `ne` resType
+
+        if changed then LambdaType(params2, resType2, receives) else tp
 
       case tp @ DuckType(baseType) =>
         val baseType2 = this(baseType)
-        DuckType(baseType2)(tp.adaptersLazy)
+        if baseType2 `eq` baseType then tp
+        else DuckType(baseType2)(tp.adaptersLazy)
 
       case tp @ ExtensionType(base) =>
-        ExtensionType(this(base))(tp.extensionsLazy)
+        val base2 = this(base)
+        if base2 `eq` base then tp
+        else ExtensionType(base2)(tp.extensionsLazy)
 
       case AnnotType(base, annot) =>
         val base2 = this(base)
@@ -57,6 +71,12 @@ abstract class TypeMap(using Definitions):
 
       case procType: ProcType =>
         recurProcType(procType)
+
+      case RecordType(fields) =>
+        val fields2 =
+          for field <- fields
+          yield field.copy(info = this(field.info))
+        RecordType(fields2)
 
   private def recurProcType(procType: ProcType)(using Context): ProcType =
     val ProcType(tparams, params, autos, candidates, resType, receives, preParamCount, preTypeParamCount) = procType

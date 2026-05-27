@@ -92,6 +92,12 @@ extends Backend(runtime):
 
   def compile(word: Word)(using ctx: Context): Unit = Debug.trace("Compiling " + word.show, enable = false):
     word match
+      case _: Apply | _: If | _: While | _: Assign | _: Return | _: Labeled =>
+        val src = ctx.fun.source
+        gen(Instr.LocMark(src.file, src.offsetToLine(word.span.start) + 1))
+      case _ =>
+
+    word match
       case Literal(c) =>
         c match
           case Constant.Bool(b) =>
@@ -103,9 +109,7 @@ extends Backend(runtime):
             gen(Instr.Move(label, reg))
             ctx.vs.push(Reg(reg))
 
-            // Context parameter runtime expects raw string as input
-            if !word.tpe.isAnyType then
-              call(runtime.Core_String_fromByteString)
+            call(runtime.Core_String_fromByteString)
 
           case Constant.Int(n) =>
             ctx.vs.push(Int32(n))
@@ -118,24 +122,6 @@ extends Backend(runtime):
       case encoded: Encoded => compile(encoded)
 
       case app: Apply => compile(app)
-
-      case TypeApply(fun, targs) =>
-        fun match
-          case Ident(sym) if sym == runtime.Core_getInterfaceTable =>
-            val targ = targs.head
-            val classInfo = targ.tpe.classInfo
-            val label = runtime.itable.getInterfaceTable(classInfo)
-
-            // Mark all interface methods reachable
-            for meth <- runtime.itable.getInterfaceImplementations(classInfo) do
-              getFunAddress(meth)
-
-            val reg = freshVirtualReg()
-            gen(Instr.Move(label, reg))
-            ctx.vs.push(Reg(reg))
-
-          case _ =>
-            compile(fun)
 
       case assign: Assign => compile(assign)
 
@@ -170,9 +156,9 @@ extends Backend(runtime):
 
       case id: Ident => compile(id)
 
-      case _: Def         | _: With      | _: Allow  | _: Select  |
+      case _: Def         | _: With      | _: Allow  | _: Select    |
            _: FieldAssign | _: RecordLit | _: Match  | _: PatValDef |
-           _: New         | _: IsExpr    | _: Lambda | _: ClassTest
+           _: New         | _: IsExpr    | _: Lambda | _: ClassTest | _: TypeApply
       =>
         throw new Exception("Unexpected " + word)
 
@@ -234,6 +220,9 @@ extends Backend(runtime):
 
     // callee-saved registers
     gen(PlaceHolder.CalleeSaveRegisters)
+
+    val src = sym.source
+    gen(Instr.LocMark(src.file, src.offsetToLine(sym.span.start) + 1))
 
     val base = Rel(FP_REG, (inProto.stackItemCount - 1) << 2)
 
@@ -458,54 +447,7 @@ extends Backend(runtime):
   def compile(app: Apply)(using ctx: Context): Unit =
     app.funSymbol match
       case Some(sym) =>
-        if sym == runtime.ParamSupport_paramKey then
-          val paramSym = app.args.headOption match
-            case Some(Ident(paramSym)) => paramSym
-            case _ => throw new Exception("Unsupported argument to paramKey: " + app.show)
-
-          val label = addString(paramSym.fullName)
-          val reg = freshVirtualReg()
-          gen(Instr.Move(label, reg))
-          ctx.vs.push(Reg(reg))
-
-        else if sym.owner == runtime.Native then
-          if sym == runtime.Core_state then
-            val label = runtime.runtimeStateLabel
-            val targetReg = freshVirtualReg()
-            gen(Instr.Move(label, targetReg))
-            ctx.vs.push(Reg(targetReg))
-
-          else
-            for arg <- app.allArgs do compile(arg)
-            callCore(sym)
-
-        else if sym.owner == runtime.Core_BoolOps then
-          callBoolPrimitive(sym, app.args)
-
-        else if sym.owner == runtime.Core_IntOps then
-          for arg <- app.allArgs do compile(arg)
-          callIntPrimitive(sym)
-
-        else if sym.owner == runtime.Core_ByteOps then
-          for arg <- app.allArgs do compile(arg)
-          callBytePrimitive(sym)
-
-        else if sym.owner == runtime.Core_CharOps then
-          for arg <- app.allArgs do compile(arg)
-          callCharPrimitive(sym)
-
-        else if sym.owner == runtime.Core_FloatOps then
-          for arg <- app.allArgs do compile(arg)
-          callFloatPrimitive(sym)
-
-        else if sym == defn.jo_pass then
-          ctx.vs.push(Int32(0))
-
-        else if sym == runtime.Core_RefArray_ArrayClassId then
-          val cid = runtime.itable.getClassId(defn.Array_class)
-          ctx.vs.push(Int32(cid))
-
-        else if sym.is(Flags.Object) && !this.isLoweringObjectInitProc then
+        if sym.is(Flags.Object) && !this.isLoweringObjectInitProc then
           // make the accessor reachable
           getFunAddress(sym)
 
@@ -514,6 +456,9 @@ extends Backend(runtime):
           val reg = freshVirtualReg()
           gen(Instr.Load(objAddr, reg, Size.B32))
           ctx.vs.push(Reg(reg))
+
+        else if sym.hasAnnotation(defn.intrinsic) then
+          callIntrinsic(sym, app)
 
         else
           for arg <- app.allArgs do compile(arg)
@@ -637,50 +582,120 @@ extends Backend(runtime):
     throw new Exception("Float primitive operations not yet implemented in native backend: " + sym)
   end callFloatPrimitive
 
-  def callCore(sym: Symbol)(using ctx: Context): Unit =
-    sym match
-      case runtime.Core_addAddr => int2(Instr.Add)
+  def callIntrinsic(sym: Symbol, app: Apply)(using ctx: Context): Unit =
+    if sym == runtime.ParamSupport_paramKey then
+      val paramSym = app.args.head match
+        case Encoded(Ident(paramSym)) => paramSym
+        case _ => throw new Exception("Unsupported argument to paramKey: " + app.show)
 
-      case runtime.Core_writeInt  =>
-        val v = ctx.vs.pop()
-        val Reg(addr) = ctx.vs.pop(): @unchecked
-        gen(Instr.Store(v, Reg(addr)))
-        // push dummy value to conform to signature
-        ctx.vs.push(Int32(0))
+      val label = addString(paramSym.fullName)
+      val reg = freshVirtualReg()
+      gen(Instr.Move(label, reg))
+      ctx.vs.push(Reg(reg))
 
-      case runtime.Core_readInt   =>
-        val Reg(reg) = ctx.vs.pop(): @unchecked
-        val regResult = freshVirtualReg()
-        gen(Instr.Load(Reg(reg), regResult, Size.B32))
-        ctx.vs.push(Reg(regResult))
+    else if sym == runtime.Core_state then
+      val label = runtime.runtimeStateLabel
+      val targetReg = freshVirtualReg()
+      gen(Instr.Move(label, targetReg))
+      ctx.vs.push(Reg(targetReg))
 
-      case runtime.Core_writeByte =>
-        val v = ctx.vs.pop()
-        val Reg(addr) = ctx.vs.pop(): @unchecked
+    else if sym == runtime.Core_getInterfaceTable then
+      val Literal(Constant.Int(classId)) = app.args.head.runtimeChecked
+      val classInfo = runtime.itable.getClassSymbol(classId).classInfo
+      val label = runtime.itable.getInterfaceTable(classInfo)
 
-        val reg8 =
-          v match
-            case Int32(n) =>
-              assert(n >= 0 && n < 256, "overflow for writeByte: " + n)
-              val reg = freshVirtualReg()
-              gen(Instr.Move(v, reg))
-              Reg8(reg)
+      // Mark all interface methods reachable
+      for meth <- runtime.itable.getInterfaceImplementations(classInfo) do
+        getFunAddress(meth)
 
-            case Reg(reg) =>
-              Reg8(reg)
-          end match
+      val reg = freshVirtualReg()
+      gen(Instr.Move(label, reg))
+      ctx.vs.push(Reg(reg))
 
-        gen(Instr.Store(reg8, Reg(addr)))
-        // push dummy value to conform to signature
-        ctx.vs.push(Int32(0))
+    else if sym.owner == runtime.Core_BoolOps then
+      callBoolPrimitive(sym, app.args)
 
-      case runtime.Core_readByte  =>
-        val Reg(reg) = ctx.vs.pop(): @unchecked
-        val regResult = freshVirtualReg()
-        gen(Instr.Load(Reg(reg), regResult, Size.B8))
-        ctx.vs.push(Reg(regResult))
+    else if sym.owner == runtime.Core_IntOps then
+      for arg <- app.allArgs do compile(arg)
+      callIntPrimitive(sym)
 
-      case _ => call(sym)
+    else if sym.owner == runtime.Core_ByteOps then
+      for arg <- app.allArgs do compile(arg)
+      callBytePrimitive(sym)
+
+    else if sym.owner == runtime.Core_CharOps then
+      for arg <- app.allArgs do compile(arg)
+      callCharPrimitive(sym)
+
+    else if sym.owner == runtime.Core_FloatOps then
+      for arg <- app.allArgs do compile(arg)
+      callFloatPrimitive(sym)
+
+    else if sym == defn.jo_pass then
+      ctx.vs.push(Int32(0))
+
+    else if sym == runtime.Core_RefArray_ArrayClassId then
+      val cid = runtime.itable.getClassId(defn.Array_class)
+      ctx.vs.push(Int32(cid))
+
+    else if sym == runtime.Core_stackOverflowHandlerAddress then
+      val label = getFunAddress(runtime.Core_stackOverflowHandler)
+      val reg = freshVirtualReg()
+      gen(Instr.Move(label, reg))
+      ctx.vs.push(Reg(reg))
+
+    else if sym == runtime.Core_initObjects then
+      call(sym)
+
+    else
+      for arg <- app.allArgs do compile(arg)
+
+      sym match
+        case runtime.Core_addAddr => int2(Instr.Add)
+
+        case runtime.Core_writeInt =>
+          val v = ctx.vs.pop()
+          val Reg(addr) = ctx.vs.pop(): @unchecked
+          gen(Instr.Store(v, Reg(addr)))
+          // push dummy value to conform to signature
+          ctx.vs.push(Int32(0))
+
+        case runtime.Core_readInt =>
+          val Reg(reg) = ctx.vs.pop(): @unchecked
+          val regResult = freshVirtualReg()
+          gen(Instr.Load(Reg(reg), regResult, Size.B32))
+          ctx.vs.push(Reg(regResult))
+
+        case runtime.Core_writeByte =>
+          val v = ctx.vs.pop()
+          val Reg(addr) = ctx.vs.pop(): @unchecked
+
+          val reg8 =
+            v match
+              case Int32(n) =>
+                assert(n >= 0 && n < 256, "overflow for writeByte: " + n)
+                val reg = freshVirtualReg()
+                gen(Instr.Move(v, reg))
+                Reg8(reg)
+
+              case Reg(reg) =>
+                Reg8(reg)
+            end match
+
+          gen(Instr.Store(reg8, Reg(addr)))
+          // push dummy value to conform to signature
+          ctx.vs.push(Int32(0))
+
+        case runtime.Core_readByte =>
+          val Reg(reg) = ctx.vs.pop(): @unchecked
+          val regResult = freshVirtualReg()
+          gen(Instr.Load(Reg(reg), regResult, Size.B8))
+          ctx.vs.push(Reg(regResult))
+
+        case _ =>
+          runtime.locate(sym) match
+            case Some(_) => call(sym)
+            case None => throw new Exception("Unknown runtime symbol: " + sym.fullName)
 
   /** Load a value relative to the stack pointer.
     *

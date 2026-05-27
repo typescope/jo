@@ -3,6 +3,8 @@ package native.stack
 import common.Debug
 import reporting.Reporter
 
+import ast.Positions.Source
+
 import sast.*
 import sast.Trees.*
 import sast.Symbols.*
@@ -36,7 +38,8 @@ extends Backend(runtime):
   final class FunctionContext(
     val localAddr: Map[Symbol, Addr],
     val funResCount: Int,
-    val localReturnTargets: mutable.Map[Symbol, Label]
+    val localReturnTargets: mutable.Map[Symbol, Label],
+    val source: Source
   )
 
   val String_fromByteString = runtime.Core_String_fromByteString
@@ -79,6 +82,12 @@ extends Backend(runtime):
 
   def compile(word: Word)(using fctx: FunctionContext, cb: CodeBuffer): Unit = Debug.trace("Compiling " + word.show, enable = false):
     word match
+      case _: Apply | _: If | _: While | _: Assign | _: Return | _: Labeled =>
+        val src = fctx.source
+        cb.mark(src.file, src.offsetToLine(word.span.start) + 1)
+      case _ =>
+
+    word match
       case Literal(c) =>
         c match
           case Constant.Bool(b) =>
@@ -91,9 +100,7 @@ extends Backend(runtime):
               cb.add(Instr.Move(label, r))
               push(Reg(r))
 
-            // Context parameter runtime expects raw string as input
-            if !word.tpe.isAnyType then
-              call(String_fromByteString)
+            call(String_fromByteString)
 
           case Constant.Int(n) =>
             push(Int32(n))
@@ -106,24 +113,6 @@ extends Backend(runtime):
       case encoded: Encoded => compile(encoded)
 
       case app: Apply => compile(app)
-
-      case TypeApply(fun, targs) =>
-        fun match
-          case Ident(sym) if sym == runtime.Core_getInterfaceTable =>
-            val targ = targs.head
-            val classInfo = targ.tpe.classInfo
-            val label = runtime.itable.getInterfaceTable(classInfo)
-
-            // Mark all interface methods reachable
-            for meth <- runtime.itable.getInterfaceImplementations(classInfo) do
-              getFunAddress(meth)
-
-            useReg: r =>
-              cb.add(Instr.Move(label, r))
-              push(Reg(r))
-
-          case _ =>
-            compile(fun)
 
       case assign: Assign => compile(assign)
 
@@ -153,9 +142,9 @@ extends Backend(runtime):
 
       case id: Ident => compile(id)
 
-      case _: Def         | _: With      | _: Allow  | _: Select  |
+      case _: Def         | _: With      | _: Allow  | _: Select    |
            _: FieldAssign | _: RecordLit | _: Match  | _: PatValDef |
-           _: New         | _: IsExpr    | _: Lambda | _: ClassTest
+           _: New         | _: IsExpr    | _: Lambda | _: ClassTest | _: TypeApply
       =>
         throw new Exception("Unexpected " + word)
 
@@ -170,6 +159,9 @@ extends Backend(runtime):
     val resCount = funType.resCount
 
     cb.mark(label)
+
+    val src = sym.source
+    cb.mark(src.file, src.offsetToLine(sym.span.start) + 1)
 
     val symAddrMap = mutable.Map.empty[Symbol, Addr]
 
@@ -188,7 +180,7 @@ extends Backend(runtime):
     cb.add(Instr.Move(Reg(SP_REG), FP_REG))
     cb.add(Instr.Sub(Reg(SP_REG), Int32(sizeLocals), SP_REG))
 
-    given FunctionContext = new FunctionContext(symAddrMap.toMap, resCount, mutable.Map.empty)
+    given FunctionContext = new FunctionContext(symAddrMap.toMap, resCount, mutable.Map.empty, src)
     compile(fdef.body)
     ret(resCount)
   catch
@@ -346,7 +338,7 @@ extends Backend(runtime):
   /** Compile a reference */
   def compile(ref: Ident)(using fctx: FunctionContext, cb: CodeBuffer): Unit =
     val sym = ref.symbol
-    if sym.is(Flags.Fun) then
+    if sym.isFunction then
       val label = getFunAddress(sym)
       push(label)
     else
@@ -370,50 +362,7 @@ extends Backend(runtime):
   def compile(app: Apply)(using fctx: FunctionContext, cb: CodeBuffer): Unit =
     app.funSymbol match
       case Some(sym) =>
-        if sym == runtime.ParamSupport_paramKey then
-          val paramSym = app.args.headOption match
-            case Some(Ident(paramSym)) => paramSym
-            case _ => throw new Exception("Unsupported argument to paramKey: " + app.show)
-
-          val label = addString(paramSym.fullName)
-          push(label)
-
-        else if sym.owner == runtime.Native then
-          if sym == runtime.Core_state then
-            val label = runtime.runtimeStateLabel
-            push(label)
-
-          else
-            for arg <- app.allArgs do compile(arg)
-            callCore(sym)
-
-        else if sym.owner == runtime.Core_BoolOps then
-          callBoolPrimitive(sym, app.args)
-
-        else if sym.owner == runtime.Core_IntOps then
-          for arg <- app.allArgs do compile(arg)
-          callIntPrimitive(sym)
-
-        else if sym.owner == runtime.Core_ByteOps then
-          for arg <- app.allArgs do compile(arg)
-          callBytePrimitive(sym)
-
-        else if sym.owner == runtime.Core_CharOps then
-          for arg <- app.allArgs do compile(arg)
-          callCharPrimitive(sym)
-
-        else if sym.owner == runtime.Core_FloatOps then
-          for arg <- app.allArgs do compile(arg)
-          callFloatPrimitive(sym)
-
-        else if sym == defn.jo_pass then
-          push(Int32(0))
-
-        else if sym == runtime.Core_RefArray_ArrayClassId then
-          val cid = runtime.itable.getClassId(defn.Array_class)
-          push(Int32(cid))
-
-        else if sym.is(Flags.Object) && !this.isLoweringObjectInitProc then
+        if sym.is(Flags.Object) && !this.isLoweringObjectInitProc then
           assert(app.args.isEmpty, "Unexpected args for accessor: " + app.show)
           // make the accessor reachable
           getFunAddress(sym)
@@ -421,6 +370,9 @@ extends Backend(runtime):
           useReg: r =>
             cb.add(Instr.Load(runtime.getObjectHolder(sym), r, Size.B32))
             push(Reg(r))
+
+        else if sym.hasAnnotation(defn.intrinsic) then
+          callIntrinsic(sym, app)
 
         else
           for arg <- app.allArgs do compile(arg)
@@ -560,39 +512,100 @@ extends Backend(runtime):
     throw new Exception("Float primitive operations not yet implemented in native backend: " + sym)
   end callFloatPrimitive
 
-  def callCore(sym: Symbol)(using cb: CodeBuffer): Unit =
-    sym match
-      case runtime.Core_addAddr => int2(Instr.Add)
+  def callIntrinsic(sym: Symbol, app: Apply)(using fctx: FunctionContext, cb: CodeBuffer): Unit =
+    if sym == runtime.ParamSupport_paramKey then
+      val paramSym = app.args.head match
+        case Encoded(Ident(paramSym)) => paramSym
+        case _ => throw new Exception("Unsupported argument to paramKey: " + app.show)
 
-      case runtime.Core_writeInt  =>
-        useTwoReg: (r1, r2) =>
-          pop(r1, Size.B32)
-          pop(r2, Size.B32)
-          cb.add(Instr.Store(Reg(r1), Reg(r2)))
-          // push dummy value to conform to signature
-          push(Int32(0))
+      val label = addString(paramSym.fullName)
+      push(label)
 
-      case runtime.Core_readInt   =>
-        useReg: r =>
-          pop(r, Size.B32)
-          cb.add(Instr.Load(Reg(r), r, Size.B32))
-          push(Reg(r))
+    else if sym == runtime.Core_state then
+      push(runtime.runtimeStateLabel)
 
-      case runtime.Core_writeByte =>
-        useTwoReg: (r1, r2) =>
-          pop(r1, Size.B32)
-          pop(r2, Size.B32)
-          cb.add(Instr.Store(Reg8(r1), Reg(r2)))
-          // push dummy value to conform to signature
-          push(Int32(0))
+    else if sym == runtime.Core_getInterfaceTable then
+      val Literal(Constant.Int(classId)) = app.args.head.runtimeChecked
+      val classInfo = runtime.itable.getClassSymbol(classId).classInfo
+      val label = runtime.itable.getInterfaceTable(classInfo)
 
-      case runtime.Core_readByte  =>
-        useTwoReg: (r1, r2) =>
-          pop(r1, Size.B32)
-          cb.add(Instr.Load(Reg(r1), r2, Size.B8))
-          push(Reg(r2))
+      // Mark all interface methods reachable
+      for meth <- runtime.itable.getInterfaceImplementations(classInfo) do
+        getFunAddress(meth)
 
-      case _ => call(sym)
+      push(label)
+
+    else if sym.owner == runtime.Core_BoolOps then
+      callBoolPrimitive(sym, app.args)
+
+    else if sym.owner == runtime.Core_IntOps then
+      for arg <- app.allArgs do compile(arg)
+      callIntPrimitive(sym)
+
+    else if sym.owner == runtime.Core_ByteOps then
+      for arg <- app.allArgs do compile(arg)
+      callBytePrimitive(sym)
+
+    else if sym.owner == runtime.Core_CharOps then
+      for arg <- app.allArgs do compile(arg)
+      callCharPrimitive(sym)
+
+    else if sym.owner == runtime.Core_FloatOps then
+      for arg <- app.allArgs do compile(arg)
+      callFloatPrimitive(sym)
+
+    else if sym == defn.jo_pass then
+      push(Int32(0))
+
+    else if sym == runtime.Core_RefArray_ArrayClassId then
+      val cid = runtime.itable.getClassId(defn.Array_class)
+      push(Int32(cid))
+
+    else if sym == runtime.Core_stackOverflowHandlerAddress then
+      val label = getFunAddress(runtime.Core_stackOverflowHandler)
+      push(label)
+
+    else if sym == runtime.Core_initObjects then
+      call(sym)
+
+    else
+      for arg <- app.allArgs do compile(arg)
+
+      sym match
+        case runtime.Core_addAddr => int2(Instr.Add)
+
+        case runtime.Core_writeInt =>
+          useTwoReg: (r1, r2) =>
+            pop(r1, Size.B32)
+            pop(r2, Size.B32)
+            cb.add(Instr.Store(Reg(r1), Reg(r2)))
+            // push dummy value to conform to signature
+            push(Int32(0))
+
+        case runtime.Core_readInt =>
+          useReg: r =>
+            pop(r, Size.B32)
+            cb.add(Instr.Load(Reg(r), r, Size.B32))
+            push(Reg(r))
+
+        case runtime.Core_writeByte =>
+          useTwoReg: (r1, r2) =>
+            pop(r1, Size.B32)
+            pop(r2, Size.B32)
+            cb.add(Instr.Store(Reg8(r1), Reg(r2)))
+            // push dummy value to conform to signature
+            push(Int32(0))
+
+        case runtime.Core_readByte =>
+          useTwoReg: (r1, r2) =>
+            pop(r1, Size.B32)
+            cb.add(Instr.Load(Reg(r1), r2, Size.B8))
+            push(Reg(r2))
+
+        case _ =>
+          runtime.locate(sym) match
+            case Some(_) => call(sym)
+            case None => throw new Exception("Unknown runtime symbol: " + sym.fullName)
 
   /** Duplicate the value on the top of stack. */
   def dup(size: Size)(using CodeBuffer) =

@@ -325,13 +325,20 @@ object EffectAnalysis:
             apply(repr, acc)
 
           case Apply(fun, args, autos) =>
-            // Method calls are handled in `Select`, procedure in `Ident`
+            // Method calls are handled in `Select`, procedure in `Ident`, lambda in below
             val acc1 = apply(fun, acc)
             val acc2 = args.foldLeft(acc1): (accNext, arg) =>
               apply(arg, accNext)
 
-            autos.foldLeft(acc2): (accNext, auto) =>
+            val acc3 = autos.foldLeft(acc2): (accNext, auto) =>
               apply(auto, accNext)
+
+            if fun.tpe.isLambdaType then
+              val lambdaType = fun.tpe.asLambdaType
+              merge(acc3, lambdaType.receives.map(eff => eff -> Vector(word.pos)).toMap)
+
+            else
+              acc3
 
           case TypeApply(fun, _) =>
             apply(fun, acc)

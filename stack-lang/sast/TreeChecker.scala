@@ -2,6 +2,7 @@ package sast
 
 import Trees.*
 import Symbols.*
+import Types.*
 
 import ast.Positions.Source
 import reporting.Reporter
@@ -79,6 +80,10 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
         if !sym.owner.isFunction && !sym.owner.isContainer && sym.name != "this" then
           Reporter.error("The owner of an ident should be either a function, a class or an container, found = " + sym.owner, word.pos)
 
+        sym.info match
+          case ref: RefType if !ref.symbol.isType => Reporter.error("Ident has unexpected type: " + ref, word.pos)
+          case _ =>
+
         // TODO: enable after fixing owners of pattern translation & lifting
         // if sym.isLocal && sym.owner != ctx.enclosingFun && !ctx.enclosingFun.ownersIterator.exists(_ == sym.owner) then
         //   Reporter.error("The owner of a local ident should be in the nested owner chain", word.pos)
@@ -124,12 +129,12 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
           //   Reporter.error(s"Field $name is not mutable", word.pos)
 
           if !Subtyping.conforms(rhs.tpe, lhs.tpe.widenTermRef) then
-            Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${lhs.show}", word.pos)
+            Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${lhs.show}", rhs.pos)
 
       case Assign(ident, rhs, _) =>
         // Pattern translation uses Assign directly for pattern bound variables.
         if !Subtyping.conforms(rhs.tpe, ident.symbol.tpe) then
-          Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${ident.symbol.tpe.show}", word.pos)
+          Reporter.error(s"Rhs has the type ${rhs.tpe.show}, which is not a subtype of ${ident.symbol.tpe.show}", rhs.pos)
 
       case Apply(fun, args, autos) =>
         fun.tpe.asInvokableType match

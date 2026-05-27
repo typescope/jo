@@ -147,7 +147,7 @@ object FlowTyper:
       // `!` does not change bound variables
       sc.resetPromotedSet(snapShot)
 
-      rhsTyped.select(Names.prefix_not).adapt
+      rhsTyped.select(Names.PrefixNot).adapt
 
     else
       val prefixOperatorMethod = Naming.prefixOperatorMethod(op.name)

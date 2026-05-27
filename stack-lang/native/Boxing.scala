@@ -21,8 +21,10 @@ import native.runtime.NativeRuntime
   *
   * This phase runs after pattern translation, so patterns should not exist.
   *
-  * Thanks to Encoded nodes inserted during type checking and pattern translation,
+  * Thanks to Encoded nodes inserted during pattern translation and erasure,
   * we only need to override transformEncoded to inspect these markers.
+  *
+  * TODO: merge into the phase Erasure
   */
 class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
 
@@ -36,35 +38,23 @@ class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
     if needsBoxing(reprType, targetType) then
       // Create boxed value
       boxValue(repr2, targetType, encoded.span)
+
     else if needsUnboxing(reprType, targetType) then
-      // Extract numeric from union
+      // Extract numeric from union/any
       unboxValue(repr2, targetType, encoded.span)
+
     else
       // No boxing/unboxing needed, keep the encoding
       if repr2 eq repr then encoded
       else Encoded(repr2)(targetType)
 
-  /** Check if boxing is needed: numeric -> union containing that numeric */
+  /** Check if boxing is needed: numeric -> union/any containing that numeric */
   private def needsBoxing(reprType: Type, targetType: Type): Boolean =
-    if !targetType.isUnionType then
-      false
-    else if !reprType.isNumericOrBoolType then
-      false
-    else
-      // Check if the union contains this numeric type
-      val unionType = targetType.asUnionType
-      unionType.branches.exists(branch => Subtyping.conforms(reprType, branch))
+    targetType.dealias.isAnyType && reprType.isNumericOrBoolType
 
-  /** Check if unboxing is needed: union -> numeric */
+  /** Check if unboxing is needed: union/any -> numeric */
   private def needsUnboxing(reprType: Type, targetType: Type): Boolean =
-    if !reprType.isUnionType then
-      false
-    else if !targetType.isNumericOrBoolType then
-      false
-    else
-      // Check if the union contains this numeric type
-      val unionType = reprType.asUnionType
-      unionType.branches.exists(branch => Subtyping.conforms(targetType, branch))
+    reprType.approx.isAnyType && targetType.isNumericOrBoolType
 
   /** Box a numeric value into a union type */
   private def boxValue(word: Word, unionType: Type, span: Span): Word =
