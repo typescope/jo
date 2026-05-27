@@ -39,13 +39,31 @@ object Linux:
       /**
         * Implement syscalls in machine code.
         *
-        * It assumes the call convention of register machines is the same as syscalls.
+        * Args 0–3 arrive in EAX–EDX (register calling convention).
+        * Args 4+ were placed on the stack by the caller; they must be loaded
+        * into ESI/EDI before int 0x80.
+        *
+        * Callee frame layout after EBP = ESP (for N params, stackArgCount = N-4):
+        *   [EBP + 0]                  = return address
+        *   [EBP + stackArgCount*4]    = arg4  → ESI
+        *   [EBP + (stackArgCount-1)*4]= arg5  → EDI (if N > 5)
+        *   ...
+        *   [EBP + (stackArgCount+1)*4]= saved caller EBP
         */
       def linkSyscall(symbol: Symbol, label: Label)(using pb: PatchableBuffer): Unit =
+        val paramCount = symbol.tpe.asProcType.paramCount
+
         pb.defineLabel(label)
 
-        // frame pointer must be set and untact
+        // EBP = original ESP; stays stable
         X86.move(Reg(X86.ESP), X86.EBP)
+
+        // Load stack-passed args into the syscall registers ESI/EDI.
+        if paramCount > 4 then
+          val stackArgCount = paramCount - 4
+          X86.load(Rel(X86.EBP, stackArgCount * 4), X86.ESI, Size.B32)
+          if paramCount > 5 then
+            X86.load(Rel(X86.EBP, (stackArgCount - 1) * 4), X86.EDI, Size.B32)
 
         X86.int80()
 
