@@ -190,6 +190,18 @@ extends Phase:
     else
       apply
 
+  override def transformIf(ifElse: If)(using Context): Word =
+    val If(cond, thenp, elsep) = ifElse
+    val tp = ifElse.tpe
+    val tp2 = typeMap(tp)(using ())
+    val cond2 = this(cond)
+    val thenp2 = this(thenp)
+    val elsep2 = this(elsep)
+    if tp2.eq(tp) && cond2.eq(cond) && thenp2.eq(thenp) && elsep2.eq(elsep) then
+      ifElse
+    else
+      If(cond2, thenp2, elsep2)(tp2, ifElse.span)
+
   override def transformFunDef(fdef: FunDef)(using Context): FunDef = try
     val sym = fdef.symbol
 
