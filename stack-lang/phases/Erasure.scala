@@ -91,7 +91,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
     else
       val bridge = TermSymbol.create(
         methDefer.name + Names.BridgeSuffix,
-        procType2,
+        procType1,
         Flags.Fun | Flags.Method | Flags.Synthetic,
         Visibility.Default,
         methImpl.owner,
