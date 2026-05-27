@@ -5,6 +5,7 @@ import sast.*
 import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
+import sast.Denotations.*
 
 import scala.collection.mutable
 
@@ -52,20 +53,22 @@ extends Phase:
   private val CtxType: Type = emptyCtxSym.tpe.asProcType.resultType
   private val BatchType: Type = startBatchSym.tpe.asProcType.resultType
 
+  private val typeMap = new LowerContextParams.ContextTypeMap(CtxType)
+
   private val currentCtxSym = new Phase.PhaseKey[Symbol]("currentCtxSym")
 
   override def initContext()(using Context): Unit =
     // Function symbols only. Lambdas are rewritten explicitly in transformLambda.
-    defn.index.installTransform: (sym, tp) =>
-      tp match
-        case procType: ProcType if sym.isFunction && procType.receives.nonEmpty =>
-          procType.append(NamedInfo("__ctx", CtxType) :: Nil)
+    defn.index.installTransform: (_, denot) =>
+      denot match
+        case info: ClassInfo => info
 
-        case lambdaType: LambdaType if lambdaType.receives.nonEmpty =>
-          LambdaType(lambdaType.params :+ CtxType, lambdaType.resultType, lambdaType.receives)
+        case toi: TypeOperatorInfo =>
+          val body2 = typeMap(toi.body)(using ())
+          if toi.body `eq` body2 then toi
+          else TypeOperatorInfo(toi.tparams, body2, toi.preParamCount)
 
-        case _ =>
-          tp
+        case tp: Type => typeMap(tp)(using ())
 
   private def withCtx[T](ctxOpt: Option[Symbol])(work: => T)(using Context): T =
     val saved: Option[Symbol] = currentCtxSym.getOpt
@@ -91,14 +94,6 @@ extends Phase:
     tp match
       case pt: ProcType => pt.receives
       case lt: LambdaType => lt.receives
-
-  private def appendCtxToInvokeType(tp: InvokableType): InvokableType =
-    tp match
-      case pt: ProcType =>
-        pt.append(NamedInfo("__ctx", CtxType) :: Nil)
-
-      case lt: LambdaType =>
-        LambdaType(lt.params :+ CtxType, lt.resultType, lt.receives)
 
   private def shouldAddCtxParam(sym: Symbol): Boolean =
     defn.index.prevInfo(sym) match
@@ -180,7 +175,6 @@ extends Phase:
     val fun2 = this(fun)
     val args2 = args.map(this(_))
     val autos2 = autos.map(this(_))
-    val currInvokeType = fun2.tpe.asInvokableType
 
     val needCtx = invokeReceives(baseInvokeType).nonEmpty
 
@@ -188,13 +182,7 @@ extends Phase:
 
     if needCtx then
       val ctxArg = Ident(ensureCtx(apply.span))(apply.span)
-      val fun3 =
-        if currInvokeType.paramTypes.size == args2.size + 1 then
-          fun2
-        else
-          Encoded(fun2)(appendCtxToInvokeType(currInvokeType))
-
-      Apply(fun3, args2 :+ ctxArg, autos2)(apply.span, apply.isPartialApply)
+      Apply(fun2, args2 :+ ctxArg, autos2)(apply.span, apply.isPartialApply)
 
     else if changed then
       Apply(fun2, args2, autos2)(apply.span, apply.isPartialApply)
@@ -309,3 +297,57 @@ extends Phase:
     stats += expr2
 
     Block(stats.toList)(word.span)
+
+object LowerContextParams:
+
+  /** Materialize context parameters as additional parameters */
+  class ContextTypeMap(CtxType: Type)(using defn: Definitions) extends TypeMap:
+    type Context = Unit
+
+    def apply(tp: Type)(using ctx: Context): Type =
+      tp match
+        case _: RefType => tp
+
+        case lambdaType: LambdaType =>
+          val params2 =
+            val paramsTransformed = lambdaType.params.map(param => this(param))
+            if lambdaType.receives.nonEmpty then
+              paramsTransformed :+ CtxType
+
+            else
+              paramsTransformed
+
+          val resType2 = this(lambdaType.resultType)
+          LambdaType(params2, resType2, receives = lambdaType.receives)
+
+        case procType: ProcType =>
+          val params2 =
+            val paramsTransformed =
+              for param <- procType.params
+              yield param.copy(info = this(param.info))
+
+            if procType.receives.nonEmpty then
+              paramsTransformed :+ NamedInfo("__ctx", CtxType)
+
+            else
+              paramsTransformed
+
+          val autos2 =
+            for auto <- procType.autos
+            yield auto.copy(info = this(auto.info))
+
+          val candidates2 = procType.candidates.map(_ => Nil)
+
+          val resType2 = this(procType.resultType)
+          // DefaultValue contains no Types to map; thread defaultsFun through unchanged
+          ProcType(
+            procType.tparams, params2, autos2, candidates2, resType2, procType.receives,
+            procType.preParamCount, procType.preTypeParamCount
+          )(procType.defaultsLazy)
+
+        case _ =>
+          recur(tp)
+
+      end match
+    end apply
+  end ContextTypeMap
