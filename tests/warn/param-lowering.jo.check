@@ -1,0 +1,6 @@
+---------- Error at tests/warn/param-lowering.jo:3:5 ---------------
+| def main receives IO.stdout =
+|     ^^^^
+|     Parameter not allowed: limit
+
+1 error(s), 0 warning(s)
