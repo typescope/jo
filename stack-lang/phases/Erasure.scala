@@ -65,7 +65,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
 
       case tp: Type => eraseType(tp)
 
-  def eraseType(tp: Type): Type = eraseTypeMap.apply(tp)(using ())
+  def eraseType(tp: Type): Type = eraseTypeMap.apply(tp)(using Set.empty)
 
   /** assume !primitiveTagged */
   def tagged(tp: Type): Boolean = !tp.isNumericOrBoolType
@@ -442,9 +442,9 @@ object Erasure:
     * Type erasure should use the original type of symbols.
     */
   class EraseTypeMap(using defn: Definitions) extends TypeMap:
-    type Context = Unit
+    type Context = Set[Symbol]
 
-    def apply(tp: Type)(using Context): Type =
+    def apply(tp: Type)(using ctx: Context): Type =
       tp match
         case StaticRef(sym) =>
           if sym.isTypeParameter then AnyType else tp
@@ -467,7 +467,8 @@ object Erasure:
               AppliedType(tctor, AnyType :: Nil)
 
             else
-              this(tp.dealias)
+              if ctx.contains(tctor) then AnyType
+              else this(tp.dealias)(using ctx + tctor)
 
         case procType: ProcType =>
           val tparams2 = Nil
