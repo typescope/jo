@@ -3,6 +3,11 @@
 |       ^^^^^^^^^
 |       Parameter not allowed: newLine
 
+The following is the trace that leads to the problem:
+└── param pageWidth: Int = if newLine then 80 else 120 // error	[ tests/warn/param-opt2.jo:3:27 ]
+                              ^^^^^^^
+
+
 ---------- Error at tests/warn/param-opt2.jo:5:7 ---------------
 | param maxResult: Int = getDefault 10     // error
 |       ^^^^^^^^^
