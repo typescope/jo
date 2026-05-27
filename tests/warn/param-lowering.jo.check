@@ -3,4 +3,9 @@
 |     ^^^^
 |     Parameter not allowed: limit
 
+The following is the trace that leads to the problem:
+└──   (if 3 > 2 then f else g)()	[ tests/warn/param-lowering.jo:7:3 ]
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 1 error(s), 0 warning(s)
