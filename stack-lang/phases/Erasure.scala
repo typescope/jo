@@ -67,6 +67,36 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
 
   def eraseType(tp: Type): Type = eraseTypeMap.apply(tp)(using ())
 
+  /** assume !primitiveTagged */
+  def tagged(tp: Type): Boolean = !tp.isNumericOrBoolType
+
+  /** assume !primitiveTagged */
+  def taggingConforms(tp1: Type, tp2: Type): Boolean =
+    tagged(tp1) == tagged(tp2) && {
+      if !tp1.isLambdaType && !tp2.isLambdaType then
+        true
+
+      else if tp1.isLambdaType && tp2.isLambdaType then
+        val lambda1 = tp1.asLambdaType
+        val lambda2 = tp2.asLambdaType
+        taggingConforms(lambda1.resultType, lambda2.resultType)
+        lambda1.paramTypes.zip(lambda2.paramTypes).forall((tp1, tp2) => taggingConforms(tp1, tp2))
+
+      else if tp1.isLambdaType then
+        assert(tp2.approx.isAnyType, "tp2 = " + tp2.show)
+        val lambda1 = tp1.asLambdaType
+        taggingConforms(lambda1.resultType, AnyType)
+        lambda1.paramTypes.forall(tp1 => taggingConforms(tp1, AnyType))
+
+      else
+        assert(tp2.isLambdaType, "tp2 = " + tp2.show)
+        assert(tp1.approx.isAnyType, "tp1 = " + tp1.show)
+        val lambda2 = tp2.asLambdaType
+        taggingConforms(lambda2.resultType, AnyType)
+        lambda2.paramTypes.forall(tp2 => taggingConforms(tp2, AnyType))
+
+    }
+
   /** Create a bridge method symbol
     *
     * Assume !primitiveTagged
@@ -74,12 +104,6 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
   def makeBridge(methDefer: Symbol, methImpl: Symbol): Option[Symbol] =
     val procType1 = methDefer.tpe.asProcType
     val procType2 = methImpl.tpe.asProcType
-
-    // assume !primitiveTagged
-    def tagged(tp: Type): Boolean = !tp.isNumericOrBoolType
-
-    def taggingConforms(tp1: Type, tp2: Type) =
-      tagged(tp1) == tagged(tp2) && (!tp2.isLambdaType || !tp1.isLambdaType)
 
     val taggingOK =
       taggingConforms(procType1.resultType, procType2.resultType)
@@ -121,13 +145,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
         if conforms then value else Encoded(value)(expectedType)
 
       else
-        // assume !primitiveTagged
-        def tagged(tp: Type): Boolean = !tp.isNumericOrBoolType
-
-        def taggingConforms(tp1: Type, tp2: Type) =
-          tagged(tp1) == tagged(tp2) && (!tp1.isLambdaType || !tp2.isLambdaType)
-
-        if !expectedType.isLambdaType || !valueType.isLambdaType then
+        if !expectedType.isLambdaType && !valueType.isLambdaType then
           if conforms then
             if tagged(valueType) || !tagged(expectedType) then
               value
@@ -140,32 +158,51 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
             // Backend will decide whether the cast involves unboxing
             Encoded(value)(expectedType)
 
+        else if expectedType.isLambdaType && valueType.isLambdaType then
+          val lambdaType1 = valueType.asLambdaType
+          val lambdaType2 = expectedType.asLambdaType
+          adaptLambdaValue(value, lambdaType1, lambdaType2)
+
+        else if expectedType.isLambdaType then
+          assert(valueType.approx.isAnyType, "Expect Any, found = " + valueType.show)
+          val lambdaType2 = expectedType.asLambdaType
+          val lambdaType1 = LambdaType(lambdaType2.params.map(_ => AnyType), AnyType, lambdaType2.receives)
+          adaptLambdaValue(value, lambdaType1, lambdaType2)
+
         else
-          val lambdaType1 @ LambdaType(paramTypes1, resType1, _) = valueType.asLambdaType
-          val lambdaType2 @ LambdaType(paramTypes2, resType2, _)  = expectedType.asLambdaType
+          assert(valueType.isLambdaType, "Expect lambda type, found = " + valueType.show)
+          assert(expectedType.approx.isAnyType, "Expect Any, found = " + expectedType.show)
+          val lambdaType1 = valueType.asLambdaType
+          val lambdaType2 = LambdaType(lambdaType1.params.map(_ => AnyType), AnyType, lambdaType1.receives)
+          adaptLambdaValue(value, lambdaType1, lambdaType2)
 
-          // println("lambda1 = " + lambdaType1.show + ", lambda2 = " + lambdaType2.show)
 
-          assert(
-            paramTypes1.size == paramTypes2.size,
-            "lambda arity not equal. lambda1 = " + lambdaType1.show + ", lambda2 = " + lambdaType2.show
-          )
+  def adaptLambdaValue(value: Word, valueType: LambdaType, expectedType: LambdaType)(using Context): Word =
+    val lambdaType1 @ LambdaType(paramTypes1, resType1, _) = valueType
+    val lambdaType2 @ LambdaType(paramTypes2, resType2, _)  = expectedType
 
-          val taggingOK =
-            taggingConforms(resType1, resType2)
-            && paramTypes1.zip(paramTypes2).forall((tp1, tp2) => taggingConforms(tp2, tp1))
+    // println("lambda1 = " + lambdaType1.show + ", lambda2 = " + lambdaType2.show)
 
-          if taggingOK then
-            if conforms then value else Encoded(value)(expectedType)
+    assert(
+      paramTypes1.size == paramTypes2.size,
+      "lambda arity not equal. lambda1 = " + lambdaType1.show + ", lambda2 = " + lambdaType2.show
+    )
 
-          else
-            // New symbols should go to old info, so they can be found during eraseType
-            TreeOps.createLambda(lambdaType2, Phase.owner.value, value.span)(paramRefs => {
-              val args = paramRefs.zip(paramTypes1).map: (paramRef, paramType) =>
-                adapt(paramRef, paramType)
+    val taggingOK =
+      taggingConforms(resType1, resType2)
+      && paramTypes1.zip(paramTypes2).forall((tp1, tp2) => taggingConforms(tp2, tp1))
 
-              adapt(Apply(value, args, autos = Nil)(value.span), resType2)
-            })(using prevDefinitions)
+    if taggingOK then
+      if Subtyping.conforms(valueType, expectedType) then value else Encoded(value)(expectedType)
+
+    else
+      // New symbols should go to old info, so they can be found during eraseType
+      TreeOps.createLambda(lambdaType2, Phase.owner.value, value.span)(paramRefs => {
+        val args = paramRefs.zip(paramTypes1).map: (paramRef, paramType) =>
+          adapt(paramRef, paramType)
+
+        adapt(Apply(value, args, autos = Nil)(value.span), resType2)
+      })(using prevDefinitions)
 
   def eraseWord(word: Word, expectedType: Type, returnType: Type | Null)(using Context): Word = common.Debug.trace("erase " + word.show, (_: Word).show, enable = false):
     word match
