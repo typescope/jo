@@ -57,24 +57,36 @@ object Checker:
   def checkValueType(word: Word)(using Definitions, Reporter, Source): Unit =
     checkValueType(word.tpe, word.pos)
 
-  def checkValueType(tpt: TypeTree)(using Definitions, Reporter, Source): Boolean =
-    checkValueType(tpt.tpe, tpt.pos)
-
   def checkValueType(tp: Type, pos: SourcePosition)(using Definitions, Reporter): Boolean =
-    if tp.isValueType then
-      true
-
-    else if tp.isProcType then
+    if tp.isProcType then
       Reporter.error(s"Expect value type, found a function", pos)
       false
 
     else
-      val explain = tp.kind match
-        case Some(kind) => ", but found a type of kind " + kind.show
-        case None => ", but a non-value type"
+      def error(kind: Option[Kind]): Boolean =
+        val explain = kind match
+          case Some(kind) => ", but found a type of kind " + kind.show
+          case None => ", but a non-value type"
 
-      Reporter.error(s"Expect value type" + explain, pos)
-      false
+        Reporter.error(s"Expect value type" + explain, pos)
+        false
+
+      tp match
+        case VoidType | _: ProcType => error(None)
+
+        case refType: RefType =>
+          val sym = refType.symbol
+
+          if sym.isType then
+            sym.asTypeSymbol.initKind match
+              case Kind.Simple => return true
+              case kind => error(Some(kind))
+
+          else
+            if sym.isFunction || sym.isContainer then error(None)
+            else true
+
+        case _ => true
 
   def checkMutable(sym: Symbol, pos: SourcePosition)(using Reporter): Unit =
     if !sym.isMutable then
