@@ -247,8 +247,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
               if repr2.eq(repr) then word else Encoded(repr2)(VoidType)
 
             else
-              // TODO: add union type assertion
-              // pattern type cast, re-do the cast if needed
+              // pattern type cast, pattern desugaring array result cast
               val word2 = eraseWord(repr, expectedType = eraseType(repr.tpe).widen, returnType)
               val encodedType2 = eraseType(word.tpe)
               adapt(Encoded(word2)(encodedType2), expectedType)
@@ -423,7 +422,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
 
     val body2 =
       val resType = sym.tpe.asProcType.resultType
-      eraseWord(this(fdef.body), expectedType = resType, returnType = resType)
+      eraseWord(fdef.body, expectedType = resType, returnType = resType)
 
     fdef.copy(body = body2)(fdef.annots, fdef.span)
   catch case ex =>

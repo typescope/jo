@@ -298,7 +298,7 @@ object Printing:
 
       case Lambda(symbol, params, receives, body) =>
         val paramList = params.map(p => p.name ~ ": " ~ p.tpe).join(", ")
-        "(" ~ paramList ~ ")" ~ " => " ~ body
+        "(" ~ paramList ~ ")" ~ " => " ~ indent(body)
 
       case fdef: FunDef => showDef(fdef)
 
