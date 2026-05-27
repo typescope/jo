@@ -163,25 +163,23 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
             Encoded(value)(expectedType)
 
         else if expectedType.isLambdaType && valueType.isLambdaType then
-          val lambdaType1 = valueType.asLambdaType
-          val lambdaType2 = expectedType.asLambdaType
-          adaptLambdaValue(value, lambdaType1, lambdaType2, wrapConforms = false)
+          adaptLambdaValue(value, valueType.asLambdaType, expectedType.asLambdaType)
 
         else if expectedType.isLambdaType then
           assert(valueType.approx.isAnyType, "Expect Any, found = " + valueType.show)
           val lambdaType2 = expectedType.asLambdaType
           val lambdaType1 = LambdaType(lambdaType2.params.map(_ => AnyType), AnyType, lambdaType2.receives)
-          adaptLambdaValue(value, lambdaType1, lambdaType2, wrapConforms = true)
+          adaptLambdaValue(Encoded(value)(lambdaType1), lambdaType1, lambdaType2)
 
         else
           assert(valueType.isLambdaType, "Expect lambda type, found = " + valueType.show)
           assert(expectedType.approx.isAnyType, "Expect Any, found = " + expectedType.show)
           val lambdaType1 = valueType.asLambdaType
           val lambdaType2 = LambdaType(lambdaType1.params.map(_ => AnyType), AnyType, lambdaType1.receives)
-          adaptLambdaValue(value, lambdaType1, lambdaType2, wrapConforms = false)
+          adaptLambdaValue(value, lambdaType1, lambdaType2)
 
 
-  def adaptLambdaValue(value: Word, valueType: LambdaType, expectedType: LambdaType, wrapConforms: Boolean)(using Context): Word =
+  def adaptLambdaValue(value: Word, valueType: LambdaType, expectedType: LambdaType)(using Context): Word =
     val lambdaType1 @ LambdaType(paramTypes1, resType1, _) = valueType
     val lambdaType2 @ LambdaType(paramTypes2, resType2, _)  = expectedType
 
@@ -197,7 +195,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
       && paramTypes1.zip(paramTypes2).forall((tp1, tp2) => taggingConforms(tp2, tp1))
 
     if taggingOK then
-      if Subtyping.conforms(valueType, expectedType) && !wrapConforms then value else Encoded(value)(expectedType)
+      if Subtyping.conforms(valueType, expectedType) then value else Encoded(value)(expectedType)
 
     else
       // New symbols should go to old info, so they can be found during eraseType
