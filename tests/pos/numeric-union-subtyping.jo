@@ -1,0 +1,10 @@
+def main =
+  def takesFunction(f: Int => Unit): Unit =
+    f(42)
+
+  def process(x: Int | String): Unit =
+    match x
+      case n: Int => println n
+      case s: String => println s
+
+  takesFunction: (x: Int | String) => process x
