@@ -153,17 +153,12 @@ extends Phase:
 
   override def transformIdent(word: Ident)(using Context): Word =
     word match
-      case Ident(sym) if sym.isAllOf(Flags.Context) =>
+      case Ident(sym) if sym.is(Flags.Context) =>
         val ctx = Ident(ensureCtx(word.span))(word.span)
         val key = makeParamSymbol(sym, word.span)
         val tparam = TypeTree(sym.tpe)(word.span)
         val getParamFun = TypeApply(Ident(getParamSym)(word.span), tparam :: Nil)(word.span)
         getParamFun.appliedTo(ctx, key)
-
-      case Ident(sym) if sym.isFunction && shouldAddCtxParam(sym) =>
-        // Rebuild function identifiers whose type changed via installTransform,
-        // so enclosing TypeApply/Apply nodes can refresh their cached tpe.
-        Ident(sym)(word.span)
 
       case _ =>
         word
