@@ -58,18 +58,24 @@ object Linux:
         // EBP = original ESP; stays stable
         X86.move(Reg(X86.ESP), X86.EBP)
 
-        // Load stack-passed args into the syscall registers ESI/EDI.
+        // Save callee-saved ESI/EDI if they will be used, then load the
+        // stack-passed args.  EBP-relative addressing stays valid after the
+        // pushes because EBP was fixed before them.
         if paramCount > 4 then
+          X86.push(X86.ESI)
           val stackArgCount = paramCount - 4
           X86.load(Rel(X86.EBP, stackArgCount * 4), X86.ESI, Size.B32)
           if paramCount > 5 then
+            X86.push(X86.EDI)
             X86.load(Rel(X86.EBP, (stackArgCount - 1) * 4), X86.EDI, Size.B32)
 
         X86.int80()
 
-        // result of syscall in EAX
+        // result of syscall in EAX; restore clobbered callee-saved regs
+        if paramCount > 5 then X86.pop(X86.EDI)
+        if paramCount > 4 then X86.pop(X86.ESI)
 
-        // return to caller
+        // return to caller: after the pops ESP == EBP, so [ESP] == retLoc
         X86.load(Reg(X86.ESP), X86.ESP, Size.B32)
         X86.jump(Reg(X86.ESP))
 
