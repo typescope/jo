@@ -21,7 +21,7 @@ Faster build, requires JVM at runtime:
 Slower build, faster startup, no JVM dependency:
 
 ```bash
-./build -native
+./build --native
 ```
 
 ### Build Fat JAR
@@ -29,7 +29,7 @@ Slower build, faster startup, no JVM dependency:
 Bundle all dependencies in a single JAR file:
 
 ```bash
-./build -fat
+./build --fat
 ```
 
 ### Build Release Package
@@ -37,7 +37,7 @@ Bundle all dependencies in a single JAR file:
 Create a distribution zip (requires fat JAR):
 
 ```bash
-./build -fat -release
+./build --fat --release
 ```
 
 ## Build Artifacts

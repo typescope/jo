@@ -9,13 +9,13 @@ BUILD_RELEASE=false
 
 for arg in "$@"; do
   case $arg in
-    -native)
+    --native)
       BUILD_NATIVE=true
       ;;
-    -fat)
+    --fat)
       BUILD_FAT_JAR=true
       ;;
-    -release)
+    --release)
       BUILD_RELEASE=true
       ;;
     *)
