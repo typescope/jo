@@ -102,8 +102,8 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
     * Assume !primitiveTagged
     */
   def makeBridge(methDefer: Symbol, methImpl: Symbol): Option[Symbol] =
-    val procType1 = methDefer.tpe.asProcType
-    val procType2 = methImpl.tpe.asProcType
+    val procType1 = eraseType(methDefer.tpe).asProcType
+    val procType2 = eraseType(methImpl.tpe).asProcType
 
     val taggingOK =
       taggingConforms(procType1.resultType, procType2.resultType)

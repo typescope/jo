@@ -22,7 +22,7 @@ object Types:
       */
     def isError(using Definitions): Boolean =
       this.eq(ErrorType) || this.match
-        case StaticRef(sym) =>
+        case StaticRef(sym) if sym.isTerm =>
           // Don't recur to avoid loops
           sym.info `eq` ErrorType
 
