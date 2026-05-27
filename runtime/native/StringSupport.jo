@@ -125,8 +125,8 @@ private[native] section StringOps
       val rhsBytes = bytes(rhs)
       var i = 0
       while isEqual && i < bytesN do
-        val l = readByte: addAddr (cast[Addr] lhsBytes) i
-        val r = readByte: addAddr (cast[Addr] rhsBytes) i
+        val l = readByte: addAddr lhsBytes i
+        val r = readByte: addAddr rhsBytes i
         isEqual = l == r
         i = i + 1
       end
@@ -140,9 +140,8 @@ private[native] section StringOps
     if from + len > cpN then abort "substring out of range"
     if len == 0 then ""
     else
-      val allBytes = bytes(source)
+      val content = bytes(source)
       val totalByteN = byteSize(source)
-      val content = cast[Addr] allBytes
       val startByte =
         if totalByteN == cpN then from
         else codePointToByteOffset(content, totalByteN, from)
@@ -234,7 +233,7 @@ private[native] section StringOps
 end
 
 private[native] class StringIterator(source: String)
-  val content: Addr = cast[Addr] StringOps.bytes(source)
+  val content: Addr = StringOps.bytes(source)
   val byteN: Int = StringOps.byteSize(source)
   var off: Int = 0
 

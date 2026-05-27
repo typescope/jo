@@ -91,7 +91,7 @@ private def findInterfaceMethod(itableAddr: Addr, interfaceId: Int, methodOrder:
   // Linear search through interface table
   var index = 0
   var found = false
-  var vtablePtr = cast[Addr] 0
+  var vtablePtr = intToAddr 0
 
   while index < count && !found do
     // Read interface ID at position: 1 + index * 2
@@ -101,7 +101,7 @@ private def findInterfaceMethod(itableAddr: Addr, interfaceId: Int, methodOrder:
       // Found matching interface, get vtable pointer
       // Vtable pointer at position: 1 + index * 2 + 1
       val vtablePtrInt = readInt (addAddr itableAddr ((1 + index * 2 + 1) * 4))
-      vtablePtr = cast[Addr] vtablePtrInt
+      vtablePtr = intToAddr vtablePtrInt
       found = true
     else
       index = index + 1
@@ -262,7 +262,7 @@ private def start(argsRaw: Addr): Unit receives none =
   // skip the first arg: program name
   for i in 1 until size do
     val addr = readInt: addAddr argsRaw (i * 4 + 4)
-    val str = StringOps.fromCString(cast[Addr] addr)
+    val str = StringOps.fromCString(intToAddr addr)
     strArr[i - 1] = str
 
   with
@@ -402,11 +402,13 @@ private section RefArray
     cast[Array[T]] arr
 
   def get[T](arr: Array[T], i: Int): T =
-    cast[T]:
+    val addr = intToAddr:
       readInt:
         addAddr:
           cast[Addr] arr
           i * 4 + 8
+
+    cast[T]: addr
 
   def set[T](arr: Array[T], i: Int, value: T): Unit =
     writeInt:
