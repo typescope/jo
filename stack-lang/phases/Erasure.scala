@@ -78,11 +78,12 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
     // assume !primitiveTagged
     def tagged(tp: Type): Boolean = !tp.isNumericOrBoolType
 
-    def taggingConforms(tp1: Type, tp2: Type) = tagged(tp1) == tagged(tp2)
+    def taggingConforms(tp1: Type, tp2: Type) =
+      tagged(tp1) == tagged(tp2) && (!tp2.isLambdaType || !tp1.isLambdaType)
 
     val taggingOK =
       taggingConforms(procType1.resultType, procType2.resultType)
-      && procType1.paramTypes.zip(procType2.paramTypes).forall((tp1, tp2) => taggingConforms(tp1, tp2))
+      && procType1.paramTypes.zip(procType2.paramTypes).forall((tp1, tp2) => taggingConforms(tp2, tp1))
 
     if taggingOK && Subtyping.conforms(procType2, procType1) then
       None
@@ -123,24 +124,23 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
         // assume !primitiveTagged
         def tagged(tp: Type): Boolean = !tp.isNumericOrBoolType
 
-        def taggingConforms(valueType: Type, expectedType: Type) =
-          tagged(valueType) == tagged(expectedType)
+        def taggingConforms(tp1: Type, tp2: Type) =
+          tagged(tp1) == tagged(tp1) && (!tp1.isLambdaType || !tp2.isLambdaType)
 
-        if conforms && !expectedType.isLambdaType then
-          if tagged(valueType) || !tagged(expectedType) then
-            value
+        if !expectedType.isLambdaType || !valueType.isLambdaType then
+          if conforms then
+            if tagged(valueType) || !tagged(expectedType) then
+              value
+
+            else
+              Encoded(value)(expectedType)
 
           else
+            assert(valueType.approx.isAnyType, "Expect Any, found = " + valueType.show)
+            // Backend will decide whether the cast involves unboxing
             Encoded(value)(expectedType)
 
-        else if !conforms && valueType.widenTermRef.isAnyType then
-          // Backend will decide whether the cast involves unboxing
-          Encoded(value)(expectedType)
-
         else
-          assert(valueType.isLambdaType, "value not lambda, value type = " + valueType.show + ", expected type = " + expectedType.show + ", value = " + value.show)
-          assert(expectedType.isLambdaType, "expected type not lambda: " + expectedType.show)
-
           val lambdaType1 @ LambdaType(paramTypes1, resType1, _) = valueType.asLambdaType
           val lambdaType2 @ LambdaType(paramTypes2, resType2, _)  = expectedType.asLambdaType
 
@@ -152,8 +152,8 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
           )
 
           val taggingOK =
-            taggingConforms(resType1, resType2) && !resType2.isLambdaType
-            && paramTypes1.zip(paramTypes2).forall((tp1, tp2) => taggingConforms(tp1, tp2) && !tp2.isLambdaType)
+            taggingConforms(resType1, resType2)
+            && paramTypes1.zip(paramTypes2).forall((tp1, tp2) => taggingConforms(tp2, tp1))
 
           if taggingOK then
             if conforms then value else Encoded(value)(expectedType)
