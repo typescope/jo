@@ -2,6 +2,7 @@ package sast
 
 import Trees.*
 import Symbols.*
+import Types.*
 
 import ast.Positions.Source
 import reporting.Reporter
@@ -78,6 +79,10 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
 
         if !sym.owner.isFunction && !sym.owner.isContainer && sym.name != "this" then
           Reporter.error("The owner of an ident should be either a function, a class or an container, found = " + sym.owner, word.pos)
+
+        sym.info match
+          case ref: RefType if !ref.symbol.isType => Reporter.error("Ident has unexpected type: " + ref, word.pos)
+          case _ =>
 
         // TODO: enable after fixing owners of pattern translation & lifting
         // if sym.isLocal && sym.owner != ctx.enclosingFun && !ctx.enclosingFun.ownersIterator.exists(_ == sym.owner) then

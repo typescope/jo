@@ -282,7 +282,7 @@ extends Phase:
     // 1. args are evaluated with the outer context (in source order)
     val argValueSyms = args.map: arg =>
       val paramName = arg.ident.symbol.fullName
-      val argValueSym = TermSymbol.create("arg_" + paramName, arg.rhs.tpe, Flags.Synthetic, Visibility.Default, owner, owner.sourcePos)
+      val argValueSym = TermSymbol.create("arg_" + paramName, arg.rhs.tpe.widen, Flags.Synthetic, Visibility.Default, owner, owner.sourcePos)
       stats += Assign(Ident(argValueSym)(arg.rhs.span), this(arg.rhs))
       argValueSym
 
