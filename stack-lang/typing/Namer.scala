@@ -264,7 +264,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         transformLambda(lambda).adapt
 
       case Ast.Fence(phrase) =>
-        transform(phrase)
+        Block(transform(phrase) :: Nil)(word.span)
 
       case app: Ast.Apply =>
         transformCall(app)
