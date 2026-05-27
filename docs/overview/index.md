@@ -1,34 +1,22 @@
 # Jo Programming Language
 
-Jo is a statically-typed object-oriented and functional language that compiles to Ruby and Python. Its type system enforces [capability-based security](capabilities.md) at compile time.
+Jo is a statically-typed language where all side effects — IO, system access, network, filesystem — are denied by default. Any capability must be explicitly declared and granted through contracted interfaces, enforced at compile time. This is the foundation of Jo's [capability-based security](capabilities.md) model.
 
 ## Why Jo?
 
-Jo is designed to solve the following authority confinement problem via its
-_type system_ without resorting to sandboxing nor isolation:
+It's a fundamental problem in secure software:
 
-> How to safely execute a 3rd party function with the guarantee that it only does what
-it is allowed to do, e.g., read certain rows of a database table according to access control policies, but
-cannot do anything else (no abitrary http requests, file IO, etc.)?
+> How do you safely execute untrusted code — with the guarantee that it only does what it is permitted to do, at any level of granularity? For example: access only a specific directory, make API requests to a single host, or query only the database rows belonging to the current user.
 
-Jo solves the security problem above in the simplest way possible without taking
-away too much freedom from programmers. It brings the following benefits:
+Jo solves the problem by using capability contracted authority based on its type system:
 
-- **Authority confinement** - Confine an untrusted function to contracted authorities
-- **Fine-grained control** - Attenuated authorities enable precise control, e.g. only access certain rows of a database table
-- **Easy security auditing** - Compile-time checked authorities and clear security boundaries
-
-Jo's mission is to make secure programming a joy.
-
-## Key Features
-
-- **Capability-based security** - Fine-grained control over what code can access, enforced by the type system
-- **Pattern-oriented programming** - Define reusable pattern predicates; compose patterns with logical operators
-- **Type-safe dependency injection** - Inject dependencies without frameworks; compile-time verified, zero runtime overhead
+- **Authority confinement** — Restrict untrusted code to exactly the granted permissions it needs, at any granularity.
+- **Fine-grained control** — Scope permissions precisely: a specific directory, a single API request, or rows belonging to one user.
+- **Auditable by design** — Security boundaries are visible in interface and type system, not hidden in runtime configuration.
 
 ## For Secure AI
 
-If you are building systems that run AI-generated code, Jo provides the tools you need. See [Capability-Oriented Programming](capabilities.md) for details.
+Building systems that run AI-generated code? Jo's capability model lets you constrain what AI agents can access — at the type level, before anything runs. See [Capability-Oriented Programming](capabilities.md) for details.
 
 ## Learn More
 
