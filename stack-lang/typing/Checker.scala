@@ -54,11 +54,13 @@ object Checker:
       else
         TypeApply(fun, targs)(span)
 
-  def checkValueType(word: Word)(using Definitions, Reporter, Source): Unit =
+  /** Should not take Definitions to avoid forcing symbols */
+  def checkValueType(word: Word)(using Reporter, Source): Unit =
     checkValueType(word.tpe, word.pos)
 
-  def checkValueType(tp: Type, pos: SourcePosition)(using Definitions, Reporter): Boolean =
-    if tp.isProcType then
+  /** Should not take Definitions to avoid forcing symbols */
+  def checkValueType(tp: Type, pos: SourcePosition)(using Reporter): Boolean =
+    if tp.isInstanceOf[ProcType] then
       Reporter.error(s"Expect value type, found a function", pos)
       false
 
