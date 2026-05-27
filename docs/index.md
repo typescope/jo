@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: "Jo"
-  text: "Secure programming for the AI Era"
+  text: "Secure Programming for the AI Era"
   tagline: Give AI agents only the capabilities they need — guaranteed by the type system, not a runtime sandbox.
   actions:
     - theme: brand
