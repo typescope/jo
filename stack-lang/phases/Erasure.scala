@@ -165,23 +165,23 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
         else if expectedType.isLambdaType && valueType.isLambdaType then
           val lambdaType1 = valueType.asLambdaType
           val lambdaType2 = expectedType.asLambdaType
-          adaptLambdaValue(value, lambdaType1, lambdaType2)
+          adaptLambdaValue(value, lambdaType1, lambdaType2, wrapConforms = false)
 
         else if expectedType.isLambdaType then
           assert(valueType.approx.isAnyType, "Expect Any, found = " + valueType.show)
           val lambdaType2 = expectedType.asLambdaType
           val lambdaType1 = LambdaType(lambdaType2.params.map(_ => AnyType), AnyType, lambdaType2.receives)
-          adaptLambdaValue(value, lambdaType1, lambdaType2)
+          adaptLambdaValue(value, lambdaType1, lambdaType2, wrapConforms = true)
 
         else
           assert(valueType.isLambdaType, "Expect lambda type, found = " + valueType.show)
           assert(expectedType.approx.isAnyType, "Expect Any, found = " + expectedType.show)
           val lambdaType1 = valueType.asLambdaType
           val lambdaType2 = LambdaType(lambdaType1.params.map(_ => AnyType), AnyType, lambdaType1.receives)
-          adaptLambdaValue(value, lambdaType1, lambdaType2)
+          adaptLambdaValue(value, lambdaType1, lambdaType2, wrapConforms = false)
 
 
-  def adaptLambdaValue(value: Word, valueType: LambdaType, expectedType: LambdaType)(using Context): Word =
+  def adaptLambdaValue(value: Word, valueType: LambdaType, expectedType: LambdaType, wrapConforms: Boolean)(using Context): Word =
     val lambdaType1 @ LambdaType(paramTypes1, resType1, _) = valueType
     val lambdaType2 @ LambdaType(paramTypes2, resType2, _)  = expectedType
 
@@ -197,7 +197,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
       && paramTypes1.zip(paramTypes2).forall((tp1, tp2) => taggingConforms(tp2, tp1))
 
     if taggingOK then
-      if Subtyping.conforms(valueType, expectedType) then value else Encoded(value)(expectedType)
+      if Subtyping.conforms(valueType, expectedType) && !wrapConforms then value else Encoded(value)(expectedType)
 
     else
       // New symbols should go to old info, so they can be found during eraseType
@@ -254,10 +254,15 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
 
       case apply @ Apply(fun, args, autos) =>
         val fun2 = fun match
-          case TypeApply(funInner, _) => eraseWord(funInner, expectedType = eraseType(funInner.tpe).widen, returnType)
+          case TypeApply(funInner, _) => eraseWord(funInner, expectedType = eraseType(fun.tpe).widen, returnType)
           case _ => eraseWord(fun, expectedType = eraseType(fun.tpe).widen, returnType)
 
-        val invokeType = fun2.tpe.asInvokableType
+        val invokeType =
+          try
+            fun2.tpe.asInvokableType
+          catch case ex: Exception =>
+            println("fun.tpe = " + fun.tpe  + ", fun2.tpe = " + fun2.tpe + ", apply = " + apply)
+            throw ex
 
         var changed = fun2 `ne` fun
 
