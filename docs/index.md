@@ -4,7 +4,7 @@ layout: home
 hero:
   name: "Jo"
   text: "Secure Programming for the AI Era"
-  tagline: A statically-typed language that enforces capability-based security at compile time — no sandboxing required.
+  tagline: Give AI agents only the capabilities they need — guaranteed by the type system, not a runtime sandbox.
   actions:
     - theme: brand
       text: Get Started
@@ -20,42 +20,42 @@ features:
   - icon:
       src: /icons/lock.svg
     title: Capability-Based Security
-    details: Control exactly what code can access via the type system. Confine AI-generated code to contracted authorities — no runtime sandboxing needed.
+    details: Code can only access what it declares and is granted. Anything beyond that is rejected as compiling errors.
     link: /overview/capabilities
     linkText: Learn more
 
   - icon:
       src: /icons/shield-check.svg
     title: Built for AI Systems
-    details: Statically prevent AI agents from accessing the network, filesystem, or unauthorized data. Compiler-enforced security boundaries.
+    details: Confine AI agents to declared capabilities. No network, filesystem, or data access beyond what you explicitly allow.
     link: /security/security-problem
     linkText: See the problem
 
   - icon:
-      src: /icons/sparkles.svg
-    title: Pattern-Oriented Programming
-    details: Define reusable pattern predicates and compose them with logical operators. Exhaustive matching with compile-time completeness checking.
-    link: /overview/patterns
-    linkText: Explore patterns
-
-  - icon:
-      src: /icons/badge-check.svg
-    title: Type-Safe by Design
-    details: A program is either rejected with helpful errors or accepted and does not crash at runtime. No null pointer exceptions, no undefined behaviour.
-    link: /language/design-principles
-    linkText: Design principles
-
-  - icon:
       src: /icons/arrows.svg
     title: Context Parameters
-    details: Elegant dependency injection without global variables or frameworks. Pass capabilities explicitly, test with ease.
+    details: Pass capabilities through the call stack implicitly — no boilerplate, no globals, no frameworks.
     link: /language/concepts/context-parameters
     linkText: Learn more
 
   - icon:
+      src: /icons/badge-check.svg
+    title: Type-Safe by Design
+    details: No runtime type errors, the compiler catches what other languages let slip through.
+    link: /language/design-principles
+    linkText: Design principles
+
+  - icon:
+      src: /icons/sparkles.svg
+    title: Pattern-Oriented Programming
+    details: Compose reusable pattern predicates with logical operators. Exhaustive matching — the compiler guarantees no case is missed.
+    link: /overview/patterns
+    linkText: Explore patterns
+
+  - icon:
       src: /icons/layers.svg
     title: Multiple Backends
-    details: Compile to Python and Ruby. Share one codebase across platforms with a consistent type-safe interface.
+    details: One language, mutltiple runtimes. Compile to Python, JavaScript, or Ruby with the same type guarantees on every platform.
     link: /usage/getting-started
     linkText: Get started
 ---
