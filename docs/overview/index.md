@@ -4,15 +4,15 @@ Jo is a statically-typed language where all side effects — IO, system access, 
 
 ## Why Jo?
 
-Jo's type system solves a fundamental problem in secure software:
+It's a fundamental problem in secure software:
 
 > How do you safely execute untrusted code — with the guarantee that it only does what it is permitted to do, at any level of granularity? For example: access only a specific directory, make API requests to a single host, or query only the database rows belonging to the current user.
 
-Jo solves the problem by supporting capability contracted authority based on its type system:
+Jo solves the problem by using capability contracted authority based on its type system:
 
 - **Authority confinement** — Restrict untrusted code to exactly the granted permissions it needs, at any granularity.
 - **Fine-grained control** — Scope permissions precisely: a specific directory, a single API request, or rows belonging to one user.
-- **Auditable by design** — Security boundaries are visible in types, not hidden in runtime configuration.
+- **Auditable by design** — Security boundaries are visible in interface and type system, not hidden in runtime configuration.
 
 ## For Secure AI
 
