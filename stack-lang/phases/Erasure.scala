@@ -153,7 +153,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
 
           val taggingOK =
             taggingConforms(resType1, resType2) && !resType2.isLambdaType
-            && paramTypes1.zip(paramTypes2).forall((tp1, tp2) => taggingConforms(tp1, tp2))
+            && paramTypes1.zip(paramTypes2).forall((tp1, tp2) => taggingConforms(tp1, tp2) && !tp2.isLambdaType)
 
           if taggingOK then
             if conforms then value else Encoded(value)(expectedType)
