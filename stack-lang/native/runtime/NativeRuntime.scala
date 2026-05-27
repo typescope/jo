@@ -139,6 +139,9 @@ extends Linker:
 
   val Core_RefArray_ArrayClassId = defn.resolveTerm("jo.runtime.native.RefArray.ArrayClassId")
 
+  val Core_stackOverflowHandler        = Native.termMember("stackOverflowHandler")
+  val Core_stackOverflowHandlerAddress = Native.termMember("stackOverflowHandlerAddress")
+
   val GC = defn.resolveContainer("jo.runtime.native.GC")
   val GC_alloc = GC.termMember("alloc")
 

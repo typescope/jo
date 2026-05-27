@@ -31,6 +31,12 @@ def sys_write(fd: Int, addr: Addr, len: Int): Int receives none =
 def sys_newfstat(fd: Int, stat: Addr): Int receives none =
   Primitives.__sys_newfstat 108 fd stat
 
+def sys_sigaltstack(ss: Addr, oldss: Int): Int receives none =
+  Primitives.__sys_sigaltstack 186 ss oldss
+
+def sys_rt_sigaction(signum: Int, act: Addr, oldact: Int, sigsetsize: Int): Int receives none =
+  Primitives.__sys_rt_sigaction 174 signum act oldact sigsetsize
+
 // Linux system calls
 private section Primitives
   @intrinsic
@@ -56,4 +62,10 @@ private section Primitives
 
   @intrinsic
   def __sys_newfstat(no: Int, fd: Int, stat: Addr): Int = abort "sys_newfstat"
+
+  @intrinsic
+  def __sys_sigaltstack(no: Int, ss: Addr, oldss: Int): Int = abort "sys_sigaltstack"
+
+  @intrinsic
+  def __sys_rt_sigaction(no: Int, signum: Int, act: Addr, oldact: Int, sigsetsize: Int): Int = abort "sys_rt_sigaction"
 end

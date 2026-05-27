@@ -561,6 +561,10 @@ extends Backend(runtime):
       val cid = runtime.itable.getClassId(defn.Array_class)
       push(Int32(cid))
 
+    else if sym == runtime.Core_stackOverflowHandlerAddress then
+      val label = getFunAddress(runtime.Core_stackOverflowHandler)
+      push(label)
+
     else if sym == runtime.Core_initObjects then
       call(sym)
 

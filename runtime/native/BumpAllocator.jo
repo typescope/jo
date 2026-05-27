@@ -18,7 +18,9 @@ private[native] def alloc(size: Int): Addr receives none =
   val lastFreeUntil = state.freeUntil
 
   if freeFrom + size > lastFreeUntil then
-     val newFreeUntil = Syscall.sys_brk (lastFreeUntil + 4096)
+     val needed = freeFrom + size - lastFreeUntil
+     val pages = (needed + 4095) / 4096
+     val newFreeUntil = Syscall.sys_brk (lastFreeUntil + pages * 4096)
      if newFreeUntil == -1 then
        abort "Unable to alloc memory from system"
 

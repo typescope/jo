@@ -638,6 +638,12 @@ extends Backend(runtime):
       val cid = runtime.itable.getClassId(defn.Array_class)
       ctx.vs.push(Int32(cid))
 
+    else if sym == runtime.Core_stackOverflowHandlerAddress then
+      val label = getFunAddress(runtime.Core_stackOverflowHandler)
+      val reg = freshVirtualReg()
+      gen(Instr.Move(label, reg))
+      ctx.vs.push(Reg(reg))
+
     else if sym == runtime.Core_initObjects then
       call(sym)
 

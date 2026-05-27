@@ -333,15 +333,13 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
             Block(assign :: apply2 :: Nil)(apply.span)
 
       case Ident(sym) if sym == runtime.Core_cast =>
-        assert(args2.size == 1, args)
+        assert(!args2.head.isInstanceOf[Encoded], "Unexpected encoded for cast (primitives not allowed): " + args2.head)
         args2.head
 
       case Ident(sym) if sym == runtime.Core_castInt =>
-        assert(args2.size == 1, args)
         Encoded(args2.head)(defn.IntType)
 
       case Ident(sym) if sym == runtime.Core_intToAddr =>
-        assert(args2.size == 1, args)
         Encoded(args2.head)(AddrType)
 
       case _ =>

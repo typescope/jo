@@ -249,9 +249,49 @@ private def state: State receives none =
 @intrinsic
 private def initObjects(): Unit receives none = ...
 
+// Signal handler registered for SIGSEGV.
+//
+// The Linux kernel calls this in C calling convention with one argument:
+//   [ESP+0] = return trampoline, [ESP+4] = signum
+// A 0-arg Jo function has the same entry: [ESP+0] = return address.
+// We never return (sys_exit terminates the process), so the mismatch doesn't matter.
+private def stackOverflowHandler(): Bottom receives none =
+  writeString: 2, cast[StringRepr] "Stack overflow\n"
+  Syscall.sys_exit 1
+
+// Backend intrinsifies this to the raw machine-code address of stackOverflowHandler.
+@intrinsic
+private def stackOverflowHandlerAddress: Int = ...
+
+// Called once at startup (after GC.init) to install the SIGSEGV handler on an
+// alternate stack so it fires even when the main stack has overflowed.
+private def installStackOverflowHandler(): Unit receives none =
+  // Alternate stack: 4 KB (> MINSIGSTKSZ=2048; our handler barely uses any stack)
+  val altMem = GC.alloc 4096
+  val ss = GC.alloc 12
+  writeInt ss (castInt altMem)       // ss_sp
+  writeInt (addAddr ss 4) 0          // ss_flags = 0
+  writeInt (addAddr ss 8) 4096       // ss_size
+  Syscall.sys_sigaltstack ss 0
+
+  // sigaction: { sa_handler, sa_flags=SA_ONSTACK, sa_restorer=0, sa_mask[2]=0 }
+  val act = GC.alloc 20
+  writeInt act stackOverflowHandlerAddress     // sa_handler = raw fn address
+  writeInt (addAddr act 4) 0x08000000          // sa_flags = SA_ONSTACK
+  writeInt (addAddr act 8) 0                   // sa_restorer = NULL
+  writeInt (addAddr act 12) 0                  // sa_mask[0]
+  writeInt (addAddr act 16) 0                  // sa_mask[1]
+  Syscall.sys_rt_sigaction 11 act 0 8          // SIGSEGV=11, oldact=NULL, sigsetsize=8
+
 private def start(argsRaw: Addr): Unit receives none =
-  // Must not use any global objects before batch initialization
+  // GC must be up before installStackOverflowHandler (which uses GC.alloc).
   GC.init()
+
+  // Install SIGSEGV handler so stack overflow prints a clear message.
+  installStackOverflowHandler()
+
+  // Must not use any global objects before batch initialization
+  // (GC is now up but singleton objects are not yet initialized)
 
   // Initialize singleton object after runtime is ready
   initObjects()

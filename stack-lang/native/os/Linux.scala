@@ -61,30 +61,43 @@ object Linux:
         * Implement syscalls in machine code.
         *
         * The input arguments are in the call convention of stack machine.
+        *
+        * Supports up to 6 arguments (EAX-EDI).  When args 5/6 are needed,
+        * ESI/EDI are saved on the stack before loading and restored after.
+        * All addressing uses EBP (= original ESP) so it stays valid after
+        * any push/pop.
         */
       def linkSyscall(symbol: Symbol, label: Label)(using pb: PatchableBuffer): Unit =
         val procType = symbol.tpe.asProcType
         val paramCount = procType.paramCount
 
-        assert(paramCount <= 4, "paraCount = " + paramCount + " for " + symbol)
-        val regs = Array(X86.EAX, X86.EBX, X86.ECX, X86.EDX)
+        val regs = Array(X86.EAX, X86.EBX, X86.ECX, X86.EDX, X86.ESI, X86.EDI)
+        assert(paramCount <= regs.length, "paramCount = " + paramCount + " for " + symbol)
 
         pb.defineLabel(label)
 
-        // frame pointer must be set and untact
+        // EBP = original ESP; stays stable across push/pop below
         X86.move(Reg(X86.ESP), X86.EBP)
 
-        // load argument
+        // Save ESI/EDI if needed as syscall arg registers
+        if paramCount > 4 then X86.push(X86.ESI)
+        if paramCount > 5 then X86.push(X86.EDI)
+
+        // Load args from caller frame using EBP-relative addressing
         for i <- 0 until paramCount do
           val reg = regs(i)
-          val loc = Rel(X86.ESP, (paramCount - i - 1) * 4 + 8)
+          val loc = Rel(X86.EBP, (paramCount - i - 1) * 4 + 8)
           X86.load(loc, reg, Size.B32)
 
         X86.int80()
 
-        // copy EAX to result location
-        X86.store(Reg(X86.EAX), Rel(X86.ESP, -4))
+        // Restore ESI/EDI (result is safe in EAX)
+        if paramCount > 5 then X86.pop(X86.EDI)
+        if paramCount > 4 then X86.pop(X86.ESI)
 
-        // return to caller
+        // Copy result to caller's result slot at [EBP-4]
+        X86.store(Reg(X86.EAX), Rel(X86.EBP, -4))
+
+        // Return: load return address from [ESP] (= [EBP] after restoring), jump
         X86.load(Reg(X86.ESP), X86.EAX, Size.B32)
         X86.jump(Reg(X86.EAX))
