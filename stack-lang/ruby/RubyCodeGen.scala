@@ -496,8 +496,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case Ident(sym) if sym.isFunction =>
         if sym == runtime.paramKey then
           val paramSym = args.head match
-            case Ident(paramSym) => paramSym
-            case Literal(Constant.String(path)) => defn.resolveTerm(path) // special support for entry method
+            case Encoded(Ident(paramSym)) => paramSym
             case word => throw new Exception("Unsupported argument to paramKey: " + word)
 
           val globalName = runtime.getOrCreateParamId(paramSym)

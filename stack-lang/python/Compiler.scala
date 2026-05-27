@@ -73,14 +73,7 @@ object Compiler:
         given Definitions = lazyDefn.value
 
         val pythonRuntime = new PythonRuntime
-        val contextParamsLower = new LowerContextParams(
-            pythonRuntime.paramKey,
-            pythonRuntime.emptyCtx,
-            pythonRuntime.getParam,
-            pythonRuntime.startBatch,
-            pythonRuntime.addBinding,
-            pythonRuntime.finishBatch)
-
+        val contextParamsLower = new LowerContextParams(pythonRuntime.ParamSupport)
         val erasure = new Erasure(primitiveTagged = true)
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView

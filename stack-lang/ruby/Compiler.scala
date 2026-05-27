@@ -70,14 +70,7 @@ object Compiler:
         given Definitions = lazyDefn.value
 
         val rubyRuntime = new RubyRuntime
-        val contextParamsLower = new LowerContextParams(
-            rubyRuntime.paramKey,
-            rubyRuntime.emptyCtx,
-            rubyRuntime.getParam,
-            rubyRuntime.startBatch,
-            rubyRuntime.addBinding,
-            rubyRuntime.finishBatch)
-
+        val contextParamsLower = new LowerContextParams(rubyRuntime.ParamSupport)
         val erasure = new Erasure(primitiveTagged = true)
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView

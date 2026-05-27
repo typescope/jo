@@ -40,15 +40,14 @@ import scala.collection.mutable
   *   def addBinding[T](batch: Batch, key: Key[T], value: T): Unit = ...
   *   def finish(batch: Batch): Ctx = ...
   */
-class LowerContextParams(
-  paramKeySym: Symbol,
-  emptyCtxSym: Symbol,
-  getParamSym: Symbol,
-  startBatchSym: Symbol,
-  addBindingSym: Symbol,
-  finishBatchSym: Symbol)
-  (using defn: Definitions)
+class LowerContextParams(ParamSupport: Symbol)(using defn: Definitions)
 extends Phase:
+  val emptyCtxSym = ParamSupport.termMember("emptyCtx")
+  val getParamSym = ParamSupport.termMember("getParam")
+  val startBatchSym = ParamSupport.termMember("startBatch")
+  val addBindingSym = ParamSupport.termMember("addBinding")
+  val finishBatchSym = ParamSupport.termMember("finish")
+  val paramKeySym = ParamSupport.termMember("paramKey")
 
   private val CtxType: Type = emptyCtxSym.tpe.asProcType.resultType
   private val BatchType: Type = startBatchSym.tpe.asProcType.resultType
@@ -97,6 +96,7 @@ extends Phase:
     tp match
       case pt: ProcType =>
         pt.append(NamedInfo("__ctx", CtxType) :: Nil)
+
       case lt: LambdaType =>
         LambdaType(lt.params :+ CtxType, lt.resultType, lt.receives)
 
@@ -127,7 +127,7 @@ extends Phase:
     val paramIdent = Ident(paramSym)(span)
     val tparam = TypeTree(paramSym.tpe)(span)
     val funParamKey = TypeApply(Ident(paramKeySym)(span), tparam :: Nil)(span)
-    funParamKey.appliedTo(paramIdent)
+    Apply(funParamKey, Encoded(paramIdent)(defn.UnitType) :: Nil, autos = Nil)(span)
 
   private def mergedLambdaCtx(
     capturedCtx: Symbol,
@@ -195,8 +195,10 @@ extends Phase:
           Encoded(fun2)(appendCtxToInvokeType(currInvokeType))
 
       Apply(fun3, args2 :+ ctxArg, autos2)(apply.span, apply.isPartialApply)
+
     else if changed then
       Apply(fun2, args2, autos2)(apply.span, apply.isPartialApply)
+
     else
       apply
 

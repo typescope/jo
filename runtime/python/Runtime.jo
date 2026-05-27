@@ -155,10 +155,15 @@ private section ParamSupport
   type Key[T]
   type Batch
 
-  // Stub function to be replaced at backend
-  // id must be an Ident pointing to the context parameter
+  //[ Stub function to be replaced at backend
+    !
+    ! id must be an Ident pointing to the context parameter
+    !
+    ! Unit type is used to avoid boxing behavior. Compiler synthesizes id: Unit
+    ! as argument.
+  //]
   @intrinsic
-  def paramKey[T](id: T): Key[T] receives none =
+  def paramKey[T](id: Unit): Key[T] receives none =
     abort "paramSymbol should be replaced by backend"
 
   def emptyCtx(): Ctx receives none =

@@ -9,24 +9,27 @@ union Ctx =
     Empty
   | Entry(key: Addr, value: Any, next: Ctx)
 
-type Key[T] = Addr
-
 private class Batch
   var ctx: Ctx
 
   def Batch(baseCtx: Ctx) =
     this.ctx = baseCtx
 
-// Stub function to be replaced at backend.
-// id must be an Ident pointing to the context parameter.
+//[ Stub function to be replaced at backend
+  !
+  ! id must be an Ident pointing to the context parameter
+  !
+  ! Unit type is used to avoid boxing behavior. Compiler synthesizes id: Unit
+  ! as argument.
+//]
 @intrinsic
-private def paramKey[T](id: T): Key[T] receives none =
+private def paramKey[T](id: Unit): Addr receives none =
   native.abortImpl "paramKey should be replaced by backend"
 
 private def emptyCtx(): Ctx receives none =
   Empty
 
-private def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
+private def getParam[T](ctx: Ctx, key: Addr): T receives none =
   def loop(cur: Ctx): T =
     match cur
       case Entry(curKey, value, next) =>
@@ -36,7 +39,7 @@ private def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
           loop(next)
 
       case Empty =>
-        val keyStr = native.StringOps.fromByteString: native.cast[Addr] key
+        val keyStr = native.StringOps.fromByteString: key
         native.abortImpl("Unbound parameter " + keyStr)
 
   loop(ctx)
@@ -44,7 +47,7 @@ private def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
 private def startBatch(ctx: Ctx, count: Int): Batch receives none =
   new Batch(ctx)
 
-private def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
+private def addBinding[T](batch: Batch, key: Addr, value: T): Unit receives none =
   batch.ctx = Entry(key, value, batch.ctx)
 
 private def finish(batch: Batch): Ctx receives none =
