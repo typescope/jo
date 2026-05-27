@@ -185,6 +185,26 @@ extends Phase:
     else
       apply
 
+  override def transformTypeApply(tapply: TypeApply)(using Context): Word =
+    val TypeApply(fun, targs) = tapply
+
+    val tp = tapply.tpe
+    val tp2 = typeMap(tp)(using ())
+
+    var changed = tp ne tp2
+
+    val fun2 = this(fun)
+
+    changed ||= fun2 ne fun
+
+    val targs2 = targs.map: targ =>
+      val tp = targ.tpe
+      val tp2 = typeMap(tp)(using ())
+      changed ||= tp ne tp2
+      TypeTree(tp2)(targ.span)
+
+    if changed then TypeApply(fun2, targs2)(tapply.span) else tapply
+
   override def transformIf(ifElse: If)(using Context): Word =
     val If(cond, thenp, elsep) = ifElse
     val tp = ifElse.tpe
