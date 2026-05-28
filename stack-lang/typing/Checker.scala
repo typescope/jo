@@ -64,7 +64,7 @@ object Checker:
   def canSilentDrop(tp: Type)(using Definitions): Boolean =
     tp.isUnitType
     || tp.isVoidType
-    || tp.isBottomType
+    || tp.dealias.isBottomType
     || tp.getTermMember("callDynamic").isDefined
     || tp.getTermMember("selectDynamic").isDefined
 
