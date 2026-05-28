@@ -189,6 +189,11 @@ object Trees:
     (val span: Span)
   extends Word
 
+  case class RescueExpr
+    (scrutinee: Word, pattern: Pattern, handler: Word)
+    (val span: Span)
+  extends Word
+
   case class NamedArg
     (ident: Ident, arg: Word)
     (val span: Span)
