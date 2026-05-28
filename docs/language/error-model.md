@@ -150,9 +150,7 @@ Java's checked exceptions enforced error handling at the type level but introduc
 
 Both forms break local reasoning: any function call may throw and jump to a distant `catch` handler, bypassing the code in between. A reader cannot determine which statements in a block will execute without knowing the exception behaviour of every callee. This complicates program invariants — code after a call may assume state that was never established — and resource protocols, where cleanup must run regardless of how a block exits.
 
-Unchecked exceptions compound this further — the thrown types are not declared at all, so the possible exits are invisible at every call site.
-
-A deeper problem shared by both: exceptions make it natural to handle bugs and recoverable errors with the same `try`/`catch` machinery, blurring the distinction that should be kept sharp.
+An even deeper problem: exceptions make it natural to handle bugs and recoverable errors with the same `try`/`catch` machinery, blurring the distinction that should be kept sharp.
 
 ### Why Not Monadic Chaining
 
