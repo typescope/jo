@@ -228,7 +228,7 @@ private[native] section StringOps
           val index = recur (cast[StringRepr] lhs) from
           recur (cast[StringRepr] rhs) index
 
-    recur (cast[StringRepr] repr) 0
+    val _ = recur (cast[StringRepr] repr) 0
     bytes
 end
 

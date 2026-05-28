@@ -198,7 +198,7 @@ section Engine
             if Chars.atomMatches(a, c, dotall, ignoreCase) then
               val t = withPriorityChoice(cloneThread(thread), idx)
               t.step = posAfter
-              t.markFree()
+              val _ = t.markFree()
               keepBetter(moved, edge.to, t)
           case _ => pass
         idx = idx + 1
@@ -218,7 +218,7 @@ section Engine
     val iter = str.iterator
     var skipped = 0
     while skipped < startPos && iter.hasNext do
-      iter.next
+      val _ = iter.next
       skipped = skipped + 1
     end
     if skipped < startPos then
