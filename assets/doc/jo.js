@@ -6,7 +6,7 @@ hljs.registerLanguage('jo', function(hljs) {
     case_insensitive: false,
     disableAutodetect: true,
     keywords: {
-      keyword: 'annotation def union param type val var fun match case if then else with end import namespace section receives pattern allow while do begin auto defer class new as private view interface is for in object this pass extension return break continue',
+      keyword: 'annotation def union param type val var fun match case if then else with end import namespace section receives pattern allow while do begin auto defer class new as private view interface is for in object this pass extension return break continue rescue',
       built_in: 'String Int Bool Unit Any Option List Array',
       literal: 'true false None Some Empty'
     },
