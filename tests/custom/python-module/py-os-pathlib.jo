@@ -86,7 +86,7 @@ def main: Unit =
   println("path samefile = " + replaced.samefile(nested.joinpath("final.txt")))
 
   val globFile = nested.joinpath("glob.log")
-  globFile.write_text("g")
+  val _ = globFile.write_text("g")
   val globIter = nested.glob("*.log")
   println("path glob = " + builtins.next(globIter, py.none).cast[pathlib.Path].name)
   val rglobIter = root.rglob("*.log")
