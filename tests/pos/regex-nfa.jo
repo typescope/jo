@@ -146,9 +146,11 @@ class Scanner(reg: String)
     index = index + 1
     c
 
+  def skip(): Unit = index = index + 1
+
   def eat(c: Char): Unit =
     assert (hasMore() && peek() == c) "unexpected character"
-    next()
+    skip()
 end
 
 // Parser: builds Pattern AST from regex string
@@ -158,7 +160,7 @@ class Parser(scanner: Scanner)
   def parseAlternation(): Pattern =
     val left = parseSequence()
     if scanner.hasMore() && scanner.peek() == '|' then
-      scanner.next()
+      scanner.skip()
       val right = parseAlternation()
       Or(left, right)
     else
@@ -180,10 +182,10 @@ class Parser(scanner: Scanner)
     if scanner.hasMore() then
       val c = scanner.peek()
       if c == '*' then
-        scanner.next()
+        scanner.skip()
         Star(atom)
       else if c == '?' then
-        scanner.next()
+        scanner.skip()
         Optional(atom)
       else
         atom
@@ -196,7 +198,7 @@ class Parser(scanner: Scanner)
     else
       val c = scanner.peek()
       if c == '(' then
-        scanner.next()
+        scanner.skip()
         val pat = parseAlternation()
         scanner.eat ')'
         pat

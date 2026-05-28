@@ -391,9 +391,11 @@ section NFA
       index = index + 1
       c
 
+    def skip(): Unit = index = index + 1
+
     def eat(c: Char): Unit =
       assert (hasMore() && peek() == c) "unexpected character"
-      next()
+      skip()
   end
 
   // Parser: builds Pattern AST from regex string
@@ -405,7 +407,7 @@ section NFA
     def parseAlternation(): Pattern =
       val left = parseSequence()
       if scanner.hasMore() && scanner.peek() == '|' then
-        scanner.next()
+        scanner.skip()
         val right = parseAlternation()
         Or(left, right)
       else
@@ -427,10 +429,10 @@ section NFA
       if scanner.hasMore() then
         val c = scanner.peek()
         if c == '*' then
-          scanner.next()
+          scanner.skip()
           Star(atom)
         else if c == '?' then
-          scanner.next()
+          scanner.skip()
           Optional(atom)
         else
           atom
@@ -443,12 +445,12 @@ section NFA
       else
         val c = scanner.peek()
         if c == '(' then
-          scanner.next()
+          scanner.skip()
           // Check for named capture: (?<name>...)
           if scanner.hasMore() && scanner.peek() == '?' then
-            scanner.next()
+            scanner.skip()
             if scanner.hasMore() && scanner.peek() == '<' then
-              scanner.next()
+              scanner.skip()
               // Parse capture name
               var name = ""
               while scanner.hasMore() && scanner.peek() != '>' do
@@ -473,7 +475,7 @@ section NFA
         else if c == ')' || c == '|' || c == '*' || c == '?' then
           abort "Unexpected character: \{c}"
         else
-          scanner.next()
+          scanner.skip()
           Lit(c)
     end // parseAtom
   end // Parser

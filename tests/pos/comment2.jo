@@ -1,6 +1,6 @@
 def main =
   val a: Int = 2 + 6
-  (a
+  val _ = (a
     *// comment
     4
   )

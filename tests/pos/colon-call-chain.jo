@@ -11,12 +11,12 @@ def done(message: String): Flow =
 def fetch(n: Int): Flow = new Flow(n)
 
 def main: Unit =
-  fetch(4)
+  val _ = fetch(4)
     .success: v => done("v=" + v)
     .error:
       () => done("error")
 
-  fetch(10)
+  val _ = fetch(10)
     .success: v =>
         done("v=" + v)
     .error: () =>

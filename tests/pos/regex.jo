@@ -74,12 +74,14 @@ class Scanner(reg: String)
       cur() == c
       "expect " + c + ", found = " + cur()
 
-    next()
+    skip()
 
   def next(): Char =
     val c = reg[index]
     index = index + 1
     c
+
+  def skip(): Unit = index = index + 1
 end
 
 class Parser(scanner: Scanner)
@@ -95,11 +97,11 @@ class Parser(scanner: Scanner)
     if scanner.hasMore() then
       val c = scanner.peek()
       if c == '*' then
-        scanner.next()
+        scanner.skip()
         (seg, cont, fail) => star atom seg cont fail
 
       else if c == '+' then
-        scanner.next()
+        scanner.skip()
         (seg, cont, fail) => plus atom seg cont fail
 
       else
