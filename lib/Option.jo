@@ -4,7 +4,7 @@ union Option[T] = None | Some(value: T)
   def success: T =
     match this
       case Some(value) => value
-      case None => panic "unreachable"
+      case None => abort "unreachable"
 
   def isEmpty: Bool =
     match this

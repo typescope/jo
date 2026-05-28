@@ -4,7 +4,7 @@ union Result[T, E] = Ok(value: T) | Err(error: E)
   def success: T =
     match this
       case Ok(value) => value
-      case _: Err[E] => panic "unreachable"
+      case _: Err[E] => abort "unreachable"
 
   def isOk: Bool = this is _: Ok[T]
 
