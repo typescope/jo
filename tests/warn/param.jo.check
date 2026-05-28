@@ -3,14 +3,14 @@
 |        ^
 |        A reference to a contextual parameter expected, found = a
 
----------- Error at tests/warn/param.jo:14:17 ---------------
-|   with indent = true in padding 2 // error
-|                 ^^^^
-|                 Expect type Int, found = Bool
+---------- Error at tests/warn/param.jo:14:25 ---------------
+|   val _ = with indent = true in padding 2 // error
+|                         ^^^^
+|                         Expect type Int, found = Bool
 
----------- Error at tests/warn/param.jo:16:8 ---------------
-|   with foo = 6 in padding 4       // error
-|        ^^^
-|        A reference to a contextual parameter expected, found = foo
+---------- Error at tests/warn/param.jo:16:16 ---------------
+|   val _ = with foo = 6 in padding 4       // error
+|                ^^^
+|                A reference to a contextual parameter expected, found = foo
 
 3 error(s), 0 warning(s)

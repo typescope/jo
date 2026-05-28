@@ -1,5 +1,5 @@
 ---------- Error at tests/warn/expression-extra-value.jo:2:3 ---------------
-|   10 10      // error
+|   10 pass    // error
 |   ^^
 |   Found extra value, an expression should produce a single value
 

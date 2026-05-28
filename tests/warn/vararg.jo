@@ -16,12 +16,12 @@ def mix(x: Int, l: List[Int]): Unit = ...
 def main =
   val l: ..Int = List.empty
 
-  mix 6 List 8 9
+  mix 6 List 8 pass
 
   .. l
 
   println (.. List("hello"))
 
-  ok(3, .. [] 3, 5)
+  val _ = ok(3, .. [] 3, 5)
 
   ok(10, ..)

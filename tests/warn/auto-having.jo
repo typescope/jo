@@ -19,7 +19,7 @@ def main: Unit =
 
   def foo: Unit =
     auto eq0: Eq[Item] = ...
-    testEq[Item](i1, i2)
+    val _ = testEq[Item](i1, i2)
   end
 
-  testNoCand[Item](i1, i2)
+  val _ = testNoCand[Item](i1, i2)

@@ -56,7 +56,7 @@ class J
   val m: Int
 
   def J(x: Int) =
-    this.m
+    val _ = this.m
     this.n = x
     this.m = x
 
@@ -85,6 +85,6 @@ class M
 def test =
   new C
 
-  new C("hello")
+  val _ = new C("hello")
 
   new C(10, 20)

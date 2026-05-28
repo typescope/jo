@@ -14,7 +14,7 @@
 |   Function foo expects 2 post argument(s), found = 1
 
 ---------- Error at tests/warn/call.jo:16:3 ---------------
-|   foo 3 4 5
+|   foo 3 4 pass
 |   ^^^^^^^
 |   Found extra value, an expression should produce a single value
 
@@ -39,12 +39,12 @@
 |     The postfix call syntax cannot be used, as the function takes prefix arguments
 
 ---------- Error at tests/warn/call.jo:23:5 ---------------
-|   4 bar 3
+|   4 bar pass
 |     ^^^
 |     Vararg functions not allowed in expression except being the first item.
 
 ---------- Error at tests/warn/call.jo:23:3 ---------------
-|   4 bar 3
+|   4 bar pass
 |   ^^^^^
 |   Found extra value, an expression should produce a single value
 

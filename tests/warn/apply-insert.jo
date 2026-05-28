@@ -6,8 +6,8 @@ def foo(): Int = 30
 def bar: Int = 20
 
 def main =
-  foo()
-  bar()
+  val _ = foo()
+  val _ = bar()
 
   match List(4)
    case Cons(a, _) => println a

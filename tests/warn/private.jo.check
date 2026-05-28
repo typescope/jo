@@ -9,12 +9,12 @@
 |                                      Cannot access the private member debug, limit = Box, site = testPrivateMethod
 
 ---------- Error at tests/warn/private.jo:16:30 ---------------
-| def testPrivateSection(show: A.B.Show[Int]): Unit = show(19)
+| def testPrivateSection(show: A.B.Show[Int]): Unit = val _ = show(19)
 |                              ^^^
 |                              Cannot access the private member B, limit = A, site = testPrivateSection
 
 ---------- Error at tests/warn/private.jo:16:30 ---------------
-| def testPrivateSection(show: A.B.Show[Int]): Unit = show(19)
+| def testPrivateSection(show: A.B.Show[Int]): Unit = val _ = show(19)
 |                              ^^^^^^^^
 |                              Cannot access the private member Show, limit = A, site = testPrivateSection
 

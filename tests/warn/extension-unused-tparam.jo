@@ -17,4 +17,4 @@ def display[T](x: T)(auto mapper: Mapper[T] with [[T].show]): String =
 
 def main: Unit =
   val b: PhantomBox = new Box(1)
-  display(b)
+  val _ = display(b)

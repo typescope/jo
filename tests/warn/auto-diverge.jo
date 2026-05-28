@@ -14,5 +14,5 @@ def bar(auto b: B with [bla]): A = ...
 
 
 def main =
-  foo
+  val _ = foo
   bar

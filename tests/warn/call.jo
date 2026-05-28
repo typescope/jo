@@ -13,14 +13,14 @@ def qux(x: Int, y: Int, z: ..Int) = x + y
 def main =
   foo 3
 
-  foo 3 4 5
+  foo 3 4 pass
 
   foo(3, 4, 5)
 
   foo(2)
 
   2 bar(3)
-  4 bar 3
+  4 bar pass
 
   qux 4
   qux(3)
