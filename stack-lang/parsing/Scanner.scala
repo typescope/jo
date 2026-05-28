@@ -304,6 +304,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case "object"    => Token.OBJECT
       case "private"   => Token.PRIVATE
       case "new"       => Token.NEW
+      case "rescue"    => Token.RESCUE
       case "return"    => Token.RETURN
       case "break"     => Token.BREAK
       case "continue"  => Token.CONTINUE
