@@ -137,8 +137,8 @@ The `rescue` expression works with them because they are two-branch union types 
 Silently discarding a non-Unit return value is almost always a bug. The compiler warns when any non-Unit expression is used in statement position without binding its result:
 
 ```jo
-fetchData(id)        // warning: value is silently dropped
-double(x)            // warning: value is silently dropped
+fetchData(id)        // warning: value of type Result[Data, AppError] is silently dropped
+double(x)            // warning: value of type Int is silently dropped
 ```
 
 When discarding is intentional, `val _ = expr` suppresses the warning and makes the intent explicit:
