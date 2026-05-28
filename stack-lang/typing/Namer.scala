@@ -1126,6 +1126,13 @@ class Namer(using Config) extends Applications with SelectionTyper:
     // If found, call the section method directly with v: tx as argument (tx <: scrutType).
     scrutType.getTermMember("success") match
       case Some(StaticRef(sym)) =>
+        val procType = sym.tpe.asProcType
+        if procType.minimumPostArgs > 0 || procType.autos.nonEmpty then
+          Reporter.error(
+            "rescue: .success must be an extension method with no post-parameters and no auto parameters",
+            rescue.scrutinee.pos)
+          return errorWord(rescue.span)
+
         // case v => v.success
         val vSym = PatternSymbol.create("v", scrutType, Flags.Synthetic, Visibility.Default, sc.owner, rescue.span.toPos)
         val vIdent = Ident(vSym)(rescue.span)
