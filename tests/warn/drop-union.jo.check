@@ -1,0 +1,9 @@
+---------- Warning at tests/warn/drop-union.jo:8:3 ---------------
+|   fetch(21)
+|   ^^^^^^^^^
+|   union value is silently dropped; use `val _ = ...` to make the intent explicit
+
+---------- Warning at tests/warn/drop-union.jo:9:3 ---------------
+|   lookup("x")
+|   ^^^^^^^^^^^
+|   union value is silently dropped; use `val _ = ...` to make the intent explicit
