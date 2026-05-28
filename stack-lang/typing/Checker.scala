@@ -317,8 +317,8 @@ object Checker:
       case TargetType.ValueType =>
         val word2 = adaptParameterless(word, targetType)
         if word2.tpe.isVoidType then
-          // adapt to Unit type
-          Adaptation.adapt(word2, defn.UnitType, Nil)
+          val unit = unitValue(word2.span.endPoint)
+          Block(word2 :: unit :: Nil)(word2.span)
         else
           checkValueType(word2)
           word2
