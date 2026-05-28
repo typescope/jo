@@ -51,7 +51,7 @@ The handler `block` is an ordinary block. It may return a correction value, exec
 ### Constraints
 
 - The subject expression must have a **two-branch** union type after dealiasing. Applying `rescue` to a non-union type or a union with more than two branches is a compile error.
-- The pattern must match exactly one branch, leaving the other as the success branch.
+- The pattern type must equal the type of one of the two branches, and the pattern must exhaustively cover that branch.
 - The handler block must produce a value of the result type, or exit via `return`, `break`, or `continue`.
 
 A direct two-branch union works without any wrapper:
