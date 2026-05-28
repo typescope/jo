@@ -1,0 +1,6 @@
+---------- Error at tests/warn/rescue-nested-type-mismatch.jo:6:27 ---------------
+|   r rescue _: AppError => ParseError("oops")
+|                           ^^^^^^^^^^^^^^^^^^
+|                           Expect type AppData, found = ParseError
+
+1 error(s), 0 warning(s)

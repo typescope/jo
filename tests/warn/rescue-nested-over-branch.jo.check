@@ -1,0 +1,6 @@
+---------- Error at tests/warn/rescue-nested-over-branch.jo:6:3 ---------------
+|   r rescue _: AppData => NotFound
+|   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   Expect type AppData, found = AppError
+
+1 error(s), 0 warning(s)

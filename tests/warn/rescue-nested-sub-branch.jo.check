@@ -1,0 +1,6 @@
+---------- Error at tests/warn/rescue-nested-sub-branch.jo:6:12 ---------------
+|   r rescue ParseError(msg) => IntData(0)
+|            ^^^^^^^^^^^^^^
+|            rescue pattern type ParseError must equal one of the two union branches: AppData | AppError
+
+1 error(s), 0 warning(s)
