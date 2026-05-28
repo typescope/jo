@@ -65,6 +65,7 @@ object Checker:
     tp.isUnitType
     || tp.isVoidType
     || tp.dealias.isBottomType
+    || tp.isError
     || tp.getTermMember("callDynamic").isDefined
     || tp.getTermMember("selectDynamic").isDefined
 
