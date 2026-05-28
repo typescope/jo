@@ -1,6 +1,6 @@
 # Control Flow
 
-This section defines Jo’s control-flow constructs: `if`, `match`, `return`, `while`, `for`, `break`, and `continue`.
+This section defines Jo’s control-flow constructs: `if`, `match`, `rescue`, `return`, `while`, `for`, `break`, and `continue`.
 
 ## If
 
@@ -214,3 +214,23 @@ end
 ::: info
 Pattern match failures in for loops cause runtime errors (like pattern value definitions). Use `is` expressions in the `if` clause for filtering instead of relying on non-exhaustive patterns.
 :::
+
+## Rescue
+
+```
+rescue ::= atom "rescue" simple_pattern "=>" block
+```
+
+The rescue expression handles error branches of a union type inline. The pattern must match exactly one of the two branches of a two-branch union type. If the success branch type defines a parameterless `.success` method, the result is automatically unwrapped to the payload.
+
+```jo
+def parseWithFallback(s: String): Int =
+  parseNum(s) rescue Err(msg) =>
+    println ("parse failed: " + msg)
+    0
+
+def getHost(config: Option[String]): String =
+  config rescue None => "localhost"
+```
+
+See [Error Model](../error-model.md) for the full specification.

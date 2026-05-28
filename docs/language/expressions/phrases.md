@@ -116,27 +116,9 @@ def processData(data: List[Int]): Unit receives logger =
 
 See [Definitions](../definitions/overview.md) for the full definition syntax.
 
-## Rescue Expression
-
-    rescue ::= atom "rescue" simple_pattern "=>" block
-
-The rescue expression handles error branches of a union type inline. The pattern must match exactly one of the two branches of a two-branch union type. If the success branch type defines a parameterless `.success` method, the result is automatically unwrapped to the payload.
-
-```jo
-def parseWithFallback(s: String): Int =
-  parseNum(s) rescue Err(msg) =>
-    println ("parse failed: " + msg)
-    0
-
-def getHost(config: Option[String]): String =
-  config rescue None => "localhost"
-```
-
-See [Error Model](../error-model.md) for the full specification.
-
 ## See Also
 
 - [Expression Forms](expression-forms.md) — Open expressions, which are also valid phrases
 - [Blocks](blocks.md) — Collections of phrases
-- [Control Flow](control-flow.md) — `if`, `match`, `while`, `for`, `break`, `continue`
+- [Control Flow](control-flow.md) — `if`, `match`, `rescue`, `while`, `for`, `break`, `continue`
 - [Definitions](../definitions/overview.md) — Definition forms

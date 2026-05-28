@@ -39,9 +39,10 @@ Expressions are sequences of one or more words, plus a few extended forms:
 | Indented colon call | `send:`<br>&nbsp;&nbsp;`to = "alice"`<br>&nbsp;&nbsp;`subject = "Hi"` | ✓ |
 | Dot chain | `[1,2,3]`<br>&nbsp;&nbsp;`.exclude(x => x % 2 == 0)`<br>&nbsp;&nbsp;`.materialize` | ✓ |
 | Match | `match x`<br>`case Some(n) => n`<br>`case None => 0` | ✓ |
+| Rescue | `opt rescue None => "default"` | ✓ |
 | Allow / with | `allow IO in ...`, `with logger = f in ...` | ✓ |
 
-See [Applications](applications.md) for colon call and dot chain syntax, [Control Flow](control-flow.md) for `if` and `match`, [Lambdas](lambdas.md) for lambda syntax.
+See [Applications](applications.md) for colon call and dot chain syntax, [Control Flow](control-flow.md) for `if`, `match`, and `rescue`, [Lambdas](lambdas.md) for lambda syntax.
 
 ## Phrases
 
