@@ -1,0 +1,6 @@
+---------- Warning at tests/warn/drop-scalar.jo:5:3 ---------------
+|   double(21)
+|   ^^^^^^^^^^
+|   value of type Int is silently dropped; use `val _ = ...` to make the intent explicit
+
+0 error(s), 1 warning(s)

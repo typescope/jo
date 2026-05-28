@@ -1,0 +1,6 @@
+// Non-Unit scalar values are also warned when silently dropped.
+def double(x: Int): Int = x * 2
+
+def main =
+  double(21)
+  println "done"
