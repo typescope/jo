@@ -91,7 +91,7 @@ private section Iterator
       if !dropped then
         var i = 0
         while i < target && source.hasNext do
-          source.next()
+          val _ = source.next()
           i = i + 1
         end
         dropped = true
