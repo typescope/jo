@@ -204,7 +204,7 @@ class Parser(scanner: Scanner)
         abort:
           "Unexpected end of pattern: expect an atom, found = " + c
       else
-        scanner.next()
+        val _ = scanner.next()
         Lit(c)
 end
 
