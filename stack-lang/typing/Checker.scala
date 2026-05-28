@@ -307,7 +307,7 @@ object Checker:
         if word2.tpe.isVoidType then
           word2
         else if word2.tpe.isValueType then
-          if !word2.tpe.isUnitType then
+          if !word2.tpe.isUnitType && !Subtyping.conforms(word2.tpe, BottomType) then
             Reporter.warn(s"value of type ${word2.tpe.show} is silently dropped; use `val _ = ...` to make the intent explicit", word2.pos)
           word2.dropValue
         else
@@ -331,8 +331,8 @@ object Checker:
 
           // Unit adaptation: target accepts Unit but value doesn't conform directly.
           // Warn if the dropped value is a union type, then drop it and append unit.
-          if !Subtyping.conforms(word2.tpe, tpe) && Subtyping.conforms(defn.UnitType, tpe) && word2.tpe.isValueType then
-            if !word2.tpe.isUnitType then
+          if !Subtyping.conforms(word2.tpe, tpe) && Subtyping.conforms(defn.UnitType, tpe) && (word2.tpe.isValueType || word2.tpe.isVoidType) then
+            if !word2.tpe.isUnitType && !Subtyping.conforms(word2.tpe, BottomType) && !word2.tpe.isVoidType then
               Reporter.warn(s"value of type ${word2.tpe.show} is silently dropped; use `val _ = ...` to make the intent explicit", word2.pos)
             val unit = unitValue(word2.span.endPoint)
             return Block(word2.ensureDropValue :: unit :: Nil)(word2.span)
