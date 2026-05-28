@@ -38,7 +38,7 @@ object Types:
 
     def isAnyType: Boolean = this == AnyType
 
-    def isBottom: Boolean = this == BottomType
+    def isBottomType: Boolean = this == BottomType
 
     def isRecordType(using Definitions): Boolean =
       this.approx.isInstanceOf[RecordType]

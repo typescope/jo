@@ -48,7 +48,7 @@ object Subtyping:
     val fastPath =
         tp1.isError
       || tp2.isError
-      || tp1.isBottom && tp2.isValueType && !tp2.is[TypeVar]
+      || tp1.isBottomType && tp2.isValueType && !tp2.is[TypeVar]
       || tp2.isAnyType && tp1.isValueType && !tp1.is[TypeVar]
       || ((tp1 `eq` tp2) || tp1.hashCode == tp2.hashCode && tp1 == tp2)
 
