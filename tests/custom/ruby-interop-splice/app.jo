@@ -5,7 +5,7 @@ def main: Unit =
 def testCallDynamicSplice: Unit =
   println "--- callDynamic splice ---"
   val arr: rb.Dynamic = rb.const("Array")
-  val args: List[Any] = List(3, 0)
+  val args: List[Int] = List(3, 0)
   val result: rb.Array = arr.callDynamic("new", ..args).cast[rb.Array]
   println("size = " + result.size)
   println("first = " + result.get(0).asInt)
@@ -13,7 +13,7 @@ def testCallDynamicSplice: Unit =
 def testInitSplice: Unit =
   println "--- init splice ---"
   // rb.Dynamic.init(args) → ClassName.new(args)
-  val args: List[Any] = List(4, 9)
+  val args: List[Int] = List(4, 9)
   val result: rb.Array = rb.const("Array").init(..args).cast[rb.Array]
   println("size = " + result.size)
   println("value = " + result.get(0).asInt)

@@ -6,20 +6,20 @@ def main: Unit =
 def testCallDynamicSplice: Unit =
   println "--- callDynamic splice ---"
   val math: js.Dynamic = js.global.Math
-  val nums: List[Any] = List(3.0, 7.0, 1.0)
+  val nums: List[Float] = List(3.0, 7.0, 1.0)
   val result: Float = math.callDynamic("max", ..nums).asFloat
   println("max = " + result)
 
 def testCallSplice: Unit =
   println "--- call splice ---"
   val maxFn: js.Dynamic = js.global.Math.max
-  val nums: List[Any] = List(4.0, 2.0, 9.0)
+  val nums: List[Float] = List(4.0, 2.0, 9.0)
   val result: Float = maxFn.call(..nums).asFloat
   println("max = " + result)
 
 def testInitSplice: Unit =
   println "--- init splice ---"
-  val dateArgs: List[Any] = List(0.0)
+  val dateArgs: List[Float] = List(0.0)
   val epoch: js.Dynamic = js.init(js.global.Date, ..dateArgs)
   val time: Float = epoch.getTime().asFloat
   println("time = " + time)
