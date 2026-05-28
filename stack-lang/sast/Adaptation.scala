@@ -390,8 +390,7 @@ object Adaptation:
 
   def createVarargSpliceAdapters(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)
       (using source: Source): List[Adapter] =
-    if adapters.isEmpty then Nil
-    else Adapter.VarargSplice(adapters, owner, scope, source) :: Nil
+    Adapter.VarargSplice(adapters, owner, scope, source) :: Nil
 
   private def adaptWithAdapters(word: Word, targetType: Type, adapters: List[Adapter])
       (using defn: Definitions)
@@ -412,7 +411,12 @@ object Adaptation:
             word.tpe.widen.dealias match
               case AppliedType(sym, elemType :: Nil) if sym == defn.List_type =>
                 val AppliedType(_, targetElemType :: Nil) = targetType: @unchecked
-                adaptVarargSplice(word, targetElemType, elemType, paramAdapters, owner, scope)
+                if Subtyping.conforms(elemType, targetElemType) then
+                  // elemType <: targetElemType but List is invariant.
+                  // Safe: after erasure both become List with identical runtime representation.
+                  Result.Success(Encoded(word)(AppliedType(defn.List_type, targetElemType :: Nil)))
+                else
+                  adaptVarargSplice(word, targetElemType, elemType, paramAdapters, owner, scope)
               case _ =>
                 Result.Failure(Nil)
 
