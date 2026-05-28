@@ -127,11 +127,12 @@ def testTry =
     case Ok(_) => println "try parse ok"
     case Err(_) => println "try parse err"
 
-//[ 9. js.spread: spread array as ...args //]
+//[ 9. ..xs splice in callDynamic/call //]
 def testSpread =
   println "--- spread ---"
-  val args: js.Array = js.array(1, 7, 3)
-  val maxResult: Float = js.global.Math.max(js.spread(args)).asFloat
+  val args: List[Any] = List(1, 7, 3)
+  val math: js.Dynamic = js.global.Math
+  val maxResult: Float = math.callDynamic("max", ..args).asFloat
   println("max(...[1,7,3]) = " + maxResult)
 
 //[ 10. js.init: new ctor(args) //]
