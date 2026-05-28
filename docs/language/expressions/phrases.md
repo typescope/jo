@@ -4,7 +4,7 @@ A phrase is an element that may appear in a block. Every open expression is a va
 
 ## Expressions as Phrases
 
-Any expression — a word sequence, colon call, dot chain, lambda, open `if`, `match`, `allow`, or `with` — is a valid phrase. These are documented in [Expression Forms](expression-forms.md).
+Any expression — a word sequence, colon call, dot chain, lambda, open `if`, `match`, `allow`, `with`, or `rescue` — is a valid phrase. These are documented in [Expression Forms](expression-forms.md).
 
 ```jo
 println "hello"           // word sequence
@@ -115,6 +115,24 @@ def processData(data: List[Int]): Unit receives logger =
 ```
 
 See [Definitions](../definitions/overview.md) for the full definition syntax.
+
+## Rescue Expression
+
+    rescue ::= atom "rescue" simple_pattern "=>" block
+
+The rescue expression handles error branches of a union type inline. The pattern must match exactly one of the two branches of a two-branch union type. If the success branch type defines a parameterless `.success` method, the result is automatically unwrapped to the payload.
+
+```jo
+def parseWithFallback(s: String): Int =
+  parseNum(s) rescue Err(msg) =>
+    println ("parse failed: " + msg)
+    0
+
+def getHost(config: Option[String]): String =
+  config rescue None => "localhost"
+```
+
+See [Error Model](../error-model.md) for the full specification.
 
 ## See Also
 
