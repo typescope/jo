@@ -80,15 +80,14 @@ val data: Data = fetchData(id) rescue err: AppError => return err
 
 ### The `.success` Convention
 
-When the success branch is a wrapper type (e.g. `Ok(value: T)`), the raw result of `rescue` would be `Ok[T]`. If the union type defines a parameterless `.success` method, the result is unwrapped automatically:
+When the success branch is a wrapper type (e.g. `Ok(value: T)`), the raw result of `rescue` would be `Ok[T]`. If the union type defines a **parameterless** `.success` method — one with no required post-arguments — the result is unwrapped automatically:
 
 ```jo
 // Result defines .success: result is Int, not Ok[Int]
 val n: Int = parse(s) rescue err: Err[String] => return err
 ```
 
-User-defined union types opt in by defining `.success` as a union method. The compiler looks up `.success` on the scrutinee's union type (not the branch type), so the lookup follows the same rules as any union method call. Calling `.success` directly on an error value is a programming error (analogous to `unwrap()` in Rust) — the panic in the match body is unreachable when invoked by `rescue`.
-
+User-defined union types opt in by defining `.success` as an extension method with no post-parameters and no auto parameters. If a `.success` method is found but does not conform to this protocol, the compiler reports an error.
 ### Examples
 
 **Default value:**
