@@ -1,0 +1,6 @@
+---------- Error at tests/warn/rescue-sub-branch.jo:4:12 ---------------
+|   r rescue DiskFull => 0
+|            ^^^^^^^^
+|            The pattern result type DiskFull is invalid with respect to the scrutinee type Result[Int, IOError]. The type DiskFull is not a branch of the scrutinee type Ok[Int] | Err[IOError]
+
+1 error(s), 0 warning(s)

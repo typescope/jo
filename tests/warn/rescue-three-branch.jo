@@ -1,0 +1,4 @@
+union Tri = A | B | C
+
+def f(t: Tri): Int =
+  t rescue A => 1

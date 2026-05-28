@@ -1,0 +1,4 @@
+union AB = A(x: Int) | B
+
+def f(v: AB): B =
+  v rescue A(1) => B
