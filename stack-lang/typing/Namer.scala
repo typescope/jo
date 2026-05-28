@@ -282,6 +282,9 @@ class Namer(using Config) extends Applications with SelectionTyper:
         given flowScope: FlowScope = new FlowScope(sc)
         transformIsExpr(isExpr).adapt
 
+      case rescueExpr: Ast.RescueExpr =>
+        transformRescueExpr(rescueExpr).adapt
+
       case infixCall: Ast.InfixCall =>
         // Nested infix call come from another non-flow infix call or desugaring
         // of operator calls.
@@ -1029,6 +1032,122 @@ class Namer(using Config) extends Applications with SelectionTyper:
       patternTyper.transformPattern(pattern, scrutinee2.tpe.widen)
 
     IsExpr(scrutinee2, pattern2)
+
+  def transformRescueExpr(rescue: Ast.RescueExpr)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, cs: ControlScope): Word =
+    // 1. Type-check scrutinee in outer scope (no FlowScope yet)
+    val scrutinee2 = Inference.freshIsolate:
+      given TargetType = TargetType.ValueType
+      transform(rescue.scrutinee)
+
+    val scrutType = scrutinee2.tpe.widenTermRef
+
+    if scrutType.isError then return errorWord(rescue.span)
+
+    // 2. Verify two-branch union type
+    if !scrutType.isUnionType then
+      Reporter.error("rescue requires a union type, found: " + scrutType.show, rescue.scrutinee.pos)
+      return errorWord(rescue.span)
+
+    val unionType = scrutType.asUnionType
+    if unionType.branches.size != 2 then
+      Reporter.error(
+        s"rescue requires a two-branch union type, found ${unionType.branches.size} branches: ${unionType.branches.map(_.show).mkString(", ")}",
+        rescue.scrutinee.pos)
+      return errorWord(rescue.span)
+
+    // 3. Type-check the pattern against the scrutinee type; stop early on pattern errors
+    val rp2 = rp.fresh(buffer = true)
+    val flowScope = new FlowScope(sc)
+
+    val pat2 =
+      given Reporter = rp2
+      given FlowScope = flowScope
+      Inference.freshIsolate:
+        patternTyper.transformPattern(rescue.pattern, scrutType)
+
+    if rp2.hasErrors then
+      rp2.commit(rp)
+      return errorWord(rescue.span)
+
+    // 4. Check pattern type equals one of the two top-level branches (rejects sub-branch patterns)
+    val patType = pat2.valueType
+    val branchA = unionType.branches(0)
+    val branchB = unionType.branches(1)
+
+    val (handledBranch: Type, tx: Type) =
+      if Subtyping.isEqualType(patType, branchA) then
+        (branchA, branchB)
+
+      else if Subtyping.isEqualType(patType, branchB) then
+        (branchB, branchA)
+
+      else
+        Reporter.error(
+          s"rescue pattern type ${patType.show} must equal one of the two union branches: ${branchA.show} | ${branchB.show}",
+          rescue.pattern.pos)
+        rp2.commit(rp)
+        return errorWord(rescue.span)
+
+    // 5. Check pattern exhaustively covers the matched branch (warn if not)
+    val branchSpace = Exhaustivity.Space.TypeSpace(handledBranch)
+    val patSpace    = Exhaustivity.project(pat2)
+    val remaining   = Exhaustivity.subtract(branchSpace, patSpace)
+    val uncovered   = Exhaustivity.flatten(remaining)
+
+    if uncovered.nonEmpty then
+      val examples = uncovered.take(5).map(_.show).mkString(", ")
+      Reporter.warn(
+        s"rescue pattern does not fully cover ${handledBranch.show}; missing: $examples",
+        rescue.pattern.pos)
+
+    rp2.commit(rp)
+
+
+    def createMatch(successCase: Case): Match =
+      val resultType = successCase.body.tpe.widen
+      // Type-check handler block in scope where rescue pattern bindings are available
+      val handlerScope: Scope =
+        given Reporter = rp
+        flowScope.fresh()
+
+      for sym <- flowScope.promotedSet() do
+        given Scope = handlerScope
+        Checker.checkShadowing(sym)
+
+      val handler2: Word =
+        given Scope = handlerScope
+        given TargetType = TargetType.Known(resultType)
+        transform(rescue.handler)
+
+      val rescueCase = Case(pat2, handler2)(rescue.pattern.span)
+      Match(scrutinee2, List(rescueCase, successCase))(resultType, rescue.span)
+
+    // 6. Optional .success unwrap: look up on the union type (scrutType), not tx.
+    // If found, call the section method directly with v: tx as argument (tx <: scrutType).
+    scrutType.getTermMember("success") match
+      case Some(StaticRef(sym)) =>
+        // case v => v.success
+        val vSym = PatternSymbol.create("v", scrutType, Flags.Synthetic, Visibility.Default, sc.owner, rescue.span.toPos)
+        val vIdent = Ident(vSym)(rescue.span)
+        val successPat = BindPattern(vIdent, WildcardPattern()(scrutType, rescue.span))(isDef = true)
+
+        val successBody =
+          val partialApply = TreeOps.createExtensionApply(sym, scrutinee2, rescue.span)
+          TreeOps.smartApply(partialApply, args = Nil, autos = Nil)(scrutinee2.span)
+
+        val successCase = Case(successPat, successBody)(rescue.span)
+        createMatch(successCase)
+
+      case _ =>
+        // case v: Tx => v
+
+        val vSym = PatternSymbol.create("v", tx, Flags.Synthetic, Visibility.Default, sc.owner, rescue.span.toPos)
+        val vIdent = Ident(vSym)(rescue.span)
+        val successPat = BindPattern(vIdent, TypePattern(TypeTree(tx)(rescue.span), WildcardPattern()(tx, rescue.span))(scrutType))(isDef = true)
+
+        val successCase = Case(successPat, vIdent)(rescue.span)
+        createMatch(successCase)
+
 
   def transformLambda(lambda: Ast.Lambda)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars)
