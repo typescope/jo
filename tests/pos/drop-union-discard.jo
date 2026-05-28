@@ -1,0 +1,11 @@
+// val _ = expr explicitly discards a union value without warning.
+def fetch(id: Int): Result[Int, String] =
+  Ok(id * 2)
+
+def lookup(key: String): Option[Int] =
+  if key == "x" then Some(1) else None
+
+def main =
+  val _ = fetch(21)
+  val _ = lookup("x")
+  println "done"
