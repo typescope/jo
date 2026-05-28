@@ -626,7 +626,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case Apply(Select(prev, "+"), List(item), _) =>
         val (prevStats, prevExprs) = compileVarargItems(prev)
-        val (itemStats, itemExpr)  = compileCallArg(item, enforcePurity = false)
+        val (itemStats, itemExpr)  = compileExpr(item, enforcePurity = false)
         (prevStats ++ itemStats, prevExprs :+ itemExpr)
 
       case Apply(Select(prev, "++"), List(xs), _) =>
@@ -638,9 +638,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case _ =>
         throw new Exception("unexpected vararg list shape in @js.interop call: " + word.show)
-
-  private def compileCallArg(word: Word, enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
-    compileExpr(word, enforcePurity)
 
 
   /** Compile a function/method call */
