@@ -1,0 +1,8 @@
+// Scrutinee must be evaluated exactly once even when .success is used.
+def fetch(id: Int): Result[Int, String] =
+  println "fetching"
+  Ok(id * 2)
+
+def main =
+  val n: Int = fetch(21) rescue Err(msg) => 0
+  println n
