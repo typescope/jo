@@ -3,6 +3,10 @@ namespace jo
 import jo.ListImpl.*
 
 
+//[ Create a list from variadic arguments.
+  !
+  ! Example: `List(1, 2, 3)` produces `[1, 2, 3]`
+//]
 def List[T](elems: ..T): List[T] = elems
 
 //[ Pattern match on list
@@ -13,8 +17,12 @@ def List[T](elems: ..T): List[T] = elems
 pattern List[T](elems: List[T]): List[T] = case elems
 
 section List
-  def empty[T]: List[T] = new List(ListImpl.Nil)
+  //[ An empty list. //]
+  def empty[T]: List[T] =
+    val arr = Array.create[T](0)
+    new List(ListImpl.Leaf(arr), 0, 0)
 
+  //[ Create a list of `n` copies of `value`. //]
   def fill[T](n: Int, value: T): List[T] =
     var acc: List[T] = []
     var i = 0
@@ -24,6 +32,7 @@ section List
     end
     acc
 
+  //[ Create a list of `n` elements by applying `f` to each index `0..n-1`. //]
   def tabulate[T](n: Int, f: Int => T): List[T] =
     var acc: List[T] = []
     var i = 0
@@ -34,121 +43,104 @@ section List
     acc
 end
 
+//[ An immutable indexed sequence backed by a 32-way trie.
+  !
+  ! All operations are O(log₃₂ n) ≈ effectively O(1):
+  !   - `get(i)`, `updated(i, v)`: O(log₃₂ n)
+  !   - `+` (append one element): O(log₃₂ n) amortized
+  !   - `++` (concatenate): O(m log₃₂ n) where m = size of argument
+  !
+  ! Build a list with `[]` literal or by appending with `+`.
+  ! Use `for v in list` or `iterator` for O(n) traversal.
+//]
 class List[T]
-  private val repr: Repr[T]
+  private val root: ListImpl.Node[T]
   private val _size: Int
+  private val _depth: Int
 
-  private[jo] def List(repr: Repr[T]) =
-    this._size = match repr case Size(n) => n
-    this.repr = repr
+  private[jo] def List(root: ListImpl.Node[T], size: Int, depth: Int) =
+    this.root = root
+    this._size = size
+    this._depth = depth
 
+  //[ Number of elements. //]
   def size: Int receives none = _size
 
+  //[ Number of elements (alias for `size`). //]
   def length: Int receives none = _size
 
-  def isEmpty: Bool = size == 0
+  //[ True if the list has no elements. //]
+  def isEmpty: Bool = _size == 0
 
+  //[ Returns an iterator over the elements in order. //]
   def iterator: Iterator[T] = new ListImpl.ListIterator(this)
 
+  //[ Return the element at index `i` (0-based). Aborts if out of bounds. //]
   def get(i: Int): T receives none =
-    if i < 0 || i > size then errorIndex i
+    if i < 0 || i >= _size then errorIndex i
+    lookup(root, i, _depth)
 
-    match repr
-      case Nil => errorIndex i
-
-      case Cons v tail =>
-        if i == 0 then v else tail[i - 1]
-
-      case Append prefix v =>
-        if i == size - 1 then v else prefix[i]
-
-      case Concat lhs rhs =>
-        if i < lhs.size then lhs[i] else rhs[i - lhs.size]
-
-      case Slice raw from _ =>
-        raw[from + i]
-
-      case elems: Array[T] =>
-        elems[i]
-
-      case vec: Vector[T] =>
-        vec.get(i)
-    end
-
+  //[ Return a new list with the element at index `i` replaced by `value`. Aborts if out of bounds. //]
   def updated(i: Int, value: T): List[T] =
-    if i < 0 || i > size then errorIndex i
+    if i < 0 || i >= _size then errorIndex i
+    new List(updateAt(root, i, _depth, value), _size, _depth)
 
-    match repr
-      case Nil => errorIndex i
-
-      case Cons(v, tail) =>
-        if i == 0 then
-          new List(Cons value tail)
-        else
-          new List(Cons value tail.updated(i + 1, value))
-
-      case Append(prefix, v) =>
-        if i == size - 1 then
-          new List(Append prefix value)
-        else
-          new List(Append prefix.updated(i, value) v)
-
-      case Concat(lhs, rhs) =>
-        if i < lhs.size then
-          new List(Concat lhs.updated(i, value) rhs)
-        else
-          new List(Concat lhs rhs.updated(i - lhs.size, value))
-
-      case Slice(raw, from, to) =>
-        val raw2 = raw.updated (from + i) value
-        new List(Slice raw2 from to)
-
-      case elems: Array[T] =>
-        val elems2 = elems.clone
-        elems2[i] = value
-        new List(elems2)
-
-      case vec: Vector[T] =>
-        new List(vec.updated(i, value))
-    end
-
-
+  //[ Append one element to the end. //]
   def +(v: T): List[T] =
-    if size < 32 then
-      new List(Append this v)
+    // The trie at depth d has capacity 32^(d+1). Overflow when:
+    //   _size >> (5 * (_depth + 1)) > 0
+    if (_size >> (5 * (_depth + 1))) > 0 then
+      val newBranch = newPath(_depth, v)
+      val newChildren = Array.create[Node[T]](2)
+      newChildren[0] = root
+      newChildren[1] = newBranch
+      new List(Internal(newChildren), _size + 1, _depth + 1)
     else
-      match repr
-        case vec: Vector[T] =>
-          new List(vec + v)
-        case _ =>
-          // One-time conversion to Vector at the threshold
-          var vec = Vector.empty[T]
-          var j = 0
-          while j < size do
-            vec = vec + this.get(j)
-            j = j + 1
-          new List(vec + v)
+      match tryInsert(root, _size, _depth, v)
+        case Some newRoot => new List(newRoot, _size + 1, _depth)
+        case None => abort ("List: unexpected full trie")
 
-  def prepend(v: T): List[T] = new List(Cons v this)
+  //[ Prepend one element at the front. O(n). //]
+  def prepend(v: T): List[T] =
+    var result = List.empty[T] + v
+    val iter = this.iterator
+    while iter.hasNext do
+      result = result + iter.next
+    result
 
-  def ++(l: List[T]): List[T] = new List(Concat this l)
+  //[ Concatenate two lists. O(m log₃₂ n) where m = size of `l`. //]
+  def ++(l: List[T]): List[T] =
+    var result = this
+    val iter = l.iterator
+    while iter.hasNext do
+      result = result + iter.next
+    result
 
+  //[ Return a sublist starting at index `from` with at most `len` elements. //]
   def slice(from: Int, len: Int): List[T] receives none =
-    if from >= size || len <= 0 then []
+    if from >= _size || len <= 0 then []
     else
-      val to = if size - from > len then from + len - 1 else size - 1
-      new List(Slice this from to)
+      val to = if _size - from > len then from + len else _size
+      var result = List.empty[T]
+      var i = from
+      while i < to do
+        result = result + this.get(i)
+        i = i + 1
+      result
 
+  //[ Return the first `n` elements. //]
   def take(n: Int): List[T] receives none =
     if n <= 0 then []
-    else if n >= size then this
+    else if n >= _size then this
     else this.slice(0, n)
 
+  //[ Drop the first `n` elements and return the rest. //]
   def drop(n: Int): List[T] receives none =
     if n <= 0 then this
-    else if n >= size then []
-    else this.slice(n, size - n)
+    else if n >= _size then []
+    else this.slice(n, _size - n)
 
+  //[ Return elements satisfying `pred`. //]
   def select(pred: T => Bool): List[T] =
     var acc: List[T] = []
 
@@ -157,6 +149,7 @@ class List[T]
 
     acc
 
+  //[ Return elements not satisfying `pred`. //]
   def exclude(pred: T => Bool): List[T] =
     var acc: List[T] = []
 
@@ -165,15 +158,15 @@ class List[T]
 
     acc
 
+  //[ Apply `f` to each element and return the resulting list. //]
   def map[S](f: T => S): List[S] =
-    val result = Array.create[S](size)
-    var i = 0
+    var result = List.empty[S]
     val iter = this.iterator
     while iter.hasNext do
-      result[i] = f(iter.next)
-      i = i + 1
-    new List(result)
+      result = result + f(iter.next)
+    result
 
+  //[ Reduce the list to a single value using a left fold. //]
   def fold[S](zero: S, f: (S, T) => S): S =
     var acc = zero
 
@@ -182,6 +175,7 @@ class List[T]
 
     acc
 
+  //[ Join elements into a string with `separator` between each pair. //]
   def join(separator: String)(auto elementShow: Show[T] with [[T].toString]): String =
     var res = ""
     var first = true
@@ -196,6 +190,7 @@ class List[T]
     end
     res
 
+  //[ True if at least one element satisfies `pred`. //]
   def exists(pred: T => Bool): Bool =
     var qualify = false
 
@@ -206,6 +201,7 @@ class List[T]
 
     qualify
 
+  //[ Count elements satisfying `pred`. //]
   def count(pred: T => Bool): Int =
     var n = 0
     val iter = this.iterator
@@ -215,6 +211,7 @@ class List[T]
     end
     n
 
+  //[ True if every element satisfies `pred`. //]
   def forall(pred: T => Bool): Bool =
     var qualify = true
 
@@ -225,9 +222,11 @@ class List[T]
 
     qualify
 
+  //[ True if `value` appears in the list. //]
   def contains(value: T)(auto eq: Eq[T] with [[T].==]): Bool =
     exists(x => eq.equal(x, value))
 
+  //[ Return the first element satisfying `pred`, or `None`. //]
   def find(pred: T => Bool): Option[T] =
     val iter = this.iterator
     var res: Option[T] = None
@@ -238,15 +237,16 @@ class List[T]
     end
     res
 
+  //[ Return a new list with elements in reverse order. //]
   def reverse: List[T] =
-    val result = Array.create[T](size)
-    var i = size - 1
-    val iter = this.iterator
-    while iter.hasNext do
-      result[i] = iter.next
+    var result = List.empty[T]
+    var i = _size - 1
+    while i >= 0 do
+      result = result + this.get(i)
       i = i - 1
-    new List(result)
+    result
 
+  //[ Split into two lists: elements satisfying `pred` and those that don't. //]
   def partition(pred: T => Bool): List[T] ~ List[T] =
     var accepted: List[T] = []
     var rejected: List[T] = []
@@ -260,44 +260,41 @@ class List[T]
     end
     accepted ~ rejected
 
+  //[ Pair up elements from two lists; stops at the shorter one. //]
   def zip[S](other: List[S]): List[T ~ S] =
-    val n = if size < other.size then size else other.size
-    val result = Array.create[T ~ S](n)
-    var i = 0
+    var result = List.empty[T ~ S]
     val left = this.iterator
     val right = other.iterator
     while left.hasNext && right.hasNext do
-      result[i] = left.next ~ right.next
-      i = i + 1
-    new List(result)
+      result = result + (left.next ~ right.next)
+    result
 
+  //[ Pair each element with its 0-based index. //]
   def zipWithIndex: List[T ~ Int] =
-    val result = Array.create[T ~ Int](size)
+    var result = List.empty[T ~ Int]
     var i = 0
     val iter = this.iterator
     while iter.hasNext do
-      result[i] = iter.next ~ i
+      result = result + (iter.next ~ i)
       i = i + 1
-    new List(result)
+    result
 
+  //[ Insert `sep` between every pair of adjacent elements. //]
   def intersperse(sep: T): List[T] =
-    if size == 0 then []
+    if _size == 0 then []
     else
-      val n = 2 * size - 1
-      val result = Array.create[T](n)
-      var i = 0
+      var result = List.empty[T]
+      var first = true
       val iter = this.iterator
       while iter.hasNext do
-        if i > 0 then
-          result[i] = sep
-          i = i + 1
-        result[i] = iter.next
-        i = i + 1
-      new List(result)
+        if !first then
+          result = result + sep
+        result = result + iter.next
+        first = false
+      result
 
-  def groupBy[K](f: T => K)
-      (auto ord: Ord[K] with [[K].compareTo])
-  : Map[K, List[T]] =
+  //[ Group elements by key, returning a map from key to list of elements. //]
+  def groupBy[K](f: T => K)(auto ord: Ord[K] with [[K].compareTo]) : Map[K, List[T]] =
     auto keyOrd: Ord[K] = ord
     var groups: Map[K, List[T]] = Map.empty[K, List[T]]
     val iter = this.iterator
@@ -309,26 +306,32 @@ class List[T]
     end
     groups
 
-  def sort
-      (auto ord: Ord[T] with [[T].compareTo])
-  : List[T] =
-    if size <= 1 then this
+  //[ Return a sorted copy of this list. //]
+  def sort(auto ord: Ord[T] with [[T].compareTo]): List[T] =
+    if _size <= 1 then this
     else
-      val arr = Array.create[T](size)
+      val arr = Array.create[T](_size)
       var i = 0
       val iter = this.iterator
       while iter.hasNext do
         arr[i] = iter.next
         i = i + 1
-      Sorting.sortArray(arr, 0, size - 1, ord)
-      new List(arr)
+      Sorting.sortArray(arr, 0, _size - 1, ord)
+      var result = List.empty[T]
+      i = 0
+      while i < _size do
+        result = result + arr[i]
+        i = i + 1
+      result
 
+  //[ Return a sorted copy, comparing elements by the key produced by `f`. //]
   def sortBy[S](f: T => S)
       (auto ord: Ord[S] with [[S].compareTo])
   : List[T] =
     auto itemCompare: Ord[T] = (a, b) => ord.compare(f(a), f(b))
     this.sort
 
+  //[ Return a copy with duplicate elements removed (first occurrence kept). //]
   def distinct(auto eq: Eq[T] with [[T].==]): List[T] =
     var acc: List[T] = []
     val iter = this.iterator
@@ -339,6 +342,7 @@ class List[T]
     end
     acc
 
+  //[ Return the minimum element, or `None` if the list is empty. //]
   def minOpt(auto ord: Ord[T] with [[T].compareTo]): Option[T] =
     val iter = this.iterator
     if !iter.hasNext then
@@ -352,6 +356,7 @@ class List[T]
       end
       Some(best)
 
+  //[ Return the maximum element, or `None` if the list is empty. //]
   def maxOpt(auto ord: Ord[T] with [[T].compareTo]): Option[T] =
     val iter = this.iterator
     if !iter.hasNext then
@@ -365,22 +370,7 @@ class List[T]
       end
       Some(best)
 
-  // Use an array representation of list
-  def materialize: List[T] =
-    // Use an array for better cache locality
-    val array = Array.create[T](size)
-    var index = 0
-
-    val iter = this.iterator
-    while iter.hasNext do
-      val v = iter.next
-      array[index] = v
-      index = index + 1
-
-    new List(array)
-
   def toString(auto elementShow: Show[T] with [[T].toString]): String =
-    // Show at most 100
     var res = "["
     var count = 0
     val iter = this.iterator
@@ -398,24 +388,9 @@ class List[T]
 end // List
 
 private section ListImpl
-  union CoreRepr[T] =
-      Nil
-    | Cons(head: T, tail: List[T])
-    | Append(prefix: List[T], last: T)
-    | Concat(lhs: List[T], rhs: List[T])
-    | Slice(raw: List[T], from: Int, to: Int)
-
-  type Repr[T] = CoreRepr[T] | Array[T] | Vector[T]
-
-
-  pattern Size[T](n: Int): Repr[T] =
-    case Nil then n = 0
-    case Cons(_, tail) then n = 1 + tail.size
-    case Append(prefix, _) then n = prefix.size + 1
-    case Concat(lhs, rhs) then n = lhs.size + rhs.size
-    case Slice(_, from, to) then n = to - from + 1
-    case elems: Array[T] then n = elems.size
-    case vec: Vector[T] then n = vec.size
+  union Node[T] =
+      Internal(children: Array[Node[T]])
+    | Leaf(values: Array[T])
 
   def errorIndex(i: Int): Bottom = abort ("invalid index for list " + i)
 
@@ -429,4 +404,98 @@ private section ListImpl
 
     view Iterator[T]
   end
+
+  def lookup[T](node: Node[T], i: Int, depth: Int): T =
+    match node
+      case Leaf values =>
+        values[i & 31]
+      case Internal children =>
+        val idx = (i >> (5 * depth)) & 31
+        lookup(children[idx], i, depth - 1)
+
+  def copyAppendT[T](arr: Array[T], value: T): Array[T] =
+    val n = arr.size
+    val res = Array.create[T](n + 1)
+    var i = 0
+    while i < n do
+      res[i] = arr[i]
+      i = i + 1
+    res[n] = value
+    res
+
+  def copyAppendNode[T](arr: Array[Node[T]], value: Node[T]): Array[Node[T]] =
+    val n = arr.size
+    val res = Array.create[Node[T]](n + 1)
+    var i = 0
+    while i < n do
+      res[i] = arr[i]
+      i = i + 1
+    res[n] = value
+    res
+
+  def copySetT[T](arr: Array[T], idx: Int, value: T): Array[T] =
+    val n = arr.size
+    val res = Array.create[T](n)
+    var i = 0
+    while i < n do
+      res[i] = arr[i]
+      i = i + 1
+    res[idx] = value
+    res
+
+  def copySetNode[T](arr: Array[Node[T]], idx: Int, value: Node[T]): Array[Node[T]] =
+    val n = arr.size
+    val res = Array.create[Node[T]](n)
+    var i = 0
+    while i < n do
+      res[i] = arr[i]
+      i = i + 1
+    res[idx] = value
+    res
+
+  def newPath[T](depth: Int, value: T): Node[T] =
+    if depth == 0 then
+      val arr = Array.create[T](1)
+      arr[0] = value
+      Leaf(arr)
+    else
+      val child = newPath(depth - 1, value)
+      val arr = Array.create[Node[T]](1)
+      arr[0] = child
+      Internal(arr)
+
+  def updateAt[T](node: Node[T], i: Int, depth: Int, value: T): Node[T] =
+    match node
+      case Leaf values =>
+        Leaf(copySetT(values, i & 31, value))
+      case Internal children =>
+        val idx = (i >> (5 * depth)) & 31
+        val newChild = updateAt(children[idx], i, depth - 1, value)
+        Internal(copySetNode(children, idx, newChild))
+
+  // Precondition: root-level overflow check has already been done.
+  def tryInsert[T](node: Node[T], newIdx: Int, depth: Int, value: T): Option[Node[T]] =
+    match node
+      case Leaf values =>
+        if values.size < 32 then
+          Some(Leaf(copyAppendT(values, value)))
+        else
+          None
+
+      case Internal children =>
+        val branchIdx = (newIdx >> (5 * depth)) & 31
+        if branchIdx < children.size then
+          match tryInsert(children[branchIdx], newIdx, depth - 1, value)
+            case Some newChild =>
+              Some(Internal(copySetNode(children, branchIdx, newChild)))
+            case None =>
+              if children.size < 32 then
+                val sibling = newPath(depth - 1, value)
+                Some(Internal(copyAppendNode(children, sibling)))
+              else
+                None
+        else
+          val newBranch = newPath(depth - 1, value)
+          Some(Internal(copyAppendNode(children, newBranch)))
+
 end // ListImpl
