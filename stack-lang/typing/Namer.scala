@@ -1132,8 +1132,8 @@ class Namer(using Config) extends Applications with SelectionTyper:
         val successPat = BindPattern(vIdent, WildcardPattern()(scrutType, rescue.span))(isDef = true)
 
         val successBody =
-          val partialApply = TreeOps.createExtensionApply(sym, scrutinee2, rescue.span)
-          TreeOps.smartApply(partialApply, args = Nil, autos = Nil)(scrutinee2.span)
+          val partialApply = TreeOps.createExtensionApply(sym, vIdent, rescue.span)
+          TreeOps.smartApply(partialApply, args = Nil, autos = Nil)(vIdent.span)
 
         val successCase = Case(successPat, successBody)(rescue.span)
         createMatch(successCase)
