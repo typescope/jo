@@ -134,7 +134,7 @@ The `rescue` expression works with them because they are two-branch union types 
 
 ## Dropped Values
 
-Silently discarding a non-Unit return value is almost always a bug. The compiler warns when any non-Unit expression is used in statement position without binding its result:
+Silently discarding a non-Unit return value is almost always a bug. The compiler warns when a value is used in statement position without binding its result:
 
 ```jo
 fetchData(id)        // warning: value of type Result[Data, AppError] is silently dropped
@@ -146,6 +146,12 @@ When discarding is intentional, `val _ = expr` suppresses the warning and makes 
 ```jo
 val _ = fetchData(id)   // acknowledged discard, no warning
 ```
+
+The warning fires for any value type except:
+
+- **`Unit`** — the conventional type for side-effecting functions with no meaningful result.
+- **Bottom** — diverging expressions (`abort`, `return`, `break`, `continue`) that never produce a value.
+- **Dynamic interop types** — values from FFI calls (e.g. `rb.Dynamic`) that carry no Jo-level semantics; discarding them is idiomatic in backend glue code.
 
 ---
 
