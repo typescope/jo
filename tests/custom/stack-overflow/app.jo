@@ -5,5 +5,5 @@
 def recurse(n: Int): Int = 1 + recurse(n + 1)
 
 def main =
-  recurse 0
+  val _ = recurse 0
   println "unreachable"

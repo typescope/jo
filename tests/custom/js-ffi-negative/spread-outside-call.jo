@@ -1,3 +1,0 @@
-def main: Unit =
-  val arr: js.Array = js.array(1, 2, 3)
-  js.spread(arr)

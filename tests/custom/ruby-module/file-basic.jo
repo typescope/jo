@@ -8,7 +8,7 @@ def main: Unit =
 
   // Write and read
   val path = file.join(base, "hello.txt")
-  file.write(path, "hello, world")
+  val _ = file.write(path, "hello, world")
   println("read = " + file.read(path))
   println("exists = " + file.exists(path))
   println("size = " + file.size(path))
@@ -20,7 +20,7 @@ def main: Unit =
 
   // Dir operations
   val subdir = file.join(base, "subdir")
-  dir.mkdir(subdir)
+  val _ = dir.mkdir(subdir)
   println("dir.exists = " + dir.exists(subdir))
 
   // FileUtils cp and mv
