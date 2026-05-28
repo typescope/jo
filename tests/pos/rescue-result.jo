@@ -1,0 +1,20 @@
+def parseNum(s: String): Result[Int, String] =
+  if s == "bad" then Err("invalid: " + s)
+  else Ok(42)
+
+def parseWithFallback(s: String): Int =
+  parseNum(s) rescue Err(msg) =>
+    println ("parse failed: " + msg)
+    0
+
+def main =
+  println (parseWithFallback "42")
+  println (parseWithFallback "bad")
+
+  val r: Result[Int, String] = Ok 10
+  val v1 = r rescue Err(e) => -1
+  println v1
+
+  val r2: Result[Int, String] = Err "oops"
+  val v2 = r2 rescue Err(e) => -1
+  println v2
