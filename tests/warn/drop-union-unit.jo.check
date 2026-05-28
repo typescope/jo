@@ -1,0 +1,4 @@
+---------- Warning at tests/warn/drop-union-unit.jo:7:3 ---------------
+|   fetch(id)
+|   ^^^^^^^^^
+|   union value is silently dropped; use `val _ = ...` to make the intent explicit
