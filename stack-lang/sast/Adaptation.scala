@@ -95,8 +95,6 @@ object Adaptation:
     assert(targetType.isFullyInstantiated, "not fully instantiated: " + targetType.show)
     assert(word.tpe.isFullyInstantiated, "not fully instantiated: " + word.tpe.show)
 
-    val unitType = defn.UnitType
-
     val curType = word.tpe
     if Subtyping.conforms(curType, targetType) then
       word
@@ -111,10 +109,6 @@ object Adaptation:
       if isNumeric && !Subtyping.conforms(word.tpe, targetType) then
         // Numeric coercion
         coerceNumeric(word, targetType)
-
-      else if Subtyping.conforms(unitType, targetType) then
-        val unit = unitValue(word.span.endPoint)
-        Block(word.ensureDropValue :: unit :: Nil)(word.span)
 
       else
         val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
