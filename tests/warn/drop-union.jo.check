@@ -7,3 +7,5 @@
 |   lookup("x")
 |   ^^^^^^^^^^^
 |   union value is silently dropped; use `val _ = ...` to make the intent explicit
+
+0 error(s), 2 warning(s)
