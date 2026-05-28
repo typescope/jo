@@ -3,4 +3,4 @@
 |            ^^^
 |            rescue pattern does not fully cover A; missing: A(Int)
 
-[error] No qualified main function found.
+0 error(s), 1 warning(s)
