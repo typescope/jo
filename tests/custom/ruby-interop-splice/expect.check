@@ -1,0 +1,6 @@
+--- callDynamic splice ---
+size = 3
+first = 0
+--- init splice ---
+size = 4
+value = 9
