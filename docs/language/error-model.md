@@ -25,7 +25,7 @@ The union type prevents the value from being used without handling all branches.
 
 ## The `rescue` Expression
 
-Manual pattern matching on every fallible call produces deeply nested code. The `rescue` expression provides concise, explicit error propagation and correction. When the unmatched success branch defines a `.success` method, the result is automatically unwrapped to its payload — a convention used by the standard library types `Ok[T]` and `Some[T]`, and available to any user-defined type.
+Manual pattern matching on every fallible call produces deeply nested code. The `rescue` expression provides concise, explicit error propagation and correction. When the scrutinee union type defines a parameterless `.success` method, the result is automatically unwrapped to its payload — a convention used by the standard library types `Option[T]` and `Result[T, E]`, and available to any user-defined union type.
 
 ### Syntax
 
@@ -38,13 +38,21 @@ open_expr ::= ... | atom "rescue" simple_pattern "=>" block
 Given `e rescue pat => block` where `e : Ta | Tb` (a **two-branch** union type after dealiasing):
 
 1. `pat` must match exactly one of the two branches. Call the unmatched branch `Tx`.
-2. The expression elaborates to:
+2. If the union type does **not** define a parameterless `.success` method, the expression elaborates to:
    ```jo
    match e
      case pat    => block
-     case v: Tx  => v        // or v.success if Tx defines .success
+     case v: Tx  => v
    ```
-3. The result type is `Tx`, or the return type of `Tx.success` if `Tx` defines a parameterless `.success` method.
+   The result type is `Tx`.
+
+3. If the union type defines a parameterless `.success` method, the expression elaborates to:
+   ```jo
+   match e
+     case pat => block
+     case v   => v.success
+   ```
+   The result type is the return type of `.success`.
 
 The handler `block` is an ordinary block. It may return a correction value, execute `return` to propagate the error out of the enclosing function, or perform any other effect.
 
@@ -72,14 +80,14 @@ val data: Data = fetchData(id) rescue err: AppError => return err
 
 ### The `.success` Convention
 
-When the success branch is a wrapper type (e.g. `Ok(value: T)`), the raw result of `rescue` would be `Ok[T]`. If `Tx` defines a parameterless `.success` method, the result is unwrapped automatically:
+When the success branch is a wrapper type (e.g. `Ok(value: T)`), the raw result of `rescue` would be `Ok[T]`. If the union type defines a parameterless `.success` method, the result is unwrapped automatically:
 
 ```jo
-// Ok defines .success: result is Int, not Ok[Int]
+// Result defines .success: result is Int, not Ok[Int]
 val n: Int = parse(s) rescue err: Err[String] => return err
 ```
 
-Standard library types `Ok[T]` and `Some[T]` define `.success` returning their inner value. User-defined types opt in by defining `.success` on the success branch. Calling `.success` directly on an error branch is a programming error (analogous to `unwrap()` in Rust) — the panic is unreachable when invoked by `rescue`.
+User-defined union types opt in by defining `.success` as a union method. The compiler looks up `.success` on the scrutinee's union type (not the branch type), so the lookup follows the same rules as any union method call. Calling `.success` directly on an error value is a programming error (analogous to `unwrap()` in Rust) — the panic in the match body is unreachable when invoked by `rescue`.
 
 ### Examples
 
@@ -107,7 +115,7 @@ val n = parseNumber(s) rescue Err(msg) => return Err(AppError.parse(msg))
 
 ## Standard Library Integration
 
-`Result` and `Option` are plain union types with no compiler special-casing:
+`Result` and `Option` are plain union types. The compiler recognises `.success` by name — it is a structural protocol: any union type that defines a parameterless `success` method participates automatically. There is no interface to implement; the lookup is purely by method name on the union type:
 
 ```jo
 union Result[T, E] = Ok(value: T) | Err(error: E)
@@ -123,7 +131,7 @@ union Option[T] = None | Some(value: T)
       case None => panic "unreachable"
 ```
 
-The `rescue` expression works with them solely because they are union types. The same applies to any user-defined union type — no protocol or trait to implement.
+The `rescue` expression works with them because they are two-branch union types that define `.success`. Any user-defined union type gains the same automatic unwrapping simply by defining a parameterless `success` method.
 
 ---
 
@@ -152,6 +160,6 @@ Using `.flatMap`/`.map` chains is type-safe but carries three practical costs: (
 
 ### Explicit vs. Implicit Propagation
 
-**Rust's `?`** implicitly converts the error and returns from the enclosing function — the early exit is invisible at the call site.
+**Rust's `?`** makes the early return implicit: the `?` token is visible at the call site, but the `return` is not — the compiler inserts it automatically after converting the error.
 
-**Jo's `rescue`** requires any early exit to be an explicit `return` in the handler block. This reflects Jo's design philosophy that control flow should always be explicit: a reader scanning for error exits searches for `return`, the same keyword used everywhere else.
+**Jo's `rescue`** requires any early exit to be an explicit `return` in the handler block. The `rescue` keyword is visible at the call site and the `return` is visible in the handler. This reflects Jo's design principle that control flow should always be explicit: a reader scanning for error exits searches for `return`, the same keyword used everywhere else.
