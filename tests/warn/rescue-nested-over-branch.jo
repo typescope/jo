@@ -3,4 +3,4 @@ union AppData = IntData(value: Int) | StrData(value: String)
 type FullResult = AppData | AppError
 
 def f(r: FullResult): AppData =
-  r rescue _: AppData => NotFound
+  r rescue _: (IntData | AppError)  => NotFound
