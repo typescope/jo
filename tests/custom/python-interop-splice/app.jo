@@ -1,0 +1,17 @@
+def main: Unit =
+  testCallDynamicSplice()
+  testCallSplice()
+
+def testCallDynamicSplice: Unit =
+  println "--- callDynamic splice ---"
+  val builtins: py.Dynamic = py.module("builtins")
+  val nums: List[Int] = List(3, 7, 1)
+  val result: Int = builtins.callDynamic("max", ..nums).asInt
+  println("max = " + result.toString)
+
+def testCallSplice: Unit =
+  println "--- call splice ---"
+  val maxFn: py.Dynamic = py.module("builtins").max
+  val nums: List[Int] = List(4, 2, 9)
+  val result: Int = py.call(maxFn, ..nums).asInt
+  println("max = " + result.toString)
