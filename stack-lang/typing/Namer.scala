@@ -358,10 +358,10 @@ class Namer(using Config) extends Applications with SelectionTyper:
         if vdef.name == "_" then
           val rhs =
             Inference.freshIsolate:
-              given TargetType = TargetType.VoidType
+              given TargetType = TargetType.ValueType
               given Scope = sc.fresh()
               transform(vdef.rhs)
-          Block(rhs :: Nil)(vdef.span).adapt
+          Block(rhs.ensureDropValue :: Nil)(vdef.span).adapt
         else
           val vdef2 = transformLocalValDef(vdef)
           sc.define(vdef2.symbol)

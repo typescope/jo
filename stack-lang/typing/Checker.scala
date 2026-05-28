@@ -307,6 +307,8 @@ object Checker:
         if word2.tpe.isVoidType then
           word2
         else if word2.tpe.isValueType then
+          if word2.tpe.widenTermRef.isUnionType then
+            Reporter.warn("union value is silently dropped; use `val _ = ...` to make the intent explicit", word2.pos)
           word2.dropValue
         else
           checkValueType(word2)
