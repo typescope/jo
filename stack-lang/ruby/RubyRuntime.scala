@@ -49,7 +49,8 @@ class RubyRuntime(using defn: Definitions):
   val finishBatch = ParamSupport.termMember("finish")
   val paramKey    = ParamSupport.termMember("paramKey")
 
-  val start = Ruby.termMember("start")
+  val start  = Ruby.termMember("start")
+  val rb_raw = Ruby.termMember("rbRaw")
 
   val StringOps      = Ruby.containerMember("StringOps")
   val String_iterator = StringOps.termMember("iterator")

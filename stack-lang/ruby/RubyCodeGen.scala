@@ -512,6 +512,11 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           val a :: b :: Nil = args: @unchecked
           R.Call(Some(compileExpr(a)), "equal?", List(compileExpr(b)))
 
+        else if sym == runtime.rb_raw then
+          // rbRaw("code") → emit code as a raw Ruby expression
+          val Literal(Constant.String(code)) = args.head: @unchecked
+          R.RawCode(code)
+
         else if sym == runtime.rb_try then
           // rb.try(action): Result[T, Error]
           // Intrinsified: wrap the call site in a begin/rescue block.
