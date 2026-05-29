@@ -6,6 +6,17 @@ import Types.*
 
 import scala.collection.mutable
 
+/** Reachability analysis starting from `root`.
+ *
+ *  @param root          The program entry point.
+ *  @param rewire        Symbol redirects used for linking (e.g. jo.main → user main).
+ *  @param intrinsicDeps Additional symbols made reachable when a given symbol is
+ *                       reached.  Used by backends to declare codegen-injected
+ *                       dependencies that have no corresponding SAST node (e.g.
+ *                       runtime helpers substituted for @intrinsic calls, or
+ *                       classes instantiated inside try/rescue wrappers).
+ *                       Defaults to empty (no extra deps).
+ */
 class Universe(root: Symbol, rewire: Map[Symbol, Symbol], intrinsicDeps: Map[Symbol, List[Symbol]] = Map.empty)(using defn: Definitions):
 
   // ---- worklist state -------------------------------------------------------
