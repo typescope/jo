@@ -141,3 +141,7 @@ class PythonRuntime(using defn: Definitions):
 
   // Symbols injected by the code generator that do not appear in the SAST.
   def extraRoots: List[Symbols.Symbol] = List(jo_Ok, jo_Err)
+
+  def intrinsicRewire: Map[Symbols.Symbol, Symbols.Symbol] =
+    val strSym = defn.String_type
+    Map(strSym.termMember("iterator") -> String_iterator)
