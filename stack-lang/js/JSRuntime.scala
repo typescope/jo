@@ -99,3 +99,16 @@ class JSRuntime(using defn: Definitions):
 
   // Symbols injected by the code generator that do not appear in the SAST.
   def extraRoots: List[Symbol] = List(jo_Ok, jo_Err)
+
+  // Intrinsic String method symbols → runtime replacements.
+  // The codegen substitutes these at emit time; Universe must see the mapping
+  // so it keeps the runtime symbols reachable when the intrinsic is used.
+  def intrinsicRewire: Map[Symbol, Symbol] =
+    val strSym = defn.String_type
+    Map(
+      strSym.termMember("size")      -> String_size,
+      strSym.termMember("get")       -> String_get,
+      strSym.termMember("substring") -> String_substring,
+      strSym.termMember("indexOf")   -> String_indexOf,
+      strSym.termMember("iterator")  -> String_iterator,
+    )
