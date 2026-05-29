@@ -73,6 +73,10 @@ object Universe:
       word match
         case Ident(sym) if sym.isFunction =>
           enqueue(sym)
+          if sym.is(Flags.Object) then
+            // Singleton object accessor: backends derive the class from resultType at
+            // emit time (not from the FunDef body), so enqueue the class explicitly.
+            enqueue(sym.tpe.asProcType.resultType.classSymbol)
 
         case sel @ Select(_, _) =>
           sel.tpe match
