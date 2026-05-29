@@ -98,7 +98,12 @@ class JSRuntime(using defn: Definitions):
   val jo_Err = Jo.typeMember("Err")
 
   // Symbols injected by the code generator that do not appear in the SAST.
-  def extraRoots: List[Symbol] = List(jo_Ok, jo_Err)
+  // js.try injects Ok.new(...)/Err.new(...) at call sites — no SAST New node exists,
+  // so the constructors must be declared as roots explicitly.
+  def extraRoots: List[Symbol] =
+    List(jo_Ok, jo_Err,
+         jo_Ok.termMember(Names.Constructor),
+         jo_Err.termMember(Names.Constructor))
 
   // Intrinsic String method symbols → runtime replacements.
   // The codegen substitutes these at emit time; Universe must see the mapping
