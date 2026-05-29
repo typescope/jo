@@ -14,9 +14,27 @@ Jo solves the problem by using capability contracted authority based on its type
 - **Fine-grained control** — Scope permissions precisely: a specific directory, a single API request, or rows belonging to one user.
 - **Auditable by design** — Security boundaries are visible in interface and type system, not hidden in runtime configuration.
 
+Jo's design philosophy is to combine strong security guarantees with programmer
+happiness. Security should not require fighting the language, writing
+boilerplate, or moving essential reasoning into deployment configuration. The
+goal is to make secure programming feel natural, expressive, and auditable — in
+short, to make secure programming a joy.
+
+Jo is designed for both programmers and security reviewers. Capability
+boundaries are expressed in interfaces and types, so the authority a program
+receives is visible at the API boundary rather than scattered through
+implementation details or deployment configuration. This makes security auditing
+simpler: reviewers can inspect what capabilities are granted, where they flow,
+and where they are deliberately restricted.
+
 ## For Secure AI
 
 Building systems that run AI-generated code? Jo's capability model lets you constrain what AI agents can access — at the type level, before anything runs. See [Capability-Based Programming](capabilities.md) for details.
+
+For a concrete example, see the [data-query agent
+demo](https://github.com/typescope/jo/tree/main/demos/data-query-agent), which
+shows how an agent can ask flexible questions over a database while being
+statically restricted to the current user's data.
 
 ## Learn More
 
