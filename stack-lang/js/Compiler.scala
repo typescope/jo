@@ -4,6 +4,7 @@ import common.IO
 
 import sast.*
 import sast.Trees.FileUnit
+import sast.Universe
 import phases.*
 
 import reporting.Reporter
@@ -77,8 +78,11 @@ object Compiler:
         val viewMaterializer = new phases.MaterializeView
         val backend: Step[List[FileUnit], Unit] =
           Step("Backend", (units: List[FileUnit]) => {
+            val roots     = jsRuntime.start :: jsRuntime.extraRoots
+            val universe = new Universe(roots).run()
+            val filtered  = Universe.filter(units, universe)
             val codegen = new JSCodeGen(jsRuntime, FrontEnd.rewireMap.value)
-            codegen.generate(units, outFile)
+            codegen.generate(filtered, outFile)
           })
         units               |>
         contextParamsLower  |>

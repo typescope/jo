@@ -593,12 +593,16 @@ object Trees:
   case class ClassDef
     (symbol: Symbol, self: Symbol, tparams: List[Symbol], vals: List[FieldDecl], funs: List[FunDef], directViews: List[TypeTree])
     (val annots: List[Apply], val span: Span)
-  extends Def
+  extends Def:
+    def withFuns(newFuns: List[FunDef]): ClassDef =
+      ClassDef(symbol, self, tparams, vals, newFuns, directViews)(annots, span)
 
   case class InterfaceDef
     (symbol: Symbol, self: Symbol, tparams: List[Symbol], methods: List[FunDef])
     (val annots: List[Apply], val span: Span)
-  extends Def
+  extends Def:
+    def withMethods(newMethods: List[FunDef]): InterfaceDef =
+      InterfaceDef(symbol, self, tparams, newMethods)(annots, span)
 
   case class Section
     (symbol: Symbol, defs: List[Def])

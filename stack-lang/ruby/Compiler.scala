@@ -4,6 +4,7 @@ import common.IO
 
 import sast.*
 import sast.Trees.FileUnit
+import sast.Universe
 import phases.*
 
 import reporting.Reporter
@@ -75,9 +76,13 @@ object Compiler:
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView
         val codeGen = new RubyCodeGen(rubyRuntime, FrontEnd.rewireMap.value)
+
         val backend: Step[List[FileUnit], Unit] =
           Step("Backend", (units: List[FileUnit]) =>
-            codeGen.generate(units, outFile)
+            val roots     = rubyRuntime.start :: rubyRuntime.extraRoots
+            val universe = new Universe(roots).run()
+            val filtered  = Universe.filter(units, universe)
+            codeGen.generate(filtered, outFile)
           )
         units               |>
         contextParamsLower  |>

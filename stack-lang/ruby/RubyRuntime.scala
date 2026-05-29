@@ -84,6 +84,9 @@ class RubyRuntime(using defn: Definitions):
   val jo_Ok  = Jo.typeMember("Ok")
   val jo_Err = Jo.typeMember("Err")
 
+  // Symbols injected by the code generator that do not appear in the SAST.
+  def extraRoots: List[Symbol] = List(jo_Ok, jo_Err)
+
   def rbTargetName(sym: Symbol): Option[String] =
     sym.annotation(annot_targetName).map:
       case Annotation(_, List(Constant.String(name))) => name
