@@ -80,7 +80,7 @@ object Compiler:
         val backend: Step[List[FileUnit], Unit] =
           Step("Backend", (units: List[FileUnit]) =>
             val roots = rubyRuntime.start :: rubyRuntime.extraRoots
-            codeGen.generate(Universe.filter(units, roots), outFile)
+            codeGen.generate(Universe.filter(units, roots, FrontEnd.rewireMap.value), outFile)
           )
         units               |>
         contextParamsLower  |>

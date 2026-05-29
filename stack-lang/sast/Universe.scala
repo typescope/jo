@@ -6,7 +6,7 @@ import Types.*
 
 import scala.collection.mutable
 
-class Universe(seeds: List[Symbol])(using defn: Definitions):
+class Universe(seeds: List[Symbol], rewire: Map[Symbol, Symbol])(using defn: Definitions):
 
   // ---- worklist state -------------------------------------------------------
 
@@ -14,7 +14,8 @@ class Universe(seeds: List[Symbol])(using defn: Definitions):
   private val worklist      = mutable.Queue.empty[Symbol]
 
   private def enqueue(sym: Symbol): Unit =
-    if !_live.contains(sym) then worklist.enqueue(sym)
+    val resolved = if sym.isFunction then rewire.getOrElse(sym, sym) else sym
+    if !_live.contains(resolved) then worklist.enqueue(resolved)
 
   private val traverser = new Universe.Traverser(enqueue)
 
@@ -100,8 +101,8 @@ object Universe:
         case _ =>
           recur(word)
 
-  def filter(units: List[FileUnit], seeds: List[Symbol])(using Definitions): List[FileUnit] =
-    filter(units, new Universe(seeds).run())
+  def filter(units: List[FileUnit], seeds: List[Symbol], rewire: Map[Symbol, Symbol])(using Definitions): List[FileUnit] =
+    filter(units, new Universe(seeds, rewire).run())
 
   /** Return a copy of `units` with all unreachable definitions removed.
    *

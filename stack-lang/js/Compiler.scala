@@ -80,7 +80,7 @@ object Compiler:
           Step("Backend", (units: List[FileUnit]) => {
             val roots   = jsRuntime.start :: jsRuntime.extraRoots
             val codegen = new JSCodeGen(jsRuntime, FrontEnd.rewireMap.value)
-            codegen.generate(Universe.filter(units, roots), outFile)
+            codegen.generate(Universe.filter(units, roots, FrontEnd.rewireMap.value), outFile)
           })
         units               |>
         contextParamsLower  |>
