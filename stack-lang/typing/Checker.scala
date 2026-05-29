@@ -55,6 +55,20 @@ object Checker:
         TypeApply(fun, targs)(span)
 
   /** Should not take Definitions to avoid forcing symbols */
+  /** True for types that may be silently dropped without a warning.
+    *
+    * Covers Unit, Bottom, void, and types implementing the dynamic-interop
+    * protocol (e.g. rb.Dynamic): their values have no meaningful Jo
+    * semantics and are routinely discarded after FFI calls.
+    */
+  def canSilentDrop(tp: Type)(using Definitions): Boolean =
+    tp.isUnitType
+    || tp.isVoidType
+    || tp.dealias.isBottomType
+    || tp.isError
+    || tp.getTermMember("callDynamic").isDefined
+    || tp.getTermMember("selectDynamic").isDefined
+
   def checkValueType(word: Word)(using Reporter, Source): Unit =
     checkValueType(word.tpe, word.pos)
 
@@ -307,6 +321,8 @@ object Checker:
         if word2.tpe.isVoidType then
           word2
         else if word2.tpe.isValueType then
+          if !canSilentDrop(word2.tpe) then
+            Reporter.warn(s"value of type ${word2.tpe.show} is silently dropped; use `val _ = ...` to make the intent explicit", word2.pos)
           word2.dropValue
         else
           checkValueType(word2)
@@ -315,8 +331,8 @@ object Checker:
       case TargetType.ValueType =>
         val word2 = adaptParameterless(word, targetType)
         if word2.tpe.isVoidType then
-          // adapt to Unit type
-          Adaptation.adapt(word2, defn.UnitType, Nil)
+          val unit = unitValue(word2.span.endPoint)
+          Block(word2 :: unit :: Nil)(word2.span)
         else
           checkValueType(word2)
           word2
@@ -326,6 +342,15 @@ object Checker:
 
         // Must choose either inference or adapation, not both
         if word2.tpe.isFullyInstantiated then
+
+          // Unit adaptation: target accepts Unit but value doesn't conform directly.
+          // Warn if the dropped value is a union type, then drop it and append unit.
+          if !Subtyping.conforms(word2.tpe, tpe) && Subtyping.conforms(defn.UnitType, tpe) && (word2.tpe.isValueType || word2.tpe.isVoidType) then
+            if !canSilentDrop(word2.tpe) then
+              Reporter.warn(s"value of type ${word2.tpe.show} is silently dropped; use `val _ = ...` to make the intent explicit", word2.pos)
+            val unit = unitValue(word2.span.endPoint)
+            return Block(word2.ensureDropValue :: unit :: Nil)(word2.span)
+
           try
             val adapters =
               if tpe.isVararg then

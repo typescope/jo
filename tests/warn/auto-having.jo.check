@@ -1,17 +1,17 @@
----------- Error at tests/warn/auto-having.jo:22:5 ---------------
-|     testEq[Item](i1, i2)
-|     ^^^^^^^^^^^^^^^^^^^^
-|     Failed to find auto of the type Ord[Item]
+---------- Error at tests/warn/auto-having.jo:22:13 ---------------
+|     val _ = testEq[Item](i1, i2)
+|             ^^^^^^^^^^^^^^^^^^^^
+|             Failed to find auto of the type Ord[Item]
 ? Eq[Item]
   → (local: eq0: Eq[Item]) ✓
 ? Ord[Item]
   → (local: eq0: Eq[Item]) ✗ type mismatch: found Eq[Item], expected Ord[Item]
 
 
----------- Error at tests/warn/auto-having.jo:25:3 ---------------
-|   testNoCand[Item](i1, i2)
-|   ^^^^^^^^^^^^^^^^^^^^^^^^
-|   Failed to find auto of the type Eq[Item]
+---------- Error at tests/warn/auto-having.jo:25:11 ---------------
+|   val _ = testNoCand[Item](i1, i2)
+|           ^^^^^^^^^^^^^^^^^^^^^^^^
+|           Failed to find auto of the type Eq[Item]
 ? Eq[Item]
   ✗ (no candidates)
 

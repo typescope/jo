@@ -1,0 +1,6 @@
+---------- Warning at tests/warn/rescue-partial-cover.jo:4:12 ---------------
+|   v rescue A(1) => B
+|            ^^^
+|            rescue pattern does not fully cover A; missing: A(Int)
+
+0 error(s), 1 warning(s)

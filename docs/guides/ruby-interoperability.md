@@ -94,6 +94,18 @@ rb.require("pathname")
 val path: rb.Dynamic = rb.const("Pathname").init("/tmp/foo")
 ```
 
+Both `callDynamic` and `init` support `..xs` splice syntax to pass a `List` as positional arguments:
+
+```jo
+val args: List[Any] = List(3, 0)
+val arr: rb.Array = rb.const("Array").callDynamic("new", ..args).cast[rb.Array]
+// → Array.new(3, 0)  → [0, 0, 0]
+
+val initArgs: List[Any] = List("/tmp", "foo")
+val path: rb.Dynamic = rb.const("File").init(..initArgs)
+// → File.new("/tmp", "foo")
+```
+
 **Limitation — `?` and `!` methods.** Jo identifiers cannot contain `?` or `!`, so predicate methods (`exist?`, `empty?`, `include?`) and mutating methods (`sort!`, `map!`) cannot be called via dot syntax. Use `callDynamic` explicitly instead:
 
 ```jo

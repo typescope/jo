@@ -1,7 +1,7 @@
----------- Error at tests/warn/auto-diverge.jo:17:3 ---------------
-|   foo
-|   ^^^
-|   Failed to find auto of the type A
+---------- Error at tests/warn/auto-diverge.jo:17:11 ---------------
+|   val _ = foo
+|           ^^^
+|           Failed to find auto of the type A
 ? A
   → diverge
       ? A

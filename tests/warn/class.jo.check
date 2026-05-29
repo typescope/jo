@@ -72,10 +72,10 @@
 |   ^^^^^
 |   The function expects 1 argument(s), found = 0
 
----------- Error at tests/warn/class.jo:88:9 ---------------
-|   new C("hello")
-|         ^^^^^^^
-|         Expect type Int, found = String
+---------- Error at tests/warn/class.jo:88:17 ---------------
+|   val _ = new C("hello")
+|                 ^^^^^^^
+|                 Expect type Int, found = String
 
 ---------- Error at tests/warn/class.jo:90:3 ---------------
 |   new C(10, 20)

@@ -16,4 +16,4 @@ def show(x: RichBox)(auto mapper: Mapper[RichBox] with [[RichBox].format]): Stri
 
 def main: Unit =
   val b: RichBox = new Box(1)
-  show(b)
+  val _ = show(b)

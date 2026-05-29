@@ -3,10 +3,10 @@
 |                           ^^^^^^^^^^^^
 |                           Extension method show has type parameters that cannot be inferred from base type
 
----------- Error at tests/warn/extension-unused-tparam.jo:20:3 ---------------
-|   display(b)
-|   ^^^^^^^^^^
-|   Failed to find auto of the type Mapper[PhantomBox]
+---------- Error at tests/warn/extension-unused-tparam.jo:20:11 ---------------
+|   val _ = display(b)
+|           ^^^^^^^^^^
+|           Failed to find auto of the type Mapper[PhantomBox]
 ? Mapper[PhantomBox]
   → [PhantomBox].show ✗ member show not found on type PhantomBox
 

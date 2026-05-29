@@ -1,0 +1,11 @@
+---------- Error at tests/warn/rescue-success-postparams.jo:25:17 ---------------
+|   val r1: Hit = play(true) rescue Miss => Hit(0)
+|                 ^^^^^^^^^^
+|                 rescue: .success must be an extension method with no post-parameters and no auto parameters
+
+---------- Error at tests/warn/rescue-success-postparams.jo:28:18 ---------------
+|   val r2: Good = play2(false) rescue Bad => Good(-1)
+|                  ^^^^^^^^^^^^
+|                  rescue: .success must be an extension method with no post-parameters and no auto parameters
+
+2 error(s), 0 warning(s)

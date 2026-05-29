@@ -130,7 +130,7 @@ val opts  = js.obj("hostname" ~ "example.com", "port" ~ 443, "path" ~ "/")
 https.get(opts, callback)
 ```
 
-### Spreading an array as `...args`
+### Splicing a list as `...args`
 
 When the arguments are known individually, pass them directly — no spreading needed:
 
@@ -139,12 +139,14 @@ val child_process: js.Dynamic = js.require("child_process")
 child_process.execSync("ls", "--verbose", "--output", "out.txt")
 ```
 
-When the arguments are held in a `js.Array` at runtime, use `js.spread` to expand the array as positional arguments:
+When the arguments are held in a `List` at runtime, use `..xs` splice syntax to expand them as positional arguments:
 
 ```jo
-def run(cmd: String, args: js.Array): Unit =
-  child_process.execSync(cmd, js.spread(args))
+def run(cmd: String, args: List[Any]): Unit =
+  child_process.callDynamic("execSync", cmd, ..args)
 ```
+
+The `..xs` splice works in `callDynamic`, `call`, and `js.init`. It converts a Jo `List[T]` to a JavaScript spread (`...js.list(xs)`).
 
 ## undefined and null Handling
 

@@ -1,0 +1,14 @@
+def getOrDefault(x: Option[Int]): Int =
+  x rescue None => 0
+
+def main =
+  println (getOrDefault (Some 42))
+  println (getOrDefault None)
+
+  val host: Option[String] = Some "example.com"
+  val r1 = host rescue None => "localhost"
+  println r1
+
+  val missing: Option[String] = None
+  val r2 = missing rescue None => "localhost"
+  println r2

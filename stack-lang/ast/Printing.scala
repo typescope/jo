@@ -338,6 +338,9 @@ object Printing:
       case IsExpr(scrutinee, pattern) =>
         scrutinee ~ " is " ~ showPattern(pattern)
 
+      case RescueExpr(scrutinee, pattern, handler) =>
+        scrutinee ~ " rescue " ~ showPattern(pattern) ~ " => " ~ handler
+
       case TypeAscribe(expr, tpt) =>
         expr ~ "as" ~ tpt
 

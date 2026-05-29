@@ -228,6 +228,7 @@ open_expr  = words NL
               | "allow" qualid {"," qualid} "in" block
               | "with" qualid "=" expr {"," qualid "=" expr} "in" block
               | "with" NL qualid "=" open_expr {NL qualid "=" open_expr} "in" block
+              | atom "rescue" simple_pattern "=>" block         -- rescue_expr
 
 (* invariant: words end by new line *)
 phrase = open_expr

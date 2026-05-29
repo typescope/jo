@@ -4,7 +4,7 @@ Fix #XXX: A short description
 
 ## Steps
 
-- [ ] specify syntax
+- [ ] specify syntax (syntax-summary.md)
 - [ ] token & scanner
 - [ ] ast & parsing syntax
 - sast
@@ -21,7 +21,9 @@ Fix #XXX: A short description
   - [ ] view checker
   - [ ] adaptation
   - [ ] auto resolution
-- [ ] context param check & transform
+- [ ] context params
+  - [ ] analysis and check
+  - [ ] semantic transform
 - pattern match
   - [ ] pattern typer
   - [ ] flow typing
@@ -31,6 +33,7 @@ Fix #XXX: A short description
 - [ ] phases
   - [ ] closure conversion
   - [ ] tail-rec optimization
+  - [ ] erasure
 - platforms
   - [ ] interpreter
   - [ ] js backend
@@ -44,7 +47,6 @@ Fix #XXX: A short description
   - [ ] js code highlight
 - documentation
   - [ ] design doc
-  - [ ] syntax
 - tests
   - [ ] positive tests
   - [ ] negative tests

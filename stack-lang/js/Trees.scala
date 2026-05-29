@@ -86,7 +86,7 @@ object Trees:
   /** Type test: value instanceof ClassName */
   case class InstanceOf(value: Expr, className: String) extends Expr
 
-  /** Spread expression: ...expr — used inside Call args for js.spread */
+  /** Spread expression: ...expr — used inside Call args for `..xs` list splicing */
   case class Spread(expr: Expr) extends Expr
 
   /** Raw JavaScript code: embed a string directly as JavaScript code */

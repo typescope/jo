@@ -417,13 +417,6 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       nameWord.pos(using ctx.currentFunction.source)
     )
 
-  /** Unpack a packed vararg list (List.empty + a + b + ...) into [a, b, ...]. */
-  private def unpackVarargList(word: Word): List[Word] =
-    word match
-      case Apply(Ident(sym), Nil, _) if sym == defn.List_empty               => Nil
-      case Apply(Select(prev, "+"), List(arg), _)                            => unpackVarargList(prev) :+ arg
-      case _ => throw new Exception("rb.Dynamic.callDynamic args must be a direct vararg list, got: " + word.show)
-
   /** Compile a packed vararg list for a `@rb.interop` abstract method call.
     *
     * Self-recursive and type-agnostic: reads the SAST structure directly.
@@ -627,10 +620,10 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         else if methodSym == runtime.rb_Dynamic_callDynamic then
           // x.callDynamic("foo", args...) → x.foo(args...)
           val nameWord :: packedArgs :: Nil = args: @unchecked
-          val unpacked = unpackVarargList(packedArgs)
+          val compiledArgs = compileVarargItems(packedArgs)
           nameWord match
             case Literal(Constant.String(methodName)) if RubyRuntime.isValidMethodName(methodName) =>
-              R.Call(Some(compileExpr(qual)), methodName, unpacked.map(compileExpr))
+              R.Call(Some(compileExpr(qual)), methodName, compiledArgs)
             case Literal(Constant.String(_)) =>
               abortBadRubyName(nameWord, "callDynamic")
             case _ =>
@@ -639,8 +632,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         else if methodSym == runtime.rb_Dynamic_init then
           // x.init(args...) → x.new(args...)
           val packedArgs :: Nil = args: @unchecked
-          val unpacked = unpackVarargList(packedArgs)
-          R.Call(Some(compileExpr(qual)), "new", unpacked.map(compileExpr))
+          val compiledArgs = compileVarargItems(packedArgs)
+          R.Call(Some(compileExpr(qual)), "new", compiledArgs)
 
         else if methodSym == runtime.rb_Dynamic_getDynamic then
           // x.getDynamic(k) → x[k]

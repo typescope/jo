@@ -1,0 +1,2 @@
+def f(opt: Option[Int]): Int =
+  opt rescue None => "hello"

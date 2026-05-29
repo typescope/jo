@@ -111,7 +111,7 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
           Reporter.error(s"Branch type ${elsep.tpe.show} is not a subtype of ${word.tpe.show}", elsep.pos)
 
       case Labeled(label, resultType, body) =>
-        if !Subtyping.conforms(body.tpe, resultType) && !body.tpe.isBottom then
+        if !Subtyping.conforms(body.tpe, resultType) && !body.tpe.isBottomType then
           Reporter.error(s"Labeled body type ${body.tpe.show} is not a subtype of ${resultType.show}", body.pos)
 
       case Return(label, value) =>

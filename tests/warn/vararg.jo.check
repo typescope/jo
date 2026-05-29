@@ -34,7 +34,7 @@
 |          .. not allowed here. It can only be used as the type of the last varargs parameter.
 
 ---------- Error at tests/warn/vararg.jo:19:3 ---------------
-|   mix 6 List 8 9
+|   mix 6 List 8 pass
 |   ^^^^^^^^^^^^
 |   Found extra value, an expression should produce a single value
 
@@ -58,10 +58,10 @@
 |            ^^
 |            Expect a function, found = ..: Error
 
----------- Error at tests/warn/vararg.jo:25:9 ---------------
-|   ok(3, .. [] 3, 5)
-|         ^^^^^^^
-|         .. should be followed by exact one word, found = 2
+---------- Error at tests/warn/vararg.jo:25:17 ---------------
+|   val _ = ok(3, .. [] 3, 5)
+|                 ^^^^^^^
+|                 .. should be followed by exact one word, found = 2
 
 ---------- Error at tests/warn/vararg.jo:27:10 ---------------
 |   ok(10, ..)

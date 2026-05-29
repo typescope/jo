@@ -14,9 +14,8 @@ import jo.runtime.native.ParamSupport
 
 type Addr
 
-//[ return a dummy Int value which is simpler than Unit   //]
 @intrinsic
-private def writeInt(arr: Addr, value: Int): Int receives none =
+private def writeInt(arr: Addr, value: Int): Unit receives none =
   abort "native writeInt"
 
 @intrinsic
@@ -25,10 +24,9 @@ private def readInt(arr: Addr): Int =
 
 //[ The caller needs to make sure the value fit into one byte
   !
-  ! return a dummy Int value which is simpler than Unit
 //]
 @intrinsic
-private def writeByte(arr: Addr, value: Byte): Int receives none =
+private def writeByte(arr: Addr, value: Byte): Unit receives none =
   abort "native writeInt"
 
 @intrinsic
@@ -272,7 +270,7 @@ private def installStackOverflowHandler(): Unit receives none =
   writeInt ss (castInt altMem)       // ss_sp
   writeInt (addAddr ss 4) 0          // ss_flags = 0
   writeInt (addAddr ss 8) 4096       // ss_size
-  Syscall.sys_sigaltstack ss 0
+  val _ = Syscall.sys_sigaltstack ss 0
 
   // sigaction: { sa_handler, sa_flags=SA_ONSTACK, sa_restorer=0, sa_mask[2]=0 }
   val act = GC.alloc 20
@@ -281,7 +279,7 @@ private def installStackOverflowHandler(): Unit receives none =
   writeInt (addAddr act 8) 0                   // sa_restorer = NULL
   writeInt (addAddr act 12) 0                  // sa_mask[0]
   writeInt (addAddr act 16) 0                  // sa_mask[1]
-  Syscall.sys_rt_sigaction 11 act 0 8          // SIGSEGV=11, oldact=NULL, sigsetsize=8
+  val _ = Syscall.sys_rt_sigaction 11 act 0 8          // SIGSEGV=11, oldact=NULL, sigsetsize=8
 
 private def start(argsRaw: Addr): Unit receives none =
   // GC must be up before installStackOverflowHandler (which uses GC.alloc).

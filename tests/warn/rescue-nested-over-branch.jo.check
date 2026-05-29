@@ -1,0 +1,6 @@
+---------- Error at tests/warn/rescue-nested-over-branch.jo:6:12 ---------------
+|   r rescue _: (IntData | AppError)  => NotFound
+|            ^^^^^^^^^^^^^^^^^^^^^^
+|            rescue pattern type IntData | AppError must equal one of the two union branches: AppData | AppError
+
+1 error(s), 0 warning(s)

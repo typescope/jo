@@ -11,8 +11,8 @@ def test(a: Int): Int =
   with a = 20 in foo 10           // error
 
 def main =
-  with indent = true in padding 2 // error
+  val _ = with indent = true in padding 2 // error
 
-  with foo = 6 in padding 4       // error
+  val _ = with foo = 6 in padding 4       // error
 
   with alpha = 3, beta = 6 in foo 10

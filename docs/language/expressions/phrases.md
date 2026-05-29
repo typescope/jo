@@ -4,7 +4,7 @@ A phrase is an element that may appear in a block. Every open expression is a va
 
 ## Expressions as Phrases
 
-Any expression — a word sequence, colon call, dot chain, lambda, open `if`, `match`, `allow`, or `with` — is a valid phrase. These are documented in [Expression Forms](expression-forms.md).
+Any expression — a word sequence, colon call, dot chain, lambda, open `if`, `match`, `allow`, `with`, or `rescue` — is a valid phrase. These are documented in [Expression Forms](expression-forms.md).
 
 ```jo
 println "hello"           // word sequence
@@ -120,5 +120,5 @@ See [Definitions](../definitions/overview.md) for the full definition syntax.
 
 - [Expression Forms](expression-forms.md) — Open expressions, which are also valid phrases
 - [Blocks](blocks.md) — Collections of phrases
-- [Control Flow](control-flow.md) — `if`, `match`, `while`, `for`, `break`, `continue`
+- [Control Flow](control-flow.md) — `if`, `match`, `rescue`, `while`, `for`, `break`, `continue`
 - [Definitions](../definitions/overview.md) — Definition forms

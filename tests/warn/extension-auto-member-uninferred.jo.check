@@ -3,10 +3,10 @@
 |                        ^^^^^^^^^^^^^^^^^^
 |                        Extension method format has type parameters that cannot be inferred from base type
 
----------- Error at tests/warn/extension-auto-member-uninferred.jo:19:3 ---------------
-|   show(b)
-|   ^^^^^^^
-|   Failed to find auto of the type Mapper[RichBox]
+---------- Error at tests/warn/extension-auto-member-uninferred.jo:19:11 ---------------
+|   val _ = show(b)
+|           ^^^^^^^
+|           Failed to find auto of the type Mapper[RichBox]
 ? Mapper[RichBox]
   → [RichBox].format ✗ member format not found on type RichBox
 

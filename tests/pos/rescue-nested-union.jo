@@ -1,0 +1,37 @@
+union AppError = NotFound | ParseError(msg: String)
+
+class Data(value: Int)
+
+type FetchResult = Data | AppError
+
+def fetchData(ok: Bool): FetchResult =
+  if ok then Data(42)
+  else NotFound
+
+def process(ok: Bool): Data =
+  fetchData(ok) rescue err: AppError => Data(-1)
+
+union AppData = IntData(value: Int) | StrData(value: String)
+
+type FullResult = AppData | AppError
+
+def fetchFull(ok: Bool): FullResult =
+  if ok then IntData(99)
+  else ParseError("bad input")
+
+def processFull(ok: Bool): AppData =
+  fetchFull(ok) rescue err: AppError => IntData(-2)
+
+def main =
+  val d1 = process(true)
+  println d1.value
+  val d2 = process(false)
+  println d2.value
+
+  match processFull(true)
+    case IntData(v) => println v
+    case StrData(v) => println v
+
+  match processFull(false)
+    case IntData(v) => println v
+    case StrData(v) => println v

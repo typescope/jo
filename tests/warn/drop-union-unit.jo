@@ -1,0 +1,11 @@
+// A union-typed expression used as the body of a Unit-returning function
+// must also warn.
+
+def fetch(id: Int): Result[Int, String] = Ok(id)
+
+def process(id: Int): Unit =
+  fetch(id)
+
+def main =
+  process(1)
+  println "done"

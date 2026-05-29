@@ -1489,6 +1489,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           case Token.DOT =>
             dotChain(w, headItem.indent)
 
+          case Token.RESCUE =>
+            val rescueItem = item
+            next()
+            val pat = simplePattern(prevPattern = null)
+            if pat == null then
+              error("Expect a pattern after `rescue`", item.span.toPos)
+              w
+            else
+              val arrowItem = eat(Token.RARROW)
+              val handler = block(rescueItem.indent, arrowItem)
+              RescueExpr(w, pat, handler)(w.span | handler.span)
+
           case _ =>
             words(mutable.ArrayBuffer(w), endOnNewLine = true)
 

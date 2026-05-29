@@ -1,0 +1,6 @@
+---------- Error at tests/warn/rescue-three-branch.jo:4:3 ---------------
+|   t rescue A => 1
+|   ^
+|   rescue requires a two-branch union type, found 3 branches: A, B, C
+
+1 error(s), 0 warning(s)

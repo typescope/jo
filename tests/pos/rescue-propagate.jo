@@ -1,0 +1,17 @@
+def parseNum(s: String): Result[Int, String] =
+  if s == "bad" then Err("invalid: " + s)
+  else Ok(42)
+
+def parseAndDouble(s: String): Result[Int, String] =
+  val n = parseNum(s) rescue Err(msg) => return Err(msg)
+  Ok(n * 2)
+
+def getHost(s: Option[String]): Option[String] =
+  val host = s rescue None => return None
+  Some(host + ":80")
+
+def main =
+  println (parseAndDouble "42")
+  println (parseAndDouble "bad")
+  println (getHost (Some "example.com"))
+  println (getHost None)

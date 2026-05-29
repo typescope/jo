@@ -11,7 +11,7 @@ def test =
 
   a = true     // error
   a = even 3   // error
-  even false   // error
+  val _ = even false   // error
 
   if a then    // error
     val z: Bool = 4 // error
@@ -24,10 +24,11 @@ def test =
       even 4
 
 
-  if even 3 then
-    5
-  else
-    even 4
+  val _ =
+    if even 3 then
+      5
+    else
+      even 4
 
 
   while a * 3 do    // error

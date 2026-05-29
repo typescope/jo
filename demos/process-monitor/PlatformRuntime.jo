@@ -156,7 +156,7 @@ end
 //]
 class AlerterImpl(scriptPath: String)
   def trigger(subject: String, body: String): Unit =
-    subprocess.run(py.list(scriptPath, subject, body))
+    val _ = subprocess.run(py.list(scriptPath, subject, body))
 
   view SystemAPI.Alerter
 end

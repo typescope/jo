@@ -1,0 +1,6 @@
+---------- Error at tests/warn/rescue-type-mismatch.jo:2:22 ---------------
+|   opt rescue None => "hello"
+|                      ^^^^^^^
+|                      Expect type Int, found = String
+
+1 error(s), 0 warning(s)

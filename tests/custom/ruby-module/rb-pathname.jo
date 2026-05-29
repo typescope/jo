@@ -10,7 +10,7 @@ def main: Unit =
   println("dir isDir = " + baseDir.isDir())
 
   val dataFile = Pathname(base + "/data.txt")
-  dataFile.write("hello from pathname")
+  val _ = dataFile.write("hello from pathname")
   println("file exists = " + dataFile.exists())
   println("file isFile = " + dataFile.isFile())
   println("content = " + dataFile.read())

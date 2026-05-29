@@ -1,0 +1,29 @@
+// A .success method with post-params must not trigger auto-unwrap.
+// rescue must fall through to the Tx path: result type is the unmatched branch.
+
+union MyResult = Hit(score: Int) | Miss
+  def success(bonus: Int): Int =
+    match this
+      case Hit(score) => score + bonus
+      case Miss => bonus
+
+union MyResult2 = Good(score: Int) | Bad
+  def success(auto eq: Eq[Int]): Int =
+    match this
+      case Good(score) => score
+      case Bad => 0
+
+def play(active: Bool): MyResult =
+  if active then Hit(10)
+  else Miss
+
+def play2(active: Bool): MyResult2 =
+  if active then Good(10)
+  else Bad
+
+def main =
+  val r1: Hit = play(true) rescue Miss => Hit(0)
+  println r1.score
+
+  val r2: Good = play2(false) rescue Bad => Good(-1)
+  println r2.score

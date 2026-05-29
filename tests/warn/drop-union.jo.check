@@ -1,0 +1,11 @@
+---------- Warning at tests/warn/drop-union.jo:8:3 ---------------
+|   fetch(21)
+|   ^^^^^^^^^
+|   value of type Result[Int, String] is silently dropped; use `val _ = ...` to make the intent explicit
+
+---------- Warning at tests/warn/drop-union.jo:9:3 ---------------
+|   lookup("x")
+|   ^^^^^^^^^^^
+|   value of type Option[Int] is silently dropped; use `val _ = ...` to make the intent explicit
+
+0 error(s), 2 warning(s)

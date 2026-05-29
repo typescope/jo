@@ -106,7 +106,7 @@ interface Dynamic
     !
     ! Supported argument forms:
     !   positional arg     ordinary JavaScript positional argument
-    !   `js.spread(xs)`    JavaScript `...xs` spread
+    !   `..xs` splice      pass a `List[T]` as positional arguments
   //]
   @intrinsic
   def call(args: ..Any): Dynamic
@@ -118,10 +118,7 @@ interface Dynamic
     !
     ! Supported argument forms:
     !   positional arg     ordinary JavaScript positional argument
-    !   `js.spread(xs)`    JavaScript `...xs` spread
-    !
-    ! Jo vararg splicing such as `..xs` is not supported here.
-    ! Use `js.spread(xs)` instead.
+    !   `..xs` splice      pass a `List[T]` as positional arguments
   //]
   @intrinsic
   def callDynamic(name: String, args: ..Any): Dynamic
@@ -242,14 +239,6 @@ def typeof(v: Any): String = abort "typeof: intrinsified by the JavaScript backe
 //]
 @intrinsic
 def init(ctor: Dynamic, args: ..Any): Dynamic = abort "init: intrinsified by the JavaScript backend"
-
-//[ Spread a js.Array as JavaScript `...xs` at a call site.
-  !
-  ! Use with `call` or `callDynamic` when you need to pass an array as
-  ! positional arguments.
-//]
-@intrinsic
-def spread(xs: Array): Any = abort "spread: intrinsified by the JavaScript backend"
 
 //[ Execute `action`, returning Ok(result) on success or Err(value) on exception.
   !

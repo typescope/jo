@@ -1,0 +1,4 @@
+union IOError = DiskFull | NetworkTimeout
+
+def f(r: Result[Int, IOError]): Int =
+  r rescue DiskFull => 0

@@ -613,27 +613,11 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   private def abortBadJSIdentifier(word: Word, api: String)(using ctx: Context): Nothing =
     Reporter.abort(s"$api requires a string literal name that is a valid JavaScript identifier", word.pos(using ctx.currentFunction.source))
 
-  private def abortSpreadOutsideCall(word: Word)(using ctx: Context): Nothing =
-    Reporter.abort(
-      "js.spread must be used as a call argument inside call or callDynamic",
-      word.pos(using ctx.currentFunction.source)
-    )
-
   /** Check whether a name is a valid JavaScript identifier (for property access).
     *
     * Reserved words are intentionally allowed: in ES5+, obj.null, obj.class etc.
     * are valid property accesses even though `null` and `class` are keywords.
     */
-  /** Unpack a packed vararg list (List.empty + a + b + c) into [a, b, c] */
-  private def unpackVarargList(word: Word): List[Word] =
-    word match
-      case Apply(Ident(sym), Nil, _) if sym == defn.List_empty =>
-        Nil
-      case Apply(Select(prev, "+"), List(arg), _) =>
-        unpackVarargList(prev) :+ arg
-      case _ =>
-        throw new Exception("Unexpected vararg list shape: " + word)
-
   /** Unpack a @js.interop vararg pack (List.empty + a + b ++ xs) into JS exprs, splicing Lists as ...js.list(xs) */
   private def compileVarargItems(word: Word)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], List[JS.Expr]) =
     word match
@@ -642,7 +626,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case Apply(Select(prev, "+"), List(item), _) =>
         val (prevStats, prevExprs) = compileVarargItems(prev)
-        val (itemStats, itemExpr)  = compileCallArg(item, enforcePurity = false)
+        val (itemStats, itemExpr)  = compileExpr(item, enforcePurity = false)
         (prevStats ++ itemStats, prevExprs :+ itemExpr)
 
       case Apply(Select(prev, "++"), List(xs), _) =>
@@ -654,17 +638,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case _ =>
         throw new Exception("unexpected vararg list shape in @js.interop call: " + word.show)
-
-  /** Compile a call argument, detecting js.spread */
-  private def compileCallArg(word: Word, enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
-    word match
-      case Apply(fun, List(xs), _) if fun.refers(runtime.js_spread) =>
-        // js.spread(xs) → ...xs
-        val (stats, xsExpr) = compileExpr(xs, enforcePurity)
-        (stats, JS.Spread(xsExpr))
-
-      case _ =>
-        compileExpr(word, enforcePurity)
 
 
   /** Compile a function/method call */
@@ -784,10 +757,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else
             (stats, call)
 
-        else if sym == runtime.js_spread then
-          // js.spread used outside callDynamic/call — error
-          abortSpreadOutsideCall(fun)
-
         else if sym == runtime.js_try then
           // js.try(action): Result[T, Dynamic]
           // Intrinsified: wrap the call site in a try/catch block.
@@ -805,10 +774,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           // js.init(ctor, args) → new ctor(args)
           val ctor :: packedArgs :: Nil = args: @unchecked
           val (ctorStats, ctorExpr) = compileExpr(ctor, enforcePurity = false)
-          val unpacked   = unpackVarargList(packedArgs)
-          val argResults = unpacked.map(compileCallArg(_, enforcePurity = false))
-          val argStats   = argResults.flatMap(_._1)
-          val argExprs   = argResults.map(_._2)
+          val (argStats, argExprs) = compileVarargItems(packedArgs)
           // Emit: new (ctor)(args)  — wrapping ctor in parens to handle expressions
           val ctorName = freshTemp()
           val bindCtor = JS.VarDecl("const", ctorName, ctorExpr)
@@ -911,10 +877,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           // x.callDynamic("method", args) → x.method(args)
           val nameWord :: packedArgs :: Nil = args: @unchecked
           val (recvStats, recvExpr) = compileExpr(qual, enforcePurity = false)
-          val unpacked   = unpackVarargList(packedArgs)
-          val argResults = unpacked.map(compileCallArg(_, enforcePurity = false))
-          val argStats   = argResults.flatMap(_._1)
-          val argExprs   = argResults.map(_._2)
+          val (argStats, argExprs) = compileVarargItems(packedArgs)
           nameWord match
             case Literal(Constant.String(methodName)) =>
               if JSRuntime.isValidIdentifier(methodName) then
@@ -950,10 +913,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           // x.call(args) → x(args)  (invoke value as a function)
           val packedArgs :: Nil = args: @unchecked
           val (recvStats, recvExpr) = compileExpr(qual, enforcePurity = false)
-          val unpacked   = unpackVarargList(packedArgs)
-          val argResults = unpacked.map(compileCallArg(_, enforcePurity = false))
-          val argStats   = argResults.flatMap(_._1)
-          val argExprs   = argResults.map(_._2)
+          val (argStats, argExprs) = compileVarargItems(packedArgs)
           // Emit: (recv)(args) — receiver is an expression, not a method name
           val callExpr = JS.Call(Some(recvExpr), "", argExprs)
           if enforcePurity then

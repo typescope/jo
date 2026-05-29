@@ -114,14 +114,14 @@ class String
     else if left.hasNext then
       var delta = 0
       while left.hasNext do
-        left.next()
+        val _ = left.next()
         delta = delta + 1
       end
       delta
     else if right.hasNext then
       var delta = 0
       while right.hasNext do
-        right.next()
+        val _ = right.next()
         delta = delta - 1
       end
       delta

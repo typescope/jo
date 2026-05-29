@@ -1,0 +1,10 @@
+def fetch(id: Int): Result[Int, String] =
+  Ok(id * 2)
+
+def lookup(key: String): Option[Int] =
+  if key == "x" then Some(1) else None
+
+def main =
+  fetch(21)
+  lookup("x")
+  println "done"

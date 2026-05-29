@@ -9,11 +9,11 @@ def test2() = (
 )
 
 def test3() =
-  3 + 5
+  val _ = 3 + 5
 
   | * 6
 
 def test4() =
-  3 + 5
+  val _ = 3 + 5
 
   * 6

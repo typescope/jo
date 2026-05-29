@@ -27,10 +27,10 @@
 |       ^^^^^^
 |       Expect type Int, found = Bool
 
----------- Error at tests/warn/types.jo:14:8 ---------------
-|   even false   // error
-|        ^^^^^
-|        Expect type Int, found = Bool
+---------- Error at tests/warn/types.jo:14:16 ---------------
+|   val _ = even false   // error
+|                ^^^^^
+|                Expect type Int, found = Bool
 
 ---------- Error at tests/warn/types.jo:16:6 ---------------
 |   if a then    // error
@@ -47,9 +47,14 @@
 |     ^
 |     Cannot find common result type, tp1 = Int, tp2 = Bool
 
----------- Error at tests/warn/types.jo:33:9 ---------------
+---------- Error at tests/warn/types.jo:28:5 ---------------
+|     if even 3 then
+|     ^
+|     Cannot find common result type, tp1 = Int, tp2 = Bool
+
+---------- Error at tests/warn/types.jo:34:9 ---------------
 |   while a * 3 do    // error
 |         ^^^^^
 |         Expect type Bool, found = Int
 
-10 error(s), 0 warning(s)
+11 error(s), 0 warning(s)

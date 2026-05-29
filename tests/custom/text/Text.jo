@@ -29,7 +29,7 @@ section Text
     private def skip(iter: Iterator[Char], n: Int): Unit =
       var i = 0
       while i < n do
-        iter.next()
+        val _ = iter.next()
         i = i + 1
 
     private def loadSegment: Bool =

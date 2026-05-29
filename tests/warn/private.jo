@@ -13,7 +13,7 @@ def testPrivateField(x: Box[Int]): Int = x.value
 
 def testPrivateMethod(x: Box[Int]) = x.debug()
 
-def testPrivateSection(show: A.B.Show[Int]): Unit = show(19)
+def testPrivateSection(show: A.B.Show[Int]): Unit = val _ = show(19)
 
 def testPrivateFun() = A.qux()
 

@@ -1,0 +1,15 @@
+import jo.*
+
+union Task = Pending | Done(result: Int)
+
+def await(t: Task): Done =
+  t rescue Pending => Done(0)
+
+def main =
+  val t1: Task = Done(42)
+  val d1 = await(t1)
+  println d1.result
+
+  val t2: Task = Pending
+  val d2 = await(t2)
+  println d2.result

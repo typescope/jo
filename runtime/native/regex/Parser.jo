@@ -95,6 +95,8 @@ class Scanner(reg: String)
     index = index + 1
     c
 
+  def skip(): Unit = index = index + 1
+
   def location(): String =
     if hasMore() then
       "position " + index.toString + " (next='" + peek().toString + "')"
@@ -107,7 +109,7 @@ class Scanner(reg: String)
   def eat(c: Char): Unit =
     if !hasMore() || peek() != c then
       fail("Expected '" + c.toString + "'")
-    next()
+    skip()
 
   def pos(): Int = index
 end
@@ -129,7 +131,7 @@ class Parser(scanner: Scanner, options: CompileOptions)
     if !scanner.hasMore() || scanner.peek() != c then
       parseError("Expected '" + c.toString + "'")
     else
-      scanner.next()
+      scanner.skip()
 
   def parse(): Pattern =
     match parseResult()
@@ -151,7 +153,7 @@ class Parser(scanner: Scanner, options: CompileOptions)
     else
       val left = parseSequence()
       if scanner.hasMore() && scanner.peek() == '|' then
-        scanner.next()
+        scanner.skip()
         Or(left, parseAlternation())
       else
         left
@@ -175,28 +177,28 @@ class Parser(scanner: Scanner, options: CompileOptions)
     while cont && scanner.hasMore() && error is None do
       val c = scanner.peek()
       if c == '*' then
-        scanner.next()
+        scanner.skip()
         val greedy =
           if scanner.hasMore() && scanner.peek() == '?' then
-            scanner.next()
+            scanner.skip()
             false
           else
             true
         atom = Star(atom, greedy)
       else if c == '+' then
-        scanner.next()
+        scanner.skip()
         val greedy =
           if scanner.hasMore() && scanner.peek() == '?' then
-            scanner.next()
+            scanner.skip()
             false
           else
             true
         atom = Seq(atom, Star(atom, greedy))
       else if c == '?' then
-        scanner.next()
+        scanner.skip()
         val greedy =
           if scanner.hasMore() && scanner.peek() == '?' then
-            scanner.next()
+            scanner.skip()
             false
           else
             true
@@ -213,20 +215,20 @@ class Parser(scanner: Scanner, options: CompileOptions)
     if !scanner.hasMore() then parseError("Unclosed bounded repetition")
 
     if scanner.hasMore() && scanner.peek() == '}' then
-      scanner.next()
+      scanner.skip()
       if scanner.hasMore() && scanner.peek() == '?' then
-        scanner.next()
+        scanner.skip()
       if min > options.maxRepeatCount then
         parseError("Repeat count exceeds maxRepeatCount=" + options.maxRepeatCount.toString)
       repeatExact(base, min)
 
     else if scanner.hasMore() && scanner.peek() == ',' then
-      scanner.next()
+      scanner.skip()
       if scanner.hasMore() && scanner.peek() == '}' then
-        scanner.next()
+        scanner.skip()
         val greedy =
           if scanner.hasMore() && scanner.peek() == '?' then
-            scanner.next()
+            scanner.skip()
             false
           else
             true
@@ -241,7 +243,7 @@ class Parser(scanner: Scanner, options: CompileOptions)
           parseError("Repeat width exceeds maxRepeatWidth=" + options.maxRepeatWidth.toString)
         val greedy =
           if scanner.hasMore() && scanner.peek() == '?' then
-            scanner.next()
+            scanner.skip()
             false
           else
             true
@@ -269,16 +271,16 @@ class Parser(scanner: Scanner, options: CompileOptions)
     else
       val c = scanner.peek()
       if c == '(' then
-        scanner.next()
+        scanner.skip()
         if scanner.hasMore() && scanner.peek() == '?' then
-          scanner.next()
+          scanner.skip()
           if scanner.hasMore() && scanner.peek() == ':' then
-            scanner.next()
+            scanner.skip()
             val p = parseAlternation()
             parseEat(')')
             p
           else if scanner.hasMore() && scanner.peek() == '<' then
-            scanner.next()
+            scanner.skip()
 
             var name = ""
             while scanner.hasMore() && scanner.peek() != '>' do
@@ -303,31 +305,31 @@ class Parser(scanner: Scanner, options: CompileOptions)
           parseEat(')')
           Capture(id, p)
       else if c == '[' then
-        scanner.next()
+        scanner.skip()
         AtomP(parseClass())
       else if c == '.' then
-        scanner.next()
+        scanner.skip()
         AtomP(Dot)
       else if c == '^' then
-        scanner.next()
+        scanner.skip()
         StartP
       else if c == '$' then
-        scanner.next()
+        scanner.skip()
         EndP
       else if c == '\\' then
-        scanner.next()
+        scanner.skip()
         parseEscapedPattern()
       else if c == ')' || c == '|' || c == '*' || c == '+' || c == '?' || c == '{' || c == '}' then
         parseError("Unexpected token: " + c.toString)
         EmptyP
       else
-        scanner.next()
+        scanner.skip()
         AtomP(c)
 
   def parseClass(): CharClass =
     var negated = false
     if scanner.hasMore() && scanner.peek() == '^' then
-      scanner.next()
+      scanner.skip()
       negated = true
 
     var chars: List[Char] = []
@@ -338,7 +340,7 @@ class Parser(scanner: Scanner, options: CompileOptions)
       val left = parseClassChar()
 
       if scanner.hasMore() && scanner.peek() == '-' then
-        scanner.next()
+        scanner.skip()
         if !scanner.hasMore() || scanner.peek() == ']' then
           chars = chars + left
           chars = chars + '-'
@@ -361,7 +363,7 @@ class Parser(scanner: Scanner, options: CompileOptions)
       parseError("Unexpected end inside character class")
       0x0000.toChar
     else if scanner.peek() == '\\' then
-      scanner.next()
+      scanner.skip()
       if !scanner.hasMore() then
         parseError("Dangling escape")
         0x0000.toChar
@@ -402,10 +404,10 @@ class Parser(scanner: Scanner, options: CompileOptions)
     else
       val c = scanner.peek()
       if c == 'b' then
-        scanner.next()
+        scanner.skip()
         WordBoundaryP
       else if c == 'B' then
-        scanner.next()
+        scanner.skip()
         NotWordBoundaryP
       else
         AtomP(parseEscape(false))
