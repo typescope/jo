@@ -753,6 +753,11 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else
             (ctorStats ++ argStats :+ bindCtor, newExpr)
 
+        else if sym == runtime.js_raw then
+          // jsRaw("code") → emit code as a raw JS expression
+          val Literal(Constant.String(code)) = args.head: @unchecked
+          (Nil, JS.RawCode(code))
+
         else if sym == runtime.paramKey then
           val paramSym = args.head match
             case Encoded(Ident(paramSym)) => paramSym

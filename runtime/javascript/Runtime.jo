@@ -8,16 +8,17 @@ import jo.compile.intrinsic
 //
 
 private def start(): Unit =
-  var args = js.global.process.argv.slice(2).cast[Array[String]]
+  val proc = js.global.process
+  val args = proc.argv.cast[JsArgv].slice(2)
 
   val stdin: () => String =
     () => fs.readFileSync(0).toString
 
-  val stdout: String => Unit =
-    s => js.global.process.stdout.write(s)
+  val jsStdout = proc.stdout.cast[JsWritable]
+  val jsStderr = proc.stderr.cast[JsWritable]
 
-  val stderr: String => Unit =
-    s => js.global.process.stderr.write(s)
+  val stdout: String => Unit = s => jsStdout.write(s)
+  val stderr: String => Unit = s => jsStderr.write(s)
 
   with
     IO.stdin = stdin,
@@ -35,6 +36,13 @@ private def start(): Unit =
 private def abort(msg: String): Bottom =
   abort "abort: intrinsified by the JavaScript backend"
 
+// Embed a raw JavaScript expression at the call site.
+// Only for use in this runtime file; allows avoiding vararg where no typed
+// intrinsic exists, without polluting the public js.jo API.
+@intrinsic
+private def jsRaw(code: String): js.Dynamic =
+  abort "jsRaw: intrinsified by the JavaScript backend"
+
 //------------------------------------------------------------------------------
 //
 // Array support
@@ -43,7 +51,9 @@ private def abort(msg: String): Bottom =
 // RefArray operations
 private section RefArray
   def create[T](size: Int): Array[T] =
-    js.global.Array.call(size).cast[Array[T]]
+    val arr = jsRaw("[]")
+    arr.length = size
+    arr.cast[Array[T]]
 
   def get[T](array: Array[T], index: Int): T =
     js.dynamic(array)[index].cast[T]
@@ -236,10 +246,16 @@ private section ParamSupport
     abort ("Unbound parameter " + js.dynamic(key).toString())
 
   def startBatch(ctx: Ctx, count: Int): Batch receives none =
-    js.obj("ctx" ~ ctx).cast[Batch]
+    val b = jsRaw("{}")
+    b.ctx = ctx
+    b.cast[Batch]
 
   def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
-    js.dynamic(batch).ctx = js.array(js.dynamic(batch).ctx, key, value)
+    val arr = jsRaw("[]").cast[JsArray]
+    arr.push(js.dynamic(batch).ctx)
+    arr.push(key)
+    arr.push(value)
+    js.dynamic(batch).ctx = arr
 
   def finish(batch: Batch): Ctx receives none =
     js.dynamic(batch).ctx.cast[Ctx]
@@ -249,6 +265,20 @@ end
 //
 // I/O support
 //
+
+// Typed wrappers for Node.js process objects — all have fixed arity so they
+// never go through js.Dynamic.callDynamic (vararg) and never pull in jo.List.
+private interface JsArray
+  def push(elem: Any): Unit
+end
+
+private interface JsArgv
+  def slice(start: Int): Array[String]
+end
+
+private interface JsWritable
+  def write(s: String): Unit
+end
 
 private interface Stringable
   def toString(): String
