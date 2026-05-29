@@ -18,14 +18,26 @@ private def abort(msg: String): Bottom =
 //
 //------------------------------------------------------------------------------
 
-private def builtins: py.Dynamic = py.module("builtins")
+// Typed wrapper for Python's builtins module.
+// All methods have fixed arity — no vararg — so call sites never assemble a jo.List.
+@py.interop
+private interface BuiltIn
+  def len(obj: Any): Int
+  def list(): py.List
+  def tuple(lst: Any): py.Tuple
+  def iter(obj: Any): py.Dynamic
+  def next(it: Any, default: Any): py.Dynamic
+  def ord(c: Any): Int
+  def input(prompt: String): String
+  def print(value: Any, suffix: String @py.keyword("end"), file: Any @py.keyword): Unit
+  def str(obj: Any): String
+end
+
+private def builtins: BuiltIn = py.module("builtins").cast[BuiltIn]
 
 private section RefArray
   def create[T](size: Int): Array[T] =
-    // Use builtins.list() via callDynamic instead of py.list() to avoid bootstrap
-    // recursion: py.list() passes its vararg as a jo_List, and the jo_List
-    // constructor calls jo_Array_RefArray for pattern matching on its size.
-    val result: py.List = builtins.list().cast[py.List]
+    val result: py.List = builtins.list()
     var i = 0
     while i < size do
       result.append(py.none)
@@ -35,7 +47,7 @@ private section RefArray
 
   def get[T](arr: Any, i: Int): T = py.dynamic(arr)[i].cast[T]
 
-  def size[T](arr: Any): Int = py.len(arr)
+  def size[T](arr: Any): Int = builtins.len(arr)
 
   def set[T](arr: Any, i: Int, elem: T): Unit = py.dynamic(arr)[i] = elem
 
@@ -65,7 +77,7 @@ private class StringIterator
     assert hasNext "String iterator exhausted"
     val current = nextValue
     this.nextValue = builtins.next(iter, py.none)
-    builtins.ord(current).cast[Char]
+    builtins.ord(current).toChar
 end
 
 private section StringOps
@@ -177,13 +189,19 @@ private section ParamSupport
       end
       cur = py.dynamic(cur)[0]
     end
-    abort("Unbound parameter " + py.str(key))
+    abort("Unbound parameter " + builtins.str(key))
 
   def startBatch(ctx: Ctx, count: Int): Batch receives none =
-    py.dynamic(py.list(ctx)).cast[Batch]
+    val b: py.List = builtins.list()
+    b.append(ctx)
+    py.dynamic(b).cast[Batch]
 
   def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
-    py.dynamic(batch)[0] = py.tuple(py.dynamic(batch)[0], key, value)
+    val lst: py.List = builtins.list()
+    lst.append(py.dynamic(batch)[0])
+    lst.append(key)
+    lst.append(value)
+    py.dynamic(batch)[0] = builtins.tuple(lst)
 
   def finish(batch: Batch): Ctx receives none =
     py.dynamic(batch)[0].cast[Ctx]
@@ -198,8 +216,8 @@ end
 private def start(): Unit =
   val sysModule = py.module("sys")
   val argv: py.List = sysModule.argv.cast[py.List]
-  val argc = argv.size
-  val argList = py.list()
+  val argc = builtins.len(argv)
+  val argList: py.List = builtins.list()
   var argIdx = 1
   while argIdx < argc do
     argList.append(argv[argIdx])
@@ -208,13 +226,13 @@ private def start(): Unit =
   val argsArr: Array[String] = py.dynamic(argList).cast[Array[String]]
 
   val stdin: () => String =
-    () => py.input()
+    () => builtins.input("")
 
   val stdout: String => Unit =
-    s => py.print(s, "")
+    s => builtins.print(s, suffix = "", file = py.none)
 
   val stderr: String => Unit =
-    s => py.print(s, "", sysModule.stderr)
+    s => builtins.print(s, suffix = "", file = sysModule.stderr)
 
   with
     IO.stdin = stdin,
