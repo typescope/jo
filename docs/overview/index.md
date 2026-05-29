@@ -27,6 +27,19 @@ implementation details or deployment configuration. This makes security auditing
 simpler: reviewers can inspect what capabilities are granted, where they flow,
 and where they are deliberately restricted.
 
+## Project Status
+
+Jo is early-stage software, but it is already substantial: the compiler has an
+extensive test suite, and the core capability model is ready for serious
+experimentation. The language design, standard library, and tooling are still
+evolving.
+
+We encourage security-focused teams to evaluate Jo for new projects,
+prototypes, internal tools, and constrained production use cases where existing
+technologies cannot provide the authority confinement they need. For critical
+deployments, start small, audit the capability boundaries carefully, and expect
+the language and tooling to evolve.
+
 ## For Secure AI
 
 Building systems that run AI-generated code? Jo's capability model lets you constrain what AI agents can access — at the type level, before anything runs. See [Capability-Based Programming](capabilities.md) for details.

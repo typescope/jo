@@ -156,9 +156,16 @@ goal is to make it part of normal programming.
 
 ## Current Status
 
-Jo is early-stage software. The compiler, language design, standard library, and
-tooling are still evolving. Today, Jo can compile to Ruby and Python, with other
-backend work happening in the repository.
+Jo is early-stage software, but it is already substantial: the compiler has an
+extensive test suite, and the core capability model is ready for serious
+experimentation. The language design, standard library, and tooling are still
+evolving.
+
+We encourage security-focused teams to evaluate Jo for new projects,
+prototypes, internal tools, and constrained production use cases where existing
+technologies cannot provide the authority confinement they need. For critical
+deployments, start small, audit the capability boundaries carefully, and expect
+the language and tooling to evolve.
 
 Jo is developed by [TypeScope](https://typescope.ai/), a company focused on
 making secure programming practical. We are building Jo as long-term
