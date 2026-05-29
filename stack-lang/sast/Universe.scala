@@ -10,12 +10,13 @@ class Universe(seeds: List[Symbol], rewire: Map[Symbol, Symbol])(using defn: Def
 
   // ---- worklist state -------------------------------------------------------
 
-  private val _live         = mutable.Set.empty[Symbol]
-  private val worklist      = mutable.Queue.empty[Symbol]
+  private val _live    = mutable.Set.empty[Symbol]
+  private val worklist = mutable.Queue.empty[Symbol]
 
   private def enqueue(sym: Symbol): Unit =
     val resolved = if sym.isFunction then rewire.getOrElse(sym, sym) else sym
-    if !_live.contains(resolved) then worklist.enqueue(resolved)
+    if !_live.contains(resolved) && !resolved.hasAnnotation(defn.intrinsic) then
+      worklist.enqueue(resolved)
 
   private val traverser = new Universe.Traverser(enqueue)
 
