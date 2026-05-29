@@ -100,6 +100,9 @@ object Universe:
         case _ =>
           recur(word)
 
+  def filter(units: List[FileUnit], seeds: List[Symbol])(using Definitions): List[FileUnit] =
+    filter(units, new Universe(seeds).run())
+
   /** Return a copy of `units` with all unreachable definitions removed.
    *
    *  - A top-level FunDef is kept iff its symbol is in `live`.

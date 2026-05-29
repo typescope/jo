@@ -79,10 +79,8 @@ object Compiler:
 
         val backend: Step[List[FileUnit], Unit] =
           Step("Backend", (units: List[FileUnit]) =>
-            val roots     = rubyRuntime.start :: rubyRuntime.extraRoots
-            val universe = new Universe(roots).run()
-            val filtered  = Universe.filter(units, universe)
-            codeGen.generate(filtered, outFile)
+            val roots = rubyRuntime.start :: rubyRuntime.extraRoots
+            codeGen.generate(Universe.filter(units, roots), outFile)
           )
         units               |>
         contextParamsLower  |>

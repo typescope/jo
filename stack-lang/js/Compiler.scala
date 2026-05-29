@@ -78,11 +78,9 @@ object Compiler:
         val viewMaterializer = new phases.MaterializeView
         val backend: Step[List[FileUnit], Unit] =
           Step("Backend", (units: List[FileUnit]) => {
-            val roots     = jsRuntime.start :: jsRuntime.extraRoots
-            val universe = new Universe(roots).run()
-            val filtered  = Universe.filter(units, universe)
+            val roots   = jsRuntime.start :: jsRuntime.extraRoots
             val codegen = new JSCodeGen(jsRuntime, FrontEnd.rewireMap.value)
-            codegen.generate(filtered, outFile)
+            codegen.generate(Universe.filter(units, roots), outFile)
           })
         units               |>
         contextParamsLower  |>

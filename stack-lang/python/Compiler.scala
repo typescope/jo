@@ -83,9 +83,7 @@ object Compiler:
         val backend: Step[List[FileUnit], Unit] =
           Step("Backend", (units: List[FileUnit]) =>
             val roots    = pythonRuntime.start :: pythonRuntime.extraRoots
-            val live     = new Universe(roots).run()
-            val filtered = Universe.filter(units, live)
-            codeGen.generate(filtered, outFile)
+            codeGen.generate(Universe.filter(units, roots), outFile)
           )
         units               |>
         contextParamsLower  |>
