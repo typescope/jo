@@ -184,6 +184,13 @@ surface, or read [Jo's Solution](/security/solution) for the security model in
 more detail. The detailed installation and usage material lives on
 [jo-lang.org](https://jo-lang.org/).
 
+We welcome feedback from language designers, security engineers, compiler
+engineers, and developers building agentic systems. For concrete bugs or issues,
+open an issue on [GitHub](https://github.com/typescope/jo). For community
+discussion, join [r/jolang](https://www.reddit.com/r/jolang/). Security reports
+should follow the process in the repository's
+[SECURITY.md](https://github.com/typescope/jo/blob/main/SECURITY.md).
+
 If the core idea resonates with you, follow the project, try the examples, and
 join the discussion. Jo's mission is simple: make secure programming a joy.
 >>>>>>> d2cbfd26 (Improve blog)

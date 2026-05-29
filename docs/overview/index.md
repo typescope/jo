@@ -42,3 +42,12 @@ statically restricted to the current user's data.
 - [Capability-Based Programming](capabilities.md) - Deep dive into Jo's security model
 - [Pattern-Oriented Programming](patterns.md) - Master Jo's powerful pattern system
 - [Get Started](../usage/getting-started.md) - Install Jo and run your first program
+
+## Feedback and Community
+
+We welcome feedback from language designers, security engineers, compiler
+engineers, and developers building agentic systems. For concrete bugs or issues,
+open an issue on [GitHub](https://github.com/typescope/jo). For community
+discussion, join [r/jolang](https://www.reddit.com/r/jolang/). Security reports
+should follow the process in the repository's
+[SECURITY.md](https://github.com/typescope/jo/blob/main/SECURITY.md).
