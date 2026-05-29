@@ -6,7 +6,7 @@ import Types.*
 
 import scala.collection.mutable
 
-class Universe(seeds: List[Symbol], rewire: Map[Symbol, Symbol])(using defn: Definitions):
+class Universe(root: Symbol, rewire: Map[Symbol, Symbol], intrinsicDeps: Map[Symbol, List[Symbol]] = Map.empty)(using defn: Definitions):
 
   // ---- worklist state -------------------------------------------------------
 
@@ -15,6 +15,7 @@ class Universe(seeds: List[Symbol], rewire: Map[Symbol, Symbol])(using defn: Def
 
   private def enqueue(sym: Symbol): Unit =
     val resolved = if sym.isFunction then rewire.getOrElse(sym, sym) else sym
+    intrinsicDeps.getOrElse(resolved, Nil).foreach(enqueue)
     if !_live.contains(resolved) && !resolved.hasAnnotation(defn.intrinsic) then
       worklist.enqueue(resolved)
 
@@ -25,7 +26,7 @@ class Universe(seeds: List[Symbol], rewire: Map[Symbol, Symbol])(using defn: Def
   // ---- fixed-point computation ----------------------------------------------
 
   def run(): Set[Symbol] =
-    seeds.foreach(enqueue)
+    enqueue(root)
 
     val _liveClasses  = mutable.Set.empty[Symbol]
     val _deferMethods = mutable.Set.empty[Symbol]
@@ -106,8 +107,8 @@ object Universe:
         case _ =>
           recur(word)
 
-  def filter(units: List[FileUnit], seeds: List[Symbol], rewire: Map[Symbol, Symbol])(using Definitions): List[FileUnit] =
-    filter(units, new Universe(seeds, rewire).run())
+  def filter(units: List[FileUnit], root: Symbol, rewire: Map[Symbol, Symbol], intrinsicDeps: Map[Symbol, List[Symbol]] = Map.empty)(using Definitions): List[FileUnit] =
+    filter(units, new Universe(root, rewire, intrinsicDeps).run())
 
   /** Return a copy of `units` with all unreachable definitions removed.
    *

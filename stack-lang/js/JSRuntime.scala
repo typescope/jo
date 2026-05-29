@@ -97,23 +97,16 @@ class JSRuntime(using defn: Definitions):
   val jo_Ok = Jo.typeMember("Ok")
   val jo_Err = Jo.typeMember("Err")
 
-  // Symbols injected by the code generator that do not appear in the SAST.
-  // js.try injects Ok.new(...)/Err.new(...) at call sites — no SAST New node exists,
-  // so the constructors must be declared as roots explicitly.
-  def extraRoots: List[Symbol] =
-    List(jo_Ok, jo_Err,
-         jo_Ok.termMember(Names.Constructor),
-         jo_Err.termMember(Names.Constructor))
-
-  // Intrinsic String method symbols → runtime replacements.
-  // The codegen substitutes these at emit time; Universe must see the mapping
-  // so it keeps the runtime symbols reachable when the intrinsic is used.
-  def intrinsicRewire: Map[Symbol, Symbol] =
+  // Symbols that become reachable when a given symbol is reached but are not
+  // visible in the SAST (injected by the codegen).
+  def intrinsicDeps: Map[Symbol, List[Symbol]] =
     val strSym = defn.String_type
     Map(
-      strSym.termMember("size")      -> String_size,
-      strSym.termMember("get")       -> String_get,
-      strSym.termMember("substring") -> String_substring,
-      strSym.termMember("indexOf")   -> String_indexOf,
-      strSym.termMember("iterator")  -> String_iterator,
+      strSym.termMember("size")      -> List(String_size),
+      strSym.termMember("get")       -> List(String_get),
+      strSym.termMember("substring") -> List(String_substring),
+      strSym.termMember("indexOf")   -> List(String_indexOf),
+      strSym.termMember("iterator")  -> List(String_iterator),
+      js_try -> List(jo_Ok, jo_Ok.termMember(Names.Constructor),
+                     jo_Err, jo_Err.termMember(Names.Constructor)),
     )

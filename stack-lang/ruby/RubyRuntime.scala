@@ -85,17 +85,13 @@ class RubyRuntime(using defn: Definitions):
   val jo_Ok  = Jo.typeMember("Ok")
   val jo_Err = Jo.typeMember("Err")
 
-  // Symbols injected by the code generator that do not appear in the SAST.
-  // rb.try injects Ok.new(...)/Err.new(...) at call sites — no SAST New node exists,
-  // so the constructors must be declared as roots explicitly.
-  def extraRoots: List[Symbol] =
-    List(jo_Ok, jo_Err,
-         jo_Ok.termMember(Names.Constructor),
-         jo_Err.termMember(Names.Constructor))
-
-  def intrinsicRewire: Map[Symbol, Symbol] =
+  def intrinsicDeps: Map[Symbol, List[Symbol]] =
     val strSym = defn.String_type
-    Map(strSym.termMember("iterator") -> String_iterator)
+    Map(
+      strSym.termMember("iterator") -> List(String_iterator),
+      rb_try -> List(jo_Ok, jo_Ok.termMember(Names.Constructor),
+                     jo_Err, jo_Err.termMember(Names.Constructor)),
+    )
 
   def rbTargetName(sym: Symbol): Option[String] =
     sym.annotation(annot_targetName).map:

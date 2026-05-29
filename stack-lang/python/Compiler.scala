@@ -78,13 +78,12 @@ object Compiler:
         val erasure = new Erasure(primitiveTagged = true)
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView
-        val rewire  = FrontEnd.rewireMap.value ++ pythonRuntime.intrinsicRewire
+        val rewire  = FrontEnd.rewireMap.value
         val codeGen = new PythonCodeGen(pythonRuntime, rewire)
 
         val backend: Step[List[FileUnit], Unit] =
           Step("Backend", (units: List[FileUnit]) =>
-            val roots    = pythonRuntime.start :: pythonRuntime.extraRoots
-            codeGen.generate(Universe.filter(units, roots, rewire), outFile)
+            codeGen.generate(Universe.filter(units, pythonRuntime.start, rewire, pythonRuntime.intrinsicDeps), outFile)
           )
         units               |>
         contextParamsLower  |>
