@@ -75,12 +75,13 @@ object Compiler:
         val erasure = new Erasure(primitiveTagged = true)
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView
-        val codeGen = new RubyCodeGen(rubyRuntime, FrontEnd.rewireMap.value)
+        val rewire  = FrontEnd.rewireMap.value ++ rubyRuntime.intrinsicRewire
+        val codeGen = new RubyCodeGen(rubyRuntime, rewire)
 
         val backend: Step[List[FileUnit], Unit] =
           Step("Backend", (units: List[FileUnit]) =>
             val roots = rubyRuntime.start :: rubyRuntime.extraRoots
-            codeGen.generate(Universe.filter(units, roots, FrontEnd.rewireMap.value), outFile)
+            codeGen.generate(Universe.filter(units, roots, rewire), outFile)
           )
         units               |>
         contextParamsLower  |>
