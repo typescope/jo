@@ -29,6 +29,5 @@ def main =
   println:
     [1, 2, 3, 4, 5]
       .exclude(x => x % 2 == 0)
-      .materialize
       .fold: 0, (acc, x) => acc + x
       .toString

@@ -15,7 +15,7 @@ def main receives IO.stdout =
   for i in l2 if i % 2 == 0 do println i
 
   for
-    i in l2.exclude(i => i % 2  == 0).materialize
+    i in l2.exclude(i => i % 2  == 0)
   do
     println i
 
