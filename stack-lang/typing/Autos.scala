@@ -33,7 +33,7 @@ object Autos:
       candidate match
         case value @ Ast.AutoCandidate.Value(ref) =>
 
-          namer.resolveQualid(ref, Universe.Term) match
+          namer.resolveQualid(ref, SymbolKind.Term) match
             case Some(sym) =>
               if sym.is(Flags.Fun) then
                 // must be delayed after all symbols are forced

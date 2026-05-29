@@ -57,7 +57,7 @@ object Adapters:
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : Option[ParamAdapter] =
 
-    namer.resolveQualid(ref, Universe.Term).flatMap: sym =>
+    namer.resolveQualid(ref, SymbolKind.Term).flatMap: sym =>
       if !sym.is(Flags.Fun) then
         Reporter.error("A reference to function expected, found = " + sym, ref.pos)
         None

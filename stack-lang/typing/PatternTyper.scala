@@ -541,7 +541,7 @@ class PatternTyper(namer: Namer)(using Config):
             given tempReporter: Reporter = rp.fresh(buffer = true)
             // resolveQualid requires a normal scope
             given Scope = sc.outer
-            namer.resolveQualid(id, Universe.Pattern) match
+            namer.resolveQualid(id, SymbolKind.Pattern) match
               case Some(sym) if sym.is(Flags.Fun) =>
                 val procType = sym.tpe.asProcType
                 // parameterless predicates should not interfere with expression typing
@@ -740,7 +740,7 @@ class PatternTyper(namer: Namer)(using Config):
   private def resolvePatternPredicate(id: Ast.RefTree)(using sc: FlowScope, rp: Reporter, so: Source, defn: Definitions): Symbol =
     // resolveQuliad requires a normal scope
     given Scope = sc.outer
-    namer.resolveQualid(id, Universe.Pattern) match
+    namer.resolveQualid(id, SymbolKind.Pattern) match
       case Some(sym) =>
         if sym.is(Flags.Fun) then
           sym

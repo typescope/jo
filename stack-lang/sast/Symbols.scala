@@ -27,7 +27,7 @@ object Symbols:
     */
   case class Annotation(symbol: Symbol, args: List[Constant])
 
-  enum Universe:
+  enum SymbolKind:
     case Term, Type, Pattern, Container, Annot
 
     override def toString: String =
@@ -156,12 +156,6 @@ object Symbols:
       this.info match
         case info: TypeOperatorInfo => info
         case tp => throw new Exception("Not type operator: " + tp)
-
-    def universe: Universe =
-      if this.isTerm then Universe.Term
-      else if this.isPattern then Universe.Pattern
-      else if this.isType then Universe.Type
-      else Universe.Container
 
     def isTopLevel: Boolean = owner == null || owner.isContainer
 

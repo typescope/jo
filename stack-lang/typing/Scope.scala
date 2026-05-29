@@ -112,13 +112,13 @@ enum Scope:
       case Some(sym) =>
         Some(sym.dealias)
 
-  def resolveOpt(name: String, universe: Universe)(using Definitions, OutOfBand): Option[Symbol] =
+  def resolveOpt(name: String, universe: SymbolKind)(using Definitions, OutOfBand): Option[Symbol] =
     universe match
-      case Universe.Term       => resolveTermOpt(name)
-      case Universe.Type       => resolveTypeOpt(name)
-      case Universe.Pattern    => resolvePatternOpt(name)
-      case Universe.Container  => resolveContainerOpt(name)
-      case Universe.Annot      => resolveAnnotationOpt(name)
+      case SymbolKind.Term       => resolveTermOpt(name)
+      case SymbolKind.Type       => resolveTypeOpt(name)
+      case SymbolKind.Pattern    => resolvePatternOpt(name)
+      case SymbolKind.Container  => resolveContainerOpt(name)
+      case SymbolKind.Annot      => resolveAnnotationOpt(name)
 
   def define(sym: Symbol)(using Reporter): Unit =
     table.define(sym)
