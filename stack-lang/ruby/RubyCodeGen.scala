@@ -33,7 +33,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     "for", "while", "def", "class", "if", "else", "elsif", "end",
     "begin", "rescue", "ensure", "case", "when", "unless", "until",
     "loop", "do", "break", "next", "return", "yield", "super", "self",
-    "module", "include", "extend", "require", "puts", "print", "p",
+    "module", "include", "extend", "require", "p",
     "true", "false", "nil", "and", "or", "not", "in", "then"
   )
 
