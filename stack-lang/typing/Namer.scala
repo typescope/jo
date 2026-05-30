@@ -583,8 +583,8 @@ class Namer(using Config) extends Applications with SelectionTyper:
       tt match
         case TargetType.Known(expectedType) =>
           expectedType.widen.dealias match
-            case AppliedType(sym, _) if sym == defn.ArrayBuffer_type =>
-              defn.ArrayBuffer_def
+            case AppliedType(sym, _) if sym == defn.MutableList_type =>
+              defn.MutableList_def
 
             case _ =>
               default

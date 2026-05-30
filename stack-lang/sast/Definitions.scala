@@ -108,9 +108,9 @@ final class Definitions(private var _index: SymbolIndex) extends Definitions.Laz
   val MutableSet_type =  mutable.typeMember("Set")
   val MutableSet_def  =  mutable.termMember("Set")
 
-  // ArrayBuffer
-  val ArrayBuffer_type =  mutable.typeMember("ArrayBuffer")
-  val ArrayBuffer_def  =  mutable.termMember("ArrayBuffer")
+  // Mutable List
+  val MutableList_type =  mutable.typeMember("List")
+  val MutableList_def  =  mutable.termMember("List")
 
   // patterns
   val orPattern  = jo.patternMember("|")
