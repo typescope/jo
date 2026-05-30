@@ -128,8 +128,8 @@ Create: `1 to 10` (inclusive), `1 until 10` (exclusive).
 - `.iterator`: Iterator[Int]
 - Use in `for` loops: `for i in 1 to 10 do ...`
 
-## mutable.ArrayBuffer[T]
-Create: `mutable.ArrayBuffer.empty[T]`, `mutable.ArrayBuffer[1, 2, 3]`.
+## mutable.List[T]
+Create: `mutable.List.empty[T]`, `mutable.List(1, 2, 3)`, `val xs: mutable.List[Int] = [1, 2, 3]`.
 Import: `import jo.mutable`
 - `.size`: Int
 - `.get(i)`: T — element at index
@@ -139,10 +139,11 @@ Import: `import jo.mutable`
 - `.insert(i, x)`: Unit — insert at index
 - `.remove(i)`: T — remove at index, returns removed element
 - `.clear`: Unit — remove all elements
-- `.appendAll(iter)` / `.++=(iter)`: Unit — append from iterator
-- `.fold(zero, f)`: S
+- `.appendAll(iter)` / `.++=(iter)`: Unit — append all elements from iterator
+- `.fold(zero, f)`: S — left fold with `f: (S, T) => S`
 - `.exists(pred)`: Bool
 - `.forall(pred)`: Bool
-- `.toList`: List[T]
-- `.slice(from, len)`: List[T]
+- `.toList`: List[T] — copy to immutable list
+- `.slice(from, len)`: List[T] — copy slice to immutable list
 - `.iterator`: Iterator[T]
+- `.toString`: String — e.g. `[1, 2, 3]`

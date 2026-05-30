@@ -32,7 +32,7 @@ def frameworkMain() =
   val restricted = new UserScopedOrders(userId, db)  // (4)
 
   // Capture AI code output
-  val output: ArrayBuffer[String] = []
+  val output: mutable.List[String] = []
   val buffer = (s: String) => output += s
 
   allow none in // (5)
