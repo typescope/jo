@@ -10,10 +10,10 @@ section Set
         eq: Eq[T] with [[T].==],
         hash: Hash[T] with [[T].hashCode])
   : Set[T] =
-    val buckets = Array.create[List[T]](initialCapacity)
+    val buckets = Array.create[jo.List[T]](initialCapacity)
     var i = 0
     while i < initialCapacity do
-      buckets[i] = List.empty[T]
+      buckets[i] = jo.List.empty[T]
       i = i + 1
     end
     new Set(buckets, 0, eq, hash)
@@ -36,10 +36,10 @@ def Set[T](elems: ..T)
 class Set[T]
   val eq: Eq[T]
   val hash: Hash[T]
-  var buckets: Array[List[T]]
+  var buckets: Array[jo.List[T]]
   var _size: Int
 
-  def Set(buckets: Array[List[T]], size: Int, eq: Eq[T], hash: Hash[T]) =
+  def Set(buckets: Array[jo.List[T]], size: Int, eq: Eq[T], hash: Hash[T]) =
     this.buckets = buckets
     this._size = size
     this.eq = eq
@@ -63,10 +63,10 @@ class Set[T]
   private def rehash(newCapacity: Int): Unit =
     val oldBuckets = buckets
     val oldCapacity = oldBuckets.size
-    val newBuckets = Array.create[List[T]](newCapacity)
+    val newBuckets = Array.create[jo.List[T]](newCapacity)
     var i = 0
     while i < newCapacity do
-      newBuckets[i] = List.empty[T]
+      newBuckets[i] = jo.List.empty[T]
       i = i + 1
     end
 
@@ -118,17 +118,17 @@ class Set[T]
 
   def -=(x: T): Unit = remove x
 
-  def addAll(xs: List[T]): Unit =
+  def addAll(xs: Iterator[T] :- [.iterator]): Unit =
     for x in xs do
       add x
     end
 
-  def ++=(xs: List[T]): Unit = addAll xs
+  def ++=(xs: Iterator[T] :- [.iterator]): Unit = addAll xs
 
   def clear: Unit =
     var i = 0
     while i < capacity do
-      buckets[i] = List.empty[T]
+      buckets[i] = jo.List.empty[T]
       i = i + 1
     end
     _size = 0
@@ -168,8 +168,8 @@ class Set[T]
   def iterator: Iterator[T] =
     this.toList.iterator
 
-  def toList: List[T] =
-    var elements: List[T] = []
+  def toList: jo.List[T] =
+    var elements: jo.List[T] = []
     var i = 0
     while i < capacity do
       val bucket = buckets[i]

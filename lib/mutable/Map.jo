@@ -11,10 +11,10 @@ section Map
         hash: Hash[K] with [[K].hashCode]
       )
   : Map[K, V] =
-    val buckets = Array.create[List[K ~ V]](Map.initialCapacity)
+    val buckets = Array.create[jo.List[K ~ V]](Map.initialCapacity)
     var i = 0
     while i < Map.initialCapacity do
-      buckets[i] = List.empty[K ~ V]
+      buckets[i] = jo.List.empty[K ~ V]
       i = i + 1
     end
     new Map(buckets, 0, eq, hash)
@@ -37,10 +37,10 @@ def Map[K, V](elems: ..Pair[K, V])
 class Map[K, V]
   val eq: Eq[K]
   val hash: Hash[K]
-  var buckets: Array[List[K ~ V]]
+  var buckets: Array[jo.List[K ~ V]]
   var _size: Int
 
-  def Map(buckets: Array[List[K ~ V]], size: Int, eq: Eq[K], hash: Hash[K]) =
+  def Map(buckets: Array[jo.List[K ~ V]], size: Int, eq: Eq[K], hash: Hash[K]) =
     this.buckets = buckets
     this._size = size
     this.eq = eq
@@ -64,10 +64,10 @@ class Map[K, V]
   private def rehash(newCapacity: Int): Unit =
     val oldBuckets = buckets
     val oldCapacity = oldBuckets.size
-    val newBuckets = Array.create[List[K ~ V]](newCapacity)
+    val newBuckets = Array.create[jo.List[K ~ V]](newCapacity)
     var i = 0
     while i < newCapacity do
-      newBuckets[i] = List.empty[K ~ V]
+      newBuckets[i] = jo.List.empty[K ~ V]
       i = i + 1
     end
 
@@ -145,7 +145,7 @@ class Map[K, V]
   def clear: Unit =
     var i = 0
     while i < capacity do
-      buckets[i] = List.empty[K ~ V]
+      buckets[i] = jo.List.empty[K ~ V]
       i = i + 1
     end
     _size = 0
@@ -162,8 +162,8 @@ class Map[K, V]
     end
     acc
 
-  def keys: List[K] =
-    var keys: List[K] = []
+  def keys: jo.List[K] =
+    var keys: jo.List[K] = []
     var i = 0
     while i < capacity do
       val bucket = buckets[i]
@@ -172,8 +172,8 @@ class Map[K, V]
     end
     keys
 
-  def values: List[V] =
-    var values: List[V] = []
+  def values: jo.List[V] =
+    var values: jo.List[V] = []
     var i = 0
     while i < capacity do
       val bucket = buckets[i]
@@ -182,9 +182,9 @@ class Map[K, V]
     end
     values
 
-  def toList: List[K ~ V] =
+  def toList: jo.List[K ~ V] =
     // Convert all buckets to a single list
-    var pairs: List[K ~ V] = []
+    var pairs: jo.List[K ~ V] = []
     var i = 0
     while i < capacity do
       val bucket = buckets[i]
