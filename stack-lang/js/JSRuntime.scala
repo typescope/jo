@@ -20,8 +20,6 @@ class JSRuntime(using defn: Definitions):
   // Map from context parameter fullName to unique global variable name
   val paramIds: mutable.Map[String, String] = mutable.Map.empty
 
-  val runtimeNames = List("console", "process", "String")
-
   /** Get or create a unique global name for a context parameter */
   def getOrCreateParamId(sym: Symbol): String =
     paramIds.getOrElseUpdate(sym.fullName, {

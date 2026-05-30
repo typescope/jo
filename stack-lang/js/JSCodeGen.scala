@@ -46,9 +46,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   // Make keywords unavailable
   for word <- keywords do reservedNames.freshName(word)
 
-  // Make runtime symbols unavailable
-  for name <- runtime.runtimeNames do reservedNames.freshName(name)
-
   private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
 
   val globalScope = reservedNames.newScope(separator = "")

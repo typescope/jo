@@ -28,7 +28,7 @@ class RubyRuntime(using defn: Definitions):
   // Set of required Ruby libraries (emitted as `require "name"` at top of file)
   val requiredLibs: mutable.LinkedHashSet[String] = mutable.LinkedHashSet.empty
 
-  val runtimeNames = List("puts", "print", "ARGV")
+  val runtimeNames = List("ARGV")
 
   /** Get or create a unique global name for a context parameter */
   def getOrCreateParamId(sym: Symbol): String =
