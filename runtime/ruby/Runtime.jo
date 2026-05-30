@@ -9,17 +9,15 @@ import jo.compile.intrinsic
 
 // Typed wrapper for Kernel.raise — fixed-arity, avoids callDynamic vararg.
 private interface RbKernelModule
-  @rb.targetName("raise")
-  def rbRaise(msg: String): Bottom
+  def raise(msg: String): Bottom
 end
 
 def abort(msg: String): Bottom =
-  rb.const("Kernel").cast[RbKernelModule].rbRaise(msg)
+  rb.const("Kernel").cast[RbKernelModule].raise(msg)
 
 // Typed wrapper for Ruby IO objects (STDOUT, STDERR) — fixed-arity print.
 private interface RbIO
-  @rb.targetName("print")
-  def rbPrint(s: String): Unit
+  def print(s: String): Unit
 end
 
 // Embed raw Ruby code at the call site — avoids vararg where no typed
@@ -246,8 +244,8 @@ private def start(): Unit =
   val rbStdout = rb.const("STDOUT").cast[RbIO]
   val rbStderr = rb.const("STDERR").cast[RbIO]
 
-  val stdout: String => Unit = s => rbStdout.rbPrint(s)
-  val stderr: String => Unit = s => rbStderr.rbPrint(s)
+  val stdout: String => Unit = s => rbStdout.print(s)
+  val stderr: String => Unit = s => rbStderr.print(s)
 
   with
     IO.stdin = stdin,

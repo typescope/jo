@@ -125,9 +125,6 @@ class JSRuntime(using defn: Definitions):
       strSym.termMember("substring") -> List(String_substring),
       strSym.termMember("indexOf")   -> List(String_indexOf),
       strSym.termMember("iterator")  -> List(String_iterator),
-      // List.++ is an over-approximation: any use of List.++ (not just interop
-      // splices) will pull in js_array.  Acceptable because List is already
-      // reachable at that point, so js_array adds negligible output size.
       listSym.termMember("++")       -> List(js_array),
       js_try -> List(jo_Ok, jo_Ok.termMember(Names.Constructor),
                      jo_Err, jo_Err.termMember(Names.Constructor)),
