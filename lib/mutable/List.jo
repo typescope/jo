@@ -129,13 +129,13 @@ class List[T]
     _size = 0
 
   //[ Append all elements from `iter`. //]
-  def appendAll(iter: Iterator[T]): Unit =
+  def appendAll(iter: Iterator[T] :- [.iterator]): Unit =
     while iter.hasNext do
       append iter.next()
     end
 
   //[ Append all elements from `iter` (alias for `appendAll`). //]
-  def ++=(iter: Iterator[T]): Unit = appendAll iter
+  def ++=(iter: Iterator[T] :- [.iterator]): Unit = appendAll iter
 
   //[ Reduce to a single value using a left fold with `f: (S, T) => S`. //]
   def fold[S](zero: S, f: (S, T) => S): S =

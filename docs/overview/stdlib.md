@@ -139,7 +139,7 @@ Import: `import jo.mutable`
 - `.insert(i, x)`: Unit — insert at index
 - `.remove(i)`: T — remove at index, returns removed element
 - `.clear`: Unit — remove all elements
-- `.appendAll(iter)` / `.++=(iter)`: Unit — append all elements from iterator
+- `.appendAll(iter)` / `.++=(iter)`: Unit — append all elements from an iterator or any iterable (e.g. another `mutable.List`)
 - `.fold(zero, f)`: S — left fold with `f: (S, T) => S`
 - `.exists(pred)`: Bool
 - `.forall(pred)`: Bool

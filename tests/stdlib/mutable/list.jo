@@ -54,6 +54,51 @@ def main =
   val list = buf3.toList
   println list.size      // 3
 
+  // Test +=
+  val buf3b = mutable.List.empty[Int]
+  buf3b += 7
+  buf3b += 8
+  println buf3b.size     // 2
+  println buf3b.get(0)   // 7
+  println buf3b.get(1)   // 8
+
+  // Test appendAll and ++= with raw iterator
+  val buf3c = mutable.List(1, 2, 3)
+  val buf3d = mutable.List(4, 5, 6)
+  buf3c.appendAll(buf3d.iterator)
+  println buf3c.size     // 6
+  println buf3c.get(3)   // 4
+
+  val buf3e = mutable.List(10, 20)
+  val buf3f = mutable.List(30, 40)
+  buf3e ++= buf3f.iterator
+  println buf3e.size     // 4
+  println buf3e.get(2)   // 30
+
+  // Test appendAll and ++= with iterable (no explicit .iterator call)
+  val buf3g2 = mutable.List(1, 2, 3)
+  val buf3h = mutable.List(4, 5, 6)
+  buf3g2.appendAll(buf3h)
+  println buf3g2.size    // 6
+  println buf3g2.get(4)  // 5
+
+  val buf3i = mutable.List(10, 20)
+  val buf3j = mutable.List(30, 40)
+  buf3i ++= buf3j
+  println buf3i.size     // 4
+  println buf3i.get(3)   // 40
+
+  // Test slice
+  val buf3g = mutable.List(10, 20, 30, 40, 50)
+  val sl1 = buf3g.slice(1, 3)
+  println sl1.size       // 3
+  println sl1.get(0)     // 20
+  println sl1.get(2)     // 40
+  val sl2 = buf3g.slice(3, 100)
+  println sl2.size       // 2
+  val sl3 = buf3g.slice(5, 2)
+  println sl3.size       // 0
+
   // Test clear
   buf3.clear()
   println buf3.size      // 0
