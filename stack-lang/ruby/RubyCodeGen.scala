@@ -9,7 +9,6 @@ import sast.Types.{NamedInfo, Type}
 import ruby.Trees as R
 
 import common.UniqueName
-import common.WorkList
 
 import reporting.Reporter
 
@@ -34,7 +33,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     "for", "while", "def", "class", "if", "else", "elsif", "end",
     "begin", "rescue", "ensure", "case", "when", "unless", "until",
     "loop", "do", "break", "next", "return", "yield", "super", "self",
-    "module", "include", "extend", "require", "puts", "print", "p",
+    "module", "include", "extend", "require", "p",
     "true", "false", "nil", "and", "or", "not", "in", "then"
   )
 
@@ -119,54 +118,23 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
                   baseName
 
             symbol2UniqueName(sym) = uniqueName
-
-            // Add function or class to work list
-            if (sym.isFunction && !sym.owner.isOneOf(Flags.Class | Flags.Interface)) || sym.isClass then
-              workList.add(sym)
-
             uniqueName
 
   //----------------------------------------------------------------------------
   // Compilation
   //----------------------------------------------------------------------------
 
-  val workList = new WorkList[Symbol]
-
   /** Compile a complete set of file units to a Ruby program */
   def compile(units: List[FileUnit]): R.Program =
-    workList.add(runtime.start)
-
-    val funDefMap = mutable.Map.empty[Symbol, FunDef]
-    val classDefMap = mutable.Map.empty[Symbol, ClassDef]
-
-    for
-      unit <- units
-      defn <- unit
-    do
-      defn match
-        case fdef: FunDef =>
-          funDefMap(fdef.symbol) = fdef
-
-        case cdef: ClassDef =>
-          classDefMap(cdef.symbol) = cdef
-
-        case _ =>
-
     val defs = mutable.ArrayBuffer.empty[R.Def]
 
     given UniqueName = globalScope
 
-    // Compile all reachable definitions
-    workList.run: sym =>
-      val defn =
-        if sym.isFunction then
-          compileFunction(funDefMap(sym))
-        else if sym.isClass then
-          compileClass(classDefMap(sym))
-        else
-          throw new Exception("Symbol is neither a function nor class: " + sym)
-
-      defs += defn
+    for unit <- units; defn <- unit do
+      defn match
+        case fdef: FunDef if !fdef.symbol.is(Flags.Object) => defs += compileFunction(fdef)
+        case cdef: ClassDef => defs += compileClass(cdef)
+        case _ =>
 
     // Build the program
     val requireStats: List[R.Tree] =
@@ -543,6 +511,11 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           // rb.isIdentical(a, b) → a.equal?(b)
           val a :: b :: Nil = args: @unchecked
           R.Call(Some(compileExpr(a)), "equal?", List(compileExpr(b)))
+
+        else if sym == runtime.rb_raw then
+          // rbRaw("code") → emit code as a raw Ruby expression
+          val Literal(Constant.String(code)) = args.head: @unchecked
+          R.RawCode(code)
 
         else if sym == runtime.rb_try then
           // rb.try(action): Result[T, Error]

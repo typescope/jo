@@ -143,4 +143,28 @@ def main receives IO.stdout =
   println "  contains 50: \{m2.contains(50)}"
   println ""
 
+  // Test ++= with raw iterator
+  println "=== ++= with raw iterator ==="
+  val m3 = mutable.Map.empty[Int, String]
+  val m4 = mutable.Map.empty[Int, String]
+  m4.add(1, "one")
+  m4.add(2, "two")
+  m3 ++= m4.iterator
+  println "size: \{m3.size}"
+  println "contains 1: \{m3.contains 1}"
+  println "get 2: \{m3.get 2}"
+  println ""
+
+  // Test ++= with iterable (no explicit .iterator call)
+  println "=== ++= with iterable ==="
+  val m5 = mutable.Map.empty[Int, String]
+  val m6 = mutable.Map.empty[Int, String]
+  m6.add(10, "ten")
+  m6.add(20, "twenty")
+  m5 ++= m6
+  println "size: \{m5.size}"
+  println "contains 10: \{m5.contains 10}"
+  println "get 20: \{m5.get 20}"
+  println ""
+
   println "=== All tests completed ==="

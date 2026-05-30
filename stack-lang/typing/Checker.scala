@@ -345,7 +345,7 @@ object Checker:
 
           // Unit adaptation: target accepts Unit but value doesn't conform directly.
           // Warn if the dropped value is a union type, then drop it and append unit.
-          if !Subtyping.conforms(word2.tpe, tpe) && Subtyping.conforms(defn.UnitType, tpe) && (word2.tpe.isValueType || word2.tpe.isVoidType) then
+          if !Subtyping.conforms(word2.tpe, tpe) && Subtyping.conforms(tpe, defn.UnitType) && (word2.tpe.isValueType || word2.tpe.isVoidType) then
             if !canSilentDrop(word2.tpe) then
               Reporter.warn(s"value of type ${word2.tpe.show} is silently dropped; use `val _ = ...` to make the intent explicit", word2.pos)
             val unit = unitValue(word2.span.endPoint)

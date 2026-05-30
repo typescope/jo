@@ -76,6 +76,14 @@ object Subtyping:
     else if tp1.is[LambdaType] && tp2.is[LambdaType] then
       checkConformsLambdaType(tp1.as[LambdaType], tp2.as[LambdaType])
 
+    else if !TypeOps.isGrounded(tp1) then
+      // extension type, duck type, annotation type
+      checkConforms(tp1.dealias, tp2)
+
+    else if !TypeOps.isGrounded(tp2) then
+      // extension type, duck type, annotation type
+      checkConforms(tp1, tp2.dealias)
+
     else
       false
   }
@@ -151,6 +159,7 @@ object Subtyping:
     else
       val proxy2 = tp2.as[ProxyType]
       if TypeOps.isGrounded(proxy2) then
+
         // tp1 must be grouned, otherwise it's a proxy type and it goes to case 1
         if !TypeOps.isGrounded(tp1) then
           recur(tp1.dealias, proxy2)

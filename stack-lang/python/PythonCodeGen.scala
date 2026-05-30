@@ -9,7 +9,6 @@ import sast.Types.{Type, NamedInfo}
 import python.Trees as P
 
 import common.UniqueName
-import common.WorkList
 
 import reporting.Reporter
 
@@ -124,18 +123,12 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
                 baseName
 
             symbol2UniqueName(sym) = uniqueName
-
-            // Add function or class to work list
-            if (sym.isFunction && !sym.owner.isOneOf(Flags.Class | Flags.Interface)) || sym.isClass then
-              workList.add(sym)
-
             uniqueName
 
   //----------------------------------------------------------------------------
   // Compilation
   //----------------------------------------------------------------------------
 
-  val workList = new WorkList[Symbol]
   private val localExitExceptionNames = mutable.Map.empty[Symbol, String]
   private final case class LoopFrame(
     breakLabel: Option[Symbol],
@@ -168,39 +161,15 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   /** Compile a complete set of file units to a Python program */
   def compile(units: List[FileUnit]): P.Program =
-    workList.add(runtime.start)
-
-    val funDefMap = mutable.Map.empty[Symbol, FunDef]
-    val classDefMap = mutable.Map.empty[Symbol, ClassDef]
-
-    for
-      unit <- units
-      defn <- unit
-    do
-      defn match
-        case fdef: FunDef =>
-          funDefMap(fdef.symbol) = fdef
-
-        case cdef: ClassDef =>
-          classDefMap(cdef.symbol) = cdef
-
-        case _ =>
-
     val defs = mutable.ArrayBuffer.empty[P.Def]
 
     given UniqueName = globalScope
 
-    // Compile all reachable definitions
-    workList.run: sym =>
-      val defn =
-        if sym.isFunction then
-          compileFunction(funDefMap(sym))
-        else if sym.isClass then
-          compileClass(classDefMap(sym))
-        else
-          throw new Exception("Symbol is neither a function nor class: " + sym)
-
-      defs += defn
+    for unit <- units; defn <- unit do
+      defn match
+        case fdef: FunDef if !fdef.symbol.is(Flags.Object) => defs += compileFunction(fdef)
+        case cdef: ClassDef => defs += compileClass(cdef)
+        case _ =>
 
     for name <- localExitExceptionNames.values.toList.sorted do
       defs += P.ClassDef(name, Nil, Nil, base = Some("Exception"))

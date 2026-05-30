@@ -1,0 +1,5 @@
+def foo(x: Int, y: Any @shadow): Unit = println x
+
+def anyValue: Any = 3
+
+def main = foo 3 anyValue

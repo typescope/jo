@@ -21,18 +21,18 @@ final class Definitions(private var _index: SymbolIndex) extends Definitions.Laz
   //----------------------------------------------------------------------------
   // Name lookup
 
-  def resolveTerm(path: String): Symbol = resolveStatic(path.split('.').toList, Universe.Term)
-  def resolveType(path: String): Symbol = resolveStatic(path.split('.').toList, Universe.Type)
-  def resolveContainer(path: String): Symbol = resolveStatic(path.split('.').toList, Universe.Container)
+  def resolveTerm(path: String): Symbol = resolveStatic(path.split('.').toList, SymbolKind.Term)
+  def resolveType(path: String): Symbol = resolveStatic(path.split('.').toList, SymbolKind.Type)
+  def resolveContainer(path: String): Symbol = resolveStatic(path.split('.').toList, SymbolKind.Container)
 
-  def resolveStatic(parts: List[String], universe: Universe): Symbol =
+  def resolveStatic(parts: List[String], universe: SymbolKind): Symbol =
     Definitions.resolveStatic(rootNameTable, parts, universe) match
       case Some(sym) => sym
       case None =>
         throw new Exception("[Internal error] cannot find " + parts.mkString("."))
 
-  def resolveTermOpt(path: String): Option[Symbol] = Definitions.resolveStatic(rootNameTable, path.split('.').toList, Universe.Term)
-  def resolveContainerOpt(path: String): Option[Symbol] = Definitions.resolveStatic(rootNameTable, path.split('.').toList, Universe.Container)
+  def resolveTermOpt(path: String): Option[Symbol] = Definitions.resolveStatic(rootNameTable, path.split('.').toList, SymbolKind.Term)
+  def resolveContainerOpt(path: String): Option[Symbol] = Definitions.resolveStatic(rootNameTable, path.split('.').toList, SymbolKind.Container)
 
   //----------------------------------------------------------------------------
   // Definitions.Lazy implementation
@@ -108,9 +108,9 @@ final class Definitions(private var _index: SymbolIndex) extends Definitions.Laz
   val MutableSet_type =  mutable.typeMember("Set")
   val MutableSet_def  =  mutable.termMember("Set")
 
-  // ArrayBuffer
-  val ArrayBuffer_type =  mutable.typeMember("ArrayBuffer")
-  val ArrayBuffer_def  =  mutable.termMember("ArrayBuffer")
+  // Mutable List
+  val MutableList_type =  mutable.typeMember("List")
+  val MutableList_def  =  mutable.termMember("List")
 
   // patterns
   val orPattern  = jo.patternMember("|")
@@ -163,7 +163,7 @@ object Definitions:
     val index: SymbolIndex = new SymbolIndex(rootNameTable, new SymInfoProvider)
     lazy val value: Definitions = new Definitions(index)
 
-  def resolveStatic(nameTable: NameTable, parts: List[String], universe: Universe): Option[Symbol] =
+  def resolveStatic(nameTable: NameTable, parts: List[String], universe: SymbolKind): Option[Symbol] =
     (parts: @unchecked) match
       case name :: Nil =>
         nameTable.resolve(name, universe)

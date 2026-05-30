@@ -28,7 +28,7 @@ class RubyRuntime(using defn: Definitions):
   // Set of required Ruby libraries (emitted as `require "name"` at top of file)
   val requiredLibs: mutable.LinkedHashSet[String] = mutable.LinkedHashSet.empty
 
-  val runtimeNames = List("puts", "print", "ARGV")
+  val runtimeNames = List("ARGV")
 
   /** Get or create a unique global name for a context parameter */
   def getOrCreateParamId(sym: Symbol): String =
@@ -49,7 +49,8 @@ class RubyRuntime(using defn: Definitions):
   val finishBatch = ParamSupport.termMember("finish")
   val paramKey    = ParamSupport.termMember("paramKey")
 
-  val start = Ruby.termMember("start")
+  val start  = Ruby.termMember("start")
+  val rb_raw = Ruby.termMember("rbRaw")
 
   val StringOps      = Ruby.containerMember("StringOps")
   val String_iterator = StringOps.termMember("iterator")
@@ -83,6 +84,24 @@ class RubyRuntime(using defn: Definitions):
   val Jo     = defn.resolveContainer("jo")
   val jo_Ok  = Jo.typeMember("Ok")
   val jo_Err = Jo.typeMember("Err")
+
+  /** Extra symbols that become reachable when a given SAST symbol is reached.
+   *
+   *  - String.iterator: replaced by StringOps.iterator at emit time.
+   *  - List.++: over-approximation of @rb.interop vararg splice sites; any
+   *    use of List.++ pulls in rb_array (acceptable because List is already
+   *    reachable at that point so rb_array adds negligible size).
+   *  - rb.try: codegen constructs Ok/Err directly; no SAST New node exists.
+   */
+  def intrinsicDeps: Map[Symbol, List[Symbol]] =
+    val strSym  = defn.String_type
+    val listSym = defn.List_type
+    Map(
+      strSym.termMember("iterator") -> List(String_iterator),
+      listSym.termMember("++")      -> List(rb_array),
+      rb_try -> List(jo_Ok, jo_Ok.termMember(Names.Constructor),
+                     jo_Err, jo_Err.termMember(Names.Constructor)),
+    )
 
   def rbTargetName(sym: Symbol): Option[String] =
     sym.annotation(annot_targetName).map:

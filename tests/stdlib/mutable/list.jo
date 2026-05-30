@@ -1,6 +1,6 @@
 def main =
   // Test empty and append
-  val buf = mutable.ArrayBuffer.empty[Int]
+  val buf = mutable.List.empty[Int]
   buf.append(1)
   buf.append(2)
   buf.append(3)
@@ -10,7 +10,7 @@ def main =
   println buf.get(2)     // 3
 
   // Test varargs constructor
-  val buf2 = mutable.ArrayBuffer(10, 20, 30)
+  val buf2 = mutable.List(10, 20, 30)
   println buf2.size      // 3
   println buf2.get(1)    // 20
 
@@ -35,7 +35,7 @@ def main =
   println buf2.size      // 4
 
   // Test iterator
-  val buf3 = mutable.ArrayBuffer(1, 2, 3)
+  val buf3 = mutable.List(1, 2, 3)
   var sum = 0
   for x in buf3 do
     sum = sum + x
@@ -54,12 +54,57 @@ def main =
   val list = buf3.toList
   println list.size      // 3
 
+  // Test +=
+  val buf3b = mutable.List.empty[Int]
+  buf3b += 7
+  buf3b += 8
+  println buf3b.size     // 2
+  println buf3b.get(0)   // 7
+  println buf3b.get(1)   // 8
+
+  // Test appendAll and ++= with raw iterator
+  val buf3c = mutable.List(1, 2, 3)
+  val buf3d = mutable.List(4, 5, 6)
+  buf3c.appendAll(buf3d.iterator)
+  println buf3c.size     // 6
+  println buf3c.get(3)   // 4
+
+  val buf3e = mutable.List(10, 20)
+  val buf3f = mutable.List(30, 40)
+  buf3e ++= buf3f.iterator
+  println buf3e.size     // 4
+  println buf3e.get(2)   // 30
+
+  // Test appendAll and ++= with iterable (no explicit .iterator call)
+  val buf3g2 = mutable.List(1, 2, 3)
+  val buf3h = mutable.List(4, 5, 6)
+  buf3g2.appendAll(buf3h)
+  println buf3g2.size    // 6
+  println buf3g2.get(4)  // 5
+
+  val buf3i = mutable.List(10, 20)
+  val buf3j = mutable.List(30, 40)
+  buf3i ++= buf3j
+  println buf3i.size     // 4
+  println buf3i.get(3)   // 40
+
+  // Test slice
+  val buf3g = mutable.List(10, 20, 30, 40, 50)
+  val sl1 = buf3g.slice(1, 3)
+  println sl1.size       // 3
+  println sl1.get(0)     // 20
+  println sl1.get(2)     // 40
+  val sl2 = buf3g.slice(3, 100)
+  println sl2.size       // 2
+  val sl3 = buf3g.slice(5, 2)
+  println sl3.size       // 0
+
   // Test clear
   buf3.clear()
   println buf3.size      // 0
 
   // Test growth (append many elements)
-  val buf4 = mutable.ArrayBuffer.empty[Int]
+  val buf4 = mutable.List.empty[Int]
   var i = 0
   while i < 100 do
     buf4.append(i)
@@ -69,18 +114,18 @@ def main =
   println buf4.get(99)   // 99
 
   // Test toString
-  val buf5 = mutable.ArrayBuffer(1, 2, 3)
+  val buf5 = mutable.List(1, 2, 3)
   println buf5.toString  // [1, 2, 3]
 
-  // Test list literal with ArrayBuffer target type
-  val buf6: mutable.ArrayBuffer[Int] = [10, 20, 30]
+  // Test list literal with mutable.List target type
+  val buf6: mutable.List[Int] = [10, 20, 30]
   println buf6.size      // 3
   println buf6.get(0)    // 10
   buf6.append(40)
   println buf6.size      // 4
 
-  // Test sequence pattern matching on ArrayBuffer
-  val buf7 = mutable.ArrayBuffer(1, 2, 3, 4, 5)
+  // Test sequence pattern matching on mutable.List
+  val buf7 = mutable.List(1, 2, 3, 4, 5)
   match buf7
     case [first, ..middle, last] =>
       println first      // 1
@@ -91,21 +136,21 @@ def main =
   end
 
   // Test empty pattern
-  val buf8 = mutable.ArrayBuffer.empty[Int]
+  val buf8 = mutable.List.empty[Int]
   match buf8
     case [] => println "empty"  // empty
     case _ => println "not empty"
   end
 
   // Test single element pattern
-  val buf9 = mutable.ArrayBuffer(42)
+  val buf9 = mutable.List(42)
   match buf9
     case [x] => println x  // 42
     case _ => println "not single"
   end
 
   // Test head/tail pattern
-  val buf10 = mutable.ArrayBuffer(1, 2, 3)
+  val buf10 = mutable.List(1, 2, 3)
   match buf10
     case [head, ..tail] =>
       println head       // 1

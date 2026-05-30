@@ -2,19 +2,21 @@ namespace jo.mutable
 
 import jo.*
 
-section ArrayBuffer
+//[ Factory methods for `mutable.List`. //]
+section List
   def initialCapacity: Int = 16
 
-  def empty[T]: ArrayBuffer[T] =
-    new ArrayBuffer
+  //[ Create an empty list. //]
+  def empty[T]: List[T] =
+    new List
 
-  private[mutable] class ArrayBufferIterator[T](buffer: ArrayBuffer[T])
+  private[mutable] class ListIterator[T](buf: List[T])
     var index: Int = 0
 
-    def hasNext: Bool = index < buffer.size
+    def hasNext: Bool = index < buf.size
 
     def next: T =
-      val elem = buffer.get index
+      val elem = buf.get index
       index = index + 1
       elem
 
@@ -22,23 +24,26 @@ section ArrayBuffer
   end
 end
 
-// Varargs constructor for array buffer literals
-def ArrayBuffer[T](elems: ..T): ArrayBuffer[T] =
-  val buf = ArrayBuffer.empty[T]
+//[ Create a `mutable.List` from the given elements. //]
+def List[T](elems: ..T): List[T] =
+  val buf = List.empty[T]
   for elem in elems do
     buf.append(elem)
   end
   buf
 
-// Mutable dynamic array implementation
-class ArrayBuffer[T]
+//[ A mutable dynamic array. Supports O(1) indexed access and amortized O(1)
+//  append. Prepend, insert, and remove are O(n).
+//]
+class List[T]
   var _data: Array[T]
   var _size: Int
 
-  def ArrayBuffer() =
-    this._data = Array.create(ArrayBuffer.initialCapacity)
+  def List() =
+    this._data = Array.create(List.initialCapacity)
     this._size = 0
 
+  //[ Number of elements. //]
   def size: Int = _size
 
   private def capacity: Int = _data.size
@@ -58,23 +63,28 @@ class ArrayBuffer[T]
       end
       _data = newData
 
+  //[ Return the element at index `i` (0-based). Aborts if out of bounds. //]
   def get(i: Int): T =
     if i < 0 || i >= _size then
       abort "index out of bounds"
     _data[i]
 
+  //[ Replace the element at index `i` with `v`. Aborts if out of bounds. //]
   def set(i: Int, v: T): Unit =
     if i < 0 || i >= _size then
       abort "index out of bounds"
     _data[i] = v
 
+  //[ Add `x` to the end. Amortized O(1). //]
   def append(x: T): Unit =
     ensureCapacity(_size + 1)
     _data[_size] = x
     _size = _size + 1
 
+  //[ Add `x` to the end (alias for `append`). //]
   def +=(x: T): Unit = append x
 
+  //[ Insert `x` at the front, shifting all elements right. O(n). //]
   def prepend(x: T): Unit =
     ensureCapacity(_size + 1)
     // Shift all elements right
@@ -86,6 +96,7 @@ class ArrayBuffer[T]
     _data[0] = x
     _size = _size + 1
 
+  //[ Insert `x` at index `i`, shifting elements at `i` and beyond right. Aborts if out of bounds. //]
   def insert(i: Int, x: T): Unit =
     if i < 0 || i > _size then
       abort "index out of bounds"
@@ -99,6 +110,7 @@ class ArrayBuffer[T]
     _data[i] = x
     _size = _size + 1
 
+  //[ Remove and return the element at index `i`, shifting later elements left. Aborts if out of bounds. //]
   def remove(i: Int): T =
     if i < 0 || i >= _size then
       abort "index out of bounds"
@@ -112,16 +124,20 @@ class ArrayBuffer[T]
     _size = _size - 1
     removed
 
+  //[ Remove all elements. //]
   def clear: Unit =
     _size = 0
 
-  def appendAll(iter: Iterator[T]): Unit =
+  //[ Append all elements from `iter`. //]
+  def appendAll(iter: Iterator[T] :- [.iterator]): Unit =
     while iter.hasNext do
       append iter.next()
     end
 
-  def ++=(iter: Iterator[T]): Unit = appendAll iter
+  //[ Append all elements from `iter` (alias for `appendAll`). //]
+  def ++=(iter: Iterator[T] :- [.iterator]): Unit = appendAll iter
 
+  //[ Reduce to a single value using a left fold with `f: (S, T) => S`. //]
   def fold[S](zero: S, f: (S, T) => S): S =
     var acc = zero
     var i = 0
@@ -131,6 +147,7 @@ class ArrayBuffer[T]
     end
     acc
 
+  //[ True if at least one element satisfies `pred`. //]
   def exists(pred: T => Bool): Bool =
     var found = false
     var i = 0
@@ -140,6 +157,7 @@ class ArrayBuffer[T]
     end
     found
 
+  //[ True if every element satisfies `pred`. //]
   def forall(pred: T => Bool): Bool =
     var result = true
     var i = 0
@@ -149,11 +167,13 @@ class ArrayBuffer[T]
     end
     result
 
+  //[ Return an iterator over the elements in order. //]
   def iterator: Iterator[T] =
-    new ArrayBuffer.ArrayBufferIterator(this)
+    new List.ListIterator(this)
 
-  def toList: List[T] =
-    var list: List[T] = []
+  //[ Copy all elements into a new immutable `List`. //]
+  def toList: jo.List[T] =
+    var list: jo.List[T] = []
     var i = 0
     while i < _size do
       list = list + _data[i]
@@ -161,10 +181,11 @@ class ArrayBuffer[T]
     end
     list
 
-  def slice(from: Int, len: Int): List[T] =
-    if from >= _size || len <= 0 then List.empty[T]
+  //[ Copy a subrange into a new immutable `List`. Returns empty if `from >= size` or `len <= 0`. //]
+  def slice(from: Int, len: Int): jo.List[T] =
+    if from >= _size || len <= 0 then jo.List.empty[T]
     else
-      var list: List[T] = []
+      var list: jo.List[T] = []
       var i = from
       val limit = if from + len > _size then _size else from + len
       while i < limit do
@@ -173,6 +194,7 @@ class ArrayBuffer[T]
       end
       list
 
+  //[ Return a string representation, e.g. `[1, 2, 3]`. Shows at most 100 elements. //]
   def toString(auto elementShow: Show[T] with [[T].toString]): String =
     // Show at most 100
     var res = "["

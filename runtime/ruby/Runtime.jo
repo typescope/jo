@@ -7,18 +7,38 @@ import jo.compile.intrinsic
 // Predef functions
 //
 
+// Typed wrapper for Kernel.raise — fixed-arity, avoids callDynamic vararg.
+private interface RbKernelModule
+  def raise(msg: String): Bottom
+end
+
 def abort(msg: String): Bottom =
-  rb.const("Kernel").callDynamic("raise", msg)
-  abort "unreachable"
+  rb.const("Kernel").cast[RbKernelModule].raise(msg)
+
+// Typed wrapper for Ruby IO objects (STDOUT, STDERR) — fixed-arity print.
+private interface RbIO
+  def print(s: String): Unit
+end
+
+// Embed raw Ruby code at the call site — avoids vararg where no typed
+// intrinsic exists, without polluting the public rb.jo API.
+@intrinsic
+private def rbRaw(code: String): rb.Dynamic =
+  abort "rbRaw: intrinsified by the Ruby backend"
 
 //------------------------------------------------------------------------------
 //
 // Array operations
 //
 
+private interface RbArrayClass
+  @rb.targetName("new")
+  def arrayNew(size: Int, fill: Any): rb.Dynamic
+end
+
 private section RefArray
   def create[T](size: Int): Array[T] =
-    rb.const("Array").callDynamic("new", size, rb.nil).cast[Array[T]]
+    rb.const("Array").cast[RbArrayClass].arrayNew(size, rb.nil).cast[Array[T]]
 
   def get[T](arr: Array[T], i: Int): T =
     rb.dynamic(arr)[i].cast[T]
@@ -27,10 +47,10 @@ private section RefArray
     rb.dynamic(arr)[i] = v
 
   def size[T](arr: Array[T]): Int =
-    rb.dynamic(arr).callDynamic("length").asInt
+    rb.dynamic(arr).length.asInt
 
   def clone[T](arr: Array[T]): Array[T] =
-    rb.dynamic(arr).callDynamic("dup").cast[Array[T]]
+    rb.dynamic(arr).dup.cast[Array[T]]
 end
 
 //------------------------------------------------------------------------------
@@ -47,18 +67,18 @@ private class StringIterator
   view Iterator[Char]
 
   def hasNext: Bool =
-    match rb.try(rb.dynamic(iter).callDynamic("peek"))
+    match rb.try(rb.dynamic(iter).peek)
       case Ok(_)  => true
       case Err(_) => false
 
   def next: Char receives none =
-    val cp: Int = rb.dynamic(iter).callDynamic("next").asInt
+    val cp: Int = rb.dynamic(iter).next.asInt
     cp.toChar
 end
 
 private section StringOps
   def iterator(str: String): Iterator[Char] receives none =
-    val iter: Any = rb.dynamic(str).callDynamic("each_codepoint")
+    val iter: Any = rb.dynamic(str).each_codepoint
     new StringIterator(iter)
 end
 
@@ -191,13 +211,19 @@ private section ParamSupport
       end
       cur = cur[0]
     end
-    abort("Unbound parameter " + rb.dynamic(key).callDynamic("to_s").asString)
+    abort("Unbound parameter " + rb.dynamic(key).toString)
 
   def startBatch(ctx: Ctx, count: Int): Batch receives none =
-    rb.dynamic(rb.array(ctx)).cast[Batch]
+    val b = rbRaw("[]").cast[rb.Array]
+    b.push(ctx)
+    rb.dynamic(b).cast[Batch]
 
   def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
-    rb.dynamic(batch)[0] = rb.array(rb.dynamic(batch)[0], key, value)
+    val arr = rbRaw("[]").cast[rb.Array]
+    arr.push(rb.dynamic(batch)[0])
+    arr.push(key)
+    arr.push(value)
+    rb.dynamic(batch)[0] = arr
 
   def finish(batch: Batch): Ctx receives none =
     rb.dynamic(batch)[0].cast[Ctx]
@@ -213,13 +239,13 @@ private def start(): Unit =
     rb.const("ARGV").cast[Array[String]]
 
   val stdin: () => String =
-    () => rb.const("STDIN").readline().chomp().asString
+    () => rb.const("STDIN").readline.chomp.asString
 
-  val stdout: String => Unit =
-    s => rb.const("STDOUT").print(s)
+  val rbStdout = rb.const("STDOUT").cast[RbIO]
+  val rbStderr = rb.const("STDERR").cast[RbIO]
 
-  val stderr: String => Unit =
-    s => rb.const("STDERR").print(s)
+  val stdout: String => Unit = s => rbStdout.print(s)
+  val stderr: String => Unit = s => rbStderr.print(s)
 
   with
     IO.stdin = stdin,

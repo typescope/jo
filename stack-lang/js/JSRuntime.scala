@@ -20,8 +20,6 @@ class JSRuntime(using defn: Definitions):
   // Map from context parameter fullName to unique global variable name
   val paramIds: mutable.Map[String, String] = mutable.Map.empty
 
-  val runtimeNames = List("console", "process", "String")
-
   /** Get or create a unique global name for a context parameter */
   def getOrCreateParamId(sym: Symbol): String =
     paramIds.getOrElseUpdate(sym.fullName, {
@@ -85,6 +83,7 @@ class JSRuntime(using defn: Definitions):
   val js_try         = jo_js.termMember("try")
   val js_init        = jo_js.termMember("init")
   val js_array       = jo_js.termMember("array")
+  val js_raw         = JS.termMember("jsRaw")
 
   def jsTargetName(sym: Symbol): Option[String] =
     sym.annotation(annot_targetName).map:
@@ -95,3 +94,36 @@ class JSRuntime(using defn: Definitions):
   val Jo    = defn.resolveContainer("jo")
   val jo_Ok = Jo.typeMember("Ok")
   val jo_Err = Jo.typeMember("Err")
+
+  /** Extra symbols that become reachable when a given SAST symbol is reached.
+   *
+   *  The JS codegen injects calls to runtime helpers at certain SAST sites
+   *  that are invisible to the Universe traverser.  Each entry here says:
+   *  "whenever the key symbol is live, also treat the value symbols as live."
+   *
+   *  - String intrinsics (size, get, …): the @intrinsic String methods are
+   *    replaced by StringOps helpers at emit time; Universe must see the
+   *    mapping so it keeps those helpers reachable.
+   *
+   *  - List.++ : when a List is spliced into a @js.interop vararg call with
+   *    `..list`, the codegen emits `js.array(list)` to convert the Jo List
+   *    to a native JS array before spreading.  List.++ is an over-approximation
+   *    of that site (any List.++ use triggers js_array), but acceptable because
+   *    List is already reachable at that point so js_array adds negligible size.
+   *
+   *  - js.try : the codegen wraps the action in a try/rescue and constructs
+   *    Ok(value) / Err(exception) directly; no SAST New node exists for them.
+   */
+  def intrinsicDeps: Map[Symbol, List[Symbol]] =
+    val strSym  = defn.String_type
+    val listSym = defn.List_type
+    Map(
+      strSym.termMember("size")      -> List(String_size),
+      strSym.termMember("get")       -> List(String_get),
+      strSym.termMember("substring") -> List(String_substring),
+      strSym.termMember("indexOf")   -> List(String_indexOf),
+      strSym.termMember("iterator")  -> List(String_iterator),
+      listSym.termMember("++")       -> List(js_array),
+      js_try -> List(jo_Ok, jo_Ok.termMember(Names.Constructor),
+                     jo_Err, jo_Err.termMember(Names.Constructor)),
+    )

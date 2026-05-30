@@ -137,4 +137,29 @@ def main receives IO.stdout =
   println "  contains 50: \{s2.contains 50}"
   println ""
 
+  // Test ++= with raw iterator
+  println "=== ++= with raw iterator ==="
+  val s3 = mutable.Set.empty[Int]
+  val s4 = mutable.Set.empty[Int]
+  s4.add 10
+  s4.add 20
+  s4.add 30
+  s3 ++= s4.iterator
+  println "size: \{s3.size}"
+  println "contains 10: \{s3.contains 10}"
+  println "contains 30: \{s3.contains 30}"
+  println ""
+
+  // Test ++= with iterable (no explicit .iterator call)
+  println "=== ++= with iterable ==="
+  val s5 = mutable.Set.empty[Int]
+  val s6 = mutable.Set.empty[Int]
+  s6.add 100
+  s6.add 200
+  s5 ++= s6
+  println "size: \{s5.size}"
+  println "contains 100: \{s5.contains 100}"
+  println "contains 200: \{s5.contains 200}"
+  println ""
+
   println "=== All tests completed ==="

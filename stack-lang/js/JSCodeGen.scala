@@ -8,7 +8,6 @@ import sast.Types
 import js.Trees as JS
 
 import common.UniqueName
-import common.WorkList
 
 import reporting.Reporter
 
@@ -47,9 +46,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   // Make keywords unavailable
   for word <- keywords do reservedNames.freshName(word)
 
-  // Make runtime symbols unavailable
-  for name <- runtime.runtimeNames do reservedNames.freshName(name)
-
   private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
 
   val globalScope = reservedNames.newScope(separator = "")
@@ -84,18 +80,11 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
                 baseName
 
             symbol2UniqueName(sym) = uniqueName
-
-            // Add function or class to work list
-            if (sym.isFunction && !sym.owner.isOneOf(Flags.Class | Flags.Interface)) || sym.isClass then
-              workList.add(sym)
-
             uniqueName
 
   //----------------------------------------------------------------------------
   // Compilation
   //----------------------------------------------------------------------------
-
-  val workList = new WorkList[Symbol]
 
   private final case class LoopFrame(
     breakLabel: Option[Symbol],
@@ -124,39 +113,15 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
   /** Compile a complete set of file units to a JavaScript program */
   def compile(units: List[FileUnit]): JS.Program =
-    workList.add(runtime.start)
-
-    val funDefMap = mutable.Map.empty[Symbol, FunDef]
-    val classDefMap = mutable.Map.empty[Symbol, ClassDef]
-
-    for
-      unit <- units
-      defn <- unit
-    do
-      defn match
-        case fdef: FunDef =>
-          funDefMap(fdef.symbol) = fdef
-
-        case cdef: ClassDef =>
-          classDefMap(cdef.symbol) = cdef
-
-        case _ =>
-
     val defs = mutable.ArrayBuffer.empty[JS.Def]
 
     given UniqueName = globalScope
 
-    // Compile all reachable definitions
-    workList.run: sym =>
-      val defn =
-        if sym.isFunction then
-          compileFunction(funDefMap(sym))
-        else if sym.isClass then
-          compileClass(classDefMap(sym))
-        else
-          throw new Exception("Symbol is neither a function nor class: " + sym)
-
-      defs += defn
+    for unit <- units; defn <- unit do
+      defn match
+        case fdef: FunDef if !fdef.symbol.is(Flags.Object) => defs += compileFunction(fdef)
+        case cdef: ClassDef => defs += compileClass(cdef)
+        case _ =>
 
     // Build the program: combine all initialization with the main call
     val initStatements = mutable.ArrayBuffer.empty[JS.Stat]
@@ -784,6 +749,11 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
             (ctorStats ++ argStats :+ bindCtor :+ JS.VarDecl("const", tempName, newExpr), JS.Ident(tempName))
           else
             (ctorStats ++ argStats :+ bindCtor, newExpr)
+
+        else if sym == runtime.js_raw then
+          // jsRaw("code") → emit code as a raw JS expression
+          val Literal(Constant.String(code)) = args.head: @unchecked
+          (Nil, JS.RawCode(code))
 
         else if sym == runtime.paramKey then
           val paramSym = args.head match

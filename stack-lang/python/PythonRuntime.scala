@@ -138,3 +138,21 @@ class PythonRuntime(using defn: Definitions):
   val Jo       = defn.resolveContainer("jo")
   val jo_Ok    = Jo.typeMember("Ok")
   val jo_Err   = Jo.typeMember("Err")
+
+  /** Extra symbols that become reachable when a given SAST symbol is reached.
+   *
+   *  - String.iterator: replaced by StringOps.iterator at emit time.
+   *  - List.++: over-approximation of @py.interop vararg splice sites; any
+   *    use of List.++ pulls in py_list (acceptable because List is already
+   *    reachable at that point so py_list adds negligible size).
+   *  - py.try: codegen constructs Ok/Err directly; no SAST New node exists.
+   */
+  def intrinsicDeps: Map[Symbols.Symbol, List[Symbols.Symbol]] =
+    val strSym  = defn.String_type
+    val listSym = defn.List_type
+    Map(
+      strSym.termMember("iterator") -> List(String_iterator),
+      listSym.termMember("++")      -> List(py_list),
+      py_try -> List(jo_Ok, jo_Ok.termMember(Names.Constructor),
+                     jo_Err, jo_Err.termMember(Names.Constructor)),
+    )

@@ -546,7 +546,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         end match
 
   def resolveQualid
-      (qualid: Ast.RefTree, universe: Universe)
+      (qualid: Ast.RefTree, universe: SymbolKind)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : Option[Symbol] = Debug.trace(s"resolving qualid $qualid", enable = false):
 
@@ -583,8 +583,8 @@ class Namer(using Config) extends Applications with SelectionTyper:
       tt match
         case TargetType.Known(expectedType) =>
           expectedType.widen.dealias match
-            case AppliedType(sym, _) if sym == defn.ArrayBuffer_type =>
-              defn.ArrayBuffer_def
+            case AppliedType(sym, _) if sym == defn.MutableList_type =>
+              defn.MutableList_def
 
             case _ =>
               default
@@ -776,7 +776,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : Ident =
 
-    val paramOpt: Option[Symbol] = resolveQualid(ref, Universe.Term)
+    val paramOpt: Option[Symbol] = resolveQualid(ref, SymbolKind.Term)
 
     def errorSymbol: Symbol =
       TermSymbol.create(ref.name, ErrorType, Flags.Synthetic, Visibility.Default, sc.owner, ref.pos)
@@ -1440,7 +1440,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val seen = mutable.HashSet.empty[Symbol]
 
     astAnnots.flatMap: annot =>
-      resolveQualid(annot.name, Universe.Annot) match
+      resolveQualid(annot.name, SymbolKind.Annot) match
         case None =>
           Nil
 
@@ -2249,7 +2249,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         val extensionsLazy = lazyValue:
           methodEntries.flatMap:
             case (ref: Ast.RefTree, isOverride: Boolean) =>
-              resolveQualid(ref, Universe.Term) match
+              resolveQualid(ref, SymbolKind.Term) match
                 case Some(sym) =>
                   if Extensions.checkMethod(sym, baseType, isOverride, fromAnnotation = false, ref.pos) then
                     Some(sym)
@@ -2259,7 +2259,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
                   None
 
             case ref: Ast.RefTree =>
-              resolveQualid(ref, Universe.Term) match
+              resolveQualid(ref, SymbolKind.Term) match
                 case Some(sym) =>
                   val isOverride = sym.hasAnnotation(defn.shadow)
                   if Extensions.checkMethod(sym, baseType, isOverride, fromAnnotation = true, sym.sourcePos) then
@@ -2277,7 +2277,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         val baseTree = transformValueType(innerTpt)
         val baseType = baseTree.tpe
 
-        resolveQualid(astAnnot.name, Universe.Annot) match
+        resolveQualid(astAnnot.name, SymbolKind.Annot) match
           case None =>
             baseTree  // unknown annotation — silently transparent
 

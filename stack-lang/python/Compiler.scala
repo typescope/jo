@@ -4,6 +4,7 @@ import common.IO
 
 import sast.*
 import sast.Trees.FileUnit
+import sast.Universe
 import phases.*
 
 import reporting.Reporter
@@ -77,10 +78,12 @@ object Compiler:
         val erasure = new Erasure(primitiveTagged = true)
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView
-        val codeGen = new PythonCodeGen(pythonRuntime, FrontEnd.rewireMap.value)
+        val rewire  = FrontEnd.rewireMap.value
+        val codeGen = new PythonCodeGen(pythonRuntime, rewire)
+
         val backend: Step[List[FileUnit], Unit] =
           Step("Backend", (units: List[FileUnit]) =>
-            codeGen.generate(units, outFile)
+            codeGen.generate(Universe.filter(units, pythonRuntime.start, rewire, pythonRuntime.intrinsicDeps), outFile)
           )
         units               |>
         contextParamsLower  |>

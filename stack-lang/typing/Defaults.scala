@@ -114,7 +114,7 @@ object Defaults:
         checkConformsLit(sasLit, paramType)
 
       case ref: Ast.RefTree =>
-        namer.resolveQualid(ref, Universe.Term) match
+        namer.resolveQualid(ref, SymbolKind.Term) match
           case Some(sym) => checkRefDefault(sym, paramType, ref.span)
           case None      => None   // resolveQualid already reported the error
 

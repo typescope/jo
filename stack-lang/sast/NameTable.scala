@@ -58,13 +58,13 @@ extends Denotation:
       case None => Nil
       case Some(sym) => sym :: Nil
 
-  def resolve(name: String, universe: Universe): Option[Symbol] =
+  def resolve(name: String, universe: SymbolKind): Option[Symbol] =
     universe match
-      case Universe.Term       => resolveTerm(name)
-      case Universe.Type       => resolveType(name)
-      case Universe.Pattern    => resolvePattern(name)
-      case Universe.Container  => resolveContainer(name)
-      case Universe.Annot      => resolveAnnotation(name)
+      case SymbolKind.Term       => resolveTerm(name)
+      case SymbolKind.Type       => resolveType(name)
+      case SymbolKind.Pattern    => resolvePattern(name)
+      case SymbolKind.Container  => resolveContainer(name)
+      case SymbolKind.Annot      => resolveAnnotation(name)
 
   def define(sym: Symbol)(using rp: Reporter): Unit =
     assert(!frozen, "Name table is frozen")

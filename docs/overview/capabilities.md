@@ -155,7 +155,7 @@ def frameworkMain() = // (2)!
   val restricted = (days: Int) => db.ordersFor(userId, days) // (4)!
 
   // Capture AI code output
-  val output: ArrayBuffer[String] = []
+  val output: mutable.List[String] = []
   val buffer = (s: String) => output += s
 
   allow none in

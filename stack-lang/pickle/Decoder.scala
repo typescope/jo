@@ -48,11 +48,11 @@ object Decoder:
         val nameRef = nameRefs(index)
         val fullNameParts = getFullNameParts(index)
         sym = nameRef.kind match
-          case Format.Term => defn.resolveStatic(fullNameParts, Universe.Term)
-          case Format.Pattern => defn.resolveStatic(fullNameParts, Universe.Pattern)
-          case Format.Type => defn.resolveStatic(fullNameParts, Universe.Type)
-          case Format.Container => defn.resolveStatic(fullNameParts, Universe.Container)
-          case Format.Annotation => defn.resolveStatic(fullNameParts, Universe.Annot)
+          case Format.Term => defn.resolveStatic(fullNameParts, SymbolKind.Term)
+          case Format.Pattern => defn.resolveStatic(fullNameParts, SymbolKind.Pattern)
+          case Format.Type => defn.resolveStatic(fullNameParts, SymbolKind.Type)
+          case Format.Container => defn.resolveStatic(fullNameParts, SymbolKind.Container)
+          case Format.Annotation => defn.resolveStatic(fullNameParts, SymbolKind.Annot)
 
         externalSymbols(index) = sym
       end if
