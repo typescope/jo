@@ -133,6 +133,14 @@ class Map[K, V]
 
   def add(k: K, v: V): Unit = update k v
 
+  def addAll(pairs: Iterator[K ~ V] :- [.iterator]): Unit =
+    while pairs.hasNext do
+      val p = pairs.next()
+      update p.fst p.snd
+    end
+
+  def ++=(pairs: Iterator[K ~ V] :- [.iterator]): Unit = addAll pairs
+
   def remove(k: K): Unit =
     val index = bucketIndex k
     val oldBucket = buckets[index]
