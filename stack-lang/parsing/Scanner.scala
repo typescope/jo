@@ -153,6 +153,8 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
       case '\''   => charLit().withInfo(indent, Nil)
 
+      case '`'    => regexLit(indent)
+
       case '#'    => taggedLiteral(indent)
 
       case c      =>
@@ -172,6 +174,39 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         else
           error("Unexpected character: " + Character.toString(c), stream.tokenSpan().toPos)
           next()
+
+  private def regexLit(indent: Indent): TokenInfo =
+    val backtickStart = stream.currentOffset - 1
+
+    stream.tokenStart()
+
+    var done = false
+    while stream.hasMore() && !done do
+      val c = stream.curCodePoint()
+      if c == '\n' then
+        error("Regex literal cannot span multiple lines", stream.tokenSpan().toPos)
+        done = true
+      else if c == '\\' then
+        stream.eat()
+        if stream.hasMore() && stream.curCodePoint() != '\n' then stream.eat()
+      else if c == '`' then
+        done = true
+      else
+        stream.eat()
+
+    val content = stream.tokenEnd()
+    val contentSpan = stream.tokenSpan()
+
+    val endOffset =
+      if stream.hasMore() && stream.curCodePoint() == '`' then
+        stream.eat()
+        stream.currentOffset
+      else
+        error("Unclosed regex literal", contentSpan.toPos)
+        contentSpan.endOffset
+
+    val fullSpan = Span(backtickStart, endOffset - backtickStart)
+    TokenInfo(Token.RegexLit(content), fullSpan, indent, Nil)
 
   private def taggedLiteral(indent: Indent): TokenInfo =
     val hashStart = stream.currentOffset - 1

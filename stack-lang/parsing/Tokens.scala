@@ -31,6 +31,7 @@ object Tokens:
       name: WithSpan[String],
       flags: Option[WithSpan[String]],
       source: WithSpan[String])
+    case RegexLit(content: String)
     // Multi-line string tokens (for parser to handle indentation/continuation)
     case StringStart(quoteCount: Int) // """ or """""
     case StringEnd                    // """ or """""
