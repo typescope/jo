@@ -81,4 +81,14 @@ Added 50 elements
   contains 49: true
   contains 50: false
 
+=== ++= with raw iterator ===
+size: 3
+contains 10: true
+contains 30: true
+
+=== ++= with iterable ===
+size: 2
+contains 100: true
+contains 200: true
+
 === All tests completed ===
