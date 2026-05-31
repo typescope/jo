@@ -1,10 +1,10 @@
 def testI =
-  if "ABC" is #r"abc" then
+  if "ABC" is `abc` then
     println "i-off-bad"
   else
     println "i-off-ok"
 
-  if "ABC" is #r[i]"abc" then
+  if "ABC" is `(?i)abc` then
     println "i-on-ok"
   else
     println "i-on-bad"
@@ -12,12 +12,12 @@ def testI =
 def testM =
   val s = "x\nfoo\ny"
 
-  if s is #r"^foo$" then
+  if s is `^foo$` then
     println "m-off-bad"
   else
     println "m-off-ok"
 
-  if s is #r[m]"^foo$" then
+  if s is `(?m)^foo$` then
     println "m-on-ok"
   else
     println "m-on-bad"
@@ -25,12 +25,12 @@ def testM =
 def testS =
   val s = "a\nc"
 
-  if s is #r"a.c" then
+  if s is `a.c` then
     println "s-off-bad"
   else
     println "s-off-ok"
 
-  if s is #r[s]"a.c" then
+  if s is `(?s)a.c` then
     println "s-on-ok"
   else
     println "s-on-bad"
