@@ -2,8 +2,8 @@ import jo.regex.*
 
 def checkError(source: String): String =
   match Regex.compile(source)
-    case _: Regex => source + "\t: valid"
-    case err: String => source + "\t:" + err
+    case Ok(_) => source + "\t: valid"
+    case Err(err) => source + "\t:" + err
 
 def main =
   println "--- class escape / valid outside class ---"

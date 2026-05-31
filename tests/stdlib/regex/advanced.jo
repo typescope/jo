@@ -23,22 +23,22 @@ def testDynamicCompile =
   println "--- regex advanced / dynamic compile ---"
 
   match Regex.compile("\\d+")
-    case d: Regex =>
+    case Ok(d) =>
       println d.matchesExact("123")
       println d.matchesExact("abc")
-    case _: String => pass
+    case _: Err[String] => pass
 
   match Regex.compile("a+?")
-    case r: Regex => printMatch(r.matchFirst("baaa!"))
-    case _: String => pass
+    case Ok(r) => printMatch(r.matchFirst("baaa!"))
+    case _: Err[String] => pass
 
   match Regex.compile("(?si)abc")
-    case r: Regex => println r.toString
-    case _: String => pass
+    case Ok(r) => println r.toString
+    case _: Err[String] => pass
 
   match Regex.compile("(?is)abc")
-    case r: Regex => println r.toString
-    case _: String => pass
+    case Ok(r) => println r.toString
+    case _: Err[String] => pass
 
 def testNamedGroups =
   println "--- regex advanced / named groups ---"

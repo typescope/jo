@@ -228,11 +228,11 @@ section Regex
     ! `source` may begin with an inline `(?ims)` flags prefix.
     ! Returns the compiled `Regex` on success, or an error message `String` on failure.
   //]
-  def compile(source: String): Regex | String =
+  def compile(source: String): Result[Regex, String] =
     val v = new Validator(source)
     match v.validate()
-      case None => compileChecked(v.pat, v.flags)
-      case Some(msg) => msg
+      case None => Ok(compileChecked(v.pat, v.flags))
+      case Some(msg) => Err(msg)
 
   //[ Escape literal text so it matches itself inside a regex.    //]
   def escape(text: String): String =

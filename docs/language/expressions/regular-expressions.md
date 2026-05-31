@@ -178,23 +178,23 @@ println "a  b   c".splitBy(`\s+`)   // [a, b, c]  (runs of whitespace treated as
 ```jo
 val source = "^[A-Za-z_][A-Za-z0-9_]*$"
 match Regex.compile(source)      // validate before compiling
-  case r: Regex =>
+  case Ok(r) =>
     println "name_42".exists(r)     // true
-  case err: String =>
+  case Err(err) =>
     println err                     // human-readable error message
 ```
 
 Dynamic regexes may also use the inline flag prefix:
 
 ```jo
-val r = Regex.compile("(?im)^foo$") rescue err: String => abort err
+val r = Regex.compile("(?im)^foo$") rescue Err(err) => abort err
 ```
 
 If you are inserting literal user text into a dynamic pattern, escape it:
 
 ```jo
 val key = "a+b"
-val r = Regex.compile("^" + Regex.escape(key) + "$") rescue err: String => abort err
+val r = Regex.compile("^" + Regex.escape(key) + "$") rescue Err(err) => abort err
 ```
 
 ## Notes on Portability

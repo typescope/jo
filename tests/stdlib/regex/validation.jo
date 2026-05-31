@@ -6,8 +6,8 @@ def main =
 
 def checkError(source: String): String =
   match Regex.compile(source)
-    case _: Regex => "None"
-    case err: String => "Some(" + err + ")"
+    case Ok(_) => "None"
+    case Err(err) => "Some(" + err + ")"
 
 def testValid =
   println "--- regex validation / valid ---"
