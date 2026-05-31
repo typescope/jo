@@ -70,16 +70,16 @@ class Regex
     var i = 0
     while i < source.size do
       val ch = source[i]
-      if ch == '"' then
-        escaped = escaped + "\\\""
+      if ch == '`' then
+        escaped = escaped + "\\`"
       else
         escaped = escaped + ch
       end
       i = i + 1
     if flags.isEmpty then
-      "#r\"" + escaped + "\""
+      "`" + escaped + "`"
     else
-      "#r[" + flags + "]\"" + escaped + "\""
+      "`(?" + flags + ")" + escaped + "`"
 
   //[ First match in `input`, or `None`.     //]
   def matchFirst(input: String): Match | None =
@@ -191,33 +191,28 @@ class Regex
 end
 
 section Regex
+  //[ Compile from a pre-validated, pre-extracted pattern and flags.
+    !
+    ! This is the compiler-internal entry point for regex literals: the parser
+    ! has already validated the pattern at compile time and extracted the flags
+    ! from any inline `(?ims)` prefix. Callers must not pass the `(?ims)` prefix
+    ! as part of `pattern`.
+  //]
+  def compileChecked(pat: String, flags: String): Regex =
+    val normalized = normalizeShorthands(pat)
+    val groupIndexByName = new Validator(pat).computeGroupIndexByName()
+    new Regex(pat, flags, groupIndexByName, Engine.compilePattern(normalized, flags))
+
   //[ Compile a dynamic regex.
     !
-    ! Validates `source` and `flags`, then aborts on invalid input.
+    ! `source` may begin with an inline `(?ims)` flags prefix.
+    ! Returns the compiled `Regex` on success, or an error message `String` on failure.
   //]
-  def compile(source: String, flags: String = ""): Regex =
-    match checkError(source, flags)
-      case None =>
-        compileValidated(source, flags)
-      case Some(msg) =>
-        abort(msg)
-
-  //[ Assumes `source` and `flags` already satisfy Jo regex validation.
-    !
-    ! This is public so compiler-lowered regex literals can share the same
-    ! normalization and backend compilation path as dynamic regexes.
-  //]
-  def compileValidated(source: String, flags: String): Regex =
-    val normalized = normalizeShorthands(source)
-    val groupIndexByName = new Validator(source, flags).computeGroupIndexByName()
-    new Regex(source, flags, groupIndexByName, Engine.compilePattern(normalized, flags))
-
-  //[ Validate a dynamic regex without aborting.
-    !
-    ! Returns `None` when valid, or `Some(message)` when invalid.
-  //]
-  def checkError(source: String, flags: String = ""): Option[String] =
-    new Validator(source, flags).checkError()
+  def compile(source: String): Regex | String =
+    val v = new Validator(source)
+    match v.validate()
+      case Ok(pat) => compileChecked(pat, v.flags)
+      case Err(msg) => msg
 
   //[ Escape literal text so it matches itself inside a regex.    //]
   def escape(text: String): String =

@@ -2,8 +2,40 @@ namespace jo.regex
 
 import jo.*
 
-private class Validator(source: String, flags: String)
-  private val iter = source.iterator
+// Returns the byte-length of the inline "(?flags)" prefix, or 0 if absent/invalid.
+private def flagsPrefixLen(source: String): Int =
+  if source.size < 4 || source[0] != '(' || source[1] != '?' then
+    0
+  else
+    var i = 2
+    while i < source.size && source[i] != ')' do
+      i = i + 1
+    end
+    if i >= source.size then
+      0
+    else
+      val candidate = source.slice(2, i - 2)
+      var j = 0
+      var allValid = true
+      while allValid && j < candidate.size do
+        val ch = candidate[j]
+        if ch != 'i' && ch != 'm' && ch != 's' then allValid = false
+        j = j + 1
+      end
+      if allValid then i + 1 else 0
+
+private def extractFlags(source: String): String =
+  val prefixLen = flagsPrefixLen(source)
+  if prefixLen > 0 then source.slice(2, prefixLen - 3) else ""
+
+private def stripFlags(source: String): String =
+  val prefixLen = flagsPrefixLen(source)
+  if prefixLen > 0 then source.slice(prefixLen, source.size - prefixLen) else source
+
+private class Validator(source: String)
+  val flags: String = extractFlags(source)
+  private val pat: String = stripFlags(source)
+  private val iter = pat.iterator
   private var i: Int = 0
   private var groupCount: Int = 0
   private var groupIndexByName: Map[String, Int] = Map.empty
@@ -40,24 +72,28 @@ private class Validator(source: String, flags: String)
       end
     end
 
-  def checkError(): Option[String] =
+  //[ Validate source (which may include an inline `(?ims)` prefix).
+    ! Returns `Ok(pat)` where `pat` is the extracted pattern on success,
+    ! or `Err(msg)` on failure.
+  //]
+  def validate(): Result[String, String] =
     match validateFlags()
       case Some(msg) =>
-        Some(msg)
+        Err(msg)
       case None =>
         match parseAlternation(true)
           case Some(msg) =>
-            Some(msg)
+            Err(msg)
           case None =>
             if !atEnd() then
-              Some("Unexpected character '" + peek() + "' at position " + i)
+              Err("Unexpected character '" + peek() + "' at position " + i)
             else
-              None
+              Ok(pat)
 
   def computeGroupIndexByName(): Map[String, Int] =
-    match checkError()
-      case None => groupIndexByName
-      case Some(msg) => abort(msg)
+    match validate()
+      case Ok(_) => groupIndexByName
+      case Err(msg) => abort(msg)
 
   private def validateFlags(): Option[String] =
     var seenI = false
@@ -186,8 +222,6 @@ private class Validator(source: String, flags: String)
               None
       else if ch == '[' then
         parseCharClass()
-      else if ch == '\\' then
-        parseEscape()
       else if ch == ')' || ch == ']' || ch == '*' || ch == '+' || ch == '?' || ch == '{' then
         Some("Unexpected character '" + ch + "' at position " + i)
       else

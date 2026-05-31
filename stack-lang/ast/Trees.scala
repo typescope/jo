@@ -250,7 +250,7 @@ object Trees:
   extends Pattern:
     assert(isQualid(fun), "ApplyPattern constructor must be a valid qualid: " + fun)
 
-  /** Regex pattern: #r"...", or binder form m#r"..." */
+  /** Regex pattern: `...`, or binder form m @ `...` */
   case class RegexPattern
     (binder: Option[Ident], regex: RegexLit)
     (val span: Span)

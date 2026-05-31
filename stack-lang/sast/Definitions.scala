@@ -88,7 +88,7 @@ final class Definitions(private var _index: SymbolIndex) extends Definitions.Laz
   // Regex
   val regex = resolveContainer("jo.regex")
   val Regex_sec = regex.containerMember("Regex")
-  val Regex_compileValidated = Regex_sec.termMember("compileValidated")
+  val Regex_compileChecked = Regex_sec.termMember("compileChecked")
   val Regex_Match_type = regex.typeMember("Match")
 
   // Maps
