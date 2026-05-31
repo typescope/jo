@@ -291,7 +291,7 @@ atom_pattern = integer
 
 simple_pattern = atom_pattern
                | name ":" type                                  -- type_pattern
-               | name "@" simple_pattern                        -- bind_pattern (@ regex_literal binds Match)
+               | name "@" simple_pattern                        -- bind_pattern
                | SP operator NS atom_pattern                    -- apply_pattern
 
 
