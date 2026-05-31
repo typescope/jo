@@ -31,9 +31,11 @@ import jo.*
   ! - `\b` = boundary between `\w` and `\W` (ASCII word chars only)
   ! - `\B` = non-boundary (between two `\w` or two `\W` chars)
   !
-  ! Portability note for `\b`, `\B`, `\D`, `\W`, `\S`:
+  ! Portability note for `\b`, `\B`:
   ! - Portable only for ASCII input. Behavior on Unicode text (e.g. whether
   !   accented letters count as word characters) is not guaranteed across backends.
+  ! - `\D`, `\W`, `\S` are normalized before backend compilation and therefore
+  !   always carry ASCII semantics regardless of the backend.
   !
   ! Important match semantics:
   ! - group `0` is the whole match

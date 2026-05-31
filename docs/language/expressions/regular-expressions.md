@@ -67,9 +67,9 @@ Jo-defined shorthands (ASCII only):
 | `\b`   | word boundary — transition between `\w` and `\W` |
 | `\B`   | non-word boundary — between two `\w` or two `\W` characters |
 
-`\d`, `\w`, `\s` and their upper-case negations are expanded by Jo before backend compilation, so they behave identically across all backends. `\b` and `\B` are handled by each backend but have consistent ASCII semantics.
+`\d`, `\w`, `\s` and their upper-case negations (`\D`, `\W`, `\S`) are expanded by Jo before backend compilation, so they behave identically across all backends. `\b` and `\B` are passed through to the backend as-is; all backends use ASCII word-boundary semantics in practice, but this is not enforced by normalization.
 
-**Portability note:** `\b`, `\B`, `\D`, `\W`, `\S` are portable for ASCII input only. Behavior on Unicode text (for example, whether accented letters count as word characters) is not guaranteed to be consistent across backends.
+**Portability note:** `\b` and `\B` are portable for ASCII input only. Behavior on Unicode text (for example, whether accented letters count as word characters) is not guaranteed to be consistent across backends. `\D`, `\W`, and `\S` are not affected by this: they are expanded by Jo before backend compilation and always carry ASCII semantics.
 
 ### Restriction: no shorthands inside `[...]`
 
