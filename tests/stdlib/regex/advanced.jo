@@ -16,26 +16,34 @@ def main =
 
 def testToStringEscapes =
   println "--- regex advanced / toString escapes ---"
-  println #r"\""
-  println #r"\\n"
+  println `\``
+  println `\\n`
 
 def testDynamicCompile =
   println "--- regex advanced / dynamic compile ---"
 
-  val d = Regex.compile("\\d+")
-  println d.matchesExact("123")
-  println d.matchesExact("abc")
+  match Regex.compile("\\d+")
+    case d: Regex =>
+      println d.matchesExact("123")
+      println d.matchesExact("abc")
+    case _: String => pass
 
-  val lazy = Regex.compile("a+?", "")
-  printMatch(lazy.matchFirst("baaa!"))
+  match Regex.compile("a+?")
+    case r: Regex => printMatch(r.matchFirst("baaa!"))
+    case _: String => pass
 
-  println Regex.compile("abc", "si").toString
-  println Regex.compileValidated("abc", "is").toString
+  match Regex.compile("(?si)abc")
+    case r: Regex => println r.toString
+    case _: String => pass
+
+  match Regex.compile("(?is)abc")
+    case r: Regex => println r.toString
+    case _: String => pass
 
 def testNamedGroups =
   println "--- regex advanced / named groups ---"
 
-  if #r"(?<word>\w+)-(?<num>\d+)".matchFirst("abc-42") is m: Match then
+  if `(?<word>\w+)-(?<num>\d+)`.matchFirst("abc-42") is m: Match then
     println m["word"]
     println m["num"]
     println m.getOpt("word")
@@ -43,24 +51,24 @@ def testNamedGroups =
 def testOptionalAndEmptyCaptures =
   println "--- regex advanced / captures ---"
 
-  if #r"(a*)".matchFirst("") is m1: Match then
+  if `(a*)`.matchFirst("") is m1: Match then
     println m1.isGroupMatched(1)
     println m1[1]
 
-  if #r"(a)?".matchFirst("") is m2: Match then
+  if `(a)?`.matchFirst("") is m2: Match then
     println m2.isGroupMatched(1)
 
 def testZeroWidthCases =
   println "--- regex advanced / zero width ---"
 
-  println #r"".matchAll("abc").size
+  println ``.matchAll("abc").size
 
-  val parts1 = #r"^".split("abc")
+  val parts1 = `^`.split("abc")
   println parts1.size
   println parts1[0]
   println parts1[1]
 
-  val parts2 = #r"$".split("abc")
+  val parts2 = `$`.split("abc")
   println parts2.size
   println parts2[0]
   println parts2[1]

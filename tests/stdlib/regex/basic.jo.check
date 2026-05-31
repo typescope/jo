@@ -1,6 +1,6 @@
 --- regex literal / toString ---
-#r"\d+"
-#r[is]"a.*b"
+`\d+`
+`(?is)a.*b`
 --- regex matching ---
 true
 false

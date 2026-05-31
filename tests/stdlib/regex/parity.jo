@@ -17,20 +17,20 @@ def main =
 def testNamedGroups =
   println "--- regex parity / named groups ---"
 
-  if #r"(?<x>a)(?<y>b)".matchFirst("ab") is m1: Match then
+  if `(?<x>a)(?<y>b)`.matchFirst("ab") is m1: Match then
     println m1[1]
     println m1[2]
     println m1["x"]
     println m1["y"]
 
-  if #r"^(?<x>a)?b$".matchFirst("b") is m2: Match then
+  if `^(?<x>a)?b$`.matchFirst("b") is m2: Match then
     println m2.isGroupMatched("x")
     println m2.getOpt("x")
 
-  if #r"^(?<x>a)*$".matchFirst("aaa") is m3: Match then
+  if `^(?<x>a)*$`.matchFirst("aaa") is m3: Match then
     println m3["x"]
 
-  if #r"(?<outer>(?<inner>a)b)".matchFirst("ab") is m4: Match then
+  if `(?<outer>(?<inner>a)b)`.matchFirst("ab") is m4: Match then
     println m4[1]
     println m4[2]
     println m4["outer"]
@@ -39,7 +39,7 @@ def testNamedGroups =
 def testUnicodeInput =
   println "--- regex parity / unicode input ---"
 
-  val words = #r"\w+".matchAll("😀ab😺cd")
+  val words = `\w+`.matchAll("😀ab😺cd")
   println words.size
   println words[0]
   println words[0].from
@@ -48,9 +48,9 @@ def testUnicodeInput =
   println words[1].from
   println words[1].length
 
-  printMatch(#r".".matchFirst("😀"))
+  printMatch(`.`.matchFirst("😀"))
 
-  if #r"abc".matchFirst("😀abc😀") is m: Match then
+  if `abc`.matchFirst("😀abc😀") is m: Match then
     println m[0]
     println m.from
     println m.length
@@ -58,7 +58,7 @@ def testUnicodeInput =
 def testZeroWidth =
   println "--- regex parity / zero width ---"
 
-  val empty = #r"".matchAll("😀a")
+  val empty = ``.matchAll("😀a")
   println empty.size
   println empty[0].from
   println empty[0].length
@@ -67,27 +67,27 @@ def testZeroWidth =
   println empty[2].from
   println empty[2].length
 
-  val parts = "😀a".splitBy(#r"")
+  val parts = "😀a".splitBy(``)
   println parts.size
   println parts[0]
   println parts[1]
   println parts[2]
 
-  println "abc".replaceAll(#r"", _ => "-")
+  println "abc".replaceAll(``, _ => "-")
 
 def testFlagMWithoutS =
   println "--- regex parity / m without s ---"
-  println #r[m]"^a.c$".matchesExact("a\nc")
-  println #r[ms]"^a.c$".matchesExact("a\nc")
+  println `(?m)^a.c$`.matchesExact("a\nc")
+  println `(?ms)^a.c$`.matchesExact("a\nc")
 
 def testLazyQuantifiers =
   println "--- regex parity / lazy quantifiers ---"
 
-  if #r"(a+?)(a+)".matchFirst("aaaa") is m1: Match then
+  if `(a+?)(a+)`.matchFirst("aaaa") is m1: Match then
     println m1[0]
     println m1[1]
     println m1[2]
 
-  if #r"(a{1,2}?)(a+)".matchFirst("aaaa") is m2: Match then
+  if `(a{1,2}?)(a+)`.matchFirst("aaaa") is m2: Match then
     println m2[1]
     println m2[2]
