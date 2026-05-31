@@ -109,8 +109,8 @@ For `[1, 2, 3, -1, 4]`, this binds `positives = [1, 2, 3]` and `rest = [-1, 4]`.
 Regex patterns excel at text parsing:
 
 ```jo
-// enable option "s" to allow . to match new line
-if message is #r[s]"<code>(?<prog>.*)</code>" then
+// dotall flag: . also matches newline
+if message is `(?s)<code>(?<prog>.*)</code>` then
   println prog
 ```
 

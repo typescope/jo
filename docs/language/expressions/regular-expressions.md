@@ -1,27 +1,27 @@
 # Regular Expressions
 
-Jo supports regular expression literals similar to Ruby and JavaScript.
+Jo supports regular expression literals using backtick syntax.
 
 ## Literal Syntax
 
-Regex literals use tagged literal syntax:
+Regex literals are written between backticks:
 
 ```jo
-#r"\d+"
-#r[im]"^foo$"
+`\d+`
+`(?im)^foo$`
 ```
 
-- `#r"pattern"`: no flags
-- `#r[flags]"pattern"`: flags are one or more of `i`, `m`, `s` (no duplicates)
+- `` `pattern` ``: no flags
+- `` `(?flags)pattern` ``: optional inline flag prefix `(?ims)` at the start
 
-Regex literals are raw regex payloads:
-
-- interpolation (`\{...}`) is not supported
-- a literal `"` must be written as `\"`
+Inside a regex literal:
+- backslash sequences are passed through verbatim to the regex engine (no string-style escaping)
+- a literal backtick must be written as `` \` ``
+- literals must fit on a single line
 
 ## Flags
 
-Jo supports three flags:
+Jo supports three flags, written as an inline prefix `(?flags)`:
 
 - `i` (case-insensitive): letter matching ignores case
 - `m` (multiline anchors): `^` and `$` match line boundaries, not only whole-string boundaries
@@ -30,9 +30,9 @@ Jo supports three flags:
 Examples:
 
 ```jo
-println "ABC".exists(#r[i]"abc")              // true  (case-insensitive: A matches a)
-println "x\nfoo\ny".matchFirst(#r[m]"^foo$")  // foo  (^ matches start of line, not string)
-println "a\nc".exists(#r[s]"^a.c$")           // true  (. matches the \n newline)
+println "ABC".exists(`(?i)abc`)              // true  (case-insensitive: A matches a)
+println "x\nfoo\ny".matchFirst(`(?m)^foo$`)  // foo  (^ matches start of line, not string)
+println "a\nc".exists(`(?s)^a.c$`)           // true  (. matches the \n newline)
 ```
 
 ## Supported Regex Subset
@@ -83,12 +83,12 @@ Unsupported in current version:
 
 ```jo
 // Full-string match (use anchors)
-println "123".exists(#r"^\d+$")   // true
-println "a1".exists(#r"^\d+$")    // false
+println "123".exists(`^\d+$`)   // true
+println "a1".exists(`^\d+$`)    // false
 
 // Partial match
-println "abc123".exists(#r"\d+")   // true
-println "hello".exists(#r"\d+")    // false
+println "abc123".exists(`\d+`)   // true
+println "hello".exists(`\d+`)    // false
 ```
 
 ### Find the first match
@@ -96,7 +96,7 @@ println "hello".exists(#r"\d+")    // false
 Returns `Match | None`. Both indexed and named access are supported:
 
 ```jo
-if "abc-42".matchFirst(#r"(?<word>\w+)-(?<num>\d+)") is Some(m) then
+if "abc-42".matchFirst(`(?<word>\w+)-(?<num>\d+)`) is Some(m) then
   println m[0]        // "abc-42"  (whole match, group 0)
   println m[1]        // "abc"     (group 1 by index)
   println m["word"]   // "abc"     (group 1 by name)
@@ -106,7 +106,7 @@ if "abc-42".matchFirst(#r"(?<word>\w+)-(?<num>\d+)") is Some(m) then
 ### Find all matches
 
 ```jo
-val ms = "ab12cd34".matchAll(#r"\d+")   // List[Match]
+val ms = "ab12cd34".matchAll(`\d+`)   // List[Match]
 println ms[0].text      // "12"   (matched text)
 println ms[0].from      // 2      (start offset, in code points)
 println ms[0].length    // 2      (match length, in code points)
@@ -117,37 +117,39 @@ println ms[1].text      // "34"
 
 ```jo
 // callback receives each Match and returns the replacement String
-println "a1b22c333".replaceAll(#r"\d+", _ => "N")                               // "aNbNcN"
-println "hello world".replaceFirst(#r"(\w+)\s+(\w+)", m => m[2] + " " + m[1])   // "world hello"
+println "a1b22c333".replaceAll(`\d+`, _ => "N")                               // "aNbNcN"
+println "hello world".replaceFirst(`(\w+)\s+(\w+)`, m => m[2] + " " + m[1])  // "world hello"
 ```
 
 ### Split by regex
 
 ```jo
-println "a:b:c".splitBy(#r":")        // [a, b, c]
-println "a  b   c".splitBy(#r"\s+")   // [a, b, c]  (runs of whitespace treated as one delimiter)
+println "a:b:c".splitBy(`:`)        // [a, b, c]
+println "a  b   c".splitBy(`\s+`)   // [a, b, c]  (runs of whitespace treated as one delimiter)
 ```
 
 ### Build regexes dynamically
 
 ```jo
 val source = "^[A-Za-z_][A-Za-z0-9_]*$"
-match Regex.checkError(source)      // validate before compiling
-  case None =>
-    val r = Regex.compile(source)
+match Regex.compile(source)      // validate before compiling
+  case r: Regex =>
     println "name_42".exists(r)     // true
-  case Some(err) =>
+  case err: String =>
     println err                     // human-readable error message
 ```
 
-`Regex.compile` aborts at runtime if the pattern or flags are invalid. Use
-`Regex.checkError` first when the input is untrusted.
+Dynamic regexes may also use the inline flag prefix:
+
+```jo
+val r = Regex.compile("(?im)^foo$") rescue err: String => abort err
+```
 
 If you are inserting literal user text into a dynamic pattern, escape it:
 
 ```jo
 val key = "a+b"
-val r = Regex.compile("^" + Regex.escape(key) + "$")
+val r = Regex.compile("^" + Regex.escape(key) + "$") rescue err: String => abort err
 ```
 
 ## Notes on Portability

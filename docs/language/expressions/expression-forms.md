@@ -14,7 +14,7 @@ Words are the smallest expression units. No space is allowed between a word and 
 | Character literal | `'a'`, `'\n'` |
 | String literal | `"hello"` |
 | List literal | `[1, 2, 3]`, `[]` |
-| Regex literal | `#r"\d+"`, `#r[i]"pattern"` |
+| Regex literal | `` `\d+` ``, `` `(?i)pattern` `` |
 | Identifier | `x`, `myVar` |
 | Fence | `(expr)` |
 | New expression | `new Point(1, 2)` |

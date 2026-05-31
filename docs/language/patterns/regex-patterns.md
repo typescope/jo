@@ -13,15 +13,15 @@ Regex pattern support has two forms:
 1. Plain regex pattern:
 
 ```jo
-if date is #r"^(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})$" then
+if date is `^(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})$` then
   ...
 ```
 
-2. Bound match-result regex pattern:
+2. Bound match-result regex pattern (using `@`):
 
 ```jo
 match date
-  case m#r"^(\d{4})-(\d{2})-(\d{2})$" =>
+  case m @ `^(\d{4})-(\d{2})-(\d{2})$` =>
     ...
   case _ =>
     ...
@@ -33,7 +33,7 @@ The two forms can be combined: a bound-result pattern can also contain named
 groups, giving access to both `m` and the individual group bindings:
 
 ```jo
-if input is m#r"^(?<name>\w+)(?:-(?<tag>\w+))?$" then
+if input is m @ `^(?<name>\w+)(?:-(?<tag>\w+))?$` then
   println name                    // named group binding
   println m.isGroupMatched("tag") // Match for optional-group check
 ```
@@ -45,14 +45,14 @@ Regex pattern matching uses **search semantics** (equivalent to
 
 - The scrutinee must have type `String`.
 - A regex pattern succeeds iff a first match exists.
-- A plain pattern `#r"..."` only tests success/failure.
-- A bound pattern `m#r"..."` additionally binds `m: Match`.
+- A plain pattern `` `...` `` only tests success/failure.
+- A bound pattern `` m @ `...` `` additionally binds `m: Match`.
 
 ## Binding Semantics
 
 ### Match Binder
 
-In `m#r"..."`:
+In `` m @ `...` ``:
 
 - `m` is bound only on successful match
 - `m` is available in flow-typed scope (`if` then-branch / matching case body)
@@ -64,7 +64,7 @@ Named groups are introduced as bindings in both `is` expressions and `match` cas
 `is` expression:
 
 ```jo
-if date is #r"^(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})$" then
+if date is `^(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})$` then
   new Date(y.toInt, m.toInt, d.toInt)
 else
   ...
@@ -74,7 +74,7 @@ else
 
 ```jo
 match date
-  case #r"^(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})$" =>
+  case `^(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})$` =>
     new Date(y.toInt, m.toInt, d.toInt)
   case _ =>
     abort "Invalid date"
@@ -103,47 +103,40 @@ Let:
 Synthesized temporaries (`_scrut`, `_m`) are compiler-generated and are **not**
 added to user-visible flow scope.
 
-### 1. Plain regex pattern: `#r"..."`
+### 1. Plain regex pattern: `` `...` ``
 
 #### a) No named groups
 
 ```text
-_scrut if #r"...".matchFirst(_scrut) is _: Match
+_scrut if `...`.matchFirst(_scrut) is _: Match
 ```
 
 #### b) Has named groups
 
 ```text
-(_scrut if #r"...".matchFirst(_scrut) is _m: Match)
+(_scrut if `...`.matchFirst(_scrut) is _m: Match)
 &
 (g1 = _m.getOrEmpty("g1"), g2 = _m.getOrEmpty("g2"), ...)
 ```
 
-### 2. Bound regex pattern: `m#r"..."`
+### 2. Bound regex pattern: `` m @ `...` ``
 
 #### a) No named groups
 
 ```text
-_scrut if #r"...".matchFirst(_scrut) is m: Match
+_scrut if `...`.matchFirst(_scrut) is m: Match
 ```
 
 #### b) Has named groups
 
 ```text
-(_scrut if #r"...".matchFirst(_scrut) is m: Match)
+(_scrut if `...`.matchFirst(_scrut) is m: Match)
 &
 (g1 = m.getOrEmpty("g1"), g2 = m.getOrEmpty("g2"), ...)
 ```
 
 `getOrEmpty(name)` is a method on `Match` that returns the captured group
 text when the group participated, or `""` when it did not.
-
-## Spacing Rule for Binder Syntax
-
-To avoid ambiguity, binder syntax requires no space between the name and the literal:
-
-- `m#r"..."` — regex binder form
-- `m #r"..."` — not binder syntax (space breaks the binding)
 
 ## Scope and Flow Typing
 
@@ -158,8 +151,8 @@ This applies to both:
 
 Examples:
 
-- `s is m#r"..." && m.length > 0`  — `m.length` is code-point length of the whole match
-- `s is #r"(?<y>\d+)" && y.toInt > 0`
+- `` s is m @ `...` && m.length > 0 `` — `m.length` is code-point length of the whole match
+- `` s is `(?<y>\d+)` && y.toInt > 0 ``
 
 See:
 
@@ -171,7 +164,7 @@ See:
 ### `is` expression
 
 ```jo
-if date is #r"^(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})$" then
+if date is `^(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})$` then
   new Date(y.toInt, m.toInt, d.toInt)
 else
   abort "Invalid date"
@@ -181,7 +174,7 @@ else
 
 ```jo
 match date
-  case m#r"^(\d{4})-(\d{2})-(\d{2})$" =>
+  case m @ `^(\d{4})-(\d{2})-(\d{2})$` =>
     new Date(m[1].toInt, m[2].toInt, m[3].toInt)
   case _ =>
     abort "Invalid date"
@@ -190,15 +183,15 @@ match date
 ### Extract LLM-generated code block
 
 ```jo
-// enable option "s" to allow . to match new line
-if message is #r[s]"<code>(?<prog>.*)</code>" then
+// dotall flag: . also matches newline
+if message is `(?s)<code>(?<prog>.*)</code>` then
   println prog
 ```
 
 ### Optional named group handling
 
 ```jo
-if input is m#r"^(?<name>\w+)(?:-(?<tag>\w+))?$" then
+if input is m @ `^(?<name>\w+)(?:-(?<tag>\w+))?$` then
   if m.isGroupMatched("tag") then
     println tag
   else
