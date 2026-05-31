@@ -2,7 +2,6 @@ namespace jo.regex
 
 import jo.*
 
-// Returns the byte-length of the inline "(?flags)" prefix, or 0 if absent/invalid.
 private def flagsPrefixLen(source: String): Int =
   if source.size < 4 || source[0] != '(' || source[1] != '?' then
     0
@@ -24,76 +23,48 @@ private def flagsPrefixLen(source: String): Int =
       end
       if allValid then i + 1 else 0
 
-private def extractFlags(source: String): String =
-  val prefixLen = flagsPrefixLen(source)
-  if prefixLen > 0 then source.slice(2, prefixLen - 3) else ""
-
-private def stripFlags(source: String): String =
-  val prefixLen = flagsPrefixLen(source)
-  if prefixLen > 0 then source.slice(prefixLen, source.size - prefixLen) else source
-
 private class Validator(source: String)
-  val flags: String = extractFlags(source)
-  private val pat: String = stripFlags(source)
-  private val iter = pat.iterator
+  val flags: String =
+    val prefixLen = flagsPrefixLen(source)
+    if prefixLen > 0 then source.slice(2, prefixLen - 3) else ""
+
+  val pat: String =
+    val prefixLen = flagsPrefixLen(source)
+    if prefixLen > 0 then source.slice(prefixLen, source.size - prefixLen) else source
+
   private var i: Int = 0
   private var groupCount: Int = 0
   private var groupIndexByName: Map[String, Int] = Map.empty
-  private var initialized = false
-  private var hasCurrent = false
-  private var current = 0x0000.toChar
 
-  private def ensureInit(): Unit =
-    if !initialized then
-      initialized = true
-      if iter.hasNext then
-        hasCurrent = true
-        current = iter.next
-      else
-        hasCurrent = false
+  private def atEnd(): Bool = i >= pat.size
 
-  private def atEnd(): Bool =
-    ensureInit()
-    !hasCurrent
-
-  private def peek(): Char =
-    ensureInit()
-    current
+  private def peek(): Char = pat[i]
 
   private def advance(): Unit =
-    ensureInit()
-    if hasCurrent then
-      i = i + 1
-      if iter.hasNext then
-        current = iter.next
-        hasCurrent = true
-      else
-        hasCurrent = false
-      end
-    end
+    if i < pat.size then i = i + 1
 
-  //[ Validate source (which may include an inline `(?ims)` prefix).
-    ! Returns `Ok(pat)` where `pat` is the extracted pattern on success,
-    ! or `Err(msg)` on failure.
+  //[ Validate the pattern and flags.
+    ! Returns `Ok(pat)` on success or `Err(message)` on failure.
   //]
-  def validate(): Result[String, String] =
+  def validate(): Option[String] =
     match validateFlags()
-      case Some(msg) =>
-        Err(msg)
+      case res @ Some(msg) => res
+
       case None =>
         match parseAlternation(true)
-          case Some(msg) =>
-            Err(msg)
+          case res @ Some(msg) => res
+
           case None =>
             if !atEnd() then
-              Err("Unexpected character '" + peek() + "' at position " + i)
-            else
-              Ok(pat)
+              Some("Unexpected character '" + peek() + "' at position " + i)
 
-  def computeGroupIndexByName(): Map[String, Int] =
-    match validate()
-      case Ok(_) => groupIndexByName
-      case Err(msg) => abort(msg)
+            else
+              None
+
+  //[ Parse group names from a pre-validated pattern without re-validating.  //]
+  def parseGroups(): Map[String, Int] =
+    val _ = parseAlternation(true)
+    groupIndexByName
 
   private def validateFlags(): Option[String] =
     var seenI = false
@@ -222,6 +193,8 @@ private class Validator(source: String)
               None
       else if ch == '[' then
         parseCharClass()
+      else if ch == '\\' then
+        parseEscape()
       else if ch == ')' || ch == ']' || ch == '*' || ch == '+' || ch == '?' || ch == '{' then
         Some("Unexpected character '" + ch + "' at position " + i)
       else
