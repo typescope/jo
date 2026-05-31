@@ -62,9 +62,15 @@ object Regex:
     if content.startsWith("(?") then
       val close = content.indexOf(')')
       if close >= 2 then
-        val flags     = content.substring(2, close)
-        val prefixLen = close + 1   // "(?...)" length; all ASCII → chars = bytes
-        (content.substring(prefixLen), flags, prefixLen)
+        val flags = content.substring(2, close)
+        // Only treat as a flags prefix when every char is a recognised flag letter.
+        // If any char is not a flag letter (e.g. `(?=a)`, `(?<name>...)`), leave
+        // the content unchanged so the pattern validator sees and diagnoses it.
+        if flags.forall(AllowedFlags.contains) then
+          val prefixLen = close + 1   // "(?...)" length; all ASCII → chars = bytes
+          (content.substring(prefixLen), flags, prefixLen)
+        else
+          (content, "", 0)
       else
         (content, "", 0)
     else
