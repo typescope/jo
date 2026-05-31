@@ -61,9 +61,7 @@ class SystemImpl
     else
       val now = time.time().toInt
       val bootInfo = subprocess.checkOutput(py.list("sysctl", "-n", "kern.boottime"))
-      match #r"sec = (\d+)".matchFirst(bootInfo)
-        case m: Match => now - m[1].toInt
-        case None => 0
+      if bootInfo is `.*(?<n>\d+).*` then n.toInt else 0
 
   def platform(): String = py.module("platform").system().asString.toLower
 
@@ -84,9 +82,9 @@ class SystemImpl
       val vmStatOut = subprocess.checkOutput(py.list("vm_stat"))
       val vmLines = vmStatOut.lines
       val firstLine = vmLines[0]
-      val pageSize = match #r"page size of (\d+)".matchFirst(firstLine)
-        case m: Match => m[1].toInt
-        case None => 4096
+
+      val pageSize = if firstLine is `.*page size of (?<n>\d+).*` then n.toInt else 4096
+
       val count = vmLines.size
       var freePages = 0
       var i = 1
