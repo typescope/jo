@@ -23,7 +23,7 @@ class ProcessImpl
     output.trim.lines.size - 1  // Subtract header line
 
   def findByName(processName: String): Int =
-    val proc = subprocess.run(py.list("pgrep", "-n", processName))
+    val proc = subprocess.run("pgrep", "-n", processName)
     val rc = proc.returncode
     val out = proc.stdout.trim
     if rc != 0 || out.size == 0 then
@@ -154,7 +154,8 @@ end
 //]
 class AlerterImpl(scriptPath: String)
   def trigger(subject: String, body: String): Unit =
-    val _ = subprocess.run(py.list(scriptPath, subject, body))
+    if os.path.exists(scriptPath) then
+      val _ = subprocess.run(scriptPath, subject, body)
 
   view SystemAPI.Alerter
 end

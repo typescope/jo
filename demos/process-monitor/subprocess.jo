@@ -31,5 +31,5 @@ def checkOutputShell(cmd: String): String =
   module.check_output(cmd, shell = true, encoding = "utf-8").asString
 
 //[ Run a command, capturing stdout and stderr as strings.   //]
-def run(args: py.List): CompletedProcess =
-  module.run(args, capture_output = true, text = true).cast[CompletedProcess]
+def run(prog: String, args: ..String): CompletedProcess =
+  module.run(py.list(prog, ..args), capture_output = true, text = true).cast[CompletedProcess]
