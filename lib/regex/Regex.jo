@@ -20,13 +20,20 @@ import jo.*
   ! - lazy quantifiers `*?`, `+?`, `??`, `{n,m}?`, `{n,}?`
   ! - anchors `^`, `$`
   ! - shorthand escapes `\d`, `\D`, `\w`, `\W`, `\s`, `\S`
+  ! - word-boundary assertions `\b`, `\B`
   !
-  ! Jo-defined shorthand semantics:
+  ! Jo-defined shorthand semantics (ASCII subset only):
   ! - `\d` = `[0-9]`
   ! - `\w` = `[A-Za-z0-9_]`
   ! - `\s` = ASCII whitespace only: space, tab, newline, carriage return,
   !   form feed, vertical tab
   ! - upper-case variants are the corresponding negations
+  ! - `\b` = boundary between `\w` and `\W` (ASCII word chars only)
+  ! - `\B` = non-boundary (between two `\w` or two `\W` chars)
+  !
+  ! Portability note for `\b`, `\B`, `\D`, `\W`, `\S`:
+  ! - Portable only for ASCII input. Behavior on Unicode text (e.g. whether
+  !   accented letters count as word characters) is not guaranteed across backends.
   !
   ! Important match semantics:
   ! - group `0` is the whole match
@@ -43,14 +50,18 @@ import jo.*
   ! Not supported:
   ! - back references
   ! - Unicode classes such as `\p{...}`
-  ! - word-boundary escapes `\b`, `\B`
   ! - lookaround
   ! - atomic groups
   ! - possessive quantifiers
   ! - inline mode modifiers
   !
-  ! Portability note:
-  ! - `\d`, `\w`, `\s` are normalized by Jo before backend compilation
+  ! Normalization note:
+  ! - `\d`, `\w`, `\s` (and their upper-case negations outside `[...]`) are
+  !   expanded by Jo before backend compilation, ensuring consistent ASCII semantics.
+  ! - `\b`, `\B`, `\D`, `\W`, `\S` are passed to the backend as-is and are
+  !   not supported inside `[...]`.
+  ! - `\b`, `\B`, `\D`, `\W`, `\S` inside a character class `[...]` are
+  !   a compile-time error.
 //]
 class Regex
   val source: String

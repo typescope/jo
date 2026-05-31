@@ -194,7 +194,7 @@ private class Validator(source: String)
       else if ch == '[' then
         parseCharClass()
       else if ch == '\\' then
-        parseEscape()
+        parseEscape(inClass = false)
       else if ch == ')' || ch == ']' || ch == '*' || ch == '+' || ch == '?' || ch == '{' then
         Some("Unexpected character '" + ch + "' at position " + i)
       else
@@ -214,7 +214,7 @@ private class Validator(source: String)
         closed = true
         advance()
       else if ch == '\\' then
-        match parseEscape()
+        match parseEscape(inClass = true)
           case Some(msg) => return Some(msg)
           case None => pass
         end
@@ -226,7 +226,7 @@ private class Validator(source: String)
     if closed then None
     else Some("Unclosed character class at position " + (i - 1))
 
-  private def parseEscape(): Option[String] =
+  private def parseEscape(inClass: Bool): Option[String] =
     advance()
     if atEnd() then
       Some("Dangling escape at end of pattern")
@@ -247,6 +247,12 @@ private class Validator(source: String)
           end
         end
         err
+      else if inClass && (ch == 'b' || ch == 'B') then
+        advance()
+        Some("\\b and \\B are not supported inside a character class at position " + (i - 2))
+      else if inClass && (ch == 'D' || ch == 'W' || ch == 'S') then
+        advance()
+        Some("\\D, \\W, \\S are not supported inside a character class at position " + (i - 2))
       else if !isSupportedEscape(ch) then
         Some("Unsupported escape at position " + (i - 1))
       else
@@ -310,6 +316,7 @@ private class Validator(source: String)
     ch == '(' || ch == ')' || ch == '[' || ch == ']' ||
     ch == '{' || ch == '}' || ch == '|' || ch == '\\' ||
     ch == 'n' || ch == 'r' || ch == 't' || ch == 'f' ||
+    ch == 'b' || ch == 'B' ||
     ch == 'd' || ch == 'D' || ch == 'w' || ch == 'W' ||
     ch == 's' || ch == 'S'
   )

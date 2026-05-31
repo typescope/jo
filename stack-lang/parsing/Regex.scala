@@ -201,7 +201,7 @@ object Regex:
             parseCharClass()
 
           case '\\' =>
-            parseEscape()
+            parseEscape(inClass = false)
 
           case ')' | ']' | '*' | '+' | '?' | '{' =>
             error(s"Unexpected character '${curChar}' in regex", atSpan(rawSpan, offset, curByteLen).toPos)
@@ -225,7 +225,7 @@ object Regex:
             advance()
 
           case '\\' =>
-            parseEscape()
+            parseEscape(inClass = true)
 
           case _ =>
             advance()
@@ -234,7 +234,7 @@ object Regex:
       if !closed then
         error("Unclosed character class in regex", atSpan(rawSpan, classStart, 1).toPos)
 
-    private def parseEscape(): Unit =
+    private def parseEscape(inClass: Boolean): Unit =
       val escapePos = offset
       advance()
       if atEnd then
@@ -258,6 +258,12 @@ object Regex:
                 advance()
               if !atEnd && curChar == '}' then
                 advance()
+          else if inClass && (ch == 'b' || ch == 'B') then
+            error("\\b and \\B are not supported inside a character class in regex", atSpan(rawSpan, escapePos, escLen).toPos)
+            advance()
+          else if inClass && (ch == 'D' || ch == 'W' || ch == 'S') then
+            error("\\D, \\W, \\S are not supported inside a character class in regex", atSpan(rawSpan, escapePos, escLen).toPos)
+            advance()
           else if !isSupportedEscape(ch) then
             error("Unsupported escape in regex literal", atSpan(rawSpan, escapePos, escLen).toPos)
             advance()
@@ -303,6 +309,7 @@ object Regex:
       ch == '(' || ch == ')' || ch == '[' || ch == ']' ||
       ch == '{' || ch == '}' || ch == '|' || ch == '\\' ||
       ch == 'n' || ch == 'r' || ch == 't' || ch == 'f' ||
+      ch == 'b' || ch == 'B' ||
       ch == 'd' || ch == 'D' || ch == 'w' || ch == 'W' ||
       ch == 's' || ch == 'S'
 

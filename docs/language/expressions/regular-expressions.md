@@ -52,18 +52,46 @@ Jo intentionally supports a conservative portable subset:
     - lazy: `*?`, `+?`, `??`, `{n,m}?`, `{n,}?`
 - anchors: `^`, `$`
 - shorthands: `\d`, `\D`, `\w`, `\W`, `\s`, `\S`
+- word-boundary assertions: `\b`, `\B`
 
-Jo-defined shorthands:
+Jo-defined shorthands (ASCII only):
 
-- `\d` = `[0-9]`
-- `\w` = `[A-Za-z0-9_]`
-- `\s` = ASCII whitespace (` `, `\t`, `\n`, `\r`, `\f`, vertical tab)
+| Escape | Meaning |
+|--------|---------|
+| `\d`   | `[0-9]` |
+| `\w`   | `[A-Za-z0-9_]` |
+| `\s`   | ASCII whitespace: space, `\t`, `\n`, `\r`, `\f`, vertical tab |
+| `\D`   | `[^0-9]` |
+| `\W`   | `[^A-Za-z0-9_]` |
+| `\S`   | any non-whitespace character (ASCII whitespace complement) |
+| `\b`   | word boundary — transition between `\w` and `\W` |
+| `\B`   | non-word boundary — between two `\w` or two `\W` characters |
 
-Unsupported in current version:
+`\d`, `\w`, `\s` and their upper-case negations are expanded by Jo before backend compilation, so they behave identically across all backends. `\b` and `\B` are handled by each backend but have consistent ASCII semantics.
+
+**Portability note:** `\b`, `\B`, `\D`, `\W`, `\S` are portable for ASCII input only. Behavior on Unicode text (for example, whether accented letters count as word characters) is not guaranteed to be consistent across backends.
+
+### Restriction: no shorthands inside `[...]`
+
+`\b`, `\B`, `\D`, `\W`, `\S` are **not allowed inside a character class** and produce a compile-time error:
+
+```jo
+`[\b]`   // error: \b and \B are not supported inside a character class
+`[\D]`   // error: \D, \W, \S are not supported inside a character class
+```
+
+Use the shorthand outside the character class instead:
+
+```jo
+`\D`   // instead of [\D]
+`\W`   // instead of [\W]
+`\S`   // instead of [\S]
+```
+
+Unsupported:
 
 - back references
 - Unicode classes such as `\p{...}`
-- word-boundary escapes `\b`, `\B`
 - lookaround
 - atomic groups
 - possessive quantifiers
@@ -93,14 +121,26 @@ println "hello".exists(`\d+`)    // false
 
 ### Find the first match
 
-Returns `Match | None`. Both indexed and named access are supported:
+`matchFirst` returns `Match | None`. Both indexed and named group access are supported:
 
 ```jo
-if "abc-42".matchFirst(`(?<word>\w+)-(?<num>\d+)`) is Some(m) then
-  println m[0]        // "abc-42"  (whole match, group 0)
-  println m[1]        // "abc"     (group 1 by index)
-  println m["word"]   // "abc"     (group 1 by name)
-  println m["num"]    // "42"      (group 2 by name; always String)
+match "abc-42".matchFirst(`(?<word>\w+)-(?<num>\d+)`)
+  case m: Match =>
+    println m[0]        // "abc-42"  (whole match, group 0)
+    println m[1]        // "abc"     (group 1 by index)
+    println m["word"]   // "abc"     (group 1 by name)
+    println m["num"]    // "42"      (group 2 by name; always String)
+  case None =>
+    println "no match"
+```
+
+### Whole-word matching with `\b`
+
+```jo
+val word = `\bfoo\b`
+println word.matchFirst("foo")     is _: Match   // true  — exact word
+println word.matchFirst("foobar")  is None       // true  — not a whole word
+println word.matchFirst("a foo b") is _: Match   // true  — surrounded by non-word chars
 ```
 
 ### Find all matches
@@ -111,6 +151,13 @@ println ms[0].text      // "12"   (matched text)
 println ms[0].from      // 2      (start offset, in code points)
 println ms[0].length    // 2      (match length, in code points)
 println ms[1].text      // "34"
+```
+
+Extract all words using `\b`:
+
+```jo
+val words = `\b\w+\b`.matchAll("one two three").map(_.text)
+// ["one", "two", "three"]
 ```
 
 ### Replace text
@@ -154,6 +201,7 @@ val r = Regex.compile("^" + Regex.escape(key) + "$") rescue err: String => abort
 
 ## Notes on Portability
 
-- Jo normalizes `\d`, `\w`, `\s` before backend compilation.
-- Positions (`from`, `length`) are defined in code points.
-- Zero-width behavior for `matchAll`, `replaceAll`, and `splitBy` is defined by Jo and does not depend on host defaults.
+- `\d`, `\w`, `\s` and their upper-case negations are expanded by Jo before backend compilation, ensuring identical behavior on all backends.
+- `\b` and `\B` are passed to the backend as-is; all backends treat them as ASCII word boundaries.
+- Positions (`from`, `length`) are in code points.
+- Zero-width behavior for `matchAll`, `replaceAll`, and `splitBy` is defined by Jo and does not depend on host-engine defaults.
