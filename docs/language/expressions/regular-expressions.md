@@ -180,6 +180,7 @@ val source = "^[A-Za-z_][A-Za-z0-9_]*$"
 match Regex.compile(source)      // validate before compiling
   case Ok(r) =>
     println "name_42".exists(r)     // true
+
   case Err(err) =>
     println err                     // human-readable error message
 ```
@@ -187,14 +188,14 @@ match Regex.compile(source)      // validate before compiling
 Dynamic regexes may also use the inline flag prefix:
 
 ```jo
-val r = Regex.compile("(?im)^foo$") rescue Err(err) => abort err
+val r = Regex.compile("(?im)^foo$") rescue Err(m) => abort m
 ```
 
 If you are inserting literal user text into a dynamic pattern, escape it:
 
 ```jo
 val key = "a+b"
-val r = Regex.compile("^" + Regex.escape(key) + "$") rescue Err(err) => abort err
+val r = Regex.compile("^" + Regex.escape(key) + "$") rescue Err(m) => abort m
 ```
 
 ## Notes on Portability

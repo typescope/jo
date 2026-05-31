@@ -180,7 +180,7 @@ Within a module or namespace the types are already in scope, so the raw union is
 def createUser(name: String, email: String | None): User = ...
 
 createUser("Alice", "alice@example.com")   // raw String, no wrapping
-createUser("Bob", None)                    // explicit absence
+createUser("Bob", email = None)            // explicit absence
 ```
 
 A value of type `T` is a subtype of `T | None` in Jo, so callers who hold a concrete `T` pass it directly without wrapping in `Some(...)`. `Option[String]` as the parameter type would force callers to write `Some("alice@example.com")` for no benefit.
