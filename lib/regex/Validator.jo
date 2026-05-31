@@ -2,62 +2,82 @@ namespace jo.regex
 
 import jo.*
 
-private class Validator(source: String, flags: String)
-  private val iter = source.iterator
+private def flagsPrefixLen(source: String): Int =
+  if source.size < 4 || source[0] != '(' || source[1] != '?' then
+    0
+  else
+    var i = 2
+    while i < source.size && source[i] != ')' do
+      i = i + 1
+    end
+    if i >= source.size then
+      0
+    else
+      val candidate = source.slice(2, i - 2)
+      var j = 0
+      var allValid = true
+      while allValid && j < candidate.size do
+        val ch = candidate[j]
+        if ch != 'i' && ch != 'm' && ch != 's' then allValid = false
+        j = j + 1
+      end
+      if allValid then i + 1 else 0
+
+private class Validator(source: String)
+  val flags: String =
+    val prefixLen = flagsPrefixLen(source)
+    if prefixLen > 0 then source.slice(2, prefixLen - 3) else ""
+
+  val pat: String =
+    val prefixLen = flagsPrefixLen(source)
+    if prefixLen > 0 then source.slice(prefixLen, source.size - prefixLen) else source
+
   private var i: Int = 0
   private var groupCount: Int = 0
   private var groupIndexByName: Map[String, Int] = Map.empty
-  private var initialized = false
-  private var hasCurrent = false
-  private var current = 0x0000.toChar
+  private val whitespaceBody: String = " \t\n\r\f" + 0x000B.toChar
+  private var normalizedOut: String = ""
+  private var normalizedPos: Int = 0
 
-  private def ensureInit(): Unit =
-    if !initialized then
-      initialized = true
-      if iter.hasNext then
-        hasCurrent = true
-        current = iter.next
-      else
-        hasCurrent = false
+  private def atEnd(): Bool = i >= pat.size
 
-  private def atEnd(): Bool =
-    ensureInit()
-    !hasCurrent
-
-  private def peek(): Char =
-    ensureInit()
-    current
+  private def peek(): Char = pat[i]
 
   private def advance(): Unit =
-    ensureInit()
-    if hasCurrent then
-      i = i + 1
-      if iter.hasNext then
-        current = iter.next
-        hasCurrent = true
-      else
-        hasCurrent = false
-      end
-    end
+    if i < pat.size then i = i + 1
 
-  def checkError(): Option[String] =
+  //[ Validate the pattern and flags.
+    ! Returns `Ok(pat)` on success or `Err(message)` on failure.
+  //]
+  def validate(): Option[String] =
     match validateFlags()
-      case Some(msg) =>
-        Some(msg)
+      case res @ Some(msg) => res
+
       case None =>
         match parseAlternation(true)
-          case Some(msg) =>
-            Some(msg)
+          case res @ Some(msg) => res
+
           case None =>
             if !atEnd() then
               Some("Unexpected character '" + peek() + "' at position " + i)
+
             else
               None
 
-  def computeGroupIndexByName(): Map[String, Int] =
-    match checkError()
-      case None => groupIndexByName
-      case Some(msg) => abort(msg)
+  //[ Parse group names from a pre-validated pattern without re-validating.
+    !
+    ! Also builds `normalizedPat` as a side effect.
+  //]
+  def parseGroups(): Map[String, Int] =
+    val _ = parseAlternation(true)
+    groupIndexByName
+
+  //[ The pattern with shorthands expanded to their ASCII equivalents.
+    !
+    ! Available after `validate()` or `parseGroups()` has been called.
+  //]
+  def normalizedPat: String =
+    normalizedOut + pat.slice(normalizedPos, pat.size - normalizedPos)
 
   private def validateFlags(): Option[String] =
     var seenI = false
@@ -187,7 +207,7 @@ private class Validator(source: String, flags: String)
       else if ch == '[' then
         parseCharClass()
       else if ch == '\\' then
-        parseEscape()
+        parseEscape(inClass = false)
       else if ch == ')' || ch == ']' || ch == '*' || ch == '+' || ch == '?' || ch == '{' then
         Some("Unexpected character '" + ch + "' at position " + i)
       else
@@ -207,7 +227,7 @@ private class Validator(source: String, flags: String)
         closed = true
         advance()
       else if ch == '\\' then
-        match parseEscape()
+        match parseEscape(inClass = true)
           case Some(msg) => return Some(msg)
           case None => pass
         end
@@ -219,7 +239,7 @@ private class Validator(source: String, flags: String)
     if closed then None
     else Some("Unclosed character class at position " + (i - 1))
 
-  private def parseEscape(): Option[String] =
+  private def parseEscape(inClass: Bool): Option[String] =
     advance()
     if atEnd() then
       Some("Dangling escape at end of pattern")
@@ -240,10 +260,38 @@ private class Validator(source: String, flags: String)
           end
         end
         err
+      else if inClass && (ch == 'b' || ch == 'B') then
+        advance()
+        Some("\\b and \\B are not supported inside a character class at position " + (i - 2))
+      else if inClass && (ch == 'D' || ch == 'W' || ch == 'S') then
+        advance()
+        Some("\\D, \\W, \\S are not supported inside a character class at position " + (i - 2))
       else if !isSupportedEscape(ch) then
         Some("Unsupported escape at position " + (i - 1))
       else
-        advance()
+        val escapePos = i - 1
+
+        if ch == 'd' || ch == 'w' || ch == 's' || ch == 'D' || ch == 'W' || ch == 'S' then
+          val exp =
+            if ch == 'd' then
+              if inClass then "0-9" else "[0-9]"
+            else if ch == 'D' then
+              "[^0-9]"
+            else if ch == 'w' then
+              if inClass then "A-Za-z0-9_" else "[A-Za-z0-9_]"
+            else if ch == 'W' then
+              "[^A-Za-z0-9_]"
+            else if ch == 's' then
+              if inClass then whitespaceBody else "[" + whitespaceBody + "]"
+            else
+              "[^" + whitespaceBody + "]"
+          normalizedOut = normalizedOut + pat.slice(normalizedPos, escapePos - normalizedPos)
+          normalizedOut = normalizedOut + exp
+          advance()
+          normalizedPos = i
+        else
+          advance()
+
         None
 
   private def parseBounds(): Option[String] =
@@ -303,6 +351,7 @@ private class Validator(source: String, flags: String)
     ch == '(' || ch == ')' || ch == '[' || ch == ']' ||
     ch == '{' || ch == '}' || ch == '|' || ch == '\\' ||
     ch == 'n' || ch == 'r' || ch == 't' || ch == 'f' ||
+    ch == 'b' || ch == 'B' ||
     ch == 'd' || ch == 'D' || ch == 'w' || ch == 'W' ||
     ch == 's' || ch == 'S'
   )

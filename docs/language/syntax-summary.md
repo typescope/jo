@@ -32,8 +32,8 @@ regex_name_start = letter | "_"
 regex_name_tail = letter | digit | "_"
 regex_name = regex_name_start {regex_name_tail}
 
-regex_literal = "#r" [ "[" regex_flags {regex_flags} "]" ] "\"" {regex_part} "\""
-regex_part = any character and escape, except end quote
+regex_literal = "`" [ "(" "?" regex_flags {regex_flags} ")" ] {regex_part} "`"
+regex_part = any character and escape, except closing backtick (use "\`" for literal backtick)
 
 escape_sequence = "\\" ("n" | "r" | "t" | "b" | "f" | "\\" | "\"" | "'" |
                   "u" "{" hex_digit {hex_digit} "}")
@@ -104,18 +104,19 @@ Underscores (`_`) can be used in number literals to improve readability. They ar
 
 ### Regex Literals
 
-Regex literals use tagged-literal syntax:
+Regex literals use backtick syntax:
 
-- `#r"pattern"`
-- `#r[flags]"pattern"`
+- `` `pattern` ``
+- `` `(?flags)pattern` ``
 
 where `flags` is one or more of `i`, `m`, `s` (no duplicates), and `pattern`
 is parsed as raw regex source (not a normal interpolated string).
 
 Notes:
 
-- A bare `"` is not allowed inside the payload; write `\"`.
+- A literal backtick must be written as `` \` ``.
 - String interpolation (`\{...}`) is not supported in regex literals.
+- Regex literals must fit on a single line.
 - Named group syntax is `(?<name>...)` where `name` must match
   `[A-Za-z_][A-Za-z0-9_]*`.
 
@@ -289,7 +290,6 @@ atom_pattern = integer
                | "(" pattern ")"
 
 simple_pattern = atom_pattern
-               | [name] NS regex_literal                        -- regex_pattern
                | name ":" type                                  -- type_pattern
                | name "@" simple_pattern                        -- bind_pattern
                | SP operator NS atom_pattern                    -- apply_pattern

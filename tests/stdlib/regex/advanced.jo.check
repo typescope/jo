@@ -1,12 +1,12 @@
 --- regex advanced / toString escapes ---
-#r"\""
-#r"\\n"
+`\``
+`\\n`
 --- regex advanced / dynamic compile ---
 true
 false
 Some(a)
-#r[si]"abc"
-#r[is]"abc"
+`(?si)abc`
+`(?is)abc`
 --- regex advanced / named groups ---
 abc
 42

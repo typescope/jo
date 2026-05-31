@@ -1,0 +1,13 @@
+--- class escape / valid outside class ---
+\b\w+\b	: valid
+\B\w+\B	: valid
+\D+	: valid
+\W+	: valid
+\S+	: valid
+--- class escape / invalid inside class ---
+[\b]	:\b and \B are not supported inside a character class at position 1
+[\B]	:\b and \B are not supported inside a character class at position 1
+[\D]	:\D, \W, \S are not supported inside a character class at position 1
+[\W]	:\D, \W, \S are not supported inside a character class at position 1
+[\S]	:\D, \W, \S are not supported inside a character class at position 1
+[\D\W]	:\D, \W, \S are not supported inside a character class at position 1

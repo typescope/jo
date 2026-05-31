@@ -1692,7 +1692,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val lit = parseString(item)
         continue(lit)
 
-      case _: Token.TaggedLiteral =>
+      case _: Token.RegexLit =>
         next()
         continue(Regex.parseLiteral(item))
 
@@ -2440,7 +2440,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             error("String interpolation not allowed in string literal", interpo.pos)
             LiteralPattern(StringLit("")(interpo.span))
 
-      case _: Token.TaggedLiteral =>
+      case _: Token.RegexLit =>
         next()
         val regex = Regex.parseLiteral(item)
         RegexPattern(None, regex)(regex.span)
@@ -2474,24 +2474,23 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case _ => return pat
 
     item.token match
-      case _: Token.TaggedLiteral if item.span.followsImmediate(id.span) =>
-        next()
-        val regex = Regex.parseLiteral(item)
-        RegexPattern(Some(id.asInstanceOf[Ident]), regex)(id.span | regex.span)
-
       case Token.COLON =>
         typePattern(id.asInstanceOf[Ident])
 
       case Token.AT =>
         // Bind pattern: x @ pattern
+        // Special case: x @ `regex` binds x as Match, not as the scrutinee
         next()
         val nested = atomPattern()
         if nested == null then
           error("Expect a pattern after `@`", item.span.toPos)
           throw new SyntaxError
 
-        else
-          BindPattern(id, nested)(id.span | nested.span)
+        else nested match
+          case RegexPattern(None, regex) =>
+            RegexPattern(Some(id), regex)(id.span | nested.span)
+          case _ =>
+            BindPattern(id, nested)(id.span | nested.span)
 
       case _ if Naming.isOperator(id.name) =>
         val followsPrevPattern = prevPattern != null && id.span.followsImmediate(prevPattern.span)

@@ -112,7 +112,7 @@ if result is Some(code) && code > 0 then
   println "Success, code = \{code}"
 
 // enable option "s" to allow . to match new line
-if message is #r[s]"<code>(?<prog>.*)</code>" then
+if message is `(?s)<code>(?<prog>.*)</code>` then
   println prog
 ```
 

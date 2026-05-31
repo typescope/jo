@@ -1,0 +1,36 @@
+---------- Error at tests/warn/regex-class-escape.jo:4:13 ---------------
+|   val _ = `[\b]`
+|             ^^
+|             \b and \B are not supported inside a character class in regex
+
+---------- Error at tests/warn/regex-class-escape.jo:7:13 ---------------
+|   val _ = `[\B]`
+|             ^^
+|             \b and \B are not supported inside a character class in regex
+
+---------- Error at tests/warn/regex-class-escape.jo:10:13 ---------------
+|   val _ = `[\D]`
+|             ^^
+|             \D, \W, \S are not supported inside a character class in regex
+
+---------- Error at tests/warn/regex-class-escape.jo:13:13 ---------------
+|   val _ = `[\W]`
+|             ^^
+|             \D, \W, \S are not supported inside a character class in regex
+
+---------- Error at tests/warn/regex-class-escape.jo:16:13 ---------------
+|   val _ = `[\S]`
+|             ^^
+|             \D, \W, \S are not supported inside a character class in regex
+
+---------- Error at tests/warn/regex-class-escape.jo:20:13 ---------------
+|   val _ = `[\D\W]`
+|             ^^
+|             \D, \W, \S are not supported inside a character class in regex
+
+---------- Error at tests/warn/regex-class-escape.jo:20:15 ---------------
+|   val _ = `[\D\W]`
+|               ^^
+|               \D, \W, \S are not supported inside a character class in regex
+
+7 error(s), 0 warning(s)

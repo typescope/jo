@@ -236,7 +236,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         Literal(Constant.String(v))(defn.StringType, word.span).adapt
 
       case Ast.RegexLit(pattern, flags, _) =>
-        val fun = Ident(defn.Regex_compileValidated)(word.span)
+        val fun = Ident(defn.Regex_compileChecked)(word.span)
         val patternArg = Literal(Constant.String(pattern))(defn.StringType, word.span)
         val flagsArg = Literal(Constant.String(flags))(defn.StringType, word.span)
         fun.appliedTo(patternArg, flagsArg).adapt

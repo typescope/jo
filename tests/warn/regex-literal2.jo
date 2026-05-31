@@ -1,0 +1,30 @@
+// Scanner and parse errors for backtick regex literals
+
+// --- Scanner errors ---
+
+def testUnclosed =
+  val _ = `no closing backtick
+
+def testMultiline =
+  val _ = `spans multiple lines
+
+// --- Inline flag errors ---
+
+def testUnknownFlag =
+  val _ = `(?x)abc`
+  val _ = `(?g)abc`
+
+def testDuplicateFlag =
+  val _ = `(?ii)abc`
+  val _ = `(?mim)abc`
+
+// --- Pattern validation ---
+
+def testPatternErrors =
+  val _ = `(?=a)`
+  val _ = `(abc`
+  val _ = `[abc`
+  val _ = `(a)\1`
+  val _ = `\p{L}`
+  val _ = `a*+`
+  val _ = `(?<x>a)(?<x>b)`

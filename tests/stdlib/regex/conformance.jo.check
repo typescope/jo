@@ -62,6 +62,17 @@ false
 true
 Some(foo)
 true
+--- regex conformance / word boundaries ---
+true
+true
+true
+false
+true
+false
+3
+one
+two
+three
 --- regex conformance / unicode ---
 true
 false

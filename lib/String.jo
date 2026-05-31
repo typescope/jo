@@ -249,14 +249,12 @@ class String
   //[ True when some regex match exists in the string.    //]
   def exists(pat: Regex): Bool =
     match pat.matchFirst(this)
-      case _: Match => true
+      case Some(_) => true
       case None => false
 
   //[ First regex match in this string, or `None`.    //]
   def matchFirst(pat: Regex): Option[Match] =
-    match pat.matchFirst(this)
-      case m: Match => Some(m)
-      case None => None
+    pat.matchFirst(this)
 
   //[ All non-overlapping regex matches in this string.    //]
   def matchAll(pat: Regex): List[Match] =

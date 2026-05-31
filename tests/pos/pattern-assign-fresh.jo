@@ -21,7 +21,7 @@ def testMatchAssignFresh =
 
 def testRegexAssignFresh =
   match "12-7"
-    case #r"^(?<a>\d+)-(?<b>\d+)$" then sum = a.toInt + b.toInt, pair = (a + ":" + b) =>
+    case `^(?<a>\d+)-(?<b>\d+)$` then sum = a.toInt + b.toInt, pair = (a + ":" + b) =>
       println sum
       println pair
 
@@ -29,7 +29,7 @@ def testRegexAssignFresh =
       println "bad"
 
   match "oops"
-    case #r"^(?<a>\d+)-(?<b>\d+)$" then sum = a.toInt + b.toInt, pair = (a + ":" + b) =>
+    case `^(?<a>\d+)-(?<b>\d+)$` then sum = a.toInt + b.toInt, pair = (a + ":" + b) =>
       println sum
       println pair
 

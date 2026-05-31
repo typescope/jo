@@ -37,13 +37,13 @@ def testSplit =
 
   println "--- splitBy ---"
 
-  val parts7 = "a:b:c".splitBy(#r":")
+  val parts7 = "a:b:c".splitBy(`:`)
   println parts7.size                                    // 3
   println parts7[0]                                      // a
   println parts7[1]                                      // b
   println parts7[2]                                      // c
 
-  val parts8 = "abc".splitBy(#r"")
+  val parts8 = "abc".splitBy(``)
   println parts8.size                                    // 4
   println parts8[0]                                      // a
   println parts8[1]                                      // b

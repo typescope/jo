@@ -55,15 +55,15 @@ println """
 ```jo
 import jo.regex.*
 
-println "abc123".exists(#r"\d+")                 // true
-println "a  b   c".splitBy(#r"\s+")              // [a, b, c]
+println "abc123".exists(`\d+`)                 // true
+println "a  b   c".splitBy(`\s+`)              // [a, b, c]
 
-if "abc-42".matchFirst(#r"(?<w>\w+)-(?<n>\d+)") is Some(m) then
+if "abc-42".matchFirst(`(?<w>\w+)-(?<n>\d+)`) is Some(m) then
   println m[0]                                    // abc-42
   println m["w"]                                  // abc
 
-println "a1b22".replaceAll(#r"\d+", _ => "N")    // aNbN
-println "hello world".replaceFirst(#r"(\w+)\s+(\w+)", m => m[2] + " " + m[1]) // world hello
+println "a1b22".replaceAll(`\d+`, _ => "N")    // aNbN
+println "hello world".replaceFirst(`(\w+)\s+(\w+)`, m => m[2] + " " + m[1]) // world hello
 ```
 
 ## Variables

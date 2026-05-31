@@ -153,7 +153,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
 
       case '\''   => charLit().withInfo(indent, Nil)
 
-      case '#'    => taggedLiteral(indent)
+      case '`'    => regexLit(indent)
 
       case c      =>
         if isDigit(c) then
@@ -173,97 +173,38 @@ class Scanner(stream: CharStream)(using Reporter, Source):
           error("Unexpected character: " + Character.toString(c), stream.tokenSpan().toPos)
           next()
 
-  private def taggedLiteral(indent: Indent): TokenInfo =
-    val hashStart = stream.currentOffset - 1
-    val tagStart = stream.currentOffset
+  private def regexLit(indent: Indent): TokenInfo =
+    val backtickStart = stream.currentOffset - 1
 
-    if !stream.hasMore() || !isNameStart(stream.curCodePoint()) then
-      error("Expect tag name after '#'", stream.tokenSpan().toPos)
-      return Token.Operator("#").withInfo(indent, Nil)
-
-    stream.eatWhile(isNameRest)
-    val rawTag = stream.tokenEnd()
-    val name = rawTag.substring(1)
-    val nameSpan = Span(tagStart, rawTag.length - 1)
-
-    val flagsOpt =
-      if stream.hasMore() && stream.curCodePoint() == '[' then
-        val lbracketSpan = stream.tokenSpan().endPoint
-        stream.eat()
-        val flagsStart = stream.currentOffset
-
-        if !stream.hasMore() || stream.curCodePoint() == ']' then
-          error("Tagged literal flag block cannot be empty", lbracketSpan.toPos)
-          if stream.hasMore() && stream.curCodePoint() == ']' then stream.eat()
-          None
-        else
-          while stream.hasMore() && Character.isLetter(stream.curCodePoint()) do
-            stream.eat()
-
-          val flagsEnd = stream.currentOffset
-          val flags = stream.tokenEnd().substring(flagsStart - hashStart)
-          val flagsSpan = Span(flagsStart, flagsEnd - flagsStart)
-
-          if !stream.hasMore() || stream.curCodePoint() != ']' then
-            error("Expect closing ']' for tagged literal flags", flagsSpan.endPoint.toPos)
-            None
-          else
-            stream.eat()
-            Some(WithSpan(flags, flagsSpan))
-      else
-        None
-
-    if !stream.hasMore() || stream.curCodePoint() != '"' then
-      error("Expect opening '\"' for tagged literal payload", stream.tokenSpan().endPoint.toPos)
-      val endOffset = stream.currentOffset
-      val fullSpan = Span(hashStart, endOffset - hashStart)
-      return TokenInfo(
-        Token.TaggedLiteral(WithSpan(name, nameSpan), flagsOpt, WithSpan("", stream.tokenSpan().endPoint)),
-        fullSpan,
-        indent,
-        Nil
-      )
-
-    stream.eat() // opening quote
     stream.tokenStart()
 
     var done = false
     while stream.hasMore() && !done do
       val c = stream.curCodePoint()
       if c == '\n' then
-        error("Tagged literal cannot span multiple lines", stream.tokenSpan().toPos)
+        error("Regex literal cannot span multiple lines", stream.tokenSpan().toPos)
         done = true
       else if c == '\\' then
         stream.eat()
-        if stream.hasMore() then stream.eat()
-      else if c == '"' then
+        if stream.hasMore() && stream.curCodePoint() != '\n' then stream.eat()
+      else if c == '`' then
         done = true
       else
         stream.eat()
 
-    val source = stream.tokenEnd()
-    val sourceSpan = stream.tokenSpan()
+    val content = stream.tokenEnd()
+    val contentSpan = stream.tokenSpan()
 
     val endOffset =
-      if stream.hasMore() && stream.curCodePoint() == '"' then
+      if stream.hasMore() && stream.curCodePoint() == '`' then
         stream.eat()
         stream.currentOffset
       else
-        error("Unclosed tagged literal", sourceSpan.toPos)
-        sourceSpan.endOffset
+        error("Unclosed regex literal", contentSpan.toPos)
+        contentSpan.endOffset
 
-    val fullSpan = Span(hashStart, endOffset - hashStart)
-
-    TokenInfo(
-      Token.TaggedLiteral(
-        WithSpan(name, nameSpan),
-        flagsOpt,
-        WithSpan(source, sourceSpan)
-      ),
-      fullSpan,
-      indent,
-      Nil
-    )
+    val fullSpan = Span(backtickStart, endOffset - backtickStart)
+    TokenInfo(Token.RegexLit(content), fullSpan, indent, Nil)
 
   def name(): Token =
     stream.eatWhile(isNameRest)

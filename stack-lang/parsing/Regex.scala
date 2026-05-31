@@ -15,36 +15,57 @@ object Regex:
 
   def parseLiteral(item: TokenInfo)(using Source, Reporter): RegexLit =
     item.token match
-      case Token.TaggedLiteral(name, flagsOpt, source) =>
-        if name.value != "r" then
-          error(s"Unknown tagged literal #${name.value}", name.span.toPos)
-
-        val flags = validateFlags(flagsOpt)
-        val groupNames = validatePattern(source)
-        RegexLit(decodePayload(source.value), flags, groupNames)(item.span)
+      case Token.RegexLit(rawContent) =>
+        val (pattern, flags, flagsPrefixBytes) = extractInlineFlags(rawContent)
+        validateInlineFlags(flags, item.span)
+        val decoded = decodePayload(pattern)
+        // +1 for opening backtick, then skip flags prefix
+        val patternStart = item.span.start + 1 + flagsPrefixBytes
+        val patternLen   = item.span.length - 2 - flagsPrefixBytes
+        val groupNames   = validatePattern(WithSpan(decoded, Span(patternStart, patternLen)))
+        RegexLit(decoded, flags, groupNames)(item.span)
 
       case other =>
-        error("Expect tagged literal, found = " + other, item.span.toPos)
+        error("Expect regex literal, found = " + other, item.span.toPos)
         RegexLit("", "", Nil)(item.span)
-
-  private def validateFlags(flagsOpt: Option[WithSpan[String]])(using Source, Reporter): String =
-    flagsOpt match
-      case None => ""
-      case Some(WithSpan(flags, span)) =>
-        val seen = mutable.Set.empty[Char]
-        for (ch, idx) <- flags.zipWithIndex do
-          if !AllowedFlags.contains(ch) then
-            error(s"Unknown regex flag: $ch", atSpan(span, idx, 1).toPos)
-          else if seen.contains(ch) then
-            error(s"Duplicate regex flag: $ch", atSpan(span, idx, 1).toPos)
-          else
-            seen += ch
-        flags
 
   private def validatePattern(source: WithSpan[String])(using Source, Reporter): List[Ident] =
     new Validator(source.value, source.span).validate()
 
-  /** Decode only the delimiter escape for regex literals.
+  /** Extract inline flag prefix `(?ims)` from the start of a regex literal content.
+    * Returns (remainingPattern, flags, flagsPrefixByteLen).
+    * All prefix characters are ASCII so char count equals byte count.
+    */
+  private def extractInlineFlags(content: String): (String, String, Int) =
+    if content.startsWith("(?") then
+      val close = content.indexOf(')')
+      if close >= 2 then
+        val flags = content.substring(2, close)
+        // Only treat as a flags prefix when every char is a recognised flag letter.
+        // If any char is not a flag letter (e.g. `(?=a)`, `(?<name>...)`), leave
+        // the content unchanged so the pattern validator sees and diagnoses it.
+        if flags.forall(AllowedFlags.contains) then
+          val prefixLen = close + 1   // "(?...)" length; all ASCII → chars = bytes
+          (content.substring(prefixLen), flags, prefixLen)
+        else
+          (content, "", 0)
+      else
+        (content, "", 0)
+    else
+      (content, "", 0)
+
+  private def validateInlineFlags(flags: String, tokenSpan: Span)(using Source, Reporter): Unit =
+    val seen = mutable.Set.empty[Char]
+    for (ch, idx) <- flags.zipWithIndex do
+      if !AllowedFlags.contains(ch) then
+        // +1 for backtick, +2 for "(?", then flag index
+        error(s"Unknown regex flag: $ch", Span(tokenSpan.start + 3 + idx, 1).toPos)
+      else if seen.contains(ch) then
+        error(s"Duplicate regex flag: $ch", Span(tokenSpan.start + 3 + idx, 1).toPos)
+      else
+        seen += ch
+
+  /** Decode only the backtick escape for regex literals.
     * All other backslash sequences are preserved verbatim.
     */
   private def decodePayload(raw: String): String =
@@ -52,8 +73,8 @@ object Regex:
     var i = 0
     while i < raw.length do
       val c = raw.charAt(i)
-      if c == '\\' && i + 1 < raw.length && raw.charAt(i + 1) == '"' then
-        out += '"'
+      if c == '\\' && i + 1 < raw.length && raw.charAt(i + 1) == '`' then
+        out += '`'
         i += 2
       else
         out += c
@@ -180,7 +201,7 @@ object Regex:
             parseCharClass()
 
           case '\\' =>
-            parseEscape()
+            parseEscape(inClass = false)
 
           case ')' | ']' | '*' | '+' | '?' | '{' =>
             error(s"Unexpected character '${curChar}' in regex", atSpan(rawSpan, offset, curByteLen).toPos)
@@ -204,7 +225,7 @@ object Regex:
             advance()
 
           case '\\' =>
-            parseEscape()
+            parseEscape(inClass = true)
 
           case _ =>
             advance()
@@ -213,7 +234,7 @@ object Regex:
       if !closed then
         error("Unclosed character class in regex", atSpan(rawSpan, classStart, 1).toPos)
 
-    private def parseEscape(): Unit =
+    private def parseEscape(inClass: Boolean): Unit =
       val escapePos = offset
       advance()
       if atEnd then
@@ -237,6 +258,12 @@ object Regex:
                 advance()
               if !atEnd && curChar == '}' then
                 advance()
+          else if inClass && (ch == 'b' || ch == 'B') then
+            error("\\b and \\B are not supported inside a character class in regex", atSpan(rawSpan, escapePos, escLen).toPos)
+            advance()
+          else if inClass && (ch == 'D' || ch == 'W' || ch == 'S') then
+            error("\\D, \\W, \\S are not supported inside a character class in regex", atSpan(rawSpan, escapePos, escLen).toPos)
+            advance()
           else if !isSupportedEscape(ch) then
             error("Unsupported escape in regex literal", atSpan(rawSpan, escapePos, escLen).toPos)
             advance()
@@ -282,6 +309,7 @@ object Regex:
       ch == '(' || ch == ')' || ch == '[' || ch == ']' ||
       ch == '{' || ch == '}' || ch == '|' || ch == '\\' ||
       ch == 'n' || ch == 'r' || ch == 't' || ch == 'f' ||
+      ch == 'b' || ch == 'B' ||
       ch == 'd' || ch == 'D' || ch == 'w' || ch == 'W' ||
       ch == 's' || ch == 'S'
 

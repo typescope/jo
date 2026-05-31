@@ -1,6 +1,10 @@
 --- regex literal / toString ---
-#r"\d+"
-#r[is]"a.*b"
+`\d+`
+`(?is)a.*b`
+--- regex escaped backtick ---
+`\``
+true
+false
 --- regex matching ---
 true
 false
