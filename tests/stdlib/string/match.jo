@@ -7,17 +7,17 @@ def main =
 
 def testMatchFirst =
   println "--- matchFirst ---"
-  println "ab12cd34".matchFirst(#r"\d+")
-  println "abc".matchFirst(#r"\d+")
+  println "ab12cd34".matchFirst(`\d+`)
+  println "abc".matchFirst(`\d+`)
 
-  if "😀ab".matchFirst(#r"ab") is Some(m) then
+  if "😀ab".matchFirst(`ab`) is Some(m) then
     println m
     println m.from
     println m.length
 
 def testMatchAll =
   println "--- matchAll ---"
-  val ms = "ab12cd34".matchAll(#r"\d+")
+  val ms = "ab12cd34".matchAll(`\d+`)
   println ms.size
   println ms[0]
   println ms[0].from
@@ -28,6 +28,6 @@ def testMatchAll =
 
 def testNamedGroups =
   println "--- match named groups ---"
-  if "abc-42".matchFirst(#r"(?<word>\w+)-(?<num>\d+)") is Some(m) then
+  if "abc-42".matchFirst(`(?<word>\w+)-(?<num>\d+)`) is Some(m) then
     println m["word"]
     println m["num"]
