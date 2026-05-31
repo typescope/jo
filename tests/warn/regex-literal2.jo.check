@@ -1,0 +1,76 @@
+---------- Error at tests/warn/regex-literal2.jo:6:12 ---------------
+|   val _ = `no closing backtick
+|            ^^^^^^^^^^^^^^^^^^^
+|            Regex literal cannot span multiple lines
+
+---------- Error at tests/warn/regex-literal2.jo:6:12 ---------------
+|   val _ = `no closing backtick
+|            ^^^^^^^^^^^^^^^^^^^
+|            Unclosed regex literal
+
+---------- Error at tests/warn/regex-literal2.jo:9:12 ---------------
+|   val _ = `spans multiple lines
+|            ^^^^^^^^^^^^^^^^^^^^
+|            Regex literal cannot span multiple lines
+
+---------- Error at tests/warn/regex-literal2.jo:9:12 ---------------
+|   val _ = `spans multiple lines
+|            ^^^^^^^^^^^^^^^^^^^^
+|            Unclosed regex literal
+
+---------- Error at tests/warn/regex-literal2.jo:14:12 ---------------
+|   val _ = `(?x)abc`
+|            ^^
+|            Unsupported group syntax in regex
+
+---------- Error at tests/warn/regex-literal2.jo:15:12 ---------------
+|   val _ = `(?g)abc`
+|            ^^
+|            Unsupported group syntax in regex
+
+---------- Error at tests/warn/regex-literal2.jo:18:15 ---------------
+|   val _ = `(?ii)abc`
+|               ^
+|               Duplicate regex flag: i
+
+---------- Error at tests/warn/regex-literal2.jo:19:16 ---------------
+|   val _ = `(?mim)abc`
+|                ^
+|                Duplicate regex flag: m
+
+---------- Error at tests/warn/regex-literal2.jo:24:12 ---------------
+|   val _ = `(?=a)`
+|            ^^
+|            Unsupported group syntax in regex
+
+---------- Error at tests/warn/regex-literal2.jo:25:12 ---------------
+|   val _ = `(abc`
+|            ^
+|            Unclosed group in regex
+
+---------- Error at tests/warn/regex-literal2.jo:26:12 ---------------
+|   val _ = `[abc`
+|            ^
+|            Unclosed character class in regex
+
+---------- Error at tests/warn/regex-literal2.jo:27:15 ---------------
+|   val _ = `(a)\1`
+|               ^^
+|               Back references are not supported in regex literals
+
+---------- Error at tests/warn/regex-literal2.jo:28:12 ---------------
+|   val _ = `\p{L}`
+|            ^^
+|            Unicode classes are not supported in regex literals
+
+---------- Error at tests/warn/regex-literal2.jo:29:14 ---------------
+|   val _ = `a*+`
+|              ^
+|              Possessive quantifiers are not supported in regex literals
+
+---------- Error at tests/warn/regex-literal2.jo:30:22 ---------------
+|   val _ = `(?<x>a)(?<x>b)`
+|                      ^
+|                      Duplicate capture group name: x
+
+15 error(s), 0 warning(s)
