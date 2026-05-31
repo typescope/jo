@@ -35,6 +35,9 @@ private class Validator(source: String)
   private var i: Int = 0
   private var groupCount: Int = 0
   private var groupIndexByName: Map[String, Int] = Map.empty
+  private val whitespaceBody: String = " \t\n\r\f" + 0x000B.toChar
+  private var normalizedOut: String = ""
+  private var normalizedPos: Int = 0
 
   private def atEnd(): Bool = i >= pat.size
 
@@ -61,10 +64,20 @@ private class Validator(source: String)
             else
               None
 
-  //[ Parse group names from a pre-validated pattern without re-validating.  //]
+  //[ Parse group names from a pre-validated pattern without re-validating.
+    !
+    ! Also builds `normalizedPat` as a side effect.
+  //]
   def parseGroups(): Map[String, Int] =
     val _ = parseAlternation(true)
     groupIndexByName
+
+  //[ The pattern with shorthands expanded to their ASCII equivalents.
+    !
+    ! Available after `validate()` or `parseGroups()` has been called.
+  //]
+  def normalizedPat: String =
+    normalizedOut + pat.slice(normalizedPos, pat.size - normalizedPos)
 
   private def validateFlags(): Option[String] =
     var seenI = false
@@ -256,7 +269,29 @@ private class Validator(source: String)
       else if !isSupportedEscape(ch) then
         Some("Unsupported escape at position " + (i - 1))
       else
-        advance()
+        val escapePos = i - 1
+
+        if ch == 'd' || ch == 'w' || ch == 's' || ch == 'D' || ch == 'W' || ch == 'S' then
+          val exp =
+            if ch == 'd' then
+              if inClass then "0-9" else "[0-9]"
+            else if ch == 'D' then
+              "[^0-9]"
+            else if ch == 'w' then
+              if inClass then "A-Za-z0-9_" else "[A-Za-z0-9_]"
+            else if ch == 'W' then
+              "[^A-Za-z0-9_]"
+            else if ch == 's' then
+              if inClass then whitespaceBody else "[" + whitespaceBody + "]"
+            else
+              "[^" + whitespaceBody + "]"
+          normalizedOut = normalizedOut + pat.slice(normalizedPos, escapePos - normalizedPos)
+          normalizedOut = normalizedOut + exp
+          advance()
+          normalizedPos = i
+        else
+          advance()
+
         None
 
   private def parseBounds(): Option[String] =
