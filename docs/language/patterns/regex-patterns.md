@@ -108,13 +108,13 @@ added to user-visible flow scope.
 #### a) No named groups
 
 ```text
-_scrut if `...`.matchFirst(_scrut) is _: Match
+_scrut if `...`.matchFirst(_scrut) is Some(_)
 ```
 
 #### b) Has named groups
 
 ```text
-(_scrut if `...`.matchFirst(_scrut) is _m: Match)
+(_scrut if `...`.matchFirst(_scrut) is Some(_m))
 &
 (g1 = _m.getOrEmpty("g1"), g2 = _m.getOrEmpty("g2"), ...)
 ```
@@ -124,13 +124,13 @@ _scrut if `...`.matchFirst(_scrut) is _: Match
 #### a) No named groups
 
 ```text
-_scrut if `...`.matchFirst(_scrut) is m: Match
+_scrut if `...`.matchFirst(_scrut) is Some(m)
 ```
 
 #### b) Has named groups
 
 ```text
-(_scrut if `...`.matchFirst(_scrut) is m: Match)
+(_scrut if `...`.matchFirst(_scrut) is Some(m))
 &
 (g1 = m.getOrEmpty("g1"), g2 = m.getOrEmpty("g2"), ...)
 ```

@@ -119,11 +119,11 @@ println "hello".exists(`\d+`)    // false
 
 ### Find the first match
 
-`matchFirst` returns `Match | None`. Both indexed and named group access are supported:
+`matchFirst` returns `Option[Match]`. Both indexed and named group access are supported:
 
 ```jo
 match "abc-42".matchFirst(`(?<word>\w+)-(?<num>\d+)`)
-  case m: Match =>
+  case Some(m) =>
     println m[0]        // "abc-42"  (whole match, group 0)
     println m[1]        // "abc"     (group 1 by index)
     println m["word"]   // "abc"     (group 1 by name)
@@ -136,9 +136,9 @@ match "abc-42".matchFirst(`(?<word>\w+)-(?<num>\d+)`)
 
 ```jo
 val word = `\bfoo\b`
-println word.matchFirst("foo")     is _: Match   // true  — exact word
-println word.matchFirst("foobar")  is None       // true  — not a whole word
-println word.matchFirst("a foo b") is _: Match   // true  — surrounded by non-word chars
+println word.matchFirst("foo")     is Some(_)   // true  — exact word
+println word.matchFirst("foobar")  is None      // true  — not a whole word
+println word.matchFirst("a foo b") is Some(_)   // true  — surrounded by non-word chars
 ```
 
 ### Find all matches
