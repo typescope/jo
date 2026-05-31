@@ -18,38 +18,16 @@ object Regex:
       case Token.RegexLit(rawContent) =>
         val (pattern, flags, flagsPrefixBytes) = extractInlineFlags(rawContent)
         validateInlineFlags(flags, item.span)
-        val decoded = decodePayload(pattern, '`')
+        val decoded = decodePayload(pattern)
         // +1 for opening backtick, then skip flags prefix
         val patternStart = item.span.start + 1 + flagsPrefixBytes
         val patternLen   = item.span.length - 2 - flagsPrefixBytes
         val groupNames   = validatePattern(WithSpan(decoded, Span(patternStart, patternLen)))
         RegexLit(decoded, flags, groupNames)(item.span)
 
-      case Token.TaggedLiteral(name, flagsOpt, source) =>
-        if name.value != "r" then
-          error(s"Unknown tagged literal #${name.value}", name.span.toPos)
-
-        val flags = validateFlags(flagsOpt)
-        val groupNames = validatePattern(source)
-        RegexLit(decodePayload(source.value, '"'), flags, groupNames)(item.span)
-
       case other =>
         error("Expect regex literal, found = " + other, item.span.toPos)
         RegexLit("", "", Nil)(item.span)
-
-  private def validateFlags(flagsOpt: Option[WithSpan[String]])(using Source, Reporter): String =
-    flagsOpt match
-      case None => ""
-      case Some(WithSpan(flags, span)) =>
-        val seen = mutable.Set.empty[Char]
-        for (ch, idx) <- flags.zipWithIndex do
-          if !AllowedFlags.contains(ch) then
-            error(s"Unknown regex flag: $ch", atSpan(span, idx, 1).toPos)
-          else if seen.contains(ch) then
-            error(s"Duplicate regex flag: $ch", atSpan(span, idx, 1).toPos)
-          else
-            seen += ch
-        flags
 
   private def validatePattern(source: WithSpan[String])(using Source, Reporter): List[Ident] =
     new Validator(source.value, source.span).validate()
@@ -87,16 +65,16 @@ object Regex:
       else
         seen += ch
 
-  /** Decode only the delimiter escape for regex literals.
+  /** Decode only the backtick escape for regex literals.
     * All other backslash sequences are preserved verbatim.
     */
-  private def decodePayload(raw: String, delimiter: Char): String =
+  private def decodePayload(raw: String): String =
     val out = new StringBuilder(raw.length)
     var i = 0
     while i < raw.length do
       val c = raw.charAt(i)
-      if c == '\\' && i + 1 < raw.length && raw.charAt(i + 1) == delimiter then
-        out += delimiter
+      if c == '\\' && i + 1 < raw.length && raw.charAt(i + 1) == '`' then
+        out += '`'
         i += 2
       else
         out += c

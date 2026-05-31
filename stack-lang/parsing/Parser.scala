@@ -1692,7 +1692,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val lit = parseString(item)
         continue(lit)
 
-      case _: Token.RegexLit | _: Token.TaggedLiteral =>
+      case _: Token.RegexLit =>
         next()
         continue(Regex.parseLiteral(item))
 
@@ -2440,7 +2440,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             error("String interpolation not allowed in string literal", interpo.pos)
             LiteralPattern(StringLit("")(interpo.span))
 
-      case _: Token.RegexLit | _: Token.TaggedLiteral =>
+      case _: Token.RegexLit =>
         next()
         val regex = Regex.parseLiteral(item)
         RegexPattern(None, regex)(regex.span)
