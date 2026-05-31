@@ -153,6 +153,38 @@ The warning fires for any value type except:
 - **Bottom** — diverging expressions (`abort`, `return`, `break`, `continue`) that never produce a value.
 - **Dynamic interop types** — values from FFI calls (e.g. `rb.Dynamic`) that carry no Jo-level semantics; discarding them is idiomatic in backend glue code.
 
+## When to Use `Option[T]`/`Result[T, E]`
+
+Jo's union types and the standard `Option[T]`/`Result[T, E]` wrappers can both represent optional or fallible values. The following conventions govern which to use.
+
+### 1. Public API return types: prefer `Option[T]` or `Result[T, E]`
+
+```jo
+def matchFirst(input: String): Option[Match]        // public — Option, import-free
+def compile(source: String): Result[Regex, String]  // public — Result
+```
+
+`Some`, `None`, `Ok`, and `Err` are auto-imported everywhere. Callers pattern-match with `Some(m)` without needing to know the concrete success type name and without any extra import.
+
+### 2. Internal return types: prefer raw union types
+
+```jo
+private def findAt(regex: Regex, input: String, pos: Int): Match | None   // internal
+```
+
+Within a module or namespace the types are already in scope, so the raw union is more direct and avoids the wrapper allocation.
+
+### 3. Parameter types: prefer union types
+
+```jo
+def createUser(name: String, email: String | None): User = ...
+
+createUser("Alice", "alice@example.com")   // raw String, no wrapping
+createUser("Bob", None)                    // explicit absence
+```
+
+A value of type `T` is a subtype of `T | None` in Jo, so callers who hold a concrete `T` pass it directly without wrapping in `Some(...)`. `Option[String]` as the parameter type would force callers to write `Some("alice@example.com")` for no benefit.
+
 ---
 
 ## Background
