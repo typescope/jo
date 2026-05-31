@@ -177,11 +177,14 @@ comment gets re-propertized."
    ;; Constants (true, false)
    `(,(regexp-opt jo-constants 'words) . font-lock-constant-face)
 
-   ;; Regex literals: #r"..." and #r[flags]"..."
-   '("\\(#r\\)\\(\\[[A-Za-z]+\\]\\)?\\(\"[^\"\\\\]*\\(?:\\\\.[^\"\\\\]*\\)*\"\\)"
-     (1 font-lock-preprocessor-face)
-     (2 font-lock-builtin-face nil t)
-     (3 font-lock-string-face))
+   ;; Regex literals: `pattern` and `(?flags)pattern`
+   `(,(rx "`"
+          (group (optional (seq "(?" (one-or-more (any "ims")) ")")))
+          (zero-or-more (or (not (any "`" "\\" "\n"))
+                            (seq "\\" (not (any "\n")))))
+          "`")
+     (0 font-lock-string-face t)
+     (1 font-lock-builtin-face t t))
 
    ;; String literals
    '("\"[^\"\\\\]*\\(?:\\\\.[^\"\\\\]*\\)*\"" . font-lock-string-face)

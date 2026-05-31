@@ -54,14 +54,12 @@
       ]
     },
     "regex-literal": {
-      "name": "meta.regex.literal.jo",
-      "begin": "(#r)(\\[([A-Za-z]+)\\])?(\\\")",
-      "end": "(\\\")",
+      "name": "string.regexp.jo",
+      "begin": "(`)(\\(\\?[ims]+\\))?",
+      "end": "(?<!\\\\)(`)|(?=\\n)",
       "beginCaptures": {
-        "1": { "name": "storage.type.regex.jo" },
-        "2": { "name": "keyword.operator.regex.flags.jo" },
-        "3": { "name": "keyword.operator.regex.flags.jo" },
-        "4": { "name": "punctuation.definition.string.begin.jo" }
+        "1": { "name": "punctuation.definition.string.begin.jo" },
+        "2": { "name": "keyword.operator.regex.flags.jo" }
       },
       "endCaptures": {
         "1": { "name": "punctuation.definition.string.end.jo" }
@@ -69,7 +67,7 @@
       "patterns": [
         {
           "name": "constant.character.escape.regex.jo",
-          "match": "\\\\."
+          "match": "\\\\[^\\n]"
         }
       ]
     },
