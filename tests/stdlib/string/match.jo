@@ -1,8 +1,8 @@
 import jo.regex.*
 
-def printMatch(m: Match | None) =
+def printMatch(m: Option[Match]) =
   match m
-    case m: Match => println m
+    case Some(m) => println m
     case None => println "None"
 
 def main =
@@ -15,7 +15,7 @@ def testMatchFirst =
   printMatch("ab12cd34".matchFirst(`\d+`))
   printMatch("abc".matchFirst(`\d+`))
 
-  if "😀ab".matchFirst(`ab`) is m: Match then
+  if "😀ab".matchFirst(`ab`) is Some(m) then
     println m
     println m.from
     println m.length
@@ -33,6 +33,6 @@ def testMatchAll =
 
 def testNamedGroups =
   println "--- match named groups ---"
-  if "abc-42".matchFirst(`(?<word>\w+)-(?<num>\d+)`) is m: Match then
+  if "abc-42".matchFirst(`(?<word>\w+)-(?<num>\d+)`) is Some(m) then
     println m["word"]
     println m["num"]

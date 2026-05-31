@@ -1,8 +1,8 @@
 import jo.regex.*
 
-def printMatch(m: Match | None) =
+def printMatch(m: Option[Match]) =
   match m
-    case found: Match =>
+    case Some(found) =>
       println ("Some(" + found + ")")
     case None =>
       println "None"
@@ -17,20 +17,20 @@ def main =
 def testNamedGroups =
   println "--- regex parity / named groups ---"
 
-  if `(?<x>a)(?<y>b)`.matchFirst("ab") is m1: Match then
+  if `(?<x>a)(?<y>b)`.matchFirst("ab") is Some(m1) then
     println m1[1]
     println m1[2]
     println m1["x"]
     println m1["y"]
 
-  if `^(?<x>a)?b$`.matchFirst("b") is m2: Match then
+  if `^(?<x>a)?b$`.matchFirst("b") is Some(m2) then
     println m2.isGroupMatched("x")
     println m2.getOpt("x")
 
-  if `^(?<x>a)*$`.matchFirst("aaa") is m3: Match then
+  if `^(?<x>a)*$`.matchFirst("aaa") is Some(m3) then
     println m3["x"]
 
-  if `(?<outer>(?<inner>a)b)`.matchFirst("ab") is m4: Match then
+  if `(?<outer>(?<inner>a)b)`.matchFirst("ab") is Some(m4) then
     println m4[1]
     println m4[2]
     println m4["outer"]
@@ -50,7 +50,7 @@ def testUnicodeInput =
 
   printMatch(`.`.matchFirst("😀"))
 
-  if `abc`.matchFirst("😀abc😀") is m: Match then
+  if `abc`.matchFirst("😀abc😀") is Some(m) then
     println m[0]
     println m.from
     println m.length
@@ -83,11 +83,11 @@ def testFlagMWithoutS =
 def testLazyQuantifiers =
   println "--- regex parity / lazy quantifiers ---"
 
-  if `(a+?)(a+)`.matchFirst("aaaa") is m1: Match then
+  if `(a+?)(a+)`.matchFirst("aaaa") is Some(m1) then
     println m1[0]
     println m1[1]
     println m1[2]
 
-  if `(a{1,2}?)(a+)`.matchFirst("aaaa") is m2: Match then
+  if `(a{1,2}?)(a+)`.matchFirst("aaaa") is Some(m2) then
     println m2[1]
     println m2[2]

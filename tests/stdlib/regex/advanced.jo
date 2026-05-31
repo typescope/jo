@@ -1,8 +1,8 @@
 import jo.regex.*
 
-def printMatch(m: Match | None) =
+def printMatch(m: Option[Match]) =
   match m
-    case found: Match =>
+    case Some(found) =>
       println ("Some(" + found + ")")
     case None =>
       println "None"
@@ -43,7 +43,7 @@ def testDynamicCompile =
 def testNamedGroups =
   println "--- regex advanced / named groups ---"
 
-  if `(?<word>\w+)-(?<num>\d+)`.matchFirst("abc-42") is m: Match then
+  if `(?<word>\w+)-(?<num>\d+)`.matchFirst("abc-42") is Some(m) then
     println m["word"]
     println m["num"]
     println m.getOpt("word")
@@ -51,11 +51,11 @@ def testNamedGroups =
 def testOptionalAndEmptyCaptures =
   println "--- regex advanced / captures ---"
 
-  if `(a*)`.matchFirst("") is m1: Match then
+  if `(a*)`.matchFirst("") is Some(m1) then
     println m1.isGroupMatched(1)
     println m1[1]
 
-  if `(a)?`.matchFirst("") is m2: Match then
+  if `(a)?`.matchFirst("") is Some(m2) then
     println m2.isGroupMatched(1)
 
 def testZeroWidthCases =

@@ -1,13 +1,13 @@
 import jo.regex.*
 
-def matched(r: Match | None): Bool =
+def matched(r: Option[Match]): Bool =
   match r
-    case _: Match => true
+    case Some(_) => true
     case None => false
 
-def getText(r: Match | None): String =
+def getText(r: Option[Match]): String =
   match r
-    case m: Match => m.text
+    case Some(m) => m.text
     case None => "<none>"
 
 def check(label: String, ok: Bool) =

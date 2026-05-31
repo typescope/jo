@@ -1,8 +1,8 @@
 import jo.regex.*
 
-def printMatch(m: Match | None) =
+def printMatch(m: Option[Match]) =
   match m
-    case found: Match =>
+    case Some(found) =>
       println ("Some(" + found + ")")
     case None =>
       println "None"
@@ -40,12 +40,12 @@ def testMatching =
 
 def testCaptures =
   println "--- regex captures ---"
-  if `([A-Z]+)(\d+)`.matchFirst("AB12") is m: Match then
+  if `([A-Z]+)(\d+)`.matchFirst("AB12") is Some(m) then
     println m[0]
     println m[1]
     println m[2]
 
-  if `(\w+)(\s+\w+)?`.matchFirst("hello") is opt: Match then
+  if `(\w+)(\s+\w+)?`.matchFirst("hello") is Some(opt) then
     println opt.isGroupMatched(2)
 
 def testReplace =
