@@ -1,0 +1,65 @@
+import jo.regex.*
+
+def matched(r: Match | None): Bool =
+  match r
+    case _: Match => true
+    case None => false
+
+def getText(r: Match | None): String =
+  match r
+    case m: Match => m.text
+    case None => "<none>"
+
+def check(label: String, ok: Bool) =
+  if ok then println(label + ": ok")
+  else println(label + ": FAIL")
+
+def main =
+  // \b - whole-word matching
+  val word = `\bfoo\b`
+  check("wb-exact",   matched(word.matchFirst("foo")))
+  check("wb-prefix",  !matched(word.matchFirst("foobar")))
+  check("wb-suffix",  !matched(word.matchFirst("barfoo")))
+  check("wb-infix",   matched(word.matchFirst("a foo b")))
+  check("wb-punct",   matched(word.matchFirst("(foo)")))
+
+  // \b - extract all words
+  val words = `\b\w+\b`
+  val ws = words.matchAll("one two three")
+  check("wb-count",   ws.size == 3)
+  check("wb-word0",   ws[0].text == "one")
+  check("wb-word2",   ws[2].text == "three")
+
+  // \B - non-word boundary
+  val inner = `\Bo\B`
+  check("nwb-mid",    matched(inner.matchFirst("foo")))
+  check("nwb-start",  !matched(inner.matchFirst("of")))
+
+  // \D - non-digit outside class
+  val nonDigit = `\D+`
+  check("nD-match",   getText(nonDigit.matchFirst("abc123")) == "abc")
+  check("nD-none",    !matched(nonDigit.matchFirst("123")))
+
+  // \W - non-word char outside class
+  val nonWord = `\W+`
+  check("nW-space",   getText(nonWord.matchFirst("foo bar")) == " ")
+  check("nW-none",    !matched(nonWord.matchFirst("foo")))
+
+  // \S - non-whitespace outside class
+  val nonSpace = `\S+`
+  check("nS-word",    getText(nonSpace.matchFirst("  hello  ")) == "hello")
+  check("nS-none",    !matched(nonSpace.matchFirst("   ")))
+
+  // split on non-word runs
+  val parts = `\W+`.split("foo, bar; baz")
+  check("split-count", parts.size == 3)
+  check("split-0",     parts[0] == "foo")
+  check("split-2",     parts[2] == "baz")
+
+  // \b with anchor
+  val startWord = `^\b\w+`
+  check("anchor-b",   getText(startWord.matchFirst("hello world")) == "hello")
+
+  // \B inside a longer word: \B\w+\B skips the first and last chars
+  val noEdge = `\B\w+\B`
+  check("nwb-inner",  getText(noEdge.matchFirst("hello")) == "ell")
