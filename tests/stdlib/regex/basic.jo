@@ -9,6 +9,7 @@ def printMatch(m: Match | None) =
 
 def main =
   testLiteral()
+  testEscapedBacktick()
   testMatching()
   testCaptures()
   testReplace()
@@ -19,6 +20,13 @@ def testLiteral =
   println "--- regex literal / toString ---"
   println `\d+`.toString
   println `(?is)a.*b`.toString
+
+def testEscapedBacktick =
+  println "--- regex escaped backtick ---"
+  val r = `\``
+  println r.toString
+  println r.matchesExact("`")
+  println r.matchesExact("a")
 
 def testMatching =
   println "--- regex matching ---"
