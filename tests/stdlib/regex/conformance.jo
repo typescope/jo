@@ -10,7 +10,7 @@ def main =
   testEscapes()
   testAnchors()
   testFlags()
-  // testWordBoundaries()
+  testWordBoundaries()
   testUnicode()
   testRealistic()
   testCaptures()
@@ -141,14 +141,19 @@ def testUnicode =
     println m2.from
     println m2.length
 
-// def testWordBoundaries =
-//   println "--- regex conformance / word boundaries ---"
-//   println `^\bfoo\b$`.matchesExact("foo")
-//   println `^\bfoo\b!$`.matchesExact("foo!")
-//   println `^!\bfoo$`.matchesExact("!foo")
-//   println `^\Bfoo\B$`.matchesExact("foo")
-//   println `^a\Bfoo\Bb$`.matchesExact("afoob")
-//   println `^a\Bfoo\Bb$`.matchesExact("afoo b")
+def testWordBoundaries =
+  println "--- regex conformance / word boundaries ---"
+  println `^\bfoo\b$`.matchesExact("foo")
+  println `^\bfoo\b!$`.matchesExact("foo!")
+  println `^!\bfoo$`.matchesExact("!foo")
+  println `^\Bfoo\B$`.matchesExact("foo")
+  println `^a\Bfoo\Bb$`.matchesExact("afoob")
+  println `^a\Bfoo\Bb$`.matchesExact("afoo b")
+  val words = `\b\w+\b`.matchAll("one two three")
+  println words.size
+  println words[0].text
+  println words[1].text
+  println words[2].text
 
 def testRealistic =
   println "--- regex conformance / realistic patterns ---"
