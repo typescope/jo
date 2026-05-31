@@ -1,0 +1,22 @@
+import jo.regex.*
+
+def checkError(source: String): String =
+  match Regex.compile(source)
+    case _: Regex => source + "\t: valid"
+    case err: String => source + "\t:" + err
+
+def main =
+  println "--- class escape / valid outside class ---"
+  println checkError("\\b\\w+\\b")
+  println checkError("\\B\\w+\\B")
+  println checkError("\\D+")
+  println checkError("\\W+")
+  println checkError("\\S+")
+
+  println "--- class escape / invalid inside class ---"
+  println checkError("[\\b]")
+  println checkError("[\\B]")
+  println checkError("[\\D]")
+  println checkError("[\\W]")
+  println checkError("[\\S]")
+  println checkError("[\\D\\W]")
