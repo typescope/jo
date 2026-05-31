@@ -63,13 +63,11 @@ Jo-defined shorthands (ASCII only):
 | `\s`   | ASCII whitespace: space, `\t`, `\n`, `\r`, `\f`, vertical tab |
 | `\D`   | `[^0-9]` |
 | `\W`   | `[^A-Za-z0-9_]` |
-| `\S`   | any non-whitespace character (ASCII whitespace complement) |
-| `\b`   | word boundary — transition between `\w` and `\W` |
-| `\B`   | non-word boundary — between two `\w` or two `\W` characters |
+| `\S`   | any character not matched by `\s` |
 
-`\d`, `\w`, `\s` and their upper-case negations (`\D`, `\W`, `\S`) are expanded by Jo before backend compilation, so they behave identically across all backends. `\b` and `\B` are passed through to the backend as-is; all backends use ASCII word-boundary semantics in practice, but this is not enforced by normalization.
+`\d`, `\w`, `\s`, `\D`, `\W`, `\S` are expanded by Jo before backend compilation, guaranteeing identical ASCII semantics on all backends.
 
-**Portability note:** `\b` and `\B` are portable for ASCII input only. Behavior on Unicode text (for example, whether accented letters count as word characters) is not guaranteed to be consistent across backends. `\D`, `\W`, and `\S` are not affected by this: they are expanded by Jo before backend compilation and always carry ASCII semantics.
+`\b` and `\B` are passed through to the backend as-is and are not Jo-defined. They have consistent ASCII word-boundary semantics on all current backends, but behavior on Unicode text is not guaranteed.
 
 ### Restriction: no shorthands inside `[...]`
 
