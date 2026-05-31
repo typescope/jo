@@ -1,0 +1,28 @@
+// \b, \B, \D, \W, \S are not allowed inside character classes
+
+def testBInClass =
+  val _ = `[\b]`
+
+def testBUpperInClass =
+  val _ = `[\B]`
+
+def testDUpperInClass =
+  val _ = `[\D]`
+
+def testWUpperInClass =
+  val _ = `[\W]`
+
+def testSUpperInClass =
+  val _ = `[\S]`
+
+// Combined: multiple restricted escapes in one class
+def testMixed =
+  val _ = `[\D\W]`
+
+// Ensure the same escapes work fine outside a class
+def testOutsideClass =
+  val _ = `\b\w+\b`
+  val _ = `\B\w+\B`
+  val _ = `\D+`
+  val _ = `\W+`
+  val _ = `\S+`
