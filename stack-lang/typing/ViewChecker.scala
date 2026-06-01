@@ -2,25 +2,22 @@ package typing
 
 import sast.*
 import sast.Trees.*
-import sast.Types.*
 import sast.Symbols.*
-import sast.Denotations.ClassInfo
 
 import ast.Positions.*
 import reporting.Reporter
-
-import scala.collection.mutable
 
   /** Check that direct views are correctly implemented.
   *
   * For each direct view declaration `view I` in a class, check:
   *
-  * 1. I is an interface type
-  * 2. The class implements all methods required by the interface
-  * 3. The methods have compatible types
-  * 4. View Consistency: No duplicate member names in the unified virtual namespace
-  *    (class members, attached extension methods, concrete methods from direct views,
-  *     non-private members from delegate views)
+  * 1. The class implements all abstract methods required by the interface
+  * 2. The implementations have compatible types
+  *
+  * Duplicate and non-interface view types are caught earlier in Namer.checkViews
+  * and filtered out before this pass runs, so those checks are not repeated here.
+  * Conflicts involving abstract-method forwarders (delegate views, or two delegates
+  * overlapping) are also caught in Namer.checkViews.
   */
 object ViewChecker:
   def check(units: List[FileUnit])(using Definitions, Reporter): List[FileUnit] =
@@ -43,39 +40,8 @@ object ViewChecker:
     end for
 
   def checkClassDef(cdef: ClassDef)(using defn: Definitions, rp: Reporter, src: Source): Unit =
-    val views = new mutable.ArrayBuffer[Symbol]
-
-    def checkDuplicate(sym: Symbol, span: Span): Unit =
-      if views.contains(sym) then
-        Reporter.error("Two views of the type " + sym + " defined", span.toPos)
-      else
-        views += sym
-
-    // Check views
     for viewTree <- cdef.views do
-      val viewType = viewTree.tpe
-
-      def errorDirectView(): Unit = Reporter.error(s"Direct view must be an interface type, found: ${viewType.show}", viewTree.pos)
-
-      // The view type must be an interface type
-      def checkDirectViewType(sym: Symbol): Unit =
-        checkDuplicate(sym, viewTree.span)
-
-        if sym.isOneOf(Flags.Interface) then
-          checkDirectView(cdef, viewTree)
-
-        else
-          errorDirectView()
-
-      viewType match
-        case StaticRef(sym) => checkDirectViewType(sym)
-
-        case AppliedType(sym, _) => checkDirectViewType(sym)
-
-        case _ => errorDirectView()
-
-    checkViewConsistency(cdef)
-
+      checkDirectView(cdef, viewTree)
 
   def checkDirectView
       (cdef: ClassDef, viewTree: TypeTree)
@@ -93,19 +59,14 @@ object ViewChecker:
       val methodName = requiredMethod.name
       val requiredType = viewType.termMember(methodName).widenTermRef
 
-      // Interface methods are either:
-      // - Abstract (Flags.Defer, no body): must be implemented
-      // - Concrete (no Flags.Defer, has body): cannot be overridden
       val isAbstract = requiredMethod.is(Flags.Defer)
 
       // Find matching method in the class
       cdef.funs.find(_.symbol.name == methodName) match
         case Some(implMethod) =>
-          // Check if this method can be overridden
           if isAbstract then
             val implType = implMethod.symbol.tpe
 
-            // Check type compatibility using subtyping
             if !Subtyping.conforms(implType, requiredType) then
               rp.error(
                 s"Method $methodName has incompatible type from interface $interfaceSym.\n" +
@@ -115,81 +76,8 @@ object ViewChecker:
               )
 
         case None =>
-          // Only abstract methods must be implemented
           if isAbstract then
             rp.error(
               s"Class ${cdef.symbol.name} does not implement required method $methodName from interface ${interfaceSym.name}",
               viewTree.pos
             )
-
-  /** Check View Consistency: ensure no duplicate member names in the unified virtual namespace.
-    *
-    * The unified namespace includes:
-    * 1. Direct members (methods and fields) in the class
-    * 2. Attached extension methods
-    * 3. Concrete methods from direct views (interface methods with implementations)
-    *
-    * This ensures a consistent API where each member name has a single, unambiguous meaning.
-    */
-  def checkViewConsistency
-      (cdef: ClassDef)
-      (using defn: Definitions, rp: Reporter, src: Source)
-  : Unit =
-    // Track members with their source for error reporting
-    enum MemberSource:
-      case DirectMethod(sym: Symbol)
-      case DirectField(sym: Symbol)
-      case DirectViewMethod(interfaceInfo: ClassInfo, sym: Symbol)
-
-    val memberRegistry = mutable.Map.empty[String, MemberSource]
-
-    def describeSource(source: MemberSource): String =
-      source match
-        case MemberSource.DirectMethod(sym) =>
-          s"as class method '${sym.name}' in ${cdef.symbol.name}"
-        case MemberSource.DirectField(sym) =>
-          s"as class field '${sym.name}' in ${cdef.symbol.name}"
-        case MemberSource.DirectViewMethod(interfaceInfo, sym) =>
-          s"as concrete method '${sym.name}' from direct view ${interfaceInfo.classSymbol.name}"
-
-    def registerMember(name: String, source: MemberSource, pos: SourcePosition): Unit =
-      memberRegistry.get(name) match
-        case Some(existing) =>
-          rp.error(
-            s"Member '$name' conflicts in unified namespace.\n" +
-            s"  First defined: ${describeSource(existing)}\n" +
-            s"  Also defined: ${describeSource(source)}",
-            pos
-          )
-        case None =>
-          memberRegistry(name) = source
-
-    // 1. Register direct methods from the class (excluding constructors)
-    for method <- cdef.funs if !method.symbol.is(Flags.Constructor) do
-      registerMember(
-        method.symbol.name,
-        MemberSource.DirectMethod(method.symbol),
-        method.pos
-      )
-
-    // 2. Register direct fields from the class
-    for field <- cdef.vals do
-      registerMember(
-        field.symbol.name,
-        MemberSource.DirectField(field.symbol),
-        field.symbol.sourcePos
-      )
-
-    // 4. Register concrete methods from direct views (excluding constructors)
-    for viewTree <- cdef.views do
-      val viewType = viewTree.tpe
-      if viewType.isClassInfoType then
-        val viewClassInfo = viewType.classInfo
-        for method <- viewClassInfo.methods if !method.is(Flags.Defer) do
-          registerMember(
-            method.name,
-            MemberSource.DirectViewMethod(viewClassInfo, method),
-            viewTree.pos
-          )
-
-
