@@ -2,7 +2,6 @@ package typing
 
 import sast.*
 import sast.Trees.*
-import sast.Symbols.*
 
 import ast.Positions.*
 import reporting.Reporter
