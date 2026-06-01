@@ -2,42 +2,40 @@
 
 ## Overview
 
-**Views** provide a unifying philosophy for designing class behaviors through both **subtyping** and **composition**.
+**Views** are Jo's unified mechanism for fulfilling behavioral contracts. A class uses
+`view` to declare that it satisfies an interface — either by implementing the required
+methods directly, or by delegating to a stable reference that already satisfies it.
 
-The `view` mechanism enables classes to adopt behavior contracts through two complementary approaches:
-
-- **Direct views** (`view I`): Subtyping-based design.
-- **Delegate views** (`view I = expr`): Composition-based design.
-
-Both use the same syntactic mechanism and conceptual framework—**views**—but serve different design needs.
+Both forms create a genuine subtype relationship `C <: I` and are subject to the same
+conformance rules. The difference is only in where the abstract method implementations
+come from.
 
 ## Motivation
 
-### Beyond "Is-a" vs "Has-a"
+### Beyond Inheritance vs Composition
 
-The traditional dichotomy between **"is-a"** (inheritance/subtyping) and **"has-a"** (composition) is somewhat artificial. In practice, programmers care primarily about **fulfilling behavioral contracts**—ensuring that objects provide the capabilities required by the interfaces they use.
+The traditional dichotomy between **inheritance** and **composition** is somewhat
+artificial. In practice, programmers care primarily about **fulfilling behavioral
+contracts** — ensuring that objects provide the capabilities required by the interfaces
+they use.
 
-However, traditional OOP languages create a significant **asymmetry**:
+Yet traditional OOP languages create a significant **asymmetry**:
 
-- **Subtyping ("is-a")** is easy: declare inheritance, get automatic subtype relationships
-- **Composition ("has-a")** is tedious: write forwarding methods and select delegate object
+- **Inheritance** is easy: declare it, get automatic subtype relationships
+- **Composition** is tedious: write forwarding methods for every delegated method
 
-This asymmetry contradicts the widely-accepted principle of **"prefer composition over inheritance"**.
+This asymmetry pushes programmers toward inheritance even when composition is the better
+fit, contradicting the widely-accepted principle of **"prefer composition over inheritance"**.
 
-### Entering Views
+### Views: One Mechanism, Two Strategies
 
-Views provide a **unifying philosophy** where both approaches are equally easy. The single `view` mechanism enables classes to fulfill behavioral contracts through either **subtyping** or **composition**:
+Views eliminate this asymmetry. The single `view` keyword covers both strategies:
 
-- **Direct views** (`view I`): Fulfill contracts via **subtyping**
-    - The class structurally implements the interface, creating `C <: I`
-    - Enables polymorphic usage through type compatibility
+- **`view I`** — implement the contract yourself: the class provides the methods directly
+- **`view I = ref`** — delegate the contract: a held object provides the methods
 
-- **Delegate views** (`view I = expr`): Fulfill contracts via **composition**
-    - The class delegates to an instance that provides the behavior
-    - No manual forwarding needed—delegation is automatic
-    - Enables behavioral reuse without coupling or subtyping
-
-**The same class can use both:**
+Both create `C <: I`. Both are equally concise. The choice is a design decision about
+where the implementation lives, not a tradeoff in convenience or type-system power.
 
 ```jo
 interface Loggable
@@ -49,107 +47,22 @@ interface Serializable
 end
 
 class User(id: Int, name: String, logger: Loggable)
-  // Direct view: fulfills Serializable contract via subtyping
   def serialize(): String = "User(" + id + ", " + name + ")"
-  view Serializable
+  view Serializable    // direct: User implements Serializable itself
 
-  // Delegate view: fulfills Loggable contract via composition
-  view Loggable = logger
+  view Loggable = logger  // delegate: Loggable is provided by logger
 end
 ```
 
-### Benefits
+`User` is a subtype of both `Serializable` and `Loggable`. No adaptation or forwarding
+boilerplate is needed at call sites.
 
-This unification provides:
-
-- **Focus on contracts**: Emphasize what behaviors a class provides, not how it's implemented
-- **Composition-friendly**: Delegation is now as convenient as subtyping
-
-## Basic Syntax
-
-Classes declare views using the `view` keyword.
-
-### Direct Views
-
-```jo
-interface Iterator[T]
-  def hasNext(): Bool
-  def next(): T
-end
-
-class Range(start: Int, ends: Int)
-  def iterator(): Iterator[Int] = new RangeIterator(this)
-end
-
-// Separate iterator with its own state
-class RangeIterator(range: Range)
-  var current: Int = range.start
-
-  def hasNext(): Bool = current < range.ends
-  def next(): Int =
-    val value = current
-    current = current + 1
-    value
-
-  view Iterator[Int]
-end
-
-val range = new Range(0, 10)
-val iter = range.iterator()
-while iter.hasNext() do
-  println(iter.next())
-end
-```
-
-### Delegate Views
-
-Views can delegate to concrete instances using `view T = expr`, where `T` can be any interface or class type:
-
-```jo
-interface Logger
-  def log(msg: String): Unit
-  def error(msg: String): Unit
-end
-
-class Service(logger: Logger, config: Config)
-  view Logger = logger  // Delegate interface view to logger instance
-
-  def process(): Unit =
-    log("Starting process")  // Delegates via member selection
-end
-```
-
-**Delegation to class types:**
-
-```jo
-class Employee
-  def work(): Unit = ...
-  def getSalary(): Int = ...
-end
-
-class Customer
-  def buy(item: Item): Unit = ...
-end
-
-class Person(name: String, empData: Employee, custData: Customer)
-  view Employee = empData  // Delegate Employee role to empData
-  view Customer = custData  // Delegate Customer role to custData
-
-  def introduce(): String = "Hi, I'm " + name
-end
-```
-
-::: info Direct vs. Delegate Views
-Both mechanisms help classes fulfill behavioral contracts—they differ in how:
-
-- **Direct views** (`view I`): Fulfill contracts via **subtyping**. Only allowed for interface types. The class must implement all interface methods, creating `C <: I`.
-- **Delegate views** (`view T = expr`): Fulfill contracts via **adaptation**. Allowed for any type (interface or class). Delegates method calls to the expression. Does NOT create subtyping.
-:::
 ## How Views Work
 
-### Direct Views: Subtyping
+### Direct View: `view I`
 
-When a class declares `view I`, it creates a **subtyping relationship** `C <: I`:
+The class implements all abstract methods of `I` in its own body. The compiler verifies
+this and establishes `C <: I`.
 
 ```jo
 interface Logger
@@ -158,144 +71,90 @@ end
 
 class ConsoleLogger
   def log(msg: String): Unit = println(msg)
-  view Logger  // Creates subtyping: ConsoleLogger <: Logger
+  view Logger
 end
 
-// No adaptation needed
-def useLogger(logger: Logger): Unit = logger.log("msg")
+def useLogger(l: Logger): Unit = l.log("hello")
+
 val console = new ConsoleLogger()
-useLogger(console)  // OK: ConsoleLogger <: Logger
+useLogger(console)   // OK: ConsoleLogger <: Logger
 ```
 
-### Delegate Views: Composition
+### Delegate View: `view I = ref`
 
-When a class declares `view T = expr`, it creates a view field that holds the delegated instance:
+The class holds a stable reference `ref` that already conforms to `I`. The compiler
+generates a forwarding method for each abstract method of `I`, delegating to `ref`.
+The class becomes a subtype of `I` through these forwarders.
 
 ```jo
+interface Logger
+  def log(msg: String): Unit
+  def error(msg: String): Unit
+end
+
 class Service(logger: Logger)
-  view Logger = logger  // Creates: val Logger: Logger
+  view Logger = logger
 end
+
+// Service <: Logger, so no boilerplate at call sites
+def useLogger(l: Logger): Unit = l.log("hello")
 
 val service = new Service(someLogger)
-service.log("hello")  // Delegates to: service.Logger.log("hello")
+useLogger(service)   // OK: Service <: Logger
+service.log("hello") // OK: forwarded to service.logger.log("hello")
 ```
 
-### Using Views
+The delegate `ref` must be a **stable reference**: `this`, or an immutable field
+selection on a stable reference. It must also conform to `I` (nominally: `ref.tpe <: I`).
 
-**Type adaptation:**
+### Concrete Methods from Interfaces
 
-```jo
-def useLogger(l: Logger): Unit = l.log("msg")
-
-val service = new Service(someLogger)
-useLogger(service)  // Implicit adaptation through Logger view
-```
-
-**Member selection:**
-
-When you call `service.log("hello")`, the compiler:
-
-1. Looks for `log` directly in `Service` - not found
-2. Searches through Service's views - finds `Logger` view
-3. Resolves to: `service.Logger.log("hello")`
-
-## Example: Multi-role Delegation
-
-Classes can delegate to other class types to model multiple roles:
+When an interface defines a concrete method (a method with a default body), both view
+forms inherit it directly. The class cannot override it — concrete interface methods
+are final. This preserves the interface's default behavior and avoids ambiguity.
 
 ```jo
-class Employee(id: Int)
-  def work(): Unit = println("Working...")
-  def getSalary(): Int = 50000
+interface Iterator[T]
+  def hasNext(): Bool         // abstract
+  def next(): T               // abstract
+  def forEach(f: T -> Unit): Unit =  // concrete — inherited, not overridable
+    while hasNext() do f(next())
 end
 
-class Customer(level: Int)
-  def buy(item: String): Unit = println("Buying " + item)
-  def getDiscountLevel(): Int = level
+class Range(start: Int, end: Int)
+  var current: Int = start
+  def hasNext(): Bool = current < end
+  def next(): Int =
+    val v = current
+    current = current + 1
+    v
+  view Iterator[Int]
 end
-
-// Person plays multiple roles
-class Person(name: String, empData: Employee, custData: Customer)
-  view Employee = empData  // Expose Employee role
-  view Customer = custData  // Expose Customer role
-
-  def introduce(): String = "Hi, I'm " + name
-end
-
-def processPayroll(e: Employee): Unit =
-  val salary = e.getSalary()
-  println("Salary: " + salary)
-end
-
-def applyDiscount(c: Customer): Int =
-  c.getDiscountLevel()
-end
-
-val person = new Person("Alice", new Employee(123), new Customer(2))
-
-// Type-directed adaptation to class types
-processPayroll(person)  // Adapts via view Employee
-applyDiscount(person)   // Adapts via view Customer
-
-// Member selection through class views
-person.work()           // Finds work() through Employee view
-person.buy("book")      // Finds buy() through Customer view
-person.introduce()      // Direct member
-
-// Explicit view access
-val asEmp: Employee = person.Employee
-val asCust: Customer = person.Customer
 ```
 
 ## Design Decisions
 
-### View Lookup is Non-Recursive
+### No Duplicate Views
 
-Both member selection and view adaptation only examine views **directly declared** by a class—they never recursively search through views of delegated objects.
-
-**Why this matters:**
+A class cannot declare two views of the same interface — it would create ambiguity in
+which view provides the implementation. The compiler rejects duplicate view declarations.
 
 ```jo
-class FileLogger(path: String)
-  def log(msg: String): Unit = ...
-  view Logger  // FileLogger has Logger view
-end
-
-class Service(logger: FileLogger)
-  view FileLogger = logger  // Service gets FileLogger view only
-  // Service does NOT automatically get Logger view!
+class Service(l1: Logger, l2: Logger)
+  view Logger = l1
+  view Logger = l2  // Error: duplicate view for Logger
 end
 ```
 
-To expose the Logger view, you must declare it explicitly:
+### View Consistency
 
-```jo
-class Service(logger: FileLogger)
-  view FileLogger = logger
-  view Logger = logger  // Explicitly expose Logger
-end
-```
+All members visible through a class form a single unified namespace. Conflicts between
+direct members and view-provided members are reported at class definition time, not at
+call sites.
 
-**Benefits:**
+## See Also
 
-- **Explicit control**: Each class explicitly declares which capabilities it exposes
-- **Predictability**: Views are found only in direct declarations
-- **Encapsulation**: Changes to delegate classes don't silently affect the delegating class
-- **Simplicity**: No complex transitive closure computation
-
-### View Consistency and Uniqueness
-
-Classes must maintain consistency in their view declarations to ensure predictable behavior:
-
-- **No duplicate views**: A class cannot declare multiple views of the same type
-- **No duplicate members**: The virtual namespace (combining direct members and view-delegated members) must not contain duplicate method or field names
-- **View consistency**: Direct views must properly implement all interface members; delegate views must reference values of the correct type
-
-These constraints prevent ambiguity in member selection and type adaptation, ensuring that view-based delegation remains clear and deterministic.
-
-## Technical Details
-
-For detailed technical specifications, see:
-
-- [Class Definitions](../definitions/class-definitions.md) - View fields, member selection rules, and view consistency
-- [Interface Definitions](../definitions/interface-definitions.md) - View conformance checking and interface method requirements
+- [Class Definitions](../definitions/class-definitions.md) - View conformance rules,
+  member consistency, and technical details
+- [Interface Definitions](../definitions/interface-definitions.md) - Interface method
+  requirements and concrete method semantics
