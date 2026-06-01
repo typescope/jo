@@ -1943,20 +1943,21 @@ class Namer(using Config) extends Applications with SelectionTyper:
       val interfaceInfo = viewType.classInfo
 
       for abstractSym <- interfaceInfo.methods.filter(_.is(Flags.Defer)) do
-        methods.find(_.name == abstractSym.name) match
+        val fwdSym = TermSymbol.create(
+            abstractSym.name,
+            Flags.Fun | Flags.Method | Flags.Synthetic,
+            Visibility.Default,
+            classSym,
+            vdecl.span.toPos
+        )
+
+
+        methods.find(_.name == fwdSym.name) match
           case Some(other) =>
-            val error = NameTable.DoubleDefinition(abstractSym, other)
+            val error = NameTable.DoubleDefinition(other, fwdSym)
             rp.report(error)
 
           case None =>
-            val fwdSym = TermSymbol.create(
-                abstractSym.name,
-                Flags.Fun | Flags.Method | Flags.Synthetic,
-                Visibility.Default,
-                classSym,
-                vdecl.span.toPos
-            )
-
             methods += fwdSym
 
             index.addLazy(fwdSym, () => viewType.termMember(abstractSym.name).widenTermRef)
