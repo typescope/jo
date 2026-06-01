@@ -2020,6 +2020,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     val lazyViewTypeTrees = checkViews(classSym, cdef.views, shortCutScope, methods, delayedDefs)
     val viewTypeTreesLazy = lazyValue:
+      tparamSymsLazy.value
       lazyViewTypeTrees.map(_.value).filter(!_.tpe.isError)
 
     val classInfoLazy = lazyValue:
