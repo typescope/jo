@@ -1,0 +1,6 @@
+---------- Error at tests/warn/view-delegate-class-type.jo:8:8 ---------------
+|   view Logger = logger
+|        ^^^^^^
+|        View must be an interface type, found: Logger
+
+1 error(s), 0 warning(s)

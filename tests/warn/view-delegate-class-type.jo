@@ -1,0 +1,11 @@
+// Delegate view must point to an interface, not a class type
+
+class Logger
+  def log(msg: String): Unit = ...
+end
+
+class Service(logger: Logger)
+  view Logger = logger
+end
+
+def main = ...

@@ -1,0 +1,6 @@
+---------- Error at tests/warn/view-delegate-mutable.jo:9:17 ---------------
+|   view Logger = logger
+|                 ^^^^^^
+|                 Delegate view expression must be a stable reference (immutable field)
+
+1 error(s), 0 warning(s)

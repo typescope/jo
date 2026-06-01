@@ -1,0 +1,10 @@
+---------- Error at tests/warn/view-delegate-forwarder-conflict.jo:13:3 ---------------
+|   view Monitor = monitor
+|   ^^^^^^^^^^^^^^^^^^^^^^
+|   Redefinition of log
+|
+| The name `log` is already defined at tests/warn/view-delegate-forwarder-conflict.jo:12:3
+|   view Logger = logger
+|   ^^^^^^^^^^^^^^^^^^^^
+
+1 error(s), 0 warning(s)

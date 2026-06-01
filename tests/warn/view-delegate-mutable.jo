@@ -1,0 +1,12 @@
+// Delegate view expression must be an immutable (stable) field
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+class Service(x: Logger)
+  var logger: Logger = x
+  view Logger = logger
+end
+
+def main = ...

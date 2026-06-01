@@ -1,0 +1,6 @@
+---------- Error at tests/warn/view-duplicate-delegate.jo:9:8 ---------------
+|   view Logger = logger2
+|        ^^^^^^
+|        Duplicate view declaration for Logger
+
+1 error(s), 0 warning(s)
