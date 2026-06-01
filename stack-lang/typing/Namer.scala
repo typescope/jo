@@ -1942,7 +1942,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       // Refs are type-checked later in lazyDef(classSym) to avoid a ClassInfo cycle.
       val interfaceInfo = viewType.classInfo
 
-      for abstractSym <- interfaceInfo.methods.filter(_.is(Flags.Defer)) do
+      for abstractSym <- interfaceInfo.methods do
         val fwdSym = TermSymbol.create(
             abstractSym.name,
             Flags.Fun | Flags.Method | Flags.Synthetic,
@@ -1951,21 +1951,21 @@ class Namer(using Config) extends Applications with SelectionTyper:
             vdecl.span.toPos
         )
 
-
         methods.find(_.name == fwdSym.name) match
           case Some(other) =>
             val error = NameTable.DoubleDefinition(other, fwdSym)
             rp.report(error)
 
           case None =>
-            methods += fwdSym
+            if abstractSym.is(Flags.Defer) then
+              methods += fwdSym
 
-            index.addLazy(fwdSym, () => viewType.termMember(abstractSym.name).widenTermRef)
+              index.addLazy(fwdSym, () => viewType.termMember(abstractSym.name).widenTermRef)
 
-            if !Naming.isOperator(abstractSym.name) then shortCutScope.define(fwdSym)
+              if !Naming.isOperator(abstractSym.name) then shortCutScope.define(fwdSym)
 
-            delayedDefs += lazyDef(fwdSym):
-              synthesizeForwarder(fwdSym, lazyRef.value, abstractSym, viewSpan)
+              delayedDefs += lazyDef(fwdSym):
+                synthesizeForwarder(fwdSym, lazyRef.value, abstractSym, viewSpan)
       end for
 
       viewTypeTree
