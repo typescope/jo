@@ -87,36 +87,6 @@ When a value is checked against `Printable`, Jo tries the adapters in order afte
 
 See [Duck Types](duck-types.md).
 
-### Views: Subtyping and Adaptation
-
-Jo has two different view mechanisms:
-
-- **Direct views** participate in **subtyping**
-- **Delegate views** participate in **adaptation**
-
-Example:
-
-```jo
-interface Logger
-  def log(msg: String): Unit
-end
-
-class FileLogger
-  def log(msg: String): Unit = ...
-  view Logger
-end
-
-def useLogger(x: Logger): Unit = ...
-
-useLogger(new FileLogger)  // works by subtyping
-```
-
-With a direct view, the class is a subtype of the interface.
-
-Delegate views are different: they do not create a subtype relationship. They are considered during type adaptation when an expected type requires them.
-
-See [Classes and Views](../concepts/interface-views.md) and [Class Types](class-types.md).
-
 ### Lambda Interface Adaptation
 
 A lambda may adapt to an interface with a single abstract method when the shapes are compatible.
