@@ -33,6 +33,21 @@ object Trees:
     def dropIfVoid(target: Type)(using Definitions): Word =
       if target.isVoidType then dropValue else this
 
+    def isStableRef: Boolean = this match
+      case _: Ident => true
+
+      case sel @ Select(qual, _) =>
+        qual.isStableRef && {
+          sel.tpe match
+            case refType: RefType =>
+              val sym = refType.symbol
+              sym.is(Flags.Field) && !sym.is(Flags.Mutable)
+
+            case _ => false
+        }
+
+      case _ => false
+
     def show(using Definitions): String = Printing.show(this)
 
     /** Whether the word can be duplicated as neighbors without affecting program semantics */

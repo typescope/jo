@@ -1843,11 +1843,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
       val tpt = TypeTree(rhsTypeLazy.value)(tdef.rhs.span)
       TypeDef(typeSym, tparamSymsLazy.value, tpt)(annotationsLazy.value, tdef.span)
 
-  private def isStableRef(word: Word): Boolean = word match
-    case _: Ident => true
-    case sel @ Select(qual, _) => isStableRef(qual) && !sel.tpe.as[RefType].symbol.is(Flags.Mutable)
-    case _ => false
-
   private def synthesizeForwarder
       (fwdSym: Symbol, typedRef: Word, abstractSym: Symbol, viewSpan: Span)
       (using defn: Definitions, so: Source)
@@ -1938,7 +1933,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         val ref = Inference.freshIsolate:
           transform(rhs)
 
-        if !isStableRef(ref) then
+        if !ref.isStableRef then
           Reporter.error("Delegate view expression must be a stable reference (immutable field)", ref.pos)
 
         ref
