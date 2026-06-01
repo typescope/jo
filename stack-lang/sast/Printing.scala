@@ -357,7 +357,7 @@ object Printing:
       case Visibility.Default => ""
       case Visibility.Private(sym) => "private[" + sym.name + "] "
 
-    val mask = Flags.Synthetic | Flags.Context | Flags.Default | Flags.Alias | Flags.Defer | Flags.View
+    val mask = Flags.Synthetic | Flags.Context | Flags.Default | Flags.Alias | Flags.Defer
     visibility ~ Flags.flagStrings(sym.flags & mask).map("<" + _ + ">").join(" ")
 
   def showType(tp: Type)(using defn: Definitions): Text =

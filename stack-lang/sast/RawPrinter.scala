@@ -251,7 +251,7 @@ object RawPrinter:
         val self        = classInfo.self
         val fields      = classInfo.fields
         val methods     = classInfo.methods
-        val directViews = classInfo.directViews
+        val viewList = classInfo.views
 
         "ClassInfo [" ~ indent:
             classSymbol ~ "," ~
@@ -259,7 +259,7 @@ object RawPrinter:
             self ~ "," ~
             "[" ~ fields.join(",") ~ "]," ~
             "[" ~ methods.join(",") ~ "]," ~
-            "[" ~ directViews.join(",") ~ "],"
+            "[" ~ viewList.join(",") ~ "],"
         ~ "]"
 
       case TypeOperatorInfo(tparams, rhs, preParamCount) =>

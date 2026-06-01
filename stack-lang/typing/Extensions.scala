@@ -62,7 +62,7 @@ object Extensions:
       return false
 
     // Shadow / override consistency check
-    val shadows = hasMember(baseType, sym.name)
+    val shadows = baseType.hasTermMember(sym.name)
 
     if shadows && !isOverride then
       if fromAnnotation then
@@ -85,11 +85,3 @@ object Extensions:
           pos)
 
     true
-
-  /** Check whether the base type has a member with the given name,
-    * including direct members, direct view members, and delegate view members.
-    */
-  private def hasMember(baseType: Type, name: String)(using Definitions): Boolean =
-    baseType.hasTermMember(name)
-      || baseType.directViews.exists(_.hasTermMember(name))
-      || baseType.delegateViews.exists(_.hasTermMember(name))

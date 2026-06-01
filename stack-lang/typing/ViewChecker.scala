@@ -51,8 +51,8 @@ object ViewChecker:
       else
         views += sym
 
-    // Check direct views (stored in ClassDef.directViews)
-    for viewTree <- cdef.directViews do
+    // Check views
+    for viewTree <- cdef.views do
       val viewType = viewTree.tpe
 
       def errorDirectView(): Unit = Reporter.error(s"Direct view must be an interface type, found: ${viewType.show}", viewTree.pos)
@@ -74,41 +74,6 @@ object ViewChecker:
 
         case _ => errorDirectView()
 
-    // Check delegate views
-    for field <- cdef.vals if field.symbol.is(Flags.View) do
-      val viewSym = field.symbol
-      val viewType = field.tpt.tpe
-
-      def errorView(): Unit = rp.error(s"Delegate view must be an interface or class type, found: ${viewType.show}", viewSym.sourcePos)
-
-      // The view type must be an interface or class type
-      viewType match
-        case StaticRef(sym) =>
-          if !sym.isOneOf(Flags.Interface | Flags.Class) then
-            errorView()
-          else
-            checkDuplicate(sym, viewSym.sourcePos.span)
-
-        case AppliedType(sym, _) =>
-          if !sym.isOneOf(Flags.Interface | Flags.Class) then
-            errorView()
-          else
-            checkDuplicate(sym, viewSym.sourcePos.span)
-
-        case _ =>
-          errorView()
-
-      // Check that the delegate view is not shadowed by the class type
-      // If the class is a subtype of the delegate view, the delegate will never be used
-      val classType = cdef.self.tpe
-      if Subtyping.conforms(classType, viewType) then
-        Reporter.error(
-          s"Delegate view ${viewType.show} is shadowed: class ${cdef.symbol.name} is already a subtype of ${viewType.show}",
-          viewSym.sourcePos
-        )
-
-    // Check View Consistency: no duplicate method names across class methods,
-    // concrete methods from direct views, and non-private methods from delegate views
     checkViewConsistency(cdef)
 
 
@@ -163,7 +128,6 @@ object ViewChecker:
     * 1. Direct members (methods and fields) in the class
     * 2. Attached extension methods
     * 3. Concrete methods from direct views (interface methods with implementations)
-    * 4. Non-private members (methods and fields) from delegate views
     *
     * This ensures a consistent API where each member name has a single, unambiguous meaning.
     */
@@ -176,8 +140,6 @@ object ViewChecker:
       case DirectMethod(sym: Symbol)
       case DirectField(sym: Symbol)
       case DirectViewMethod(interfaceInfo: ClassInfo, sym: Symbol)
-      case DelegateViewMethod(viewInfo: ClassInfo, methodSym: Symbol)
-      case DelegateViewField(viewInfo: ClassInfo, fieldSym: Symbol)
 
     val memberRegistry = mutable.Map.empty[String, MemberSource]
 
@@ -189,10 +151,6 @@ object ViewChecker:
           s"as class field '${sym.name}' in ${cdef.symbol.name}"
         case MemberSource.DirectViewMethod(interfaceInfo, sym) =>
           s"as concrete method '${sym.name}' from direct view ${interfaceInfo.classSymbol.name}"
-        case MemberSource.DelegateViewMethod(viewInfo, methodSym) =>
-          s"from delegate view ${viewInfo.classSymbol.name} (method '${methodSym.name}')"
-        case MemberSource.DelegateViewField(viewInfo, fieldSym) =>
-          s"from delegate view ${viewInfo.classSymbol.name} (field '${fieldSym.name}')"
 
     def registerMember(name: String, source: MemberSource, pos: SourcePosition): Unit =
       memberRegistry.get(name) match
@@ -214,8 +172,8 @@ object ViewChecker:
         method.pos
       )
 
-    // 2. Register direct fields from the class (excluding view fields)
-    for field <- cdef.vals if !field.symbol.is(Flags.View) do
+    // 2. Register direct fields from the class
+    for field <- cdef.vals do
       registerMember(
         field.symbol.name,
         MemberSource.DirectField(field.symbol),
@@ -223,7 +181,7 @@ object ViewChecker:
       )
 
     // 4. Register concrete methods from direct views (excluding constructors)
-    for viewTree <- cdef.directViews do
+    for viewTree <- cdef.views do
       val viewType = viewTree.tpe
       if viewType.isClassInfoType then
         val viewClassInfo = viewType.classInfo
@@ -234,35 +192,4 @@ object ViewChecker:
             viewTree.pos
           )
 
-    // 5. Register non-private methods from delegate views (excluding constructors)
-    for field <- cdef.vals if field.symbol.is(Flags.View) do
-      val viewSym = field.symbol
-      val viewType = field.tpt.tpe
-      if viewType.isClassInfoType then
-        val viewClassInfo = viewType.classInfo
-        for method <- viewClassInfo.methods if !method.is(Flags.Constructor) do
-          // Only include non-private methods
-          method.visibility match
-            case Visibility.Private(sym) if sym == method.owner =>
-              // Skip private methods
 
-            case _ =>
-              registerMember(
-                method.name,
-                MemberSource.DelegateViewMethod(viewClassInfo, method),
-                viewSym.sourcePos
-              )
-
-        // 6. Register non-private fields from delegate views
-        for field <- viewClassInfo.fields do
-          // Only include non-private fields
-          field.visibility match
-            case Visibility.Private(sym) if sym == field.owner =>
-              // Skip private fields
-
-            case _ =>
-              registerMember(
-                field.name,
-                MemberSource.DelegateViewField(viewClassInfo, field),
-                viewSym.sourcePos
-              )
