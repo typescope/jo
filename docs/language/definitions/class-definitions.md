@@ -33,7 +33,7 @@ val p = new Point(3, 4)
 
 The class parameters (`x`, `y`) become immutable fields. Fields with initializers have their RHS evaluated during construction.
 
-A class with class parameters but without fields in the class body is considered a **data class**. For data classes, the compiler automatically generates a constructor function and a pattern definition for pattern matching.
+A class with class parameters but without fields in the class body is considered a **data class**. For data classes, the compiler automatically generates a factory function and a pattern definition for pattern matching.
 
 The `Point` class above desugars to:
 
@@ -49,7 +49,23 @@ class Point
     this.cachedHash = x * 31 + y
     this
 end
+```
 
+
+If the field `cachedHash` is absent:
+
+```jo
+class Point(x: Int, y: Int)
+  val cachedHash: Int = x * 31 + y
+
+  def toString(): String = "Point(" + x + ", " + y + ")"
+end
+```
+
+the class will be recognized as a _data class_, and the following factory
+function and pattern predicte are synthesized automatically:
+
+```jo
 // Automatically generated constructor function
 def Point(x: Int, y: Int): Point = new Point(x, y)
 
@@ -272,10 +288,7 @@ end
 Constructor requirements:
 
 - Return type must be the class type if declared
-- Body contains field initialization assignments (`this.field = expr`)
 - All fields must be initialized
-- Field assignments can appear anywhere in the body, with code before and between them
-- `this` is available throughout the constructor body
 - Constructor automatically appends `this` to return the instance
 
 **Example with code before and between initializations:**
@@ -309,8 +322,6 @@ end
 ```
 
 **Fields with initializers:**
-
-Both approaches support fields with initializers:
 
 ```jo
 class Counter(initial: Int)

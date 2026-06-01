@@ -6,10 +6,6 @@
 `view` to declare that it satisfies an interface — either by implementing the required
 methods directly, or by delegating to a stable reference that already satisfies it.
 
-Both forms create a genuine subtype relationship `C <: I` and are subject to the same
-conformance rules. The difference is only in where the abstract method implementations
-come from.
-
 ## Motivation
 
 ### Beyond Inheritance vs Composition
@@ -104,8 +100,8 @@ useLogger(service)   // OK: Service <: Logger
 service.log("hello") // OK: forwarded to service.logger.log("hello")
 ```
 
-The delegate `ref` must be a **stable reference**: `this`, or an immutable field
-selection on a stable reference. It must also conform to `I` (nominally: `ref.tpe <: I`).
+The delegate `ref` must be a **stable reference**: an immutable field or a chain of immutable field selections.
+It must also conform to `I` (nominally: `ref.tpe <: I`).
 
 ### Concrete Methods from Interfaces
 
