@@ -21,7 +21,7 @@ end
 // Conflict Type 1: Class method vs Delegate view method
 class Processor1
   def read(): String = ...              // Class method
-  view FileReader = new FileReader()    // ERROR: read() conflicts
+  view Readable = new FileReader()       // ERROR: read() conflicts
 end
 
 // Conflict Type 2: Class method vs Concrete method from direct view
@@ -41,9 +41,9 @@ class SimpleLogger
   view Logger
 end
 
-class Processor3
-  view FileReader = new FileReader()    // Has write()
-  view Logger = new SimpleLogger()      // ERROR: write() conflicts
+class Processor3(fileReader: FileReader, logger: SimpleLogger)
+  view Writable = fileReader   // Has write()
+  view Logger = logger         // ERROR: write() conflicts
 end
 
 def main = ...

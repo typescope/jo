@@ -42,9 +42,9 @@ class Logger2
   view Logger
 end
 
-class Counter
-  val count: Int = 0
-  def increment(): Unit = pass
+interface Counter
+  def count: Int
+  def increment(): Unit
 end
 
 class Service3(logger: Logger2, counter: Counter)
@@ -53,9 +53,9 @@ class Service3(logger: Logger2, counter: Counter)
 end
 
 // Error: class field conflicts with method from delegate view
-class Printer
-  def format(s: String): String = s
-  def print(s: String): Unit = pass
+interface Printer
+  def format(s: String): String
+  def print(s: String): Unit
 end
 
 class Service4(printer: Printer)
@@ -64,9 +64,9 @@ class Service4(printer: Printer)
 end
 
 // Error: class method conflicts with field from delegate view
-class Config
-  val timeout: Int = 30
-  def load(): Unit = pass
+interface Config
+  def timeout: Int
+  def load(): Unit
 end
 
 class Service5(config: Config)
@@ -75,14 +75,14 @@ class Service5(config: Config)
 end
 
 // Error: field from one delegate view conflicts with method from another
-class Database
-  val connection: String = "db://localhost"
-  def query(sql: String): Unit = pass
+interface Database
+  def connection: String
+  def query(sql: String): Unit
 end
 
-class Connection
-  def connection(): String = "active"
-  def close(): Unit = pass
+interface Connection
+  def connection(): String
+  def close(): Unit
 end
 
 class Service6(db: Database, conn: Connection)
