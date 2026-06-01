@@ -2020,13 +2020,14 @@ class Namer(using Config) extends Applications with SelectionTyper:
       lazyViewTypeTrees.map(_.value).filter(!_.tpe.isError)
 
     val classInfoLazy = lazyValue:
+      val viewTypeTrees = viewTypeTreesLazy.value  // must run before methods.toList to add forwarder symbols
       new ClassInfo(
         classSym,
         tparamSymsLazy.value,
         thisSym,
         fields.toList,
         methods.toList,
-        viewTypeTreesLazy.value.map(_.tpe)
+        viewTypeTrees.map(_.tpe)
       )
 
     index.addLazy(classSym, () => classInfoLazy.value)
