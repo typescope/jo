@@ -1,7 +1,8 @@
 // Test view consistency checking for fields
-// Should detect conflicts between:
-// - Direct fields and fields from delegate views
-// - Fields from multiple delegate views
+// In the delegate view design, only ABSTRACT methods from an interface are forwarded.
+// Fields of the delegate object are not forwarded, so field-vs-field conflicts no
+// longer arise.  The errors that remain are name clashes between class members and
+// the abstract-method forwarders that the compiler synthesizes.
 
 interface Logger
   def log(msg: String): Unit
@@ -23,19 +24,20 @@ class StorageImpl
   view Storage
 end
 
-// Error: field 'logLevel' conflicts between class field and delegate view field
+// No error: logLevel is a field on LoggerImpl, not an abstract method of Logger,
+// so no forwarder is generated and no conflict occurs.
 class Service1(logger: LoggerImpl)
-  val logLevel: Int = 1  // Direct field
-  view Logger = logger   // Delegate view has field 'logLevel'
+  val logLevel: Int = 1
+  view Logger = logger
 end
 
-// Error: field 'capacity' conflicts between class field and delegate view field
+// No error: capacity is a field on StorageImpl, not an abstract method of Storage.
 class Service2(storage: StorageImpl)
-  val capacity: Int = 50  // Direct field
-  view Storage = storage  // Delegate view has field 'capacity'
+  val capacity: Int = 50
+  view Storage = storage
 end
 
-// Error: fields conflict between two delegate views
+// No error: Logger and Counter abstract methods don't overlap.
 class Logger2
   val count: Int = 0
   def log(msg: String): Unit = pass
@@ -48,11 +50,11 @@ interface Counter
 end
 
 class Service3(logger: Logger2, counter: Counter)
-  view Logger = logger    // Has field 'count'
-  view Counter = counter  // Also has field 'count'
+  view Logger = logger
+  view Counter = counter
 end
 
-// Error: class field conflicts with method from delegate view
+// Error: class field 'format' clashes with abstract method 'format' from delegate
 interface Printer
   def format(s: String): String
   def print(s: String): Unit
@@ -63,7 +65,7 @@ class Service4(printer: Printer)
   view Printer = printer
 end
 
-// Error: class method conflicts with field from delegate view
+// Error: class method 'timeout' clashes with abstract method 'timeout' from delegate
 interface Config
   def timeout: Int
   def load(): Unit
@@ -74,7 +76,7 @@ class Service5(config: Config)
   view Config = config
 end
 
-// Error: field from one delegate view conflicts with method from another
+// Error: two delegate views both forward a method named 'connection'
 interface Database
   def connection: String
   def query(sql: String): Unit
@@ -86,8 +88,8 @@ interface Connection
 end
 
 class Service6(db: Database, conn: Connection)
-  view Database = db        // Has field 'connection'
-  view Connection = conn    // Has method 'connection'
+  view Database = db
+  view Connection = conn
 end
 
 def main = pass

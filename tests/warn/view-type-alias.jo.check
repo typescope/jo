@@ -1,23 +1,21 @@
 ---------- Error at tests/warn/view-type-alias.jo:15:8 ---------------
 |   view FooAlias  // Warning: view type must be interface or class, not type alias
 |        ^^^^^^^^
-|        Direct view must be an interface type, found: FooAlias
+|        View must be an interface type, found: FooAlias
 
----------- Error at tests/warn/view-type-alias.jo:20:3 ---------------
+---------- Error at tests/warn/view-type-alias.jo:20:8 ---------------
 |   view FooAlias = foo  // Warning: view type must be interface or class, not type alias
-|   ^^^^^^^^^^^^^^^^^^^
-|   Delegate view must be an interface or class type, found: FooAlias
+|        ^^^^^^^^
+|        View must be an interface type, found: FooAlias
 
----------- Error at tests/warn/view-type-alias.jo:26:3 ---------------
+---------- Error at tests/warn/view-type-alias.jo:26:8 ---------------
 |   view Yoo = bar
-|   ^^^^^^^^^^^^^^
-|   Delegate view must be an interface or class type, found: Yoo
+|        ^^^
+|        View must be an interface type, found: Yoo
 
----------- Error at tests/warn/view-type-alias.jo:27:3 ---------------
+---------- Error at tests/warn/view-type-alias.jo:27:8 ---------------
 |   view Bar = bar
-|   ^^^^^^^^^^^^^^
-|   Member 'hello' conflicts in unified namespace.
-  First defined: from delegate view Bar (method 'hello')
-  Also defined: from delegate view Bar (method 'hello')
+|        ^^^
+|        View must be an interface type, found: Bar
 
 4 error(s), 0 warning(s)

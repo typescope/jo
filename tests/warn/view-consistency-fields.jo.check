@@ -1,28 +1,28 @@
----------- Error at tests/warn/view-consistency-fields.jo:63:3 ---------------
+---------- Error at tests/warn/view-consistency-fields.jo:65:3 ---------------
 |   view Printer = printer
 |   ^^^^^^^^^^^^^^^^^^^^^^
 |   Redefinition of format
 |
-| The name `format` is already defined at tests/warn/view-consistency-fields.jo:62:7
+| The name `format` is already defined at tests/warn/view-consistency-fields.jo:64:7
 |   val format: String = "default"  // Field conflicts with method from delegate view
 |       ^^^^^^
 
----------- Error at tests/warn/view-consistency-fields.jo:74:3 ---------------
+---------- Error at tests/warn/view-consistency-fields.jo:76:3 ---------------
 |   view Config = config
 |   ^^^^^^^^^^^^^^^^^^^^
 |   Redefinition of timeout
 |
-| The name `timeout` is already defined at tests/warn/view-consistency-fields.jo:73:7
+| The name `timeout` is already defined at tests/warn/view-consistency-fields.jo:75:7
 |   def timeout(): Int = 60  // Method conflicts with field from delegate view
 |       ^^^^^^^
 
----------- Error at tests/warn/view-consistency-fields.jo:90:3 ---------------
-|   view Connection = conn    // Has method 'connection'
+---------- Error at tests/warn/view-consistency-fields.jo:92:3 ---------------
+|   view Connection = conn
 |   ^^^^^^^^^^^^^^^^^^^^^^
 |   Redefinition of connection
 |
-| The name `connection` is already defined at tests/warn/view-consistency-fields.jo:89:3
-|   view Database = db        // Has field 'connection'
+| The name `connection` is already defined at tests/warn/view-consistency-fields.jo:91:3
+|   view Database = db
 |   ^^^^^^^^^^^^^^^^^^
 
 3 error(s), 0 warning(s)
