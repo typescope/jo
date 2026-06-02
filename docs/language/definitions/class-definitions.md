@@ -33,8 +33,6 @@ val p = new Point(3, 4)
 
 The class parameters (`x`, `y`) become immutable fields. Fields with initializers have their RHS evaluated during construction.
 
-A class with class parameters but without fields in the class body is considered a **data class**. For data classes, the compiler automatically generates a factory function and a pattern definition for pattern matching.
-
 The `Point` class above desugars to:
 
 ```jo
@@ -51,19 +49,13 @@ class Point
 end
 ```
 
-
-If the field `cachedHash` is absent:
+A class with class parameters and **no additional fields** in the class body is considered a **data class**. For data classes, the compiler automatically generates a factory function and a pattern definition for pattern matching:
 
 ```jo
-class Point(x: Int, y: Int)
-  val cachedHash: Int = x * 31 + y
-
-  def toString(): String = "Point(" + x + ", " + y + ")"
-end
+class Point(x: Int, y: Int)  // data class: no extra fields in body
 ```
 
-the class will be recognized as a _data class_, and the following factory
-function and pattern predicte are synthesized automatically:
+The following are synthesized automatically:
 
 ```jo
 // Automatically generated constructor function
@@ -92,6 +84,9 @@ class Rectangle
 end
 ```
 
+The return type of a constructor must be the class type if declared.
+The constructor automatically appends `this` to return the instance.
+
 ::: warning Mutually Exclusive Syntaxes
 Class parameters and explicit constructors cannot coexist. Use class parameters for convenience, or write an explicit constructor for custom initialization logic.
 :::
@@ -105,16 +100,17 @@ can be reassigned after construction:
 class Counter
   var count: Int
 
-  def Counter(initial: Int) =
+  def Counter(initial: Int): Counter =
     this.count = initial
+    this
 
-  def increment() =
+  def increment(): Unit =
     this.count = this.count + 1
 
-  def decrement() =
+  def decrement(): Unit =
     this.count = this.count - 1
 
-  def get() = this.count
+  def get(): Int = this.count
 end
 
 val counter = Counter(0)
@@ -137,7 +133,7 @@ class Vec2(x: Float, y: Float)
 end
 ```
 
-Methods may also declare context parameter requirements using `receives`:
+Methods may also specify context parameter requirements explicitly using `receives`(otherwise they are inferred):
 
 ```jo
 class Logger
@@ -194,7 +190,9 @@ end
 Both forms create a subtype relationship `C <: I`. The delegate view requires `I` to be
 an interface type and `ref` to be a **stable reference** (an immutable field or a chain
 of immutable field selections) whose type conforms to `I`. The compiler synthesizes a
-forwarding method for each abstract method of `I`, delegating to `ref`.
+forwarding method for each **abstract** method of `I`, delegating to `ref`. Concrete
+interface methods are not forwarded — they are inherited as-is through the subtype
+relationship.
 
 ### View Conformance Checking
 
@@ -213,7 +211,8 @@ For each method `m` in interface `I`:
   compatible signature. For a direct view, `m` must be defined in the class body. For a
   delegate view, the synthesized forwarder satisfies this requirement automatically.
 - **Concrete** (`m` has a body): the class must NOT define a method or field with the
-  same name. Concrete interface methods are final and inherited as-is.
+  same name. Concrete interface methods are final and inherited as-is; no forwarder is
+  generated for them.
 
 **Signature compatibility includes:**
 
@@ -225,26 +224,36 @@ For each method `m` in interface `I`:
 
 For `view I = ref`, the compiler additionally checks:
 
-- `ref` is a stable reference: `this`, or an immutable field selection on a stable reference
+- `ref` is a stable reference: an immutable field, or a chain of immutable field
+  selections
 - `ref` conforms to `I` nominally (`ref.tpe <: I`)
 
 ```jo
 class Service(logger: Logger)
   view Logger = logger      // OK: logger is immutable and Logger <: Logger
+end
 
 class Service(var logger: Logger)
   view Logger = logger      // Error: logger is mutable
+end
 
 class FileLogger(path: String)
   def log(msg: String): Unit = ...
   view Logger
+end
 
 class Service(fl: FileLogger)
   view Logger = fl          // OK: fl is immutable and FileLogger <: Logger
-  view Logger = fl.friend   // OK if friend is an immutable field of type Logger
+end
+
+class Config(logger: Logger)
+
+class App(config: Config)
+  view Logger = config.logger  // OK: stable chain of immutable fields
+end
 ```
 
-### View Consistency
+### Duplicate Views
 
 A class cannot declare two views of the same interface — doing so would make it
 ambiguous which implementation is used. The compiler rejects duplicate view declarations
@@ -257,16 +266,31 @@ class Service(logger: Logger)
 end
 ```
 
-### Member Consistency
+### Member Uniqueness
 
 All members visible through a class form a **single unified namespace**. Member names
 must be unique across:
 
 1. Direct members (methods and fields defined in the class body)
-2. Synthetic forwarders generated from delegate views
-3. Concrete methods inherited from direct views
+2. Synthetic forwarders generated for each abstract method of each delegate view
+3. Concrete methods inherited from any view (direct or delegate)
 
 This prevents ambiguity and ensures every member name has a single unambiguous meaning.
+
+A class method clashing with a forwarder from a delegate view:
+
+```jo
+interface Logger
+  def log(msg: String): Unit
+end
+
+class Service(logger: Logger)
+  def log(msg: String): Unit = ...  // Error: conflicts with forwarder for Logger.log
+  view Logger = logger
+end
+```
+
+Two delegate views whose abstract methods overlap:
 
 ```jo
 interface Logger
@@ -274,7 +298,7 @@ interface Logger
 end
 
 interface Auditor
-  def log(event: String): Unit  // same name as Logger.log
+  def log(event: String): Unit
 end
 
 class Service(logger: Logger, auditor: Auditor)
@@ -283,13 +307,24 @@ class Service(logger: Logger, auditor: Auditor)
 end
 ```
 
+A class method clashing with a concrete method from a direct view:
+
+```jo
+interface Formatter
+  def format(): String
+  def preview(): String = "Preview: " + format()  // concrete
+end
+
+class ReportFormatter(n: Int)
+  def format(): String = "report:" + n
+  def preview(): String = ...  // Error: conflicts with concrete Formatter.preview
+  view Formatter
+end
+```
+
 ## Initialization
 
-Constructor requirements:
-
-- Return type must be the class type if declared
-- All fields must be initialized
-- Constructor automatically appends `this` to return the instance
+The compiler checks that all fields must be initialized before the constructor returns.
 
 **Example with code before and between initializations:**
 
