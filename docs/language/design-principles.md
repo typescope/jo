@@ -18,7 +18,7 @@ point.draw()  // Where does draw() come from? Must check imports!
 
 The same expression `point.draw()` may succeed or fail depending on what's imported in the current module. This makes code hard to understand, maintain, and refactor.
 
-Global variables in most languages also breaks local reasoning, complicating
+Global variables in most languages also break local reasoning, complicating
 or even compromising the design of correct and secure systems.
 
 Local reasoning is fundamental to rigorous reasoning about correctness and security,
@@ -41,12 +41,12 @@ because they break type abstraction and may leak data in unexpected ways.
 In the age of AI agents, static type checking can provide helpful feedback
 to improve the efficiency of code generation.
 :::
-## 3. Freedom with Control
+## 3. Freedom with Check
 
 **Principle:** Programmers should have powerful features and more freedom in
-prototyping, but the language should provide control mechanism to prevent misuse.
+prototyping, but the language should provide check mechanism to prevent misuse.
 
-**Impliciation**: Never introduce a powerful feature if it is prone to misuse and no checks are effective.
+**Implication**: Never introduce a powerful feature if it is prone to misuse and no checks are effective.
 
 ::: info Prototyping VS. Production
 
@@ -61,7 +61,7 @@ The free mode is the default. In the strict mode, the compiler performs more saf
 The language enforces the following invariant:
 _A valid program in strict mode should also be valid in free mode and remain semantically equivalent_.
 
-In language evoluation, the _default_ degree of freedom gradually increases for new features.
+In language evolution, new features should default to the more conservative mode and gradually relax as they mature.
 :::
 ## 4. Explicitness over Implicitness
 
@@ -83,9 +83,8 @@ Compiler synthesized equality makes equality implicit thus should be avoided.
 :::
 **Benefits**:
 
-- Simple and predicatable type inference
+- Simple and predictable type inference
 - Long-term maintainability
-- LLM friendliness
 
 ## 5. Naming Discipline
 
@@ -97,7 +96,7 @@ Naming is the most fundamental mechanism of abstraction in both programming
 and natural languages. Communication, reasoning and understanding are all
 based on names.
 
-A simple, solid, and consistent naming mechanism will greatly faciliate
+A simple, solid, and consistent naming mechanism will greatly facilitate
 development and maintainability.
 :::
 ## 6. Semantic Lucidity
@@ -117,7 +116,7 @@ development and maintainability.
 ::: info Optimize for simple and common cases
 
 Language design needs to optimize usability for simple and common use cases.
-For example, polymorphic code are not the common use case. Obscure language
+For example, polymorphic code is not the common use case. Obscure language
 features and complex code synthesis for polymorphic code makes the code
 even more difficult to understand and complicates the language.
 :::
@@ -126,6 +125,6 @@ even more difficult to understand and complicates the language.
 
 **Principle:** Language features and compiler implementation should aim engineering simplicity.
 
-::: info Simlicity and Reliability
+::: info Simplicity and Reliability
 The price of reliability is the pursuit of the utmost simplicity. — Tony Hoare, [The Emperor’s Old Clothes](https://dl.acm.org/doi/10.1145/358549.358561)
 :::
