@@ -54,7 +54,6 @@ case [] => "empty"
 case [x] => "singleton: " + x
 case [1, 2, 3] => "exactly [1, 2, 3]"
 case [Some(x), None, y] => "three elements with nested patterns"
-end
 
 match users
 case [User(name, age), _] =>
@@ -76,7 +75,6 @@ case [x, ..] => "at least one element"
 case [x, ..rest] => "head and tail"
 case [.., last] => "at least one element, bind last"
 case [first, .., last] => "at least two elements"
-end
 ```
 
 ## Guarded Repeat Patterns

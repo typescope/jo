@@ -19,7 +19,6 @@ match n
 case Positive => "positive number"
 case Even => "even number"
 case _ => "other"
-end
 ```
 
 ## Pattern Definitions with Parameters
@@ -55,7 +54,6 @@ pattern Size[T](n: Int): List[T] =
 match myList
 case Size(n) if n > 10 => "Large list"
 case Size(n) => "Small list"
-end
 ```
 
 ## Generic Pattern Definitions
@@ -113,7 +111,6 @@ match n
 case Positive => "positive"
 case Even => "even"
 case _ => "other"
-end
 ```
 
 The `Partial[T]` type indicates that the pattern may not match all values of type `T`.

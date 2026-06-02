@@ -60,50 +60,42 @@ Defining reusable pattern functions with parameters.
 match x
 case 0 => "zero"
 case 1 => "one"
-end
 
 // Variable patterns
 match value
 case x => x + 1
-end
 
 // Type patterns
 match value
 case x: Int => x + 1
 case s: String => s.length
-end
 
 // Apply patterns (destructuring)
 match option
 case Some(x) => x
 case None => 0
-end
 
 // Sequence patterns
 match list
 case [] => "empty"
 case [x] => "singleton"
 case [x, y] => "pair"
-end
 
 // Or patterns
 match x
 case 0 | 1 | 2 => "small"
 case _ => "large"
-end
 
 // Guard patterns
 match x
 case n if n > 0 => "positive"
 case n if n < 0 => "negative"
 case _ => "zero"
-end
 
 // Not patterns
 match x
 case !Positive => "not positive"
 case _ => "positive"
-end
 
 // Pattern definitions
 pattern Positive: Int =
@@ -112,7 +104,6 @@ pattern Positive: Int =
 match n
 case Positive => "positive number"
 case _ => "not positive"
-end
 ```
 
 ## Usage Contexts
@@ -125,7 +116,6 @@ Patterns are used in:
 match value
 case Some(x) => x
 case None => 0
-end
 ```
 
 ### Pattern Value Definitions
@@ -140,7 +130,6 @@ val Point(x, y) = getPoint()
 ```jo
 for Some(x) in optionList if x > 0 do
   println(x)
-end
 ```
 
 ### Pattern Definitions
