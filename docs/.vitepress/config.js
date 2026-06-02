@@ -179,15 +179,20 @@ export default defineConfig({
 
       '/language/': [
         {
-          text: 'Language Reference',
+          text: 'Foundations',
           items: [
             { text: 'Design Principles', link: '/language/design-principles' },
             { text: 'Name Universes', link: '/language/names' },
-            { text: 'Expression Syntax', link: '/language/expression-syntax' },
-            { text: 'Structure & Convention', link: '/language/structure-and-convention' },
             { text: 'Visibility and Coherence', link: '/language/visibility-coherence' },
-            { text: 'Block Comments', link: '/language/block-comment' },
-            { text: 'Syntax Summary', link: '/language/syntax-summary' },
+          ]
+        },
+        {
+          text: 'Syntax',
+          items: [
+            { text: 'Structure & Convention', link: '/language/syntax/structure-and-convention' },
+            { text: 'Expression Syntax', link: '/language/syntax/expression-syntax' },
+            { text: 'Block Comments', link: '/language/syntax/block-comment' },
+            { text: 'Syntax Summary', link: '/language/syntax/syntax-summary' },
           ]
         },
         {
@@ -214,10 +219,10 @@ export default defineConfig({
             { text: 'Phrases', link: '/language/expressions/phrases' },
             { text: 'Blocks', link: '/language/expressions/blocks' },
             { text: 'Control Flow', link: '/language/expressions/control-flow' },
+            { text: 'Rescue Expression', link: '/language/expressions/rescue-expression' },
             { text: 'Lambdas', link: '/language/expressions/lambdas' },
             { text: 'Literals', link: '/language/expressions/literals' },
             { text: 'Is Expression', link: '/language/expressions/is-expression' },
-            { text: 'Rescue Expression', link: '/language/expressions/rescue-expression' },
             { text: 'Regular Expressions', link: '/language/expressions/regular-expressions' },
             { text: 'String Literals', link: '/language/expressions/string' },
           ]

@@ -65,4 +65,4 @@ Defining reusable, named patterns with parameters.
 
 - [Algebraic Data Types](../definitions/union-definition.md) - Types designed for pattern matching
 - [Union Types](../types/union-types.md) - Union types and exhaustiveness
-- [Syntax Summary](../syntax-summary.md) - Complete grammar
+- [Syntax Summary](../syntax/syntax-summary.md) - Complete grammar

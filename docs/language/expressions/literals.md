@@ -15,7 +15,7 @@ character   ::= "'" <character> "'"
 string      ::= <single-line-string> | <multi-line-string>
 ```
 
-Underscores may appear between digits for readability (`1_000_000`, `0xFF_FF`). See [Syntax Summary](../syntax-summary.md) for the full underscore rules.
+Underscores may appear between digits for readability (`1_000_000`, `0xFF_FF`). See [Syntax Summary](../syntax/syntax-summary.md) for the full underscore rules.
 
 Examples: `42`, `0xFF`, `3.14`, `-17`, `6.022e23`, `true`, `'a'`, `"hello"`
 
@@ -165,4 +165,4 @@ val mixed = [0, ..l1, 10, ..l2, 20]  // [0, 1, 2, 10, 5, 6, 20]
 ## See Also
 
 - [Expression Forms](expression-forms.md) - Atoms and word sequences
-- [Syntax Summary](../syntax-summary.md) - Complete grammar
+- [Syntax Summary](../syntax/syntax-summary.md) - Complete grammar

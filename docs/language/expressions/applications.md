@@ -12,7 +12,7 @@ List.map f list
 println "hello"
 ```
 
-Juxtaposition parses left-to-right; the number of arguments each function consumes is determined by its binding structure. See [Expression Syntax](../expression-syntax.md) for how word sequences are organized into application trees, including operator precedence and shape-based binding.
+Juxtaposition parses left-to-right; the number of arguments each function consumes is determined by its binding structure. See [Expression Syntax](../syntax/expression-syntax.md) for how word sequences are organized into application trees, including operator precedence and shape-based binding.
 
 ## Function Application
 
@@ -237,4 +237,4 @@ map["key"]          // map is not polymorphic → bracket application: map.get("
 
 - [Expression Forms](expression-forms.md) - Closed and open expression forms
 - [Phrases](phrases.md) - What can appear in a block
-- [Syntax Summary](../syntax-summary.md) - Complete grammar
+- [Syntax Summary](../syntax/syntax-summary.md) - Complete grammar

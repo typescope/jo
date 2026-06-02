@@ -87,4 +87,4 @@ addFive(3)  // 8 — n = 5 captured from the completed makeAdder call
 
 - [Expression Forms](expression-forms.md) — Where lambdas fit in the expression grammar
 - [Lambda Types](../types/lambda-types.md) — Type system for lambdas
-- [Syntax Summary](../syntax-summary.md) — Complete grammar
+- [Syntax Summary](../syntax/syntax-summary.md) — Complete grammar

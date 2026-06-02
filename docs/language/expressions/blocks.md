@@ -55,4 +55,4 @@ the same name.
 
 - [Phrases](phrases.md) — Elements of blocks
 - [Expression Forms](expression-forms.md) — Open expressions and where they appear
-- [Syntax Summary](../syntax-summary.md) — Complete grammar
+- [Syntax Summary](../syntax/syntax-summary.md) — Complete grammar
