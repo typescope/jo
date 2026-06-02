@@ -189,6 +189,7 @@ export default defineConfig({
           items: [
             { text: 'Name Universes', link: '/language/concepts/names' },
             { text: 'Error Model', link: '/language/concepts/error-model' },
+            { text: 'Expression Syntax', link: '/language/concepts/expression-syntax' },
             { text: 'Context Parameters', link: '/language/concepts/context-parameters' },
             { text: 'Classes and Views', link: '/language/concepts/interface-views' },
           ]
@@ -214,7 +215,6 @@ export default defineConfig({
             { text: 'Overview', link: '/language/expressions/overview' },
             { text: 'Expression Forms', link: '/language/expressions/expression-forms' },
             { text: 'Applications', link: '/language/expressions/applications' },
-            { text: 'Expression Syntax', link: '/language/expressions/expression-syntax' },
             { text: 'Phrases', link: '/language/expressions/phrases' },
             { text: 'Blocks', link: '/language/expressions/blocks' },
             { text: 'Control Flow', link: '/language/expressions/control-flow' },
