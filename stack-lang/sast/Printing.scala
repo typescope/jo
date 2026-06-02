@@ -371,7 +371,7 @@ object Printing:
         if tvar.isInstantiated then
           Text(tvar.instantiated)
         else
-          Text(tvar.toString)
+          Text("?" + tvar.name)
 
       case ConstantType(const) =>
         const match

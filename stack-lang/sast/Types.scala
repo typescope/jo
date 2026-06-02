@@ -682,7 +682,7 @@ object Types:
     assert(targs.nonEmpty, this)
 
   /** TypeVars are local to a source file thus it may take a span */
-  class TypeVar(name: String, val span: Span)(using context: TypeVars) extends Type:
+  class TypeVar(val name: String, val span: Span)(using context: TypeVars) extends Type:
     context.add(this)
 
     override def toString = "TypeVar(" + name + ")"
