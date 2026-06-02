@@ -27,15 +27,7 @@ Jo supports three flags, written as an inline prefix `(?flags)`:
 - `m` (multiline anchors): `^` and `$` match line boundaries, not only whole-string boundaries
 - `s` (dotall): `.` also matches newline
 
-Examples:
-
-```jo
-println "ABC".exists(`(?i)abc`)              // true  (case-insensitive: A matches a)
-println "x\nfoo\ny".matchFirst(`(?m)^foo$`)  // foo  (^ matches start of line, not string)
-println "a\nc".exists(`(?s)^a.c$`)           // true  (. matches the \n newline)
-```
-
-## Supported Regex Subset
+## Supported Subset
 
 Jo intentionally supports a conservative portable subset:
 
@@ -67,7 +59,7 @@ Jo-defined shorthands (ASCII only):
 
 `\d`, `\w`, `\s`, `\D`, `\W`, `\S` are expanded by Jo before backend compilation, guaranteeing identical ASCII semantics on all backends.
 
-`\b` and `\B` are passed through to the backend as-is and are not Jo-defined. They have consistent ASCII word-boundary semantics on all current backends, but behavior on Unicode text is not guaranteed.
+`\b` and `\B` are passed through to the backend as-is. They have consistent ASCII word-boundary semantics on all current backends, but behavior on Unicode text is not guaranteed.
 
 ### Restriction: no shorthands inside `[...]`
 
@@ -76,14 +68,6 @@ Jo-defined shorthands (ASCII only):
 ```jo
 `[\b]`   // error: \b and \B are not supported inside a character class
 `[\D]`   // error: \D, \W, \S are not supported inside a character class
-```
-
-Use the shorthand outside the character class instead:
-
-```jo
-`\D`   // instead of [\D]
-`\W`   // instead of [\W]
-`\S`   // instead of [\S]
 ```
 
 Unsupported:
@@ -103,104 +87,14 @@ Unsupported:
 - named group names must match: `[A-Za-z_][A-Za-z0-9_]*`
 - if a group captures multiple times, only the last capture is kept
 
-## Common Tasks
+## Portability
 
-### Check whether a match exists
-
-```jo
-// Full-string match (use anchors)
-println "123".exists(`^\d+$`)   // true
-println "a1".exists(`^\d+$`)    // false
-
-// Partial match
-println "abc123".exists(`\d+`)   // true
-println "hello".exists(`\d+`)    // false
-```
-
-### Find the first match
-
-`matchFirst` returns `Option[Match]`. Both indexed and named group access are supported:
-
-```jo
-match "abc-42".matchFirst(`(?<word>\w+)-(?<num>\d+)`)
-  case Some(m) =>
-    println m[0]        // "abc-42"  (whole match, group 0)
-    println m[1]        // "abc"     (group 1 by index)
-    println m["word"]   // "abc"     (group 1 by name)
-    println m["num"]    // "42"      (group 2 by name; always String)
-  case None =>
-    println "no match"
-```
-
-### Whole-word matching with `\b`
-
-```jo
-val word = `\bfoo\b`
-println word.matchFirst("foo")     is Some(_)   // true  — exact word
-println word.matchFirst("foobar")  is None      // true  — not a whole word
-println word.matchFirst("a foo b") is Some(_)   // true  — surrounded by non-word chars
-```
-
-### Find all matches
-
-```jo
-val ms = "ab12cd34".matchAll(`\d+`)   // List[Match]
-println ms[0].text      // "12"   (matched text)
-println ms[0].from      // 2      (start offset, in code points)
-println ms[0].length    // 2      (match length, in code points)
-println ms[1].text      // "34"
-```
-
-Extract all words using `\b`:
-
-```jo
-val words = `\b\w+\b`.matchAll("one two three").map(_.text)
-// ["one", "two", "three"]
-```
-
-### Replace text
-
-```jo
-// callback receives each Match and returns the replacement String
-println "a1b22c333".replaceAll(`\d+`, _ => "N")                               // "aNbNcN"
-println "hello world".replaceFirst(`(\w+)\s+(\w+)`, m => m[2] + " " + m[1])  // "world hello"
-```
-
-### Split by regex
-
-```jo
-println "a:b:c".splitBy(`:`)        // [a, b, c]
-println "a  b   c".splitBy(`\s+`)   // [a, b, c]  (runs of whitespace treated as one delimiter)
-```
-
-### Build regexes dynamically
-
-```jo
-val source = "^[A-Za-z_][A-Za-z0-9_]*$"
-match Regex.compile(source)      // validate before compiling
-  case Ok(r) =>
-    println "name_42".exists(r)     // true
-
-  case Err(err) =>
-    println err                     // human-readable error message
-```
-
-Dynamic regexes may also use the inline flag prefix:
-
-```jo
-val r = Regex.compile("(?im)^foo$") rescue Err(m) => abort m
-```
-
-If you are inserting literal user text into a dynamic pattern, escape it:
-
-```jo
-val key = "a+b"
-val r = Regex.compile("^" + Regex.escape(key) + "$") rescue Err(m) => abort m
-```
-
-## Notes on Portability
-
-- `\d`, `\w`, `\s` and their upper-case negations are expanded by Jo before backend compilation, ensuring identical behavior on all backends.
-- `\b` and `\B` are passed to the backend as-is; all backends treat them as ASCII word boundaries.
+- `\d`, `\w`, `\s` and their negations are expanded by Jo before backend compilation — identical behavior on all backends.
+- `\b` and `\B` are passed to the backend as-is; all current backends treat them as ASCII word boundaries.
 - Positions (`from`, `length`) are in code points.
 - Zero-width behavior for `matchAll`, `replaceAll`, and `splitBy` is defined by Jo and does not depend on host-engine defaults.
+
+## See Also
+
+- [Regex Patterns](../patterns/regex-patterns.md) — Using regex in `match` and `is`
+- [Regular Expression Guide](../../guides/regular-expression.md) — Common tasks and examples

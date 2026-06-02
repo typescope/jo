@@ -13,7 +13,6 @@ Pattern matching is powerful but requires explicit branching with `match`. For s
 val hasValue = x match
   case Some(_) => true
   case None => false
-end
 
 // With is expression - concise
 val hasValue = x is Some(_)
@@ -172,7 +171,7 @@ The following rules apply in flow typing an expression with a flow scope `sc`:
 
 These rules mirror how patterns work with `&` and `|` operators, providing consistent semantics across patterns and boolean expressions.
 
-### Control Flow
+## Control Flow
 
 Flow typing is used to type the condition of `if` and `while`.
 
@@ -277,46 +276,4 @@ else if value is (s: String) then
 // With type and structure
 if shape is (c: Circle) then
   println("Circle radius: " + c.radius)
-```
-
-## Comparison with Other Languages
-
-### Kotlin
-
-Kotlin has `is` for type testing with smart casts:
-
-```kotlin
-if (x is String) {
-    println(x.length)  // x is smart-cast to String
-}
-```
-
-### Swift
-
-Swift has pattern matching in `if` and `while`:
-
-```swift
-if case .some(let value) = optionalValue {
-    print(value)
-}
-```
-
-### Rust
-
-Rust has `if let` and `while let`:
-
-```rust
-if let Some(value) = x {
-    println!("{}", value);
-}
-```
-
-### F\#
-
-F# uses pattern matching guards:
-
-```fsharp
-match x with
-| Some(v) when v > 0 -> printfn "%d" v
-| _ -> ()
 ```

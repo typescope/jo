@@ -54,6 +54,7 @@ export default defineConfig({
           text: 'Guidelines',
           items: [
             { text: 'Algebraic Data Types', link: '/guides/adt' },
+            { text: 'Regular Expressions', link: '/guides/regular-expression' },
             { text: 'Context Parameters', link: '/guides/context-parameters' },
             { text: 'Deferred Functions', link: '/guides/deferred-functions' },
             { text: 'Python Interoperability', link: '/guides/python-interoperability' },

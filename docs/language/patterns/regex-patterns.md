@@ -159,47 +159,9 @@ See:
 - [Is Expression](../expressions/is-expression.md)
 - [Pattern Matching Semantics](semantics.md)
 
-## Examples
-
-### `is` expression
-
-```jo
-if date is `^(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})$` then
-  new Date(y.toInt, m.toInt, d.toInt)
-else
-  abort "Invalid date"
-```
-
-### `match` with bound result
-
-```jo
-match date
-case m @ `^(\d{4})-(\d{2})-(\d{2})$` =>
-    new Date(m[1].toInt, m[2].toInt, m[3].toInt)
-case _ =>
-    abort "Invalid date"
-```
-
-### Extract LLM-generated code block
-
-```jo
-// dotall flag: . also matches newline
-if message is `(?s)<code>(?<prog>.*)</code>` then
-  println prog
-```
-
-### Optional named group handling
-
-```jo
-if input is m @ `^(?<name>\w+)(?:-(?<tag>\w+))?$` then
-  if m.isGroupMatched("tag") then
-    println tag
-  else
-    println "no tag"
-```
-
 ## See Also
 
 - [Is Expression](../expressions/is-expression.md)
-- [Regular Expressions](../expressions/regular-expressions.md)
+- [Regular Expressions](../expressions/regular-expressions.md) — Literal syntax and supported subset
+- [Regular Expression Guide](../../guides/regular-expression.md) — Common tasks and worked examples
 - [Pattern Matching Semantics](semantics.md)

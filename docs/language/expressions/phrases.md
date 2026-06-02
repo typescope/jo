@@ -55,7 +55,23 @@ result =
   temp * 2
 ```
 
-## Return, Break, Continue
+## Control Flow
+
+`if` and `while` are as most languages:
+
+```jo
+if x > 0 then
+  "positive"
+else if x < 0 then
+  "negative"
+else
+  "zero"
+
+while hasNext() do
+  val item = next()
+  process(item)
+end
+```
 
 `return` exits the enclosing function immediately. It is not valid inside lambdas:
 
@@ -78,7 +94,8 @@ for x in [1, 2, 3, 4, 5] do
   println x
 ```
 
-See [Control Flow](control-flow.md) for `while` and `for`.
+See [Control Flow](control-flow.md) for more detailed information about `match`,
+`rescue` and other control flow constructs.
 
 ## Local Definitions
 
@@ -104,6 +121,15 @@ pattern Size[T](n: Int): List[T] =
 ```
 
 Local pattern definitions introduce named patterns usable in `match` cases and `is` expressions within the same block. See [Pattern Definitions](../definitions/pattern-definitions.md) for the full syntax.
+
+### Auto Definitions
+
+```jo
+auto customEq: Eq[Int] = (a, b) => a % 10 == b % 10
+```
+
+A local `auto` definition makes a value available for auto parameter resolution within
+the enclosing block. See [Auto Parameters](../definitions/autos.md) for resolution rules.
 
 ### Function Definitions
 
