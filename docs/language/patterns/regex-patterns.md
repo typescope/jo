@@ -163,5 +163,4 @@ See:
 
 - [Is Expression](../expressions/is-expression.md)
 - [Regular Expressions](../expressions/regular-expressions.md) — Literal syntax and supported subset
-- [Regular Expression Guide](../../guides/regular-expression.md) — Common tasks and worked examples
 - [Pattern Matching Semantics](semantics.md)

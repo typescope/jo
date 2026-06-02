@@ -115,7 +115,7 @@ Precedence and associativity of operators often confuse programmers. Jo intentio
 - All operators are left-associative.
 - Precedence is only defined for the familiar numeric and Boolean infix operators.
 
-All other operators have the same precedence. See [expression syntax](../concepts/expression-syntax.md).
+All other operators have the same precedence. See [expression syntax](../expression-syntax.md).
 
 ::: info Precedence and Associativity
 
@@ -285,4 +285,4 @@ For auto parameters, see [Auto Parameters](autos.md).
 
 ## See Also
 
-- [Context Parameters](../concepts/context-parameters.md) - For context parameter definitions
+- [Context Parameters](context-parameters.md) - For context parameter definitions

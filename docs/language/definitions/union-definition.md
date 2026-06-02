@@ -96,6 +96,5 @@ def describe(opt: Option[Int]): String =
 
 ## See Also
 
-- [ADT Guide](../../guides/adt.md) — common patterns, flexible unions, qualified access
 - [Patterns](../patterns/overview.md) — pattern matching syntax and exhaustiveness
 - [Union Types](../types/union-types.md) — union types in the type system

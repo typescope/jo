@@ -55,6 +55,8 @@ export default defineConfig({
           items: [
             { text: 'Algebraic Data Types', link: '/guides/adt' },
             { text: 'String Literals', link: '/guides/string' },
+            { text: 'Error Handling', link: '/guides/error-model' },
+            { text: 'Classes and Views', link: '/guides/interface-views' },
             { text: 'Regular Expressions', link: '/guides/regular-expression' },
             { text: 'Context Parameters', link: '/guides/context-parameters' },
             { text: 'Deferred Functions', link: '/guides/deferred-functions' },
@@ -180,20 +182,12 @@ export default defineConfig({
           text: 'Language Reference',
           items: [
             { text: 'Design Principles', link: '/language/design-principles' },
+            { text: 'Name Universes', link: '/language/names' },
+            { text: 'Expression Syntax', link: '/language/expression-syntax' },
             { text: 'Structure & Convention', link: '/language/structure-and-convention' },
             { text: 'Visibility and Coherence', link: '/language/visibility-coherence' },
             { text: 'Block Comments', link: '/language/block-comment' },
             { text: 'Syntax Summary', link: '/language/syntax-summary' },
-          ]
-        },
-        {
-          text: 'Concepts & Foundation',
-          items: [
-            { text: 'Name Universes', link: '/language/concepts/names' },
-            { text: 'Error Model', link: '/language/concepts/error-model' },
-            { text: 'Expression Syntax', link: '/language/concepts/expression-syntax' },
-            { text: 'Context Parameters', link: '/language/concepts/context-parameters' },
-            { text: 'Classes and Views', link: '/language/concepts/interface-views' },
           ]
         },
         {
@@ -223,6 +217,7 @@ export default defineConfig({
             { text: 'Lambdas', link: '/language/expressions/lambdas' },
             { text: 'Literals', link: '/language/expressions/literals' },
             { text: 'Is Expression', link: '/language/expressions/is-expression' },
+            { text: 'Rescue Expression', link: '/language/expressions/rescue-expression' },
             { text: 'Regular Expressions', link: '/language/expressions/regular-expressions' },
             { text: 'String Literals', link: '/language/expressions/string' },
           ]

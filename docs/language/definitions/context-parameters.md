@@ -131,9 +131,3 @@ The following is the trace that leads to the problem:
 ├──   allow connection in query(sql)                  [ app.jo:7:3 ]
 └── def query(sql) = ...connection...logger...        [ app.jo:4:42 ]
 ```
-
-## See Also
-
-- [Context Parameters Guide](../../guides/context-parameters.md) — motivation,
-  patterns, and worked examples
-- [Context Parameters](../concepts/context-parameters.md) — conceptual overview

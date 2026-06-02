@@ -445,7 +445,7 @@ case (Ok(x) | Err(x)) & (y if y.isValid) =>
 
 Pattern composition (`|`, `&`, `!`) follows the same operator precedence rules as
 term expressions. Use parentheses to override. See
-[Expression Syntax](../concepts/expression-syntax.md).
+[Expression Syntax](../expression-syntax.md).
 
 ## See Also
 

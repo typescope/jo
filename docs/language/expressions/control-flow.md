@@ -213,4 +213,4 @@ def getHost(config: Option[String]): String =
   config rescue None => "localhost"
 ```
 
-See [Error Model](../concepts/error-model.md) for the full specification.
+See [Rescue Expression](rescue-expression.md) for the full specification.

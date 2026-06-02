@@ -121,5 +121,4 @@ An interpolated string is desugared into string concatenations during type check
 
 ## See Also
 
-- [String Guide](../../guides/string.md) — Common tasks and worked examples
 - [Literals](literals.md) — Numeric and character literals

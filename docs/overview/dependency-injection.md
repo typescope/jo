@@ -227,7 +227,7 @@ The framework defines the contract; the application fills it in; the linker conn
 
 ## See Also
 
-- [Context Parameters](../language/concepts/context-parameters.md) - Full reference for `param`, `with`, `allow`, and `receives`
+- [Context Parameters](../language/definitions/context-parameters.md) - Full reference for `param`, `with`, `allow`, and `receives`
 - [Deferred Functions](../language/definitions/deferred-functions.md) - Full reference for `defer` and `--link`
 - [Dependency Depth](../usage/concepts/dependency-depth.md) - How deferred functions keep libraries shallow
 - [Capability-Oriented Programming](capabilities.md) - Using the same mechanisms for security and confinement

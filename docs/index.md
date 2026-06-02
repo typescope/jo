@@ -35,7 +35,7 @@ features:
       src: /icons/arrows.svg
     title: Context Parameters
     details: Pass capabilities through the call stack implicitly — no boilerplate, no globals, no frameworks.
-    link: /language/concepts/context-parameters
+    link: /guides/context-parameters
     linkText: Learn more
 
   - icon:

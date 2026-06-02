@@ -181,6 +181,5 @@ with IO.stdout = customOutput in logger.log("test")
 
 ## See Also
 
-- [Classes and Views](../concepts/interface-views.md) - High-level design
 - [Lambda Types](../types/lambda-types.md) - Lambda interface adaptation
 - [Class Definitions](class-definitions.md) - Implementing interfaces in classes

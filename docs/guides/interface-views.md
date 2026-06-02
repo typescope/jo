@@ -149,7 +149,7 @@ end
 
 ## See Also
 
-- [Class Definitions](../definitions/class-definitions.md) - View conformance rules,
+- [Class Definitions](../language/definitions/class-definitions.md) - View conformance rules,
   member consistency, and technical details
-- [Interface Definitions](../definitions/interface-definitions.md) - Interface method
+- [Interface Definitions](../language/definitions/interface-definitions.md) - Interface method
   requirements and concrete method semantics

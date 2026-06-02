@@ -164,9 +164,7 @@ end
 
 ## Views
 
-Classes declare views to fulfill interface contracts. For the high-level design
-philosophy, see [Classes and Views](../concepts/interface-views.md). This section
-covers the technical details.
+Classes declare views to fulfill interface contracts. This section covers the technical details.
 
 ### View Declaration Syntax
 
@@ -397,4 +395,3 @@ In the future, Jo may add an initialization checker inspired by Fengyun Liu et a
 - [Named Types](../types/named-types.md) - Class type system and subtyping rules
 - [Interface Definitions](interface-definitions.md) - Interface method requirements
 - [Algebraic Data Types](adt.md) - Union type definitions
-- [Classes and Views](../concepts/interface-views.md) - High-level design and philosophy

@@ -42,5 +42,4 @@ bin/jo compile --python app.jo --link jo.main=MyApp.startup -o app.py
 
 ## See Also
 
-- [Deferred Functions Guide](../../guides/deferred-functions.md) — use cases, patterns,
   and worked examples

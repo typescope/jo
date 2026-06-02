@@ -97,4 +97,3 @@ Unsupported:
 ## See Also
 
 - [Regex Patterns](../patterns/regex-patterns.md) — Using regex in `match` and `is`
-- [Regular Expression Guide](../../guides/regular-expression.md) — Common tasks and examples
