@@ -6,28 +6,6 @@ Union types enable a value to be one of several possible class types, with the a
 
 Unlike traditional sum types or tagged unions found in functional languages, Jo's union types are based on **class identity** rather than explicit tags or constructors.
 
-## Motivation
-
-Union types solve the problem of representing values that can be one of several specific types:
-
-```jo
-// Represent a result that can be either success or failure
-class Success(value: Int)
-
-class Failure(error: String)
-
-def divide(x: Int, y: Int): Success | Failure =
-  if y == 0 then new Failure("Division by zero")
-  else new Success(x / y)
-
-def processResult(result: Success | Failure): String =
-  match result
-    case s: Success => "Result: " + s.value
-    case f: Failure => "Error: " + f.error
-  end
-end
-```
-
 ## Syntax
 
 ### Union Type Syntax
@@ -184,30 +162,6 @@ type Large = Int | String | Bool
 def foo(x: Small): Large = x  // Valid: implicit widening
 ```
 
-### Type Adaptation and Member Selection
-
-Union types **do not support member selection** directly:
-
-```jo
-type Shape = Circle | Rectangle
-
-val s: Shape = new Circle(5)
-val r = s.r  // Error: Cannot select member 'r' from union type Shape
-```
-
-::: info Rationale
-Different branches may have different members. Use pattern matching to access members:
-:::
-```jo
-val radius = match s
-  case c: Circle => c.r
-  case r: Rectangle => 0  // Doesn't have radius
-end
-```
-
-::: info No Common Interface Required
-Unlike sealed interfaces in some languages, union types do not require branches to implement a common interface. Each branch is independent.
-:::
 ### Exhaustiveness Checking
 
 Pattern matching on union types must be exhaustive:

@@ -104,6 +104,21 @@ val evens = numbers.select(x => x % 2 == 0)
 val sum = numbers.fold(0, (acc, x) => acc + x)
 ```
 
+### Result
+
+Represents a computation that either succeeds with a value or fails with an error.
+
+```jo
+union Result[T, E] = Ok(value: T) | Err(error: E)
+
+val success: Result[Int, String] = Ok(42)
+val failure: Result[Int, String] = Err("not found")
+
+match result
+case Ok(v)  => println("Got: " + v)
+case Err(e) => println("Error: " + e)
+```
+
 ### Map
 
 Immutable key-value mapping based on binary search tree. Requires an `Ord` instance for the key type.

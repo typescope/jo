@@ -4,11 +4,9 @@ A class definition defines a class type. Class types represent structured values
 
 ## Class Types and Subtyping
 
-### Direct Views Create Subtyping
+Both forms of view declaration create a subtype relationship `C <: I`.
 
-A class type can be a subtype of an interface through a **direct view**.
-
-When a class declares `view I` for an interface `I`, it creates a subtype relationship `C <: I`.
+**Direct view** — the class implements the interface methods itself:
 
 ```jo
 interface Logger
@@ -21,47 +19,30 @@ class FileLogger(path: String)
 end
 
 val fileLogger = new FileLogger("/tmp/log")
-
-// FileLogger <: Logger
-val logger: Logger = fileLogger
+val logger: Logger = fileLogger  // OK: FileLogger <: Logger
 ```
 
-Ordinary subtyping applies at use sites:
+**Delegate view** — the class forwards the interface methods to a held object. The
+compiler synthesizes forwarding methods for each abstract method of the interface:
 
 ```jo
-def useLogger(logger: Logger): Unit = ...
-
-val fileLogger = new FileLogger("/tmp/log")
-useLogger(fileLogger)  // OK: FileLogger <: Logger
-```
-
-::: info Design Rationale
-Direct views provide nominal behavioral subtyping without requiring inheritance between classes.
-:::
-
-### Delegate Views Do Not Create Subtyping
-
-Delegate views are different.
-
-When a class declares `view T = expr`, it exposes a delegated value of type `T`, but it does **not** create a subtype relationship.
-
-```jo
-interface Logger
-  def log(msg: String): Unit
-end
-
 class Service(logger: Logger)
-  view Logger = logger
+  view Logger = logger  // Synthesizes log() forwarder; Service <: Logger
 end
 
-val service = new Service(new ConsoleLogger)
-
-// Service is NOT a subtype of Logger, but adapts to Logger in expected-type positions
-val logger: Logger = service          // OK: adapts through delegate view
-val logger2: Logger = service.Logger  // OK
+val service = new Service(new FileLogger("/tmp/log"))
+val logger: Logger = service  // OK: Service <: Logger
+service.log("hello")          // OK: forwarded to service.logger.log("hello")
 ```
 
-Delegate views participate in type adaptation and member lookup, not subtyping.
+In both forms, ordinary subtyping applies at use sites:
+
+```jo
+def useLogger(l: Logger): Unit = ...
+
+useLogger(new FileLogger("/tmp/log"))  // direct view
+useLogger(new Service(someLogger))     // delegate view
+```
 
 ### Generic Class Types are Invariant
 

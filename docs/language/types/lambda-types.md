@@ -60,23 +60,6 @@ val processor: Processor = msg =>
 with IO = customIO in processor("hello")
 ```
 
-## Lambda Interfaces
-
-Lambdas automatically adapt to interface types with a single abstract method:
-
-```jo
-interface Predicate[T]
-  def test(x: T): Bool
-end
-
-// Lambda adapts to interface
-val isEven: Predicate[Int] = x => x % 2 == 0
-
-// Use as interface
-if isEven.test(4) then
-  println "4 is even"
-```
-
 ## See Also
 
 - [Interface Definitions](../definitions/interface-definitions.md) - For lambda interface adaptation

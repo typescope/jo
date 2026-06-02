@@ -24,47 +24,6 @@ println('x')      // Via charToStr
 
 Duck types can be used inline or named for reuse, improving code clarity and maintainability.
 
-## Motivation
-
-Functions often need to accept arguments of different types that can be converted to a common target type. Without duck types, each function would need its own conversion logic, leading to repetitive code:
-
-```jo
-// Without duck types - repetitive conversion logic
-def println(s: String): Unit = ...
-def printlnInt(i: Int): Unit = println(intToStr(i))
-def printlnChar(c: Char): Unit = println(charToStr(c))
-
-// Multiple overloads needed for each function
-def display(msg: String): Unit = ...
-def displayInt(i: Int): Unit = display(intToStr(i))
-def displayChar(c: Char): Unit = display(charToStr(c))
-```
-
-Duck types eliminate this repetition through reusable definitions:
-
-```jo
-// With duck types - clean and DRY
-type Printable = String :- [intToStr, charToStr, .toString]
-
-def println(s: Printable): Unit = ...
-def display(msg: Printable): Unit = ...
-def format(x: Printable): String = ...
-
-// All automatically accept String, Int, Char, and any type with .toString
-println("hello")
-println(42)
-println('x')
-```
-
-**Benefits:**
-
-1. **Define once, use everywhere** - Adapter lists maintained in one place
-2. **Semantic naming** - `Printable` conveys intent clearly
-3. **Consistency** - Same adapters in same order across codebase
-4. **Early validation** - Shadowing errors caught at type definition, not at each use site
-5. **Maintainability** - Add or remove adapters by updating one definition
-6. **No overloading needed** - Single function accepts multiple types cleanly
-
 ## Syntax
 
 ```
@@ -101,6 +60,81 @@ type StringLike = String :- [intToStr, charToStr, byteToStr, .toString]
 type NumericString = String :- [intToStr, floatToStr, byteToStr]
 ```
 
+### Function Adapters
+
+**Function adapters** are named functions that convert arguments to the target type.
+
+**Requirements:**
+
+- Must be a named function (not lambda or variable)
+- Exactly one regular parameter (context parameters are allowed)
+- Return type must match the target type (or be a subtype)
+- No type parameters
+- No auto parameters
+
+**Examples:**
+
+```jo
+def intToStr(x: Int): String = ...                     // Valid
+def showInt(x: Int): String receives printer = ...     // Valid (context parameter OK)
+def badAdapter(x: Int, y: Int): String = ...           // Invalid (2 parameters)
+def badAdapter[T](x: T): String = ...                  // Invalid (type parameter)
+```
+
+### Member Adapters
+
+**Member adapters** call a member method on the argument.
+
+**Semantics:** Direct structural member lookup on argument type.
+
+**Requirements:**
+
+- Member must exist on argument type
+- Member must have no regular parameters (context parameters are allowed)
+- Result type must match target type (or be a subtype)
+- Context parameters are propagated through the adapter
+
+**Examples:**
+
+```jo
+// Basic member adapter
+type Printable = String :- [.toString]
+
+def println(s: Printable): Unit = ...
+
+println(42)     // 42.toString → String ✓
+println(true)   // true.toString → String ✓
+
+// Member adapter with context parameter
+param indent: Int
+
+class Document
+  def format: String receives indent = intToStr(indent) + ": content"
+end
+
+type Formatted = String :- [.format]
+
+def show(s: Formatted): Unit = ...
+
+val doc = new Document()
+with indent = 5 in show(doc)   // doc.format → "5: content" ✓
+```
+
+**Context parameter propagation:** When a member method requires context parameters, those requirements are propagated to the calling function.
+
+### Adapter Order
+
+Adapters are tried sequentially. First match wins.
+
+```jo
+type Printable = String :- [intToStr, .toString]
+
+def show(s: Printable): Unit = ...
+
+show(42)      // Tries intToStr(42) ✓ (stops, doesn't try .toString)
+show(true)    // Tries intToStr(true) ✗, tries true.toString ✓
+```
+
 ## Semantics
 
 ### Type Equivalence
@@ -119,14 +153,6 @@ foo(x)  // ✓ StringLike conforms to String
 val y: String = "world"
 bar(y)  // ✓ String conforms to StringLike
 ```
-
-This mutual conformance means:
-
-- A duck type can be used where its base type is expected
-- The base type can be used where the duck type is expected
-- No wrapper/unwrapper functions needed
-- No runtime type distinction
-- Adapters apply at the point where a value is converted to the duck type
 
 ### Duck Type Behavior
 
@@ -201,92 +227,6 @@ show(42)       // Step 2: Try intToStr(42) → String ✓
 show('x')      // Step 2: Try intToStr('x') ✗, try charToStr('x') → String ✓
 show(point)    // Step 2: Try intToStr(point) ✗, try charToStr(point) ✗,
                //         try point.toString → String ✓
-```
-
-### Function Adapters
-
-**Function adapters** are named functions that convert arguments to the target type.
-
-**Requirements:**
-
-- Must be a named function (not lambda or variable)
-- Exactly one regular parameter (context parameters are allowed)
-- Return type must match the target type (or be a subtype)
-- No type parameters
-- No auto parameters
-
-**Examples:**
-
-```jo
-def intToStr(x: Int): String = ...                     // Valid
-def showInt(x: Int): String receives printer = ...     // Valid (context parameter OK)
-def badAdapter(x: Int, y: Int): String = ...           // Invalid (2 parameters)
-def badAdapter[T](x: T): String = ...                  // Invalid (type parameter)
-```
-
-**Resolution:**
-
-```jo
-type Printable = String :- [intToStr, boolToStr]
-
-def println(s: Printable): Unit = ...
-
-println(42)     // Tries intToStr(42) ✓ → println(intToStr(42))
-println(true)   // Tries intToStr(true) ✗, boolToStr(true) ✓
-```
-
-### Member Adapters
-
-**Member adapters** call a member method on the argument.
-
-**Semantics:** Direct structural member lookup on argument type.
-
-**Requirements:**
-
-- Member must exist on argument type
-- Member must have no regular parameters (context parameters are allowed)
-- Result type must match target type (or be a subtype)
-- Context parameters are propagated through the adapter
-
-**Examples:**
-
-```jo
-// Basic member adapter
-type Printable = String :- [.toString]
-
-def println(s: Printable): Unit = ...
-
-println(42)     // 42.toString → String ✓
-println(true)   // true.toString → String ✓
-
-// Member adapter with context parameter
-param indent: Int
-
-class Document
-  def format: String receives indent = intToStr(indent) + ": content"
-end
-
-type Formatted = String :- [.format]
-
-def show(s: Formatted): Unit = ...
-
-val doc = new Document()
-with indent = 5 in show(doc)   // doc.format → "5: content" ✓
-```
-
-**Context parameter propagation:** When a member method requires context parameters, those requirements are propagated to the calling function.
-
-### Adapter Order
-
-Adapters are tried sequentially. First match wins.
-
-```jo
-type Printable = String :- [intToStr, .toString]
-
-def show(s: Printable): Unit = ...
-
-show(42)      // Tries intToStr(42) ✓ (stops, doesn't try .toString)
-show(true)    // Tries intToStr(true) ✗, tries true.toString ✓
 ```
 
 ### Varargs Parameters
