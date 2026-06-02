@@ -1,0 +1,59 @@
+// Delegate view creates genuine subtyping: a class with view I = ref
+// is a subtype of I and can be used wherever I is expected.
+
+interface Animal
+  def sound(): String
+end
+
+interface Named
+  def name(): String
+  def tag(): String = "[" + name() + "]"   // concrete default using own method
+end
+
+class Cat(petName: String)
+  def sound(): String = "meow"
+  def name(): String = petName
+  view Animal
+  view Named
+end
+
+class Dog(petName: String)
+  def sound(): String = "woof"
+  def name(): String = petName
+  view Animal
+  view Named
+end
+
+// Wrapper delegates Named to the wrapped animal
+class PetWrapper(pet: Named)
+  view Named = pet
+end
+
+def makeSound(a: Animal) receives IO.stdout =
+  println(a.sound())
+end
+
+def showNamed(n: Named) receives IO.stdout =
+  println(n.tag())
+end
+
+def main receives IO.stdout =
+  val cat = new Cat("Whiskers")
+  val dog = new Dog("Rex")
+
+  // Direct subtyping from direct views
+  makeSound(cat)
+  makeSound(dog)
+  showNamed(cat)
+  showNamed(dog)
+
+  println("---")
+
+  // PetWrapper delegates Named: PetWrapper <: Named
+  val wrapper = new PetWrapper(cat)
+  showNamed(wrapper)
+
+  // Reassigning to interface type via delegate view
+  val n: Named = wrapper
+  println(n.name())
+end

@@ -1,0 +1,37 @@
+// Delegate view where the stable reference is a chain of immutable field selections.
+// view I = a.b is valid when a is an immutable constructor parameter and b is
+// an immutable field of a's type.
+
+interface Logger
+  def log(msg: String): Unit receives IO.stdout
+end
+
+class ConsoleLogger(tag: String)
+  def log(msg: String): Unit receives IO.stdout =
+    println("[" + tag + "] " + msg)
+  view Logger
+end
+
+class AppConfig(logger: ConsoleLogger)
+
+// Two-level immutable selection: config is an immutable parameter,
+// config.logger is an immutable field of AppConfig.
+class App(config: AppConfig)
+  view Logger = config.logger
+end
+
+def useLogger(l: Logger) receives IO.stdout =
+  l.log("hello")
+  l.log("world")
+end
+
+def main receives IO.stdout =
+  val app = new App(new AppConfig(new ConsoleLogger("APP")))
+
+  // App is a subtype of Logger via the chain delegate
+  useLogger(app)
+
+  // Also usable via direct type annotation
+  val l: Logger = app
+  l.log("direct")
+end

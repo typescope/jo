@@ -1,0 +1,48 @@
+// A class can have both a direct view and a delegate view to different interfaces.
+// Direct view: the class provides the implementation itself.
+// Delegate view: the class forwards the interface methods to another object.
+
+interface Runnable
+  def run(): String
+end
+
+interface Logger
+  def log(msg: String): Unit receives IO.stdout
+end
+
+class ConsoleLogger(prefix: String)
+  def log(msg: String): Unit receives IO.stdout = println(prefix + ": " + msg)
+  view Logger
+end
+
+class Task(name: String, logger: ConsoleLogger)
+  def run(): String = "[ran " + name + "]"
+
+  view Runnable        // direct view: Task itself provides run()
+  view Logger = logger // delegate view: log() forwarded to logger
+end
+
+def execute(r: Runnable) receives IO.stdout =
+  println(r.run())
+end
+
+def logTo(l: Logger) receives IO.stdout =
+  l.log("external message")
+end
+
+def main receives IO.stdout =
+  val logger = new ConsoleLogger("[TASK]")
+  val task = new Task("Upload", logger)
+
+  // Task satisfies Runnable via direct view
+  execute(task)
+
+  // Task satisfies Logger via delegate view
+  logTo(task)
+
+  // Both interface types can hold the same task instance
+  val r: Runnable = task
+  val l: Logger = task
+  println(r.run())
+  l.log("via interface")
+end
