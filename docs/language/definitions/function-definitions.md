@@ -1,6 +1,6 @@
 # Function Definitions
 
-Function definitions declare reusable computations with parameters, return types, and effect requirements.
+Function definitions declare reusable computations with parameters, return types, and context parameter requirements.
 
 ## Basic Functions
 
@@ -75,28 +75,6 @@ def process(data: List[Int]): Unit receives logger =
 
 The `receives` clause is optional and will be inferred if left unspecified.
 
-## Functions with Context Parameters
-
-Functions can require context parameters for capabilities and dependencies:
-
-```jo
-// Define context parameter
-param config: Config
-
-// Use context parameter
-def createConnection(): Connection receives config =
-  Database.connect(config.url, config.timeout)
-
-// Multiple context parameters
-def processRequest(req: Request): Response receives logger, validator, database =
-  logger.info("Processing request")
-  val data = database.fetch(req.id)
-  if validator.isValid(data) then
-    Ok(data)
-  else
-    Error("Invalid")
-```
-
 ## Generic Functions
 
 Functions can have type parameters:
@@ -108,16 +86,13 @@ def map[T, R](list: List[T], f: T => R): List[R] =
   match list
   case [] => []
   case [head, ..tail] => [f(head), ..map(tail, f)]
-  end
 
 def filter[T](list: List[T], pred: T => Bool): List[T] =
   match list
   case [] => []
-  case [head, ..tail] if pred(head) =>
-    [head, ..filter(tail, pred)]
-  case [_, ..tail] =>
-    filter(tail, pred)
-  end
+  case [head, ..tail] if pred(head) => [head, ..filter(tail, pred)]
+  case [_, ..tail] => filter(tail, pred)
+
 ```
 
 ## Operator Functions
@@ -140,7 +115,7 @@ Precedence and associativity of operators often confuse programmers. Jo intentio
 - All operators are left-associative.
 - Precedence is only defined for the familiar numeric and Boolean infix operators.
 
-All other operators have the same precedence.
+All other operators have the same precedence. See [expression syntax](../expressions/expression-syntax.md).
 
 ::: info Precedence and Associativity
 
