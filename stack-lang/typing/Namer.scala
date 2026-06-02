@@ -2060,7 +2060,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
         transformAnnotations(vdef.annotations)
 
       val sym = TermSymbol.create(vdef.name, flags, Checker.visibility(vdef, classSym), classSym, vdef.ident.pos)
-      shortCutScope.define(sym)
 
       val fieldDeclLazy = lazyValue:
         val tpt =
@@ -2090,6 +2089,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
           case None =>
             memberNames += sym
+            shortCutScope.define(sym)
 
             index.addLazy(sym, () => checkType())
             index.setAnnotations(sym, () => fieldAnnotationsLazy.value.map(TreeOps.applyToAnnotation))
