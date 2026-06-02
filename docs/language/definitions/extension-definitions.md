@@ -20,9 +20,9 @@ extension OptionOps[T] for Some[T] | None
 end
 ```
 
-## Type Parameters and Receiver
+## Type Parameters
 
-An extension definition can declare type parameters and exactly one receiver parameter.
+An extension definition can declare type parameters:
 
 ```jo
 extension BoxOps[T] for Box[T]
@@ -31,7 +31,6 @@ end
 ```
 
 - `T` is the extension type parameter.
-- `it` is the receiver value used by methods.
 - Methods can still define their own additional type parameters.
 
 ## Desugaring
@@ -87,16 +86,16 @@ The generated section has the same name as the extension definition. If a user-d
 `section` of the same name exists in the same scope, the two are merged automatically:
 
 ```jo
-extension OptionOps[T] for Some[T] | None
+extension Option[T] for Some[T] | None
   def isEmpty: Bool = this is None
 end
 
-// Adds factory methods to the same OptionOps namespace — no conflict
-section OptionOps
-  def from[T](value: T): OptionOps[T] = Some(value)
+// Adds factory methods to the same Option namespace — no conflict
+section Option
+  def from[T](value: T): Option[T] = Some(value)
 end
 
-val opt = OptionOps.from(42)
+val opt = Option.from(42)
 println opt.isEmpty  // false
 ```
 
