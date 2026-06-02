@@ -175,7 +175,6 @@ export default defineConfig({
           text: 'Language Reference',
           items: [
             { text: 'Design Principles', link: '/language/design-principles' },
-            { text: 'Error Model', link: '/language/error-model' },
             { text: 'Structure & Convention', link: '/language/structure-and-convention' },
             { text: 'Visibility and Coherence', link: '/language/visibility-coherence' },
             { text: 'Block Comments', link: '/language/block-comment' },
@@ -186,6 +185,7 @@ export default defineConfig({
           text: 'Concepts & Foundation',
           items: [
             { text: 'Name Universes', link: '/language/concepts/names' },
+            { text: 'Error Model', link: '/language/concepts/error-model' },
             { text: 'Context Parameters', link: '/language/concepts/context-parameters' },
             { text: 'Classes and Views', link: '/language/concepts/interface-views' },
           ]
