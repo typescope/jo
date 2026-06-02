@@ -1,6 +1,5 @@
 # Expression Syntax
 
-Jo enjoys a natural expression-oriented syntax.
 This document specifies how Jo parses expressions, type expressions, and pattern expressions into abstract syntax trees.
 
 Expression parsing in Jo happens in two phases:
@@ -223,37 +222,3 @@ Some (Cons head tail)    // Some takes 1 post-argument
 map f list    // map takes 2 post-arguments
 ```
 
-## Design Principles
-
-### Design Goals
-
-The three-strategy classification is designed to satisfy the following requirements:
-
-1. **Familiarity**: Mathematical and programming operators (`+`, `*`, `&&`, etc.) SHALL behave according to established precedence conventions
-2. **Uniformity**: Types, patterns, and terms SHALL use identical parsing algorithms where applicable
-3. **Predictability**: Parsing SHALL be deterministic and unambiguous without requiring memorization of operator precedence tables
-4. **Simplicity**: Programmers SHALL NOT need to define or learn custom operator precedence
-
-### Restriction: No Custom Operator Precedence
-
-**Design Decision**: User-defined operators CANNOT have custom precedence values.
-
-**Justification**:
-
-1. **Cognitive burden**: Custom precedence requires readers to memorize arbitrary rules for each codebase
-2. **Readability**: Code mixing operators with different custom precedence is difficult to parse mentally
-3. **Convention preservation**: Extending precedence beyond mathematical/programming conventions weakens those conventions
-4. **Alternative available**: Parentheses provide explicit grouping when operator precedence is unclear
-
-### Restriction: No Precedence in Patterns and Types
-
-**Design Decision**: Pattern and type expressions NEVER use precedence parsing, even for built-in operators.
-
-**Justification**:
-
-1. **Consistency**: Pattern and type expressions use the same left-to-right operator parsing rules
-2. **Reduced complexity**: Fewer special cases for programmers to remember
-3. **Limited benefit**: Operators in patterns and types are less common; precedence provides minimal value
-4. **Principle-driven**: Precedence is justified only where strong pre-existing conventions exist (arithmetic, logic)
-
-**Trade-off**: In types, `A + B * C` parses as `(A + B) * C`, not `A + (B * C)`. This differs from expressions but maintains consistency with operator expressions. The uniform left-to-right rule is easier to remember than context-dependent precedence rules.

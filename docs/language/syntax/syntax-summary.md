@@ -53,72 +53,17 @@ block_comment = "/" "/" {"/"} "[" {any character} "/" "/" {"/"} "]"
 
 ### Number Literals
 
-Underscores (`_`) can be used in number literals to improve readability. They are allowed between digits but have the following restrictions:
-
-- Cannot appear at the beginning or end of the number (after prefix for hex)
-- Cannot appear consecutively (`__`)
-- For decimal/float literals only:
-    - Cannot appear immediately before or after the decimal point (`.`)
-    - Cannot appear immediately before or after the exponent marker (`e`, `E`)
-    - Cannot appear immediately after the exponent sign (`+`, `-`)
-
-**Valid examples:**
-
-- `1_000_000` (one million)
-- `0xFF_FF_FF` (hex with underscores)
-- `3.14_159_265` (pi with underscores)
-- `6.022_140_76e23` (Avogadro's number)
-
-**Invalid examples:**
-
-- `_123` (leading underscore)
-- `123_` (trailing underscore)
-- `1__000` (consecutive underscores)
-- `123_.45` (before decimal point)
-- `123._45` (after decimal point)
-- `123_e5` (before exponent)
-- `123e_5` (after exponent)
+Underscores (`_`) may appear between digits for readability (`1_000_000`, `0xFF_FF`).
+They cannot appear at the start or end, consecutively, or adjacent to `.` or the
+exponent marker.
 
 ### String Literals
 
-**Single-line strings** use double quotes (`"..."`) and must not span multiple lines. They support:
-
-- Escape sequences: `\n`, `\r`, `\t`, `\b`, `\f`, `\\`, `\"`, `\'`
-- Unicode escapes: `\u{XXXX}` where X is a hex digit
-- String interpolation: `\{expr}` where expr is any expression
-
-**Multi-line strings** use triple quotes (`"""..."""`) and:
-
-- Must start with a newline after the opening quotes
-- Support string interpolation: `\{expr}`
-- Only support Unicode escapes (`\u{...}`), not other escape sequences
-- Automatically strip base indentation from all lines
-- The closing quotes determine the base indentation level
-- Interpolation expressions must be single-line
-
-**String interpolation requirements:**
-
-- For non-String types, an adapter must be available (default adapters: `boolToStr`, `.toString`)
-- Interpolation expressions cannot span multiple lines
-- Use `\\{` to escape and include literal `\{` in the string
+See [String Literals](../expressions/string.md).
 
 ### Regex Literals
 
-Regex literals use backtick syntax:
-
-- `` `pattern` ``
-- `` `(?flags)pattern` ``
-
-where `flags` is one or more of `i`, `m`, `s` (no duplicates), and `pattern`
-is parsed as raw regex source (not a normal interpolated string).
-
-Notes:
-
-- A literal backtick must be written as `` \` ``.
-- String interpolation (`\{...}`) is not supported in regex literals.
-- Regex literals must fit on a single line.
-- Named group syntax is `(?<name>...)` where `name` must match
-  `[A-Za-z_][A-Za-z0-9_]*`.
+See [Regular Expressions](../expressions/regular-expressions.md).
 
 ## Keywords
 
