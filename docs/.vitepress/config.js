@@ -53,6 +53,7 @@ export default defineConfig({
         {
           text: 'Guidelines',
           items: [
+            { text: 'Algebraic Data Types', link: '/guides/adt' },
             { text: 'Deferred Functions', link: '/guides/deferred-functions' },
             { text: 'Python Interoperability', link: '/guides/python-interoperability' },
             { text: 'Ruby Interoperability', link: '/guides/ruby-interoperability' },
@@ -254,7 +255,7 @@ export default defineConfig({
             { text: 'Type Definitions', link: '/language/definitions/type-definitions' },
             { text: 'Class Definitions', link: '/language/definitions/class-definitions' },
             { text: 'Object Definitions', link: '/language/definitions/object-definitions' },
-            { text: 'Algebraic Data Types', link: '/language/definitions/adt' },
+            { text: 'Algebraic Data Types', link: '/language/definitions/union-definition' },
             { text: 'Annotations', link: '/language/definitions/annotations' },
           ]
         }

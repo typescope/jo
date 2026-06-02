@@ -152,6 +152,6 @@ pattern ValidUser(name: String, age: Int): User =
 
 ## See Also
 
-- [Algebraic Data Types](../definitions/adt.md) - Types designed for pattern matching
+- [Algebraic Data Types](../definitions/union-definition.md) - Types designed for pattern matching
 - [Union Types](../types/union-types.md) - Union types and exhaustiveness
 - [Syntax Summary](../syntax-summary.md) - Complete grammar
