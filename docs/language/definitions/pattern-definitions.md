@@ -28,7 +28,7 @@ case Positive & Even => "positive even"
 case Positive => "positive odd"
 case Even => "non-positive even"
 case _ => "non-positive odd"
-end
+
 ```
 
 Patterns can have parameters to extract computed values:
@@ -43,5 +43,13 @@ pattern Size[T](n: Int): List[T] =
 match myList
 case Size(n) if n > 10 => "large list"
 case Size(n) => "small list"
-end
+
+```
+
+Pattern operators are also supported:
+
+```jo
+// Define a cons pattern for lists
+pattern (head: T) :: [T](tail: List[T]): Partial[List[T]] =
+  case [head, ..tail]
 ```
