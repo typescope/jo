@@ -8,8 +8,6 @@ methods directly, or by delegating to a stable reference that already satisfies 
 
 ## Motivation
 
-### Beyond Inheritance vs Composition
-
 The traditional dichotomy between **inheritance** and **composition** is somewhat
 artificial. In practice, programmers care primarily about **fulfilling behavioral
 contracts** — ensuring that objects provide the capabilities required by the interfaces
@@ -22,8 +20,6 @@ Yet traditional OOP languages create a significant **asymmetry**:
 
 This asymmetry pushes programmers toward inheritance even when composition is the better
 fit, contradicting the widely-accepted principle of **"prefer composition over inheritance"**.
-
-### Views: One Mechanism, Two Strategies
 
 Views eliminate this asymmetry. The single `view` keyword covers both strategies:
 
@@ -50,10 +46,9 @@ class User(id: Int, name: String, logger: Loggable)
 end
 ```
 
-`User` is a subtype of both `Serializable` and `Loggable`. No adaptation or forwarding
-boilerplate is needed at call sites.
+`User` is a subtype of both `Serializable` and `Loggable`.
 
-## How Views Work
+## Two View Forms
 
 ### Direct View: `view I`
 
@@ -79,7 +74,7 @@ useLogger(console)   // OK: ConsoleLogger <: Logger
 ### Delegate View: `view I = ref`
 
 The class holds a stable reference `ref` that already conforms to `I`. The compiler
-generates a forwarding method for each abstract method of `I`, delegating to `ref`.
+generates a forwarding method for each **abstract** method of `I`, delegating to `ref`.
 The class becomes a subtype of `I` through these forwarders.
 
 ```jo
@@ -100,33 +95,8 @@ useLogger(service)   // OK: Service <: Logger
 service.log("hello") // OK: forwarded to service.logger.log("hello")
 ```
 
-The delegate `ref` must be a **stable reference**: an immutable field or a chain of immutable field selections.
-It must also conform to `I` (nominally: `ref.tpe <: I`).
-
-### Concrete Methods from Interfaces
-
-When an interface defines a concrete method (a method with a default body), both view
-forms inherit it directly. The class cannot override it — concrete interface methods
-are final. This preserves the interface's default behavior and avoids ambiguity.
-
-```jo
-interface Iterator[T]
-  def hasNext(): Bool         // abstract
-  def next(): T               // abstract
-  def forEach(f: T -> Unit): Unit =  // concrete — inherited, not overridable
-    while hasNext() do f(next())
-end
-
-class Range(start: Int, end: Int)
-  var current: Int = start
-  def hasNext(): Bool = current < end
-  def next(): Int =
-    val v = current
-    current = current + 1
-    v
-  view Iterator[Int]
-end
-```
+The delegate `ref` must be a **stable reference**: an immutable field or a chain of
+immutable field selections. It must also conform to `I` (nominally: `ref.tpe <: I`).
 
 ## Design Decisions
 
@@ -145,8 +115,37 @@ end
 ### View Consistency
 
 All members visible through a class form a single unified namespace. Conflicts between
-direct members and view-provided members are reported at class definition time, not at
-call sites.
+direct members and view-provided members are reported at class definition time.
+
+A class method cannot share a name with a synthesized forwarder from a delegate view:
+
+```jo
+interface Logger
+  def log(msg: String): Unit
+end
+
+class Service(logger: Logger)
+  def log(msg: String): Unit = ...  // Error: conflicts with forwarder for Logger.log
+  view Logger = logger
+end
+```
+
+Two delegate views cannot both forward a method of the same name:
+
+```jo
+interface Logger
+  def log(msg: String): Unit
+end
+
+interface Auditor
+  def log(event: String): Unit
+end
+
+class Service(logger: Logger, auditor: Auditor)
+  view Logger = logger
+  view Auditor = auditor  // Error: 'log' conflicts between Logger and Auditor forwarders
+end
+```
 
 ## See Also
 
