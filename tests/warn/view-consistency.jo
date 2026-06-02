@@ -1,10 +1,9 @@
 namespace Test
 
-// Demonstrates all three types of method conflicts in View Consistency
+// Demonstrates conflicts detected during delegate view elaboration
 
 interface Readable
   def read(): String
-  def close(): Unit = ...  // Concrete method
 end
 
 interface Writable
@@ -18,20 +17,13 @@ class FileReader
   view Writable
 end
 
-// Conflict Type 1: Class method vs Delegate view method
+// Conflict Type 1: Class method clashes with forwarder synthesized for delegate view
 class Processor1
   def read(): String = ...              // Class method
-  view FileReader = new FileReader()    // ERROR: read() conflicts
+  view Readable = new FileReader()      // ERROR: read() forwarder conflicts with class method
 end
 
-// Conflict Type 2: Class method vs Concrete method from direct view
-class Processor2
-  def read(): String = ...
-  def close(): Unit = ...    // Class method
-  view Readable              // ERROR: close() conflicts with concrete method
-end
-
-// Conflict Type 3: Methods from multiple delegate views
+// Conflict Type 2: Two delegate views both forward a method with the same name
 interface Logger
   def write(msg: String): Unit
 end
@@ -41,9 +33,9 @@ class SimpleLogger
   view Logger
 end
 
-class Processor3
-  view FileReader = new FileReader()    // Has write()
-  view Logger = new SimpleLogger()      // ERROR: write() conflicts
+class Processor2(fileReader: FileReader, logger: SimpleLogger)
+  view Writable = fileReader           // Has abstract write()
+  view Logger = logger                 // ERROR: write() forwarder conflicts
 end
 
 def main = ...

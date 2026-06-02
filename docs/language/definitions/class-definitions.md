@@ -5,14 +5,19 @@ Classes define new types with fields and methods. Jo supports data classes with 
 ## Syntax
 
 ```
-class_def = "class" ident [type_params] [params] {class_member} ["end"]
+class_def    = "class" ident [type_params] [params] {class_member} ["end"]
 class_member = view_decl | field | method
-field = ("val" | "var") ident ":" type ["=" expr]
+field        = ("val" | "var") ident ":" type ["=" expr]
+view_decl    = "view" type_ref ["=" ref]
 ```
 
-Classes define object templates with fields and methods. Views, fields, and methods can appear in any order. Jo provides two mutually exclusive syntaxes for defining constructors.
+Views, fields, and methods can appear in any order inside a class body.
 
-**Option 1: Class parameters**
+## Constructor
+
+Jo provides two mutually exclusive syntaxes for defining constructors.
+
+### Class Parameters
 
 Declare parameters directly after the class name. The compiler generates a constructor automatically:
 
@@ -28,8 +33,6 @@ val p = new Point(3, 4)
 
 The class parameters (`x`, `y`) become immutable fields. Fields with initializers have their RHS evaluated during construction.
 
-A class with class parameters but without fields in class body is considered a **data class**. For data classes, the compiler automatically generates constructor functions and pattern definitions for pattern matching.
-
 The `Point` class above desugars to:
 
 ```jo
@@ -44,7 +47,17 @@ class Point
     this.cachedHash = x * 31 + y
     this
 end
+```
 
+A class with class parameters and **no additional fields** in the class body is considered a **data class**. For data classes, the compiler automatically generates a factory function and a pattern definition for pattern matching:
+
+```jo
+class Point(x: Int, y: Int)  // data class: no extra fields in body
+```
+
+The following are synthesized automatically:
+
+```jo
 // Automatically generated constructor function
 def Point(x: Int, y: Int): Point = new Point(x, y)
 
@@ -53,7 +66,7 @@ pattern Point(x: Int, y: Int): Point =
   case p then x = p.x, y = p.y
 ```
 
-**Option 2: Explicit constructor**
+### Explicit Constructor
 
 Define a constructor method with the class name for custom initialization logic:
 
@@ -71,122 +84,33 @@ class Rectangle
 end
 ```
 
+The return type of a constructor must be the class type if declared.
+The constructor automatically appends `this` to return the instance.
+
 ::: warning Mutually Exclusive Syntaxes
 Class parameters and explicit constructors cannot coexist. Use class parameters for convenience, or write an explicit constructor for custom initialization logic.
 :::
-## Initialization
 
-Constructor requirements:
+## Fields
 
-- Return type must be the class type if declared
-- Body contains field initialization assignments (`this.field = expr`)
-- All fields must be initialized
-- Field assignments can appear anywhere in the body, with code before and between them
-- `this` is available throughout the constructor body
-- Constructor automatically appends `this` to return the instance
-
-**Example with code before and between initializations:**
-
-```jo
-class Circle
-  val radius: Int
-  val area: Int
-  var scaleFactor: Int
-
-  def Circle(r: Int, scale: Int): Circle =
-    // Code before initialization (`this` is already available)
-    val adjustedRadius = if r < 1 then 1 else r
-
-    // First initialization
-    this.radius = adjustedRadius
-
-    // Code between initializations
-    val pi = 3  // Simplified pi
-    val computedArea = pi * adjustedRadius * adjustedRadius
-
-    // More initializations
-    this.area = computedArea
-    this.scaleFactor = scale
-    // All fields now initialized
-
-    // Code after all fields initialized
-    this.normalize()
-  end
-
-  def normalize(): Unit =
-    if scaleFactor < 1 then
-      scaleFactor = 1
-    end
-  end
-end
-```
-
-**Fields with initializers:**
-
-Both approaches support fields with initializers:
-
-```jo
-class Counter(initial: Int)
-  val count: Int = initial    // RHS can reference constructor parameters
-  var total: Int = 0          // RHS is a constant
-end
-```
-
-Field initializers are evaluated during construction.
-
-**Initialization order:**
-
-1. Statements execute in order
-2. Field initializers evaluated when their field is assigned
-3. Instance returned (automatic `this` append)
-
-**Example: Fields referencing earlier fields**
-
-```jo
-class Rectangle(width: Int, height: Int)
-  val area: Int = width * height        // Can reference constructor parameters
-  val perimeter: Int = 2 * (width + height)  // Can reference constructor parameters
-  val isSquare: Bool = width == height
-
-  // Can reference earlier initialized fields
-  val description: String =
-    if isSquare then "Square with area " + area
-    else "Rectangle with area " + area
-end
-```
-
-In this example, the fields are initialized in declaration order:
-
-1. `area` uses constructor parameters `width` and `height`
-2. `perimeter` uses constructor parameters `width` and `height`
-3. `isSquare` uses constructor parameters `width` and `height`
-4. `description` uses the previously initialized field `isSquare` and `area`
-
-::: warning Object Initialization Safety
-It is not recommended to perform complex side effects in constructors or leak `this` before the object is fully initialized.
-Such patterns can observe partially initialized state and are easy to get wrong.
-In the future, Jo may add an initialization checker inspired by Fengyun Liu et al.,
-"Safe Object Initialization, Abstractly" (SCALA '21):
-<https://dl.acm.org/doi/abs/10.1145/3486610.3486895>
-:::
-## Mutable Fields
-
-Classes can have mutable state using `var` fields:
+Fields declared with `val` are immutable; fields declared with `var` are mutable and
+can be reassigned after construction:
 
 ```jo
 class Counter
   var count: Int
 
-  def Counter(initial: Int) =
+  def Counter(initial: Int): Counter =
     this.count = initial
+    this
 
-  def increment() =
+  def increment(): Unit =
     this.count = this.count + 1
 
-  def decrement() =
+  def decrement(): Unit =
     this.count = this.count - 1
 
-  def get() = this.count
+  def get(): Int = this.count
 end
 
 val counter = Counter(0)
@@ -195,7 +119,32 @@ counter.increment()
 println(counter.get())  // 2
 ```
 
-## Generic Classes
+## Methods
+
+Methods are defined with `def`. Method names can be regular identifiers or operators,
+enabling natural infix and prefix syntax. Prefix operators are distinguished by a leading
+`~`:
+
+```jo
+class Vec2(x: Float, y: Float)
+  def +(other: Vec2): Vec2 = Vec2(x + other.x, y + other.y)  // infix: a + b
+  def ~-(): Vec2 = Vec2(-x, -y)                               // prefix: -a
+  def dot(other: Vec2): Float = x * other.x + y * other.y
+end
+```
+
+Methods may also specify context parameter requirements explicitly using `receives`(otherwise they are inferred):
+
+```jo
+class Logger
+  def log(message: String): Unit receives IO.stdout =
+    val timestamp = getCurrentTime()
+    val entry = timestamp + ": " + message + "\n"
+    println entry
+end
+```
+
+## Type Parameters
 
 Classes can be parameterized with type parameters:
 
@@ -213,341 +162,236 @@ class Pair[A, B](first: A, second: B)
 end
 ```
 
-## Methods with Context Parameters
-
-Methods can declare context parameter requirements:
-
-```jo
-class Logger
-  def log(message: String): Unit receives IO.stdout =
-    val timestamp = getCurrentTime()
-    val entry = timestamp + ": " + message + "\n"
-    println entry
-end
-```
-
-## Implementing Interfaces Through Views
-
-Classes implement interfaces using the view mechanism:
-
-```jo
-interface Drawable
-  def draw(): Unit receives IO.stdout
-end
-
-class Circle(radius: Int)
-  def area: Float = 3.14159 * radius * radius
-
-  def draw(): Unit receives IO.stdout =
-    println("Circle with radius " + c.radius)
-
-  view Drawable
-end
-```
-
 ## Views
 
-Classes can declare views to implement interfaces or delegate to other objects. For high-level concepts, see [Classes and Views](../concepts/interface-views.md). This section covers the technical details.
+Classes declare views to fulfill interface contracts. This section covers the technical details.
 
 ### View Declaration Syntax
 
-**Direct views:**
+**Direct view** — the class implements the interface itself:
 
 ```jo
-class_member = "view" type_ref
-
 class ConsoleLogger
   def log(msg: String): Unit = println(msg)
-  view Logger  // Direct view: creates subtyping
+  view Logger
 end
 ```
 
-**Delegate views:**
+**Delegate view** — the class delegates to a held object:
 
 ```jo
-class_member = "view" type_ref "=" expr
-
 class Service(logger: Logger)
-  view Logger = logger  // Delegate view: creates view field
+  view Logger = logger
 end
 ```
+
+Both forms create a subtype relationship `C <: I`. The delegate view requires `I` to be
+an interface type and `ref` to be a **stable reference** (an immutable field or a chain
+of immutable field selections) whose type conforms to `I`. The compiler synthesizes a
+forwarding method for each **abstract** method of `I`, delegating to `ref`. Concrete
+interface methods are not forwarded — they are inherited as-is through the subtype
+relationship.
 
 ### View Conformance Checking
 
-When a class declares `view I[T1, ..., Tn]` (direct view), the compiler verifies:
+When a class declares `view I[T1, ..., Tn]`, the compiler verifies:
 
 #### 1. Interface Resolution
 
-`I` must resolve to an interface definition (not a class or type alias).
+`I` must resolve to an interface definition with the correct number of type arguments.
+Classes and type aliases are not permitted as view types.
 
-#### 2. Type Parameter Arity
-
-The number of type arguments must match the interface's type parameters.
-
-#### 3. Method Implementation Requirements
+#### 2. Method Requirements
 
 For each method `m` in interface `I`:
 
-- **If `m` is abstract** (no body): Class must have a member `m` with compatible signature
-- **If `m` is concrete** (has body):
-    - Class must NOT have a method with the same name
-    - Class must NOT have a field with the same name
+- **Abstract** (`m` has no body): the class must provide an implementation of `m` with a
+  compatible signature. For a direct view, `m` must be defined in the class body. For a
+  delegate view, the synthesized forwarder satisfies this requirement automatically.
+- **Concrete** (`m` has a body): the class must NOT define a method or field with the
+  same name. Concrete interface methods are final and inherited as-is; no forwarder is
+  generated for them.
 
 **Signature compatibility includes:**
 
 - Parameter count and types (after type parameter substitution)
 - Return type (after type parameter substitution)
-- Effect requirements
+- Context parameter requirements
 
-**Example:**
+#### 3. Delegate View Requirements
 
-```jo
-interface Iterator[T]
-  def hasNext(): Bool  // Abstract - must implement
-  def next(): T        // Abstract - must implement
-  def forEach(f: T -> Unit): Unit =  // Concrete - must NOT override
-    while hasNext() do
-      f(next())
-end
+For `view I = ref`, the compiler additionally checks:
 
-class Range(start: Int, end: Int)
-  var current: Int = start
-
-  // Must implement abstract methods
-  def hasNext(): Bool = current < end
-  def next(): Int =
-    val value = current
-    current = current + 1
-    value
-
-  view Iterator[Int]
-  // Inherits concrete forEach - cannot override
-end
-```
-
-#### View Type Requirements
-
-View types must be **interface or class types**, not type aliases:
-
-```jo
-interface Foo
-  def hello(): String
-end
-
-type FooAlias = Foo
-
-class Bar
-  def hello(): String = "hello"
-  view FooAlias  // Error: view type must be interface or class, not type alias
-end
-
-class Baz(foo: Foo)
-  view FooAlias = foo  // Error: view type must be interface or class, not type alias
-end
-```
-
-**Rationale: Coherence in Type Adaptation**
-
-This restriction ensures that **a class cannot have two views of the same underlying type**. Consider what would happen if type aliases were allowed:
-
-```jo
-interface Logger
-  def log(msg: String): Unit
-end
-
-type LoggerAlias = Logger
-type AnotherLoggerAlias = Logger
-
-class Service(logger1: Logger, logger2: Logger)
-  view Logger = logger1
-  view LoggerAlias = logger2        // Would be duplicate of Logger!
-  view AnotherLoggerAlias = logger1 // Would be duplicate of Logger!
-end
-```
-
-All three view declarations refer to the same underlying type (`Logger`), but have different names. This creates ambiguity:
-
-- Which view should be used for type adaptation from `Service` to `Logger`?
-- Which field should member selection use when resolving `service.log("hello")`?
-
-By requiring views to be **nominal types** (interfaces or classes), we ensure:
-
-1. **Unique view identification**: Each view is identified by its interface/class name
-2. **Deterministic adaptation**: Type adaptation from class type to interface/class type has exactly one possible view (or none)
-3. **Clear member resolution**: Member selection through views is unambiguous
-
-This is critical for **coherence in type adaptation**: given a class type and a target interface/class type, there is at most one applicable view, making the adaptation deterministic and predictable.
-
-### View Field Semantics
-
-Each `view T = expr` declaration creates an immutable field `val T: T` that holds the result of evaluating `expr`.
+- `ref` is a stable reference: an immutable field, or a chain of immutable field
+  selections
+- `ref` conforms to `I` nominally (`ref.tpe <: I`)
 
 ```jo
 class Service(logger: Logger)
-  view Logger = logger  // Creates: val Logger: Logger
+  view Logger = logger      // OK: logger is immutable and Logger <: Logger
 end
 
-// Equivalent to:
-class Service(logger: Logger)
-  val Logger: Logger = logger
-end
-```
-
-**Key properties:**
-
-1. **View fields**: Delegate views (`view T = expr`) create an immutable field `val T: T`. Direct views (`view I`) do NOT create fields—they only establish subtyping.
-2. **Single instance**: The same view instance is returned on every access
-3. **Evaluation**: For `view T = expr`, expression is evaluated once at construction time
-4. **Immutability**: View fields are always immutable (`val`)
-
-**Immutability consequence:**
-
-```jo
 class Service(var logger: Logger)
-  view Logger = logger  // Immutable delegation field
-
-  def swapLogger(newLogger: Logger): Unit =
-    logger = newLogger  // Constructor param is mutable
-    // But delegation field remains unchanged!
-    // Delegated calls still use original logger
-end
-```
-
-If dynamic delegation is needed, implement methods explicitly instead of using `view I = expr`.
-
-**Valid delegate views:**
-
-```jo
-interface Logger
-  def log(msg: String): Unit
+  view Logger = logger      // Error: logger is mutable
 end
 
-class Employee
-  def work(): Unit = ...
-end
-
-// Case 1: Delegate to interface type
-class Service1(logger: Logger)
-  view Logger = logger  // OK: logger has type Logger
-end
-
-// Case 2: Delegate to class type
-class Person(emp: Employee)
-  view Employee = emp  // OK: emp has type Employee
-end
-
-// Case 3: Delegate via accessor
 class FileLogger(path: String)
   def log(msg: String): Unit = ...
   view Logger
 end
 
-class Service2(logger: FileLogger)
-  view Logger = logger.Logger  // OK: access Logger view from FileLogger
+class Service(fl: FileLogger)
+  view Logger = fl          // OK: fl is immutable and FileLogger <: Logger
+end
+
+class Config(logger: Logger)
+
+class App(config: Config)
+  view Logger = config.logger  // OK: stable chain of immutable fields
 end
 ```
 
-**Invalid delegate view (type mismatch):**
+### Duplicate Views
+
+A class cannot declare two views of the same interface — doing so would make it
+ambiguous which implementation is used. The compiler rejects duplicate view declarations
+regardless of whether they are direct or delegate:
 
 ```jo
-class Service3(logger: FileLogger)
-  view Logger = logger  // Error: FileLogger != Logger (nominal typing)
+class Service(logger: Logger)
+  view Logger        // Error: duplicate view for Logger
+  view Logger = logger
 end
 ```
 
-### View Consistency
+### Member Uniqueness
 
-A class must not declare the same view twice (among all direct and delegate views):
+All members visible through a class form a **single unified namespace**. Member names
+must be unique across:
+
+1. Direct members (methods and fields defined in the class body)
+2. Synthetic forwarders generated for each abstract method of each delegate view
+3. Concrete methods inherited from any view (direct or delegate)
+
+This prevents ambiguity and ensures every member name has a single unambiguous meaning.
+
+A class method clashing with a forwarder from a delegate view:
 
 ```jo
 interface Logger
   def log(msg: String): Unit
 end
 
-class Service(logger1: Logger, logger2: Logger)
-  view Logger = logger1
-  view Logger = logger2  // Error: Duplicate view declaration for Logger
-end
-```
-
-This ensures **coherence in type adaptation**: given a class type and a target interface/class type, there is at most one applicable view, making adaptation deterministic and predictable.
-
-### Member Selection with Views
-
-For `expr.member` where `expr: C`, member selection algorithm:
-
-1. **Direct member lookup**: Search for `member` in type `C`. If found, use it.
-2. **View member lookup (non-recursive)**: If not found, search all views (direct and delegate).
-     - For each `view T` declared by `C`, check if `T` has `member`
-     - If exactly one view provides `member`, resolve to `expr.T.member`
-     - If multiple views provide `member`, report ambiguity error
-
-::: warning Non-Recursive Member Lookup
-Member selection only searches views **directly declared** by the class. It does NOT recursively search through views of delegated objects.
-
-```jo
-class FileLogger(path: String)
-  def log(msg: String): Unit = ...
-  view Logger  // FileLogger declares Logger view
-end
-
-class Service(logger: FileLogger)
-  view FileLogger = logger  // Service gets FileLogger view only
-  // Service does NOT get Logger view transitively!
-  // To expose Logger, you must declare: view Logger = logger
-end
-```
-:::
-### Implicit View Adaptation
-
-During type adaptation from `expr: C` to `expected: T`:
-
-1. **Direct match**: If `C <: T`, succeed
-     - This includes direct views: if `C` declares `view I`, then `C <: I`
-
-2. **Delegate view search (non-recursive)**: If `C` directly declares `view T = expr` (delegate view), compiler automatically adapts through the delegate view
-
-**Example:**
-
-```jo
 class Service(logger: Logger)
-  view Logger = logger  // Delegate view (no subtyping)
+  def log(msg: String): Unit = ...  // Error: conflicts with forwarder for Logger.log
+  view Logger = logger
 end
-
-def useLogger(l: Logger): Unit = l.log("msg")
-
-val service = new Service(someLogger)
-useLogger(service)  // Implicit adaptation through Logger view
 ```
 
-Type annotation also triggers implicit view adaptation:
+Two delegate views whose abstract methods overlap:
 
 ```jo
-val range = new Range(0, 10)
-val iter = range.iterator()
-val iterView: Iterator[Int] = iter  // Implicit view adaptation
+interface Logger
+  def log(msg: String): Unit
+end
+
+interface Auditor
+  def log(event: String): Unit
+end
+
+class Service(logger: Logger, auditor: Auditor)
+  view Logger = logger
+  view Auditor = auditor  // Error: 'log' conflicts between Logger and Auditor forwarders
+end
 ```
 
-::: info View search is **non-recursive** and **exact**
+A class method clashing with a concrete method from a direct view:
 
-To trigger implicit delegate view selection, only views directly declared in the class are checked. Users must make indirect views available for adaptation explicitly with an additional view declaration.
+```jo
+interface Formatter
+  def format(): String
+  def preview(): String = "Preview: " + format()  // concrete
+end
 
-In addition, the target type must exactly match the view type. Subtyping can leak the nested interfaces of the delegate views and misinterpret user's intent if the target type is `C | D`.
+class ReportFormatter(n: Int)
+  def format(): String = "report:" + n
+  def preview(): String = ...  // Error: conflicts with concrete Formatter.preview
+  view Formatter
+end
+```
 
-**Rationale**: View adaptation is too powerful a mechanism. Users need to make their intent clear.
+## Initialization
+
+The compiler checks that all fields must be initialized before the constructor returns.
+
+**Example with code before and between initializations:**
+
+```jo
+class Circle
+  val radius: Int
+  val area: Int
+  var scaleFactor: Int
+
+  def Circle(r: Int, scale: Int): Circle =
+    val adjustedRadius = if r < 1 then 1 else r
+
+    this.radius = adjustedRadius
+
+    val pi = 3  // Simplified pi
+    val computedArea = pi * adjustedRadius * adjustedRadius
+
+    this.area = computedArea
+    this.scaleFactor = scale
+
+    this.normalize()
+  end
+
+  def normalize(): Unit =
+    if scaleFactor < 1 then
+      scaleFactor = 1
+    end
+  end
+end
+```
+
+**Fields with initializers:**
+
+```jo
+class Counter(initial: Int)
+  val count: Int = initial    // RHS can reference constructor parameters
+  var total: Int = 0          // RHS is a constant
+end
+```
+
+Field initializers are evaluated during construction.
+
+**Initialization order:**
+
+Fields are initialized in declaration order. Each field may reference constructor
+parameters and any previously initialized fields.
+
+```jo
+class Rectangle(width: Int, height: Int)
+  val area: Int = width * height
+  val perimeter: Int = 2 * (width + height)
+  val isSquare: Bool = width == height
+
+  val description: String =
+    if isSquare then "Square with area " + area
+    else "Rectangle with area " + area
+end
+```
+
+::: warning Object Initialization Safety
+It is not recommended to perform complex side effects in constructors or leak `this` before the object is fully initialized.
+Such patterns can observe partially initialized state and are easy to get wrong.
+In the future, Jo may add an initialization checker inspired by Fengyun Liu et al.,
+"Safe Object Initialization, Abstractly" (SCALA '21):
+<https://dl.acm.org/doi/abs/10.1145/3486610.3486895>
 :::
-## Member Consistency
 
-Member consistency applies to classes that use direct members and views. All visible members form a **single unified namespace** and member names must be unique across:
-
-1. **Direct members** in the class or object (methods and fields)
-2. **Concrete methods** inherited from direct views
-3. **Visible members** from delegate views
-
-This avoids ambiguity in member selection and helps maintain a simple and coherent mental model for classes.
 ## See Also
 
-- [Class Types](../types/class-types.md) - Class type system and subtyping rules
-- [Interface Definitions](interface-definitions.md) - Implementing interfaces
+- [Named Types](../types/named-types.md) - Class type system and subtyping rules
+- [Interface Definitions](interface-definitions.md) - Interface method requirements
 - [Algebraic Data Types](adt.md) - Union type definitions
-- [Classes and Views](../concepts/interface-views.md) - High-level design and philosophy

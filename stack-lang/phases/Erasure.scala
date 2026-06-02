@@ -28,7 +28,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
       case info: ClassInfo =>
         val bridges = new mutable.ArrayBuffer[(Symbol, Symbol)]
         var changed = false
-        val directViews2 = info.directViews.map: tp =>
+        val erasedViews = info.views.map: tp =>
           val tp2 = eraseType(tp)
           changed = changed || tp2.ne(tp)
 
@@ -55,7 +55,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
           info.self,
           info.fields,
           info.methods ++ bridgeList.map(_._1),
-          if changed then directViews2 else info.directViews
+          if changed then erasedViews else info.views
         )
 
       case toi: TypeOperatorInfo =>

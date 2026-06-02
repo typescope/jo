@@ -306,19 +306,11 @@ object Types:
     def isSubtype(that: Type)(using Definitions): Boolean =
       Subtyping.conforms(this, that)
 
-    /** Get delgate views of the underlying class type */
-    def delegateViews(using Definitions): List[MemberRef] =
+    /** Get all views (direct and delegate-forwarded) of the underlying class type */
+    def views(using Definitions): List[Type] =
       this.typeSymbolOpt match
         case Some(sym) if sym.isClass =>
-          sym.classInfo.delegateViews.map(view => MemberRef(this, view))
-
-        case _ => Nil
-
-    /** Get direct views of the underlying class type */
-    def directViews(using Definitions): List[Type] =
-      this.typeSymbolOpt match
-        case Some(sym) if sym.isClass =>
-          sym.classInfo.directViews.map(view => TypeOps.rebaseMember(view, this))
+          sym.classInfo.views.map(view => TypeOps.rebaseMemberType(view, this))
 
         case _ => Nil
 
@@ -461,7 +453,7 @@ object Types:
   case class MemberRef(prefix: Type, symbol: Symbol) extends RefType:
     assert(!symbol.isType, "No support for member types: " + symbol)
 
-    def info(using Definitions): Type = TypeOps.rebaseMember(symbol.tpe, prefix)
+    def info(using Definitions): Type = TypeOps.rebaseMember(symbol, prefix)
 
   /** A part of a type with a specific name */
   case class NamedInfo[+T](name: String, info: T)
@@ -690,7 +682,7 @@ object Types:
     assert(targs.nonEmpty, this)
 
   /** TypeVars are local to a source file thus it may take a span */
-  class TypeVar(name: String, val span: Span)(using context: TypeVars) extends Type:
+  class TypeVar(val name: String, val span: Span)(using context: TypeVars) extends Type:
     context.add(this)
 
     override def toString = "TypeVar(" + name + ")"

@@ -314,7 +314,7 @@ object Trees:
     assert(words.nonEmpty)
 
   case class HavingBinding
-    (tpe: TypeTree, value: Word)
+    (tpt: TypeTree, value: Word)
     (val span: Span)
   extends Tree
 
@@ -362,7 +362,7 @@ object Trees:
   extends TypeTree
 
   case class AppliedType
-    (tpeCtor: TypeTree, targs: List[TypeTree])
+    (typeCtor: TypeTree, targs: List[TypeTree])
     (val span: Span)
   extends TypeTree:
     assert(targs.nonEmpty)
@@ -374,7 +374,7 @@ object Trees:
     for param <- receives do assert(isQualid(param), param)
 
   case class DuckType
-    (tpe: TypeTree, adapters: List[ParamAdapter])
+    (tpt: TypeTree, adapters: List[ParamAdapter])
     (val span: Span)
   extends TypeTree:
     assert(adapters.nonEmpty, "duck type must have at least one adapter")
@@ -395,7 +395,7 @@ object Trees:
 
   /** Annotation type: T @annotation or T @annotation("arg") */
   case class AnnotType
-    (tpe: TypeTree, annot: Annotation)
+    (tpt: TypeTree, annot: Annotation)
     (val span: Span)
   extends TypeTree
 
@@ -604,10 +604,10 @@ object Trees:
   /** Representation of a view declaration in a class
     *
     * `view I` declares that the class implements interface I
-    * `view I = expr` declares a delegated view where expr provides the implementation
+    * `view I = ref` declares a delegated view where expr provides the implementation
     */
   case class ViewDecl
-    (tpe: TypeTree, rhs: Option[Word])
+    (tpt: TypeTree, rhs: Option[Word])
     (val span: Span)
   extends Tree
 
@@ -651,7 +651,7 @@ object Trees:
 
   enum AutoCandidate extends Tree:
     case Value(ref: RefTree)(val span: Span)
-    case Member(tpe: TypeTree, name: String)(val span: Span)
+    case Member(tpt: TypeTree, name: String)(val span: Span)
 
   case class Param
     (ident: Ident, tpt: TypeTree, default: Option[Word] = None)

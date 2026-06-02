@@ -1843,6 +1843,148 @@ class Namer(using Config) extends Applications with SelectionTyper:
       val tpt = TypeTree(rhsTypeLazy.value)(tdef.rhs.span)
       TypeDef(typeSym, tparamSymsLazy.value, tpt)(annotationsLazy.value, tdef.span)
 
+  private def synthesizeForwarder
+      (fwdSym: Symbol, typedRef: Word, abstractSym: Symbol, viewSpan: Span)
+      (using defn: Definitions, so: Source)
+  : FunDef =
+    val procType = fwdSym.tpe.asProcType
+    val pos = viewSpan.toPos
+
+    val paramSyms: List[Symbol] =
+      procType.params.map: info =>
+        TermSymbol.create(info.name, info.info, Flags.Param, Visibility.Default, fwdSym, pos)
+
+    val autoSyms: List[Symbol] =
+      procType.autos.map: info =>
+        TermSymbol.create(info.name, info.info, Flags.Param | Flags.Auto, Visibility.Default, fwdSym, pos)
+
+    val sel =
+      if typedRef.tpe.isError then
+        Encoded(typedRef)(procType)
+      else
+        Select(typedRef, abstractSym.name)(viewSpan)
+
+    val fun =
+      if procType.tparams.isEmpty then sel
+      else
+        val targs = procType.tparams.map(tparam => TypeTree(StaticRef(tparam))(viewSpan))
+        TypeApply(sel, targs)(viewSpan)
+
+    val argIdents = paramSyms.map(sym => Ident(sym)(viewSpan))
+    val autoIdents = autoSyms.map(sym => Ident(sym)(viewSpan))
+
+    val body = Apply(fun, argIdents, autoIdents)(viewSpan)
+
+    FunDef(
+      fwdSym,
+      procType.tparams,
+      paramSyms,
+      autos = autoSyms,
+      candidates = Nil,
+      TypeTree(procType.resultType)(viewSpan),
+      Effects.Policy.Infer,
+      body
+    )(annots = Nil, viewSpan)
+
+  private def checkViews
+      (classSym: Symbol,
+        viewDecls: List[Ast.ViewDecl],
+        shortCutScope: Scope,
+        memberNames: mutable.ArrayBuffer[Symbol],
+        delayedDefs: mutable.ArrayBuffer[LazyDef[FunDef]])
+      (using defnLazy: Definitions.Lazy, rp: Reporter, so: Source, sc: Scope, checks: Checks)
+  : List[LazyValue[TypeTree]] =
+    val viewTypeTrees = new mutable.ArrayBuffer[LazyValue[TypeTree]]
+    val seenViews = new mutable.ArrayBuffer[Symbol]
+
+    val index = defnLazy.index
+
+    def checkView(vdecl: Ast.ViewDecl)(using Definitions): TypeTree =
+      val viewSpan = vdecl.span
+      val viewTypeTree = transformValueType(vdecl.tpt)
+      val viewType = viewTypeTree.tpe
+
+      if viewType.isError then return viewTypeTree
+
+      val ifaceSym = viewType.typeSymbolOpt match
+        case Some(sym) if sym.isOneOf(Flags.Interface) =>
+          sym
+
+        case _ =>
+          Reporter.error(s"View must be an interface type, found: ${viewType.show}", vdecl.tpt.pos)
+          return TypeTree(ErrorType)(viewSpan)
+
+      if seenViews.contains(ifaceSym) then
+        Reporter.error(s"Duplicate view declaration for ${ifaceSym.name}", vdecl.tpt.pos)
+        return TypeTree(ErrorType)(viewSpan)
+
+      else
+        seenViews += ifaceSym
+
+      val lazyRef = lazyValue:
+        vdecl.rhs match
+          case None =>
+            Reporter.error("Should not access rhs for direct views", vdecl.pos)
+            errorWord(vdecl.span)
+
+          case Some(rhs) =>
+            given Scope = shortCutScope
+            given TargetType = TargetType.Known(viewType)
+            given ControlScope = ControlScope.NoReturn
+
+            val ref = Inference.freshIsolate:
+              transform(rhs)
+
+            if !ref.isStableRef then
+              Reporter.error("Delegate view expression must be a stable reference (immutable field)", ref.pos)
+
+            ref
+
+      // Register forwarder symbols for each abstract method not already in the class.
+      // Refs are type-checked later in lazyDef(classSym) to avoid a ClassInfo cycle.
+      val interfaceInfo = viewType.classInfo
+
+      for meth <- interfaceInfo.methods do
+        val fwdSym = TermSymbol.create(
+            meth.name,
+            Flags.Fun | Flags.Method | Flags.Synthetic,
+            Visibility.Default,
+            classSym,
+            vdecl.span.toPos
+        )
+
+        val needForwarder = meth.is(Flags.Defer) && vdecl.rhs.nonEmpty
+
+        val hasImplementation = !meth.is(Flags.Defer) || vdecl.rhs.nonEmpty
+
+        memberNames.find(_.name == fwdSym.name) match
+          case Some(other) if hasImplementation =>
+            val error = NameTable.DoubleDefinition(other, fwdSym)
+            rp.report(error)
+
+          case _ =>
+            if hasImplementation then
+              memberNames += fwdSym
+
+            if needForwarder then
+              index.addLazy(fwdSym, () => viewType.termMember(meth.name).widenTermRef)
+
+              if !Naming.isOperator(meth.name) then shortCutScope.define(fwdSym)
+
+              delayedDefs += lazyDef(fwdSym):
+                synthesizeForwarder(fwdSym, lazyRef.value, meth, viewSpan)
+
+      end for
+
+      viewTypeTree
+    end checkView
+
+    for vdecl <- viewDecls do
+      viewTypeTrees += lazyValue:
+          checkView(vdecl)
+
+    viewTypeTrees.toList
+
   private def transformClassDef(cdef0: Ast.ClassDef)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : LazyDef[ClassDef] =
@@ -1866,36 +2008,41 @@ class Namer(using Config) extends Applications with SelectionTyper:
     val tparamSymsLazy = lazyValue:
       transformTypeParams(cdef.tparams)
 
-    val fields = new mutable.ArrayBuffer[Symbol]
-    val methods = new mutable.ArrayBuffer[Symbol]
+    // including inherited concrete interface methods
+    val memberNames = new mutable.ArrayBuffer[Symbol]
 
-    val directViewTreesLazy = lazyValue:
+    val delayedDefs = new mutable.ArrayBuffer[LazyDef[FunDef]]
+    val delayedFields = new mutable.ArrayBuffer[LazyDef[FieldDecl]]
+
+    // Add this to scope (must be before classInfoLazy, which uses shortCutScope)
+    val thisScope = paramScope.fresh()
+    thisScope.define(thisSym)
+
+    val shortCutScope = thisScope.freshPrefixedScope(prefix = thisSym, owner = classSym)
+
+    val index = lazyDefn.index
+
+    val lazyViewTypeTrees = checkViews(classSym, cdef.views, shortCutScope, memberNames, delayedDefs)
+    val viewTypeTreesLazy = lazyValue:
       tparamSymsLazy.value
-
-      cdef.views.map: vdecl =>
-        transformValueType(vdecl.tpe)
+      lazyViewTypeTrees.map(_.value).filter(!_.tpe.isError)
 
     val classInfoLazy = lazyValue:
-      val directViews = directViewTreesLazy.value.map(_.tpe)
-
+      val viewTypeTrees = viewTypeTreesLazy.value  // must run before delayedDefs.map to add forwarder symbols
+      val fields = delayedFields.map(_.symbol).toList
+      val methods = delayedDefs.map(_.symbol).toList
       new ClassInfo(
         classSym,
         tparamSymsLazy.value,
         thisSym,
-        fields.toList,
-        methods.toList,
-        directViews
+        fields,
+        methods,
+        viewTypeTrees.map(_.tpe)
       )
 
-    val index = lazyDefn.index
     index.addLazy(classSym, () => classInfoLazy.value)
     index.setAnnotations(classSym, () => classAnnotationsLazy.value.map(TreeOps.applyToAnnotation))
     index.setDocComment(classSym, cdef0.docComment)
-
-    // Add this to scope
-    val thisScope = paramScope.fresh()
-    thisScope.define(thisSym)
-    val shortCutScope = thisScope.freshPrefixedScope(prefix = thisSym, owner = classSym)
 
     val thisInfoLazy = lazyValue:
       val classRef = StaticRef(classSym)
@@ -1903,9 +2050,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
       else AppliedType(classSym, tparamSymsLazy.value.map(StaticRef.apply))
 
     index.addLazy(thisSym, () => thisInfoLazy.value)
-
-    val delayedDefs = new mutable.ArrayBuffer[LazyDef[FunDef]]
-    val delayedFields = new mutable.ArrayBuffer[LazyDef[FieldDecl]]
 
     for vdef <- cdef.vals do
       var flags = Checker.checkModifiers(vdef) | vdef.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
@@ -1916,7 +2060,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
         transformAnnotations(vdef.annotations)
 
       val sym = TermSymbol.create(vdef.name, flags, Checker.visibility(vdef, classSym), classSym, vdef.ident.pos)
-      shortCutScope.define(sym)
 
       val fieldDeclLazy = lazyValue:
         val tpt =
@@ -1939,13 +2082,20 @@ class Namer(using Config) extends Applications with SelectionTyper:
         Reporter.error("Class name cannot be used as field name", vdef.pos)
 
       else
-        fields += sym
+        memberNames.find(_.name == sym.name) match
+          case Some(other) =>
+            val error = NameTable.DoubleDefinition(other, sym)
+            rp.report(error)
 
-        index.addLazy(sym, () => checkType())
-        index.setAnnotations(sym, () => fieldAnnotationsLazy.value.map(TreeOps.applyToAnnotation))
-        index.setDocComment(sym, vdef.docComment)
+          case None =>
+            memberNames += sym
+            shortCutScope.define(sym)
 
-        delayedFields += lazyDef(sym)(fieldDeclLazy.value)
+            index.addLazy(sym, () => checkType())
+            index.setAnnotations(sym, () => fieldAnnotationsLazy.value.map(TreeOps.applyToAnnotation))
+            index.setDocComment(sym, vdef.docComment)
+
+            delayedFields += lazyDef(sym)(fieldDeclLazy.value)
 
     for fdef <- cdef.funs do
       given Scope = shortCutScope
@@ -1960,27 +2110,37 @@ class Namer(using Config) extends Applications with SelectionTyper:
         else
           transformFunDef(fdef, Flags.Fun | Flags.Method, Effects.Policy.Infer)
 
+
       val symbol = delayedDef.symbol
-      if methods.exists(_.name == symbol.name) then
-        Reporter.error("A method with the name " + symbol.name + " is already defined", symbol.sourcePos)
 
-      else
-        methods += delayedDef.symbol
+      memberNames.find(_.name == symbol.name) match
+        case Some(other) =>
+          val error = NameTable.DoubleDefinition(other, symbol)
+          rp.report(error)
 
-        // Operator name should not be called directly without a prefix
-        if !Naming.isOperator(symbol.name) then
-          shortCutScope.define(symbol)
+        case None =>
+          memberNames += delayedDef.symbol
 
-        delayedDefs += delayedDef
+          // Operator name should not be called directly without a prefix
+          if !Naming.isOperator(symbol.name) then
+            shortCutScope.define(symbol)
+
+          delayedDefs += delayedDef
 
     lazyDef(classSym):
+      // Force ClassInfo first (registers forwarder symbols); extract delegate view infos.
+      classInfoLazy.value
+
       val fields: List[FieldDecl] =
         for delayedField <- delayedFields.toList yield delayedField.force()
 
       val funs: List[FunDef] =
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
-      ClassDef(classSym, thisSym, tparamSymsLazy.value, fields, funs, directViewTreesLazy.value)(classAnnotationsLazy.value, cdef.span)
+      ClassDef(
+        classSym, thisSym, tparamSymsLazy.value, fields, funs,
+        viewTypeTreesLazy.value
+      )(classAnnotationsLazy.value, cdef.span)
 
   private def transformInterfaceDef(idef: Ast.InterfaceDef)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
@@ -2013,7 +2173,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
         selfSym,
         fields = Nil,
         methods.toList,
-        directViews = Nil
+        views = Nil
       )
 
     val index = lazyDefn.index

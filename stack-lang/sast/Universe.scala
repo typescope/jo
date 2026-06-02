@@ -57,14 +57,14 @@ class Universe(root: Symbol, rewire: Map[Symbol, Symbol], intrinsicDeps: Map[Sym
           val ifaceSym = sym.owner
           for classSym <- _liveClasses do
             val classInfo = classSym.classInfo
-            if classInfo.directViews.exists(_.typeSymbol == ifaceSym) then
+            if classInfo.views.exists(_.typeSymbol == ifaceSym) then
               enqueue(classInfo.memberSymbol(sym.name))
 
         // CHA mirror: class live → find already-live abstract methods it implements.
         if sym.isClass then
           _liveClasses += sym
           val classInfo = sym.classInfo
-          classInfo.directViews.foreach: itype =>
+          classInfo.views.foreach: itype =>
             val ifaceSym = itype.typeSymbol
             val reachable = ifaceSym.classInfo.allMethods.filter(_deferMethods.contains)
             for abstractMeth <- reachable do

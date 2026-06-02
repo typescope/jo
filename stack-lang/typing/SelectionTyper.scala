@@ -54,12 +54,6 @@ trait SelectionTyper:
           Reporter.error(s"Found a member $name on a delegate view, but it is not visible at the location", qual.pos)
           errorWord(span)
 
-        case Adaptation.MemberAdaptResult.Ambiguous(candidates) =>
-          val views = candidates.map(_.show).mkString(", ")
-          val tip = s"\nPlease disambiguate by selecting the view explicitly, e.g. .view[${candidates.head.show}].$name"
-          Reporter.error(s"More than one view has the member $name, views = " + views + tip, qual.pos)
-          errorWord(span)
-
         case Adaptation.MemberAdaptResult.NotFound =>
           Reporter.error(s"The prefix does not contain the member $name", qual.pos)
           errorWord(span)

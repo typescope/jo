@@ -1,22 +1,28 @@
----------- Error at tests/warn/view-consistency-fields.jo:63:3 ---------------
+---------- Error at tests/warn/view-consistency-fields.jo:65:3 ---------------
 |   view Printer = printer
 |   ^^^^^^^^^^^^^^^^^^^^^^
-|   Member 'format' conflicts in unified namespace.
-  First defined: as class field 'format' in Service4
-  Also defined: from delegate view Printer (method 'format')
+|   Redefinition of format
+|
+| The name `format` is already defined at tests/warn/view-consistency-fields.jo:64:7
+|   val format: String = "default"  // Field conflicts with method from delegate view
+|       ^^^^^^
 
----------- Error at tests/warn/view-consistency-fields.jo:74:3 ---------------
+---------- Error at tests/warn/view-consistency-fields.jo:76:3 ---------------
 |   view Config = config
 |   ^^^^^^^^^^^^^^^^^^^^
-|   Member 'timeout' conflicts in unified namespace.
-  First defined: as class method 'timeout' in Service5
-  Also defined: from delegate view Config (field 'timeout')
+|   Redefinition of timeout
+|
+| The name `timeout` is already defined at tests/warn/view-consistency-fields.jo:75:7
+|   def timeout(): Int = 60  // Method conflicts with field from delegate view
+|       ^^^^^^^
 
----------- Error at tests/warn/view-consistency-fields.jo:90:3 ---------------
-|   view Connection = conn    // Has method 'connection'
+---------- Error at tests/warn/view-consistency-fields.jo:92:3 ---------------
+|   view Connection = conn
 |   ^^^^^^^^^^^^^^^^^^^^^^
-|   Member 'connection' conflicts in unified namespace.
-  First defined: from delegate view Database (field 'connection')
-  Also defined: from delegate view Connection (method 'connection')
+|   Redefinition of connection
+|
+| The name `connection` is already defined at tests/warn/view-consistency-fields.jo:91:3
+|   view Database = db
+|   ^^^^^^^^^^^^^^^^^^
 
 3 error(s), 0 warning(s)

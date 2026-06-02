@@ -270,5 +270,5 @@ object Subtyping:
     */
   private def checkDirectViewSubtyping(tp1: Type, tp2: Type)(using ctx: Context, defn: Definitions): Boolean =
     // Check if any direct view matches tp2
-    tp1.directViews.exists: viewType =>
+    tp1.views.exists: viewType =>
       recur(viewType, tp2)

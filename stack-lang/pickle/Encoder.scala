@@ -425,7 +425,7 @@ object Encoder:
         val sym = field.symbol
         encodeNat(state.getId(sym))
         encodeString(sym.name)
-        encodeFlags(sym.flags & (Flags.Mutable | Flags.View))
+        encodeFlags(sym.flags & Flags.Mutable)
         encodeVisibility(sym)
 
         val symSpan = sym.sourcePos.span
@@ -440,7 +440,7 @@ object Encoder:
         encodeTypeTree(field.tpt, absoluteStart)
 
       // Encode direct views TypeTrees
-      repeated(cdef.directViews): viewTree =>
+      repeated(cdef.views): viewTree =>
         encodeTypeTree(viewTree, absoluteStart)
 
       var lastOffset = absoluteStart

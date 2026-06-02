@@ -455,18 +455,6 @@ object Desugaring:
         val lhs = Select(thisIdent, vdef.name)(vdef.span)
         initializers += Assign(lhs, vdef.rhs)(vdef.span)
 
-    // Process views: desugar and move RHS to initializers
-    // Direct views (without RHS) are kept in cdef.views for Namer
-    // Delegate views (with RHS) are desugared to fields
-    for
-      vdecl <- cdef.views
-      vdef <- desugarView(vdecl)
-    do
-      desugarValDef(vdef)
-
-    // Keep only direct views (without RHS) in the ClassDef
-    val directViews = cdef.views.filter(_.rhs.isEmpty)
-
     // Process existing fields: move RHS to initializers
     for vdef <- cdef.vals do desugarValDef(vdef)
 
@@ -479,7 +467,7 @@ object Desugaring:
 
         val ctor2 = ctor.copy(body = newBody)(ctor.span)
         val funs2 = ctor2 :: cdef.funs.filter(_.name != cdef.name)
-        cdef.copy(params = Nil, views = directViews, vals = vals.toList, funs = funs2)(cdef.span)
+        cdef.copy(params = Nil, vals = vals.toList, funs = funs2)(cdef.span)
 
       case None =>
         // Generate constructor with field initializations
@@ -495,8 +483,7 @@ object Desugaring:
           preTypeParamCount = 0
         )(cdef.span)
 
-        // Return new ClassDef with empty params, direct views preserved
-        cdef.copy(params = Nil, views = directViews, vals = vals.toList, funs = ctor :: cdef.funs)(cdef.span)
+        cdef.copy(params = Nil, vals = vals.toList, funs = ctor :: cdef.funs)(cdef.span)
 
   /* Desugaring for an optional context parameter
    *
@@ -528,52 +515,3 @@ object Desugaring:
         pdef2.addKey(ExtraFlags, Flags.Default)
         pdef2 :: createDefaultFun(rhs) :: Nil
 
-  /* Desugaring views
-   *
-   * 1. Direct views
-   *
-   *    Direct views are NOT desugared into fields. They remain in the ClassDef's
-   *    views list so that Namer can collect them and store them in ClassInfo.directViews.
-   *    This enables subtyping: C <: T for classes with direct views.
-   *
-   * 2. Delegate views
-   *
-   *    From
-   *
-   *        view T = expr
-   *
-   *    to
-   *
-   *        <View> val N: T = expr
-   *
-   *    where N is the name after stripping type parameters. It is an error if T
-   *    is neither of the form `X` nor `F[..]`.
-   */
-  def desugarView(vdecl: ViewDecl)(using Reporter, Source): List[ValDef] =
-    vdecl.rhs match
-      case None =>
-        // Direct view: don't create a field, keep in ClassDef.views for Namer
-        Nil
-
-      case Some(expr) =>
-        // Delegate view: create view field
-        // <View> val N: T = expr
-
-        // Extract type name from TypeTree (strip type parameters)
-        val typeNameOpt: Option[String] = vdecl.tpe match
-          case id: Ident => Some(id.name)
-          case Select(_, name) => Some(name)
-          case AppliedType(tpeCtor: Ident, _) => Some(tpeCtor.name)
-          case AppliedType(Select(_, name), _) => Some(name)
-          case _ => None
-
-        typeNameOpt match
-          case None =>
-            Reporter.error("View type must be an identifier or applied type", vdecl.pos)
-            Nil
-
-          case Some(name) =>
-            val viewId = Ident(name)(vdecl.span)
-            val vdef = ValDef(viewId, vdecl.tpe, expr, mutable = false)(vdecl.span)
-            vdef.addKey(ExtraFlags, Flags.View)
-            vdef :: Nil

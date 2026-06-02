@@ -1,0 +1,12 @@
+// Class method conflicts with forwarder synthesized for delegate view
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+class Service(logger: Logger)
+  def log(msg: String): Unit = ...
+  view Logger = logger
+end
+
+def main = ...

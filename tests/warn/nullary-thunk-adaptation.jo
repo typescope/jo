@@ -17,7 +17,7 @@ class FileLogger
 end
 
 class Service(logger: FileLogger)
-  view FileLogger = logger
+  view Logger = logger
 end
 
 def main =

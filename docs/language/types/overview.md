@@ -1,71 +1,36 @@
 # Types
 
-_Draft: Work in Progress_
-
-Jo features a rich type system that supports both functional and object-oriented programming paradigms.
+Jo's type system supports both functional and object-oriented programming paradigms.
 
 ## Type Categories
 
-Jo provides several categories of types:
-
 ### [Basic Types](basic-types.md)
-Beyond primitive types such as Bool and Int, Jo provides foundational types for building applications.
-
-### [List Types](basic-types.md#list)
-Immutable lists with efficient O(1) prepend, append, and concat operations.
+Primitive types (`Bool`, `Int`, `Byte`, `Char`, `Float`, `String`, `Unit`) and
+commonly used standard library types (`Option`, `Result`, `List`, `Map`, `Set`).
 
 ### [Lambda Types](lambda-types.md)
-Function types that specify parameter types, return types, and context parameter requirements.
+Function types that specify parameter types, return types, and context parameter
+requirements.
 
-### [Class Types](class-types.md)
-Structured data types defined by class definitions, with rules for subtyping and generic instantiation.
+### [Named Types](named-types.md)
+Class types, interface types, type aliases, and type parameters. Covers subtyping via
+views, generic invariance, and alias transparency.
 
 ### [Union Types](union-types.md)
-Values that can be one of several alternatives, enabling algebraic data types.
-
-### [Type Aliases](type-aliases.md)
-Alternative names for existing types to improve code clarity.
+Values that can be one of several class type alternatives, enabling algebraic data types.
 
 ### [Extension Types](extension-types.md)
-Adding methods to a type, enabling the dot syntax for method calls.
+Types enriched with a fixed set of extension methods, enabling dot syntax on types
+(such as union types) that have no members of their own.
 
 ### [Duck Types](duck-types.md)
-Flexible parameter types that accept arguments with automatic conversion.
+Types that accept arguments with automatic conversion through a declared adapter list.
 
 ### [Annotation Types](annotation-types.md)
-Types annotated with compiler or backend hints, such as calling-convention markers for FFI parameters.
+Types with compiler or backend hints attached; transparent to the type system.
 
 ### [Type Inference](type-inference.md)
-Type inference reduces the need for explicit annotations.
+Local, bidirectional type inference rules.
 
-### [Type Adaptation](type-adaptaion.md)
-Type adaptation converts a fully typed value to a fully known expected type in specific, type-directed contexts.
-
-## Quick Examples
-
-```jo
-// Basic types
-val flag: Bool = true
-val count: Int = 42
-
-// List types
-val numbers = [1, 2, 3]
-
-// Lambda types
-type Handler = (String, Int) => Unit
-type Processor = String => String receives IO
-
-// Union types (with generics)
-union Option[T] = Some(value: T) | None
-
-// Type aliases
-type UserId = Int
-
-// Context parameters
-def process(data: List[Int]): Unit receives logger =
-  logger.info("Processing started")
-
-// Annotation types (calling-convention hints for FFI)
-def write_text(data: String, encoding: Any @py.keyword): Int
-def pop(i: Int @py.positional = -1): py.Value
-```
+### [Type Adaptation](type-adaptation.md)
+How the compiler converts a fully typed value to a fully known expected type.

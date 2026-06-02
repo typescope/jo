@@ -2,9 +2,7 @@
 
 ## Overview
 
-Jo allows programmers to restrict usage of symbols to specific scopes -- a way to enforce information hiding.
-
-Jo performs _coherence check_ to prevent unintended errors in access control by ensuring private symbols don't leak into public APIs.
+Jo allows programmers to restrict usage of symbols to specific scopes, enforcing information hiding. It also performs a _coherence check_ to ensure private symbols do not leak into public APIs.
 
 ::: warning
 Visibility control is a mechanism for information hiding, not security enforcement.
@@ -25,8 +23,8 @@ end
 
 The function `process` is public, but uses private type `Secret` in its signature. This creates problems:
 
-- Users outside `Internal` cannot call `process` (they can't construct `Secret`)
-- Or worse, the implementation detail is accidentally exposed
+- Users outside `Internal` cannot call `process` because they cannot construct a `Secret` value
+- The private implementation type is accidentally exposed in the public API
 
 **Coherence checking** prevents such errors by verifying that private symbols don't appear in more public contexts.
 
@@ -112,8 +110,8 @@ Function adapters must be coherent with the defining function:
 section A
   private def secretConv(x: Int): String = "secret"
 
-  def show(s: String with [secretConv]): Unit = println s     // Error
-  private def show2(s: String with [secretConv]): Unit = println s  // OK
+  def show(s: String :- [secretConv]): Unit = println s     // Error
+  private def show2(s: String :- [secretConv]): Unit = println s  // OK
 end
 ```
 

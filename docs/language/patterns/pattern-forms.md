@@ -13,22 +13,18 @@ match x
 case 0 => "zero"
 case 1 => "one"
 case 42 => "the answer"
-end
 
 match status
 case "success" => handleSuccess()
 case "error" => handleError()
-end
 
 match flag
 case true => "yes"
 case false => "no"
-end
 
 match char
 case 'a' => "letter a"
 case '0' => "digit zero"
-end
 ```
 
 ## Variable Patterns
@@ -40,16 +36,13 @@ Binds the scrutinee to the given identifier. Always succeeds. The identifier `_`
 ```jo
 match x
 case y => y + 1  // binds x to y
-end
 
 match value
 case _ => 0      // matches but doesn't bind
-end
 
 // Useful for ignoring parts of structures
 match pair
-case (x, _) => x  // Only bind first element
-end
+case x ~ _ => x  // Only bind first element
 ```
 
 ## Type Patterns
@@ -63,13 +56,11 @@ match value
 case x: Int => x + 1
 case s: String => s.length
 case b: Bool => if b then 1 else 0
-end
 
 // Type patterns with union types
 match result
 case data: Data => processData(data)
 case error: ErrorMsg => logError(error)
-end
 ```
 
 ### Type Refinement
@@ -121,18 +112,15 @@ Matches values of algebraic data types. Extracts constructor arguments and match
 match option
 case Some(x) => x
 case None => 0
-end
 
 match result
 case Ok(value) => value
 case Err(message) => -1
-end
 
 match tree
 case Leaf(value) => [value]
 case Branch(left, value, right) =>
   traverse(left) ++ [value] ++ traverse(right)
-end
 ```
 
 ### Nested Apply Patterns
@@ -144,7 +132,6 @@ match nested
 case Some(Some(x)) => x
 case Some(None) => 0
 case None => -1
-end
 
 match tree
 case Branch(Leaf(x), _, Leaf(y)) =>
@@ -153,7 +140,6 @@ case Branch(left, value, right) =>
   process(left, value, right)
 case Leaf(x) =>
   x
-end
 ```
 
 ## Sequence Patterns
@@ -167,7 +153,6 @@ match list
 case [] => "empty"
 case [x] => "singleton: " + x
 case [x, y] => "pair: " + x + ", " + y
-end
 ```
 
 ### Repeat Patterns
@@ -180,7 +165,6 @@ case [head, ..tail] =>
   // head is the first element
   // tail is the rest of the list
   head + sum(tail)
-end
 ```
 
 ### Guarded Repeat Patterns
@@ -193,7 +177,6 @@ case [..positives while Positive, ..rest] =>
   // positives: all leading positive numbers
   // rest: remaining numbers
   "Found " + positives.length + " positive numbers"
-end
 ```
 
 For detailed specification of sequence patterns, see [Sequence Patterns](sequence-patterns.md).
@@ -209,7 +192,6 @@ match x
 case n if n > 0 => "positive"
 case n if n < 0 => "negative"
 case _ => "zero"
-end
 
 match user
 case User(name, age) if age >= 18 =>
@@ -218,7 +200,6 @@ case User(name, age) if age >= 13 =>
   "Teen: " + name
 case User(name, _) =>
   "Child: " + name
-end
 ```
 
 ## Assignment Patterns
@@ -248,7 +229,6 @@ end
 match myList
 case Size(n) if n > 10 => "large list"
 case Size(n) => "small list"
-end
 ```
 
 ### Multiple Assignments
@@ -266,7 +246,6 @@ case Stats(count, sum) =>
   println("Count: " + count)
   println("Sum: " + sum)
   println("Average: " + (sum / count))
-end
 ```
 
 ### Combining with Guards
@@ -274,12 +253,10 @@ end
 ```jo
 pattern LargeList[T](n: Int): List[T] =
   case Cons(_, tail) if tail.size > 99 then n = 1 + tail.size
-end
 
 match list
 case LargeList(n) => "Very large: " + n + " elements"
 case _ => "Normal size"
-end
 ```
 
 ### Default Values in Or-Patterns
@@ -291,40 +268,20 @@ Assignment patterns enable uniform binding in or-patterns by providing default v
 match maybeCount
 case Some(x) | (None then x = 0) =>
   println("Count: " + x)
-end
 
 // Multiple branches with defaults
 match result
 case Ok(value) | (Err(_) then value = -1) =>
   processValue(value)
-end
 
 // Complex default computation
 match config
 case Full(host, port) | (Partial(host) then port = 8080) =>
   connect(host, port)
-end
 ```
 
 This pattern is particularly useful when you want to handle multiple cases uniformly but need to supply default values for branches that don't naturally bind certain variables.
 
-## Expression Patterns
-
-**Syntax:** `simple_pattern {simple_pattern}`
-
-A sequence of simple patterns juxtaposed without operators. The interpretation depends on the pattern context—typically used for applying infix pattern operators.
-
-::: info Pattern expression syntax
-
-Pattern expressions use the same rules as term expressions and type expressions: only operator expressions and shape expressions are supported, only terms support precedence expressions.
-
-```jo
-// parsed as: ((!(Some(x))) & Positive) | (!Even)
-case !Some(x) & Positive | !Even => ...
-```
-
-See [Expression syntax](../expressions/expression-syntax.md) for more details.
-:::
 ## Or Patterns
 
 **Syntax:** `pattern₁ | pattern₂`
@@ -338,13 +295,11 @@ match x
 case 0 | 1 | 2 => "small"
 case 3 | 4 | 5 => "medium"
 case _ => "large"
-end
 
 match token
 case Ident(name) | Keyword(name) | Operator(name) =>
   // name is bound in all branches
   println(name)
-end
 ```
 
 ### Uniform Binding Requirement
@@ -355,17 +310,14 @@ All branches must bind exactly the same set of variables:
 // ✓ OK - both bind x
 match either
 case Left(x) | Right(x) => x
-end
 
 // ❌ Error - Left binds x, Right binds y
 match result
 case Left(x) | Right(y) => ...
-end
 
 // ❌ Error - first binds x and y, second binds only x
 match result
 case Pair(x, y) | Single(x) => ...
-end
 ```
 
 ::: info Design Rationale: Uniform Binding Requirement
@@ -384,7 +336,6 @@ match n
 case Positive & Even => "positive even number"
 case Positive => "positive odd number"
 case _ => "not positive"
-end
 ```
 
 ### Variable Binding in And-Patterns
@@ -411,12 +362,10 @@ Defined in `Predef.jo` using the prefix pattern operator `![T]`.
 match n
 case !Positive => "not positive (zero or negative)"
 case _ => "positive"
-end
 
 match value
 case !None => "has a value"
 case None => "no value"
-end
 ```
 
 ### Variable Binding in Not-Patterns
@@ -440,19 +389,16 @@ Not-patterns can be combined with or-patterns and and-patterns:
 match n
 case !Positive & !Even => "not positive and not even"
 case _ => "positive or even (or both)"
-end
 
 // Match values that are not (positive and even)
 match n
 case !(Positive & Even) => "not a positive even number"
 case _ => "positive even number"
-end
 
 // Match values that don't satisfy either condition
 match n
 case !Positive | !Even => "not positive or not even"
 case _ => "positive and even"
-end
 ```
 
 ## Parenthesized Patterns
@@ -467,20 +413,17 @@ Groups a pattern. Useful for:
 // Control precedence
 match x
 case (0 | 1) & Positive => ...  // (0 | 1) grouped
-end
 
 // Guard on nested pattern
 match x
 case Some((y if y > 0)) => "some positive"
 case Some(_) => "some non-positive"
 case None => "none"
-end
 
 // Complex composition
 match result
 case (Ok(x) | Err(x)) & (y if y.isValid) =>
   process(y)
-end
 ```
 
 ## Summary
@@ -495,12 +438,16 @@ end
 | Sequence | `[x, y, z]` | Match lists |
 | Guard | `pattern if cond` | Add conditions |
 | Assignment | `then x = expr` | Compute values |
-| Or | `p₁ | p₂` | Match either pattern |
+| Or | `p₁ \| p₂` | Match either pattern |
 | And | `p₁ & p₂` | Match both patterns |
-| Not | `!p` | Match negation of pattern |
-| Parenthesized | `(pattern)` | Group patterns |
+| Not | `!p` | Negate pattern |
+| Parenthesized | `(pattern)` | Group for precedence |
+
+Pattern composition (`|`, `&`, `!`) follows the same operator precedence rules as
+term expressions. Use parentheses to override. See
+[Expression Syntax](../syntax/expression-syntax.md).
 
 ## See Also
 
 - [Semantics](semantics.md) - Pattern matching rules
-- [Pattern Definitions](pattern-definitions.md) - Reusable patterns
+- [Pattern Definitions](../definitions/pattern-definitions.md) - Reusable patterns

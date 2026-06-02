@@ -1,0 +1,36 @@
+// Delegate view of a generic interface:
+// forwarders must use the concrete type argument, not the type variable.
+
+interface Container[T]
+  def get(): T
+  def isEmpty(): Bool
+end
+
+class Box[T](item: T)
+  def get(): T = item
+  def isEmpty(): Bool = false
+  view Container[T]
+end
+
+// Wrapper holds a Box[Int] and delegates Container[Int] to it.
+// The synthesized forwarders must use Int, not the type variable T.
+class Wrapper(box: Box[Int])
+  view Container[Int] = box
+end
+
+def useContainer(c: Container[Int]) receives IO.stdout =
+  println("empty: " + c.isEmpty())
+  println("value: " + c.get())
+end
+
+def main receives IO.stdout =
+  val b = new Box(42)
+  val w = new Wrapper(b)
+
+  // Wrapper is a subtype of Container[Int] via delegate view
+  useContainer(w)
+
+  // Can also assign directly
+  val c: Container[Int] = w
+  println("again: " + c.get())
+end

@@ -1,0 +1,13 @@
+// Delegate view expression must be a stable reference, not a method call
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+def makeLogger(): Logger = ...
+
+class Service
+  view Logger = makeLogger()
+end
+
+def main = ...

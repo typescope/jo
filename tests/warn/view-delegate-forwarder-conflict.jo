@@ -1,0 +1,16 @@
+// Two delegate views cannot forward methods with the same name
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+interface Monitor
+  def log(event: String): Unit
+end
+
+class Service(logger: Logger, monitor: Monitor)
+  view Logger = logger
+  view Monitor = monitor
+end
+
+def main = ...

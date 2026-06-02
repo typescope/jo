@@ -27,7 +27,7 @@ object Denotations:
   class ClassInfo(
     val classSymbol: Symbol, val tparams: List[Symbol],
     val self: Symbol, val fields: List[Symbol], val methods: List[Symbol],
-    val directViews: List[Type])
+    val views: List[Type])
   extends Denotation:
 
     def name: String = classSymbol.name
@@ -41,25 +41,39 @@ object Denotations:
         case None => throw new Exception("No field " + name + " in class " + classSymbol)
 
     def constructor: Symbol =
-      methods.find(_.name == Names.Constructor) match
+      methods.find(_.is(Flags.Constructor)) match
         case Some(sym) => sym
         case None => throw new Exception("No constructor found in class " + classSymbol)
 
-    def delegateViews: List[Symbol] =
-      fields.filter(_.is(Flags.View))
-
-    def memberSymbol(name: String): Symbol =
+    def memberSymbol(name: String)(using Definitions): Symbol =
       getMemberSymbol(name) match
         case Some(sym) => sym
         case None => throw new Exception(s"No member named $name for $classSymbol")
 
-    def getMemberSymbol(name: String): Option[Symbol] =
+    def getMemberSymbol(name: String)(using Definitions): Option[Symbol] =
       fields.find(_.name == name) match
-        case None => methods.find(_.name == name)
+        case None =>
+          methods.find(_.name == name) match
+            case None =>
+              val iter = views.iterator
+
+              while iter.hasNext do
+                val viewType = iter.next()
+                viewType.classInfo.getMemberSymbol(name) match
+                  case res @ Some(_) => return res
+                  case None =>
+                end match
+              end while
+              None
+
+            case res => res
+
         case res => res
 
-    def getTermMember(prefix: Type, name: String): Option[RefType] =
-      getMemberSymbol(name).map(MemberRef(prefix, _))
+    def getTermMember(prefix: Type, name: String)(using Definitions): Option[RefType] =
+      getMemberSymbol(name) match
+        case Some(sym) => Some(MemberRef(prefix, sym))
+        case None => None
 
   /** Descriptor for a parameterized type operator: a type alias or native type with type parameters.
     *

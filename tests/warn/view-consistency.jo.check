@@ -1,22 +1,19 @@
----------- Error at tests/warn/view-consistency.jo:24:3 ---------------
-|   view FileReader = new FileReader()    // ERROR: read() conflicts
-|   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-|   Member 'read' conflicts in unified namespace.
-  First defined: as class method 'read' in Processor1
-  Also defined: from delegate view FileReader (method 'read')
-
----------- Error at tests/warn/view-consistency.jo:31:8 ---------------
-|   view Readable              // ERROR: close() conflicts with concrete method
-|        ^^^^^^^^
-|        Member 'close' conflicts in unified namespace.
-  First defined: as class method 'close' in Processor2
-  Also defined: as concrete method 'close' from direct view Readable
-
----------- Error at tests/warn/view-consistency.jo:46:3 ---------------
-|   view Logger = new SimpleLogger()      // ERROR: write() conflicts
+---------- Error at tests/warn/view-consistency.jo:23:3 ---------------
+|   view Readable = new FileReader()      // ERROR: read() forwarder conflicts with class method
 |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-|   Member 'write' conflicts in unified namespace.
-  First defined: from delegate view FileReader (method 'write')
-  Also defined: from delegate view Logger (method 'write')
+|   Redefinition of read
+|
+| The name `read` is already defined at tests/warn/view-consistency.jo:22:7
+|   def read(): String = ...              // Class method
+|       ^^^^
 
-3 error(s), 0 warning(s)
+---------- Error at tests/warn/view-consistency.jo:38:3 ---------------
+|   view Logger = logger                 // ERROR: write() forwarder conflicts
+|   ^^^^^^^^^^^^^^^^^^^^
+|   Redefinition of write
+|
+| The name `write` is already defined at tests/warn/view-consistency.jo:37:3
+|   view Writable = fileReader           // Has abstract write()
+|   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+2 error(s), 0 warning(s)

@@ -17,7 +17,6 @@ match value
 case pattern1 => body1  // Test first
 case pattern2 => body2  // Test if pattern1 fails
 case pattern3 => body3  // Test if pattern2 fails
-end
 ```
 
 ## Flow Typing
@@ -47,7 +46,6 @@ The variable `x` is definitely bound. It is an error if `x` is already definitel
 ```jo
 match value
 case x => x + 1  // x is definitely bound
-end
 ```
 
 #### Type Pattern `x: T`
@@ -57,7 +55,6 @@ The variable `x` is definitely bound. It is an error if `x` is already definitel
 ```jo
 match value
 case x: Int => x + 1  // x is definitely bound as Int
-end
 ```
 
 #### Bind Pattern `x @ p`
@@ -86,7 +83,6 @@ end
 // ❌ Error - x bound twice
 match pair
 case Pair(x, x) => ...
-end
 ```
 
 #### Sequence Pattern `[p₁, ..., pₙ]`
@@ -109,12 +105,10 @@ A variable is definitely bound after the or-pattern if it is bound in all branch
 // ✓ OK - both bind x
 match either
 case Left(x) | Right(x) => x
-end
 
 // ✓ OK - but neither x nor y can be used in the branch
 match result
 case Left(x) | Right(y) => ...
-end
 ```
 
 #### And-Pattern `p₁ & p₂`
@@ -127,7 +121,6 @@ case (x, _) & (_, y) => ...
 
 // ❌ Error - x bound in both
 case Some(x) & Just(x) => ...
-end
 ```
 
 #### Not-Pattern `!p`
@@ -138,12 +131,10 @@ No variables are bound. Variables bound in the nested pattern `p` are not access
 // ✓ OK - no variables bound
 match value
 case !Positive => "not positive"
-end
 
 // ❌ Error - x is not available in the branch
 match option
 case !(Some(x)) => x  // x not bound when Some(_) doesn't match
-end
 ```
 
 **Rationale:** Since a not-pattern succeeds when its nested pattern fails, any variables that would be bound by the nested pattern have no meaningful values to bind.
@@ -179,56 +170,6 @@ No variables are bound.
 match value
 case 0 => "zero"
 case 1 => "one"
-end
-```
-
-## Error Examples
-
-### Variable Bound Multiple Times
-
-```jo
-// ❌ Error: x is bound twice
-match pair
-case (x, x) => ...
-end
-
-// ❌ Error: x bound in both apply patterns
-match pair
-case Pair(Some(x), Just(x)) => ...
-end
-```
-
-### Variable Bound Once in Each Branch (OK)
-
-```jo
-// ✓ OK: x bound once in each branch
-match either
-case Left(x) | Right(x) => x
-end
-```
-
-## Valid Flow Typing Examples
-
-### Using Bound Variables in Guards
-
-```jo
-match configOpt
-case Some(config) if config.database.host is Some(host) =>
-  // config bound by Some(config)
-  // host bound by is expression
-  connect(host)
-end
-```
-
-### Nested Matching with Flow
-
-```jo
-match user
-case User(name, age) if age >= 18 =>
-  // name and age definitely bound
-  // can use both in guard and body
-  logger.log("Adult: " + name + ", age: " + age)
-end
 ```
 
 ## Type Constraints
@@ -262,13 +203,11 @@ match status: Status
 case Success => ...
 case Warning => ...
 case Error => ...
-end
 
 // ⚠ Warning - non-exhaustive, missing Error
 match status: Status
 case Success => ...
 case Warning => ...
-end
 ```
 
 ### Wildcard for Non-Exhaustive Matches
@@ -279,27 +218,12 @@ Use `_` for a catch-all case:
 match status
 case Success => ...
 case _ => ...  // Catches Warning and Error
-end
 ```
 
-## Pattern Match Failures
+### Exhaustiveness in `for` Loops
 
-Some patterns can fail at runtime:
-
-### Pattern Value Definitions
-
-```jo
-// Can fail at runtime if pattern doesn't match
-val Point(x, y) = getValue()
-
-// Safe - Option ensures exhaustiveness
-match getValue()
-case Point(x, y) => ...
-case _ => ...  // Handle non-Point values
-end
-```
-
-### For Loops
+A pattern in a `for` loop is also checked for exhaustiveness. A non-exhaustive pattern
+produces a warning; the preferred fix is to use a guard instead:
 
 ```jo
 // ⚠ Warning - non-exhaustive pattern
@@ -311,6 +235,20 @@ end
 for elem in optionList if elem is Some(x) do
   println(x)
 end
+```
+
+## Pattern Match Failures
+
+Some patterns can fail at runtime:
+
+```jo
+// Can fail at runtime if pattern doesn't match
+val Point(x, y) = getValue()
+
+// Safe - cover all cases explicitly
+match getValue()
+case Point(x, y) => ...
+case _ => ...
 ```
 
 ## Evaluation Order
@@ -327,10 +265,9 @@ match compute()  // Evaluated once
 case pattern1 if guard1 => body1  // Test pattern1, then guard1
 case pattern2 if guard2 => body2  // Test if pattern1 failed
 case _ => body3  // Default case
-end
 ```
 
 ## See Also
 
 - [Pattern Forms](pattern-forms.md) - Basic pattern types and composition
-- [Pattern Definitions](pattern-definitions.md) - Reusable patterns
+- [Pattern Definitions](../definitions/pattern-definitions.md) - Reusable patterns

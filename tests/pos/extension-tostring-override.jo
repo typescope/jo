@@ -3,10 +3,6 @@
 // println adaptation should prefer the extended toString.
 
 class Point(x: Int, y: Int)
-  view DummyShow = new DummyShow // can't pass `this` before initialization
-end
-
-class DummyShow
   def toString: String = "dummy toString"
 end
 

@@ -414,7 +414,7 @@ object JsonEmitter:
 
     // Views (for classes)
     if sym.isClass then
-      out.println(s"""$indent  "views": [${cd.directViews.map(v => emitType(v.tpe)).mkString(", ")}]""")
+      out.println(s"""$indent  "views": [${cd.views.map(v => emitType(v.tpe)).mkString(", ")}]""")
     else
       out.println(s"""$indent  "views": []""")
 

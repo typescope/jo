@@ -87,7 +87,7 @@ object Printing:
     val rhs = view.rhs match
       case None => Text.Empty
       case Some(expr) => " = " ~ expr
-    "view " ~ view.tpe ~ rhs
+    "view " ~ view.tpt ~ rhs
 
   def showDocComment(doc: List[String]): Text =
     doc match

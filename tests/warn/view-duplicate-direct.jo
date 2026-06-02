@@ -1,0 +1,13 @@
+// Two direct views of the same interface are not allowed
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+class Service
+  def log(msg: String): Unit = ...
+  view Logger
+  view Logger
+end
+
+def main = ...

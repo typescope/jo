@@ -1,0 +1,10 @@
+---------- Error at tests/warn/view-delegate-method-conflict.jo:9:3 ---------------
+|   view Logger = logger
+|   ^^^^^^^^^^^^^^^^^^^^
+|   Redefinition of log
+|
+| The name `log` is already defined at tests/warn/view-delegate-method-conflict.jo:8:7
+|   def log(msg: String): Unit = ...
+|       ^^^
+
+1 error(s), 0 warning(s)

@@ -13,9 +13,4 @@
 |                   ^
 |                   Expect type () => StringLike receives none, found = Int
 
----------- Error at tests/warn/nullary-thunk-adaptation.jo:31:15 ---------------
-|   takesLogger service
-|               ^^^^^^^
-|               Expect type () => Logger receives none, found = service: Service
-
-4 error(s), 0 warning(s)
+3 error(s), 0 warning(s)

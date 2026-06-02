@@ -7,7 +7,6 @@ import sast.Symbols.*
 import ast.Positions.{Span, Source}
 import common.Debug
 
-import scala.collection.mutable
 
 object Adaptation:
   enum Adapter:
@@ -18,12 +17,10 @@ object Adaptation:
   enum Trial:
     case Member(tp: Type, member: String, error: Error)
     case Function(sym: Symbol)
-    case View(tp: Type)
     case LambdaInterface
 
   enum Error:
     case MissingMember
-    case AmbiguousMember(views: List[Type])
     case TypeMismatch(found: Type)
     case Invisible(sym: Symbol, site: Symbol)
     case AutoNotFound(search: AutoResolution.SearchNode.All)
@@ -45,9 +42,6 @@ object Adaptation:
           case Trial.Function(sym) =>
             sb.append(s"\n  - fun ${sym.name}: type mismatch  ✗")
 
-          case Trial.View(tp) =>
-            sb.append(s"\n  - view ${tp.show}: not fit ✗")
-
           case Trial.LambdaInterface =>
             sb.append(s"\n  - lambda interface: not compatible  ✗")
 
@@ -55,12 +49,6 @@ object Adaptation:
             error match
               case Error.MissingMember =>
                 sb.append(s"\n  - .$member: missing ✗")
-
-              case Error.AmbiguousMember(candidates) =>
-                sb.append(s"\n  - .$member: ambiguous ✗")
-                sb.append(s"\n    Multiple views have this member:")
-                for viewType <- candidates do
-                  sb.append(s"\n      - ${viewType.show}")
 
               case Error.TypeMismatch(found) =>
                 sb.append(s"\n  - .$member: type mismatch ✗")
@@ -117,13 +105,6 @@ object Adaptation:
           adaptToLambdaInterface(word, targetType) match
             case Some(adapted) => return adapted
             case None => trials += Trial.LambdaInterface
-
-        // Try to adapt through views if target is a class/interface type
-        if targetType.isClassInfoType then
-          adaptToView(word, targetType) match
-            case Result.Success(adapted) => return adapted
-            case Result.Failure(viewTrials) => trials ++= viewTrials
-              // Continue to try adapters
 
         // Try to apply adapters before failing
         adaptWithAdapters(word, targetType, adapters) match
@@ -184,30 +165,15 @@ object Adaptation:
     else
       fail()
 
-  /** Result of member adaptation through views.
+  /** Result of member adaptation.
     *
     * Captures all possible outcomes:
-    * - Success: member found (possibly through a view), word adapted
-    * - Ambiguous: multiple views have the member
-    * - NotFound: member not found anywhere
+    * - Success: member found, word adapted
+    * - NotFound: member not found
     */
   enum MemberAdaptResult:
-    /** Member found successfully.
-      * @param word The adapted word (with view selection if needed).
-      *             When selectMember=true, word has the member selected and word.tpe is the member's type.
-      *             When selectMember=false, word is adapted through view if needed but member not selected.
-      */
     case Success(word: Word)
-
-    /** Multiple views have the member - ambiguous.
-      * @param candidates The conflicting views that have the member
-      */
-    case Ambiguous(views: List[Type])
-
-    /** The member is not visible */
     case Invisible(symbol: Symbol, site: Symbol)
-
-    /** Member not found in the type or any of its views. */
     case NotFound
 
   /** Adapt word to access a member, potentially through views.
@@ -231,90 +197,19 @@ object Adaptation:
       (using Definitions)
   : MemberAdaptResult =
 
-    val tpe = word.tpe
-
-    // First try direct member access
-    tpe.getTermMember(memberName) match
+    word.tpe.getTermMember(memberName) match
       case Some(ref: RefType) =>
         val sym = ref.symbol
 
         if sym.visibleIn(site) then
           val resultWord = if selectMember then TreeOps.smartSelect(word, memberName, word.span) else word
-          return MemberAdaptResult.Success(resultWord)
+          MemberAdaptResult.Success(resultWord)
 
         else
-          return MemberAdaptResult.Invisible(sym, site)
+          MemberAdaptResult.Invisible(sym, site)
 
       case _ =>
-        // Continue to search through views
-
-    if !word.tpe.isClassType then return MemberAdaptResult.NotFound
-
-    // Collect both delegate views and direct views (for concrete methods)
-    val directViews: List[Type] = word.tpe.directViews
-
-    // Delegate view candidate is represented by MemberRef
-    // Otherwise, the candidate is direct view type
-    val cands = new scala.collection.mutable.ArrayBuffer[Type]
-
-    val nonPrivateMembers = new mutable.ArrayBuffer[Symbol]
-
-    /** A delegate member qualify if it is not private and it is visbile */
-    def delegateQualify(ref: Type): Boolean =
-      val symbol = ref.as[MemberRef].symbol
-
-      symbol.visibility match
-        case Visibility.Private(w) if w == symbol.owner => false
-
-        case _ =>
-          nonPrivateMembers += symbol
-          symbol.visibleIn(site)
-
-    // Search through all views
-
-    for viewType <- directViews do
-      viewType.getTermMember(memberName) match
-        case Some(ref) if delegateQualify(ref) =>
-          cands += viewType
-
-        case _ =>
-
-
-    for viewRef <- tpe.delegateViews do
-      viewRef.getTermMember(memberName) match
-        case Some(ref) if delegateQualify(ref) =>
-          cands += viewRef
-
-        case _ =>
-
-
-    if cands.size == 1 then
-      val cand = cands.head
-
-      val adaptedWord =
-        cand match
-          case MemberRef(_, sym) => word.select(sym.name)
-          case tp: Type => Encoded(word)(tp)
-
-      val resultWord = if selectMember then TreeOps.smartSelect(adaptedWord, memberName, adaptedWord.span) else adaptedWord
-      MemberAdaptResult.Success(resultWord)
-
-    else if cands.isEmpty then
-      if nonPrivateMembers.isEmpty then
         MemberAdaptResult.NotFound
-
-      else
-        val member = nonPrivateMembers.head
-        MemberAdaptResult.Invisible(member, site)
-
-    else
-      // Multiple candidates - ambiguous
-      val views: List[Type] =
-        cands.toList.map:
-          case ref: MemberRef => ref.info
-          case tp => tp
-
-      MemberAdaptResult.Ambiguous(views)
 
 
   /** Try adapt the word of a lambda type to the target lambda interface
@@ -357,32 +252,6 @@ object Adaptation:
     defn.index.add(lambdaSym, lambda.tpe)
     Result.Success(lambda)
 
-
-  /** Adapt a value to a specific view type T
-    *
-    * Handles delegate views
-    *
-    * No recursive adapattion for neither direct views nor delegate views.
-    *
-    * @param word The value to adapt
-    * @param viewType The view type to access
-    * @return Success with the adapted word, or Failure with error information
-    */
-  def adaptToView(word: Word, viewType: Type)(using Definitions): Result =
-    val wordType = word.tpe
-
-    def qualify(candViewType: Type): Boolean = Subtyping.isEqualType(candViewType, viewType)
-
-    // Check delegate views
-    val delegateViews = wordType.delegateViews
-    delegateViews.find(viewRef => qualify(viewRef)) match
-      case Some(viewRef) =>
-        // Delegate view found - select it from the word
-        Result.Success(word.select(viewRef.symbol.name))
-      case None =>
-        // View not found
-        val trials = delegateViews.map(viewRef => Trial.View(viewRef.info))
-        Result.Failure(trials)
 
   def createSimpleAdapters(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)(using Source): List[Adapter] =
     if adapters.isEmpty then Nil
@@ -524,12 +393,7 @@ object Adaptation:
               end match
 
             case MemberAdaptResult.NotFound =>
-              // Member doesn't exist, even through views
               trials += Trial.Member(word.tpe, memberName, Error.MissingMember)
-
-            case MemberAdaptResult.Ambiguous(candidates) =>
-              // Multiple views have the member - ambiguous, skip this adapter
-              trials += Trial.Member(word.tpe, memberName, Error.AmbiguousMember(candidates))
 
             case MemberAdaptResult.Invisible(sym, site) =>
               trials += Trial.Member(word.tpe, memberName, Error.Invisible(sym, site))
@@ -609,15 +473,10 @@ object Adaptation:
                     trials += Trial.Member(elemType, memberName, Error.TypeMismatch(effectiveType))
               end match
 
-            case MemberAdaptResult.Ambiguous(candidates) =>
-              // Multiple views have the member - ambiguous
-              trials += Trial.Member(elemType, memberName, Error.AmbiguousMember(candidates))
-
             case MemberAdaptResult.Invisible(sym, site) =>
               trials += Trial.Member(word.tpe, memberName, Error.Invisible(sym, site))
 
             case MemberAdaptResult.NotFound =>
-              // Member doesn't exist
               trials += Trial.Member(elemType, memberName, Error.MissingMember)
 
       end match

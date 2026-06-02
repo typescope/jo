@@ -1,0 +1,10 @@
+---------- Error at tests/warn/view-delegate-shadow-concrete.jo:9:3 ---------------
+|   view Formatter
+|   ^^^^^^^^^^^^^^
+|   Redefinition of preview
+|
+| The name `preview` is already defined at tests/warn/view-delegate-shadow-concrete.jo:8:7
+|   def preview(): String = "Number #" + n   // class-level method, same name
+|       ^^^^^^^
+
+1 error(s), 0 warning(s)

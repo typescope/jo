@@ -26,11 +26,11 @@ object TypeOps:
     val typeMap = new TypeOps.SymbolsTypeMap
     typeMap(tpe)(using subst)
 
-  /** Rebase a class/interface member type against a prefix
+  /** Rebase a member type against a prefix
     *
-    * Type parameters of the class/interface are substituted
+    * Type parameters of the class are substituted
     */
-  def rebaseMember(memberType: Type, prefix: Type)(using Definitions): Type =
+  def rebaseMemberType(memberType: Type, prefix: Type)(using Definitions): Type =
     // compute the type with respect to the instantiated targs
     prefix.widen.dealias match
       case AppliedType(cls, targs) =>
@@ -38,6 +38,46 @@ object TypeOps:
 
       case _ =>
         memberType
+
+  /** Rebase a class/interface member type against a prefix
+    *
+    * Type parameters of the class/interface are substituted
+    *
+    * Note: The member may be a concrete method defined in interfaces, but NOT
+    *       a direct member of the prefix.
+    */
+  def rebaseMember(member: Symbol, prefix: Type)(using Definitions): Type =
+    val owner = member.owner
+
+    // compute the type with respect to the instantiated targs
+    prefix.widen.dealias match
+      case AppliedType(cls, targs) =>
+        if owner == cls then
+          TypeOps.substSymbols(member.tpe, cls.classInfo.tparams, targs)
+
+        else
+          // go to views
+          cls.classInfo.views.find(viewType => viewType.typeSymbol == owner) match
+            case Some(viewType) =>
+              val viewType2 = TypeOps.substSymbols(viewType, cls.classInfo.tparams, targs)
+              rebaseMember(member, viewType2)
+
+            case None =>
+              throw new Exception("The prefix " + prefix.show + " does not contain member " + member)
+
+      case prefix2 =>
+        val typeSym = prefix2.typeSymbol
+        if owner == typeSym then
+          member.tpe
+
+        else
+          // go to views
+          prefix2.classInfo.views.find(viewType => viewType.typeSymbol == owner) match
+            case Some(viewType) =>
+              rebaseMember(member, viewType)
+
+            case None =>
+              throw new Exception("The prefix " + prefix.show + " does not contain member " + member)
 
   /** Approximate top-level type aliases, applied types and type parameters
     *

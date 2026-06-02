@@ -1,0 +1,6 @@
+---------- Error at tests/warn/view-duplicate-direct.jo:10:8 ---------------
+|   view Logger
+|        ^^^^^^
+|        Duplicate view declaration for Logger
+
+1 error(s), 0 warning(s)

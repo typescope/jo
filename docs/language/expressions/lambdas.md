@@ -69,24 +69,22 @@ end
 val logger: Logger = msg => println(msg)
 
 // Context parameter provided at call site
-logger.log("test") with IO.stdout = customOutput
+with IO.stdout = customOutput in logger.log("test")
 ```
 
 ## Lambda Closures
 
-Lambdas capture variables from their surrounding scope:
+Lambdas capture values from the enclosing scope at creation time:
 
 ```jo
-val multiplier = 10
-val timesX = (x: Int) => x * multiplier
+def makeAdder(n: Int): Int => Int = x => x + n
 
-timesX(5)  // 50
+val addFive = makeAdder(5)
+addFive(3)  // 8 — n = 5 captured from the completed makeAdder call
 ```
-
-Captured variables are stored in the lambda's closure and remain accessible even after the surrounding scope exits.
 
 ## See Also
 
 - [Expression Forms](expression-forms.md) — Where lambdas fit in the expression grammar
 - [Lambda Types](../types/lambda-types.md) — Type system for lambdas
-- [Syntax Summary](../syntax-summary.md) — Complete grammar
+- [Syntax Summary](../syntax/syntax-summary.md) — Complete grammar

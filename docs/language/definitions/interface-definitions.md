@@ -86,7 +86,7 @@ end
 
 #### Concrete Methods Are Final
 
-Concrete methods (methods with implementations in interfaces) **cannot be overridden** by implementing classes. Furthermore, classes with direct views **cannot have members (methods or fields) that conflict** with concrete interface methods:
+Concrete methods (methods with implementations in interfaces) **cannot be overridden** by implementing classes. Furthermore, classes **cannot have members (methods or fields) that conflict** with concrete interface methods:
 
 ```jo
 class BadCounter1(count: Int)
@@ -120,7 +120,7 @@ testEquality(counter, counter, counter)  // Works correctly due to subtyping
 
 ::: info Design Rationale
 
-**Concrete methods are final for predictability**: When you call a concrete method from an interface, you know exactly which implementation executes—the one defined in the interface. This is crucial with direct view subtyping, where objects are used as interface types. The restriction prevents:
+**Concrete methods are final for predictability**: When you call a concrete method from an interface, you know exactly which implementation executes—the one defined in the interface. The restriction prevents:
 
 - **Behavioral inconsistency**: Different behavior depending on whether you access via class type `C` or interface type `I`
 - **Violation of LSP**: Subtypes behaving unexpectedly when substituted for the interface
@@ -176,11 +176,10 @@ end
 val logger: Logger = msg => println(msg)
 
 // Context parameter provided at call site
-logger.log("test") with IO.stdout = customOutput
+with IO.stdout = customOutput in logger.log("test")
 ```
 
 ## See Also
 
-- [Classes and Views](../concepts/interface-views.md) - High-level design
 - [Lambda Types](../types/lambda-types.md) - Lambda interface adaptation
 - [Class Definitions](class-definitions.md) - Implementing interfaces in classes

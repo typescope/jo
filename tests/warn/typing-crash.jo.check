@@ -1,7 +1,7 @@
 ---------- Error at tests/warn/typing-crash.jo:8:20 ---------------
 |   s.iterator().map(toUpperChar).join("")
 |                    ^^^^^^^^^^^
-|                    Expect type Char => TypeVar(S) receives none, found = toUpperChar: (c: Char): Char
+|                    Expect type Char => ?S receives none, found = toUpperChar: (c: Char): Char
 
 ---------- Error at tests/warn/typing-crash.jo:8:3 ---------------
 |   s.iterator().map(toUpperChar).join("")
@@ -11,6 +11,6 @@
 ---------- Error at tests/warn/typing-crash.jo:8:19 ---------------
 |   s.iterator().map(toUpperChar).join("")
 |                   ^
-|                   Cannot infer a type for type variable TypeVar(S)
+|                   Cannot infer a type for type variable ?S
 
 3 error(s), 0 warning(s)

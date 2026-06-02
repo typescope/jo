@@ -1,5 +1,8 @@
 # Words, Expressions, Phrases, and Blocks
 
+> *Programs should be written for people to read, and only incidentally for machines to execute.*
+> — Abelson & Sussman, SICP
+
 Jo's expression language is organized around four syntactic levels, with the aim to improve readability while maintaining simplicity.
 
 ## The Four Levels
@@ -15,73 +18,7 @@ Jo's expression language is organized around four syntactic levels, with the aim
 
 **Block** — a vertically aligned sequence of phrases. A block is introduced by an operator (`=`, `=>`) or keyword (`then`, `do`, `case =>`) and continues while phrases remain more indented than the introducing token.
 
-## Word-Based Syntax
-
-Jo uses juxtaposition for function application across expressions, types, and patterns:
-
-```jo
-// Expressions: word sequences will be re-arranged to function calls
-add 1 2
-3 * 5
-
-// Types: same rule applies
-Int ~ String
-
-// Patterns: same rule applies
-Some x
-Cons head tail
-```
-
-Word sequencing is one form of function calls (see [Applications](./applications.md)). The same rule governs all three syntactic domains.
-
-## Colon-Based Syntax
-
-Beyond parentheses, Jo supports colon calls — a phrase-level alternative that uses `:` in place of `(...)`:
-
-```jo
-// Parenthesis form
-println("hello")
-send(user, message)
-
-// Colon form
-println: "hello"
-send: user, message
-```
-
-When arguments are indented, each line becomes one argument. This enables hierarchical, DSL-like code without any special syntax:
-
-```jo
-val cfg = server:
-  host = "0.0.0.0"
-  port = 8080
-  routes = routes:
-    "/api/users"
-    "/api/orders"
-    "/health"
-  db = database:
-    host = "db.local"
-    port = 5432
-    name = "myapp"
-```
-
-Combined with dot chains, colon calls support fluent builder APIs:
-
-```jo
-val product =
-  ProductFactory.create()
-    .drink: "Vodka"
-    .whereAlcoholLevelIs: 0.38
-    .inABottleSized: 0.7
-    .pricedAt: 17.99
-    .build
-```
-
-See [Applications](applications.md) for the full syntax.
-
 ## Closed vs Open Expressions
-
-> *Programs should be written for people to read, and only incidentally for machines to execute.*
-> — Abelson & Sussman, SICP
 
 The closed/open distinction is a direct expression of this principle. Code is read at two levels of attention: local and structural. Jo assigns different expression forms to each level.
 

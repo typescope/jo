@@ -36,8 +36,7 @@ def frameworkMain() =
   val buffer = (s: String) => output += s
 
   allow none in // (5)
-    aiMain()
-      with ordersApi = restricted, IO.stdout = buffer
+    with ordersApi = restricted, IO.stdout = buffer in aiMain()
 
   // ...
 
@@ -160,8 +159,7 @@ def frameworkMain() =
 
   val buffer = (s: String) => output += s
   allow none in
-    aiMain()
-      with ordersApi = restricted, IO.stdout = buffer
+    with ordersApi = restricted, IO.stdout = buffer in aiMain()
 ```
 
 The attenuation chain:
@@ -209,7 +207,7 @@ def frameworkMain() =
   val ignore = (s: String) => pass
 
   allow none in
-    aiMain() with ordersApi = api, IO.stdout = ignore
+    with ordersApi = api, IO.stdout = ignore in aiMain()
 ```
 
 Jo provides root runtime libraries for each compilation target (Ruby, Python, JS).

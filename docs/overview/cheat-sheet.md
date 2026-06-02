@@ -341,8 +341,8 @@ param logger: Logger = ConsoleLogger
 def line(text: String): Unit = print(" " * indent + text)
 
 // provide at call site
-line("hello") with indent = 4
-foo() with alpha = 3, beta = 6
+with indent = 4 in line("hello")
+with alpha = 3, beta = 6 in foo()
 ```
 
 ## Capabilities
@@ -358,7 +358,7 @@ allow none in test()              // prove no effects
 
 // provision inside allow
 allow none in
-  search(keyword) with maxResultCount = 200, connection = db
+  with maxResultCount = 200, connection = db in search(keyword)
 ```
 
 ## Namespace & Imports
@@ -392,4 +392,4 @@ private[App] def internal() = ... // private to App
 
 - [Language Tour](language-tour.md) - Narrative introduction with explanations
 - [Get Started](../usage/getting-started.md) - Install and run Jo
-- [Syntax Summary](../language/syntax-summary.md) - Formal grammar
+- [Syntax Summary](../language/syntax/syntax-summary.md) - Formal grammar

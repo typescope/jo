@@ -27,9 +27,9 @@ atom_type   = qualid | applied_type | fun_type | duck_type | extension_type | "(
 An annotation type `T @a` is identical to `T` for all type-system purposes:
 
 ```jo
-val x: String @py.keyword = "hello"
-val y: String = x   // OK — String @py.keyword conforms to String
-val z: String @py.keyword = y   // OK — String conforms to String @py.keyword
+val x: String @annot = "hello"
+val y: String = x   // OK — String @annot conforms to String
+val z: String @annot = y   // OK — String conforms to String @annot
 ```
 
 Annotations are stripped before conformance checking, unification, and type inference. They leave no trace at runtime.
@@ -52,5 +52,3 @@ type Converter = (String @py.keyword) => Unit
 ```
 
 Because the annotation is carried with the type, it is preserved through aliases and generic instantiation without any special treatment.
-
-

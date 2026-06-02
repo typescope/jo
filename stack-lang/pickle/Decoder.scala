@@ -624,8 +624,8 @@ object Decoder:
       val self = TermSymbol.create(selfName, selfInfo, Flags.Synthetic, Visibility.Default, symbol, symbol.sourcePos)
       state.registerInternalSymbol(selfId, self)
 
-      // Decode direct views
-      val directViews = repeated:
+      // Decode views
+      val decodedViews = repeated:
         decodeType()
 
       // Decode method definitions as DelayedDef
@@ -637,7 +637,7 @@ object Decoder:
 
       val symInfo =
         val methods = delayedMethods.map(_.symbol)
-        new ClassInfo(symbol, tparams, self, Nil, methods, directViews)
+        new ClassInfo(symbol, tparams, self, Nil, methods, decodedViews)
 
     end content
 

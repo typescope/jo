@@ -119,7 +119,7 @@ def main receives IO.stdout =
   service.process("test data")  // Uses delegated logger
 
   println("")
-  println("=== Test 6: Direct logger usage via view field ===")
-  val loggerView: Logger = service.Logger  // Access delegate view field
-  loggerView.log("Via delegate view field")
+  println("=== Test 6: Service used as Logger directly ===")
+  val loggerView: Logger = service  // Service <: Logger via delegate view
+  loggerView.log("Via delegate view")
 end

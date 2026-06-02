@@ -1,0 +1,12 @@
+// Two delegate views of the same interface are not allowed
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+class Service(logger1: Logger, logger2: Logger)
+  view Logger = logger1
+  view Logger = logger2
+end
+
+def main = ...

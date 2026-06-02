@@ -114,6 +114,6 @@ type Box = Pair[Int, Box]  // Error: infinite type
 
 ## See Also
 
-- [Type Aliases](../types/type-aliases.md) - Semantic properties and use cases
+- [Named Types](../types/named-types.md) - Semantic properties and use cases
 - [Lambda Types](../types/lambda-types.md) - Function type syntax
 - [Union Types](../types/union-types.md) - Recursive type definitions

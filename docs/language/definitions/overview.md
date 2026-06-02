@@ -92,6 +92,6 @@ union Option[T] = Some(value: T) | None
 
 ## See Also
 
-- [Syntax Summary](../syntax-summary.md) - Complete grammar
+- [Syntax Summary](../syntax/syntax-summary.md) - Complete grammar
 - [Types](../types/overview.md) - Type system overview
 - [Expressions](../expressions/overview.md) - Expression syntax

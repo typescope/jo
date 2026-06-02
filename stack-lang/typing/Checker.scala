@@ -119,8 +119,8 @@ object Checker:
   def checkInstantiated(tvars: TypeVars)(using Reporter, Source, Definitions): Unit =
     for tvar <- tvars.typeVars if !tvar.isInstantiated do
       // Initialize to respect invariant
+      Reporter.error("Cannot infer a type for type variable " + tvar.show, tvar.span.toPos)
       Subtyping.conforms(BottomType, tvar)
-      Reporter.error("Cannot infer a type for type variable " + tvar, tvar.span.toPos)
 
   def visibility(defn: Ast.Def, owner: Symbol)(using rp: Reporter, so: Source): Visibility =
     def resolveEnclosingContainer(name: String): Option[Symbol] =

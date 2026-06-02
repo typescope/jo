@@ -1,23 +1,23 @@
 // Test member adapter accessing member through views
 // Shows that .toString adapter can work through a view
 
+interface ToString
+  def toString: String
+end
+
 class Person(name: String, age: Int)
+  private val show = new ShowPerson(this)
+
   // Person doesn't have toString directly, but has view that provides it
   def getName: String = name
   def getAge: Int = age
 
-  view PersonView = new PersonView(name, age)
+  view ToString = show
 end
 
-class PersonView
-  private val name: String
-  private val age: Int
-
-  def PersonView(name: String, age: Int) =
-    this.name = name
-    this.age = age
-
-  def toString: String = name + " (age " + age + ")"
+class ShowPerson(p: Person)
+  def toString: String = p.name + " (age " + p.age + ")"
+  view ToString
 end
 
 // Duck type using member adapter .toString
@@ -28,12 +28,12 @@ def display(msg: StringLike): Unit =
   println msg
 
 def test1: Unit =
-  val alice = Person("Alice", 30)
+  val alice = new Person("Alice", 30)
   display alice  // Should adapt via Stringable view's toString
 
 def test2: Unit =
-  val bob = Person("Bob", 25)
-  val carol = Person("Carol", 35)
+  val bob = new Person("Bob", 25)
+  val carol = new Person("Carol", 35)
   val people: List[StringLike] = [bob, carol]
 
   for p in people do println p

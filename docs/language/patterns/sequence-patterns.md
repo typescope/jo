@@ -54,7 +54,6 @@ case [] => "empty"
 case [x] => "singleton: " + x
 case [1, 2, 3] => "exactly [1, 2, 3]"
 case [Some(x), None, y] => "three elements with nested patterns"
-end
 
 match users
 case [User(name, age), _] =>
@@ -76,7 +75,6 @@ case [x, ..] => "at least one element"
 case [x, ..rest] => "head and tail"
 case [.., last] => "at least one element, bind last"
 case [first, .., last] => "at least two elements"
-end
 ```
 
 ## Guarded Repeat Patterns
@@ -111,6 +109,18 @@ The guard pattern is tested against each element in sequence. **The guard itself
 - The end of the sequence is reached
 
 The guard provides explicit control over the repeat boundary. If the guarded repeat consumes elements needed by following patterns, the overall pattern fails.
+
+**Variables bound inside the guard pattern are not visible outside it.** Only the subsequence binder (`..xs`) and following atom bindings are in scope in the case body:
+
+```jo
+match list
+case [..matched while Some(x), ..rest] =>
+  // matched: List[Option[T]] - the matched subsequence
+  // rest: remaining elements
+  // x: NOT available — only used during per-element guard evaluation
+  matched.length
+end
+```
 
 ### Guarded vs Unguarded Behavior
 
@@ -271,4 +281,4 @@ end
 
 - [Pattern Forms](pattern-forms.md) - Overview of all pattern forms
 - [Semantics](semantics.md) - Pattern matching semantics
-- [Pattern Definitions](pattern-definitions.md) - Reusable patterns
+- [Pattern Definitions](../definitions/pattern-definitions.md) - Reusable patterns

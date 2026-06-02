@@ -62,7 +62,7 @@ class InterfaceTable(runtime: NativeRuntime):
     *
     * It handles bridge methods.
     */
-  def getImplementation(classInfo: ClassInfo, name: String): Symbol =
+  def getImplementation(classInfo: ClassInfo, name: String)(using Definitions): Symbol =
     classInfo.getMemberSymbol(name + Names.BridgeSuffix) match
       case Some(sym) => methodToLiftedMap(sym)
       case None =>
@@ -75,8 +75,8 @@ class InterfaceTable(runtime: NativeRuntime):
   def getInterfaceImplementations(classInfo: ClassInfo)(using Definitions): List[Symbol] =
     val result = new mutable.ArrayBuffer[Symbol]
 
-    val directViews = classInfo.directViews
-    for viewType <- directViews do
+    val viewList = classInfo.views
+    for viewType <- viewList do
       val interfaceInfo = viewType.classInfo
 
       for method <- interfaceInfo.methods if method.is(Flags.Defer) do
@@ -88,15 +88,15 @@ class InterfaceTable(runtime: NativeRuntime):
 
   def lowerInterfaceTable()(using pb: PatchableBuffer, defn: Definitions): Unit =
     for (classInfo, label) <- interfaceTableAddr do
-      val directViews = classInfo.directViews
+      val viewList = classInfo.views
 
-      if directViews.size == 0 then
+      if viewList.size == 0 then
         pb.defineLabel(label)
 
       else
         // First, generate vtables
         val vtableMap = mutable.Map.empty[Symbol, Int]
-        for viewType <- directViews do
+        for viewType <- viewList do
           val interfaceInfo = viewType.classInfo
           val interfaceSym = interfaceInfo.classSymbol
 
@@ -118,7 +118,7 @@ class InterfaceTable(runtime: NativeRuntime):
         pb.align(4)
         pb.defineLabel(label)
 
-        pb.addInt(directViews.size) // Count of interfaces
+        pb.addInt(viewList.size) // Count of interfaces
 
         // For each interface, add (iid, vtable_ptr) pair
         for (isym, vtableAddr) <- vtableMap do

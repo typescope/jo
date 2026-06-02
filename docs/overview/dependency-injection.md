@@ -37,10 +37,10 @@ end
 
 def main =
   // Production
-  moviesDirectedBy("Hitchcock") with finder = new ColumbiaArchive
+  with finder = new ColumbiaArchive in moviesDirectedBy("Hitchcock")
 
   // Test — swap without touching any other code
-  moviesDirectedBy("Hitchcock") with finder = new FakeFinder
+  with finder = new FakeFinder in moviesDirectedBy("Hitchcock")
 ```
 
 No factory, no container, no annotation. The compiler tracks every context parameter through the full call chain and reports a precise error with a dependency trace if a binding is missing:
@@ -76,8 +76,8 @@ def main =
   val prod   = new FileLogger("app.log")
   val silent = new NullLogger
 
-  process(records) with logger = prod     // All saves logged
-  process(records) with logger = silent   // All saves suppressed
+  with logger = prod    in process(records)  // All saves logged
+  with logger = silent  in process(records)  // All saves suppressed
 ```
 
 ### Safe Circular Dependencies
@@ -141,7 +141,7 @@ end
 def main =
   val auth  = new AuthImpl   // (1)!
   val audit = new AuditImpl  // (2)!
-  auth.check("alice", "login") with authService = auth, auditService = audit  // (3)!
+  with authService = auth, auditService = audit in auth.check("alice", "login")  // (3)!
 ```
 
 1. Both objects are constructed first — no proxies, no partial initialization
@@ -227,7 +227,7 @@ The framework defines the contract; the application fills it in; the linker conn
 
 ## See Also
 
-- [Context Parameters](../language/concepts/context-parameters.md) - Full reference for `param`, `with`, `allow`, and `receives`
+- [Context Parameters](../language/definitions/context-parameters.md) - Full reference for `param`, `with`, `allow`, and `receives`
 - [Deferred Functions](../language/definitions/deferred-functions.md) - Full reference for `defer` and `--link`
 - [Dependency Depth](../usage/concepts/dependency-depth.md) - How deferred functions keep libraries shallow
 - [Capability-Oriented Programming](capabilities.md) - Using the same mechanisms for security and confinement

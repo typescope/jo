@@ -185,7 +185,7 @@ import htmlLib.HtmlRenderer
 
 def main =
   val r = new HtmlRenderer
-  println(Report.generate("Hello", "World") with renderer = r)
+  println(with renderer = r in Report.generate("Hello", "World"))
 ```
 
 The static type system tracks every context parameter across the full call chain. If a binding is missing the compiler reports an error with a precise trace — so the zero-dependency library stays safe without any runtime framework.

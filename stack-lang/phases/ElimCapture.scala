@@ -315,7 +315,7 @@ object ElimCapture:
         self = selfSym,
         fields = fieldSyms.toList,
         methods = ctorSym :: applySym :: Nil,
-        directViews = directViewTypes
+        views = directViewTypes
       ))
 
       // Create constructor body: initialize all fields from parameters, then return this
@@ -389,7 +389,7 @@ object ElimCapture:
           tparams = Nil,
           vals = fields,
           funs = ctorDef :: applyDef :: Nil,
-          directViews = directViewTypes.map(tp => TypeTree(tp)(lam.span))
+          views = directViewTypes.map(tp => TypeTree(tp)(lam.span))
         )(annots = Nil, span = lam.span)
 
       ctx.lifted += classDef

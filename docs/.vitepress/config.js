@@ -53,6 +53,13 @@ export default defineConfig({
         {
           text: 'Guidelines',
           items: [
+            { text: 'Algebraic Data Types', link: '/guides/adt' },
+            { text: 'String Literals', link: '/guides/string' },
+            { text: 'Error Handling', link: '/guides/error-model' },
+            { text: 'Classes and Views', link: '/guides/interface-views' },
+            { text: 'Regular Expressions', link: '/guides/regular-expression' },
+            { text: 'Context Parameters', link: '/guides/context-parameters' },
+            { text: 'Deferred Functions', link: '/guides/deferred-functions' },
             { text: 'Python Interoperability', link: '/guides/python-interoperability' },
             { text: 'Ruby Interoperability', link: '/guides/ruby-interoperability' },
             { text: 'JavaScript Interoperability', link: '/guides/javascript-interoperability' },
@@ -172,22 +179,20 @@ export default defineConfig({
 
       '/language/': [
         {
-          text: 'Language Reference',
+          text: 'Foundations',
           items: [
             { text: 'Design Principles', link: '/language/design-principles' },
-            { text: 'Error Model', link: '/language/error-model' },
-            { text: 'Structure & Convention', link: '/language/structure-and-convention' },
+            { text: 'Name Universes', link: '/language/names' },
             { text: 'Visibility and Coherence', link: '/language/visibility-coherence' },
-            { text: 'Block Comments', link: '/language/block-comment' },
-            { text: 'Syntax Summary', link: '/language/syntax-summary' },
           ]
         },
         {
-          text: 'Concepts & Foundation',
+          text: 'Syntax',
           items: [
-            { text: 'Name Universes', link: '/language/concepts/names' },
-            { text: 'Context Parameters', link: '/language/concepts/context-parameters' },
-            { text: 'Classes and Views', link: '/language/concepts/interface-views' },
+            { text: 'Structure & Convention', link: '/language/syntax/structure-and-convention' },
+            { text: 'Expression Syntax', link: '/language/syntax/expression-syntax' },
+            { text: 'Block Comments', link: '/language/syntax/block-comment' },
+            { text: 'Syntax Summary', link: '/language/syntax/syntax-summary' },
           ]
         },
         {
@@ -196,14 +201,13 @@ export default defineConfig({
             { text: 'Overview', link: '/language/types/overview' },
             { text: 'Basic Types', link: '/language/types/basic-types' },
             { text: 'Lambda Types', link: '/language/types/lambda-types' },
-            { text: 'Class Types', link: '/language/types/class-types' },
+            { text: 'Named Types', link: '/language/types/named-types' },
             { text: 'Union Types', link: '/language/types/union-types' },
-            { text: 'Type Aliases', link: '/language/types/type-aliases' },
             { text: 'Duck Types', link: '/language/types/duck-types' },
             { text: 'Extension Types', link: '/language/types/extension-types' },
             { text: 'Annotation Types', link: '/language/types/annotation-types' },
             { text: 'Type Inference', link: '/language/types/type-inference' },
-            { text: 'Type Adaptation', link: '/language/types/type-adaptaion' },
+            { text: 'Type Adaptation', link: '/language/types/type-adaptation' },
           ]
         },
         {
@@ -212,16 +216,15 @@ export default defineConfig({
             { text: 'Overview', link: '/language/expressions/overview' },
             { text: 'Expression Forms', link: '/language/expressions/expression-forms' },
             { text: 'Applications', link: '/language/expressions/applications' },
-            { text: 'Expression Syntax', link: '/language/expressions/expression-syntax' },
             { text: 'Phrases', link: '/language/expressions/phrases' },
             { text: 'Blocks', link: '/language/expressions/blocks' },
             { text: 'Control Flow', link: '/language/expressions/control-flow' },
+            { text: 'Rescue Expression', link: '/language/expressions/rescue-expression' },
             { text: 'Lambdas', link: '/language/expressions/lambdas' },
             { text: 'Literals', link: '/language/expressions/literals' },
             { text: 'Is Expression', link: '/language/expressions/is-expression' },
             { text: 'Regular Expressions', link: '/language/expressions/regular-expressions' },
-            { text: 'Multiline Strings', link: '/language/expressions/multiline-string' },
-            { text: 'String Interpolation', link: '/language/expressions/string-interpolation' },
+            { text: 'String Literals', link: '/language/expressions/string' },
           ]
         },
         {
@@ -232,7 +235,6 @@ export default defineConfig({
             { text: 'Regex Patterns', link: '/language/patterns/regex-patterns' },
             { text: 'Sequence Patterns', link: '/language/patterns/sequence-patterns' },
             { text: 'Semantics', link: '/language/patterns/semantics' },
-            { text: 'Pattern Definitions', link: '/language/patterns/pattern-definitions' },
           ]
         },
         {
@@ -253,7 +255,7 @@ export default defineConfig({
             { text: 'Type Definitions', link: '/language/definitions/type-definitions' },
             { text: 'Class Definitions', link: '/language/definitions/class-definitions' },
             { text: 'Object Definitions', link: '/language/definitions/object-definitions' },
-            { text: 'Algebraic Data Types', link: '/language/definitions/adt' },
+            { text: 'Algebraic Data Types', link: '/language/definitions/union-definition' },
             { text: 'Annotations', link: '/language/definitions/annotations' },
           ]
         }
