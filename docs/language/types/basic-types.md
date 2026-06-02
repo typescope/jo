@@ -141,4 +141,4 @@ val hasTwo = numbers.contains(2)  // true
 ## See Also
 
 - [Union Types](union-types.md) - For creating custom algebraic data types
-- [Type Aliases](type-aliases.md) - For creating meaningful names for basic types
+- [Named Types](named-types.md) - Class types, interface types, type aliases

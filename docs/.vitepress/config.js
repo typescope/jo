@@ -199,14 +199,13 @@ export default defineConfig({
             { text: 'Overview', link: '/language/types/overview' },
             { text: 'Basic Types', link: '/language/types/basic-types' },
             { text: 'Lambda Types', link: '/language/types/lambda-types' },
-            { text: 'Class Types', link: '/language/types/class-types' },
+            { text: 'Named Types', link: '/language/types/named-types' },
             { text: 'Union Types', link: '/language/types/union-types' },
-            { text: 'Type Aliases', link: '/language/types/type-aliases' },
             { text: 'Duck Types', link: '/language/types/duck-types' },
             { text: 'Extension Types', link: '/language/types/extension-types' },
             { text: 'Annotation Types', link: '/language/types/annotation-types' },
             { text: 'Type Inference', link: '/language/types/type-inference' },
-            { text: 'Type Adaptation', link: '/language/types/type-adaptaion' },
+            { text: 'Type Adaptation', link: '/language/types/type-adaptation' },
           ]
         },
         {

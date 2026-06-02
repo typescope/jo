@@ -394,7 +394,7 @@ In the future, Jo may add an initialization checker inspired by Fengyun Liu et a
 
 ## See Also
 
-- [Class Types](../types/class-types.md) - Class type system and subtyping rules
+- [Named Types](../types/named-types.md) - Class type system and subtyping rules
 - [Interface Definitions](interface-definitions.md) - Interface method requirements
 - [Algebraic Data Types](adt.md) - Union type definitions
 - [Classes and Views](../concepts/interface-views.md) - High-level design and philosophy

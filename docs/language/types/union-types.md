@@ -129,12 +129,6 @@ A union type `T1 | T2 | ... | Tn` is well-formed if:
     ```
 
 
-::: info Rationale for Restrictions
-- **No type parameters**: Type parameters are resolved at instantiation time, making it impossible to know the complete set of alternatives statically
-- **No interface types**: Interface types don't have class identity and can be implemented by any class, making them open-ended
-- **Statically known branches**: Enables exhaustiveness checking and efficient compilation
-- **No multiple numeric branches**: Enables platform portability and easy interoperability
-:::
 ### Subtyping with Union Types
 
 Union types introduce limited subtyping relationships:
@@ -198,21 +192,15 @@ end
 
 Union types only allow class types (not interfaces or type parameters).
 
-::: warning Platform Ambiguity: Interfaces Cannot Guarantee Mutual Exclusiveness
-A value can implement multiple interfaces simultaneously (on both JVM and JavaScript platforms), making it impossible to guarantee that union branches are mutually exclusive.
+A value can implement multiple interfaces simultaneously, so there is no way to
+guarantee that interface branches are mutually exclusive. Pattern matching would
+be ambiguous: if an object implements both `Logger` and `Formatter`, which branch
+of `Logger | Formatter` matches? This ambiguity cannot be resolved reliably across
+platforms.
 
-For example, with `Logger | Formatter` where both are interfaces, a single object could implement both interfaces. When pattern matching, which branch should it match? The first? The second? This creates fundamental ambiguity that cannot be resolved reliably.
+To dispatch on interface identity, wrap the implementations in distinct classes:
 
-**This constraint is essential** — allowing interfaces in unions would impose too much constraint on platform implementations of interfaces. Each platform (JVM, JavaScript, native) handles interfaces differently, and mandating mutual exclusiveness would severely limit implementation flexibility.
-:::
-::: tip Workaround for Interfaces
-Wrap interface values in classes:
-:::
 ```jo
-interface Logger
-  def log(msg: String): Unit
-end
-
 class ConsoleLoggerImpl(logger: Logger)
   view Logger = logger
 end
@@ -245,11 +233,11 @@ val x = s.width  // Error: Cannot access member on union type
 - Fragile: Adding a new branch without that member breaks existing code
 - Implicit coupling between unrelated classes
 
-::: tip Use Pattern Matching Instead
-:::
+Use pattern matching instead:
+
 ```jo
 val width = match s
-  case c: Circle => c.r * 2  // Diameter as "width"
+  case c: Circle => c.r * 2
   case r: Rectangle => r.w
 end
 ```
