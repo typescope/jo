@@ -50,7 +50,7 @@ Detailed specification of sequence patterns with atom patterns and repeat patter
 ### [Semantics](semantics.md)
 How patterns match, bind variables, and ensure type safety.
 
-### [Pattern Definitions](pattern-definitions.md)
+### [Pattern Definitions](../definitions/pattern-definitions.md)
 Defining reusable pattern functions with parameters.
 
 ## Quick Examples

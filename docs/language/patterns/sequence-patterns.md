@@ -269,4 +269,4 @@ end
 
 - [Pattern Forms](pattern-forms.md) - Overview of all pattern forms
 - [Semantics](semantics.md) - Pattern matching semantics
-- [Pattern Definitions](pattern-definitions.md) - Reusable patterns
+- [Pattern Definitions](../definitions/pattern-definitions.md) - Reusable patterns

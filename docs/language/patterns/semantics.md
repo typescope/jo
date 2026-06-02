@@ -315,4 +315,4 @@ case _ => body3  // Default case
 ## See Also
 
 - [Pattern Forms](pattern-forms.md) - Basic pattern types and composition
-- [Pattern Definitions](pattern-definitions.md) - Reusable patterns
+- [Pattern Definitions](../definitions/pattern-definitions.md) - Reusable patterns

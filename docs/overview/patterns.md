@@ -175,6 +175,6 @@ match list
 ## Further Reading
 
 - [Pattern Language Reference](../language/patterns/overview.md) - Complete pattern syntax
-- [Pattern Definitions](../language/patterns/pattern-definitions.md) - Defining reusable patterns
+- [Pattern Definitions](../language/definitions/pattern-definitions.md) - Defining reusable patterns
 - [Sequence Patterns](../language/patterns/sequence-patterns.md) - Matching variable-length data
 - [Is Expression](../language/expressions/is-expression.md) - Flow typing with patterns

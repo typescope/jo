@@ -463,4 +463,4 @@ case (Ok(x) | Err(x)) & (y if y.isValid) =>
 ## See Also
 
 - [Semantics](semantics.md) - Pattern matching rules
-- [Pattern Definitions](pattern-definitions.md) - Reusable patterns
+- [Pattern Definitions](../definitions/pattern-definitions.md) - Reusable patterns

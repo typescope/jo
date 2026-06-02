@@ -235,7 +235,6 @@ export default defineConfig({
             { text: 'Regex Patterns', link: '/language/patterns/regex-patterns' },
             { text: 'Sequence Patterns', link: '/language/patterns/sequence-patterns' },
             { text: 'Semantics', link: '/language/patterns/semantics' },
-            { text: 'Pattern Definitions', link: '/language/patterns/pattern-definitions' },
           ]
         },
         {
