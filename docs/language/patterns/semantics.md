@@ -172,52 +172,6 @@ case 0 => "zero"
 case 1 => "one"
 ```
 
-## Error Examples
-
-### Variable Bound Multiple Times
-
-```jo
-// ❌ Error: x is bound twice
-match pair
-case (x, x) => ...
-
-// ❌ Error: x bound in both apply patterns
-match pair
-case Pair(Some(x), Just(x)) => ...
-```
-
-### Variable Bound Once in Each Branch (OK)
-
-```jo
-// ✓ OK: x bound once in each branch
-match either
-case Left(x) | Right(x) => x
-```
-
-## Valid Flow Typing Examples
-
-### Using Bound Variables in Guards
-
-```jo
-match configOpt
-case Some(config) if config.database.host is Some(host) =>
-  // config bound by Some(config)
-  // host bound by is expression
-  connect(host)
-end
-```
-
-### Nested Matching with Flow
-
-```jo
-match user
-case User(name, age) if age >= 18 =>
-  // name and age definitely bound
-  // can use both in guard and body
-  logger.log("Adult: " + name + ", age: " + age)
-end
-```
-
 ## Type Constraints
 
 - Pattern matching refines types based on successful matches
@@ -266,23 +220,10 @@ case Success => ...
 case _ => ...  // Catches Warning and Error
 ```
 
-## Pattern Match Failures
+### Exhaustiveness in `for` Loops
 
-Some patterns can fail at runtime:
-
-### Pattern Value Definitions
-
-```jo
-// Can fail at runtime if pattern doesn't match
-val Point(x, y) = getValue()
-
-// Safe - Option ensures exhaustiveness
-match getValue()
-case Point(x, y) => ...
-case _ => ...  // Handle non-Point values
-```
-
-### For Loops
+A pattern in a `for` loop is also checked for exhaustiveness. A non-exhaustive pattern
+produces a warning; the preferred fix is to use a guard instead:
 
 ```jo
 // ⚠ Warning - non-exhaustive pattern
@@ -294,6 +235,20 @@ end
 for elem in optionList if elem is Some(x) do
   println(x)
 end
+```
+
+## Pattern Match Failures
+
+Some patterns can fail at runtime:
+
+```jo
+// Can fail at runtime if pattern doesn't match
+val Point(x, y) = getValue()
+
+// Safe - cover all cases explicitly
+match getValue()
+case Point(x, y) => ...
+case _ => ...
 ```
 
 ## Evaluation Order

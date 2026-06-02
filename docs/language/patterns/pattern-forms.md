@@ -282,23 +282,6 @@ case Full(host, port) | (Partial(host) then port = 8080) =>
 
 This pattern is particularly useful when you want to handle multiple cases uniformly but need to supply default values for branches that don't naturally bind certain variables.
 
-## Expression Patterns
-
-**Syntax:** `simple_pattern {simple_pattern}`
-
-A sequence of simple patterns juxtaposed without operators. The interpretation depends on the pattern context—typically used for applying infix pattern operators.
-
-::: info Pattern expression syntax
-
-Pattern expressions use the same rules as term expressions and type expressions: only operator expressions and shape expressions are supported, only terms support precedence expressions.
-
-```jo
-// parsed as: ((!(Some(x))) & Positive) | (!Even)
-case !Some(x) & Positive | !Even => ...
-```
-
-See [Expression syntax](../expressions/expression-syntax.md) for more details.
-:::
 ## Or Patterns
 
 **Syntax:** `pattern₁ | pattern₂`
@@ -455,10 +438,14 @@ case (Ok(x) | Err(x)) & (y if y.isValid) =>
 | Sequence | `[x, y, z]` | Match lists |
 | Guard | `pattern if cond` | Add conditions |
 | Assignment | `then x = expr` | Compute values |
-| Or | `p₁ | p₂` | Match either pattern |
+| Or | `p₁ \| p₂` | Match either pattern |
 | And | `p₁ & p₂` | Match both patterns |
-| Not | `!p` | Match negation of pattern |
-| Parenthesized | `(pattern)` | Group patterns |
+| Not | `!p` | Negate pattern |
+| Parenthesized | `(pattern)` | Group for precedence |
+
+Pattern composition (`|`, `&`, `!`) follows the same operator precedence rules as
+term expressions. Use parentheses to override. See
+[Expression Syntax](../expressions/expression-syntax.md).
 
 ## See Also
 

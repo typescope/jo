@@ -21,10 +21,10 @@ if date is `^(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})$` then
 
 ```jo
 match date
-  case m @ `^(\d{4})-(\d{2})-(\d{2})$` =>
-    ...
-  case _ =>
-    ...
+case m @ `^(\d{4})-(\d{2})-(\d{2})$` =>
+  ...
+case _ =>
+  ...
 ```
 
 `m` is bound as `Match` when the regex match succeeds.
@@ -74,9 +74,9 @@ else
 
 ```jo
 match date
-  case `^(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})$` =>
+case `^(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})$` =>
     new Date(y.toInt, m.toInt, d.toInt)
-  case _ =>
+case _ =>
     abort "Invalid date"
 ```
 
@@ -174,9 +174,9 @@ else
 
 ```jo
 match date
-  case m @ `^(\d{4})-(\d{2})-(\d{2})$` =>
+case m @ `^(\d{4})-(\d{2})-(\d{2})$` =>
     new Date(m[1].toInt, m[2].toInt, m[3].toInt)
-  case _ =>
+case _ =>
     abort "Invalid date"
 ```
 

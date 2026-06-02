@@ -110,6 +110,18 @@ The guard pattern is tested against each element in sequence. **The guard itself
 
 The guard provides explicit control over the repeat boundary. If the guarded repeat consumes elements needed by following patterns, the overall pattern fails.
 
+**Variables bound inside the guard pattern are not visible outside it.** Only the subsequence binder (`..xs`) and following atom bindings are in scope in the case body:
+
+```jo
+match list
+case [..matched while Some(x), ..rest] =>
+  // matched: List[Option[T]] - the matched subsequence
+  // rest: remaining elements
+  // x: NOT available — only used during per-element guard evaluation
+  matched.length
+end
+```
+
 ### Guarded vs Unguarded Behavior
 
 The key difference between guarded and unguarded repeats:
