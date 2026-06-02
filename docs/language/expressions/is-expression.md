@@ -1,42 +1,8 @@
 # Is Expression
 
-## Overview
-
-The `is` expression provides a boolean test for pattern matching. It evaluates to `true` if a value matches a pattern, `false` otherwise. Variables bound by the pattern become available through flow typing in control flow constructs (`if`, `while`) and boolean expressions (`&&`, `||`).
-
-## Motivation
-
-Pattern matching is powerful but requires explicit branching with `match`. For simple boolean tests, this can be verbose:
-
-```jo
-// Without is expression - verbose
-val hasValue = x match
-  case Some(_) => true
-  case None => false
-
-// With is expression - concise
-val hasValue = x is Some(_)
-```
-
-Flow typing enables variables bound by `is` to be used immediately in boolean expressions and control flow:
-
-```jo
-// Extract and validate in one expression
-val isPositive = x is Some(value) && value > 0
-
-// Use a prefixed pattern in is-expression
-pattern Pos: Partial[Int] = case n if n > 0
-val shouldAlert = x is !Some(Pos) && y > 5
-
-// Check and extract in if condition
-if x is Some(value) then
-  println(value)  // value is available here
-
-// Process list elements
-while queue is Cons(head, tail) do
-  process(head)
-  queue = tail
-```
+The `is` expression tests whether a value matches a pattern. It evaluates to `true` on
+success and `false` on failure. Variables bound by the pattern are available through
+flow typing in `if`/`while` conditions and `&&`/`||` expressions.
 
 ## Syntax
 
@@ -54,10 +20,11 @@ The `is` expression evaluates as follows:
 
 ## Flow Typing
 
-Flow typing is used for typing
+Flow typing tracks which pattern variables are definitely bound at each point in an
+expression. It applies to:
 
-- The conditions of `if/while`
-- A word sequence
+- The conditions of `if`/`while`
+- Word sequences joined by `&&`, `||`, or `!`
 
 Variables bound by `is` expressions become available in subsequent code through
 flow typing. This works both in control flow constructs (`if`, `while`) and in
@@ -210,70 +177,30 @@ val result = x is Some(y)
 
 ## Examples
 
-### Basic Pattern Testing
+Pattern test in an `if` condition — bound variables available in the then-branch only:
 
 ```jo
-// Test if option has a value
-if opt is Some(_) then
-  println("Has value")
-
-// Test list structure
-val isEmpty = list is []
-val isSingleton = list is [_]
+if x is Some(value) then
+  println(value)   // value available here
+else
+  println("None")  // value NOT available here
 ```
 
-### Extracting Values
+Chained with `&&` — bound variables flow left to right:
 
 ```jo
-// Extract and use in one step
-if user is ValidUser(name, age) then
-  println("Welcome, " + name + " (age: " + age + ")")
+if x is Some(value) && value > 0 then
+  println("positive: " + value)
 
-// Extract nested structure
-if response is Success(data) then
-  process(data)
+// Both branches of || must bind the same variables
+if x is Some(v) || default is Some(v) then
+  println(v)
 ```
 
-### While Loop Processing
+Consumed in a `while` loop:
 
 ```jo
-// Process list elements
 while list is Cons(head, tail) do
-  println(head)
+  process(head)
   list = tail
-
-// Drain a queue
-while queue is NonEmpty(item, rest) do
-  handleItem(item)
-  queue = rest
-```
-
-### Combining with Other Expressions
-
-```jo
-// In boolean expressions with flow typing
-val isValid = input is ValidFormat(data) && checksum(data)
-
-// Extract and validate
-val isPositive = x is Some(value) && value > 0
-
-// As function argument
-processIf(x is Some(_), "has value", "is none")
-
-// In variable initialization
-val hasError = result is Error(_)
-```
-
-### Type Refinement
-
-```jo
-// Type testing
-if value is (x: Int) then
-  println("Integer: " + x)
-else if value is (s: String) then
-  println("String: " + s)
-
-// With type and structure
-if shape is (c: Circle) then
-  println("Circle radius: " + c.radius)
 ```

@@ -79,7 +79,7 @@ send:
   body = "Done"
 ```
 
-Each aligned item in the indented block is one argument. Each item is an open expression — a word sequence, lambda, nested colon call, dot chain, or open `if`/`match` form.
+Each aligned item in the indented block is one argument, vertically aligned with its siblings. Each item is an open expression — a word sequence, lambda, nested colon call, dot chain, or open `if`/`match` form.
 
 ### Nested Multiline Colon Calls
 
@@ -109,17 +109,7 @@ Each continued line starts with `.<name>:` and forms another colon call from
 the result of the previous one. The arguments of each continued step may be
 inline or multiline.
 
-### Alignment
-
-Sibling argument items in a multiline colon call should be vertically aligned:
-
-```jo
-foo:
-  a
-  b
-```
-
-### Scope
+### Restrictions
 
 Colon calls are phrase syntax, only available in indentation contexts. They are not allowed in delimited contexts such as parentheses, ordinary call arguments, bracket arguments, or collection literals:
 

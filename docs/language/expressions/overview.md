@@ -1,5 +1,8 @@
 # Words, Expressions, Phrases, and Blocks
 
+> *Programs should be written for people to read, and only incidentally for machines to execute.*
+> — Abelson & Sussman, SICP
+
 Jo's expression language is organized around four syntactic levels, with the aim to improve readability while maintaining simplicity.
 
 ## The Four Levels
@@ -16,9 +19,6 @@ Jo's expression language is organized around four syntactic levels, with the aim
 **Block** — a vertically aligned sequence of phrases. A block is introduced by an operator (`=`, `=>`) or keyword (`then`, `do`, `case =>`) and continues while phrases remain more indented than the introducing token.
 
 ## Closed vs Open Expressions
-
-> *Programs should be written for people to read, and only incidentally for machines to execute.*
-> — Abelson & Sussman, SICP
 
 The closed/open distinction is a direct expression of this principle. Code is read at two levels of attention: local and structural. Jo assigns different expression forms to each level.
 

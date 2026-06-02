@@ -133,10 +133,7 @@ val emoji = "Smiley: \u{1F600}"  // 😀
 
 **Note:** Multiline strings (triple-quoted `"""..."""`) only support `\u{...}` Unicode escapes, not other escape sequences.
 
-For detailed information about string literals, see:
-
-- [Multiline Strings](string.md)
-- [String Interpolation](string.md)
+For multiline strings and string interpolation, see [String Literals](string.md).
 
 ## List Literals
 

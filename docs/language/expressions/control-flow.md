@@ -36,7 +36,7 @@ else
 ## Match
 
 ```
-match ::= "match" words {case} ["end"]
+match ::= "match" words case {case} ["end"]
 case ::= "case" pattern "=>" block
 ```
 
@@ -194,26 +194,6 @@ for Point(x, y) in points if x > 0 do
   println(x)
 end
 ```
-
-### Filtering with Is Expressions
-
-Use the optional `if` clause to filter elements. You can also use `is` expressions in the condition:
-
-```jo
-// Filter using is expression
-for elem in mixedList if elem is Some(x) do
-  println(x)
-end
-
-// Combine pattern matching and filtering
-for Point(x, y) in points if x > 0 && y > 0 do
-  println(x + y)
-end
-```
-
-::: info
-Pattern match failures in for loops cause runtime errors (like pattern value definitions). Use `is` expressions in the `if` clause for filtering instead of relying on non-exhaustive patterns.
-:::
 
 ## Rescue
 
