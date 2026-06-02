@@ -1,0 +1,16 @@
+interface Formatter
+  def format(): String
+  def preview(): String = "Preview: " + format()  // concrete default
+end
+
+class NumberFormatter(n: Int)
+  def format(): String = "num:" + n
+  def preview(): String = "Number #" + n   // class-level method, same name
+  view Formatter
+end
+
+class StringFormatter(s: String)
+  def format(): String = "str:" + s
+  // no preview() — inherits interface concrete method when called through Formatter
+  view Formatter
+end
