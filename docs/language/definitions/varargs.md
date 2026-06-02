@@ -57,21 +57,6 @@ The splice operator can be used:
 - At the end: `sum(1, 2, ..list)`
 - Multiple times: `sum(..list1, ..list2, 42)`
 
-## Implementation Details
-
-When a function with vararg parameters is called:
-
-1. All arguments (including spliced lists) are collected
-2. They are combined into a single `List[Type]`
-3. The function receives this list as the vararg parameter
-
-For example:
-```jo
-def sum(numbers: ..Int): Int = ...
-
-// Inside sum, 'numbers' is a List[Int]
-sum(1, 2, 3)  // numbers = List(1, 2, 3)
-```
 
 ## List Construction with Splice
 
@@ -85,33 +70,6 @@ val extended = [1, 2, ..original, 9, 10]
 
 This allows for efficient list concatenation and manipulation.
 
-## Common Use Cases
-
-### 1. Aggregation Functions
-
-```jo
-def max(numbers: ..Int): Int =
-  numbers.fold (numbers.head) (a, b) => if a > b then a else b
-
-max 5 2 8 1 9 3  // Returns 9
-```
-
-### 2. Collection Construction
-
-```jo
-// Standard library List constructor
-val list1 = List(1, 2, 3)
-val list2 = List "hello" "world"
-```
-
-### 3. Logging and Output
-
-```jo
-def log(messages: ..String): Unit =
-  for msg in messages do println msg
-
-log "Error:" "File not found" "/path/to/file"
-```
 
 ## How It Works
 
@@ -128,3 +86,17 @@ The key insights:
 - The splice operator `..expr` is a normal expression with two words `..` and `expr` that is specially handled by the typer
 
 This design makes varargs feel like native syntax while being library-defined.
+
+When a function with vararg parameters is called:
+
+1. All arguments (including spliced lists) are collected
+2. They are combined into a single `List[Type]`
+3. The function receives this list as the vararg parameter
+
+For example:
+```jo
+def sum(numbers: ..Int): Int = ...
+
+// Inside sum, 'numbers' is a List[Int]
+sum(1, 2, 3)  // numbers = List(1, 2, 3)
+```
