@@ -1,8 +1,5 @@
 # String Literals
 
-This guide shows how to build, format, and work with strings in Jo. For the formal
-syntax and processing rules, see [String Literals](../language/expressions/string.md).
-
 ## Interpolation
 
 Embed values directly in a string with `\{...}`. Any expression that converts to

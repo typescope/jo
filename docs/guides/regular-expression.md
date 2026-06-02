@@ -1,11 +1,11 @@
 # Regular Expressions
 
-Jo's regex support is designed around two questions: *does it match?* and *what did it capture?* This guide shows how to answer both using the `String` regex methods and regex patterns in `match` and `is` expressions.
+Regex in most languages lives in an awkward middle ground: the pattern is expressive,
+but wiring it into typed control flow means integer-indexed group access, nullable
+match objects, and boilerplate to check whether a group participated.
 
-For the literal syntax and supported regex subset, see
-[Regular Expressions](../language/expressions/regular-expressions.md).
-For using regex as patterns, see
-[Regex Patterns](../language/patterns/regex-patterns.md).
+Jo treats regex as a first-class pattern: named groups bind directly as
+flow-typed variables in `match` and `if`/`is` expressions.
 
 ## Testing for a Match
 
@@ -28,12 +28,12 @@ and `$` to require a full-string match:
 
 ```jo
 match "abc-42".matchFirst(`(?<word>\w+)-(?<num>\d+)`)
-  case Some(m) =>
+case Some(m) =>
     println m[0]        // "abc-42"  (whole match)
     println m[1]        // "abc"     (group 1 by index)
     println m["word"]   // "abc"     (group 1 by name)
     println m["num"]    // "42"      (group 2 by name)
-  case None =>
+case None =>
     println "no match"
 ```
 
@@ -122,9 +122,9 @@ When the pattern is not known at compile time, use `Regex.compile`:
 
 ```jo
 match Regex.compile(source)
-  case Ok(r) =>
+case Ok(r) =>
     "name_42".exists(r)      // true if source matches
-  case Err(err) =>
+case Err(err) =>
     println err              // human-readable error message
 ```
 

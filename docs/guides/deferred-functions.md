@@ -1,16 +1,52 @@
 # Deferred Functions
 
-Deferred functions let a module declare function interfaces that are filled in at compile
-time. This enables framework-based programming, dependency injection, and flexible entry
-points without any runtime overhead.
+Most dependency injection frameworks operate at runtime: they wire up objects through
+reflection, XML config, or annotation scanning, and report missing or mistyped
+dependencies as runtime crashes.
 
-For the formal specification, see
-[Deferred Functions](../language/definitions/deferred-functions.md).
+Jo's deferred functions move this to compile time. A deferred function declares an
+interface that must be filled in before the program can be built. The linker validates
+types, the compiler inlines the bindings, and there is zero runtime overhead.
 
-## Framework Development
 
-A framework can define abstract operations that callers implement, then control the
-overall execution flow:
+## Inverting Package Dependencies
+
+The standard problem: `reportLib` wants to render documents, but shouldn't import a
+specific renderer — that would couple a general-purpose library to a concrete backend.
+
+```jo
+// reportLib/report.jo — no imports, depth-0 library
+namespace Report
+
+defer def newRenderer(): Renderer
+
+def generate(title: String, body: String): String =
+  newRenderer().render("# " + title + "\n\n" + body)
+```
+
+The concrete renderer is supplied at compile time:
+
+```bash
+# Production build — HTML renderer
+bin/jo compile --python app.jo \
+  --link Report.newRenderer=HtmlLib.newHtmlRenderer \
+  -o app.py
+
+# Test build — in-memory stub
+bin/jo compile --python app.jo \
+  --link Report.newRenderer=TestLib.newStubRenderer \
+  -o app-test.py
+```
+
+`report` carries no imports, so it remains a depth-0 library. The dependency on a
+concrete renderer is a concern of the application, not the library. If the linked
+function's signature doesn't match the deferred declaration, the compiler stops with
+a type error — no runtime surprises.
+
+## Framework-Controlled Entry Points
+
+Frameworks that own the application lifecycle while staying decoupled from application
+code:
 
 ```jo
 // framework.jo
@@ -45,10 +81,10 @@ bin/jo compile --python \
   framework.jo implementation.jo -o app.py
 ```
 
-## Dependency Injection
+## Swapping Implementations
 
-Abstract away dependencies so the same module can be compiled against different
-implementations — for example, production vs. test:
+The same module compiled against different implementations — production vs. test — with
+no source changes:
 
 ```jo
 // service.jo
@@ -78,56 +114,6 @@ bin/jo compile --python service.jo \
   -o service-test.py
 ```
 
-## Custom Entry Points
+## See Also
 
-`--link jo.main=<func>` makes any function the program entry point:
-
-```jo
-namespace MyApp
-
-def startup: Unit =
-  println "Custom entry point"
-```
-
-```bash
-bin/jo compile --python myapp.jo --link jo.main=MyApp.startup -o myapp.py
-```
-
-## Separate Compilation
-
-Deferred functions work with precompiled libraries:
-
-```bash
-# Build the framework as a library
-bin/jo compile --sast lib/ framework.jo
-
-# Build the application, linking against the precompiled library
-bin/jo compile --python app.jo --lib lib/ \
-  --link Framework.func=App.impl \
-  -o app.py
-```
-
-## Example: Calculator Framework
-
-```jo
-// options: --link Calculator.add=Math.add --link Calculator.multiply=Math.multiply
-
-namespace Test
-
-section Calculator
-  defer def add(a: Int, b: Int): Int
-  defer def multiply(a: Int, b: Int): Int
-
-  def compute(x: Int, y: Int): Int =
-    val sum = add(x, y)
-    multiply(sum, 2)
-end
-
-section Math
-  def add(a: Int, b: Int): Int = a + b
-  def multiply(a: Int, b: Int): Int = a * b
-end
-
-def main =
-  Calculator.compute(3, 7) p  // Output: 20
-```
+- [Deferred Functions](../language/definitions/deferred-functions.md) — formal specification

@@ -1,10 +1,9 @@
 # Algebraic Data Types
 
-An ADT represents a value that is exactly one of several named alternatives. It is the
-standard tool for modelling data whose shape varies by case: optional values, success vs.
-failure, recursive structures, and more.
-
-For the formal specification, see [Algebraic Data Types](../language/definitions/union-definition.md).
+Jo's union types look like ADTs from ML-family languages — but the branches are ordinary
+classes, not constructor tags. This means unions are composable: the same class can
+appear in multiple unions, and unions can be extended by adding new alternatives without
+modifying existing code. The "Composing Unions" section shows what this unlocks.
 
 ## Basic Usage
 
@@ -17,11 +16,10 @@ union Direction = North | South | East | West
 
 def describe(d: Direction): String =
   match d
-    case North => "up"
-    case South => "down"
-    case East  => "right"
-    case West  => "left"
-  end
+  case North => "up"
+  case South => "down"
+  case East  => "right"
+  case West  => "left"
 ```
 
 ### Branches with Data
@@ -199,3 +197,7 @@ type Color = Color.Repr
 val c1 = Color.Red    // qualified
 val c2: Color = c1    // type alias
 ```
+
+## See Also
+
+- [Union Definitions](../language/definitions/union-definition.md) — formal specification

@@ -1,155 +1,94 @@
 # Classes and Views
 
-## Overview
+Every non-trivial class eventually needs to satisfy interface contracts. Traditional
+OOP gives you two tools, but makes one of them painful:
 
-**Views** are Jo's unified mechanism for fulfilling behavioral contracts. A class uses
-`view` to declare that it satisfies an interface — either by implementing the required
-methods directly, or by delegating to a stable reference that already satisfies it.
+- **Inheritance** — declare it, get automatic subtype relationships for free
+- **Composition** — write a forwarding method for every single delegated method
 
-## Motivation
+This asymmetry pushes code toward inheritance even when composition is the better
+design choice. Jo eliminates it with a unified mechanism: **views**.
 
-The traditional dichotomy between **inheritance** and **composition** is somewhat
-artificial. In practice, programmers care primarily about **fulfilling behavioral
-contracts** — ensuring that objects provide the capabilities required by the interfaces
-they use.
+## The Two Forms
 
-Yet traditional OOP languages create a significant **asymmetry**:
+There are two forms of views:
 
-- **Inheritance** is easy: declare it, get automatic subtype relationships
-- **Composition** is tedious: write forwarding methods for every delegated method
+- direct views
+- delegate views
 
-This asymmetry pushes programmers toward inheritance even when composition is the better
-fit, contradicting the widely-accepted principle of **"prefer composition over inheritance"**.
+Both create a subtyping relationship `C <: I`. The choice is about where the
+implementation lives.
 
-Views eliminate this asymmetry. The single `view` keyword covers both strategies:
+### Direct View
 
-- **`view I`** — implement the contract yourself: the class provides the methods directly
-- **`view I = ref`** — delegate the contract: a held object provides the methods
-
-Both create `C <: I`. Both are equally concise. The choice is a design decision about
-where the implementation lives, not a tradeoff in convenience or type-system power.
+Use `view I` when the class itself provides the behavior. The compiler verifies all
+abstract methods are present with compatible signatures.
 
 ```jo
-interface Loggable
-  def log(msg: String): Unit
-end
-
-interface Serializable
-  def serialize(): String
-end
-
-class User(id: Int, name: String, logger: Loggable)
-  def serialize(): String = "User(" + id + ", " + name + ")"
-  view Serializable    // direct: User implements Serializable itself
-
-  view Loggable = logger  // delegate: Loggable is provided by logger
+class RangeIterator(range: Range)
+  var current: Int = range.start
+  def hasNext(): Bool = current < range.ends
+  def next(): Int =
+    val v = current
+    current = current + 1
+    v
+  view Iterator[Int]
 end
 ```
 
-`User` is a subtype of both `Serializable` and `Loggable`.
+### Delegate View
 
-## Two View Forms
+The traditional alternative to inheritance for composition looks like this in Java:
 
-### Direct View: `view I`
+```java
+class Service implements Logger {
+    private final Logger logger;
+    Service(Logger logger) { this.logger = logger; }
 
-The class implements all abstract methods of `I` in its own body. The compiler verifies
-this and establishes `C <: I`.
-
-```jo
-interface Logger
-  def log(msg: String): Unit
-end
-
-class ConsoleLogger
-  def log(msg: String): Unit = println(msg)
-  view Logger
-end
-
-def useLogger(l: Logger): Unit = l.log("hello")
-
-val console = new ConsoleLogger()
-useLogger(console)   // OK: ConsoleLogger <: Logger
+    // Forwarding boilerplate — must be repeated for every method
+    public void log(String msg)   { logger.log(msg); }
+    public void error(String msg) { logger.error(msg); }
+}
 ```
 
-### Delegate View: `view I = ref`
-
-The class holds a stable reference `ref` that already conforms to `I`. The compiler
-generates a forwarding method for each **abstract** method of `I`, delegating to `ref`.
-The class becomes a subtype of `I` through these forwarders.
+In Jo:
 
 ```jo
-interface Logger
-  def log(msg: String): Unit
-  def error(msg: String): Unit
-end
-
 class Service(logger: Logger)
-  view Logger = logger
+  view Logger = logger   // compiler synthesizes the forwarders
 end
-
-// Service <: Logger, so no boilerplate at call sites
-def useLogger(l: Logger): Unit = l.log("hello")
-
-val service = new Service(someLogger)
-useLogger(service)   // OK: Service <: Logger
-service.log("hello") // OK: forwarded to service.logger.log("hello")
 ```
 
-The delegate `ref` must be a **stable reference**: an immutable field or a chain of
-immutable field selections. It must also conform to `I` (nominally: `ref.tpe <: I`).
+The compiler generates a forwarding method for each **abstract** method of the
+interface. The delegate must be a stable reference (an immutable field or chain of
+immutable field selections) that conforms to the interface.
 
-## Design Decisions
+## Combining Views
 
-### No Duplicate Views
-
-A class cannot declare two views of the same interface — it would create ambiguity in
-which view provides the implementation. The compiler rejects duplicate view declarations.
+A class can hold multiple views — direct and delegate — simultaneously:
 
 ```jo
-class Service(l1: Logger, l2: Logger)
-  view Logger = l1
-  view Logger = l2  // Error: duplicate view for Logger
+class Task(name: String, logger: ConsoleLogger)
+  def run(): String = "[ran " + name + "]"
+
+  view Runnable          // Task implements Runnable itself
+  view Logger = logger   // Logger forwarded to the logger field
 end
+
+val t = new Task("Upload", new ConsoleLogger("[TASK]"))
+execute(t)    // uses Task.run() via Runnable
+logTo(t)      // uses forwarded Logger
 ```
 
-### View Consistency
+## Constraints
 
-All members visible through a class form a single unified namespace. Conflicts between
-direct members and view-provided members are reported at class definition time.
+**No duplicate views** — a class cannot declare two views of the same interface; it
+would be ambiguous which provides the implementation.
 
-A class method cannot share a name with a synthesized forwarder from a delegate view:
-
-```jo
-interface Logger
-  def log(msg: String): Unit
-end
-
-class Service(logger: Logger)
-  def log(msg: String): Unit = ...  // Error: conflicts with forwarder for Logger.log
-  view Logger = logger
-end
-```
-
-Two delegate views cannot both forward a method of the same name:
-
-```jo
-interface Logger
-  def log(msg: String): Unit
-end
-
-interface Auditor
-  def log(event: String): Unit
-end
-
-class Service(logger: Logger, auditor: Auditor)
-  view Logger = logger
-  view Auditor = auditor  // Error: 'log' conflicts between Logger and Auditor forwarders
-end
-```
+**No name conflicts** — a class method cannot share a name with a synthesized
+forwarder, and two delegate views cannot both forward a method of the same name.
 
 ## See Also
 
-- [Class Definitions](../language/definitions/class-definitions.md) - View conformance rules,
-  member consistency, and technical details
-- [Interface Definitions](../language/definitions/interface-definitions.md) - Interface method
-  requirements and concrete method semantics
+- [Class Definitions](../language/definitions/class-definitions.md) — conformance rules and technical details
+- [Interface Definitions](../language/definitions/interface-definitions.md) — interface method semantics

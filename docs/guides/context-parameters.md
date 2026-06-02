@@ -10,8 +10,6 @@ Context parameters offer a third path: declare the value once, bind it at the ca
 that has the relevant context, and let it propagate automatically through the call chain.
 No argument threading. No globals. Full static safety.
 
-For the formal specification, see
-[Context Parameters](../language/definitions/context-parameters.md).
 
 ## Declaring and Binding
 
@@ -108,9 +106,12 @@ context at each call site.
 
 ## Bounding Capabilities with `allow`
 
-`allow` is a security-oriented feature: it lets you explicitly state which context
-parameters a block of code is permitted to access. Any parameter used outside the
-declared set is a compile-time error, even transitively through function calls.
+`allow` makes the capability policy explicit at the call site and provides an additional
+layer of verification. While `receives` annotations on functions already enforce which
+parameters a function may use, `allow` lets the *caller* state what it considers
+acceptable — the compiler then verifies, transitively, that nothing in the called code
+reaches outside that set. This is useful when you want to document and enforce intent at
+a specific call boundary.
 
 ```jo
 param connection: Connection
@@ -220,3 +221,7 @@ def main =
 `FooImpl` and `BarImpl` are fully initialized before `foo.foo()` is called. The
 `with` clause wires them together at that single call site. There is no partially
 constructed state and no framework magic.
+
+## See Also
+
+- [Context Parameters](../language/definitions/context-parameters.md) — formal specification

@@ -1,4 +1,4 @@
-# Algebraic Data Types
+# Union Definitions
 
 A `union` definition is a sum type: a type whose values are drawn from a fixed set of
 named alternatives (branches), each optionally carrying associated data.
