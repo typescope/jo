@@ -10,17 +10,16 @@
 ---------- Error at tests/warn/class.jo:9:7 ---------------
 |   def foo(y: String): String = y
 |       ^^^
-|       A method with the name foo is already defined
+|       Redefinition of foo
+|
+| The name `foo` is already defined at tests/warn/class.jo:8:7
+|   def foo(x: Int): Int = x
+|       ^^^
 
 ---------- Error at tests/warn/class.jo:18:3 ---------------
 |   val D: Int
 |   ^^^^^^^^^^
 |   Class name cannot be used as field name
-
----------- Error at tests/warn/class.jo:5:3 ---------------
-|   def A(x: Int) = this.x = x
-|   ^^^^^^^^^^^^^^^^^^^^^^^^^^
-|   Uninitialized field(s): x
 
 ---------- Error at tests/warn/class.jo:23:3 ---------------
 |   def E() = pass
@@ -82,4 +81,4 @@
 |   ^^^^^^^^^^^^^
 |   The function expects 1 argument(s), found = 2
 
-16 error(s), 0 warning(s)
+15 error(s), 0 warning(s)
