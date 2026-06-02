@@ -135,8 +135,8 @@ val emoji = "Smiley: \u{1F600}"  // 😀
 
 For detailed information about string literals, see:
 
-- [Multiline Strings](multiline-string.md)
-- [String Interpolation](string-interpolation.md)
+- [Multiline Strings](string.md)
+- [String Interpolation](string.md)
 
 ## List Literals
 

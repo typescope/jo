@@ -54,6 +54,7 @@ export default defineConfig({
           text: 'Guidelines',
           items: [
             { text: 'Algebraic Data Types', link: '/guides/adt' },
+            { text: 'String Literals', link: '/guides/string' },
             { text: 'Regular Expressions', link: '/guides/regular-expression' },
             { text: 'Context Parameters', link: '/guides/context-parameters' },
             { text: 'Deferred Functions', link: '/guides/deferred-functions' },
@@ -223,8 +224,7 @@ export default defineConfig({
             { text: 'Literals', link: '/language/expressions/literals' },
             { text: 'Is Expression', link: '/language/expressions/is-expression' },
             { text: 'Regular Expressions', link: '/language/expressions/regular-expressions' },
-            { text: 'Multiline Strings', link: '/language/expressions/multiline-string' },
-            { text: 'String Interpolation', link: '/language/expressions/string-interpolation' },
+            { text: 'String Literals', link: '/language/expressions/string' },
           ]
         },
         {
