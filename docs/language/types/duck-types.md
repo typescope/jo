@@ -271,7 +271,7 @@ type Formatted = String :- [.format]
 def show(s: Formatted): Unit = ...
 
 val doc = new Document()
-show(doc) with indent = 5   // doc.format → "5: content" ✓
+with indent = 5 in show(doc)   // doc.format → "5: content" ✓
 ```
 
 **Context parameter propagation:** When a member method requires context parameters, those requirements are propagated to the calling function.
@@ -496,7 +496,7 @@ type NumDisplay = String :- [intToStr]
 def show(x: NumDisplay): Unit = println(x)
 
 show(255)                        // "255"
-show(255) with hexMode = true    // "0xff"
+with hexMode = true in show(255)  // "0xff"
 ```
 
 ### Compositional Conversions

@@ -32,16 +32,16 @@ def line(text: String): Unit =
 
 ### Binding Context Parameters
 
-Context parameters are bound using the `with` clause:
+Context parameters are bound using the `with ... in` expression:
 
 ```jo
-line("hello") with indent = 5
+with indent = 5 in line("hello")
 ```
 
 Multiple parameters can be bound simultaneously:
 
 ```jo
-foo(10) with alpha = 3, beta = 6
+with alpha = 3, beta = 6 in foo(10)
 ```
 
 ### Default Values
@@ -57,7 +57,7 @@ def search(keyword: String) = ...maxResultCount...
 search("laptop")
 
 // Override with custom value
-search("laptop") with maxResultCount = 50
+with maxResultCount = 50 in search("laptop")
 ```
 
 ### Automatic Propagation and Shadowing
@@ -70,14 +70,14 @@ param fontSize: Int
 def renderText(text: String) = ...fontSize...
 
 def renderH2(h2: Element) =
-  renderText(h2.text) with fontSize = 20  // Shadows outer binding
+  with fontSize = 20 in renderText(h2.text)  // Shadows outer binding
 
 def renderDiv(div: Element) =
   ...renderText(p.text)     // Uses fontSize from outer context
-  ...renderH2(h2)          // Temporarily uses fontSize = 20
+  ...renderH2(h2)           // Temporarily uses fontSize = 20
   ...renderText(label.text) // Back to outer fontSize
 
-renderDiv(div) with fontSize = 14
+with fontSize = 14 in renderDiv(div)
 ```
 
 ### Lambda Capture
@@ -98,7 +98,7 @@ def makeLinePrinter(): String => Unit =
   (text) => line(text)
 
 def main =
-  val f = makeLinePrinter with indent = 5  // indent captured in closure
+  val f = with indent = 5 in makeLinePrinter()  // indent captured in closure
   f("hello")  // Uses captured indent = 5
 ```
 
@@ -114,7 +114,7 @@ def createPrinter(): Printer receives none =
 
 def main =
   val printer = createPrinter()
-  printer("hello") with pageWidth = 100  // pageWidth bound at call site
+  with pageWidth = 100 in printer("hello")  // pageWidth bound at call site
 ```
 
 ### Static Safety
@@ -154,7 +154,7 @@ The `allow` clause restricts which context parameters can be accessed:
 
 ```jo
 allow connection in
-  search(keyword) with maxResultCount = 200
+  with maxResultCount = 200 in search(keyword)
 
 allow none in test()  // Disallow all context parameters
 ```
@@ -208,9 +208,9 @@ def formatBlock(level: Int, lines: List[String]): String =
 def main =
   val lines = ["hello", "world"]
   // Compact format for narrow terminals
-  val compact = formatBlock(1, lines) with pageWidth = 40, indentSize = 4
+  val compact = with pageWidth = 40, indentSize = 4 in formatBlock(1, lines)
   // Wide format with default indent
-  val wide = formatBlock(1, lines) with pageWidth = 120
+  val wide = with pageWidth = 120 in formatBlock(1, lines)
 ```
 
 ### Dependency Injection
@@ -240,7 +240,7 @@ end
 def main =
   val testFinder = new TestFinder
 
-  val hitchcockMovies = moviesDirectedBy("Hitchcock") with finder = testFinder
+  val hitchcockMovies = with finder = testFinder in moviesDirectedBy("Hitchcock")
   for m in hitchcockMovies do println m.name
 ```
 
@@ -279,7 +279,7 @@ end
 def main =
   val fooImpl = new FooImpl
   val barImpl = new BarImpl
-  fooImpl.foo() with fooService = fooImpl, barService = barImpl
+  with fooService = fooImpl, barService = barImpl in fooImpl.foo()
 ```
 
 Here, the service `fooService` depends on `barService` and vice versa. Context parameters enable both static control of dependencies and safe initialization: the static type system ensures that no context parameters may be used without being bound. Unlike framework-based circular injection which may fail at runtime with partially initialized objects, context parameters guarantee that both services are fully constructed before either can be used.

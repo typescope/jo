@@ -176,7 +176,7 @@ end
 val logger: Logger = msg => println(msg)
 
 // Context parameter provided at call site
-logger.log("test") with IO.stdout = customOutput
+with IO.stdout = customOutput in logger.log("test")
 ```
 
 ## See Also

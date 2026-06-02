@@ -341,8 +341,8 @@ param logger: Logger = ConsoleLogger
 def line(text: String): Unit = print(" " * indent + text)
 
 // provide at call site
-line("hello") with indent = 4
-foo() with alpha = 3, beta = 6
+with indent = 4 in line("hello")
+with alpha = 3, beta = 6 in foo()
 ```
 
 ## Capabilities
@@ -358,7 +358,7 @@ allow none in test()              // prove no effects
 
 // provision inside allow
 allow none in
-  search(keyword) with maxResultCount = 200, connection = db
+  with maxResultCount = 200, connection = db in search(keyword)
 ```
 
 ## Namespace & Imports

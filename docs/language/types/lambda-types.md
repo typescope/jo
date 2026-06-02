@@ -42,7 +42,7 @@ val log: Logger = msg => println("[LOG] " + msg)
 
 // Context parameter IO.stdout comes from call site
 log("message")  // Uses ambient IO.stdout
-log("message") with IO.stdout = customOutput  // Uses customOutput
+with IO.stdout = customOutput in log("message")  // Uses customOutput
 ```
 
 Context parameters not listed in the lambda type's `receives` clause are captured at lambda creation time (like normal closure capture):
@@ -57,7 +57,7 @@ val processor: Processor = msg =>
   msg.toUpperCase
 
 // IO is provided at call site
-processor("hello") with IO = customIO
+with IO = customIO in processor("hello")
 ```
 
 ## Lambda Interfaces

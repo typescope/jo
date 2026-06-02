@@ -215,7 +215,7 @@ def printLine(text: String): Unit =
 def printSection(title: String, items: List[String]): Unit =
   printLine title
   for item in items do
-    printLine item with indent = indent + 2 // (3)!
+    with indent = indent + 2 in printLine item // (3)!
 ```
 
 1. `param` declares a context parameter with a default value

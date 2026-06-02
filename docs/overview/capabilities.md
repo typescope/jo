@@ -56,7 +56,7 @@ def qux() receives IO.stdout = println "qux"  // explicit capability: only stdou
 def main =
   allow none in bar()                  // (1)!
   allow IO.stdout in baz()             // (2)!
-  qux() with IO.stdout = s => pass  // (3)!
+  with IO.stdout = s => pass in qux()  // (3)!
 ```
 
 1. `allow` controls what capabilities are permitted - this fails because `bar` needs `stdout`
@@ -103,7 +103,7 @@ def foo() receives os =
   val file = os.open("data.txt")
   val readLineFun = () => if file.hasMore() then Some(file.readLine()) else None
 
-  allow none in lineCount() with readLine = readLineFun // (2)!
+  allow none in with readLine = readLineFun in lineCount() // (2)!
 ```
 
 1. A refined capability: only line reading, not full file access
@@ -131,7 +131,7 @@ def test(): String =
   val captured = new OutputCapture
   val buffer = (s: String) => captured.content = captured.content + s + "\n"
 
-  report("Test complete") with stdout = buffer
+  with stdout = buffer in report("Test complete")
   captured.content  // Returns captured output for assertion
 ```
 
@@ -159,7 +159,7 @@ def frameworkMain() = // (2)!
   val buffer = (s: String) => output += s
 
   allow none in
-    aiMain() with GetOrders = restricted, IO.stdout = buffer // (5)!
+    with GetOrders = restricted, IO.stdout = buffer in aiMain() // (5)!
 
   // ...
 
