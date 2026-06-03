@@ -71,7 +71,7 @@ ambient globals.
 
 ## Why This Matters for AI-Generated Code
 
-AI-generated code makes the authority problem makes the problem even challenging. If an agent writes a
+AI-generated code makes the authority problem even more acute. If an agent writes a
 function for your application, you may want it to analyze data and produce a
 summary, but not access the filesystem, call arbitrary HTTP endpoints, inspect
 environment variables, or query other users' records.
@@ -153,6 +153,14 @@ and where they are deliberately restricted.
 The goal is not to make secure programming feel like a separate discipline. The
 goal is to make it part of normal programming.
 
+## Formal Foundations
+
+Jo's design is grounded in λCC (*Lambda-CC*), a minimal calculus of contextual
+capabilities with a soundness proof mechanized in Coq.
+
+The full paper and Coq development are at
+[github.com/typescope/contextual-capability](https://github.com/typescope/contextual-capability).
+
 ## Current Status
 
 Jo is early-stage software, but it is already substantial: the compiler has an
@@ -166,6 +174,8 @@ technologies cannot provide the authority confinement they need. For critical
 deployments, start small, audit the capability boundaries carefully, and expect
 the language and tooling to evolve.
 
+## Development
+
 Jo is developed by [TypeScope](https://typescope.ai/), a company focused on
 making secure programming practical. We are building Jo as long-term
 infrastructure: a language, compiler, standard library, documentation, and
@@ -178,15 +188,15 @@ than burdensome.
 Jo is open source under the Apache License 2.0. The repository is available at
 [github.com/typescope/jo](https://github.com/typescope/jo).
 
-The project is open for people who are interested in language design,
-capability-based security, secure AI systems, compilers, and practical type
-systems. We especially want feedback on the security model, ergonomics, and
-real-world use cases.
+The project welcomes people interested in language design, capability-based
+security, secure AI systems, compilers, and practical type systems. We
+especially want feedback on the security model, ergonomics, and real-world use
+cases.
 
 ## Learn More
 
 Start with the [Language Tour](/overview/language-tour) for the language
-surface, or read [Jo's Solution](/security/solution) for the security model in
+surface, or read [Two-World Architecture](/security/two-worlds) for the security model in
 more detail. The detailed installation and usage material lives on
 [jo-lang.org](https://jo-lang.org/).
 
@@ -199,4 +209,3 @@ should follow the process in the repository's
 
 If the core idea resonates with you, follow the project, try the examples, and
 join the discussion. Jo's mission is simple: make secure programming a joy.
->>>>>>> d2cbfd26 (Improve blog)
