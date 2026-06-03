@@ -196,6 +196,8 @@ surface, or read [Two-World Architecture](/security/two-worlds) for the security
 more detail. The detailed installation and usage material lives on
 [jo-lang.org](https://jo-lang.org/).
 
+## Feedback
+
 We welcome feedback from language designers, security engineers, compiler
 engineers, and developers building agentic systems. For concrete bugs or issues,
 open an issue on [GitHub](https://github.com/typescope/jo). For community

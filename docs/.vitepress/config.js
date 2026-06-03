@@ -41,7 +41,6 @@ export default defineConfig({
         {
           text: 'Overview',
           items: [
-            { text: 'What is Jo?', link: '/overview/index' },
             { text: 'Language Tour', link: '/overview/language-tour' },
             { text: 'Capability-Based Programming', link: '/overview/capabilities' },
             { text: 'Cheat Sheet', link: '/overview/cheat-sheet' },

@@ -49,12 +49,9 @@ demo](https://github.com/typescope/jo/tree/main/demos/data-query-agent), which
 shows how an agent can ask flexible questions over a database while being
 statically restricted to the current user's data.
 
-## Learn More
+## Formal Foundations
 
-- [Language Tour](language-tour.md) - See Jo's features in action
-- [Capability-Based Programming](capabilities.md) - Deep dive into Jo's security model
-- [Pattern-Oriented Programming](patterns.md) - Master Jo's powerful pattern system
-- [Get Started](../usage/getting-started.md) - Install Jo and run your first program
+Jo's capability model is grounded in [λCC](https://github.com/typescope/contextual-capability), a formally verified calculus of contextual capabilities. λCC provides a mathematical account of static capability tracking — a term typed with empty capabilities needs no capabilities at all — and the proof is mechanized in Coq.
 
 ## Feedback and Community
 
@@ -64,3 +61,10 @@ open an issue on [GitHub](https://github.com/typescope/jo). For community
 discussion, join [r/jolang](https://www.reddit.com/r/jolang/). Security reports
 should follow the process in the repository's
 [SECURITY.md](https://github.com/typescope/jo/blob/main/SECURITY.md).
+
+## Learn More
+
+- [Language Tour](language-tour.md) - See Jo's features in action
+- [Capability-Based Programming](capabilities.md) - Deep dive into Jo's security model
+- [Pattern-Oriented Programming](patterns.md) - Master Jo's powerful pattern system
+- [Get Started](../usage/getting-started.md) - Install Jo and run your first program
