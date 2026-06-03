@@ -151,6 +151,7 @@ atom = integer
 (* invariant: no need for external delimiters *)
 word = atom
      | atom "is" simple_pattern                    -- is_expr
+     | atom "as" simple_type                       -- type_ascribe
      | SP operator NS atom                         -- prefix_apply
 
 (* delimited words, used between keywords, call arguments, bindings *)

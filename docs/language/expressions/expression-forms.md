@@ -22,7 +22,13 @@ Words are the smallest expression units. No space is allowed between a word and 
 | Call | `f(x, y)` &nbsp;*(no space before `(`)* |
 | Bracket access | `arr[i]` &nbsp;*(no space before `[`)* |
 | Is expression | `x is Some(n)` |
+| Type ascription | `x as Logger` |
 | Prefix application | `!flag`, `-n` |
+
+`e as T` asserts that `e` conforms to `T` and changes the static type of the expression
+to `T`. It is a compile-time upcast — not a runtime cast. The value is unchanged; only
+the static type narrows. The compiler rejects `e as T` if `e`'s type does not conform
+to `T`.
 
 See [Literals](literals.md), [Is Expression](is-expression.md), [Regular Expressions](regular-expressions.md) for details.
 
