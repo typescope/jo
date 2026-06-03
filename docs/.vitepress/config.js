@@ -264,7 +264,7 @@ export default defineConfig({
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/liufengyun/jo' }
+      { icon: 'github', link: 'https://github.com/typescope/jo' }
     ],
 
     search: {
