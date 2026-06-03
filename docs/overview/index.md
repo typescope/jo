@@ -66,5 +66,5 @@ should follow the process in the repository's
 
 - [Language Tour](language-tour.md) - See Jo's features in action
 - [Capability-Based Programming](capabilities.md) - Deep dive into Jo's security model
-- [Pattern-Oriented Programming](patterns.md) - Master Jo's powerful pattern system
+- [Pattern-Oriented Programming](../guides/patterns.md) - Master Jo's powerful pattern system
 - [Get Started](../usage/getting-started.md) - Install Jo and run your first program

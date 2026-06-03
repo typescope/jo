@@ -183,6 +183,6 @@ See [AI Security](../security/language-design.md) and [Security Demos](../securi
 
 ## See Also
 
-- [Pattern-Oriented Programming](patterns.md) - Jo's powerful pattern system
+- [Pattern-Oriented Programming](../guides/patterns.md) - Jo's powerful pattern system
 - [Context Parameters](../language/definitions/context-parameters.md) - How capabilities work as parameters
 - [Get Started](../usage/getting-started.md) - Install Jo and run your first program
