@@ -126,7 +126,7 @@ Full installation instructions and a getting-started guide are at **[jo-lang.org
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Bug reports, language design discussions, and pull requests are welcome.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions, contribution guidelines, and the DCO sign-off requirement. Bug reports, language design discussions, and pull requests are welcome.
 
 Security issues should be reported privately — see [SECURITY.md](SECURITY.md).
 

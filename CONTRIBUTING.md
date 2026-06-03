@@ -4,6 +4,32 @@ Jo is an early-stage language project for secure programming. Contributions are
 welcome, but the core language design, security model, runtime behavior, and
 standard library APIs are still stabilizing.
 
+## Building from Source
+
+**Prerequisites:** Java 17, [Scala CLI](https://scala-cli.virtuslab.org/), Node.js 24 (for JavaScript backend tests), Ruby and Python (for backend tests).
+
+```bash
+# Build the compiler (JVM launcher)
+./build
+
+# Build with native executable (slower build, faster startup)
+./build --native
+
+# Run the full test suite
+./ci
+```
+
+During development, use the per-phase scripts instead of rebuilding the whole project:
+
+```bash
+bin/parse <file.jo>   # parse only
+bin/type  <file.jo>   # type check
+bin/run   <file.jo>   # interpret
+bin/jsc   <file.jo>   # compile to JavaScript
+bin/rbc   <file.jo>   # compile to Ruby
+bin/pyc   <file.jo>   # compile to Python
+```
+
 ## What to Contribute
 
 Good first contributions include:
