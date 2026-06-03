@@ -28,7 +28,7 @@ Jo enforces capability boundaries at the type level, before the program runs. A 
 
 ### Static capability control
 
-```jo
+```scala
 def foo() = println "foo"                     // inferred capability: stdout
 def bar() = foo()                              // inferred capability: stdout
 
@@ -59,7 +59,7 @@ The following is the trace that leads to the problem:
 
 Named, reusable pattern predicates compose with logical operators:
 
-```jo
+```scala
 pattern Positive: Partial[Int] = case x if x > 0
 
 match list
@@ -80,7 +80,7 @@ if message is `(?s)<code>(?<prog>.*)</code>` then
 
 The two-world architecture separates confined code (no FFI, checked against capability interfaces only) from trusted code (FFI allowed, implements and provides capabilities):
 
-```jo
+```scala
 //--- Interface library (confined, no FFI) ---
 param ordersApi: OrdersApi
 defer def aiMain(): Unit receives ordersApi, IO.stdout
