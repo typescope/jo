@@ -1,251 +1,314 @@
 # Language Tour
 
-Welcome to Jo! This tour introduces Jo's key language features through examples.
+A quick tour of Jo's syntax and key features. Each section is self-contained — skip ahead or follow along in order.
+
 
 ## Hello World
 
+Every Jo program starts with `main`. The `def` keyword defines a function; `println` writes a line to stdout.
+
 ```jo
-def main = println "Hello world!"
-// Output: Hello world!
+def main = println "Hello, Jo!"
 ```
 
-Every Jo program starts simple. The `def` keyword defines functions, and `println` outputs text.
+Output:
 
-## Basic Types
-
-Jo's primitive types are `Int`, `Float`, `Bool`, `Char`, and `String`:
-
-```jo
-42          // Int
-3.14        // Float
-true        // Bool
-'a'         // Char
-"hello"     // String
+```
+Hello, Jo!
 ```
 
-Variables are declared with `val` (immutable) or `var` (mutable):
+## Variable
+
+`val` declares an immutable binding. `var` declares a mutable one. Types are inferred when not annotated.
 
 ```jo
-val x = 42              // type inferred
-val name: String = "Jo" // with annotation
+val x = 42              // Int, inferred
+val name: String = "Jo" // explicit annotation
 var count = 0           // mutable
 count = count + 1
+println count           // 1
 ```
 
-## Function and Lambda
+See [Value Definitions](../language/definitions/value-definitions.md).
 
-Functions are defined with `def`. Return types are inferred when omitted:
+## Function
+
+Function is defined with `def`. Return types are inferred when omitted. Generic type variant functions use `[T]` type annotation.
 
 ```jo
-def greet(name: String): String = "Hello, " + name
+def add(x: Int, y: Int): Int = x + y
 
-def add(x: Int, y: Int) = x + y   // return type inferred
+def greet(name: String) = "Hello, " + name  // return type inferred
 
-def identity[T](x: T): T = x      // generic function
+def identity[T](x: T): T = x               // generic
 ```
 
-Parameters can have default values and can be passed by name at the call site:
+Jo supports several call styles for the same function:
 
 ```jo
-def connect(host: String, port: Int = 8080, secure: Bool = false): Connection = ...
+def connect(host: String, port: Int = 8080, secure: Bool = false) = ...
 
-connect("localhost")                               // use defaults
-connect("example.com", port = 443, secure = true) // named arguments
-connect("example.com", 443, true)                 // positional
-```
-
-Lambdas use `=>` syntax:
-
-```jo
-val double: Int => Int = x => x * 2
-val multiply = (x: Int, y: Int) => x * y
-```
-
-Custom operators are defined like functions and used infix:
-
-```jo
-def (a: Int) ** (b: Int): Int =
-  if b == 0 then 1 else a * (a ** (b - 1))
-
-2 ** 10   // => 1024
-```
-
-## Flexible Call Syntax
-
-Jo supports multiple call styles for the same function:
-
-```jo
-connect("example.com", 443, true)                  // parenthesized
-connect "example.com" 443 true                     // space-separated
-connect: "example.com", port = 443, secure = true  // colon call, inline
+connect("localhost", 443, true)                    // positional
+connect("localhost", port = 443, secure = true)    // named arguments
+connect "localhost" 443 true                       // space-separated
 connect:                                           // colon call, indented
-  "example.com"
+  "localhost"
   port = 443
   secure = true
 ```
 
-## Class and Interface
+See [Function Definitions](../language/definitions/function-definitions.md) and [Applications](../language/expressions/applications.md).
 
-Classes can have constructor parameters or an explicit body:
+## Lambda
 
-```jo
-class Point(x: Int, y: Int)   // constructor parameters
-
-class Counter                  // explicit body
-  var count: Int = 0
-  def increment(): Unit = count = count + 1
-  def value: Int = count
-end
-```
-
-Interfaces define a contract; classes implement it via `view`:
+Lambdas are anonymous functions that can be assigned to values or passed as arguments.
 
 ```jo
-interface Printable
-  def print(): Unit
-end
+val double: Int => Int = x => x * 2
+val add = (a: Int, b: Int) => a + b
+val greet = () => "Hello!"
 
-class NamedPoint(x: Int, y: Int, name: String)
-  def print(): Unit = println "\{name}: (\{x}, \{y})"
-  view Printable
-end
+[1, 2, 3].map(x => x * 2)          // [2, 4, 6]
 ```
 
-A `view` can also delegate to a field:
+Lambdas automatically adapt to single-method interfaces (SAM):
 
 ```jo
-class Service(logger: Logger)
-  view Logger = logger   // all Logger methods delegated to field
+interface Predicate[T]
+  def test(x: T): Bool
 end
+
+val isEven: Predicate[Int] = x => x % 2 == 0
+isEven.test(4)   // true
 ```
 
-## Data Structs
+See [Lambdas](../language/expressions/lambdas.md).
 
-Jo has built-in list, map, and set literals:
+## Regular Expression
+
+Regex literals use backtick syntax. Methods for matching, splitting, and replacing are available via `import jo.regex.*`.
+
+```jo
+import jo.regex.*
+
+"abc123".exists(`\d+`)                         // true
+"a  b   c".splitBy(`\s+`)                      // ["a", "b", "c"]
+"a1b22".replaceAll(`\d+`, _ => "N")            // "aNbN"
+
+if "abc-42" is `(?<w>\w+)-(?<n>\d+)` then
+  println w       // abc
+  println n       // 42
+```
+
+Regex literals can also be used directly in `match` and `is` patterns:
+
+```jo
+match input
+  case `^\d+$` => "all digits"
+  case `^\w+$` => "word"
+  case _       => "other"
+```
+
+See [Regular Expressions](../language/expressions/regular-expressions.md) and [Regex Patterns](../language/patterns/regex-patterns.md).
+
+## Control Flow
+
+```jo
+// if else as expression
+val label = if score >= 60 then "pass" else "fail"
+
+// while loop
+var i = 0
+while i < 10 do
+  i = i + 1
+  if i % 2 == 0 then continue   // skip even numbers
+  if i > 7 then break            // stop early
+  println i                      // prints 1, 3, 5, 7
+
+// for loop over a list
+for x in [1, 2, 3, 4, 5] do
+  if x == 2 then continue        // skip 2
+  if x == 5 then break           // stop before 5
+  println x                      // prints 1, 3, 4
+
+// rescue handles the error branch of Option or Result inline
+val port: Option[Int] = None
+val p = port rescue None => 8080           // fallback value
+
+def parse(s: String): Result[Int, String] =
+  if s == "" then Err("empty") else Ok(42)
+
+def doubled(s: String): Result[Int, String] =
+  val n = parse(s) rescue Err(e) => return Err(e)  // propagate on error
+  Ok(n * 2)
+```
+
+See [Control Flow](../language/expressions/control-flow.md) and [Rescue Expression](../language/expressions/rescue-expression.md).
+
+## Collection
+
+Jo has built-in immutable list, map, and set. Mutable ones are grouped under `mutable` namespace. Lists support splicing with `..`.
 
 ```jo
 val nums = [1, 2, 3]
-val extended = [0, ..nums, 4]           // splicing
+val more = [0, ..nums, 4]               // [0, 1, 2, 3, 4]
 
 val scores = Map("alice" ~ 95, "bob" ~ 87)
-val ids = Set(1, 2, 3)
+val tags   = Set("fast", "safe")
+
+val m: mutable.Map[String, Int] = mutable.Map() // Empty mutable map
+m["x"] = 10
 ```
 
-Algebraic data types are defined with `union`:
+## Union Type
+
+`union` defines a type with multiple variants. Each variant can carry data.
 
 ```jo
+union Direction = North | South | East | West
+
 union Shape =
     Circle(radius: Float)
   | Rectangle(w: Float, h: Float)
+  | Dot
+```
 
+The standard `Option` type is defined the same way:
+
+```jo
+union Option[T] = Some(value: T) | None
+```
+
+See [Union Definitions](../language/definitions/union-definition.md).
+
+## Pattern Matching
+
+`match` dispatches on a union type. The compiler rejects non-exhaustive matches — every variant must be handled.
+
+```jo
 def area(shape: Shape): Float =
   match shape
-    case Circle r => 3.14 * r * r
+    case Circle r      => 3.14 * r * r
     case Rectangle w h => w * h
+    case Dot           => 0.0
 ```
 
-## Extension
-
-Extensions add methods to existing types without modifying them:
+The `is` expression tests a pattern inline and binds variables into scope:
 
 ```jo
-extension ListOps[T] for List[T]
-  def isEmpty: Bool = xs is []
-  def first: T = match xs case [x, .._] => x
-end
+val x: Option[Int] = Some(42)
 
-val nums = [1, 2, 3]
-nums.isEmpty   // false
-nums.first     // 1
-```
-
-Extensions are opt-in — they only apply where imported, keeping the type system predictable.
-
-## Patterns
-
-Jo supports named, reusable pattern predicates that can be composed with logical operators:
-
-```jo
-pattern Positive: Partial[Int] = case x if x > 0
-pattern Even: Partial[Int] = case x if x % 2 == 0
-
-match n
-  case Positive & Even => "positive even"
-  case Positive        => "positive odd"
-  case _               => "non-positive"
-```
-
-The `is` expression tests a pattern inline and binds variables into the surrounding scope:
-
-```jo
-if x is Some(value) then println value
+if x is Some(n) then
+  println n              // n is bound here
 
 while list is [head, ..tail] do
   println head
   list = tail
 ```
 
-Pattern matching on union types is exhaustive — the compiler rejects non-exhaustive matches:
+See [Pattern Forms](../language/patterns/pattern-forms.md).
+
+## Class
+
+Classes can have class parameters (data class) or an explicit contructor method. Jo automatically generates a contructor function for data class with the fields defined by parameters.
 
 ```jo
-union Expr =
-    Abs(x: String, body: Expr)
-  | Var(x: String)
-  | App(lhs: Expr, arg: Expr)
+class Point(x: Int, y: Int)             // data class
 
-def show(expr: Expr): String =
-  match expr
-    case Var x => x
-    case Abs x t => "(\\" + x + "." + (show t) + ")"
-    case App abs arg => (show abs) + " " + (show arg)
+class Counter                            // explicit contructor
+  var count: Int = 0
+  def Counter(v: Int): Counter =
+    this.count = v 
+    this
+  def increment(): Unit = count = count + 1
+  def value: Int = count
+end
+
+val p = new Point(3, 4)
+val c = new Counter
+c.increment()
+println c.value                          // 1
 ```
 
-See [Pattern-Oriented Programming](../guides/patterns.md) for sequence patterns, guarded repeats, and extracting patterns.
+See [Class Definitions](../language/definitions/class-definitions.md).
 
-## Context Parameters
+## Interface and View
 
-Context parameters are implicit values threaded through the call stack without being passed explicitly at every call site:
+`interface` defines a contract. A class conforms to it by declaring `view`. The compiler checks conformance at compile time.
 
 ```jo
-param indent: Int = 0 // (1)!
+interface Describable
+  def describe(): String
+end
 
-def printLine(text: String): Unit =
-  println " " * indent + text // (2)!
+class Point(x: Int, y: Int)
+  def describe(): String = "(\{x}, \{y})"
+  view Describable
+end
 
-def printSection(title: String, items: List[String]): Unit =
-  printLine title
-  for item in items do
-    with indent = indent + 2 in printLine item // (3)!
+def print(d: Describable): Unit = println d.describe()
+
+print (new Point(3, 4))                  // (3, 4)
 ```
 
-1. `param` declares a context parameter with a default value
-2. Context parameters are accessed directly by name — no threading required
-3. `with` overrides the context parameter for a specific call; inner calls inherit the new value automatically
-
-## Static Capability Control
-
-`receives` declares which capabilities a function requires. The compiler tracks this statically — a function cannot use a capability it hasn't declared:
+A `view` can also delegate to a field — all interface methods are forwarded automatically:
 
 ```jo
-def readFile(path: String): String receives os = // (1)!
-  val file = os.open(path) // (2)!
-  val content = file.readLine
-  file.close
-  content
-
-def processData(text: String): String receives none = // (3)!
-  parseAndValidate(text)
+class Service(logger: Logger)
+  view Logger = logger    // Logger methods forwarded to the logger field
+end
 ```
 
-1. `receives os` declares that this function requires the `os` capability
-2. `os` is the filesystem capability — only functions that declare it can call `os.open`
-3. `receives none` proves the function is pure — the compiler verifies no capabilities are used
+See [Interface Definitions](../language/definitions/interface-definitions.md).
 
-Capabilities are granted at the call site with `allow`:
+## Context Parameter
+
+`param` declares a context parameter — a value threaded implicitly through the call stack without explicit argument passing. `with ... in` overrides it for a scoped block.
 
 ```jo
-allow os in readFile("config.txt")   // grant the os capability
-allow none in processData("hello")   // verify the call is pure
+param indent: Int = 0
+
+def line(text: String): Unit =
+  println " " * indent + text
+
+def section(title: String, items: List[String]): Unit =
+  line title
+  with indent = indent + 2 in
+    for item in items do line item
+
+def main =
+  section("Colors", ["red", "green", "blue"])
+```
+
+Output:
+
+```
+Colors
+  red
+  green
+  blue
+```
+
+See [Context Parameters](../language/definitions/context-parameters.md).
+
+## Capability
+
+`receives` declares what capabilities a function requires. `receives none` means the function is provably pure — the compiler verifies the entire call chain. `allow` enforces the boundary at a specific call site.
+
+```jo
+// Pure: the compiler rejects any IO or side effect inside
+def double(x: Int): Int receives none = x * 2
+
+// Needs stdout — nothing else
+def greet(name: String): Unit receives IO.stdout =
+  println "Hello, \{name}!"
+
+def main receives IO.stdout =
+  greet("world")
+
+  // allow none verifies at the call site that double uses no capabilities
+  val result = allow none in double(21)
+  println result                         // 42
 ```
 
 ## What's Next?

@@ -56,7 +56,7 @@ features:
   - icon:
       src: /icons/layers.svg
     title: Multiple Backends
-    details: One language, mutltiple runtimes. Compile to Python, JavaScript, or Ruby with the same type guarantees on every platform.
+    details: One language, multiple runtimes. Compile to Python, JavaScript, or Ruby with the same type guarantees on every platform.
     link: /usage/getting-started
     linkText: Get started
 ---
