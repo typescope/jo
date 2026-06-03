@@ -49,7 +49,7 @@ export default defineConfig({
           ]
         },
         {
-          text: 'Guidelines',
+          text: 'Guides',
           items: [
             { text: 'Algebraic Data Types', link: '/guides/adt' },
             { text: 'Pattern-Oriented Programming', link: '/guides/patterns' },
@@ -59,9 +59,14 @@ export default defineConfig({
             { text: 'Regular Expressions', link: '/guides/regular-expression' },
             { text: 'Context Parameters', link: '/guides/context-parameters' },
             { text: 'Deferred Functions', link: '/guides/deferred-functions' },
-            { text: 'Python Interoperability', link: '/guides/python-interoperability' },
-            { text: 'Ruby Interoperability', link: '/guides/ruby-interoperability' },
-            { text: 'JavaScript Interoperability', link: '/guides/javascript-interoperability' },
+          ]
+        },
+        {
+          text: 'Interoperability',
+          items: [
+            { text: 'Python', link: '/guides/python-interoperability' },
+            { text: 'Ruby', link: '/guides/ruby-interoperability' },
+            { text: 'JavaScript', link: '/guides/javascript-interoperability' },
           ]
         }
       ],
