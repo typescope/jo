@@ -1,6 +1,6 @@
 ---
 title: Introducing Jo — Secure Programming for the AI Era
-date: 2026-06-03
+date: 2026-06-04
 author: The Jo Team
 description: Jo is a statically typed language for fine-grained capability-based programming. It is designed to make authority confinement practical, auditable, and pleasant to use.
 ---

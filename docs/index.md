@@ -63,7 +63,7 @@ features:
 
 ## From the blog
 
-- [Introducing Jo — Secure Programming for the AI Era](/blog/2026-05-23-introducing-jo) · May 2026
+- [Introducing Jo — Secure Programming for the AI Era](/blog/2026-06-04-introducing-jo) · June 2026
 
 ---
 
