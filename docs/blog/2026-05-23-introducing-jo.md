@@ -2,7 +2,7 @@
 title: Introducing Jo — Secure Programming for the AI Era
 date: 2026-05-23
 author: The Jo Team
-description: Jo is a statically typed language for fine-grained capability-oriented programming. It is designed to make authority confinement practical, auditable, and pleasant to use.
+description: Jo is a statically typed language for fine-grained capability-based programming. It is designed to make authority confinement practical, auditable, and pleasant to use.
 ---
 
 # Introducing Jo — Secure Programming for the AI Era
@@ -38,17 +38,17 @@ You end up relying on containers, permissions, code review, convention, or
 runtime isolation.
 
 Jo takes a different route: authority is represented by explicit capabilities,
-and those capabilities can be as narrow as the application requires. The
+and those capabilities can be as narrowly scoped as the application requires. The
 compiler tracks which capabilities code may use, so confinement is expressed in
 interfaces and types rather than hidden in runtime configuration.
 
-## Capability-Oriented Programming
+## Capability-Based Programming
 
 In Jo, capabilities are ordinary parameters. They can be passed, refined,
 substituted, and restricted. A function that has not received a capability
 cannot use it.
 
-Here is the basic shape:
+Here is an example:
 
 ```jo
 def foo() = println "foo"                     // inferred capability: stdout
@@ -62,8 +62,7 @@ def main =
   with IO.stdout = s => pass in qux()         // redirect output
 ```
 
-The important part is not the syntax. The important part is the guarantee: the
-compiler checks capability flow through the call graph. If a function needs
+The compiler checks capability flow through the call graph. If a function needs
 `IO.stdout`, that requirement is visible and controllable. If a call site says
 `allow none`, then no hidden authority can slip through.
 
@@ -72,7 +71,7 @@ ambient globals.
 
 ## Why This Matters for AI-Generated Code
 
-AI-generated code makes the authority problem sharper. If an agent writes a
+AI-generated code makes the authority problem makes the problem even challenging. If an agent writes a
 function for your application, you may want it to analyze data and produce a
 summary, but not access the filesystem, call arbitrary HTTP endpoints, inspect
 environment variables, or query other users' records.
