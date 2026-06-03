@@ -44,6 +44,7 @@ Fix #XXX: A short description
 - tools
   - [ ] emacs
   - [ ] vscode
+  - [ ] vim
   - [ ] js code highlight
 - documentation
   - [ ] design doc
