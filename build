@@ -119,7 +119,6 @@ if [ "$BUILD_RELEASE" = true ]; then
   cp bin/jo.jar "$RELEASE_DIR/"
   cp -r libs "$RELEASE_DIR/"
   cp -r assets "$RELEASE_DIR/"
-  cp -r tools "$RELEASE_DIR/"
   cp LICENSE "$RELEASE_DIR/"
 
   echo "Creating ${RELEASE_TARBALL}..."
