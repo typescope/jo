@@ -1,6 +1,6 @@
 ---
 title: Introducing Jo — Secure Programming for the AI Era
-date: 2026-05-23
+date: 2026-06-03
 author: The Jo Team
 description: Jo is a statically typed language for fine-grained capability-based programming. It is designed to make authority confinement practical, auditable, and pleasant to use.
 ---
@@ -76,7 +76,7 @@ function for your application, you may want it to analyze data and produce a
 summary, but not access the filesystem, call arbitrary HTTP endpoints, inspect
 environment variables, or query other users' records.
 
-Jo's approach is to give that code only the capabilities it should have:
+Jo's approach is to grant only the capabilities the code should have:
 
 ```jo
 // API library: compiled without FFI support
@@ -98,8 +98,7 @@ does not receive raw database access. It does not receive network access. It
 does not receive filesystem access. The type checker enforces that boundary
 before the program runs.
 
-This is the core idea behind Jo: make authority confinement a programming model,
-not an after-the-fact deployment trick.
+This is the core idea behind Jo: make authority confinement a programming model.
 
 For a concrete example, see the [data-query agent
 demo](https://github.com/typescope/jo/tree/main/demos/data-query-agent), which
@@ -149,9 +148,6 @@ receives is visible at the API boundary rather than scattered through
 implementation details or deployment configuration. This makes security auditing
 simpler: reviewers can inspect what capabilities are granted, where they flow,
 and where they are deliberately restricted.
-
-The goal is not to make secure programming feel like a separate discipline. The
-goal is to make it part of normal programming.
 
 ## Formal Foundations
 
