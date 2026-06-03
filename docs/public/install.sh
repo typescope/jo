@@ -4,7 +4,7 @@
 
 set -eu
 
-REPO="typescope/jo"
+REPO="${JO_REPO:-typescope/jo}"
 INSTALL_BASE="${JO_HOME:-$HOME/.jo}"
 ACTIVE_BIN="${JO_INSTALL_BIN:-$HOME/.local/bin/jo}"
 
