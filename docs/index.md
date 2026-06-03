@@ -61,4 +61,10 @@ features:
     linkText: Get started
 ---
 
+## From the blog
+
+- [Introducing Jo — Secure Programming for the AI Era](/blog/2026-05-23-introducing-jo) · May 2026
+
+---
+
 Jo is developed and maintained by [TypeScope](https://typescope.ai).
