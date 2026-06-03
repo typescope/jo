@@ -48,9 +48,12 @@ Jo supports several call styles for the same function:
 ```jo
 def connect(host: String, port: Int = 8080, secure: Bool = false) = ...
 
-connect("localhost", 443, true)                    // positional
+connect("localhost", 443, secure = true)           // positional
 connect("localhost", port = 443, secure = true)    // named arguments
-connect "localhost" 443 true                       // space-separated
+
+connect "localhost" 443 true                       // expression call
+
+connect: "localhost", 443, secure = true           // colon call, inlined
 connect:                                           // colon call, indented
   "localhost"
   port = 443
@@ -218,7 +221,7 @@ class Point(x: Int, y: Int)             // data class
 class Counter                            // explicit contructor
   var count: Int = 0
   def Counter(v: Int): Counter =
-    this.count = v 
+    this.count = v
     this
   def increment(): Unit = count = count + 1
   def value: Int = count
