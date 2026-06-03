@@ -1,59 +1,6 @@
-# Jo's Solution
+# Language Design
 
-Jo addresses the three challenges identified in [The AI Security Problem](security-problem.md): removing ambient authorities without sacrificing usability, representing and encapsulating security context, and attenuating authorities across trust boundaries.
-
-## Overview: Confining AI-Generated Code
-
-The following example demonstrates Jo's complete security architecture:
-
-```jo
-//------------------ Interface library ---------------------------
-class Order(...)
-
-interface OrdersApi                        // (1)
-  def query(lastDays: Int): List[Order]
-end
-
-param ordersApi: OrdersApi
-
-//------------------ Framework library -----------------------
-defer def aiMain(): Unit receives ordersApi, IO.stdout  // (2)
-
-class UserScopedOrders(userId: Int, db: Database)    // (3)
-  def query(lastDays: Int): List[Order] =
-    db.query("SELECT * FROM orders WHERE user_id = ? AND date > CURRENT_DATE - ?", userId, lastDays)
-
-  view OrdersApi
-end
-
-def frameworkMain() =
-  val db = connect("orders.db")
-  val userId = currentUser()
-  val restricted = new UserScopedOrders(userId, db)  // (4)
-
-  // Capture AI code output
-  val output: mutable.List[String] = []
-  val buffer = (s: String) => output += s
-
-  allow none in // (5)
-    with ordersApi = restricted, IO.stdout = buffer in aiMain()
-
-  // ...
-
-//------------------ AI-generated code ---------------------
-def aiMain(): Unit receives ordersApi, IO.stdout =   // (6)
-  val data = ordersApi.query(30)
-  summarize(data)
-```
-
-1. The only capability interface available to AI code. The interface library is compiled without FFI support.
-2. The signature that AI-generated code must conform to.
-3. Trusted implementation captures `userId` — untrusted code cannot access it.
-4. Capability attenuated: full DB access → user-scoped, read-only.
-5. `allow none` proves at compile time: AI code cannot access network, filesystem, or other data.
-6. AI-generated code is verified against the interface library, then linked with the framework library.
-
-The AI code cannot access the network, filesystem, or other users' data — the compiler enforces this statically. After type checking, no runtime sandboxing is needed.
+This page describes the language facilities that make secure programming practical in Jo. Each section addresses one of the three challenges from [The Security Problem](security-problem.md).
 
 ## Eliminating Ambient Authorities
 
@@ -62,6 +9,7 @@ Jo removes all ambient authorities from the language:
 - **No global variables** — all state is explicitly passed
 - **No FFI in untrusted code** — foreign function interface is restricted to trusted code
 - **No reflection** — runtime introspection cannot bypass the type system
+- **No control flow effects** — no exceptions, no `setjmp`/`longjmp`, no non-local jumps that could be used as covert channels
 
 In Jo, the Python attack from the problem statement is impossible:
 
@@ -91,7 +39,7 @@ def handleRequest(req: Request): Response =
 
 Context parameters provide the ergonomics of global variables without sacrificing security principles. The compiler infers capability requirements, so developers rarely write explicit `receives` clauses.
 
-**Unlike ambient authorities, capabilities are always statically tracked and controllable:**
+Unlike ambient authorities, capabilities are always statically tracked and controllable — every function declares what it needs, and callers can further restrict what is permitted:
 
 ```jo
 // Explicit specification — declare exactly what a function may use
@@ -110,7 +58,7 @@ The `receives` clause specifies required capabilities; the `allow` clause at the
 
 ## Security Context
 
-Jo addresses both dimensions of the security context problem identified earlier.
+Jo addresses both dimensions of the security context problem from [The Security Problem](security-problem.md).
 
 **Representation** — The security context (current user) is captured in a capability object:
 
@@ -157,6 +105,7 @@ def frameworkMain() =
   // Attenuate: full DB → user-scoped, read-only
   val restricted = new UserScopedOrders(userId, db)
 
+  val output: mutable.List[String] = []
   val buffer = (s: String) => output += s
   allow none in
     with ordersApi = restricted, IO.stdout = buffer in aiMain()
@@ -169,33 +118,23 @@ The attenuation chain:
 
 The `allow none` clause proves at compile time that `aiMain()` uses no capabilities beyond `ordersApi` and `IO.stdout`. Any attempt to access filesystem, network, or other users' data is a compile-time error.
 
-## Two-World Architecture
+**Views as attenuation.** Attenuation also works through Jo's view mechanism. A class that satisfies multiple interfaces can be passed under just one of them, restricting the recipient to that interface's methods:
 
-Jo enforces a strict separation between **confined code** (no FFI, type-checked against confined libraries only) and **trusted code** (FFI allowed, provides capabilities). This separation is what makes the compile-time guarantees possible.
+```jo
+class AdminService
+  def readOrders(userId: Int): List[Order] = ...
+  def deleteOrder(id: Int): Unit = ...
+  view OrdersApi    // read-only view
+  view AdminApi     // full admin access
+end
 
-See [Two-World Architecture](two-worlds.md) for the full explanation, build steps, and diagrams.
-## Assurance
+val admin = new AdminService()
 
-The security guarantees depend on Jo's type system. We intentionally keep the type system nominal and simple — avoiding complex features like structural subtyping and complex type inference that have been sources of soundness bugs in other languages. The type system is intentionally kept small enough to reason about formally — complex features like structural subtyping and deep type inference are excluded precisely because they have been sources of soundness bugs in other systems.
+// Passing as OrdersApi attenuates to read-only — deleteOrder is not accessible
+runAgent(admin as OrdersApi)
+```
 
-## Threat Mitigation
+## See Also
 
-Jo provides the following compile-time guarantees for untrusted code:
-
-1. **No unauthorized I/O** — All side effects require explicit capabilities
-2. **No capability amplification** — Attenuated capabilities cannot recover broader access
-3. **No covert channels via language features** — No reflection, no ambient state
-
-These guarantees hold without runtime sandboxing. The type system enforces the security boundary.
-
-Returning to the threat model:
-
-| Attacker Goal | Jo's Mitigation |
-|---------------|-----------------|
-| Access other users' data | Capabilities are user-scoped |
-| Escalate privileges | `allow none` proves no undeclared capabilities used |
-| Exfiltrate data | No network access without explicit capability |
-
-## What's Next?
-
-- [Security Demos](../security/examples/index.md) — Hands-on examples demonstrating Jo's security features
+- [Two-World Architecture](two-worlds.md) — How the confined/trusted separation enforces these guarantees
+- [Security Examples](examples/index.md) — Hands-on examples

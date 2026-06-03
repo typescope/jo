@@ -70,4 +70,4 @@ fine-grained authorities from coarse ones, with a guarantee that the coarse auth
 cannot be recovered through the derived one. Languages with reflection or object
 inspection (Java, JavaScript) defeat this guarantee.
 
-For Jo's solution to all three challenges, see [Jo's Solution](solution.md).
+See [Two-World Architecture](two-worlds.md) for the structural mechanism that makes the guarantees possible, and [Language Design](language-design.md) for the language facilities that address each challenge.

@@ -72,8 +72,8 @@ export default defineConfig({
           text: 'AI Security',
           items: [
             { text: 'The Security Problem', link: '/security/security-problem' },
-            { text: "Jo's Solution", link: '/security/solution' },
             { text: 'Two-World Architecture', link: '/security/two-worlds' },
+            { text: 'Language Design', link: '/security/language-design' },
           ]
         },
         {
@@ -92,8 +92,8 @@ export default defineConfig({
           text: 'AI Security',
           items: [
             { text: 'The Security Problem', link: '/security/security-problem' },
-            { text: "Jo's Solution", link: '/security/solution' },
             { text: 'Two-World Architecture', link: '/security/two-worlds' },
+            { text: 'Language Design', link: '/security/language-design' },
           ]
         },
         {

@@ -7,6 +7,8 @@ capability objects that cross the boundary.
 
 ## Structure
 
+The confined world contains the libraries AI code can depend on — no FFI, no system access. The trusted world contains platform code with full FFI access. Capabilities cross the boundary at link time, flowing from trusted to confined.
+
 <svg viewBox="0 0 780 370" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;font-family:system-ui,sans-serif">
   <defs>
     <marker id="arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
@@ -78,7 +80,13 @@ capability objects that cross the boundary.
 The `--link` connection is resolved at **link time, after type checking**. There are no
 dynamic imports, no reflection, and no runtime class loading across the boundary.
 
+::: info Transitive closure
+A confined library may only depend on other confined libraries. If `ai_code.jo` tries to import anything that transitively reaches a trusted library, compilation fails with a type error. The boundary extends to every library the AI code uses — adding a new confined library cannot accidentally introduce a trusted dependency.
+:::
+
 ## Information Flow at Runtime
+
+At runtime the harness constructs an attenuated capability, invokes confined code with only what the `defer def` declared, and the user-scoping is applied transparently before any database access:
 
 <svg viewBox="0 0 780 280" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;font-family:system-ui,sans-serif">
   <defs>
@@ -136,44 +144,85 @@ dynamic imports, no reflection, and no runtime class loading across the boundary
   <text x="260" y="239" text-anchor="middle" font-size="10" fill="#888">List[Order] (this user's rows only)</text>
 </svg>
 
-## The Transitive Closure Property
+## Linking Mechanism
 
-A confined library may only depend on other confined libraries. This is enforced at
-compile time: if `ai_code.jo` tries to import anything that transitively reaches a
-trusted library, compilation fails with a type error.
+`defer def` and `--link` work together to cross the boundary at compile time.
 
-This means the boundary is not just between the AI code and the framework — it extends
-to every library the AI code uses. Adding a new confined library cannot accidentally
-introduce a trusted dependency.
-
-## The `defer def` Contract
-
-The `defer def` declaration is the precise contract across the boundary:
+**`defer def` — the contract (in the interface library, confined):**
 
 ```jo
-// In the API library (confined)
 defer def aiMain(): Unit receives ordersApi, IO.stdout
 ```
 
-This declares:
-- **What** untrusted code must implement (`aiMain`)
-- **Which capabilities** the implementation may use (`ordersApi`, `IO.stdout`)
-- **Nothing else** — the implementation cannot declare additional `receives`
+This fixes the contract: what the function is named, what capabilities it may use, and nothing more. AI-generated code cannot declare additional `receives` beyond what the `defer def` permits.
 
-The framework verifies this signature at link time. Any deviation is a compile error.
+**AI-generated code fulfills the contract (also confined):**
 
-## What the Compiler Guarantees
+```jo
+def aiMain(): Unit receives ordersApi, IO.stdout =
+  val data = ordersApi.query(30)
+  summarize(data)
+```
 
-| Property | Mechanism |
-|---|---|
-| Cannot access FFI | Confined compilation mode rejects FFI symbols |
-| Cannot see security context | `userId`, `db` are in the trusted world — not reachable from confined code |
-| Cannot amplify capabilities | No reflection, no downcasting across the boundary |
-| Uses only declared capabilities | `defer def` signature + `allow none` at the call site |
-| Cannot import trusted code | Transitive closure check at compile time |
+**`--link` wires the implementation at compile time (harness build step):**
 
-No runtime sandboxing is required. The guarantees are structural.
+```bash
+bin/jo compile --python harness.jo --lib lib/ \
+  --link Framework.aiMain=MyAI.aiMain \
+  -o app.py
+```
+
+The compiler verifies that the linked function's signature exactly matches the `defer def` declaration — wrong type, wrong capabilities, or missing implementation are all compile errors. There is no runtime wiring, no dynamic dispatch, and no possibility of substituting a different implementation after the build.
+
+## Complete Example
+
+The following brings all three parts together in one listing, annotated to show which world each section belongs to:
+
+```jo
+//------------------ Interface Library (Confined) ---------------------------
+class Order(...)
+
+interface OrdersApi                        // (1)
+  def query(lastDays: Int): List[Order]
+end
+
+param ordersApi: OrdersApi
+
+defer def aiMain(): Unit receives ordersApi, IO.stdout  // (2)
+
+//------------------ Harness (Trusted) --------------------------------------
+class UserScopedOrders(userId: Int, db: Database)    // (3)
+  def query(lastDays: Int): List[Order] =
+    db.query("SELECT * FROM orders WHERE user_id = ? AND date > CURRENT_DATE - ?", userId, lastDays)
+
+  view OrdersApi
+end
+
+def frameworkMain() =
+  val db = connect("orders.db")
+  val userId = currentUser()
+  val restricted = new UserScopedOrders(userId, db)  // (4)
+
+  val output: mutable.List[String] = []
+  val buffer = (s: String) => output += s
+
+  allow none in // (5)
+    with ordersApi = restricted, IO.stdout = buffer in aiMain()
+
+//------------------ AI-Generated Code (Confined) ---------------------------
+def aiMain(): Unit receives ordersApi, IO.stdout =   // (6)
+  val data = ordersApi.query(30)
+  summarize(data)
+```
+
+1. The only capability interface visible to AI code. The interface library is compiled without FFI support.
+2. The `defer def` contract: declares what AI code must implement and which capabilities it may use.
+3. Trusted implementation captures `userId` — untrusted code cannot access or inspect it.
+4. Capability attenuated: full DB access → user-scoped, read-only.
+5. `allow none` proves at compile time that `aiMain()` uses no capabilities beyond `ordersApi` and `IO.stdout`.
+6. AI-generated code is type-checked against the interface library only, then linked with the harness.
 
 ## See Also
 
-- [Jo's Solution](solution.md) — How the two worlds address each security challenge
+- [The Security Problem](security-problem.md) — The three challenges this architecture addresses
+- [Language Design](language-design.md) — The language facilities that operate within this architecture
