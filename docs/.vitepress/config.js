@@ -116,6 +116,7 @@ export default defineConfig({
           items: [
             { text: 'Hello, World!', link: '/usage/getting-started' },
             { text: 'Install', link: '/usage/install' },
+            { text: 'Editor Support', link: '/usage/ide' },
           ]
         },
         {
