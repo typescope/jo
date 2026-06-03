@@ -1603,6 +1603,15 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val item = peekItem()
 
     item.token match
+      case Token.AS =>
+        next()
+        val tpt = simpleType(prevType = null)
+        if tpt == null then
+          error("Expect a type after `as`", item.span.toPos)
+          Some(w)
+        else
+          Some(TypeAscribe(w, tpt)(w.span | tpt.span))
+
       case Token.IS =>
         next()
         val pat = simplePattern(prevPattern = null)

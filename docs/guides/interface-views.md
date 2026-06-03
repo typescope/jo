@@ -80,6 +80,41 @@ execute(t)    // uses Task.run() via Runnable
 logTo(t)      // uses forwarded Logger
 ```
 
+## Authority Attenuation
+
+Views are also a mechanism for **authority attenuation**: passing an object to code that
+should only access a subset of its capabilities. Because `C <: I`, you can upcast a
+value to any interface it views and hand that narrowed reference to code that receives
+only `I` — the recipient cannot reach capabilities not declared in `I`.
+
+```jo
+interface Reader
+  def read(path: String): String
+end
+
+interface Writer
+  def write(path: String, data: String): Unit
+end
+
+class LocalFS
+  def read(path: String): String = ...
+  def write(path: String, data: String): Unit = ...
+  view Reader
+  view Writer
+end
+
+// This function receives only Reader — write() is not accessible inside it
+def generateReport(src: Reader): String =
+  src.read("data.csv")
+
+val fs = new LocalFS()
+generateReport(fs as Reader)   // static type is Reader; write() authority is attenuated away
+```
+
+This is the same principle used by the capability system (`param`/`allow`): give each
+piece of code the narrowest interface it needs, and the type system enforces the
+boundary statically.
+
 ## Constraints
 
 **No duplicate views** — a class cannot declare two views of the same interface; it

@@ -151,6 +151,7 @@ atom = integer
 (* invariant: no need for external delimiters *)
 word = atom
      | atom "is" simple_pattern                    -- is_expr
+     | atom "as" simple_type                       -- type_ascribe
      | SP operator NS atom                         -- prefix_apply
 
 (* delimited words, used between keywords, call arguments, bindings *)
@@ -173,7 +174,6 @@ open_expr  = words NL
               | "match" words {"case" pattern "=>" block} ["end"]
               | "allow" qualid {"," qualid} "in" block
               | "with" qualid "=" expr {"," qualid "=" expr} "in" block
-              | "with" NL qualid "=" open_expr {NL qualid "=" open_expr} "in" block
               | atom "rescue" simple_pattern "=>" block         -- rescue_expr
 
 (* invariant: words end by new line *)

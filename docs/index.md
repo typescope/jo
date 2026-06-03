@@ -1,5 +1,6 @@
 ---
 layout: home
+title: Home
 
 hero:
   name: "Jo"
@@ -49,7 +50,7 @@ features:
       src: /icons/sparkles.svg
     title: Pattern-Oriented Programming
     details: Compose reusable pattern predicates with logical operators. Exhaustive matching — the compiler guarantees no case is missed.
-    link: /overview/patterns
+    link: /guides/patterns
     linkText: Explore patterns
 
   - icon:
@@ -59,3 +60,5 @@ features:
     link: /usage/getting-started
     linkText: Get started
 ---
+
+Jo's capability model is grounded in [λCC](https://github.com/typescope/contextual-capability), a formally verified calculus of contextual capabilities.

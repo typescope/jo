@@ -200,7 +200,7 @@ def show(expr: Expr): String =
     case App abs arg => (show abs) + " " + (show arg)
 ```
 
-See [Pattern-Oriented Programming](patterns.md) for sequence patterns, guarded repeats, and extracting patterns.
+See [Pattern-Oriented Programming](../guides/patterns.md) for sequence patterns, guarded repeats, and extracting patterns.
 
 ## Context Parameters
 
@@ -250,7 +250,7 @@ allow none in processData("hello")   // verify the call is pure
 
 ## What's Next?
 
-- [Capability-Oriented Programming](capabilities.md) - Deep dive into Jo's security model
-- [Pattern-Oriented Programming](patterns.md) - Advanced pattern features
+- [Capability-Based Programming](capabilities.md) - Deep dive into Jo's security model
+- [Pattern-Oriented Programming](../guides/patterns.md) - Advanced pattern features
 - [Cheat Sheet](cheat-sheet.md) - Quick reference for Jo syntax
 - [Get Started](../usage/getting-started.md) - Install Jo and run your first program

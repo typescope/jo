@@ -1,6 +1,6 @@
-# Capability-Oriented Programming
+# Capability-Based Programming
 
-Jo supports capability-oriented programming for designing secure systems.
+Jo supports capability-based programming for designing secure systems.
 Capability-based security is a security model where access to resources and services is controlled by capabilities.
 
 More concretely, Jo follows the [object-capability model][1] where the
@@ -179,10 +179,10 @@ def aiMain(): Unit receives GetOrders, IO.stdout = // (6)!
 
 The AI code cannot access the network, filesystem, or other users' data - the compiler enforces this statically. After type checking, no runtime isolation or sandboxing is needed.
 
-See [AI Security](../security/solution.md) and [Security Demos](../security/examples/index.md) for more examples.
+See [AI Security](../security/language-design.md) and [Security Demos](../security/examples/index.md) for more examples.
 
 ## See Also
 
-- [Pattern-Oriented Programming](patterns.md) - Jo's powerful pattern system
+- [Pattern-Oriented Programming](../guides/patterns.md) - Jo's powerful pattern system
 - [Context Parameters](../language/definitions/context-parameters.md) - How capabilities work as parameters
 - [Get Started](../usage/getting-started.md) - Install Jo and run your first program

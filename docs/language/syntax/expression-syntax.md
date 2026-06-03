@@ -43,7 +43,7 @@ A precedence expression is an expression where all infix operators are **precede
 | ↓ | `&&` |
 | ↓ | `>`, `<`, `>=`, `<=`, `==`, `!=` |
 | ↓ | `+`, `-` |
-| Highest | `*`, `/`, `%`, `<<`, `>>`, `|`, `&`, `^` |
+| Highest | `*`, `/`, `%`, `<<`, `>>`, `\|`, `&`, `^` |
 
 ::: info How many precedence levels is enough
 
@@ -221,4 +221,3 @@ Some (Cons head tail)    // Some takes 1 post-argument
 // Term expression
 map f list    // map takes 2 post-arguments
 ```
-

@@ -41,28 +41,31 @@ export default defineConfig({
         {
           text: 'Overview',
           items: [
-            { text: 'What is Jo?', link: '/overview/index' },
             { text: 'Language Tour', link: '/overview/language-tour' },
-            { text: 'Capability-Oriented Programming', link: '/overview/capabilities' },
-            { text: 'Pattern-Oriented Programming', link: '/overview/patterns' },
-            { text: 'Type-Safe Dependency Injection', link: '/overview/dependency-injection' },
+            { text: 'Capability-Based Programming', link: '/overview/capabilities' },
             { text: 'Cheat Sheet', link: '/overview/cheat-sheet' },
             { text: 'Get Started', link: '/usage/getting-started' },
           ]
         },
         {
-          text: 'Guidelines',
+          text: 'Guides',
           items: [
             { text: 'Algebraic Data Types', link: '/guides/adt' },
+            { text: 'Pattern-Oriented Programming', link: '/guides/patterns' },
             { text: 'String Literals', link: '/guides/string' },
             { text: 'Error Handling', link: '/guides/error-model' },
             { text: 'Classes and Views', link: '/guides/interface-views' },
             { text: 'Regular Expressions', link: '/guides/regular-expression' },
             { text: 'Context Parameters', link: '/guides/context-parameters' },
             { text: 'Deferred Functions', link: '/guides/deferred-functions' },
-            { text: 'Python Interoperability', link: '/guides/python-interoperability' },
-            { text: 'Ruby Interoperability', link: '/guides/ruby-interoperability' },
-            { text: 'JavaScript Interoperability', link: '/guides/javascript-interoperability' },
+          ]
+        },
+        {
+          text: 'Interoperability',
+          items: [
+            { text: 'Python', link: '/guides/python-interoperability' },
+            { text: 'Ruby', link: '/guides/ruby-interoperability' },
+            { text: 'JavaScript', link: '/guides/javascript-interoperability' },
           ]
         }
       ],
@@ -72,9 +75,8 @@ export default defineConfig({
           text: 'AI Security',
           items: [
             { text: 'The Security Problem', link: '/security/security-problem' },
-            { text: "Jo's Solution", link: '/security/solution' },
-            { text: 'Comparison', link: '/security/comparison' },
-            { text: 'Technical Questions', link: '/security/technical-questions' },
+            { text: 'Two-World Architecture', link: '/security/two-worlds' },
+            { text: 'Language Design', link: '/security/language-design' },
           ]
         },
         {
@@ -93,9 +95,8 @@ export default defineConfig({
           text: 'AI Security',
           items: [
             { text: 'The Security Problem', link: '/security/security-problem' },
-            { text: "Jo's Solution", link: '/security/solution' },
-            { text: 'Comparison', link: '/security/comparison' },
-            { text: 'Technical Questions', link: '/security/technical-questions' },
+            { text: 'Two-World Architecture', link: '/security/two-worlds' },
+            { text: 'Language Design', link: '/security/language-design' },
           ]
         },
         {
@@ -263,7 +264,7 @@ export default defineConfig({
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/liufengyun/jo' }
+      { icon: 'github', link: 'https://github.com/typescope/jo' }
     ],
 
     search: {

