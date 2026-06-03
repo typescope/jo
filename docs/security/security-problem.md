@@ -1,6 +1,6 @@
 # The AI Security Problem
 
-Large-language models can generate code to automate tasks with remarkable capability.
+Large-language models can generate code to automate tasks with unconstrained capability.
 But cloud platforms cannot fully embrace this power: through _prompt injection_, a
 malicious user can trick the LLM into generating code that exceeds the user's authorized
 permissions — exfiltrating other users' data, escalating privileges, or calling out to

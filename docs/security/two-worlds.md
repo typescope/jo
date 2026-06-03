@@ -7,7 +7,7 @@ capability objects that cross the boundary.
 
 ## Structure
 
-The confined world contains the libraries AI code can depend on — no FFI, no system access. The trusted world contains platform code with full FFI access. Capabilities cross the boundary at link time, flowing from trusted to confined.
+The confined world contains the libraries that AI code can depend on — no FFI, no system access. The trusted world contains platform code with full FFI access. Capabilities cross the boundary at link time, flowing from the trusted to the confined world.
 
 <svg viewBox="0 0 780 370" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;font-family:system-ui,sans-serif">
   <defs>

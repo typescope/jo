@@ -11,17 +11,6 @@ Jo removes all ambient authorities from the language:
 - **No reflection** — runtime introspection cannot bypass the type system
 - **No control flow effects** — no exceptions, no `setjmp`/`longjmp`, no non-local jumps that could be used as covert channels
 
-In Jo, the Python attack from the problem statement is impossible:
-
-```jo
-// This is ALL the untrusted code can do — no os, no network, no filesystem
-def summarize(content: String): String receives none =
-  // Pure computation only
-  extractKeyPoints(content)
-```
-
-The `receives none` clause is compiler-verified: the function cannot access any capability.
-
 ## Usability Without Compromise
 
 Jo solves the usability problem through _context parameters_ — capabilities that flow implicitly through call chains:
@@ -58,7 +47,7 @@ The `receives` clause specifies required capabilities; the `allow` clause at the
 
 ## Security Context
 
-Jo addresses both dimensions of the security context problem from [The Security Problem](security-problem.md).
+Jo's langauge features enable safe representation and encapsulation of security contexts.
 
 **Representation** — The security context (current user) is captured in a capability object:
 
@@ -94,7 +83,7 @@ The type system guarantees that untrusted code cannot downcast `OrdersApi` to `U
 
 ## Attenuation of Authorities
 
-The framework creates attenuated capabilities from more powerful authorities:
+Lambdas enable the creation of attenuated capabilities from more powerful authorities:
 
 ```jo
 // Framework library (trusted code)
