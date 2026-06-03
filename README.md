@@ -5,7 +5,6 @@
     <img alt="Jo" src="./docs/img/logo.svg" width="40px">
   </picture>
 
-  <h3>Jo Programming Language</h3>
   <p>Secure programming for the AI era</p>
 
   [![CI](https://github.com/typescope/jo/actions/workflows/ci.yml/badge.svg)](https://github.com/typescope/jo/actions/workflows/ci.yml)
