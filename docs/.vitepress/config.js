@@ -43,7 +43,7 @@ export default defineConfig({
           items: [
             { text: 'What is Jo?', link: '/overview/index' },
             { text: 'Language Tour', link: '/overview/language-tour' },
-            { text: 'Capability-Oriented Programming', link: '/overview/capabilities' },
+            { text: 'Capability-Based Programming', link: '/overview/capabilities' },
             { text: 'Cheat Sheet', link: '/overview/cheat-sheet' },
             { text: 'Get Started', link: '/usage/getting-started' },
           ]

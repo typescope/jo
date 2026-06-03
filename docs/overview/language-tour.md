@@ -250,7 +250,7 @@ allow none in processData("hello")   // verify the call is pure
 
 ## What's Next?
 
-- [Capability-Oriented Programming](capabilities.md) - Deep dive into Jo's security model
+- [Capability-Based Programming](capabilities.md) - Deep dive into Jo's security model
 - [Pattern-Oriented Programming](patterns.md) - Advanced pattern features
 - [Cheat Sheet](cheat-sheet.md) - Quick reference for Jo syntax
 - [Get Started](../usage/getting-started.md) - Install Jo and run your first program

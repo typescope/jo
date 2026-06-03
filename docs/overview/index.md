@@ -16,11 +16,11 @@ Jo solves the problem by using capability contracted authority based on its type
 
 ## For Secure AI
 
-Building systems that run AI-generated code? Jo's capability model lets you constrain what AI agents can access — at the type level, before anything runs. See [Capability-Oriented Programming](capabilities.md) for details.
+Building systems that run AI-generated code? Jo's capability model lets you constrain what AI agents can access — at the type level, before anything runs. See [Capability-Based Programming](capabilities.md) for details.
 
 ## Learn More
 
 - [Language Tour](language-tour.md) - See Jo's features in action
-- [Capability-Oriented Programming](capabilities.md) - Deep dive into Jo's security model
+- [Capability-Based Programming](capabilities.md) - Deep dive into Jo's security model
 - [Pattern-Oriented Programming](patterns.md) - Master Jo's powerful pattern system
 - [Get Started](../usage/getting-started.md) - Install Jo and run your first program

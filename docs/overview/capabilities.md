@@ -1,6 +1,6 @@
-# Capability-Oriented Programming
+# Capability-Based Programming
 
-Jo supports capability-oriented programming for designing secure systems.
+Jo supports capability-based programming for designing secure systems.
 Capability-based security is a security model where access to resources and services is controlled by capabilities.
 
 More concretely, Jo follows the [object-capability model][1] where the
