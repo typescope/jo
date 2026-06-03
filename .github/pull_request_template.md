@@ -1,8 +1,27 @@
 Fix #XXX: A short description
 
+## Summary
+
+<!-- What does this PR do and why? -->
+
 ## What has changed
 
-## Steps
+## Testing
+
+- [ ] Added / updated tests under `tests/pos/` or `tests/warn/`
+- [ ] Ran `./ci` locally and all tests pass
+- [ ] Docs updated if the change affects user-visible behavior
+
+## Security impact
+
+<!-- Does this touch capability checking, FFI boundaries, or auth paths? If so, describe. -->
+
+---
+
+## Implementation checklist (for new language features)
+
+<details>
+<summary>Expand</summary>
 
 - [ ] specify syntax (syntax-summary.md)
 - [ ] token & scanner
@@ -51,3 +70,5 @@ Fix #XXX: A short description
 - tests
   - [ ] positive tests
   - [ ] negative tests
+
+</details>
