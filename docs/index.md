@@ -49,7 +49,7 @@ features:
       src: /icons/sparkles.svg
     title: Pattern-Oriented Programming
     details: Compose reusable pattern predicates with logical operators. Exhaustive matching — the compiler guarantees no case is missed.
-    link: /overview/patterns
+    link: /guides/patterns
     linkText: Explore patterns
 
   - icon:

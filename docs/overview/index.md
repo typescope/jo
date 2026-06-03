@@ -23,5 +23,4 @@ Building systems that run AI-generated code? Jo's capability model lets you cons
 - [Language Tour](language-tour.md) - See Jo's features in action
 - [Capability-Oriented Programming](capabilities.md) - Deep dive into Jo's security model
 - [Pattern-Oriented Programming](patterns.md) - Master Jo's powerful pattern system
-- [Type-Safe Dependency Injection](dependency-injection.md) - Inject dependencies without frameworks
 - [Get Started](../usage/getting-started.md) - Install Jo and run your first program

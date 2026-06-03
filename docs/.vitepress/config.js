@@ -44,8 +44,6 @@ export default defineConfig({
             { text: 'What is Jo?', link: '/overview/index' },
             { text: 'Language Tour', link: '/overview/language-tour' },
             { text: 'Capability-Oriented Programming', link: '/overview/capabilities' },
-            { text: 'Pattern-Oriented Programming', link: '/overview/patterns' },
-            { text: 'Type-Safe Dependency Injection', link: '/overview/dependency-injection' },
             { text: 'Cheat Sheet', link: '/overview/cheat-sheet' },
             { text: 'Get Started', link: '/usage/getting-started' },
           ]
@@ -54,6 +52,7 @@ export default defineConfig({
           text: 'Guidelines',
           items: [
             { text: 'Algebraic Data Types', link: '/guides/adt' },
+            { text: 'Pattern-Oriented Programming', link: '/guides/patterns' },
             { text: 'String Literals', link: '/guides/string' },
             { text: 'Error Handling', link: '/guides/error-model' },
             { text: 'Classes and Views', link: '/guides/interface-views' },
