@@ -8,6 +8,7 @@
   <h3>Jo Programming Language</h3>
   <p>Secure programming for the AI era</p>
 
+  [![CI](https://github.com/typescope/jo/actions/workflows/ci.yml/badge.svg)](https://github.com/typescope/jo/actions/workflows/ci.yml)
   [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
   [![Docs](https://img.shields.io/badge/docs-jo--lang.org-teal.svg)](https://jo-lang.org)
 </div>
