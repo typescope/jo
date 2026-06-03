@@ -26,6 +26,10 @@ cp tools/vim/syntax/jo.vim ~/.config/nvim/syntax/
 cp tools/vim/ftdetect/jo.vim ~/.config/nvim/ftdetect/
 ```
 
+## Requirements
+
+Requires the full `vim` package (`sudo apt install vim`). `vim-tiny` is compiled without syntax support.
+
 ## Features
 
 - Keywords, control flow, and declaration highlighting

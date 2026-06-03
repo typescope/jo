@@ -21,17 +21,16 @@ syntax keyword joKeyword
 syntax keyword joBoolean true false
 syntax keyword joSpecial pass
 
-" Comments
-syntax match  joLineComment  "//.*$"
-syntax region joBlockComment start="//\[" end="//\]" contains=joBlockComment
+" Operators — defined first so comments/strings (defined later) take priority
+syntax match joOperator "[-+*/%<>=!&|^~?@:.]"
 
-" Strings
-syntax region joString     start='"'  end='"'  skip='\\"' contains=joInterp
+" Strings — multiline must come before single-line so """ is matched first
 syntax region joMultiStr   start='"""' end='"""' contains=joInterp
+syntax region joString     start='"'  end='"'  skip='\\"' contains=joInterp
 syntax match  joInterp     "\\{[^}]*}" contained
 
 " Characters
-syntax match joChar "'[^'\\]'\|'\\.''"
+syntax match joChar "'[^'\\]'\|'\\.'"
 
 " Numbers
 syntax match joNumber "\<[0-9][0-9_]*\(\.[0-9][0-9_]*\([eE][+-]\?[0-9][0-9_]*\)\?\)\?\>"
@@ -40,8 +39,10 @@ syntax match joNumber "\<0[xX][0-9a-fA-F][0-9a-fA-F_]*\>"
 " Types (capitalized identifiers)
 syntax match joType "\<[A-Z][a-zA-Z0-9_]*\>"
 
-" Operators
-syntax match joOperator "[-+*/%<>=!&|^~?@:.]"
+" Comments — defined last so they override the / operator at //
+syntax region joBlockComment start="//\[" end="//\]" contains=joBlockComment
+syntax match  joLineComment  "//[^\[].*$"
+syntax match  joLineComment  "//$"
 
 " Highlight linking
 highlight default link joKeyword     Keyword
