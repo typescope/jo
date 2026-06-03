@@ -39,7 +39,7 @@ Define structured data types with fields and methods.
 ### [Object Definitions](object-definitions.md)
 Define singleton values that implement interfaces or participate in union types.
 
-### [Algebraic Data Types](adt.md)
+### [Algebraic Data Types](union-definition.md)
 Define union types with multiple branches.
 
 ## Quick Examples
