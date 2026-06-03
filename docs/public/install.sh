@@ -7,6 +7,7 @@ set -eu
 REPO="${JO_REPO:-typescope/jo}"
 INSTALL_BASE="${JO_HOME:-$HOME/.jo}"
 ACTIVE_BIN="${JO_INSTALL_BIN:-$HOME/.local/bin/jo}"
+PINNED_VERSION="${JO_VERSION:-}"
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -35,9 +36,15 @@ main() {
   need java
   need tar
 
-  info "Fetching latest release..."
-  VERSION="$(latest_version)"
-  BARE="${VERSION#v}"  # strip leading 'v' for directory names
+  if [ -n "$PINNED_VERSION" ]; then
+    # Normalise: accept both "0.10.0" and "v0.10.0"
+    BARE="${PINNED_VERSION#v}"
+    VERSION="v$BARE"
+  else
+    info "Fetching latest release..."
+    VERSION="$(latest_version)"
+    BARE="${VERSION#v}"
+  fi
 
   TARBALL="jo-${BARE}.tar.gz"
   DOWNLOAD_URL="https://github.com/$REPO/releases/download/$VERSION/$TARBALL"
