@@ -1,6 +1,6 @@
 # Security Examples
 
-These examples demonstrate Jo's capability system applied to real scenarios. Each shows a distinct security property.
+These examples demonstrate Jo's capability system applied to security use cases.
 
 - **[Process Monitor](process-monitor.md)** — Controlled resource access through context parameters. Shows how `receives` and `allow` make capability requirements explicit and auditable in a system monitoring tool.
 
