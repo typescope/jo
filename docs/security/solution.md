@@ -1,6 +1,6 @@
 # Jo's Solution
 
-Jo is a statically typed language designed to solve the authority confinement problem in a practical way. This document explains how Jo addresses each challenge identified in [The AI Security Problem](security-problem.md).
+Jo addresses the three challenges identified in [The AI Security Problem](security-problem.md): removing ambient authorities without sacrificing usability, representing and encapsulating security context, and attenuating authorities across trust boundaries.
 
 ## Overview: Confining AI-Generated Code
 
@@ -154,7 +154,7 @@ def frameworkMain() =
   val db = connect("orders.db")           // full database access
   val userId = currentUser()              // security context
 
-  // Attenuate: full DB → user-scoped, read-only, time-limited
+  // Attenuate: full DB → user-scoped, read-only
   val restricted = new UserScopedOrders(userId, db)
 
   val buffer = (s: String) => output += s
@@ -171,64 +171,12 @@ The `allow none` clause proves at compile time that `aiMain()` uses no capabilit
 
 ## Two-World Architecture
 
-Jo enforces a strict separation between trusted and untrusted code through separate compilation:
+Jo enforces a strict separation between **confined code** (no FFI, type-checked against confined libraries only) and **trusted code** (FFI allowed, provides capabilities). This separation is what makes the compile-time guarantees possible.
 
-| Property | Confined Programs | Trusted Programs |
-|----------|------------------------|-------------------------|
-| FFI access | Prohibited | Permitted |
-| System calls | Prohibited | Permitted |
-| Security review | Minimal | Required for API implementation |
-
-**Confined Programs** — Jo standard library, API definitions and untrusted code:
-
-```jo
-// Api.jo — compiled without FFI support
-interface OrdersApi
-  def query(lastDays: Int): List[Order]
-end
-
-defer def aiMain(): Unit receives ordersApi, IO.stdout
-```
-
-The Jo standard library is untrusted and has no FFI support: it lives in the
-confined programs.
-A confined programs library may only depend on confined programs libraries for type checking.
-This creates a transitive closure.
-
-**Trusted Programs** — Platform runtime libraries and trusted API implementation:
-
-```jo
-// framework.jo — compiled with FFI support
-def frameworkMain() =
-  val db = js "new Database(process.env.DB_PATH)"
-  val userId = js "parseInt(process.argv[2])"
-
-  val api = new UserScopedOrders(userId, db)
-  val ignore = (s: String) => pass
-
-  allow none in
-    with ordersApi = api, IO.stdout = ignore in aiMain()
-```
-
-Jo provides root runtime libraries for each compilation target (Ruby, Python, JS).
-The root runtime libraries expose FFI capabilities which enable users to develop
-trusted API implementation.
-
-The `defer def` declares a function signature that untrusted code must implement.
-At link time, the trusted framework provides capabilities to the untrusted implementation.
-
-::: warning Untrusted code can only depend on code in the confined programs
-
-Untrusted code may only live in the confined programs and cannot directly or
-indirectly depend on runtime libraries for type checking.
-
-The linking mechanism provides the glue between untrusted code and trusted
-code through dependency inversion: the trusted code defines a stub with
-explicit contract for untrusted code.
-:::
+See [Two-World Architecture](two-worlds.md) for the full explanation, build steps, and diagrams.
 ## Assurance
 
-The security guarantees depend on Jo's type system. We intentionally keep the type system nominal and simple — avoiding complex features like structural subtyping and complex type inference that have been sources of soundness bugs in other languages. The compiler is tested with an extensive test suite including adversarial cases designed to violate capability contracts.
+The security guarantees depend on Jo's type system. We intentionally keep the type system nominal and simple — avoiding complex features like structural subtyping and complex type inference that have been sources of soundness bugs in other languages. The type system is intentionally kept small enough to reason about formally — complex features like structural subtyping and deep type inference are excluded precisely because they have been sources of soundness bugs in other systems.
 
 ## Threat Mitigation
 
@@ -250,5 +198,4 @@ Returning to the threat model:
 
 ## What's Next?
 
-- [Comparison with Alternatives](comparison.md) — How Jo compares to VMs, containers, WASM, and Deno
 - [Security Demos](../security/examples/index.md) — Hands-on examples demonstrating Jo's security features

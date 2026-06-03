@@ -73,8 +73,7 @@ export default defineConfig({
           items: [
             { text: 'The Security Problem', link: '/security/security-problem' },
             { text: "Jo's Solution", link: '/security/solution' },
-            { text: 'Comparison', link: '/security/comparison' },
-            { text: 'Technical Questions', link: '/security/technical-questions' },
+            { text: 'Two-World Architecture', link: '/security/two-worlds' },
           ]
         },
         {
@@ -94,8 +93,7 @@ export default defineConfig({
           items: [
             { text: 'The Security Problem', link: '/security/security-problem' },
             { text: "Jo's Solution", link: '/security/solution' },
-            { text: 'Comparison', link: '/security/comparison' },
-            { text: 'Technical Questions', link: '/security/technical-questions' },
+            { text: 'Two-World Architecture', link: '/security/two-worlds' },
           ]
         },
         {
