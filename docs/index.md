@@ -61,4 +61,4 @@ features:
     linkText: Get started
 ---
 
-Jo's capability model is grounded in [λCC](https://github.com/typescope/contextual-capability), a formally verified calculus of contextual capabilities.
+Jo is developed and maintained by [TypeScope](https://typescope.ai).
