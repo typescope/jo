@@ -89,11 +89,9 @@ See [Lambdas](../language/expressions/lambdas.md).
 
 ## Regular Expression
 
-Regex literals use backtick syntax. Methods for matching, splitting, and replacing are available via `import jo.regex.*`.
+Regex literals use backtick syntax.
 
 ```jo
-import jo.regex.*
-
 "abc123".exists(`\d+`)                         // true
 "a  b   c".splitBy(`\s+`)                      // ["a", "b", "c"]
 "a1b22".replaceAll(`\d+`, _ => "N")            // "aNbN"
@@ -142,7 +140,7 @@ def parse(s: String): Result[Int, String] =
   if s == "" then Err("empty") else Ok(42)
 
 def doubled(s: String): Result[Int, String] =
-  val n = parse(s) rescue Err(e) => return Err(e)  // propagate on error
+  val n = parse(s) rescue e @ Err(_) => return e  // propagate on error
   Ok(n * 2)
 ```
 
