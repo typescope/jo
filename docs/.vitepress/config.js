@@ -31,7 +31,7 @@ export default defineConfig({
     nav: [
       { text: 'Overview', link: '/overview/index' },
       { text: 'AI Security', link: '/security/security-problem' },
-      { text: 'Build Tool', link: '/usage/getting-started' },
+      { text: 'Build Tool', link: '/usage/install' },
       { text: 'Language Reference', link: '/language/design-principles' },
       { text: 'Blog', link: '/blog/' },
     ],
@@ -44,7 +44,7 @@ export default defineConfig({
             { text: 'Language Tour', link: '/overview/language-tour' },
             { text: 'Capability-Based Programming', link: '/overview/capabilities' },
             { text: 'Cheat Sheet', link: '/overview/cheat-sheet' },
-            { text: 'Get Started', link: '/usage/getting-started' },
+            { text: 'Get Started', link: '/usage/install' },
           ]
         },
         {
@@ -114,8 +114,8 @@ export default defineConfig({
         {
           text: 'Getting Started',
           items: [
-            { text: 'Hello, World!', link: '/usage/getting-started' },
             { text: 'Install', link: '/usage/install' },
+            { text: 'Hello, World!', link: '/usage/getting-started' },
             { text: 'Editor Support', link: '/usage/ide' },
           ]
         },
