@@ -44,8 +44,8 @@ trait Installer:
   def install(version: Version): Result[Unit]
   def remove(version: Version): Result[Unit]
   def use(version: Version): Result[Unit]
-  def getInstalledVersions(): List[Version]
-  def activeVersion(): Option[Version]
+  def getInstalledVersions(): Result[List[Version]]
+  def activeVersion(): Result[Version]
 end Installer
 
 /** Downloads and installs compiler versions from the Jo release index over HTTP.
@@ -97,18 +97,26 @@ class HttpInstaller(
       activeBin.toFile.setExecutable(true)
       Result.Ok(())
 
-  def getInstalledVersions(): List[Version] =
-    if !Files.exists(installBase) then return Nil
-    Files.list(installBase).iterator.asScala
-      .filter(Files.isDirectory(_))
-      .flatMap(p => Version.parse(p.getFileName.toString))
-      .toList.sorted.reverse
+  def getInstalledVersions(): Result[List[Version]] =
+    try
+      if !Files.exists(installBase) then Result.Ok(Nil)
+      else Result.Ok:
+        Files.list(installBase).iterator.asScala
+          .filter(Files.isDirectory(_))
+          .flatMap(p => Version.parse(p.getFileName.toString))
+          .toList.sorted.reverse
+    catch case e: Exception => Result.Err(s"could not read installed versions: ${e.getMessage}")
 
-  def activeVersion(): Option[Version] =
-    if !Files.exists(activeBin) then return None
-    val content = Files.readString(activeBin)
-    val pattern = """compilers/([^/]+)/bin/jo""".r
-    pattern.findFirstMatchIn(content).flatMap(m => Version.parse(m.group(1)))
+  def activeVersion(): Result[Version] =
+    try
+      if !Files.exists(activeBin) then Result.Err("no active version set")
+      else
+        val content = Files.readString(activeBin)
+        val pattern = """compilers/([^/]+)/bin/jo""".r
+        pattern.findFirstMatchIn(content).flatMap(m => Version.parse(m.group(1))) match
+          case Some(v) => Result.Ok(v)
+          case None    => Result.Err("could not parse active version from launcher")
+    catch case e: Exception => Result.Err(s"could not read active version: ${e.getMessage}")
 
   private def downloadAndInstall(rec: VersionRecord): Result[Unit] =
     val installDir = installBase.resolve(rec.version.toString)
@@ -206,75 +214,122 @@ object HttpInstaller:
 
 /** Test installer backed by a YAML file listing available versions.
   *
-  * Installed/active state is stored in plain files under `stateDir` so it
-  * survives across multiple `runJoCmd` calls within the same test scenario:
+  * Installed/active state is stored in plain files under the YAML file's directory
+  * so it survives across multiple command calls within the same test scenario:
   * {{{
   *   compilers/<version>/   one directory per installed version
   *   active                 file containing the active version string
   * }}}
+  *
+  * Optional `fail:` section in the YAML simulates IO failures for specific operations:
+  * {{{
+  *   fail:
+  *     getVersions: network timeout
+  *     getInstalled: disk error
+  *     activeVersion: corrupt file
+  *     install: permission denied
+  *     remove: permission denied
+  *     use: permission denied
+  * }}}
   */
-class MockInstaller(available: List[Version], stateDir: Path) extends Installer:
+class MockInstaller(available: List[Version], stateDir: Path, fails: Map[String, String] = Map.empty) extends Installer:
 
   private def compilersDir = stateDir.resolve("compilers")
   private def activeFile   = stateDir.resolve("active")
 
   def getVersions(): Result[List[Version]] =
-    Result.Ok(available.sorted.reverse)
+    fails.get("getVersions") match
+      case Some(err) => Result.Err(err)
+      case None      => Result.Ok(available.sorted.reverse)
+
+  def getInstalledVersions(): Result[List[Version]] =
+    fails.get("getInstalled") match
+      case Some(err) => Result.Err(err)
+      case None =>
+        if !Files.exists(compilersDir) then Result.Ok(Nil)
+        else Result.Ok:
+          Files.list(compilersDir).iterator.asScala
+            .filter(Files.isDirectory(_))
+            .flatMap(p => Version.parse(p.getFileName.toString))
+            .toList.sorted.reverse
+
+  def activeVersion(): Result[Version] =
+    fails.get("activeVersion") match
+      case Some(err) => Result.Err(err)
+      case None =>
+        if !Files.exists(activeFile) then Result.Err("no active version set")
+        else
+          Version.parse(Files.readString(activeFile).trim) match
+            case Some(v) => Result.Ok(v)
+            case None    => Result.Err("could not parse active version")
 
   def install(version: Version): Result[Unit] =
-    if !available.contains(version) then
-      Result.Err(s"version $version not found")
-    else
-      val dir = compilersDir.resolve(version.toString)
-      if Files.exists(dir) then
-        Result.Err(s"Jo $version is already installed — run 'jo versions remove $version' first")
-      else
-        Files.createDirectories(dir)
-        Result.Ok(())
+    fails.get("install") match
+      case Some(err) => Result.Err(err)
+      case None =>
+        if !available.contains(version) then
+          Result.Err(s"version $version not found")
+        else
+          val dir = compilersDir.resolve(version.toString)
+          if Files.exists(dir) then
+            Result.Err(s"Jo $version is already installed — run 'jo versions remove $version' first")
+          else
+            Files.createDirectories(dir)
+            Result.Ok(())
 
   def remove(version: Version): Result[Unit] =
-    val dir = compilersDir.resolve(version.toString)
-    if !Files.exists(dir) then
-      Result.Err(s"Jo $version is not installed")
-    else
-      Files.delete(dir)
-      if activeVersion().contains(version) then Files.deleteIfExists(activeFile)
-      Result.Ok(())
+    fails.get("remove") match
+      case Some(err) => Result.Err(err)
+      case None =>
+        val dir = compilersDir.resolve(version.toString)
+        if !Files.exists(dir) then
+          Result.Err(s"Jo $version is not installed")
+        else
+          Files.delete(dir)
+          if activeVersion() == Result.Ok(version) then Files.deleteIfExists(activeFile)
+          Result.Ok(())
 
   def use(version: Version): Result[Unit] =
-    val dir = compilersDir.resolve(version.toString)
-    if !Files.exists(dir) then
-      Result.Err(s"Jo $version is not installed — run 'jo versions install $version' first")
-    else
-      Files.writeString(activeFile, version.toString)
-      Result.Ok(())
-
-  def getInstalledVersions(): List[Version] =
-    if !Files.exists(compilersDir) then return Nil
-    Files.list(compilersDir).iterator.asScala
-      .filter(Files.isDirectory(_))
-      .flatMap(p => Version.parse(p.getFileName.toString))
-      .toList.sorted.reverse
-
-  def activeVersion(): Option[Version] =
-    if !Files.exists(activeFile) then None
-    else Version.parse(Files.readString(activeFile).trim)
+    fails.get("use") match
+      case Some(err) => Result.Err(err)
+      case None =>
+        val dir = compilersDir.resolve(version.toString)
+        if !Files.exists(dir) then
+          Result.Err(s"Jo $version is not installed — run 'jo versions install $version' first")
+        else
+          Files.writeString(activeFile, version.toString)
+          Result.Ok(())
 
 end MockInstaller
 
 object MockInstaller:
-  /** Read available versions from a YAML file in the format:
+  /** Read available versions and optional fail config from a YAML file:
     * {{{
     *   versions:
     *     - 0.10.0
     *     - 0.9.0
+    *
+    *   fail:
+    *     getVersions: network timeout
     * }}}
     * State is stored in the same directory as the YAML file.
     */
   def fromYaml(versionsFile: Path): MockInstaller =
-    val versions = Files.readString(versionsFile).linesIterator
-      .map(_.trim.stripPrefix("-").trim)
-      .filter(l => l.nonEmpty && l != "versions:")
-      .flatMap(Version.parse)
-      .toList
-    MockInstaller(versions, versionsFile.getParent)
+    val content  = Files.readString(versionsFile)
+    val versions = scala.collection.mutable.ListBuffer.empty[Version]
+    val fails    = scala.collection.mutable.Map.empty[String, String]
+    var section  = ""
+
+    for line <- content.linesIterator do
+      val trimmed = line.trim
+      if trimmed == "versions:" then section = "versions"
+      else if trimmed == "fail:" then section = "fail"
+      else if trimmed.isEmpty then ()
+      else if section == "versions" && trimmed.startsWith("- ") then
+        Version.parse(trimmed.drop(2).trim).foreach(versions += _)
+      else if section == "fail" && trimmed.contains(":") then
+        val i = trimmed.indexOf(':')
+        val value = trimmed.drop(i + 1).trim
+        if value.nonEmpty then fails(trimmed.take(i).trim) = value
+
+    MockInstaller(versions.toList, versionsFile.getParent, fails.toMap)

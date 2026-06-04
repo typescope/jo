@@ -114,7 +114,9 @@ object Main:
         tool.Build.buildDoc(project).orExit
 
       case "versions" =>
-        tool.Versions.run(args.drop(1), tool.HttpInstaller.default())
+        tool.Versions.run(args.drop(1), tool.HttpInstaller.default()) match
+          case Result.Ok(_)    => ()
+          case Result.Err(msg) => System.err.println(s"${tool.Ansi.red("error:")} $msg"); sys.exit(1)
 
       case "help" | "--help" | "-h" =>
         printUsage()
@@ -140,7 +142,7 @@ object Main:
 
   private def loadProject(specFile: String): tool.Result[tool.Project] =
     val specPath = Paths.get(specFile).toAbsolutePath
-    tool.Project.load(specPath).mapError(msg => s"error: $msg")
+    tool.Project.load(specPath)
 
   def parseCompileFlags(args: Array[String]): CompileFlags =
     var backend: Option[Backend] = None

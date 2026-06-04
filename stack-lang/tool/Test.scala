@@ -273,7 +273,11 @@ private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String
 
   if command == "versions" then
     val installer = MockInstaller.fromYaml(specDir.resolve("versions.yaml"))
-    return Result.Ok(capture { Versions.run(cmdArgs, installer) })
+    val buf = java.io.ByteArrayOutputStream()
+    val ps  = java.io.PrintStream(buf, true, "UTF-8")
+    Console.withOut(ps) { Versions.run(cmdArgs, installer) } match
+      case Result.Ok(_)    => return Result.Ok(buf.toString("UTF-8"))
+      case Result.Err(msg) => return Result.Err(buf.toString("UTF-8") + s"error: $msg\n")
 
   val specFile0 = command match
     case "run" =>

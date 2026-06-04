@@ -19,7 +19,7 @@ enum Result[+A]:
   def orExit: A = this match
     case Ok(v)  => v
     case Err(o) =>
-      System.err.println(o)
+      System.err.println(s"${Ansi.red("error:")} $o")
       sys.exit(1)
 
 object Result:
