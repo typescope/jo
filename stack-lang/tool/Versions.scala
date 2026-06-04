@@ -15,26 +15,39 @@ object Versions:
         sys.exit(1)
 
   private def list(installer: Installer): Unit =
-    val installed = installer.getInstalledVersions()
-    val active    = installer.activeVersion()
+    val installed  = installer.getInstalledVersions()
+    val active     = installer.activeVersion()
+    val allAvail   = installer.getVersions() match
+      case Result.Ok(vs) => vs
+      case Result.Err(_) => Nil
+    val notInstalled = allAvail.filterNot(installed.contains)
 
-    if installed.isEmpty then
+    if installed.isEmpty && notInstalled.isEmpty then
       println("No compiler versions installed.")
       println(s"\nRun 'jo versions install <version>' to install one.")
       return
 
-    println("Installed compiler versions:\n")
-    if installed.length < 10 then
-      for v <- installed do
+    if installed.nonEmpty then
+      println("Installed:\n")
+      printVersions(installed, active)
+
+    if notInstalled.nonEmpty then
+      if installed.nonEmpty then println()
+      println("Available:\n")
+      printVersions(notInstalled, None)
+
+  private def printVersions(versions: List[Version], active: Option[Version]): Unit =
+    if versions.length < 10 then
+      for v <- versions do
         val marker = if active.contains(v) then s" ${Ansi.green("(active)")}" else ""
         println(s"  $v$marker")
     else
-      val byMinor = installed.groupBy(v => (v.major, v.minor)).toList
+      val byMinor = versions.groupBy(v => (v.major, v.minor)).toList
         .sortBy((k, _) => k)
         .reverse
-      for ((major, minor), versions) <- byMinor do
-        val patches  = versions.map(_.patch).sorted
-        val isActive = versions.exists(active.contains)
+      for ((major, minor), vs) <- byMinor do
+        val patches  = vs.map(_.patch).sorted
+        val isActive = vs.exists(active.contains)
         val marker   = if isActive then s" ${Ansi.green("(active)")}" else ""
         println(s"  $major.$minor.{${compactPatches(patches)}}$marker")
 

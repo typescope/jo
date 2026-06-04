@@ -15,29 +15,37 @@ jo versions remove <version>
 
 ### `jo versions list`
 
-List all installed compiler versions. The active version is marked.
+Show installed and available compiler versions.
 
 ```sh
 jo versions list
 ```
 
-When fewer than 10 versions are installed, each is listed individually:
+Installed versions are shown first with the active one marked. Available versions
+not yet installed are shown in a second section.
+
+When fewer than 10 versions appear in a section, they are listed individually:
 
 ```
-Installed compiler versions:
+Installed:
 
   0.10.0 (active)
+
+Available:
+
+  0.10.1
   0.9.0
 ```
 
-When 10 or more versions are installed, they are grouped by minor version with patch ranges shown compactly:
+When 10 or more versions appear in a section, they are grouped by minor version
+with patch ranges shown compactly:
 
 ```
-Installed compiler versions:
+Installed:
 
   0.11.{0-3}
   0.10.{0-5} (active)
-  0.9.{0}
+  0.9.{0-1}
 ```
 
 ### `jo versions install <version>`
