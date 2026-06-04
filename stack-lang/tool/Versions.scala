@@ -78,7 +78,7 @@ object Versions:
 
   private def install(args: Array[String], installer: Installer): Result[Unit] =
     parseVersion(args, "install").flatMap: version =>
-      print(s"Installing Jo $version...")
+      print(s"Installing Jo $version ...")
       installer.install(version) match
         case Result.Ok(_) =>
           println(s" ${Ansi.green("done")}")
@@ -95,13 +95,13 @@ object Versions:
           Result.Err(s"Jo $version is the active version — run 'jo versions use <other>' first")
         case _ =>
           installer.remove(version) match
-            case Result.Ok(_)    => println(s"Removed Jo $version."); Result.Ok(())
+            case Result.Ok(_)    => println(s"Removed Jo $version"); Result.Ok(())
             case Result.Err(msg) => Result.Err(msg)
 
   private def use(args: Array[String], installer: Installer): Result[Unit] =
     parseVersion(args, "use").flatMap: version =>
       installer.use(version) match
-        case Result.Ok(_)    => println(s"Now using Jo $version."); Result.Ok(())
+        case Result.Ok(_)    => println(s"Now using Jo $version"); Result.Ok(())
         case Result.Err(msg) => Result.Err(msg)
 
   private def parseVersion(args: Array[String], cmd: String): Result[Version] =
