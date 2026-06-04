@@ -15,7 +15,7 @@
 
 ---
 
-Jo is a statically typed language where **capabilities are explicit, statically tracked, and enforced by the compiler**. Jo compiles to Ruby, Python and JavaScript.
+Jo is a statically typed language where **capabilities are explicit, statically tracked, and enforced by the compiler**. Jo compiles to Ruby and Python.
 
 > **Project status:** Early-stage. The compiler, standard library, and toolchain are ready for serious experimentation. APIs and language details may still change.
 

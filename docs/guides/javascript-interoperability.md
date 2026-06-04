@@ -1,7 +1,7 @@
 # JavaScript Interoperability
 
-::: warning Experimental API
-The JavaScript FFI API is experimental. All APIs documented here are subject to change in future releases.
+::: warning Experimental
+The JavaScript backend is experimental. APIs documented here are subject to change in future releases. The `jo build` tool does not support JavaScript — use `jo compile --js` directly.
 :::
 
 Jo compiles to JavaScript and provides a typed FFI layer for calling JavaScript libraries from Jo code. This guide covers the full interoperability API.

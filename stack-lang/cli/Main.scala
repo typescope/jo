@@ -198,6 +198,7 @@ object Main:
       |Compile options (application — default backend is Ruby):
       |  --ruby          Compile Ruby application (default)
       |  --python        Compile Python application
+      |  --js            Compile JavaScript application (experimental, no build tool support)
       |  -o <out>        Output file path
       |  --lib <dir>      Use a precompiled library (can be specified multiple times)
       |                   Example: --lib build/core --lib build/utils
@@ -205,15 +206,16 @@ object Main:
       |                   Example: --link-lib build/runtime
       |  --link <src=tgt> Redirect symbol references (can be specified multiple times)
       |                   Example: --link jo.Predef.entry=Test.main
-      |  --use-runtime-api <python|ruby>
+      |  --use-runtime-api <python|ruby|js>
       |                   Make a runtime API available as a check library; when it matches the
       |                   selected app backend, suppress the backend's default runtime link lib
+      |                   (js is experimental)
       |
       |Compile options (library):
       |  --sast <dir>    Compile to .sast files; if no backend flag, this is the only output
       |  --lib <dir>     Use a precompiled library (can be specified multiple times)
-      |  --use-runtime-api <python|ruby>
-      |                   Make a runtime API available as a check library
+      |  --use-runtime-api <python|ruby|js>
+      |                   Make a runtime API available as a check library (js is experimental)
       |
       |Doc options for 'jo compile --doc':
       |  --out <dir>           Output directory (default: docs)
