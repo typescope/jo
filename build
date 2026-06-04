@@ -126,5 +126,9 @@ if [ "$BUILD_RELEASE" = true ]; then
 
   rm -rf "$TEMP_DIR"
 
+  sha256sum "$RELEASE_TARBALL" > "${RELEASE_TARBALL}.sha256"
+
   echo "Release package created: ${RELEASE_TARBALL}"
+  echo "Checksum:                 ${RELEASE_TARBALL}.sha256"
+  echo "  $(cat ${RELEASE_TARBALL}.sha256)"
 fi
