@@ -33,6 +33,15 @@ object JoResolver:
       case None      => Result.Err(s"could not locate the running compiler binary (JO_HOME not set)")
 
   private def selfBinary(): Option[Path] =
-    sys.env.get("JO_HOME").flatMap: home =>
-      val bin = Paths.get(home, "bin", "jo")
-      if Files.exists(bin) then Some(bin) else None
+    // In production, JO_HOME is set by the bin/jo launcher script to the compiler directory.
+    // When running from source via scala-cli, resolve through the active version instead.
+    sys.env.get("JO_HOME") match
+      case Some(home) =>
+        val bin = Paths.get(home, "bin", "jo")
+        if Files.exists(bin) then Some(bin) else None
+
+      case None =>
+        // The version check already passed, so the running version is JoVersion.current.
+        // Find its binary directly under ~/.jo/compilers/.
+        val bin = Config.compilers.resolve(JoVersion.current.toString).resolve("bin").resolve("jo")
+        if Files.exists(bin) then Some(bin) else None

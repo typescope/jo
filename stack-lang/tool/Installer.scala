@@ -220,11 +220,10 @@ end HttpInstaller
 
 object HttpInstaller:
   def default(): HttpInstaller =
-    val home = Paths.get(System.getProperty("user.home"))
     HttpInstaller(
-      versionsUrl = "https://jo-lang.org/versions.jsonl",
-      installBase = home.resolve(".jo/compilers"),
-      activeBin   = home.resolve(".local/bin/jo"),
+      versionsUrl = Config.versionsUrl,
+      installBase = Config.compilers,
+      activeBin   = Config.activeBin,
     )
 
 /** Test installer backed by a YAML file listing available versions.
