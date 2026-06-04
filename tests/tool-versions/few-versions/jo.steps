@@ -1,5 +1,16 @@
 rm -rf compilers active
 
+jo versions
+: '
+Available:
+
+  0.10.0
+  0.9.1
+  0.9.0
+  0.8.0
+  0.7.0
+'
+
 jo versions list
 : '
 Available:
