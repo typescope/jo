@@ -53,20 +53,31 @@ Append one line to `docs/public/versions.jsonl`:
 
 - [ ] `docs/public/versions.jsonl` updated and committed to `main`
 
-## 6. Deploy Docs
+## 6. Tag the Commit
+
+Tag after `versions.jsonl` is committed so the tag captures the complete release state.
 
 ```sh
-gh workflow run docs.yml --repo typescope/jo --ref main
+git tag -a vX.Y.Z -m "Jo X.Y.Z"
+git push origin vX.Y.Z
+```
+
+- [ ] Tag pushed to `origin`
+
+## 7. Deploy Docs
+
+```sh
+gh workflow run docs.yml --repo typescope/jo --ref vX.Y.Z
 ```
 
 - [ ] Docs deployed and `https://jo-lang.org` shows the new version
 
-## 7. Verify
+## 8. Verify
 
 - [ ] `curl -sSf https://jo-lang.org/install.sh | sh` installs X.Y.Z
 - [ ] `jo --version` prints X.Y.Z after install
 - [ ] `https://jo-lang.org/versions.jsonl` contains the new entry
 
-## 8. Clean Up
+## 9. Clean Up
 
 - [ ] Remove local `jo-X.Y.Z.tar.gz` and `jo-X.Y.Z.tar.gz.sha256`
