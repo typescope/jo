@@ -1,5 +1,21 @@
 rm -rf compilers active
 
+# missing version argument
+jo versions install
+: '
+error: 'jo versions install' requires a version argument
+'
+
+jo versions remove
+: '
+error: 'jo versions remove' requires a version argument
+'
+
+jo versions use
+: '
+error: 'jo versions use' requires a version argument
+'
+
 jo versions install 9.9.9
 : '
 Installing Jo 9.9.9 ...

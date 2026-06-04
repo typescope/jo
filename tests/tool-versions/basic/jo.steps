@@ -1,4 +1,4 @@
-rm -rf compilers active-jo active
+rm -rf compilers active
 
 jo versions list
 : '
