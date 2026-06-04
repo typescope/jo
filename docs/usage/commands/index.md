@@ -13,4 +13,11 @@
 | [`jo deps`](deps.md) | Show dependencies |
 | [`jo lock`](lock.md) | Resolve dependencies and write the lock file |
 | [`jo clean`](clean.md) | Remove build artifacts |
+| [`jo versions`](versions.md) | Manage compiler versions |
 | [`jo compile`](compile.md) | Raw compiler interface |
+
+## Global Options
+
+| Option      | Description                                    |
+|-------------|------------------------------------------------|
+| `--verbose` | Enable verbose logging (build progress, resolution details) |

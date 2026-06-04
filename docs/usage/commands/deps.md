@@ -18,7 +18,13 @@ jo deps [--spec <file.toml>]
 - published packages are shown with their resolved version
 - sibling entries are printed in stable lexical order by dependency name
 
-## Example
+## Options
+
+| Option          | Description                            |
+|-----------------|----------------------------------------|
+| `--spec <file>` | Build spec to use. Default: `jo.toml`. |
+
+## Examples
 
 ```text
 app [main]

@@ -115,8 +115,8 @@ object Main:
 
       case "versions" =>
         tool.Versions.run(args.drop(1), tool.HttpInstaller.default()) match
-          case Result.Ok(_)    => ()
-          case Result.Err(msg) => System.err.println(s"${tool.Ansi.red("error:")} $msg"); sys.exit(1)
+          case tool.Result.Ok(_)    => ()
+          case tool.Result.Err(msg) => System.err.println(s"${tool.Ansi.red("error:")} $msg"); sys.exit(1)
 
       case "help" | "--help" | "-h" =>
         printUsage()
