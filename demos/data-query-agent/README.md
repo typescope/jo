@@ -1,6 +1,6 @@
 # Data Query Agent
 
-> Source: [github.com/typescope/jo/demos/data-query-agent](https://github.com/typescope/jo/tree/main/demos/data-query-agent)
+[![GitHub](https://img.shields.io/badge/GitHub-demos%2Fdata--query--agent-0969da?logo=github&logoColor=white)](https://github.com/typescope/jo/tree/main/demos/data-query-agent)
 
 An LLM-powered agent that translates natural language prompts into Jo programs,
 compiles them to Python, and executes them against a SQLite document database.
