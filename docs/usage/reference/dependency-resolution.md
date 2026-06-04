@@ -14,9 +14,9 @@ Jo also resolves the compiler version before package selection:
 
 - `jo.toml` declares a compatibility requirement such as `jo = "1.0"`
 - `jo.lock` may pin an exact compiler version such as `jo = "1.2.0"`
-- if `jo.lock` pins a compiler and it still satisfies `jo.toml`, Jo reuses it
-- if the pinned compiler no longer satisfies `jo.toml`, Jo ignores that stale pin and selects a fresh compatible compiler
-- otherwise Jo chooses the highest installed compiler satisfying `jo.toml`
+- if `jo.lock` pins a version and it still satisfies `jo.toml`, Jo requires that exact version
+- if the pinned version no longer satisfies `jo.toml`, Jo falls back to the running compiler
+- the running compiler must satisfy `jo.toml` — if it does not, Jo errors and asks you to switch with `jo versions use`
 
 Once the compiler is selected, package resolution only considers package versions whose
 `meta.toml` `jo` requirement is satisfied by that compiler.
@@ -49,7 +49,7 @@ that choice is fixed.
 
 At each step:
 
-1. Select the Jo compiler version from `jo.toml` and `jo.lock`.
+1. Verify the running compiler satisfies `jo.toml` (using the pinned version from `jo.lock` if present and still compatible).
 2. Start from the app's direct package dependencies.
 3. For each package, collect all version constraints discovered so far.
 4. The first time a package is seen, look at its published versions.
