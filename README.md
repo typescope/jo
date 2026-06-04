@@ -5,7 +5,7 @@
     <img alt="Jo" src="./docs/img/logo.svg" width="40px">
   </picture>
 
-  <p>Secure programming for the AI era</p>
+  <p>For the joy of secure programming</p>
 
   [![CI](https://github.com/typescope/jo/actions/workflows/ci.yml/badge.svg)](https://github.com/typescope/jo/actions/workflows/ci.yml)
   [![Release](https://img.shields.io/badge/release-v0.10.0-blue.svg)](https://github.com/typescope/jo/releases/tag/v0.10.0)
