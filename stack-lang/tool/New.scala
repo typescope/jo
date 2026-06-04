@@ -28,7 +28,7 @@ object New:
 
   def scaffold(name: String, isLib: Boolean, baseDir: Path): Result[String] =
     val dir = baseDir.resolve(name)
-    val v   = Version.current
+    val v   = JoVersion.current
     val joConstraint = s"${v.major}.${v.minor}"
 
     if Files.exists(dir) then
