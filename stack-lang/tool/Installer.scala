@@ -91,13 +91,21 @@ class HttpInstaller(
     if !Files.exists(versionBin) then
       Result.Err(s"Jo $version is not installed — run 'jo versions install $version' first")
     else
-      Files.createDirectories(activeBin.getParent)
-      Files.writeString(activeBin,
-        s"""#!/bin/bash
-           |exec "$versionBin" "$$@"
-           |""".stripMargin)
-      activeBin.toFile.setExecutable(true)
-      Result.Ok(())
+      try
+        Files.createDirectories(activeBin.getParent)
+        Files.writeString(activeBin,
+          s"""#!/bin/bash
+             |exec "$versionBin" "$$@"
+             |""".stripMargin)
+        activeBin.toFile.setExecutable(true)
+        System.err.println(s"  Launcher updated: $activeBin")
+        val binDir = activeBin.getParent.toString
+        val path   = sys.env.getOrElse("PATH", "")
+        if !path.split(":").contains(binDir) then
+          System.err.println(s"${Ansi.yellow("note:")} add '$binDir' to your PATH:")
+          System.err.println(s"  export PATH=\"$binDir:$$PATH\"")
+        Result.Ok(())
+      catch case e: Exception => Result.Err(s"could not write launcher at $activeBin: ${e.getMessage}")
 
   def getInstalledVersions(): Result[List[Version]] =
     try
