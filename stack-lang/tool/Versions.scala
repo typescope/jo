@@ -29,7 +29,9 @@ object Versions:
 
     if installed.nonEmpty then
       println("Installed:\n")
-      printVersions(installed, active)
+      for v <- installed do
+        val marker = if active.contains(v) then s" ${Ansi.green("(active)")}" else ""
+        println(s"  $v$marker")
 
     if notInstalled.nonEmpty then
       if installed.nonEmpty then println()
