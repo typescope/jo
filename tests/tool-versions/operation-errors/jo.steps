@@ -16,6 +16,27 @@ jo versions use
 error: 'jo versions use' requires a version argument
 '
 
+# invalid version specs
+jo versions install abc
+: '
+error: invalid version 'abc'
+'
+
+jo versions install 1.2
+: '
+error: invalid version '1.2'
+'
+
+jo versions remove 1.2.3.4
+: '
+error: invalid version '1.2.3.4'
+'
+
+jo versions use 1.x.0
+: '
+error: invalid version '1.x.0'
+'
+
 jo versions install 9.9.9
 : '
 Installing Jo 9.9.9 ...
