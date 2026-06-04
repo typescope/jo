@@ -55,6 +55,10 @@ import tool.toml.{TomlError, TomlParser}
   failed :::= runInfoTests(activeFilters)
   println()
 
+  println("=== Versions ===")
+  failed :::= runVersionsTests(activeFilters)
+  println()
+
   if failed.isEmpty then println("All tool tests passed.")
   else
     println(s"FAILED: ${failed.reverse.mkString(" ")}")
@@ -92,6 +96,18 @@ private def runInfoTests(filters: List[String]): List[Path] =
       println(s"  compare with: diff -u ${file} ${actualFile}")
       failed ::= file
 
+  failed
+
+private def runVersionsTests(filters: List[String]): List[Path] =
+  val joBin = Paths.get("bin/jo").toAbsolutePath()
+  if !Files.exists(joBin) then
+    println("  skipped: bin/jo not found")
+    return Nil
+
+  var failed = List.empty[Path]
+  given Logger = Logger(LogLevel.Log)
+  for stepsFile <- findFiles("tests/tool-versions/*/jo.steps").filter(matchesFilter(_, filters)) do
+    failed :::= runStepsFile(stepsFile, stepsFile.getParent)
   failed
 
 private def matchesFilter(path: Path, filters: List[String]): Boolean =
@@ -254,6 +270,10 @@ private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String
     return Project.load(specPath, resolveJo).flatMap(Build.buildDoc(_)) match
       case Result.Ok(_)    => Result.Ok("")
       case Result.Err(msg) => Result.Err(s"error: $msg\n")
+
+  if command == "versions" then
+    val installer = MockInstaller.fromYaml(specDir.resolve("versions.yaml"))
+    return Result.Ok(capture { Versions.run(cmdArgs, installer) })
 
   val specFile0 = command match
     case "run" =>
