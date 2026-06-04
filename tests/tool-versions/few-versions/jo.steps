@@ -37,3 +37,5 @@ Available:
   0.8.0
   0.7.0
 '
+
+rm -rf compilers active

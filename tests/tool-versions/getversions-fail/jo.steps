@@ -20,3 +20,5 @@ Installed:
 
 warning: could not fetch available versions: network timeout
 '
+
+rm -rf compilers active
