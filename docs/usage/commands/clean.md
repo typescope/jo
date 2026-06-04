@@ -8,7 +8,7 @@ Remove build artifacts for the current project.
 jo clean [--spec <file.toml>]
 ```
 
-## Behaviour
+## What It Does
 
 Deletes `.build/<name>/` in the project directory, where `<name>` is the project name from the spec file. This includes compiled `.sast` files, target executables, and the `.done` sentinels used for incremental builds.
 

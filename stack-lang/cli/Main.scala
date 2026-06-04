@@ -113,6 +113,11 @@ object Main:
         val project = loadProject(specFile).orExit
         tool.Build.buildDoc(project).orExit
 
+      case "versions" =>
+        tool.Versions.run(args.drop(1), tool.HttpInstaller.default()) match
+          case tool.Result.Ok(_)    => ()
+          case tool.Result.Err(msg) => System.err.println(s"${tool.Ansi.red("error:")} $msg"); sys.exit(1)
+
       case "help" | "--help" | "-h" =>
         printUsage()
 
@@ -137,7 +142,7 @@ object Main:
 
   private def loadProject(specFile: String): tool.Result[tool.Project] =
     val specPath = Paths.get(specFile).toAbsolutePath
-    tool.Project.load(specPath).mapError(msg => s"error: $msg")
+    tool.Project.load(specPath)
 
   def parseCompileFlags(args: Array[String]): CompileFlags =
     var backend: Option[Backend] = None
@@ -190,6 +195,10 @@ object Main:
       |  jo lock [--spec <file.toml>]           Resolve dependencies and rewrite the lock file
       |  jo info <pkg>[@<version>]              Show package metadata and available versions
       |  jo eval <source.jo>                    Run program with interpreter
+      |  jo versions                             List installed and available compiler versions
+      |  jo versions install <version>          Download and install a compiler version
+      |  jo versions use <version>              Switch the active compiler version
+      |  jo versions remove <version>           Remove an installed compiler version
       |  jo compile [options] <source.jo>       Compile application or library
       |  jo compile --doc [options] <files...>  Generate documentation from source files
       |  jo doc [--spec <file.toml>]            Generate project documentation
@@ -198,6 +207,7 @@ object Main:
       |Compile options (application — default backend is Ruby):
       |  --ruby          Compile Ruby application (default)
       |  --python        Compile Python application
+      |  --js            Compile JavaScript application (experimental, no build tool support)
       |  -o <out>        Output file path
       |  --lib <dir>      Use a precompiled library (can be specified multiple times)
       |                   Example: --lib build/core --lib build/utils
@@ -205,15 +215,16 @@ object Main:
       |                   Example: --link-lib build/runtime
       |  --link <src=tgt> Redirect symbol references (can be specified multiple times)
       |                   Example: --link jo.Predef.entry=Test.main
-      |  --use-runtime-api <python|ruby>
+      |  --use-runtime-api <python|ruby|js>
       |                   Make a runtime API available as a check library; when it matches the
       |                   selected app backend, suppress the backend's default runtime link lib
+      |                   (js is experimental)
       |
       |Compile options (library):
       |  --sast <dir>    Compile to .sast files; if no backend flag, this is the only output
       |  --lib <dir>     Use a precompiled library (can be specified multiple times)
-      |  --use-runtime-api <python|ruby>
-      |                   Make a runtime API available as a check library
+      |  --use-runtime-api <python|ruby|js>
+      |                   Make a runtime API available as a check library (js is experimental)
       |
       |Doc options for 'jo compile --doc':
       |  --out <dir>           Output directory (default: docs)

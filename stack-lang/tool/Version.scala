@@ -58,8 +58,6 @@ object VersionSpec:
       case None           => Left(s"invalid version '$clause' in constraint '$input'")
 
 object Version:
-  val current: Version = Version(0, 10, 0)
-
   /** Parse MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-modifier (modifier: non-empty alphanumeric). */
   def parse(s: String): Option[Version] =
     val dashIdx = s.indexOf('-')

@@ -1,0 +1,68 @@
+rm -rf compilers active
+
+# missing version argument
+jo versions install
+: '
+error: 'jo versions install' requires a version argument
+'
+
+jo versions remove
+: '
+error: 'jo versions remove' requires a version argument
+'
+
+jo versions use
+: '
+error: 'jo versions use' requires a version argument
+'
+
+# invalid version specs
+jo versions install abc
+: '
+error: invalid version 'abc'
+'
+
+jo versions install 1.2
+: '
+error: invalid version '1.2'
+'
+
+jo versions remove 1.2.3.4
+: '
+error: invalid version '1.2.3.4'
+'
+
+jo versions use 1.x.0
+: '
+error: invalid version '1.x.0'
+'
+
+jo versions install 9.9.9
+: '
+Installing Jo 9.9.9 ...
+error: version 9.9.9 not found
+'
+
+jo versions remove 0.10.0
+: '
+error: Jo 0.10.0 is not installed
+'
+
+jo versions use 0.10.0
+: '
+error: Jo 0.10.0 is not installed — run 'jo versions install 0.10.0' first
+'
+
+jo versions install 0.10.0
+: '
+Installing Jo 0.10.0 ... done
+
+Run 'jo versions use 0.10.0' to activate it.
+'
+
+jo versions install 0.10.0
+: '
+Installing Jo 0.10.0 ...
+error: Jo 0.10.0 is already installed — run 'jo versions remove 0.10.0' first
+'
+rm -rf compilers active

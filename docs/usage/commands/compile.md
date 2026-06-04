@@ -21,7 +21,7 @@ Without a backend flag, the compiler type-checks only. With a backend flag, it p
 
 `--doc` switches the compiler into primitive documentation mode. This is the low-level interface for generating docs directly from source files. For normal project workflows, prefer [`jo doc`](doc.md).
 
-## Flags
+## Options
 
 ### Common
 
@@ -46,8 +46,10 @@ Without a backend flag, the compiler type-checks only. With a backend flag, it p
 
 | Flag                      | Description |
 |---------------------------|-------------|
-| `--python\|--ruby\|--js`  | Target scripting backend |
-| `--stack\|--reg`          | Target native backend (experimental) |
+| `--ruby`                  | Target Ruby (default) |
+| `--python`                | Target Python |
+| `--js`                    | Target JavaScript (experimental) |
+| `--stack\|--reg`          | Target native backend (internal testing) |
 | `--link-lib <dir>`        | Link library directory (resolves `defer def`s, can be repeated) |
 | `--link <src>=<tgt>`      | Wire a specific `defer def` explicitly (can be repeated) |
 | `-o <output>`             | Output file path |

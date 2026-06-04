@@ -4,8 +4,11 @@ import java.nio.file.{Files, Path}
 import java.security.MessageDigest
 
 object Digest:
-  def sha512Hex(path: Path): String =
-    val md = MessageDigest.getInstance("SHA-512")
+  def sha256Hex(path: Path): String = hexDigest("SHA-256", path)
+  def sha512Hex(path: Path): String = hexDigest("SHA-512", path)
+
+  private def hexDigest(algorithm: String, path: Path): String =
+    val md = MessageDigest.getInstance(algorithm)
     val in = Files.newInputStream(path)
 
     try

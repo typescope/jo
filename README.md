@@ -2,111 +2,72 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./docs/img/logo.svg">
     <source media="(prefers-color-scheme: light)" srcset="./docs/img/logo-black.svg">
-    <img alt="Jo" src="./docs/img/logo.svg" width="33px" margin-bottom="-8px">
+    <img alt="Jo" src="./docs/img/logo.svg" width="40px">
   </picture>
+
+  <p>For the joy of secure programming</p>
+
+  [![CI](https://github.com/typescope/jo/actions/workflows/ci.yml/badge.svg)](https://github.com/typescope/jo/actions/workflows/ci.yml)
+  [![Release](https://img.shields.io/badge/release-v0.10.0-blue.svg)](https://github.com/typescope/jo/releases/tag/v0.10.0)
+  [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+  [![Docs](https://img.shields.io/badge/docs-jo--lang.org-teal.svg)](https://jo-lang.org)
 </div>
 
-<h4 align="center">For the joy of secure programming</h4>
+---
 
-<!-- <p align="center"> -->
-<!--   <a href="#features">Features</a> • -->
-<!--   <a href="#examples">Examples</a> • -->
-<!--   <a href="#usage">Usage</a> -->
-<!-- </p> -->
+Jo is a statically typed language where **capabilities are explicit, statically tracked, and enforced by the compiler**. Jo compiles to Ruby and Python.
 
-Jo is a statically-typed object-oriented and functional language that compiles to Ruby and Python. Its type system enforces capability-based security at compile time.
-
-<a id="features"></a>
+> **Project status:** Early-stage. The compiler, standard library, and toolchain are ready for serious experimentation. APIs and language details may still change.
 
 ## Why Jo?
 
-Jo is designed to solve the following authority confinement problem via its
-_type system_ that sandboxing cannot do:
+AI agents generate code that runs inside your platform. That code can — unless you prevent it — reach for the network, read arbitrary files, or query other users' data. Runtime sandboxes help, but they operate at the wrong level: they can block syscalls or filesystem paths, but they cannot enforce "access only this user's rows".
 
-> How to safely execute a 3rd party function with the guarantee that it only does what
-it is allowed to do, e.g., read certain rows of a database table according to access control policies, but
-cannot do anything else (no abitrary http requests, file IO, etc.)?
+Jo enforces capability boundaries at the type level, before the program runs. A function that has not received a capability cannot use it. The compiler proves this transitively through the entire call graph.
 
-Jo solves the security problem above in the simplest way possible without taking
-away too much freedom from programmers. It brings the following benefits:
+## Language Highlights
 
-- **Authority confinement** - Confine an untrusted function to contracted authorities
-- **Fine-grained control** - Fine-grained authorities enable precise control, e.g. only access certain rows of a database table
-- **Easy security auditing** - Compile-time checked authorities and clear security boundaries
+### Static capability control
 
-Jo's mission is to make secure programming a joy.
-
-## Key Features ✨
-
-- **Static capability control** - Fine-grained capability control at compile-time
-- **Pattern-oriented programming** - Custom pattern predicates and powerful sequence patterns
-- **Context parameters** - Elegant dependency injection without global variables or frameworks
-
-<a id="get-started"></a>
-
-## Getting Started 🚀
-
-```bash
-# Build Ruby
-bin/jo compile --ruby tests/pos/hello.jo -o hello.rb
-ruby hello.rb
-
-# Build Python
-bin/jo compile --python tests/pos/hello.jo -o hello.py
-python hello.py
-```
-
-<a id="examples"></a>
-
-## Examples 💡
-
-### Hello world
-
-```Scala
-def main = println "Hello world!"
-```
-
-### Capability-Oriented Programming
-
-```Scala
+```scala
 def foo() = println "foo"                     // inferred capability: stdout
-def bar() = foo()                             // inferred capability: stdout
+def bar() = foo()                              // inferred capability: stdout
 
-def baz() = println "baz"                     // inferred capability: stdout
-
-def qux() receives IO.stdout = println "qux"  // explicit capability: only stdout
+def qux() receives IO.stdout = println "qux" // explicit: only stdout
 
 def main =
-  allow none in bar()                  // error: no capabilities allowed, but need stdout
-  allow IO.stdout in baz()             // OK
-  qux() with IO.stdout = s => pass  // ignore output
+  allow none in bar()                         // error: no capabilities allowed
+  allow IO.stdout in bar()                    // OK
+  with IO.stdout = s => pass in qux()         // redirect output
 ```
 
-Gives the following errors:
-
-```log
----------- Error at tests/warn/param-allow.jo:10:3 ---------------
-|   allow none in bar()                  // error
+```
+---------- Error at main.jo:5:3 ---------------
+|   allow none in bar()
 |                 ^^^^^
 |   Parameter not allowed: stdout
 
 The following is the trace that leads to the problem:
-├──   allow none in bar()                  // error	[ tests/warn/param-allow.jo:10:3 ]
+├──   allow none in bar()     [ main.jo:5:3 ]
 │                   ^^^^^
-├── def bar() = foo()	[ tests/warn/param-allow.jo:2:13 ]
+├── def bar() = foo()         [ main.jo:2:13 ]
 │               ^^^^^
-└── def foo() = println "foo"	[ tests/warn/param-allow.jo:1:13 ]
+└── def foo() = println "foo" [ main.jo:1:13 ]
                 ^^^^^^^
 ```
 
-### Pattern-Oriented Programming
+### Pattern-oriented programming
 
-```Scala
-pattern Pos: Partial[Int] = case x if x > 0
+Named, reusable pattern predicates compose with logical operators:
+
+```scala
+pattern Positive: Partial[Int] = case x if x > 0
+
 match list
-  case [..positives while Pos, ..rest] =>
-    println "pos = \{positives}, rest = \{rest}"
-  case _ =>
+case [..positives while Positive, ..rest] =>
+  println "pos = \{positives}, rest = \{rest}"
+
+case _ => pass
 
 if result is Some(code) && code > 0 then
   println "Success, code = \{code}"
@@ -116,48 +77,62 @@ if message is `(?s)<code>(?<prog>.*)</code>` then
   println prog
 ```
 
-### For Secure AI
+## Confining AI-Generated Code
 
-Jo's capability system can confine AI-generated code at compile time:
+The two-world architecture separates confined code (no FFI, checked against capability interfaces only) from trusted code (FFI allowed, implements and provides capabilities):
 
-```Scala
-//------------------ Interface library ---------------------------
-// No FFI
-class Order(...)
-param GetOrders: (lastDays: Int) => List[Order] // (1)!
+```scala
+//--- Interface library (confined, no FFI) ---
+param ordersApi: OrdersApi
+defer def aiMain(): Unit receives ordersApi, IO.stdout
 
-// The signature that the AI generated code need to conform
-defer def aiMain(): Unit receives GetOrders, IO.stdout
-
-//------------------ Framework library ----------------------
-// with FFI
-
+//--- Framework harness (trusted, FFI allowed) ---
 def frameworkMain() =
   val db = connect("orders.db")
   val userId = currentUser()
-  val restricted = (days: Int) => db.ordersFor(userId, days)
-
-  // Capture AI code output
-  val output: ArrayBuffer[String] = []
+  val restricted = new UserScopedOrders(userId, db)  // attenuated: user-scoped, read-only
   val buffer = (s: String) => output += s
 
-  // Compiler proves: AI code cannot access network, filesystem, or other data
   allow none in
-    aiMain() with GetOrders = restricted, IO.stdout = buffer
+    with ordersApi = restricted, IO.stdout = buffer in aiMain()
 
-  // ...
-
-//------------------ AI generated code ----------------------
-// No FFI
-
-// The code can only read orders and use stdout, nothing else
-def aiMain(): Unit receives GetOrders, IO.stdout = // (6)!
-  val orders = GetOrders(30)
+//--- AI-generated code (confined, no FFI) ---
+def aiMain(): Unit receives ordersApi, IO.stdout =
+  val orders = ordersApi.query(30)
   summarize(orders)
 ```
 
-1. The API is compiled to a separate library with **no FFI** support, the same as the standard library.
-2. The framework is compiled to a separate library **with FFI** support.
-3. The AI generated code is verified against the Api library **without FFI**, then linked with the harness.
+`allow none` is a compile-time proof: `aiMain()` uses no capabilities beyond what it declared. The AI code cannot access the network, filesystem, or other users' data.
 
-The AI code cannot access the network, filesystem, or other users' data - the compiler enforces this statically. After type checking, no runtime isolation or sandboxing is needed.
+See the [security documentation](https://jo-lang.org/security/security-problem) for the full model.
+
+## Try Jo
+
+```bash
+curl -sSf https://jo-lang.org/install.sh | sh
+```
+
+The installer downloads the compiler to `~/.jo/compilers/<version>/` and creates a launcher at `~/.local/bin/jo`. Add `~/.local/bin` to `PATH` if it is not already there.
+
+Full installation instructions and a getting-started guide are at **[jo-lang.org](https://jo-lang.org)**.
+
+## Learn More
+
+| | |
+|---|---|
+| [Language Tour](https://jo-lang.org/overview/language-tour) | Overview of Jo's features with examples |
+| [Security Model](https://jo-lang.org/security/two-worlds) | How capability enforcement works |
+| [Language Reference](https://jo-lang.org/language/design-principles) | Types, expressions, patterns, definitions |
+| [Build Tool](https://jo-lang.org/usage/getting-started) | Project setup, dependencies, commands |
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions, contribution guidelines, and the DCO sign-off requirement. Bug reports, language design discussions, and pull requests are welcome.
+
+Security issues should be reported privately — see [SECURITY.md](SECURITY.md).
+
+## License
+
+Apache 2.0 — see [LICENSE](LICENSE).
+
+Jo is developed and maintained by [TypeScope](https://typescope.ai).

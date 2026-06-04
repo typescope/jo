@@ -107,37 +107,28 @@ bin/jo compile --verbose --sast $NATIVE_RUNTIME --test-pickling --explicit-retur
 if [ "$BUILD_RELEASE" = true ]; then
   echo "Creating release package..."
 
-  # Get product version from the built compiler
   VERSION=$(bin/jo --version)
   RELEASE_NAME="jo-${VERSION}"
-  RELEASE_ZIP="${RELEASE_NAME}.zip"
+  RELEASE_TARBALL="${RELEASE_NAME}.tar.gz"
 
-  # Create temporary directory for packaging
   TEMP_DIR=$(mktemp -d)
   RELEASE_DIR="${TEMP_DIR}/${RELEASE_NAME}"
   mkdir -p "$RELEASE_DIR"
 
-  # Copy files to release directory
-  echo "Copying files to release package..."
-  mkdir -p "$RELEASE_DIR/bin"
-  cp bin/jo.jar "$RELEASE_DIR/bin/"
-  cp bin/jo "$RELEASE_DIR/bin/"
+  echo "Copying files..."
+  cp bin/jo.jar "$RELEASE_DIR/"
   cp -r libs "$RELEASE_DIR/"
   cp -r assets "$RELEASE_DIR/"
-
-  # Copy tools directory
-  cp -r tools "$RELEASE_DIR/"
-
   cp LICENSE "$RELEASE_DIR/"
-  cp README.md "$RELEASE_DIR/"
 
-  # Create zip file
-  echo "Creating ${RELEASE_ZIP}..."
-  (cd "$TEMP_DIR" && zip -r -q "${RELEASE_ZIP}" "${RELEASE_NAME}")
-  mv "${TEMP_DIR}/${RELEASE_ZIP}" .
+  echo "Creating ${RELEASE_TARBALL}..."
+  tar -czf "$RELEASE_TARBALL" -C "$TEMP_DIR" "$RELEASE_NAME"
 
-  # Cleanup
   rm -rf "$TEMP_DIR"
 
-  echo "Release package created: ${RELEASE_ZIP}"
+  sha256sum "$RELEASE_TARBALL" > "${RELEASE_TARBALL}.sha256"
+
+  echo "Release package created: ${RELEASE_TARBALL}"
+  echo "Checksum:                 ${RELEASE_TARBALL}.sha256"
+  echo "  $(cat ${RELEASE_TARBALL}.sha256)"
 fi

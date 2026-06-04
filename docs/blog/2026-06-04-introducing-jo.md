@@ -1,6 +1,6 @@
 ---
 title: Introducing Jo — Secure Programming for the AI Era
-date: 2026-06-03
+date: 2026-06-04
 author: The Jo Team
 description: Jo is a statically typed language for fine-grained capability-based programming. It is designed to make authority confinement practical, auditable, and pleasant to use.
 ---
@@ -147,6 +147,11 @@ This is the core idea behind Jo: make authority confinement a programming model.
   <text x="390" y="282" text-anchor="middle" font-size="11" font-weight="700" fill="#555">--link</text>
 </svg>
 
+The [Two-World Architecture](../security/two-worlds.md) page describes this model in
+detail, and [Secure Language Design](../security/language-design.md) covers the
+language facilities — capability parameters and authority attenuation — that
+make confinement practical.
+
 For a concrete example, see the [data-query agent
 demo](https://github.com/typescope/jo/tree/main/demos/data-query-agent), which
 shows how an agent can ask flexible questions over a database while being
@@ -238,10 +243,9 @@ cases.
 
 ## Learn More
 
-Start with the [Language Tour](/overview/language-tour) for the language
-surface, or read [Two-World Architecture](/security/two-worlds) for the security model in
-more detail. The detailed installation and usage material lives on
-[jo-lang.org](https://jo-lang.org/).
+Start with the [Language Tour](../overview/language-tour.md) for the language
+surface, or read [Two-World Architecture](../security/two-worlds.md) for the security model in
+more detail. For installation, see the [install guide](../usage/install.md).
 
 ## Feedback
 

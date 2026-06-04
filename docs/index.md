@@ -56,9 +56,15 @@ features:
   - icon:
       src: /icons/layers.svg
     title: Multiple Backends
-    details: One language, multiple runtimes. Compile to Python, JavaScript, or Ruby with the same type guarantees on every platform.
+    details: One language, multiple runtimes. Compile to Python or Ruby with the same type guarantees on every platform.
     link: /usage/getting-started
     linkText: Get started
 ---
 
-Jo's capability model is grounded in [λCC](https://github.com/typescope/contextual-capability), a formally verified calculus of contextual capabilities.
+## From the blog
+
+- [Introducing Jo — Secure Programming for the AI Era](/blog/2026-06-04-introducing-jo) · June 2026
+
+---
+
+Jo is developed and maintained by [TypeScope](https://typescope.ai).

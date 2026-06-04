@@ -1,0 +1,8 @@
+rm -rf compilers active
+
+jo versions list
+: '
+No compiler versions installed.
+
+warning: could not fetch available versions: network timeout
+'

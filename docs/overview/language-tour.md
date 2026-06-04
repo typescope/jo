@@ -48,9 +48,12 @@ Jo supports several call styles for the same function:
 ```jo
 def connect(host: String, port: Int = 8080, secure: Bool = false) = ...
 
-connect("localhost", 443, true)                    // positional
+connect("localhost", 443, secure = true)           // positional
 connect("localhost", port = 443, secure = true)    // named arguments
-connect "localhost" 443 true                       // space-separated
+
+connect "localhost" 443 true                       // expression call
+
+connect: "localhost", 443, secure = true           // colon call, inlined
 connect:                                           // colon call, indented
   "localhost"
   port = 443
@@ -86,11 +89,9 @@ See [Lambdas](../language/expressions/lambdas.md).
 
 ## Regular Expression
 
-Regex literals use backtick syntax. Methods for matching, splitting, and replacing are available via `import jo.regex.*`.
+Regex literals use backtick syntax.
 
 ```jo
-import jo.regex.*
-
 "abc123".exists(`\d+`)                         // true
 "a  b   c".splitBy(`\s+`)                      // ["a", "b", "c"]
 "a1b22".replaceAll(`\d+`, _ => "N")            // "aNbN"
@@ -139,7 +140,7 @@ def parse(s: String): Result[Int, String] =
   if s == "" then Err("empty") else Ok(42)
 
 def doubled(s: String): Result[Int, String] =
-  val n = parse(s) rescue Err(e) => return Err(e)  // propagate on error
+  val n = parse(s) rescue e @ Err(_) => return e  // propagate on error
   Ok(n * 2)
 ```
 
@@ -218,7 +219,7 @@ class Point(x: Int, y: Int)             // data class
 class Counter                            // explicit contructor
   var count: Int = 0
   def Counter(v: Int): Counter =
-    this.count = v 
+    this.count = v
     this
   def increment(): Unit = count = count + 1
   def value: Int = count

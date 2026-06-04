@@ -55,6 +55,14 @@ import tool.toml.{TomlError, TomlParser}
   failed :::= runInfoTests(activeFilters)
   println()
 
+  println("=== Versions ===")
+  failed :::= runVersionsTests(activeFilters)
+  println()
+
+  println("=== JoResolver ===")
+  failed :::= runResolverTests()
+  println()
+
   if failed.isEmpty then println("All tool tests passed.")
   else
     println(s"FAILED: ${failed.reverse.mkString(" ")}")
@@ -93,6 +101,64 @@ private def runInfoTests(filters: List[String]): List[Path] =
       failed ::= file
 
   failed
+
+private def runVersionsTests(filters: List[String]): List[Path] =
+  val joBin = Paths.get("bin/jo").toAbsolutePath()
+  if !Files.exists(joBin) then
+    println("  skipped: bin/jo not found")
+    return Nil
+
+  var failed = List.empty[Path]
+  given Logger = Logger(LogLevel.Log)
+  for stepsFile <- findFiles("tests/tool-versions/*/jo.steps").filter(matchesFilter(_, filters)) do
+    failed :::= runStepsFile(stepsFile, stepsFile.getParent)
+  failed
+
+private def runResolverTests(): List[Path] =
+  val current    = JoVersion.current
+  val matching   = VersionSpec(current.copy(patch = 0))
+  val tooNew     = VersionSpec(Version(current.major, current.minor + 1, 0))
+  val wrongMajor = VersionSpec(Version(current.major + 1, 0, 0))
+  var failed     = false
+
+  def checkMismatch(label: String)(result: Result[?]): Unit =
+    result match
+      case Result.Err(msg) if msg.contains("jo versions use") =>
+        println(s"  ok: $label")
+
+      case other =>
+        println(s"FAIL: $label")
+        println(s"  expected version mismatch error, got: $other")
+        failed = true
+
+  def checkNoMismatch(label: String)(result: Result[?]): Unit =
+    result match
+      case Result.Err(msg) if msg.contains("jo versions use") =>
+        println(s"FAIL: $label")
+        println(s"  unexpected version mismatch error: $msg")
+        failed = true
+
+      case _ =>
+        println(s"  ok: $label")
+
+  checkNoMismatch("resolve: matching constraint passes version check"):
+    JoResolver.resolve(matching)
+
+  checkMismatch("resolve: requires newer minor → version mismatch"):
+    JoResolver.resolve(tooNew)
+
+  checkMismatch("resolve: requires higher major → version mismatch"):
+    JoResolver.resolve(wrongMajor)
+
+  checkNoMismatch("resolveExact: current version passes version check"):
+    JoResolver.resolveExact(current)
+
+  val other = current.copy(patch = current.patch + 1)
+
+  checkMismatch("resolveExact: wrong version → version mismatch"):
+    JoResolver.resolveExact(other)
+
+  if failed then List(Paths.get("JoResolver")) else Nil
 
 private def matchesFilter(path: Path, filters: List[String]): Boolean =
   if filters.isEmpty then true
@@ -254,6 +320,14 @@ private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String
     return Project.load(specPath, resolveJo).flatMap(Build.buildDoc(_)) match
       case Result.Ok(_)    => Result.Ok("")
       case Result.Err(msg) => Result.Err(s"error: $msg\n")
+
+  if command == "versions" then
+    val installer = MockInstaller.fromYaml(specDir.resolve("versions.yaml"))
+    val buf = java.io.ByteArrayOutputStream()
+    val ps  = java.io.PrintStream(buf, true, "UTF-8")
+    Console.withOut(ps) { Versions.run(cmdArgs, installer) } match
+      case Result.Ok(_)    => return Result.Ok(buf.toString("UTF-8"))
+      case Result.Err(msg) => return Result.Err(buf.toString("UTF-8") + s"error: $msg\n")
 
   val specFile0 = command match
     case "run" =>
