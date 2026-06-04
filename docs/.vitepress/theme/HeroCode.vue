@@ -75,7 +75,7 @@ const snippets = [
       '  println ' + str('"pos = \\{positives}, rest = \\{rest}"') + '\n' +
       '\n' +
       c('// regex with named groups') + '\n' +
-      kw('if ') + 'msg ' + kw('is') + ' `(?s)' + op('<') + 'code' + op('>') + '(?\\<prog\\>.*' + op(')') + '\\<\\/code\\>` ' + kw('then') + '\n' +
+      kw('if ') + 'msg ' + kw('is') + ' `(?s)' + op('<') + 'code' + op('>') + '(?' + op('<') + 'prog' + op('>') + '.*' + op(')') + op('<') + '\/code' + op('>') + '` ' + kw('then') + '\n' +
       '  println prog'
   }
 ]
