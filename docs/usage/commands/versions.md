@@ -22,8 +22,8 @@ jo versions list
 ```
 
 Installed versions are always listed individually so the active version is
-unambiguous. Available versions not yet installed are shown in a second section,
-grouped by minor version when there are 10 or more:
+unambiguous. All available versions are shown in a second section regardless
+of whether they are installed, grouped by minor version when there are 10 or more:
 
 ```
 Installed:
@@ -34,7 +34,7 @@ Installed:
 Available:
 
   0.11.{0-3}
-  0.10.{2-5}
+  0.10.{0-5}
   0.9.{0-1}
 ```
 
