@@ -23,6 +23,7 @@ need() {
 # ── latest version ───────────────────────────────────────────────────────────
 
 latest_version() {
+  # /releases/latest returns the most recent non-prerelease, non-draft release (GitHub API guarantee)
   URL="https://api.github.com/repos/$REPO/releases/latest"
   VERSION="$(curl -sSf "$URL" | grep '"tag_name"' | sed 's/.*"tag_name": *"\(.*\)".*/\1/')"
   [ -n "$VERSION" ] || die "Could not determine latest release version"
@@ -44,6 +45,10 @@ main() {
     info "Fetching latest release..."
     VERSION="$(latest_version)"
     BARE="${VERSION#v}"
+    # Verify the API returned a stable release (no pre-release modifier)
+    case "$BARE" in
+      *-*) die "GitHub returned a pre-release version ($BARE) as latest — this is unexpected. Set JO_VERSION explicitly." ;;
+    esac
   fi
 
   TARBALL="jo-${BARE}.tar.gz"
