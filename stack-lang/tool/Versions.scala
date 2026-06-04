@@ -17,12 +17,11 @@ object Versions:
   private def list(installer: Installer): Unit =
     val installed  = installer.getInstalledVersions()
     val active     = installer.activeVersion()
-    val allAvail   = installer.getVersions() match
+    val available = installer.getVersions() match
       case Result.Ok(vs) => vs
       case Result.Err(_) => Nil
-    val notInstalled = allAvail.filterNot(installed.contains)
 
-    if installed.isEmpty && notInstalled.isEmpty then
+    if installed.isEmpty && available.isEmpty then
       println("No compiler versions installed.")
       println(s"\nRun 'jo versions install <version>' to install one.")
       return
@@ -33,10 +32,10 @@ object Versions:
         val marker = if active.contains(v) then s" ${Ansi.green("(active)")}" else ""
         println(s"  $v$marker")
 
-    if notInstalled.nonEmpty then
+    if available.nonEmpty then
       if installed.nonEmpty then println()
       println("Available:\n")
-      printVersions(notInstalled, None)
+      printVersions(available, None)
 
   private def printVersions(versions: List[Version], active: Option[Version]): Unit =
     if versions.length < 10 then
