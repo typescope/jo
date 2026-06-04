@@ -4,17 +4,17 @@ title: Home
 
 hero:
   name: "Jo"
-  text: "Secure Programming for the AI Era"
-  tagline: Give AI agents only the capabilities they need — guaranteed by the type system, not a runtime sandbox.
+  text: "For the joy of secure programming"
+  tagline: Capabilities are explicit, fine-grained, and enforced by the compiler — not a runtime sandbox.
   actions:
     - theme: brand
       text: Get Started
-      link: /usage/getting-started
+      link: /usage/install
     - theme: alt
       text: Language Tour
       link: /overview/language-tour
     - theme: alt
-      text: AI Security
+      text: Security Model
       link: /security/security-problem
 
 features:
@@ -27,8 +27,8 @@ features:
 
   - icon:
       src: /icons/shield-check.svg
-    title: Built for AI Systems
-    details: Confine AI agents to declared capabilities. No network, filesystem, or data access beyond what you explicitly allow.
+    title: Confine Untrusted Code
+    details: Structurally prevent third-party code, plugins, or generated programs from accessing anything beyond what you explicitly grant.
     link: /security/security-problem
     linkText: See the problem
 

@@ -67,7 +67,7 @@ git push origin vX.Y.Z
 ## 7. Deploy Docs
 
 ```sh
-gh workflow run docs.yml --repo typescope/jo --ref vX.Y.Z
+gh workflow run docs.yml --repo typescope/jo
 ```
 
 - [ ] Docs deployed and `https://jo-lang.org` shows the new version

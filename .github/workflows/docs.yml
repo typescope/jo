@@ -7,11 +7,6 @@ on:
       - 'docs/**'
       - 'tools/vscode/syntaxes/**'
   workflow_dispatch:
-    inputs:
-      ref:
-        description: 'Branch or tag to deploy (e.g. v0.10.0)'
-        required: false
-        default: 'main'
 
 permissions:
   contents: read
@@ -25,8 +20,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref || github.ref }}
 
       - uses: actions/setup-node@v6
         with:

@@ -272,38 +272,13 @@ div[class*='language-'] {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Hero animation — full-bleed background */
-.VPHero .image {
-  position: absolute !important;
-  inset: 0 !important;
-  width: 100% !important;
-  max-width: none !important;
-  height: 100% !important;
-  z-index: 0;
-  pointer-events: none;
-}
-.VPHero .image-container {
-  display: block !important;
-  width: 100% !important;
-  height: 100% !important;
-  max-width: none !important;
-  border-radius: 0 !important;
-}
-.VPHero .image-bg { display: none !important; }
-.VPHero .container { position: relative; z-index: 1; }
 
 /* Hero name gradient */
 .VPHero .name .clip {
-  background: linear-gradient(135deg, #7c3aed 0%, #2563eb 50%, #7c3aed 100%);
-  background-size: 200% auto;
+  background: linear-gradient(135deg, #7c3aed 0%, #2563eb 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: shimmer 4s linear infinite;
-}
-@keyframes shimmer {
-  0%   { background-position: 0% center; }
-  100% { background-position: 200% center; }
 }
 
 /* Feature card icons */
@@ -319,7 +294,7 @@ div[class*='language-'] {
     rgba(37, 99, 235, 0.03) 100%) !important;
   border: 1px solid rgba(124, 58, 237, 0.18) !important;
   border-radius: 14px !important;
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease !important;
+  transition: border-color 0.2s ease !important;
   animation: fadeUp 0.6s ease both;
 }
 .dark .VPFeature {
@@ -329,18 +304,10 @@ div[class*='language-'] {
   border-color: rgba(124, 58, 237, 0.28) !important;
 }
 .VPFeature:hover {
-  transform: translateY(-5px);
-  background: linear-gradient(135deg,
-    rgba(124, 58, 237, 0.10) 0%,
-    rgba(37, 99, 235, 0.07) 100%) !important;
-  box-shadow: 0 16px 40px rgba(124, 58, 237, 0.18);
-  border-color: rgba(124, 58, 237, 0.50) !important;
+  border-color: rgba(124, 58, 237, 0.40) !important;
 }
 .dark .VPFeature:hover {
-  background: linear-gradient(135deg,
-    rgba(124, 58, 237, 0.18) 0%,
-    rgba(37, 99, 235, 0.12) 100%) !important;
-  box-shadow: 0 16px 40px rgba(124, 58, 237, 0.28);
+  border-color: rgba(124, 58, 237, 0.50) !important;
 }
 
 .VPFeatures .VPFeature:nth-child(1) { animation-delay: 0.1s; }
