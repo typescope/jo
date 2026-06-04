@@ -15,14 +15,18 @@ object Versions:
     installer.getInstalledVersions().flatMap: installed =>
       val availableResult = installer.getVersions()
 
-      val availableEmpty = availableResult match
-        case Result.Ok(vs) => vs.isEmpty
-        case Result.Err(_) => true
-
-      if installed.isEmpty && availableEmpty then
-        println("No compiler versions installed.")
-        println(s"\nRun 'jo versions install <version>' to install one.")
-        return Result.Ok(())
+      if installed.isEmpty then
+        availableResult match
+          case Result.Ok(vs) if vs.nonEmpty => () // fall through to show available
+          case Result.Ok(_) =>
+            println("No compiler versions installed.")
+            println(s"\nRun 'jo versions install <version>' to install one.")
+            return Result.Ok(())
+          case Result.Err(msg) =>
+            println("No compiler versions installed.")
+            println()
+            println(s"${Ansi.yellow("warning:")} could not fetch available versions: $msg")
+            return Result.Ok(())
 
       if installed.nonEmpty then
         val active: Option[Version] = installer.activeVersion() match
