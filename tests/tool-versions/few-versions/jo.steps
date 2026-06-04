@@ -1,0 +1,39 @@
+rm -rf compilers active
+
+jo versions list
+: '
+Available:
+
+  0.10.0
+  0.9.1
+  0.9.0
+  0.8.0
+  0.7.0
+'
+
+jo versions install 0.10.0
+: '
+Installing Jo 0.10.0... done
+
+Run 'jo versions use 0.10.0' to activate it.
+'
+
+jo versions use 0.10.0
+: '
+Now using Jo 0.10.0.
+'
+
+jo versions list
+: '
+Installed:
+
+  0.10.0 (active)
+
+Available:
+
+  0.10.0
+  0.9.1
+  0.9.0
+  0.8.0
+  0.7.0
+'

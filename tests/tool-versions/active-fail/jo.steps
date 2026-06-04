@@ -1,0 +1,20 @@
+rm -rf compilers active
+
+jo versions install 0.10.0
+: '
+Installing Jo 0.10.0... done
+
+Run 'jo versions use 0.10.0' to activate it.
+'
+
+jo versions list
+: '
+warning: could not determine active version: corrupt file
+Installed:
+
+  0.10.0
+
+Available:
+
+  0.10.0
+'

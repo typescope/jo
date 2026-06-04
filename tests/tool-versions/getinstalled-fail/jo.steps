@@ -1,0 +1,6 @@
+rm -rf compilers active
+
+jo versions list
+: '
+error: disk error
+'
