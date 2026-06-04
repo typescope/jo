@@ -1,52 +1,40 @@
 # Pre-Releases
 
-Jo does not support pre-release package versions yet, but the design is settled
-enough to describe the intended behavior.
+Pre-release package versions follow the form `MAJOR.MINOR.PATCH-<modifier>`:
 
-## Version Form
+```
+1.2.0-alpha1
+1.2.0-beta1
+1.2.0-rc1
+```
 
-Stable package versions use:
+The modifier is an alphanumeric suffix. Pre-release versions sort below their
+corresponding stable release — `1.2.0-rc1` is less than `1.2.0`.
 
-- `MAJOR.MINOR.PATCH`
+## Default Resolution
 
-Planned pre-release versions will extend that with a suffix:
+Normal dependency resolution ignores pre-releases. If the registry contains:
 
-- `1.2.0-alpha1`
-- `1.2.0-beta1`
-- `1.2.0-rc1`
+```
+1.2.0-alpha1
+1.2.0-rc1
+1.2.0
+```
 
-Each pre-release remains a distinct concrete release version. Normal dependency
-constraints stay `MAJOR.MINOR`, such as `1.2`. Pre-release suffixes are only
-for concrete package versions, root-level `[pinning]`, and the exact version
-recorded in `jo.lock`.
+a `1.2` constraint picks `1.2.0`, not the pre-releases.
 
-## Selection And Pinning
+## Opting In With Pinning
 
-Default dependency resolution will ignore pre-releases.
-
-So if the registry contains:
-
-- `1.2.0-alpha1`
-- `1.2.0-rc1`
-- `1.2.0`
-
-normal resolution still picks only stable releases.
-
-The planned way to use a pre-release is through root-level pinning:
+To use a pre-release, pin it explicitly in the root build spec:
 
 ```toml
 [pinning]
 mustache = "1.2.0-rc1"
 ```
 
-This keeps pre-release usage explicit, local to the root build, and out of
-published package metadata.
+Pinning is local to the root project and not propagated to published packages.
 
-## Registry And Lock Files
+## Lock Files
 
-The registry may contain pre-release package versions alongside stable
-versions.
-
-If a root build pins a pre-release and resolution succeeds, `jo.lock` may record
-that exact pre-release version too. `jo.lock` only records the chosen exact
-version. It does not change selection policy.
+When a pre-release is selected via pinning, `jo.lock` records that exact
+version. The lock file does not change selection policy for unpinned packages.
