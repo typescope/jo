@@ -98,12 +98,12 @@ class HttpInstaller(
              |exec "$versionBin" "$$@"
              |""".stripMargin)
         activeBin.toFile.setExecutable(true)
-        System.err.println(s"  Launcher updated: $activeBin")
+        System.err.println(s"  ${Ansi.dim("Launcher:")} ${tilde(activeBin)}")
         val binDir = activeBin.getParent.toString
         val path   = sys.env.getOrElse("PATH", "")
         if !path.split(":").contains(binDir) then
-          System.err.println(s"${Ansi.yellow("note:")} add '$binDir' to your PATH:")
-          System.err.println(s"  export PATH=\"$binDir:$$PATH\"")
+          System.err.println(s"${Ansi.yellow("note:")} add '${tilde(activeBin.getParent)}' to your PATH:")
+          System.err.println(s"  ${Ansi.dim("export")} PATH=\"${tilde(activeBin.getParent)}:$$PATH\"")
         Result.Ok(())
       catch case e: Exception => Result.Err(s"could not write launcher at $activeBin: ${e.getMessage}")
 
@@ -210,6 +210,11 @@ class HttpInstaller(
   private def deleteDir(path: Path): Unit =
     if Files.exists(path) then
       Files.walk(path).iterator.asScala.toList.reverse.foreach(Files.delete)
+
+  private def tilde(path: Path): String =
+    val home = System.getProperty("user.home")
+    val s    = path.toString
+    if s.startsWith(home) then "~" + s.drop(home.length) else s
 
 end HttpInstaller
 
