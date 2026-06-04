@@ -134,3 +134,50 @@ Available:
   0.10.{0-5}
   0.9.{0-1}
 '
+
+# cannot remove active version
+jo versions remove 0.10.0
+: '
+error: Jo 0.10.0 is the active version — run 'jo versions use <other>' first
+'
+
+# switch active, then remove old active
+jo versions use 0.11.3
+: '
+Now using Jo 0.11.3.
+'
+
+jo versions remove 0.10.0
+: '
+Removed Jo 0.10.0.
+'
+
+jo versions list
+: '
+Installed:
+
+  0.11.3 (active)
+  0.11.2
+  0.11.1
+  0.11.0
+  0.10.5
+  0.10.4
+  0.10.3
+  0.10.2
+  0.10.1
+  0.9.1
+  0.9.0
+
+Available:
+
+  0.11.{0-3}
+  0.10.{0-5}
+  0.9.{0-1}
+'
+
+# cannot re-install an already installed version
+jo versions install 0.11.3
+: '
+Installing Jo 0.11.3...
+error: Jo 0.11.3 is already installed — run 'jo versions remove 0.11.3' first
+'
