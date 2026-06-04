@@ -80,9 +80,11 @@ class HttpInstaller(
   def remove(version: Version): Result[Unit] =
     val dir = installBase.resolve(version.toString)
     if !Files.exists(dir) then Result.Err(s"Jo $version is not installed")
-    else
-      deleteDir(dir)
-      Result.Ok(())
+    else activeVersion() match
+      case Result.Ok(active) if active == version => Result.Err(s"Jo $version is the active version")
+      case _ =>
+        deleteDir(dir)
+        Result.Ok(())
 
   def use(version: Version): Result[Unit] =
     val versionBin = installBase.resolve(version.toString).resolve("bin").resolve("jo")
@@ -284,10 +286,11 @@ class MockInstaller(available: List[Version], stateDir: Path, fails: Map[String,
         val dir = compilersDir.resolve(version.toString)
         if !Files.exists(dir) then
           Result.Err(s"Jo $version is not installed")
-        else
-          Files.delete(dir)
-          if activeVersion() == Result.Ok(version) then Files.deleteIfExists(activeFile)
-          Result.Ok(())
+        else activeVersion() match
+          case Result.Ok(active) if active == version => Result.Err(s"Jo $version is the active version")
+          case _ =>
+            Files.delete(dir)
+            Result.Ok(())
 
   def use(version: Version): Result[Unit] =
     fails.get("use") match

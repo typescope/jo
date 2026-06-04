@@ -90,9 +90,13 @@ object Versions:
 
   private def remove(args: Array[String], installer: Installer): Result[Unit] =
     parseVersion(args, "remove").flatMap: version =>
-      installer.remove(version) match
-        case Result.Ok(_)    => println(s"Removed Jo $version."); Result.Ok(())
-        case Result.Err(msg) => Result.Err(msg)
+      installer.activeVersion() match
+        case Result.Ok(active) if active == version =>
+          Result.Err(s"Jo $version is the active version — run 'jo versions use <other>' first")
+        case _ =>
+          installer.remove(version) match
+            case Result.Ok(_)    => println(s"Removed Jo $version."); Result.Ok(())
+            case Result.Err(msg) => Result.Err(msg)
 
   private def use(args: Array[String], installer: Installer): Result[Unit] =
     parseVersion(args, "use").flatMap: version =>
