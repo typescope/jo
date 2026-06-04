@@ -1,5 +1,7 @@
 # Process Monitor
 
+> Source: [github.com/typescope/jo/demos/process-monitor](https://github.com/typescope/jo/tree/main/demos/process-monitor)
+
 This example demonstrates how platforms can provide system capabilities through **context parameters**. The monitor checks CPU load and memory usage on a fixed interval and invokes a user-defined alert script when usage exceeds preset thresholds.
 
 ## Architecture

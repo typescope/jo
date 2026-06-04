@@ -1,5 +1,7 @@
 # Sandbox Agent
 
+> Source: [github.com/typescope/jo/demos/sandbox-agent](https://github.com/typescope/jo/tree/main/demos/sandbox-agent)
+
 An LLM-powered agent that can **only** interact with the world by generating Jo programs, compiling them to Python, and running them. The agent has access to a sandboxed workspace via a typed Jo API, with extensible actions for additional capabilities.
 
 This demonstrates how Jo's capability system can restrict an AI agent to safe, auditable operations.
