@@ -2,7 +2,7 @@ package tool
 
 import java.net.URI
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, Path}
 import scala.jdk.CollectionConverters.*
 
 /** One line from `versions.jsonl` — describes a released compiler version. */

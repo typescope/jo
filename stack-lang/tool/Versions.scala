@@ -15,44 +15,44 @@ object Versions:
     installer.getInstalledVersions().flatMap: installed =>
       val availableResult = installer.getVersions()
 
-      if installed.isEmpty then
+      val availableVs = availableResult match
+        case Result.Ok(vs) => vs
+        case Result.Err(_) => Nil
+
+      if installed.isEmpty && availableVs.isEmpty then
+        println("No compiler versions installed.")
         availableResult match
-          case Result.Ok(vs) if vs.nonEmpty => () // fall through to show available
-          case Result.Ok(_) =>
-            println("No compiler versions installed.")
-            println(s"\nRun 'jo versions install <version>' to install one.")
-            return Result.Ok(())
           case Result.Err(msg) =>
-            println("No compiler versions installed.")
             println()
             println(s"${Ansi.yellow("warning:")} could not fetch available versions: $msg")
-            return Result.Ok(())
+          case _ =>
+            println(s"\nRun 'jo versions install <version>' to install one.")
+      else
+        if installed.nonEmpty then
+          val active: Option[Version] = installer.activeVersion() match
+            case Result.Err(msg) =>
+              println(s"${Ansi.yellow("warning:")} could not determine active version: $msg")
+              None
+            case Result.Ok(v) => Some(v)
 
-      if installed.nonEmpty then
-        val active: Option[Version] = installer.activeVersion() match
+          println("Installed:\n")
+          for v <- installed do
+            val marker = if active.contains(v) then s" ${Ansi.green("(active)")}" else ""
+            println(s"  $v$marker")
+
+        availableResult match
           case Result.Err(msg) =>
-            println(s"${Ansi.yellow("warning:")} could not determine active version: $msg")
-            None
-          case Result.Ok(v) => Some(v)
+            if installed.nonEmpty then println()
+            println(s"${Ansi.yellow("warning:")} could not fetch available versions: $msg")
 
-        println("Installed:\n")
-        for v <- installed do
-          val marker = if active.contains(v) then s" ${Ansi.green("(active)")}" else ""
-          println(s"  $v$marker")
+          case Result.Ok(vs) if vs.nonEmpty =>
+            if installed.nonEmpty then println()
+            println("Available:\n")
+            printVersions(vs, None)
 
-      availableResult match
-        case Result.Err(msg) =>
-          if installed.nonEmpty then println()
-          println(s"${Ansi.yellow("warning:")} could not fetch available versions: $msg")
+          case _ => ()
 
-        case Result.Ok(vs) if vs.nonEmpty =>
-          if installed.nonEmpty then println()
-          println("Available:\n")
-          printVersions(vs, None)
-
-        case _ => ()
-
-      Result.Ok(())
+      Result.unit
 
   private def printVersions(versions: List[Version], active: Option[Version]): Unit =
     if versions.length < 10 then
