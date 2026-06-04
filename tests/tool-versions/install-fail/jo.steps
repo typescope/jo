@@ -2,6 +2,6 @@ rm -rf compilers active
 
 jo versions install 0.10.0
 : '
-Installing Jo 0.10.0...
+Installing Jo 0.10.0 ...
 error: permission denied
 '

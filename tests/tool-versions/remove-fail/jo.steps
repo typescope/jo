@@ -2,7 +2,7 @@ rm -rf compilers active
 
 jo versions install 0.10.0
 : '
-Installing Jo 0.10.0... done
+Installing Jo 0.10.0 ... done
 
 Run 'jo versions use 0.10.0' to activate it.
 '
@@ -11,3 +11,4 @@ jo versions remove 0.10.0
 : '
 error: permission denied
 '
+rm -rf compilers active

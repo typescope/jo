@@ -11,14 +11,14 @@ Available:
 
 jo versions install 0.10.0
 : '
-Installing Jo 0.10.0... done
+Installing Jo 0.10.0 ... done
 
 Run 'jo versions use 0.10.0' to activate it.
 '
 
 jo versions use 0.10.0
 : '
-Now using Jo 0.10.0.
+Now using Jo 0.10.0
 '
 
 jo versions list
@@ -36,77 +36,77 @@ Available:
 
 jo versions install 0.9.0
 : '
-Installing Jo 0.9.0... done
+Installing Jo 0.9.0 ... done
 
 Run 'jo versions use 0.9.0' to activate it.
 '
 
 jo versions install 0.10.1
 : '
-Installing Jo 0.10.1... done
+Installing Jo 0.10.1 ... done
 
 Run 'jo versions use 0.10.1' to activate it.
 '
 
 jo versions install 0.10.2
 : '
-Installing Jo 0.10.2... done
+Installing Jo 0.10.2 ... done
 
 Run 'jo versions use 0.10.2' to activate it.
 '
 
 jo versions install 0.10.3
 : '
-Installing Jo 0.10.3... done
+Installing Jo 0.10.3 ... done
 
 Run 'jo versions use 0.10.3' to activate it.
 '
 
 jo versions install 0.10.4
 : '
-Installing Jo 0.10.4... done
+Installing Jo 0.10.4 ... done
 
 Run 'jo versions use 0.10.4' to activate it.
 '
 
 jo versions install 0.10.5
 : '
-Installing Jo 0.10.5... done
+Installing Jo 0.10.5 ... done
 
 Run 'jo versions use 0.10.5' to activate it.
 '
 
 jo versions install 0.11.0
 : '
-Installing Jo 0.11.0... done
+Installing Jo 0.11.0 ... done
 
 Run 'jo versions use 0.11.0' to activate it.
 '
 
 jo versions install 0.11.1
 : '
-Installing Jo 0.11.1... done
+Installing Jo 0.11.1 ... done
 
 Run 'jo versions use 0.11.1' to activate it.
 '
 
 jo versions install 0.11.2
 : '
-Installing Jo 0.11.2... done
+Installing Jo 0.11.2 ... done
 
 Run 'jo versions use 0.11.2' to activate it.
 '
 
 jo versions install 0.11.3
 : '
-Installing Jo 0.11.3... done
+Installing Jo 0.11.3 ... done
 
 Run 'jo versions use 0.11.3' to activate it.
 '
 
 jo versions install 0.9.1
 : '
-Installing Jo 0.9.1... done
+Installing Jo 0.9.1 ... done
 
 Run 'jo versions use 0.9.1' to activate it.
 '
@@ -144,12 +144,12 @@ error: Jo 0.10.0 is the active version — run 'jo versions use <other>' first
 # switch active, then remove old active
 jo versions use 0.11.3
 : '
-Now using Jo 0.11.3.
+Now using Jo 0.11.3
 '
 
 jo versions remove 0.10.0
 : '
-Removed Jo 0.10.0.
+Removed Jo 0.10.0
 '
 
 jo versions list
@@ -178,6 +178,6 @@ Available:
 # cannot re-install an already installed version
 jo versions install 0.11.3
 : '
-Installing Jo 0.11.3...
+Installing Jo 0.11.3 ...
 error: Jo 0.11.3 is already installed — run 'jo versions remove 0.11.3' first
 '
