@@ -5,21 +5,19 @@ Manage installed compiler versions.
 ## Usage
 
 ```
-jo versions list
+jo versions
 jo versions install <version>
 jo versions use <version>
 jo versions remove <version>
 ```
 
+`jo versions` with no subcommand lists installed and available versions.
+
 ## Subcommands
 
-### `jo versions list`
+### `jo versions` / `jo versions list`
 
 Show installed and available compiler versions.
-
-```sh
-jo versions list
-```
 
 Installed versions are always listed individually so the active version is
 unambiguous. All available versions are shown in a second section regardless

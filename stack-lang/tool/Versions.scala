@@ -114,7 +114,8 @@ object Versions:
 
   val usage: String =
     """|Usage:
-       |  jo versions list                 List installed and available compiler versions
+       |  jo versions                      List installed and available compiler versions
+       |  jo versions list                 (same as above)
        |  jo versions install <version>    Download and install a compiler version
        |  jo versions use <version>        Switch the active compiler version
        |  jo versions remove <version>     Remove an installed compiler version

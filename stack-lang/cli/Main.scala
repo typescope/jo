@@ -195,7 +195,7 @@ object Main:
       |  jo lock [--spec <file.toml>]           Resolve dependencies and rewrite the lock file
       |  jo info <pkg>[@<version>]              Show package metadata and available versions
       |  jo eval <source.jo>                    Run program with interpreter
-      |  jo versions list                       List installed compiler versions
+      |  jo versions                             List installed and available compiler versions
       |  jo versions install <version>          Download and install a compiler version
       |  jo versions use <version>              Switch the active compiler version
       |  jo versions remove <version>           Remove an installed compiler version
