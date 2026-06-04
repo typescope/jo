@@ -30,7 +30,7 @@ export default defineConfig({
 
     nav: [
       { text: 'Overview', link: '/overview/index' },
-      { text: 'AI Security', link: '/security/security-problem' },
+      { text: 'Security', link: '/security/security-problem' },
       { text: 'Build Tool', link: '/usage/install' },
       { text: 'Language Reference', link: '/language/design-principles' },
       { text: 'Blog', link: '/blog/' },
@@ -72,7 +72,7 @@ export default defineConfig({
 
       '/security/': [
         {
-          text: 'AI Security',
+          text: 'Security',
           items: [
             { text: 'The Security Problem', link: '/security/security-problem' },
             { text: 'Two-World Architecture', link: '/security/two-worlds' },
@@ -92,7 +92,7 @@ export default defineConfig({
 
       '/security/examples/': [
         {
-          text: 'AI Security',
+          text: 'Security',
           items: [
             { text: 'The Security Problem', link: '/security/security-problem' },
             { text: 'Two-World Architecture', link: '/security/two-worlds' },
