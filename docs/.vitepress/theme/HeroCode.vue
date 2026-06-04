@@ -194,25 +194,37 @@ code {
 .dot-btn.active { background: #7c3aed; opacity: 1; }
 .dot-btn:hover  { opacity: 0.8; }
 
-/* Syntax colours — light mode */
-:deep(code)  { color: #24292e; }
-:deep(.kw)   { color: #d73a49; }
-:deep(.fn)   { color: #6f42c1; }
-:deep(.str)  { color: #032f62; }
-:deep(.c)    { color: #6a737d; }
-:deep(.err)  { color: #cb2431; display: block; }
-:deep(.op)   { color: #005cc5; }
-:deep(.ty)   { color: #e36209; }
-:deep(.num)  { color: #005cc5; }
+/* Syntax colour tokens — light defaults, overridden in dark via global */
+:global(:root) {
+  --jo-code: #24292e;
+  --jo-kw:   #d73a49;
+  --jo-fn:   #6f42c1;
+  --jo-str:  #032f62;
+  --jo-c:    #6a737d;
+  --jo-err:  #cb2431;
+  --jo-op:   #005cc5;
+  --jo-ty:   #e36209;
+  --jo-num:  #005cc5;
+}
+:global(.dark) {
+  --jo-code: #cdd6f4;
+  --jo-kw:   #cba6f7;
+  --jo-fn:   #89b4fa;
+  --jo-str:  #a6e3a1;
+  --jo-c:    #585b70;
+  --jo-err:  #f38ba8;
+  --jo-op:   #89dceb;
+  --jo-ty:   #f9e2af;
+  --jo-num:  #fab387;
+}
 
-/* Syntax colours — dark mode */
-.dark :deep(code)  { color: #cdd6f4; }
-.dark :deep(.kw)   { color: #cba6f7; }
-.dark :deep(.fn)   { color: #89b4fa; }
-.dark :deep(.str)  { color: #a6e3a1; }
-.dark :deep(.c)    { color: #585b70; }
-.dark :deep(.err)  { color: #f38ba8; display: block; }
-.dark :deep(.op)   { color: #89dceb; }
-.dark :deep(.ty)   { color: #f9e2af; }
-.dark :deep(.num)  { color: #fab387; }
+:deep(code) { color: var(--jo-code); }
+:deep(.kw)  { color: var(--jo-kw); }
+:deep(.fn)  { color: var(--jo-fn); }
+:deep(.str) { color: var(--jo-str); }
+:deep(.c)   { color: var(--jo-c); }
+:deep(.err) { color: var(--jo-err); display: block; }
+:deep(.op)  { color: var(--jo-op); }
+:deep(.ty)  { color: var(--jo-ty); }
+:deep(.num) { color: var(--jo-num); }
 </style>
