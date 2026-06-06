@@ -45,6 +45,8 @@ def main() =
 
 The `receives` clause specifies required capabilities; the `allow` clause at the call site enforces that only permitted capabilities are used. Both are verified at compile time. This makes capability flow explicit and auditable while keeping the common case concise.
 
+More details of the capability model can be found in the paper [_A mathematical model of contextual capabilities_](https://github.com/typescope/contextual-capability).
+
 ## Security Context
 
 Jo's langauge features enable safe representation and encapsulation of security contexts.
