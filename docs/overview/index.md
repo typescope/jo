@@ -1,4 +1,4 @@
-# Jo Programming Language
+# Jo Secure Programming Language
 
 Jo is a statically-typed language where all side effects — IO, system access, network, filesystem — are denied by default. Any capability must be explicitly declared and granted through contracted interfaces, enforced at compile time. This is the foundation of Jo's [capability-based security](capabilities.md) model.
 
