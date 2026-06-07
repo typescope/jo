@@ -10,6 +10,10 @@ provided capabilities: **we can control what a function may do by
 controlling the references that it receives** on the condition that
 _all side channels are removed_.
 
+For readers interested in theory, the particular security model that Jo adopts
+in its design is [_contextual capabilities_](https://github.com/typescope/contextual-capability),
+which is formalized based in a calculus called `λCC` and mechanized in Coq.
+
 <!-- This is called "_only connectivity begets connectivity_" in object-capability models. -->
 
 [1]: https://en.wikipedia.org/wiki/Object-capability_model
