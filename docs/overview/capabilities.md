@@ -12,7 +12,7 @@ _all side channels are removed_.
 
 For readers interested in theory, the particular security model that Jo adopts
 in its design is [_contextual capabilities_](https://github.com/typescope/contextual-capability),
-which is formalized based in a calculus called `λCC` and mechanized in Coq.
+which is formalized in a calculus called `λCC` and mechanized in Coq.
 
 <!-- This is called "_only connectivity begets connectivity_" in object-capability models. -->
 
