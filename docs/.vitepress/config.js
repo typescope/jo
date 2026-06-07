@@ -7,7 +7,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const joGrammar = JSON.parse(readFileSync(resolve(__dirname, '../../tools/vscode/syntaxes/jo.tmLanguage.json'), 'utf-8'))
 
 export default defineConfig({
-  title: 'Jo Programming Language',
+  title: 'Jo Secure Programming Language',
   description: 'Secure programming for the AI era',
   srcDir: '.',
   srcExclude: ['**/.vitepress/**', '**/img/**', '**/jo_lexer.py*', '**/setup.py', '**/__pycache__/**'],
