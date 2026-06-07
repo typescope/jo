@@ -116,6 +116,13 @@ The installer downloads the compiler to `~/.jo/compilers/<version>/` and creates
 
 Full installation instructions and a getting-started guide are at **[jo-lang.org](https://jo-lang.org)**.
 
+## Theoretical Foundations
+
+Jo's capability model is grounded in `λCC`, a formally verified calculus of
+[contextual capabilities](https://github.com/typescope/contextual-capability).
+`λCC` provides a mathematical account of static capability tracking and the proof
+is mechanized in Coq.
+
 ## Learn More
 
 | | |

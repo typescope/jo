@@ -51,7 +51,7 @@ statically restricted to the current user's data.
 
 ## Formal Foundations
 
-Jo's capability model is grounded in [λCC](https://github.com/typescope/contextual-capability), a formally verified calculus of contextual capabilities. λCC provides a mathematical account of static capability tracking — a term typed with empty capabilities needs no capabilities at all — and the proof is mechanized in Coq.
+Jo's capability model is grounded in [λCC](https://github.com/typescope/contextual-capability), a formally verified calculus of contextual capabilities. λCC provides a mathematical account of static capability tracking and the proof is mechanized in Coq.
 
 ## Feedback and Community
 
