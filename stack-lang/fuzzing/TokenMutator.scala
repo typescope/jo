@@ -196,9 +196,8 @@ object TokenMutator extends Mutator:
       case _: Token.BoolLit       => Some(TokKind.BoolLiteral)
       case _: Token.CharLit       => Some(TokKind.CharLiteral)
       case _: Token.Operator      => Some(TokKind.Operator)
-      case _: Token.TaggedLiteral => Some(TokKind.Tagged)
 
-      case Token.EQL | Token.COLON | Token.RARROW | Token.SUBTYPE | Token.DOT =>
+      case Token.EQL | Token.COLON | Token.RARROW | Token.DOT =>
         Some(TokKind.Operator)
 
       case Token.LPAREN | Token.RPAREN | Token.LBRACKET | Token.RBRACKET
