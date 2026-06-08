@@ -211,12 +211,12 @@ See [Pattern Forms](../language/patterns/pattern-forms.md).
 
 ## Class
 
-Classes can have class parameters (data class) or an explicit contructor method. Jo automatically generates a contructor function for data class with the fields defined by parameters.
+Classes can have class parameters (data class) or an explicit constructor method. Jo automatically generates a constructor function for data class with the fields defined by parameters.
 
 ```jo
 class Point(x: Int, y: Int)             // data class
 
-class Counter                            // explicit contructor
+class Counter                            // explicit constructor
   var count: Int = 0
   def Counter(v: Int): Counter =
     this.count = v

@@ -49,7 +49,7 @@ More details of the capability model can be found in the paper [_A mathematical 
 
 ## Security Context
 
-Jo's langauge features enable safe representation and encapsulation of security contexts.
+Jo's language features enable safe representation and encapsulation of security contexts.
 
 **Representation** — The security context (current user) is captured in a capability object:
 
