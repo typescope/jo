@@ -46,7 +46,7 @@ Jo embraces the convenience of ambient authorities and make them safe:
 
 ## Capability Provision and Control
 
-The capabilities can be provied to a nested scope via the keyword `with` and
+The capabilities can be provided to a nested scope via the keyword `with` and
 controlled via `allow`, as the following example demonstrates:
 
 ```jo
