@@ -2,6 +2,14 @@
 
 Jo is a statically-typed language where all side effects — IO, system access, network, filesystem — are denied by default. Any capability must be explicitly declared and granted through contracted interfaces, enforced at compile time. This is the foundation of Jo's [capability-based security](capabilities.md) model.
 
+Jo compiles to Ruby and Python. It is possible to call Ruby/Python functions from trusted Jo code directly (See [interoperability](../guides/python-interoperability.md)).
+
+::: warning JavaScript backend is Experimental
+
+The JavaScript backend is currently experimental. It is only supported via raw compiler commands, not by the build tool.
+
+:::
+
 ## Why Jo?
 
 It's a fundamental problem in secure software:
