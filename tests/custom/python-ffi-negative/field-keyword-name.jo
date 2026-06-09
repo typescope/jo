@@ -1,0 +1,4 @@
+
+def main: Unit =
+  val obj = py.module("types").SimpleNamespace()
+  obj.selectDynamic("class")

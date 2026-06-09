@@ -1,0 +1,4 @@
+
+def main =
+  val obj = py.module("types").SimpleNamespace()
+  obj.updateDynamic("class", "hello")

@@ -1,0 +1,4 @@
+[error] ---------- Error at tests/custom/python-ffi-negative/setfield-keyword-name.jo:4:21 ---------------
+|   obj.updateDynamic("class", "hello")
+|                     ^^^^^^^
+|                     updateDynamic requires a string literal name that is a valid Python identifier

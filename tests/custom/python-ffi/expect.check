@@ -7,6 +7,7 @@ try sqrt(4) = ok: 2.0
 try log(-1) = err
 dict[x] = 42
 setField/field = hello
+soft keyword field = soft keyword
 kwarg capwords = Jo-Ffi
 isInstance(42, int) = true
 isIdentical(os, alias) = true

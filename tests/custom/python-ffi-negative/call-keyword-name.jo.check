@@ -1,0 +1,4 @@
+[error] ---------- Error at tests/custom/python-ffi-negative/call-keyword-name.jo:4:24 ---------------
+|   builtins.callDynamic("from")
+|                        ^^^^^^
+|                        callDynamic requires a string literal name that is a valid Python identifier
