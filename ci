@@ -229,6 +229,14 @@ background_task() {
     bin/fuzz regress --parse "$DIR/tests/parsing" || error "parsing regress"
 
     ################################################################################
+    # Typing tests — parse + type through the fuzzer harness. We only check that
+    # the typer accepts these inputs without crashing; we do not run them.
+    echo
+    echo "Running typing tests"
+    echo
+    bin/fuzz regress --type "$DIR/tests/typing" || error "typing regress"
+
+    ################################################################################
     # Error message tests
 
     echo
