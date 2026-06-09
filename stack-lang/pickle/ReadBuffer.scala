@@ -43,18 +43,19 @@ class ReadBuffer(private val bytes: Array[Byte]) extends (() => Byte):
 
   def readUtf8(): String =
     val length = readNat()
+    assert(length >= 0 && length <= remaining, s"Invalid UTF-8 length: pos=$pos, length=$length, remaining=$remaining")
     val strBytes = new Array[Byte](length)
     readBytes(strBytes, length)
     new String(strBytes, java.nio.charset.StandardCharsets.UTF_8)
 
   private def readBytes(data: Array[Byte], n: Int): Unit =
-    if pos + n > bytes.length then
-      throw new Exception(s"ReadBuffer overflow: pos=$pos, n=$n, length=${bytes.length}")
+    assert(n >= 0 && n <= remaining, s"ReadBuffer overflow: pos=$pos, n=$n, length=${bytes.length}")
 
     System.arraycopy(bytes, pos, data, 0, n)
     pos += n
 
   def position: Int = pos
+  private def remaining: Int = bytes.length - pos
 
   def withPosition[T](newPos: Int)(work: => T): T =
     val savedPos = position
