@@ -125,12 +125,24 @@ is mechanized in Coq.
 
 ## Learn More
 
-| | |
-|---|---|
-| [Language Tour](https://jo-lang.org/overview/language-tour) | Overview of Jo's features with examples |
-| [Security Model](https://jo-lang.org/security/two-worlds) | How capability enforcement works |
-| [Language Reference](https://jo-lang.org/language/design-principles) | Types, expressions, patterns, definitions |
-| [Build Tool](https://jo-lang.org/usage/getting-started) | Project setup, dependencies, commands |
+<table>
+  <tr>
+    <td><a href="https://jo-lang.org/overview/language-tour">Language Tour</a></td>
+    <td>Overview of Jo's features with examples</td>
+  </tr>
+  <tr>
+    <td><a href="https://jo-lang.org/security/two-worlds">Security Model</a></td>
+    <td>How capability enforcement works</td>
+  </tr>
+  <tr>
+    <td><a href="https://jo-lang.org/language/design-principles">Language Reference</a></td>
+    <td>Types, expressions, patterns, definitions</td>
+  </tr>
+  <tr>
+    <td><a href="https://jo-lang.org/usage/getting-started">Build Tool</a></td>
+    <td>Project setup, dependencies, commands</td>
+  </tr>
+</table>
 
 ## Contributing
 
