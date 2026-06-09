@@ -18,6 +18,7 @@ object Fuzz:
       |  fuzz parse        [options]
       |  fuzz type         [options]
       |  fuzz replay       [--parse | --type] FILE              (default: --type)
+      |  fuzz regress      [--parse | --type] [--timeout S] [--verbose] DIR...  (default: --type)
       |  fuzz test-printer [--dir DIR] [--limit N] [--verbose]  (default DIR: tests/pos)
       |
       |Options for `parse` and `type`:
@@ -37,6 +38,7 @@ object Fuzz:
       case "parse"        :: rest => runFuzz(Target.Parse, rest)
       case "type"         :: rest => runFuzz(Target.Type, rest)
       case "replay"       :: rest => runReplay(rest)
+      case "regress"      :: rest => System.exit(runRegress(rest))
       case "test-printer" :: rest => System.exit(TestPrinter.run(rest))
       case _                      =>
         System.err.println(Usage)
@@ -82,6 +84,91 @@ object Fuzz:
         println(s"${t.getClass.getName}: ${t.getMessage}")
         for f <- t.getStackTrace.take(20) do println("    at " + f)
   end runReplay
+
+  //--------------------------------------------------------------------------
+  // `regress` — crash-regression guard over a fixed corpus
+  //
+  // Walks a corpus of `.jo` files and asserts none of them crash the compiler
+  // at the chosen phase. Unlike the `tests/parsing` suite, it never executes a
+  // program: it only parses (`--parse`) or parses + types (`--type`, the
+  // default — a superset that also catches parse-level crashes). A crash or a
+  // hang (timeout) is a regression; a clean rejection or success passes.
+  //
+  // Intended use: when a fuzzer-found crash is fixed, its reduced reproducer is
+  // dropped into the corpus, and this driver keeps it from regressing.
+
+  private case class RegressOpts(
+      target:  Target      = Target.Type,
+      timeout: Int         = Harness.defaultTimeoutSeconds,
+      verbose: Boolean     = false,
+      roots:   List[String] = Nil,
+  )
+
+  private def runRegress(args: List[String]): Int =
+    def go(xs: List[String], acc: RegressOpts): RegressOpts = xs match
+      case Nil                        => acc
+      case "--parse"    :: rest       => go(rest, acc.copy(target  = Target.Parse))
+      case "--type"     :: rest       => go(rest, acc.copy(target  = Target.Type))
+      case "--timeout"  :: v :: rest  => go(rest, acc.copy(timeout = v.toInt))
+      case "--verbose"  :: rest       => go(rest, acc.copy(verbose = true))
+      case bad :: _ if bad.startsWith("--") =>
+        System.err.println(s"Unknown regress option: $bad\n")
+        System.err.println(Usage)
+        System.exit(1)
+        acc
+
+      case dir :: rest                => go(rest, acc.copy(roots = acc.roots :+ dir))
+
+    val opt = go(args, RegressOpts())
+
+    if opt.roots.isEmpty then
+      System.err.println("regress: expected at least one DIR argument\n")
+      System.err.println(Usage)
+      return 1
+
+    val seeds = Corpus.load(opt.roots)
+
+    if seeds.isEmpty then
+      System.err.println(s"regress: no .jo files found under: ${opt.roots.mkString(", ")}")
+      return 1
+
+    val phase = opt.target match
+      case Target.Parse => "parse"
+      case Target.Type  => "parse + type"
+
+    println(s"crash check: ${seeds.size} files through $phase (must not crash the compiler)")
+
+    var crashed  = 0
+    var timedOut = 0
+
+    for seed <- seeds.sortBy(_.path) do
+      Harness.run(seed.path, opt.target, opt.timeout) match
+        case c @ Outcome.Crashed(_, _) =>
+          crashed += 1
+          val fp = Oracle.fingerprint(c, opt.target).get
+          println(s"  CRASH   ${seed.path}")
+          println(s"          ${fp.display}")
+
+        case Outcome.Timeout =>
+          timedOut += 1
+          println(s"  TIMEOUT ${seed.path} (exceeded ${opt.timeout}s)")
+
+        case _ =>
+          if opt.verbose then println(s"  ok      ${seed.path}")
+
+    println()
+
+    if crashed + timedOut == 0 then
+      println(s"PASS: all ${seeds.size} files compiled without crashing")
+      0
+    else
+      val parts = List(
+        Option.when(crashed  > 0)(s"$crashed crashed"),
+        Option.when(timedOut > 0)(s"$timedOut timed out"),
+      ).flatten.mkString(", ")
+      println(s"FAIL: $parts out of ${seeds.size} files")
+      1
+  end runRegress
 
   //--------------------------------------------------------------------------
   // `parse` / `type`
