@@ -838,10 +838,15 @@ class Namer(using Config) extends Applications with SelectionTyper:
         // Single part
         head
       case head :: tail =>
-        // Multiple parts - concatenate using +
+        // Multiple parts - concatenate using +. If a part is already erroneous
+        // (an error was reported for it), don't build `lhs + rhs` on it: the
+        // `+` member selection would fail. Propagate the error part instead.
+        def isErroneous(w: Word): Boolean = w.tpe.isError || w.tpe.approx.isError
+
         tail.foldLeft(head) { (lhs, rhs) =>
-          // Build: lhs + rhs using select and appliedTo
-          lhs.select("+").appliedTo(rhs)
+          if isErroneous(lhs) then lhs
+          else if isErroneous(rhs) then rhs
+          else lhs.select("+").appliedTo(rhs)
         }
 
   private def transformWhile(word: Ast.While)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, cs: ControlScope): Word =
