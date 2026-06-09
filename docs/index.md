@@ -5,7 +5,7 @@ title: Home
 hero:
   name: "Jo"
   text: "For the joy of secure programming"
-  tagline: Capabilities are explicit, fine-grained, and enforced by the compiler — not a runtime sandbox.
+  tagline: Compile-time sandboxing — capabilities are explicit, fine-grained, and enforced by the compiler, not bolted on at runtime.
   actions:
     - theme: brand
       text: Get Started
@@ -20,8 +20,8 @@ hero:
 features:
   - icon:
       src: /icons/lock.svg
-    title: Capability-Based Security
-    details: Code can only access what it declares and is granted. Anything beyond that is rejected as compiling errors.
+    title: Compile-Time Sandboxing
+    details: Code can only access what it declares and is granted. Anything beyond that is rejected at compile time, before the program runs.
     link: /overview/capabilities
     linkText: Learn more
 

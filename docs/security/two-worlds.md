@@ -9,73 +9,7 @@ capability objects that cross the boundary.
 
 The confined world contains the libraries that AI code can depend on — no FFI, no system access. The trusted world contains platform code with full FFI access. Capabilities cross the boundary at link time, flowing from the trusted to the confined world.
 
-<svg viewBox="0 0 780 370" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;font-family:system-ui,sans-serif">
-  <defs>
-    <marker id="arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-      <path d="M0,0 L8,3 L0,6 Z" fill="#888"/>
-    </marker>
-    <marker id="arr-b" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-      <path d="M0,0 L8,3 L0,6 Z" fill="#4a6cf7"/>
-    </marker>
-    <marker id="arr-o" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-      <path d="M0,0 L8,3 L0,6 Z" fill="#c45b00"/>
-    </marker>
-  </defs>
-
-  <!-- Confined World: x=10, width=305, center=162 -->
-  <rect x="10" y="10" width="305" height="350" rx="10" fill="#eef2ff" stroke="#4a6cf7" stroke-width="2"/>
-  <text x="162" y="38" text-anchor="middle" font-size="14" font-weight="700" fill="#4a6cf7">CONFINED WORLD</text>
-  <text x="162" y="56" text-anchor="middle" font-size="11" fill="#6677bb">no FFI · confined libs only</text>
-
-  <!-- Confined: Jo Stdlib -->
-  <rect x="30" y="70" width="265" height="60" rx="7" fill="white" stroke="#b0bdf7" stroke-width="1.5"/>
-  <text x="162" y="96" text-anchor="middle" font-size="13" font-weight="600" fill="#333">Jo Standard Library</text>
-  <text x="162" y="116" text-anchor="middle" font-size="11" fill="#777">List · Map · Option · Result · …</text>
-
-  <!-- Confined: Interface Library -->
-  <rect x="30" y="170" width="265" height="72" rx="7" fill="white" stroke="#b0bdf7" stroke-width="1.5"/>
-  <text x="162" y="196" text-anchor="middle" font-size="13" font-weight="600" fill="#333">Interface Library</text>
-  <text x="162" y="214" text-anchor="middle" font-size="11" fill="#555" font-family="monospace">interface OrdersApi { … }</text>
-  <text x="162" y="232" text-anchor="middle" font-size="11" fill="#555" font-family="monospace">defer def aiMain(): Unit</text>
-
-  <!-- Confined: AI Code -->
-  <rect x="30" y="283" width="265" height="58" rx="7" fill="white" stroke="#b0bdf7" stroke-width="1.5"/>
-  <text x="162" y="308" text-anchor="middle" font-size="13" font-weight="600" fill="#333">AI-Generated Code</text>
-  <text x="162" y="327" text-anchor="middle" font-size="11" fill="#555" font-family="monospace">aiMain() implements contract</text>
-
-  <!-- Arrows within confined: upward (dependent → dependency) -->
-  <line x1="162" y1="170" x2="162" y2="130" stroke="#4a6cf7" stroke-width="1.5" marker-end="url(#arr-b)"/>
-  <text x="172" y="153" font-size="10" fill="#4a6cf7">depends on</text>
-  <line x1="162" y1="283" x2="162" y2="242" stroke="#4a6cf7" stroke-width="1.5" marker-end="url(#arr-b)"/>
-  <text x="172" y="265" font-size="10" fill="#4a6cf7">depends on</text>
-
-  <!-- Trusted World: x=465, width=305, center=617 -->
-  <rect x="465" y="10" width="305" height="350" rx="10" fill="#fff4ee" stroke="#c45b00" stroke-width="2"/>
-  <text x="617" y="38" text-anchor="middle" font-size="14" font-weight="700" fill="#c45b00">TRUSTED WORLD</text>
-  <text x="617" y="56" text-anchor="middle" font-size="11" fill="#b07050">FFI enabled · audited</text>
-
-  <!-- Trusted: Platform Runtime -->
-  <rect x="485" y="70" width="265" height="60" rx="7" fill="white" stroke="#f0b090" stroke-width="1.5"/>
-  <text x="617" y="96" text-anchor="middle" font-size="13" font-weight="600" fill="#333">Platform Runtime</text>
-  <text x="617" y="116" text-anchor="middle" font-size="11" fill="#777">FFI · syscalls · network · filesystem</text>
-
-  <!-- Trusted: Harness -->
-  <rect x="485" y="170" width="265" height="72" rx="7" fill="white" stroke="#f0b090" stroke-width="1.5"/>
-  <text x="617" y="196" text-anchor="middle" font-size="13" font-weight="600" fill="#333">Harness</text>
-  <text x="617" y="214" text-anchor="middle" font-size="11" fill="#555" font-family="monospace">UserScopedOrders(userId, db)</text>
-  <text x="617" y="232" text-anchor="middle" font-size="11" fill="#555" font-family="monospace">frameworkMain()</text>
-
-  <!-- Arrow within trusted: upward -->
-  <line x1="617" y1="170" x2="617" y2="130" stroke="#c45b00" stroke-width="1.5" marker-end="url(#arr-o)"/>
-  <text x="627" y="153" font-size="10" fill="#c45b00">depends on</text>
-
-  <!-- Harness depends on Interface Library: box-to-box, orange -->
-  <line x1="485" y1="206" x2="295" y2="206" stroke="#c45b00" stroke-width="1.5" marker-end="url(#arr-o)"/>
-  <text x="390" y="199" text-anchor="middle" font-size="10" fill="#c45b00">depends on</text>
-  <!-- --link: Harness → AI-Generated Code (diagonal, link time after type checking) -->
-  <line x1="485" y1="235" x2="295" y2="290" stroke="#555" stroke-width="2" stroke-dasharray="6,3" marker-end="url(#arr)"/>
-  <text x="390" y="282" text-anchor="middle" font-size="11" font-weight="700" fill="#555">--link</text>
-</svg>
+<img src="/img/two-worlds.svg" alt="Two-world architecture: capabilities flow from the trusted world to the confined world, linked after type checking" style="max-width:100%;height:auto" />
 
 The `--link` connection is resolved at **link time, after type checking**. There are no
 dynamic imports, no reflection, and no runtime class loading across the boundary.

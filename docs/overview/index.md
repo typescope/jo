@@ -1,6 +1,6 @@
 # Jo Secure Programming Language
 
-Jo is a statically-typed language where all side effects — IO, system access, network, filesystem — are denied by default. Any capability must be explicitly declared and granted through contracted interfaces, enforced at compile time. This is the foundation of Jo's [capability-based security](capabilities.md) model.
+Jo is a statically-typed language that enables **compile-time sandboxing**. Every side effect — IO, system access, network, filesystem — is denied by default; code can only touch what it has been explicitly granted, and the compiler proves it before the program ever runs. This is the foundation of Jo's [capability-based security](capabilities.md) model.
 
 Jo compiles to Ruby and Python. It is possible to call Ruby/Python functions from trusted Jo code directly (See [interoperability](../guides/python-interoperability.md)).
 
@@ -10,17 +10,21 @@ The JavaScript backend is currently experimental. It is only supported via raw c
 
 :::
 
-## Why Jo?
+## Why compile-time sandboxing?
 
-It's a fundamental problem in secure software:
+You already know **runtime sandboxes** — containers, VMs, seccomp, gVisor. They wrap a running program and police it from the outside: block this syscall, deny that path. They work, but they operate at the *wrong level*. They can stop a program from opening `/etc/passwd`, yet they cannot express "query only the rows belonging to *this* user" — that is application logic, invisible to the OS.
+
+This is the fundamental problem Jo set out to solve:
 
 > How do you safely execute untrusted code — with the guarantee that it only does what it is permitted to do, at any level of granularity? For example: access only a specific directory, make API requests to a single host, or query only the database rows belonging to the current user.
 
-Jo solves the problem by using capability contracted authority based on its type system:
+Jo moves the sandbox into the type system, so the boundary is checked before the program runs rather than enforced from the outside while it runs. It uses capability-contracted authority based on its type system:
 
 - **Authority confinement** — Restrict untrusted code to exactly the granted permissions it needs, at any granularity.
 - **Fine-grained control** — Scope permissions precisely: a specific directory, a single API request, or rows belonging to one user.
 - **Auditable by design** — Security boundaries are visible in interface and type system, not hidden in runtime configuration.
+
+## Design Philosophy
 
 Jo's design philosophy is to combine strong security guarantees with programmer
 happiness. Security should not require fighting the language, writing

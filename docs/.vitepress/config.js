@@ -42,7 +42,7 @@ export default defineConfig({
           text: 'Overview',
           items: [
             { text: 'Language Tour', link: '/overview/language-tour' },
-            { text: 'Capability-Based Programming', link: '/overview/capabilities' },
+            { text: 'Compile-Time Sandboxing', link: '/overview/capabilities' },
             { text: 'Cheat Sheet', link: '/overview/cheat-sheet' },
             { text: 'Get Started', link: '/usage/install' },
           ]

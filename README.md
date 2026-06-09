@@ -15,15 +15,17 @@
 
 ---
 
-Jo is a statically typed language where **capabilities are explicit, statically tracked, and enforced by the compiler**. Jo compiles to Ruby and Python.
+Jo is a statically typed language that enables **compile-time sandboxing**. Instead of confining a running program from the outside, Jo proves — before the code runs — that it can only use the capabilities it was explicitly granted. Jo compiles to Ruby and Python.
 
 > **Project status:** Early-stage. The compiler, standard library, and toolchain are ready for serious experimentation. APIs and language details may still change.
 
-## Why Jo?
+## Why compile-time sandboxing?
 
-AI agents generate code that runs inside your platform. That code can — unless you prevent it — reach for the network, read arbitrary files, or query other users' data. Runtime sandboxes help, but they operate at the wrong level: they can block syscalls or filesystem paths, but they cannot enforce "access only this user's rows".
+AI agents now generate code that runs inside your platform. That code can — unless you stop it — reach for the network, read arbitrary files, or query other users' data.
 
-Jo enforces capability boundaries at the type level, before the program runs. A function that has not received a capability cannot use it. The compiler proves this transitively through the entire call graph.
+The usual defense is a **runtime sandbox**: a container, VM, or seccomp filter that wraps the running program and polices it from the outside. But runtime sandboxes operate at the *wrong level*. They can block a syscall or a filesystem path, but they cannot express "access only *this* user's rows" — that is application logic, invisible to the OS.
+
+Jo moves the sandbox into the type system. A capability a function never received is one it cannot use, and the compiler proves this transitively across the entire call graph — before the program runs. The boundary is visible right in the code, there is nothing to escape at runtime, and "only this user's data" becomes an ordinary, checkable type.
 
 ## Language Highlights
 
