@@ -2379,7 +2379,12 @@ class Namer(using Config) extends Applications with SelectionTyper:
         val targs2 = for targ <- targs yield transformValueType(targ, allowPackType = false)
         tctor2.tpe match
           case StaticRef(tctorSym) if tctorSym.isType =>
-            if tctor2.tpe == ErrorType || !Checker.checkKind(tctor2, targs2, tctorSym.asTypeSymbol.initKind) then
+            if tctor2.tpe == ErrorType
+               || targs2.exists(_.tpe.isError)
+               || !Checker.checkKind(tctor2, targs2, tctorSym.asTypeSymbol.initKind)
+            then
+              // A type argument is erroneous (error already reported); propagate
+              // ErrorType so the whole applied type is treated as erroneous.
               TypeTree(ErrorType)(tpt.span)
             else
               val tp = AppliedType(tctorSym, targs2.map(_.tpe))
