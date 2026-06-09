@@ -1,48 +1,54 @@
-# Capability-Based Programming
+# Compile-Time Sandboxing
 
-Jo supports capability-based programming for designing secure systems.
-Capability-based security is a security model where access to resources and services is controlled by capabilities.
+Jo gives you **compile-time sandboxing**: code can only touch the resources it
+is explicitly granted, and the compiler proves it before the program runs.
+Unlike a runtime sandbox — a container, VM, or seccomp filter that polices a
+running program from the outside — the boundary lives in the program itself.
 
-More concretely, Jo follows the [object-capability model][1] where the
-capabilities are service and resource references.  Reasoning about security
-becomes easy if the only way to perform _dangerous actions_ is via explicitly
-provided capabilities: **we can control what a function may do by
-controlling the references that it receives** on the condition that
-_all side channels are removed_.
+## Why Compile-Time Sandboxing?
 
-For readers interested in theory, the particular security model that Jo adopts
-in its design is [_contextual capabilities_](https://github.com/typescope/contextual-capability),
-which is formalized in a calculus called `λCC` and mechanized in Coq.
+- **Least privilege by default** — Code receives no ambient authority. A
+  function can touch a resource only if it was handed a capability for it.
+- **Fine-grained and refinable** — A capability can be subdivided arbitrarily:
+  not "file access" but "read this one file", not "the database" but "this
+  user's rows".
+- **Auditable in types** — The authority a program receives is visible at its
+  interface, not buried in runtime configuration. Reviewers can read what is
+  granted, where it flows, and where it is restricted.
+- **No runtime sandbox to escape** — Confinement is a property the compiler
+  proves. After type checking there is no separate isolation layer to
+  configure, slow things down, or break out of.
 
-<!-- This is called "_only connectivity begets connectivity_" in object-capability models. -->
+## How It Works: Capabilities
 
-[1]: https://en.wikipedia.org/wiki/Object-capability_model
+Under the hood, compile-time sandboxing is built on **capability-based
+security**: access to resources and services is controlled by capabilities —
+references that must be explicitly provided.
 
-## Security Principles
+Jo follows the [object-capability model][1], where capabilities are service and
+resource references. Reasoning about security becomes easy if the only way to
+perform _dangerous actions_ is via explicitly provided capabilities: **we can
+control what a function may do by controlling the references that it receives**,
+on the condition that _all side channels are removed_.
 
-For ease of programming, traditional programming languages provide too many capabilities:
-
-- Global variables
-- File system access
-- Network access
-- System calls
-- Foreign Function Interface (FFI)
-- Reflective language features
-- Control flow effects
-
-These are _ambient authorities_: capabilities available by default without explicit authorization.
-
-It is difficult to reason about confinement ([Lampson 1973](https://doi.org/10.1145/362375.362389)) in the presence of ambient authorities: there are so many side channels and there is no principled way to control them. This compromises fundamental security principles:
-
-- **Principle of least privilege**: only provide the minimum capabilities needed to programs.
-
-- **Complete mediation**: all access to resources must be verified.
-
-Jo embraces the convenience of ambient authorities and make them safe:
+Traditional languages instead hand out too many capabilities by default —
+global variables, file system and network access, system calls, FFI,
+reflection, control flow effects. These are _ambient authorities_: available
+without explicit authorization, and the reason confinement is so hard
+([Lampson 1973](https://doi.org/10.1145/362375.362389)). They defeat two
+fundamental security principles — the **principle of least privilege** (grant
+only the minimum needed) and **complete mediation** (verify all access). Jo
+removes ambient authority:
 
 - No global variables
 - All resource access through explicit parameters
 - Type system enforcement of capability specification
+
+For readers interested in theory, Jo's model is [_contextual
+capabilities_](https://github.com/typescope/contextual-capability), formalized
+in a calculus called `λCC` and mechanized in Coq.
+
+[1]: https://en.wikipedia.org/wiki/Object-capability_model
 
 ## Capability Provision and Control
 
@@ -141,14 +147,19 @@ def test(): String =
 
 Parametric capabilities enable dependency injection without frameworks while maintaining compile-time safety.
 
-## For Secure AI
+## Confining Untrusted Code
 
-Jo's capability system can confine AI-generated code at compile time:
+The strongest use of compile-time sandboxing is confining code you do not
+trust — third-party plugins, or programs written by an AI agent. Because the
+untrusted code can only use the capabilities it is explicitly handed, you give
+it exactly what it needs and nothing more. The example below confines
+AI-generated code to a single, user-scoped capability:
 
 ```jo
 //------------------ Interface library ---------------------------
 class Order(...)
-param GetOrders: (lastDays: Int) => List[Order] // (1)!
+// get orders for the last N days
+param GetOrders: Int => List[Order]                     // (1)!
 
 //------------------ Framework library ----------------------
 defer def aiMain(): Unit receives GetOrders, IO.stdout  // (3)!
@@ -170,7 +181,7 @@ def frameworkMain() = // (2)!
 //------------------ AI generated code ----------------------
 // The code can only read orders, nothing else
 def aiMain(): Unit receives GetOrders, IO.stdout = // (6)!
-  val orders = GetOrders(30)
+  val orders = GetOrders(30) // orders for last 30 days
   summarize(orders)
 ```
 
@@ -181,12 +192,9 @@ def aiMain(): Unit receives GetOrders, IO.stdout = // (6)!
 5. Compiler proves: AI code cannot access network, filesystem, or other data
 6. The AI generated code is verified against the interface library without FFI support, then linked with the harness.
 
-The AI code cannot access the network, filesystem, or other users' data - the compiler enforces this statically. After type checking, no runtime isolation or sandboxing is needed.
-
-See [AI Security](../security/language-design.md) and [Security Demos](../security/examples/index.md) for more examples.
+The AI code cannot access the network, filesystem, or other users' data — the compiler enforces this statically. After type checking, no runtime isolation or sandboxing is needed.
 
 ## See Also
 
-- [Pattern-Oriented Programming](../guides/patterns.md) - Jo's powerful pattern system
-- [Context Parameters](../language/definitions/context-parameters.md) - How capabilities work as parameters
-- [Get Started](../usage/getting-started.md) - Install Jo and run your first program
+- [Two-World Architecture](../security/two-worlds.md)
+- [Security Demos](../security/examples/index.md)
