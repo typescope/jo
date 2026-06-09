@@ -207,6 +207,20 @@ background_task() {
     bin/jo compile --doc --no-stdlib $(find lib -name '*.jo') --title "Jo Standard Library" --out stdlib-doc || error "doc"
 
     ################################################################################
+    # AST printer round-trip
+    #
+    # `Printing.show(parse(f))` must reparse without error for every parseable
+    # source. This guards the invariant the fuzzer's AstReducer relies on: if the
+    # printer can emit syntax the parser rejects, reduction silently stalls.
+
+    echo
+    echo "Running AST printer round-trip tests"
+    echo
+
+    bin/fuzz test-printer --dir "$DIR/tests/pos"  || error "printer round-trip (pos)"
+    bin/fuzz test-printer --dir "$DIR/tests/warn" || error "printer round-trip (warn)"
+
+    ################################################################################
     # Parsing tests
     echo ""
     echo "parsing tests"
