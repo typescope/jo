@@ -57,7 +57,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       stream.eat() // first '/'
       val slashCount = eatSlashes()
 
-      if stream.curCodePoint() == '[' then
+      if stream.hasMore() && stream.curCodePoint() == '[' then
         stream.eat()
         eatMultilineCommentContent(slashCount)
         val span = stream.tokenSpan()
@@ -286,7 +286,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         var quoteCount = 3
 
         // Count additional quotes
-        while stream.curCodePoint() == '"' do
+        while stream.hasMore() && stream.curCodePoint() == '"' do
           quoteCount += 1
           stream.eat()
 
