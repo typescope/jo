@@ -57,7 +57,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       stream.eat() // first '/'
       val slashCount = eatSlashes()
 
-      if stream.curCodePoint() == '[' then
+      if stream.hasMore() && stream.curCodePoint() == '[' then
         stream.eat()
         eatMultilineCommentContent(slashCount)
         val span = stream.tokenSpan()
@@ -286,7 +286,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
         var quoteCount = 3
 
         // Count additional quotes
-        while stream.curCodePoint() == '"' do
+        while stream.hasMore() && stream.curCodePoint() == '"' do
           quoteCount += 1
           stream.eat()
 
@@ -438,6 +438,12 @@ class Scanner(stream: CharStream)(using Reporter, Source):
     end if
 
   def charLit(): Token =
+    // The opening quote has already been eaten; if it was the last character,
+    // there is nothing left to read and `curCodePoint()` would run past the end.
+    if !stream.hasMore() then
+      error("Expect a character literal, but reached end of file", stream.tokenSpan().toPos)
+      return Token.CharLit(0)
+
     if stream.curCodePoint() == '\\' then
       stream.eat()
       if stream.hasMore() then

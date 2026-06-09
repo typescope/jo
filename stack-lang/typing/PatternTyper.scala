@@ -142,6 +142,10 @@ class PatternTyper(namer: Namer)(using Config):
 
     if scrutType.isError then return errorWord(patmat.span)
 
+    if cases.isEmpty then
+      Reporter.error("A match expression must have at least one case", patmat.pos)
+      return errorWord(patmat.span)
+
     val rp2: Reporter = rp.fresh(buffer = true)
     val cases2 =
       for caseDef <- cases yield

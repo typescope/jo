@@ -207,13 +207,34 @@ background_task() {
     bin/jo compile --doc --no-stdlib $(find lib -name '*.jo') --title "Jo Standard Library" --out stdlib-doc || error "doc"
 
     ################################################################################
-    # Parsing tests
-    echo ""
-    echo "parsing tests"
-    for item in $DIR/tests/parsing/*.jo; do
-        echo "parsing $item"
-        bin/jo eval $item > /dev/null || error "parsing $item"
-    done
+    # AST printer round-trip
+    #
+    # `Printing.show(parse(f))` must reparse without error for every parseable
+    # source. This guards the invariant the fuzzer's AstReducer relies on: if the
+    # printer can emit syntax the parser rejects, reduction silently stalls.
+
+    echo
+    echo "Running AST printer round-trip tests"
+    echo
+
+    bin/fuzz test-printer --dir "$DIR/tests/pos"  || error "printer round-trip (pos)"
+    bin/fuzz test-printer --dir "$DIR/tests/warn" || error "printer round-trip (warn)"
+
+    ################################################################################
+    # Parsing tests — parse only through the fuzzer harness. We only check that
+    # the parser accepts these inputs without crashing; we do not run them.
+    echo
+    echo "Running parsing tests"
+    echo
+    bin/fuzz regress --parse "$DIR/tests/parsing" || error "parsing regress"
+
+    ################################################################################
+    # Typing tests — parse + type through the fuzzer harness. We only check that
+    # the typer accepts these inputs without crashing; we do not run them.
+    echo
+    echo "Running typing tests"
+    echo
+    bin/fuzz regress --type "$DIR/tests/typing" || error "typing regress"
 
     ################################################################################
     # Error message tests

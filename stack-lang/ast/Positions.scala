@@ -142,11 +142,21 @@ object Positions:
 
         case None =>
           val jfile = new java.io.RandomAccessFile(file, "r")
-          jfile.seek(lineOffsets(line))
-          val lineStr = jfile.readLine()
-          val utf8 = new String(lineStr.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8)
+          val lineStr =
+            try
+              jfile.seek(lineOffsets(line))
+              jfile.readLine()
+            finally jfile.close()
+
+          // `readLine()` returns null when the seek lands at or past EOF. This
+          // happens for sources with invalid UTF-8: line offsets are computed
+          // over the decoded string (each invalid byte becomes a 3-byte U+FFFD),
+          // so they can exceed the raw file length this re-read sees. Fall back
+          // to an empty line rather than dereferencing null.
+          val utf8 =
+            if lineStr == null then ""
+            else new String(lineStr.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8)
           val trimmed = utf8.replaceAll("[\n\r]$", "")
-          jfile.close()
           lineCache(line) = trimmed
           trimmed
 

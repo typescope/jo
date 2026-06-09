@@ -2,6 +2,7 @@ package ast
 
 import Trees.*
 
+import ast.Naming
 import common.StringUtil
 import common.Text
 import common.Text.*
@@ -48,7 +49,7 @@ object Printing:
   given Text.Maker[Auto] = v =>
     val candidatesText =
       if v.candidates.isEmpty then Text.Empty
-      else " in [" ~ v.candidates.join(", ") ~ "]"
+      else " with [" ~ v.candidates.join(", ") ~ "]"
     v.ident ~ showTypeAnnot(v.tpt) ~ candidatesText
 
   given Text.Maker[TypeParam] = v => Text(v.ident)
@@ -82,6 +83,21 @@ object Printing:
     arg match
       case word: Word => showWord(word)
       case NamedArg(id, value) => id.name ~ " = " ~ showWord(value)
+
+  /** True for argument forms that are legal only as indented colon arguments,
+    * never inline inside `fun(...)`: `with … in …` and `allow … in …` (possibly
+    * wrapped in a single-element `Expr`/`Block`).
+    */
+  def isOpenForm(arg: CallArg): Boolean =
+    def wordIsOpen(w: Word): Boolean = w match
+      case _: With | _: Allow => true
+      case Expr(x :: Nil)     => wordIsOpen(x)
+      case Block(x :: Nil)    => wordIsOpen(x)
+      case _                  => false
+
+    arg match
+      case NamedArg(_, value) => wordIsOpen(value)
+      case w: Word            => wordIsOpen(w)
 
   def showView(view: ViewDecl): Text =
     val rhs = view.rhs match
@@ -140,27 +156,37 @@ object Printing:
           else defn.modifiers.join(" ") ~ " "
 
         val kind = if mutable then "var" else "val"
-        mods ~ kind ~ " " ~ id ~ showTypeAnnot(tpt) ~ " = " ~ rhs
+        // A field declaration without an initializer (e.g. `val name: String`)
+        // carries an empty block as rhs; `=` is optional there
+        val rhsText = if rhs.isEmptyBlock then Text.Empty else " =" ~ indent(rhs)
+        mods ~ kind ~ " " ~ id ~ showTypeAnnot(tpt) ~ rhsText
 
       case AutoDef(id, tpt, rhs) =>
-        "auto " ~ id ~ ": " ~ tpt ~ " = " ~ rhs
+        "auto " ~ id ~ ": " ~ tpt ~ " =" ~ indent(rhs)
 
       case fdef: FunDef =>
         val mods =
           if fdef.modifiers.isEmpty then Text.Empty
           else fdef.modifiers.join(" ") ~ " "
 
-        val preTparams =
-          if fdef.preTypeParamCount == 0 then Text.Empty
-          else "[" ~ fdef.tparams.take(fdef.preTypeParamCount).join(", ")  ~ "]"
+        val preTparams  = fdef.tparams.take(fdef.preTypeParamCount)
+        val postTparams = fdef.tparams.drop(fdef.preTypeParamCount)
+        val preParams   = fdef.params.take(fdef.preParamCount)
+        val postParams  = fdef.params.drop(fdef.preParamCount)
 
-        val postTparams =
-          if fdef.preTypeParamCount == fdef.tparams.size then Text.Empty
-          else "[" ~ fdef.tparams.drop(fdef.preTypeParamCount).join(", ")  ~ "]"
+        def tparamList(ts: List[TypeParam]): Text =
+          if ts.isEmpty then Text.Empty
+          else "[" ~ ts.join(", ") ~ "]"
 
-        val params =
-          if fdef.params.isEmpty then Text.Empty
-          else "(" ~ fdef.params.join(", ")  ~ ")"
+        // Add space for operator methods with no post-params so that the
+        // scanner cannot fuse the name into the trailing colon/operator:
+        // e.g. printing `def ~-: C` would scan as one operator token `~-:`.
+        val needSpace = Naming.isOperator(fdef.name) && postParams.isEmpty
+
+        def paramList(ps: List[Param], needSpace: Boolean = false): Text =
+          if ps.isEmpty then
+            if needSpace then Text(" ") else Text.Empty
+          else "(" ~ ps.join(", ") ~ ")"
 
         val autos =
           if fdef.autos.isEmpty then Text.Empty
@@ -183,7 +209,16 @@ object Printing:
           if fdef.body.isEmptyBlock then Text.Empty
           else " =" ~ indent(fdef.body)
 
-        mods ~ "def " ~ preTparams ~ fdef.name ~ postTparams ~ params ~ autos ~ resType ~ receives ~ body
+        val header =
+          if fdef.preParamCount > 0 then
+            // section method: def [preT](preP) name[postT](postP)
+            "def " ~ tparamList(preTparams) ~ paramList(preParams) ~ " " ~
+              fdef.name ~ tparamList(postTparams) ~ paramList(postParams, needSpace)
+          else
+            // plain method: def name[preT][postT](params)
+            "def " ~ fdef.name ~ tparamList(preTparams) ~ tparamList(postTparams) ~ paramList(postParams, needSpace)
+
+        mods ~ header ~ autos ~ resType ~ receives ~ body
 
       case cdef: ClassDef =>
         val mods =
@@ -242,22 +277,38 @@ object Printing:
           if pdef.tparams.isEmpty then Text.Empty
           else "[" ~ pdef.tparams.join(", ")  ~ "]"
 
-        val params =
-          if pdef.params.isEmpty then Text.Empty
-          else "(" ~ pdef.params.join(", ")  ~ ")"
+        val preParams = pdef.params.take(pdef.preParamCount)
+        val postParams = pdef.params.drop(pdef.preParamCount)
+
+        val preParamsText =
+          if preParams.isEmpty then Text.Empty
+          else "(" ~ preParams.join(", ")  ~ ") "
+
+        val postParamsText =
+          if postParams.isEmpty then Text.Empty
+          else "(" ~ postParams.join(", ")  ~ ")"
 
         val resType = showTypeAnnot(pdef.resultType)
 
-        "pattern " ~ pdef.name ~ tparams ~ params ~ resType ~ " =" ~ indent:
+        "pattern " ~ preParamsText ~ pdef.name ~ tparams ~ postParamsText ~ resType ~ " =" ~ indent:
           val caseText = pdef.cases.map(patValDef => "case " ~ showPattern(patValDef.pat))
           caseText.join(Text.BreakLine)
 
       case tdef: TypeDef =>
-        val tparams =
-          if tdef.tparams.isEmpty then Text.Empty
-          else "[" ~ tdef.tparams.join(", ")  ~ "]"
+        val preTparams  = tdef.tparams.take(tdef.preParamCount)
+        val postTparams = tdef.tparams.drop(tdef.preParamCount)
 
-        "type " ~ tdef.ident ~ tparams ~ "= " ~ tdef.rhs
+        val preTparamsText =
+          if preTparams.isEmpty then Text.Empty
+          else "[" ~ preTparams.join(", ")  ~ "] "
+
+        val postTparamsText =
+          if postTparams.isEmpty then Text.Empty
+          else "[" ~ postTparams.join(", ")  ~ "]"
+
+        // An abstract type declaration has no rhs.
+        val rhsText = if tdef.rhs.isEmpty then Text.Empty else " = " ~ tdef.rhs
+        "type " ~ preTparamsText ~ tdef.ident ~ postTparamsText ~ rhsText
 
       case edef: UnionDef =>
         val tparams =
@@ -293,11 +344,10 @@ object Printing:
       case StringLit(s) => "\"" ~ StringUtil.escape(s) ~ "\""
 
       case RegexLit(pattern, flags, _) =>
-        // Regex payload is already raw regex source; keep backslashes as-is
-        // and escape only the outer literal delimiter.
-        val escaped = pattern.replace("\"", "\\\"")
-        if flags.isEmpty then "#r\"" ~ escaped ~ "\""
-        else "#r[" ~ flags ~ "]\"" ~ escaped ~ "\""
+        // Regex literals are delimited by backticks.
+        val body        = pattern.replace("`", "\\`")
+        val flagsPrefix = if flags.isEmpty then Text.Empty else "(?" ~ flags ~ ")"
+        "`" ~ flagsPrefix ~ body ~ "`"
 
       case _: This => Text("this")
 
@@ -314,8 +364,13 @@ object Printing:
       case Ident(name) => Text(name)
 
       case Apply(fun, args) =>
-        val argsText = args.map(showCallArg).join(", ")
-        fun ~ "(" ~ argsText ~ ")"
+        // An open-expression argument (`with … in …`, `allow … in …`) cannot be
+        // written inline as `fun(arg)` — those forms are only legal as indented
+        // colon arguments. Switch the whole call to the colon-call form then.
+        if args.exists(isOpenForm) then
+          fun ~ ":" ~ indent(args.map(showCallArg).join(Text.BreakLine))
+        else
+          fun ~ "(" ~ args.map(showCallArg).join(", ") ~ ")"
 
       case BracketApply(subject, args) =>
         subject ~ "[" ~ args.join(", ") ~ "]"
@@ -336,7 +391,7 @@ object Printing:
         qual ~ "." ~ name
 
       case IsExpr(scrutinee, pattern) =>
-        scrutinee ~ " is " ~ showPattern(pattern)
+        scrutinee ~ " is (" ~ showPattern(pattern) ~ ")"
 
       case RescueExpr(scrutinee, pattern, handler) =>
         scrutinee ~ " rescue " ~ showPattern(pattern) ~ " => " ~ handler
@@ -345,29 +400,31 @@ object Printing:
         expr ~ "as" ~ tpt
 
       case Lambda(params, body) =>
-        "(" ~ params.join(", ") ~ ") =>" ~ indent(body)
+        // Always wrap the whole lambda in parens. A bare "(params) => body"
+        // inside an Expr/InfixCall/Apply context is ambiguous — the parser sees
+        // "(params)" as an argument list and "=> body" as a stray arrow.
+        "((" ~ params.join(", ") ~ ") =>" ~ indent(body) ~ ")"
 
       case Fence(phrase) =>
         "(" ~ phrase ~ ")"
 
       case With(expr, args) =>
-        val withText = " with " ~ indent:
-            args.join(Text.BreakLine)
-
-        "(" ~ expr ~ withText ~ ")"
+        "with " ~ args.join(", ") ~ " in" ~ indent(expr)
 
       case Allow(expr, params) =>
         val paramText =
           if params.isEmpty then Text("none")
           else params.join(", ")
 
-        "(" ~ expr ~ " allow " ~ paramText ~ ")"
+        "allow " ~ paramText ~ " in" ~ indent(expr)
 
       case Expr(words) =>
         if words.size == 1 then
           showWord(words.head)
+
         else if words.size > 1 then
           "(" ~ words.join(" ") ~ ")"
+
         else
           Text.Empty
 
@@ -375,10 +432,11 @@ object Printing:
         phrases.join(Text.BreakLine)
 
       case If(cond, thenp, elsep) =>
-        "if " ~ cond ~ " then" ~ indent:
-            thenp
-        ~ "else" ~ indent:
-           elsep
+        val elseText =
+          if elsep.isEmptyBlock then Text.Empty
+          else Text("else") ~ indent(elsep)
+
+        "if " ~ cond ~ " then" ~ indent(thenp) ~ elseText
 
       case While(cond, body) =>
         "while " ~ cond ~ " do" ~ indent:
@@ -433,7 +491,7 @@ object Printing:
 
       case RegexPattern(binder, regex) =>
         binder match
-          case Some(id) => id ~ showWord(regex)
+          case Some(id) => id ~ " @ " ~ showWord(regex)
           case None => showWord(regex)
 
       case SequencePattern(items) =>
@@ -444,7 +502,7 @@ object Printing:
 
       case AssignPattern(pattern, assignments) =>
         val assigns = assignments.map { case (id, value) => id.name ~ " = " ~ showWord(value) }.join(", ")
-        showPattern(pattern) ~ " with " ~ assigns
+        showPattern(pattern) ~ " then " ~ assigns
 
       case ExprPattern(patterns) =>
         patterns.map(showPattern).join(" ")
@@ -461,7 +519,7 @@ object Printing:
 
         guard match
           case None => nameText
-          case Some(g) => nameText ~ Text(" while ") ~ showPattern(g)
+          case Some(g) => nameText ~ Text(" while (") ~ showPattern(g) ~ ")"
 
   def showModifier(mod: Modifier): Text =
     Text(mod.show)
@@ -473,16 +531,31 @@ object Printing:
       case ref: RefTree => showWord(ref)
 
       case UnionType(branches) =>
-        branches.join(" | ")
+        // A function-type branch must be parenthesized: `=>` binds looser than
+        // `|`, so `Simple | Int => Unit` would parse as `(Simple | Int) => Unit`.
+        def branchText(b: TypeTree): Text = b match
+          case _: FunctionType => "(" ~ showType(b) ~ ")"
+          case _               => showType(b)
+
+        "(" ~ branches.map(branchText).join(" | ") ~ ")"
 
       case ExprType(types) =>
         types.join(" ")
+
+      case AppliedType(Ident(".."), targ :: Nil) =>
+        // Vararg type: surface syntax is the prefix `..T`, not `..[T]`.
+        ".." ~ targ
 
       case AppliedType(tpeCtor, targs) =>
         tpeCtor ~ "[" ~ targs.join(", ") ~ "]"
 
       case FunctionType(paramTypes, resultType, receives) =>
-        val tp = paramTypes.join(", ") ~ " => " ~ resultType
+        val params = paramTypes match
+          case one :: Nil => showType(one)
+          case many       => "(" ~ many.join(", ") ~ ")"
+
+        val tp = params ~ " => " ~ resultType
+
         if receives.isEmpty then
           tp
         else

@@ -838,10 +838,15 @@ class Namer(using Config) extends Applications with SelectionTyper:
         // Single part
         head
       case head :: tail =>
-        // Multiple parts - concatenate using +
+        // Multiple parts - concatenate using +. If a part is already erroneous
+        // (an error was reported for it), don't build `lhs + rhs` on it: the
+        // `+` member selection would fail. Propagate the error part instead.
+        def isErroneous(w: Word): Boolean = w.tpe.isError || w.tpe.approx.isError
+
         tail.foldLeft(head) { (lhs, rhs) =>
-          // Build: lhs + rhs using select and appliedTo
-          lhs.select("+").appliedTo(rhs)
+          if isErroneous(lhs) then lhs
+          else if isErroneous(rhs) then rhs
+          else lhs.select("+").appliedTo(rhs)
         }
 
   private def transformWhile(word: Ast.While)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, cs: ControlScope): Word =
@@ -2374,7 +2379,12 @@ class Namer(using Config) extends Applications with SelectionTyper:
         val targs2 = for targ <- targs yield transformValueType(targ, allowPackType = false)
         tctor2.tpe match
           case StaticRef(tctorSym) if tctorSym.isType =>
-            if tctor2.tpe == ErrorType || !Checker.checkKind(tctor2, targs2, tctorSym.asTypeSymbol.initKind) then
+            if tctor2.tpe == ErrorType
+               || targs2.exists(_.tpe.isError)
+               || !Checker.checkKind(tctor2, targs2, tctorSym.asTypeSymbol.initKind)
+            then
+              // A type argument is erroneous (error already reported); propagate
+              // ErrorType so the whole applied type is treated as erroneous.
               TypeTree(ErrorType)(tpt.span)
             else
               val tp = AppliedType(tctorSym, targs2.map(_.tpe))
