@@ -1,0 +1,3 @@
+def main =
+  val opt: Option[Undef] = Some(42)
+  println (opt.getOrElse 0)
