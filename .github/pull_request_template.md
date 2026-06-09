@@ -11,23 +11,23 @@ Fix #XXX: A short description
 - [ ] Added / updated tests under `tests/pos/` or `tests/warn/`
 - [ ] Ran `./ci` locally and all tests pass
 - [ ] Docs updated if the change affects user-visible behavior
-- [ ] All commits are signed off ([why?](https://developercertificate.org/))
+- [ ] All commits are signed off ([why?](https://github.com/typescope/jo/blob/main/CONTRIBUTING.md#contribution-terms))
 
 <details>
 <summary>How to sign off commits</summary>
 
 Use `git commit -s` to add the `Signed-off-by` line automatically:
 
-```bash
-git config --global user.name "Your Name"
-git config --global user.email "you@example.com"
-git commit -s -m "your message"
-```
-
 To add a sign-off to the last commit retroactively:
 
 ```bash
 git commit --amend -s --no-edit
+```
+
+To add sign-off to the last 3 commits:
+
+```
+git rebase --signoff HEAD~3
 ```
 
 </details>

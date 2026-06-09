@@ -74,6 +74,19 @@ The sign-off line should look like this:
 Signed-off-by: Your Name <you@example.com>
 ```
 
+To add a sign-off to the last commit retroactively:
+
+```bash
+git commit --amend -s --no-edit
+```
+
+To add sign-off to the last 3 commits:
+
+```
+git rebase --signoff HEAD~3
+```
+
+
 See the DCO text at <https://developercertificate.org/>.
 
 ## Pull Requests
