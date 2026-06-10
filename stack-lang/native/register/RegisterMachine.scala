@@ -585,8 +585,10 @@ extends Backend(runtime):
   def callIntrinsic(sym: Symbol, app: Apply)(using ctx: Context): Unit =
     if sym == runtime.ParamSupport_paramKey then
       val paramSym = app.args.head match
+        case Ident(paramSym) => paramSym
         case Encoded(Ident(paramSym)) => paramSym
-        case _ => throw new Exception("Unsupported argument to paramKey: " + app.show)
+        case Encoded(Apply(_, Ident(paramSym) :: Nil, Nil)) => paramSym
+        case arg => throw new Exception("Unsupported argument to paramKey: " + arg)
 
       val label = addString(paramSym.fullName)
       val reg = freshVirtualReg()
