@@ -1,0 +1,9 @@
+type P[A] = Int => (A ~ Int)
+
+def combine[A, B](p: P[A], q: P[B]): P[A ~ B] = abort "unused"
+
+def test(p: P[Int], q: P[Int]): Unit =
+  val both: P[Int ~ Int] = combine(p, q)
+  pass
+
+def main = pass
