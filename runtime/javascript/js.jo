@@ -350,13 +350,15 @@ def all(values: ..Any): Promise =
   global.Promise.all(array ..values).cast[Promise]
 
 //[ Create a JavaScript plain object from a Jo map literal.
+  ! The object has a null prototype so keys such as `"__proto__"` are stored
+  ! as ordinary own properties instead of changing the object's prototype.
   !
   ! ```jo
   ! val d: js.Dynamic = js.obj("x" ~ 1, "y" ~ 2)
   ! ```
 //]
 def obj(pairs: ..(String ~ Any)): Dynamic =
-  val result: Dynamic = js.init(js.global.Object)
+  val result: Dynamic = js.global.Object.create(js.null)
   for k ~ v in pairs do
     js.dynamic(result)[k] = v
   result

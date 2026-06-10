@@ -60,6 +60,9 @@ obj.x = 1
 obj.y = hello
 obj[x] = 1
 obj[y] = hello
+hasOwn __proto__ = true
+proto key value = true
+inherited polluted undefined = true
 --- dynamic ---
 value type = true
 value string = hello

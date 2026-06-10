@@ -187,6 +187,13 @@ def testObj =
   println("obj[x] = " + obj["x"].asInt)
   println("obj[y] = " + obj["y"].asString)
 
+  val proto: js.Dynamic = js.obj("polluted" ~ true)
+  val protoKeyObj: js.Dynamic = js.obj("__proto__" ~ proto)
+  val protoValue: js.Dynamic = protoKeyObj["__proto__"]
+  println("hasOwn __proto__ = " + js.hasOwn(protoKeyObj, "__proto__"))
+  println("proto key value = " + protoValue["polluted"].asBool)
+  println("inherited polluted undefined = " + protoKeyObj.polluted.isUndefined)
+
 //[ 13. js.dynamic: wrap any value back to js.Dynamic //]
 def testDynamic =
   println "--- dynamic ---"
