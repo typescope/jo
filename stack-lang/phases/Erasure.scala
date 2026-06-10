@@ -166,10 +166,13 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
           adaptLambdaValue(value, valueType.asLambdaType, expectedType.asLambdaType)
 
         else if expectedType.isLambdaType then
-          assert(valueType.approx.isAnyType, "Expect Any, found = " + valueType.show)
-          val lambdaType2 = expectedType.asLambdaType
-          val lambdaType1 = LambdaType(lambdaType2.params.map(_ => AnyType), AnyType, lambdaType2.receives)
-          adaptLambdaValue(Encoded(value)(lambdaType1), lambdaType1, lambdaType2)
+          if conforms then
+            value
+          else
+            assert(valueType.approx.isAnyType, "Expect Any, found = " + valueType.show + ", word = " + value.show)
+            val lambdaType2 = expectedType.asLambdaType
+            val lambdaType1 = LambdaType(lambdaType2.params.map(_ => AnyType), AnyType, lambdaType2.receives)
+            adaptLambdaValue(Encoded(value)(lambdaType1), lambdaType1, lambdaType2)
 
         else
           assert(valueType.isLambdaType, "Expect lambda type, found = " + valueType.show)
