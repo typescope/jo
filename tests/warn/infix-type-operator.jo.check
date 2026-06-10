@@ -1,0 +1,6 @@
+---------- Error at tests/warn/infix-type-operator.jo:3:3 ---------------
+|   a
+|   ^
+|   Expect type Int ~ String, found = a: Int ~ Bool
+
+1 error(s), 0 warning(s)
