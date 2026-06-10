@@ -125,7 +125,11 @@ object Subtyping:
         if ctx.isChecking(tctor1, tctor2) then
           false
         else
-          if !TypeOps.isGrounded(proxy1) || !TypeOps.isGrounded(proxy2) then
+          if tctor1 == tctor2 then
+            appliedType1.targs.zip(appliedType2.targs).forall: (tp1, tp2) =>
+              recur(tp1, tp2) && recur(tp2, tp1)
+
+          else if !TypeOps.isGrounded(proxy1) || !TypeOps.isGrounded(proxy2) then
             given Context = ctx.withSubtyping(tctor1, tctor2)
             recur(proxy1.dealias, proxy2.dealias)
 
@@ -181,27 +185,15 @@ object Subtyping:
       tasks.forall(task => recur(task.left, task.right))
 
   private def checkConformsBothGroundedProxyType(proxy1: ProxyType, proxy2: ProxyType)(using ctx: Context, defn: Definitions): Boolean =
-    if proxy1.is[AppliedType] && proxy2.is[AppliedType] then
-      checkDirectViewSubtyping(proxy1, proxy2)
-      || {
-        val AppliedType(tctor1, targs1) = proxy1: @unchecked
-        val AppliedType(tctor2, targs2) = proxy2: @unchecked
-        tctor1 == tctor2 && {
-          targs1.zip(targs2).forall: (tp1, tp2) =>
-            recur(tp1, tp2) && recur(tp2, tp1)
-        }
-      }
+    proxy1 match
+      case _: AppliedType =>
+        checkDirectViewSubtyping(proxy1, proxy2)
 
-    else
-      proxy1 match
-        case _: AppliedType =>
+      case ref: RefType =>
+        if ref.isTermRef then
+          recur(proxy1.widenTermRef, proxy2)
+        else
           checkDirectViewSubtyping(proxy1, proxy2)
-
-        case ref: RefType =>
-          if ref.isTermRef then
-            recur(proxy1.widenTermRef, proxy2)
-          else
-            checkDirectViewSubtyping(proxy1, proxy2)
 
   private def checkConformsLambdaType(tp1: LambdaType, tp2: LambdaType)
       (using ctx: Context, defn: Definitions)

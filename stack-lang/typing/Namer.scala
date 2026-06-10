@@ -1562,9 +1562,8 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
       if flags.is(Flags.Defer) && !flags.is(Flags.Default) then
         // Dummy body deferred function without default implementation
-        val dummyBody = Block(Nil)(funDef.body.span)
-        if funDef.resultType.isEmpty then dummyBody.encodedAs(defn.UnitType)
-        else dummyBody.encodedAs(givenResultTypeLazy.value)
+        val span = funDef.body.span
+        Ident(defn.abort)(span).appliedTo(StringLit("deferred " + funSym.fullName)(span))
       else
         val targetType =
           if !funDef.resultType.isEmpty then

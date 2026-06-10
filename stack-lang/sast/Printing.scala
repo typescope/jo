@@ -4,6 +4,8 @@ import Trees.*
 import Types.*
 import Symbols.*
 
+import ast.Naming
+
 import common.StringUtil
 import common.Text
 import common.Text.*
@@ -396,7 +398,20 @@ object Printing:
         branches.join(" | ")
 
       case AppliedType(tctor, targs) =>
-        tctor ~ "[" ~ targs.join(Text(", ")) ~ "]"
+
+        if Naming.isOperator(tctor.name) then
+          if targs.size == 1 then
+            tctor ~ targs.head
+
+          else if targs.size == 2 then
+            targs.head ~ " " ~ tctor ~ " " ~ targs.last
+
+          else
+            tctor ~ "[" ~ targs.join(Text(", ")) ~ "]"
+
+        else
+          tctor ~ "[" ~ targs.join(Text(", ")) ~ "]"
+
 
       case duckType @ DuckType(baseType) =>
         val adapterTexts = duckType.adapters.map:

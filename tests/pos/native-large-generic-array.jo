@@ -1,0 +1,12 @@
+def fillArray[T](n: Int, x: T): Array[T] =
+  val a = Array.create[T](n)
+  var i = 0
+  while i < n do
+    a[i] = x
+    i = i + 1
+  a
+
+def main =
+  val a = fillArray(1024, 0)
+  println a[0]
+  println a[1023]

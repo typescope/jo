@@ -18,13 +18,12 @@ private[native] def alloc(size: Int): Addr receives none =
   val lastFreeUntil = state.freeUntil
 
   if freeFrom + size > lastFreeUntil then
-     val needed = freeFrom + size - lastFreeUntil
-     val pages = (needed + 4095) / 4096
+     val pages = (size + 4095) / 4096
      val newFreeUntil = Syscall.sys_brk (lastFreeUntil + pages * 4096)
      if newFreeUntil == -1 then
        abort "Unable to alloc memory from system"
 
-     // avoid allocating at page boundary
+     // Start the allocation at the newly mapped page boundary.
      freeFrom = lastFreeUntil
 
      // update data

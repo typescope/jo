@@ -18,12 +18,9 @@ private class Batch
 //[ Stub function to be replaced at backend
   !
   ! id must be an Ident pointing to the context parameter
-  !
-  ! Unit type is used to avoid boxing behavior. Compiler synthesizes id: Unit
-  ! as argument.
 //]
 @intrinsic
-private def paramKey[T](id: Unit): Addr receives none =
+private def paramKey[T](id: T): Addr receives none =
   native.abortImpl "paramKey should be replaced by backend"
 
 private def emptyCtx(): Ctx receives none =

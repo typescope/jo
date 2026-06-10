@@ -1,0 +1,5 @@
+def f(b: Bool): () => Int =
+  if b then () => 1 else abort "x"
+
+def main =
+  println f(true)()

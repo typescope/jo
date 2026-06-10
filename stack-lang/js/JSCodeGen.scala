@@ -757,7 +757,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
         else if sym == runtime.paramKey then
           val paramSym = args.head match
-            case Encoded(Ident(paramSym)) => paramSym
+            case Ident(paramSym) => paramSym
             case word => throw new Exception("Unsupported argument to paramKey: " + word)
 
           val keyId = runtime.getOrCreateParamId(paramSym)

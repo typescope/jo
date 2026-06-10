@@ -158,7 +158,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
               Encoded(value)(expectedType)
 
           else
-            assert(valueType.approx.isAnyType, "Expect Any, found = " + valueType.show)
+            assert(valueType.approx.isAnyType, "Expect Any, found = " + valueType.show + ", word = " + value.show)
             // Backend will decide whether the cast involves unboxing
             Encoded(value)(expectedType)
 
@@ -166,10 +166,13 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
           adaptLambdaValue(value, valueType.asLambdaType, expectedType.asLambdaType)
 
         else if expectedType.isLambdaType then
-          assert(valueType.approx.isAnyType, "Expect Any, found = " + valueType.show)
-          val lambdaType2 = expectedType.asLambdaType
-          val lambdaType1 = LambdaType(lambdaType2.params.map(_ => AnyType), AnyType, lambdaType2.receives)
-          adaptLambdaValue(Encoded(value)(lambdaType1), lambdaType1, lambdaType2)
+          if conforms then
+            value
+          else
+            assert(valueType.approx.isAnyType, "Expect Any, found = " + valueType.show + ", word = " + value.show)
+            val lambdaType2 = expectedType.asLambdaType
+            val lambdaType1 = LambdaType(lambdaType2.params.map(_ => AnyType), AnyType, lambdaType2.receives)
+            adaptLambdaValue(Encoded(value)(lambdaType1), lambdaType1, lambdaType2)
 
         else
           assert(valueType.isLambdaType, "Expect lambda type, found = " + valueType.show)
@@ -248,7 +251,8 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
               // pattern type cast, pattern desugaring array result cast
               val word2 = eraseWord(repr, expectedType = eraseType(repr.tpe).widen, returnType)
               val encodedType2 = eraseType(word.tpe)
-              adapt(Encoded(word2)(encodedType2), expectedType)
+              val encoded = adapt(word2, encodedType2)
+              adapt(encoded, expectedType)
 
       case apply @ Apply(fun, args, autos) =>
         val fun2 = fun match

@@ -1,0 +1,3 @@
+def foo(): Int ~ String =
+  val a = 3 ~ false
+  a

@@ -12,8 +12,7 @@ import scala.collection.mutable
 /** Lower context/effect parameter constructs to explicit immutable ctx plumbing.
   *
   * 1. Context access lowering
-  *    - Rewrite context reads `Ident(sym)` (`sym.isContext`) to
-  *      `getParam(ctx, paramKey(sym))`.
+  *    - Rewrite context reads `Ident(sym)` to `getParam(ctx, paramKey(sym))`.
   *    - Lower `With(expr, bindings)` to immutable ctx extension via
   *      `startBatch`/`addBinding`/`finish`
   *      with lexical scoping (no backup/restore protocol).
@@ -122,7 +121,7 @@ extends Phase:
     val paramIdent = Ident(paramSym)(span)
     val tparam = TypeTree(paramSym.tpe)(span)
     val funParamKey = TypeApply(Ident(paramKeySym)(span), tparam :: Nil)(span)
-    Apply(funParamKey, Encoded(paramIdent)(defn.UnitType) :: Nil, autos = Nil)(span)
+    Apply(funParamKey, paramIdent :: Nil, autos = Nil)(span)
 
   private def mergedLambdaCtx(
     capturedCtx: Symbol,
