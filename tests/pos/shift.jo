@@ -1,6 +1,34 @@
+// Regression for native register lowering with a variable shift count.
+def shiftLeftCountInECX(value: Int, unused: Int, count: Int): Int =
+  value << count
+
+def shiftRightCountInECX(value: Int, unused: Int, count: Int): Int =
+  value >> count
+
+def shiftLeftDestinationInECX(count: Int, unused: Int, value: Int): Int =
+  value << count
+
+def shiftRightDestinationInECX(count: Int, unused: Int, value: Int): Int =
+  value >> count
+
+def shiftLeftNoECXSpecialCase(value: Int, count: Int, unused: Int): Int =
+  value << count
+
+def shiftRightNoECXSpecialCase(value: Int, count: Int, unused: Int): Int =
+  value >> count
+
 def main =
   println (1 << 0)
   println (1 << 4)
 
   println (3 >> 0)
   println (3 >> 3)
+
+  println shiftLeftCountInECX(7, 0, 2)
+  println shiftRightCountInECX(7, 0, 2)
+
+  println shiftLeftDestinationInECX(2, 0, 7)
+  println shiftRightDestinationInECX(2, 0, 7)
+
+  println shiftLeftNoECXSpecialCase(7, 2, 0)
+  println shiftRightNoECXSpecialCase(7, 2, 0)
