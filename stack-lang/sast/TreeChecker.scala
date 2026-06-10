@@ -181,9 +181,8 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
 
   def checkFunShape(fun: Word)(using Reporter): Unit =
     fun.strip match
-      case Ident(sym) =>
-        if !sym.isFunction && !sym.tpe.isLambdaType then
-          Reporter.error("Expect function, found = " + sym, fun.pos)
+      case Ident(_) =>
+        // erasure may introduce cast from Any to LambdaType
 
       case Select(qual, _) =>
         if !qual.tpe.isClassInfoType && !qual.tpe.isRecordType then
@@ -198,7 +197,8 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
 
       case _ =>
         fun match
-          case funRaw if funRaw.tpe.isLambdaType =>
+          case _ if fun.tpe.isLambdaType =>
+            // lambdas can have any shape
 
           case _ =>
             Reporter.error("Expect function to be select/ident/tapply, found = " + fun, fun.pos)
