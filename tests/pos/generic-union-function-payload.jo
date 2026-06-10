@@ -1,0 +1,8 @@
+class Box[T](value: T)
+
+def solve(): Box[Int => Bool] =
+  Box(x => true)
+
+def main =
+  match solve()
+    case Box(f) => println f(0)
