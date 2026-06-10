@@ -1,0 +1,4 @@
+
+def main: Unit =
+  val builtins = py.module("builtins")
+  builtins.callDynamic("from")

@@ -1,0 +1,4 @@
+[error] ---------- Error at tests/custom/python-ffi-negative/field-keyword-name.jo:4:21 ---------------
+|   obj.selectDynamic("class")
+|                     ^^^^^^^
+|                     selectDynamic requires a string literal name that is a valid Python identifier

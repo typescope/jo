@@ -7,8 +7,9 @@ import sast.Symbols.Annotation
 import scala.collection.mutable
 
 object PythonRuntime:
-  // True Python reserved keywords used for generated local names.
-  val keywords = List(
+  // Hard Python reserved keywords. These cannot be used in generated dot
+  // member syntax such as `obj.class`.
+  val hardKeywords = List(
     "False", "None", "True",
     "and", "as", "assert", "async", "await",
     "break", "class", "continue", "def", "del",
@@ -23,7 +24,12 @@ object PythonRuntime:
     "raise", "return",
     "try",
     "while", "with",
-    "yield",
+    "yield"
+  )
+
+  // Keywords/names avoided for generated local names. `match` and `case` are
+  // soft keywords: valid in `obj.match`, but best avoided as local names.
+  val keywords = hardKeywords ++ List(
     "match", "case",
     // Special names always taken in generated Python classes
     "self", "__init__"
@@ -35,13 +41,16 @@ object PythonRuntime:
   private def isPyIdentPart(c: Char): Boolean =
     c == '_' || Character.isUnicodeIdentifierPart(c)
 
-  def isValidMemberName(name: String): Boolean =
+  private def hasIdentifierShape(name: String): Boolean =
     name.nonEmpty
     && isPyIdentStart(name.head)
     && name.tail.forall(isPyIdentPart)
 
+  def isValidMemberName(name: String): Boolean =
+    hasIdentifierShape(name) && !hardKeywords.contains(name)
+
   def isValidIdentifier(name: String): Boolean =
-    isValidMemberName(name) && !keywords.contains(name)
+    hasIdentifierShape(name) && !keywords.contains(name)
 
 /** Functions to support Python platform at runtime
   *

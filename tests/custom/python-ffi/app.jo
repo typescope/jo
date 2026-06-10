@@ -45,6 +45,9 @@ def main =
   os.custom_attr = "hello"
   val attr: String = os.custom_attr.asString
   println("setField/field = " + attr)
+  os.updateDynamic("match", "soft keyword")
+  val softKeywordAttr: String = os.selectDynamic("match").asString
+  println("soft keyword field = " + softKeywordAttr)
 
   // Test kwarg
   val formatter: py.Dynamic = py.module("string")
