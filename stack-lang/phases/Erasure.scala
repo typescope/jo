@@ -158,7 +158,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
               Encoded(value)(expectedType)
 
           else
-            assert(valueType.approx.isAnyType, "Expect Any, found = " + valueType.show)
+            assert(valueType.approx.isAnyType, "Expect Any, found = " + valueType.show + ", word = " + value.show)
             // Backend will decide whether the cast involves unboxing
             Encoded(value)(expectedType)
 
@@ -251,7 +251,8 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
               // pattern type cast, pattern desugaring array result cast
               val word2 = eraseWord(repr, expectedType = eraseType(repr.tpe).widen, returnType)
               val encodedType2 = eraseType(word.tpe)
-              adapt(Encoded(word2)(encodedType2), expectedType)
+              val encoded = adapt(word2, encodedType2)
+              adapt(encoded, expectedType)
 
       case apply @ Apply(fun, args, autos) =>
         val fun2 = fun match
