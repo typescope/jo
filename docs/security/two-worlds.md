@@ -95,7 +95,7 @@ This fixes the contract: what the function is named, what capabilities it may us
 ```jo
 def aiMain(): Unit receives ordersApi, IO.stdout =
   val data = ordersApi.query(30)
-  summarize(data)
+  printOrders: data.select(o => o.state == "open")
 ```
 
 **`--link` wires the implementation at compile time (harness build step):**
@@ -146,7 +146,7 @@ def frameworkMain() =
 //------------------ AI-Generated Code (Confined) ---------------------------
 def aiMain(): Unit receives ordersApi, IO.stdout =   // (6)
   val data = ordersApi.query(30)
-  summarize(data)
+  printOrders: data.select(o => o.state == "open")
 ```
 
 1. The only capability interface visible to AI code. The interface library is compiled without FFI support.

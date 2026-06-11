@@ -78,7 +78,7 @@ param ordersApi: OrdersApi
 // AI-generated code
 def aiAnalyze(): Unit receives ordersApi, IO.stdout =
   val data = ordersApi.query(30)  // cannot access userId or db
-  summarize(data)
+  printOrders: data.select(o => o.state == "open")
 ```
 
 The type system guarantees that untrusted code cannot downcast `OrdersApi` to `UserScopedOrders`, inspect the object, or access the underlying `userId` or `db` fields.

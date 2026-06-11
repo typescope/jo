@@ -7,6 +7,8 @@ description: Jo is a statically typed language for fine-grained capability-based
 
 # Introducing Jo — Secure Programming for the AI Era
 
+*June 4, 2026 · The Jo Team*
+
 Today we are introducing **[Jo](https://github.com/typescope/jo)**, a
 statically typed programming language where side effects are denied by default
 and authority must be granted explicitly, through fine-grained capabilities
@@ -89,7 +91,7 @@ param ordersApi: OrdersApi
 // AI-generated code
 def aiMain(): Unit receives ordersApi, IO.stdout =
   val orders = ordersApi.query(30)
-  summarize(orders)
+  printOrders: orders.select(o => o.state == "open")
 ```
 
 The framework can implement `OrdersApi` using a real database, but expose only a
