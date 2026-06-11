@@ -223,6 +223,10 @@ div[class*='language-'] {
   text-transform: uppercase;
 }
 
+.vp-doc td {
+  padding: 8px;
+}
+
 /* ── Buttons / links ─────────────────────────────────────────────────────── */
 .VPButton.brand {
   background: linear-gradient(135deg, #7c3aed, #2563eb);
