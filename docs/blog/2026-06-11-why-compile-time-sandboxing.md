@@ -68,7 +68,7 @@ connection it legitimately holds.
     </div>
     <div class="sbx-cell sbx-ct">
       <div class="sbx-item"><span class="sbx-ico sbx-yes">✓</span> Aware of business logic</div>
-      <div class="sbx-desc">Rules like "read only this user's rows" or permitted REST APIs are typed capabilities the compiler enforces.</div>
+      <div class="sbx-desc">Rules like "read only this user's rows" or permitted/narrowed REST APIs are typed capabilities the compiler enforces.</div>
     </div>
   </div>
   <div class="sbx-row">
