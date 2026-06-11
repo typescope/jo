@@ -44,9 +44,8 @@ removes ambient authority:
 - All resource access through explicit parameters
 - Type system enforcement of capability specification
 
-For readers interested in theory, Jo's model is [_contextual
-capabilities_](https://github.com/typescope/contextual-capability), formalized
-in a calculus called `λCC` and mechanized in Coq.
+For readers interested in theory, Jo is based on the model of [_contextual
+capabilities_](https://github.com/typescope/contextual-capability).
 
 [1]: https://en.wikipedia.org/wiki/Object-capability_model
 
