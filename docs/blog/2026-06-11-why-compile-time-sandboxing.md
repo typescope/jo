@@ -144,7 +144,7 @@ implementation is opaque to the AI code: all it ever sees is the
 
 ## Alternatives
 
-### Runtime sandboxing + REST APIs
+### Runtime Sandboxing + REST APIs
 
 A popular middle ground is to sandbox the agent and let it reach the world
 only through REST APIs. This helps, but it inherits a design mismatch:
@@ -167,8 +167,8 @@ the API in a smaller interface.
 ### MCPs
 
 MCP gives LLMs a catalog of vetted tools that can restrict LLM capabilities
-to application-defined security policies. If a problem may use this
-solution, it should.
+to application-defined security policies. If a problem can be solved this
+way, it should be.
 
 However, for complex use cases, the approach hits limits. Every tool
 definition is loaded into the context window before any work happens. Every
