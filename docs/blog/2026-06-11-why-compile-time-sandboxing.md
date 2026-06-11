@@ -10,10 +10,9 @@ description: Runtime sandboxes confine processes; compile-time sandboxing confin
 *June 11, 2026 · The Jo Team*
 
 AI agents are becoming more capable at automating tasks by generating and
-executing code. But AI agents cannot be trusted. Earlier this year,
+executing code. But AI agents cannot be fully trusted. Earlier this year,
 OpenClaw
-[deleted hundreds of
-emails](https://x.com/summeryue0/status/2025774069124399363) from the inbox
+[deleted hundreds of emails](https://x.com/summeryue0/status/2025774069124399363) from the inbox
 of Meta Superintelligence Labs' alignment director.
 
 Until an agent's actions are strictly bounded, we cannot use it on
@@ -65,11 +64,11 @@ connection it legitimately holds.
   <div class="sbx-row">
     <div class="sbx-cell">
       <div class="sbx-item"><span class="sbx-ico sbx-no">✕</span> Blind to business logic</div>
-      <div class="sbx-desc">Can block syscalls and files, but cannot express rules like "read only this user's rows."</div>
+      <div class="sbx-desc">Can block syscalls and files, but cannot express rules like "read only this user's rows" or a subset of REST APIs</div>
     </div>
     <div class="sbx-cell sbx-ct">
       <div class="sbx-item"><span class="sbx-ico sbx-yes">✓</span> Aware of business logic</div>
-      <div class="sbx-desc">Rules like "read only this user's rows" are typed capabilities the compiler enforces.</div>
+      <div class="sbx-desc">Rules like "read only this user's rows" or permitted REST APIs are typed capabilities the compiler enforces.</div>
     </div>
   </div>
   <div class="sbx-row">
@@ -94,10 +93,9 @@ connection it legitimately holds.
   </div>
 </div>
 
-The two columns are not competitors — defense in depth says use both. The
-difference is vocabulary. A runtime sandbox speaks the operating system's
-language: processes, files, sockets. The rules worth enforcing are usually
-written in the application's language — which rows, which endpoints, which
+A runtime sandbox speaks the operating system's language: processes, files, sockets.
+The rules worth enforcing need to be written
+in the application's language — which rows, which endpoints, which
 user's data — and a boundary can only enforce what it can express. Types are
 the only boundary that operates at the application level.
 
