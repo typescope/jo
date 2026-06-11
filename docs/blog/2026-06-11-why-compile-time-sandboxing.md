@@ -7,6 +7,8 @@ description: Runtime sandboxes confine processes; compile-time sandboxing confin
 
 # Why Secure AI Needs Compile-Time Sandboxing
 
+*June 11, 2026 · The Jo Team*
+
 AI agents are becoming more capable at automating tasks by generating and
 executing code. But AI agents cannot be trusted. Earlier this year,
 OpenClaw
