@@ -1,6 +1,6 @@
 # Jo Secure Programming Language
 
-Jo is a statically-typed language that enables **compile-time sandboxing**. Every side effect — IO, system access, network, filesystem — is denied by default; code can only touch what it has been explicitly granted, and the compiler proves it before the program ever runs. This is the foundation of Jo's [capability-based security](capabilities.md) model.
+Jo is a statically-typed language that enables [**compile-time sandboxing**](capabilities.md). Every side effect — IO, system access, network, filesystem — is denied by default; code can only touch what it has been explicitly granted, and the compiler proves it before the program runs.
 
 Jo compiles to Ruby and Python. It is possible to call Ruby/Python functions from trusted Jo code directly (See [interoperability](../guides/python-interoperability.md)).
 
