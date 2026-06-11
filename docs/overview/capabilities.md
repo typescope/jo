@@ -181,7 +181,7 @@ def frameworkMain() = // (2)!
 // The code can only read orders, nothing else
 def aiMain(): Unit receives GetOrders, IO.stdout = // (6)!
   val orders = GetOrders(30) // orders for last 30 days
-  summarize(orders)
+  printOrders: orders.select(o => o.state == "open")
 ```
 
 1. The only capability available to AI code. The interface is compiled to a separate library with no FFI support, the same as the standard library.

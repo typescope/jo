@@ -89,7 +89,7 @@ param ordersApi: OrdersApi
 // AI-generated code
 def aiMain(): Unit receives ordersApi, IO.stdout =
   val orders = ordersApi.query(30)
-  summarize(orders)
+  printOrders: orders.select(o => o.state == "open")
 ```
 
 The framework can implement `OrdersApi` using a real database, but expose only a

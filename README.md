@@ -101,7 +101,7 @@ def frameworkMain() =
 //--- AI-generated code (confined, no FFI) ---
 def aiMain(): Unit receives ordersApi, IO.stdout =
   val orders = ordersApi.query(30)
-  summarize(orders)
+  printOrders: orders.select(o => o.state == "open")
 ```
 
 `allow none` is a compile-time proof: `aiMain()` uses no capabilities beyond what it declared. The AI code cannot access the network, filesystem, or other users' data.
