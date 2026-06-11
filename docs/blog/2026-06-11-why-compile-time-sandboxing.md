@@ -64,11 +64,11 @@ connection it legitimately holds.
   <div class="sbx-row">
     <div class="sbx-cell">
       <div class="sbx-item"><span class="sbx-ico sbx-no">✕</span> Blind to business logic</div>
-      <div class="sbx-desc">Can block syscalls and files, but cannot express rules like "read only this user's rows" or a subset of REST APIs</div>
+      <div class="sbx-desc">Can block syscalls and files, but cannot express rules like "read only this user's rows" or "only these 2 narrowed REST APIs"</div>
     </div>
     <div class="sbx-cell sbx-ct">
       <div class="sbx-item"><span class="sbx-ico sbx-yes">✓</span> Aware of business logic</div>
-      <div class="sbx-desc">Rules like "read only this user's rows" or permitted/narrowed REST APIs are typed capabilities the compiler enforces.</div>
+      <div class="sbx-desc">Rules like "read only this user's rows" or "only these 5 narrowed REST APIs" are typed capabilities the compiler enforces.</div>
     </div>
   </div>
   <div class="sbx-row">
@@ -142,6 +142,53 @@ example, as a user-scoped, read-only view over the real database. But the
 implementation is opaque to the AI code: all it ever sees is the
 `OrdersApi` interface.
 
+## Alternatives
+
+### Runtime sandboxing + REST APIs
+
+A popular middle ground is to sandbox the agent and let it reach the world
+only through REST APIs. This helps, but it inherits a design mismatch:
+**REST APIs were designed for trusted callers and they expose a large
+capability surface**. A typical API token grants everything the user can do through the
+web interface — read all orders, change the account, delete records — far
+more than any single agent task needs.
+
+An agent is not a trusted caller. What it may call depends on
+the security context of the task at hand: one task should see only a small
+subset of the API surface; another needs an endpoint, but with its scope
+narrowed — this user's rows, read-only, the last 30 days. Existing REST APIs
+were not designed to answer such needs, so the restrictions end up in
+gateways and per-agent proxy policies — authority drifts back into
+infrastructure configuration, with all the audit problems above.
+
+With capabilities, the same narrowing is a few lines of trusted code: wrap
+the API in a smaller interface.
+
+### MCPs
+
+MCP gives LLMs a catalog of vetted tools that can restrict LLM capabilities
+to application-defined security policies. If a problem may use this
+solution, it should.
+
+However, for complex use cases, the approach hits limits. Every tool
+definition is loaded into the context window before any work happens. Every
+intermediate result must round-trip through the model, burning tokens at
+each step.
+
+And a fixed tool set has limited flexibility: when a task calls for a
+filter, a join, or a loop over results, the agent either needs yet another
+tool or has to simulate it token by token. The research [*Executable Code
+Actions Elicit Better LLM Agents*](https://arxiv.org/abs/2402.01030) shows
+that agents acting through generated code outperform those restricted to
+tool calls.
+
+The natural fix — also advocated by [Anthropic's engineering
+team](https://www.anthropic.com/engineering/code-execution-with-mcp) — is
+to let the agent write code that calls the tools: filtering and composition
+happen in the program, and only the final result returns to the model. But
+that brings back the original question: what exactly may the generated code
+do? Compile-time sandboxing is the answer.
+
 ## Learn More
 
 Jo implements compile-time sandboxing through a hard separation between
@@ -157,3 +204,6 @@ capabilities](https://github.com/typescope/contextual-capability).
 1. Christoph Kern. [Safe Coding: Rigorous Modular Reasoning about Software
    Safety](https://queue.acm.org/detail.cfm?id=3773098). *ACM Queue* 23(5),
    November 2025.
+2. Xingyao Wang, Yangyi Chen, Lifan Yuan, Yizhe Zhang, Yunzhu Li, Hao Peng,
+   Heng Ji. [Executable Code Actions Elicit Better LLM
+   Agents](https://arxiv.org/abs/2402.01030). *ICML* 2024.
