@@ -46,30 +46,29 @@ private class Validator(source: String)
   private def advance(): Unit =
     if i < pat.size then i = i + 1
 
+
   //[ Validate the pattern and flags.
+    !
     ! Returns `Ok(pat)` on success or `Err(message)` on failure.
   //]
   def validate(): Option[String] =
-    match validateFlags()
-    case res @ Some(msg) => res
+    if validateFlags() is err: String then return Some(err)
 
-    case None =>
-      match parseAlternation(true)
-      case res @ Some(msg) => res
+    if parseAlternation(top = true) is err: String then return Some(err)
 
-      case None =>
-        if !atEnd() then
-          Some("Unexpected character '" + peek() + "' at position " + i)
+    if !atEnd() then
+      Some("Unexpected character '" + peek() + "' at position " + i)
 
-        else
-          None
+    else
+      None
+
 
   //[ Parse group names from a pre-validated pattern without re-validating.
     !
     ! Also builds `normalizedPat` as a side effect.
   //]
   def parseGroups(): Map[String, Int] =
-    val _ = parseAlternation(true)
+    val _ = parseAlternation(top = true)
     groupIndexByName
 
   //[ The pattern with shorthands expanded to their ASCII equivalents.
@@ -79,7 +78,7 @@ private class Validator(source: String)
   def normalizedPat: String =
     normalizedOut + pat.slice(normalizedPos, pat.size - normalizedPos)
 
-  private def validateFlags(): Option[String] =
+  private def validateFlags(): String | None =
     var seenI = false
     var seenM = false
     var seenS = false
@@ -87,138 +86,138 @@ private class Validator(source: String)
     while p < flags.size do
       val ch = flags[p]
       if ch == 'i' then
-        if seenI then return Some("Duplicate regex flag 'i' at position " + p)
+        if seenI then return "Duplicate regex flag 'i' at position " + p
         seenI = true
       else if ch == 'm' then
-        if seenM then return Some("Duplicate regex flag 'm' at position " + p)
+        if seenM then return "Duplicate regex flag 'm' at position " + p
         seenM = true
       else if ch == 's' then
-        if seenS then return Some("Duplicate regex flag 's' at position " + p)
+        if seenS then return "Duplicate regex flag 's' at position " + p
         seenS = true
       else
-        return Some("Unsupported regex flag '" + ch + "' at position " + p)
+        return "Unsupported regex flag '" + ch + "' at position " + p
       end
       p = p + 1
     end
     None
 
-  private def parseAlternation(top: Bool): Option[String] =
-    match parseSequence()
-    case Some(msg) =>
-      Some(msg)
-    case None =>
-      while !atEnd() && peek() == '|' do
-        advance()
-        match parseSequence()
-        case Some(err) => return Some(err)
-        case None => pass
-        end
-      end
-      if !top && !atEnd() && peek() != ')' then
-        Some("Expected ')' at position " + i)
-      else
-        None
+  private def parseAlternation(top: Bool): String | None =
+    if parseSequence() is err: String then return err
 
-  private def parseSequence(): Option[String] =
+    while !atEnd() && peek() == '|' do
+      advance()
+      if parseSequence() is err: String then return err
+    end
+
+    if !top && !atEnd() && peek() != ')' then
+      "Expected ')' at position " + i
+    else
+      None
+
+  private def parseSequence(): String | None =
     while !atEnd() && peek() != ')' && peek() != '|' do
-      match parsePiece()
-      case Some(msg) => return Some(msg)
-      case None => pass
-      end
+      if parsePiece() is err: String then return err
     end
     None
 
-  private def parsePiece(): Option[String] =
-    match parseAtom()
-    case Some(msg) =>
-      Some(msg)
-    case None =>
-      if !atEnd() then
-        val ch = peek()
-        if ch == '*' || ch == '+' || ch == '?' then
-          advance()
-          match rejectQuantifierSuffix()
-          case Some(err) => return Some(err)
-          case None => pass
+  private def parsePiece(): String | None =
+    if parseAtom() is err: String then return err
+
+    if !atEnd() then
+      val ch = peek()
+      if ch == '*' || ch == '+' || ch == '?' then
+        advance()
+        if rejectQuantifierSuffix() is err: String then return err
+      else if ch == '{' then
+        if parseBounds() is err: String then return err
+      end
+
+    None
+
+
+  private def parseParens(): String | None =
+    val groupStart = i
+    advance()
+
+    if !atEnd() && peek() == '?' then
+      advance()
+
+      if !atEnd() && peek() == ':' then
+        advance()
+      else if !atEnd() && peek() == '<' then
+        advance()
+        if atEnd() then
+          return "Unclosed group at position " + groupStart
+
+        else if peek() == '>' then
+          return "Empty capture name at position " + i
+
+        else if !isValidGroupNameStart(peek()) then
+          return "Unexpected character '" + peek() + "' at position " + i + ", expected group name"
+
+        else
+          val nameStart = i
+          var name = ""
+          while !atEnd() && peek() != '>' do
+            name = name + peek()
+            advance()
           end
-        else if ch == '{' then
-          match parseBounds()
-          case Some(err) => return Some(err)
-          case None => pass
+
+          if atEnd() then
+            return "Unclosed group at position " + groupStart
+
+          else if name.isEmpty then
+            return "Empty capture name at position " + nameStart
+
+          else if !isValidGroupName(name) then
+            return "Invalid capture group name at position " + nameStart
+
+          else if groupIndexByName.contains(name) then
+            return "Duplicate capture group name '" + name + "' at position " + nameStart
+
+          else
+            advance()
+            groupCount = groupCount + 1
+            groupIndexByName = groupIndexByName.update(name, groupCount)
           end
         end
+      else
+        return "Unsupported group syntax at position " + groupStart
       end
+    else
+      groupCount = groupCount + 1
+    end
+
+    if parseAlternation(top = false) is err: String then return err
+
+    if atEnd() || peek() != ')' then
+      "Unclosed group at position " + (i - 1)
+    else
+      advance()
       None
 
-  private def parseAtom(): Option[String] =
-    if atEnd() then
-      Some("Unexpected end of regex")
-    else
-      val ch = peek()
-      if ch == '(' then
-        val groupStart = i
-        advance()
-        if !atEnd() && peek() == '?' then
-          advance()
-          if !atEnd() && peek() == ':' then
-            advance()
-          else if !atEnd() && peek() == '<' then
-            advance()
-            if atEnd() then
-              return Some("Unclosed group at position " + groupStart)
-            else if peek() == '>' then
-              return Some("Empty capture name at position " + i)
-            else if !isValidGroupNameStart(peek()) then
-              return Some("Unexpected character '" + peek() + "' at position " + i + ", expected group name")
-            else
-              val nameStart = i
-              var name = ""
-              while !atEnd() && peek() != '>' do
-                name = name + peek()
-                advance()
-              end
-              if atEnd() then
-                return Some("Unclosed group at position " + groupStart)
-              else if name.isEmpty then
-                return Some("Empty capture name at position " + nameStart)
-              else if !isValidGroupName(name) then
-                return Some("Invalid capture group name at position " + nameStart)
-              else if groupIndexByName.contains(name) then
-                return Some("Duplicate capture group name '" + name + "' at position " + nameStart)
-              else
-                advance()
-                groupCount = groupCount + 1
-                groupIndexByName = groupIndexByName.update(name, groupCount)
-          else
-            return Some("Unsupported group syntax at position " + groupStart)
-          end
-        else
-          groupCount = groupCount + 1
-        end
-        match parseAlternation(false)
-        case Some(msg) =>
-          Some(msg)
-        case None =>
-          if atEnd() || peek() != ')' then
-            Some("Unclosed group at position " + (i - 1))
-          else
-            advance()
-            None
-      else if ch == '[' then
-        parseCharClass()
-      else if ch == '\\' then
-        parseEscape(inClass = false)
-      else if ch == ')' || ch == ']' || ch == '*' || ch == '+' || ch == '?' || ch == '{' then
-        Some("Unexpected character '" + ch + "' at position " + i)
-      else
-        advance()
-        None
+  private def parseAtom(): String | None =
+    if atEnd() then return "Unexpected end of regex"
 
-  private def parseCharClass(): Option[String] =
+    val ch = peek()
+    if ch == '(' then
+      parseParens()
+    else if ch == '[' then
+      parseCharClass()
+    else if ch == '\\' then
+      parseEscape(inClass = false)
+    else if ch == ')' || ch == ']' || ch == '*' || ch == '+' || ch == '?' || ch == '{' then
+      "Unexpected character '" + ch + "' at position " + i
+    else
+      advance()
+      None
+
+  private def parseCharClass(): String | None =
     advance()
+
     if !atEnd() && peek() == '^' then
       advance()
-    end
+
     var first = true
     var closed = false
     while !atEnd() && !closed do
@@ -227,100 +226,97 @@ private class Validator(source: String)
         closed = true
         advance()
       else if ch == '\\' then
-        match parseEscape(inClass = true)
-        case Some(msg) => return Some(msg)
-        case None => pass
-        end
+        if parseEscape(inClass = true) is err: String then return err
       else
         advance()
       end
       first = false
     end
-    if closed then None
-    else Some("Unclosed character class at position " + (i - 1))
 
-  private def parseEscape(inClass: Bool): Option[String] =
+    if closed then None else "Unclosed character class at position " + (i - 1)
+
+  private def parseEscape(inClass: Bool): String | None =
     advance()
-    if atEnd() then
-      Some("Dangling escape at end of pattern")
-    else
-      val ch = peek()
-      if ch >= '0' && ch <= '9' then
-        Some("Back references are not supported at position " + (i - 1))
-      else if ch == 'p' || ch == 'P' then
-        val err = Some("Unicode classes are not supported at position " + (i - 1))
+
+    if atEnd() then return "Dangling escape at end of pattern"
+
+    val ch = peek()
+    if ch >= '0' && ch <= '9' then
+      "Back references are not supported at position " + (i - 1)
+    else if ch == 'p' || ch == 'P' then
+      val err = "Unicode classes are not supported at position " + (i - 1)
+      advance()
+      if !atEnd() && peek() == '{' then
         advance()
-        if !atEnd() && peek() == '{' then
+        while !atEnd() && peek() != '}' do
           advance()
-          while !atEnd() && peek() != '}' do
-            advance()
-          end
-          if !atEnd() && peek() == '}' then
-            advance()
-          end
         end
-        err
-      else if inClass && (ch == 'b' || ch == 'B') then
+        if !atEnd() && peek() == '}' then
+          advance()
+        end
+      end
+      err
+    else if inClass && (ch == 'b' || ch == 'B') then
+      advance()
+      "\\b and \\B are not supported inside a character class at position " + (i - 2)
+    else if inClass && (ch == 'D' || ch == 'W' || ch == 'S') then
+      advance()
+      "\\D, \\W, \\S are not supported inside a character class at position " + (i - 2)
+    else if !isSupportedEscape(ch) then
+      "Unsupported escape at position " + (i - 1)
+    else
+      val escapePos = i - 1
+
+      if ch == 'd' || ch == 'w' || ch == 's' || ch == 'D' || ch == 'W' || ch == 'S' then
+        val exp =
+          if ch == 'd' then
+            if inClass then "0-9" else "[0-9]"
+          else if ch == 'D' then
+            "[^0-9]"
+          else if ch == 'w' then
+            if inClass then "A-Za-z0-9_" else "[A-Za-z0-9_]"
+          else if ch == 'W' then
+            "[^A-Za-z0-9_]"
+          else if ch == 's' then
+            if inClass then whitespaceBody else "[" + whitespaceBody + "]"
+          else
+            "[^" + whitespaceBody + "]"
+        normalizedOut = normalizedOut + pat.slice(normalizedPos, escapePos - normalizedPos)
+        normalizedOut = normalizedOut + exp
         advance()
-        Some("\\b and \\B are not supported inside a character class at position " + (i - 2))
-      else if inClass && (ch == 'D' || ch == 'W' || ch == 'S') then
-        advance()
-        Some("\\D, \\W, \\S are not supported inside a character class at position " + (i - 2))
-      else if !isSupportedEscape(ch) then
-        Some("Unsupported escape at position " + (i - 1))
+        normalizedPos = i
       else
-        val escapePos = i - 1
+        advance()
 
-        if ch == 'd' || ch == 'w' || ch == 's' || ch == 'D' || ch == 'W' || ch == 'S' then
-          val exp =
-            if ch == 'd' then
-              if inClass then "0-9" else "[0-9]"
-            else if ch == 'D' then
-              "[^0-9]"
-            else if ch == 'w' then
-              if inClass then "A-Za-z0-9_" else "[A-Za-z0-9_]"
-            else if ch == 'W' then
-              "[^A-Za-z0-9_]"
-            else if ch == 's' then
-              if inClass then whitespaceBody else "[" + whitespaceBody + "]"
-            else
-              "[^" + whitespaceBody + "]"
-          normalizedOut = normalizedOut + pat.slice(normalizedPos, escapePos - normalizedPos)
-          normalizedOut = normalizedOut + exp
-          advance()
-          normalizedPos = i
-        else
-          advance()
+      None
 
-        None
-
-  private def parseBounds(): Option[String] =
+  private def parseBounds(): String | None =
     val start = i
     advance()
-    match parseNumber()
-    case Some(min) =>
-      if !atEnd() && peek() == '}' then
+
+    val min = parseNumber() rescue None => return "Expected repetition bound at position " + start
+
+    if !atEnd() && peek() == '}' then
+      advance()
+      rejectQuantifierSuffix()
+
+    else if !atEnd() && peek() == ',' then
+      advance()
+      val maxOpt =
+        if !atEnd() && peek() == '}' then None
+        else parseNumber()
+
+      if !atEnd() && peek() != '}' && maxOpt.isEmpty then
+        "Expected upper bound in repetition at position " + start
+      else if min > maxOpt.getOrElse(min) then
+        "Invalid bounded repetition: min > max at position " + start
+      else if atEnd() || peek() != '}' then
+        "Unclosed bounded repetition at position " + start
+      else
         advance()
         rejectQuantifierSuffix()
-      else if !atEnd() && peek() == ',' then
-        advance()
-        val max =
-          if !atEnd() && peek() == '}' then None
-          else parseNumber()
-        if !atEnd() && peek() != '}' && max.isEmpty then
-          Some("Expected upper bound in repetition at position " + start)
-        else if min > max.getOrElse(min) then
-          Some("Invalid bounded repetition: min > max at position " + start)
-        else if atEnd() || peek() != '}' then
-          Some("Unclosed bounded repetition at position " + start)
-        else
-          advance()
-          rejectQuantifierSuffix()
-      else
-        Some("Invalid bounded repetition at position " + start)
-    case None =>
-      Some("Expected repetition bound at position " + start)
-    end
+    else
+      "Invalid bounded repetition at position " + start
 
   private def parseNumber(): Option[Int] =
     if atEnd() || peek() < '0' || peek() > '9' then
@@ -333,16 +329,15 @@ private class Validator(source: String)
       end
       Some(value)
 
-  private def rejectQuantifierSuffix(): Option[String] =
-    if !atEnd() then
-      if peek() == '?' then
-        advance()
-        None
-      else if peek() == '+' then
-        advance()
-        Some("Possessive quantifiers are not supported at position " + (i - 1))
-      else
-        None
+  private def rejectQuantifierSuffix(): String | None =
+    if atEnd() then return None
+
+    if peek() == '?' then
+      advance()
+      None
+    else if peek() == '+' then
+      advance()
+      "Possessive quantifiers are not supported at position " + (i - 1)
     else
       None
 

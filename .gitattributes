@@ -5,9 +5,6 @@
 *.jo text working-tree-encoding=UTF-8
 *.check text working-tree-encoding=UTF-8
 
-# Highlight Jo files as Scala on GitHub (closest existing language in Linguist)
-*.jo linguist-language=Scala
-
 # Scala source files
 *.scala text
 
