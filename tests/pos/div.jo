@@ -2,3 +2,5 @@ def main =
   println (4 / 5)
 
   println (10 / 3)
+
+  println (-8 / 2)
