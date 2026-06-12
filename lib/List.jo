@@ -97,8 +97,8 @@ class List[T]
       new List(Internal(newChildren), _size + 1, _depth + 1)
     else
       match tryInsert(root, _size, _depth, v)
-        case Some newRoot => new List(newRoot, _size + 1, _depth)
-        case None => abort ("List: unexpected full trie")
+      case Some newRoot => new List(newRoot, _size + 1, _depth)
+      case None => abort ("List: unexpected full trie")
 
   //[ Prepend one element at the front. O(n). //]
   def prepend(v: T): List[T] =
@@ -407,11 +407,11 @@ private section ListImpl
 
   def lookup[T](node: Node[T], i: Int, depth: Int): T =
     match node
-      case Leaf values =>
-        values[i & 31]
-      case Internal children =>
-        val idx = (i >> (5 * depth)) & 31
-        lookup(children[idx], i, depth - 1)
+    case Leaf values =>
+      values[i & 31]
+    case Internal children =>
+      val idx = (i >> (5 * depth)) & 31
+      lookup(children[idx], i, depth - 1)
 
   def copyAppendT[T](arr: Array[T], value: T): Array[T] =
     val n = arr.size
@@ -466,36 +466,36 @@ private section ListImpl
 
   def updateAt[T](node: Node[T], i: Int, depth: Int, value: T): Node[T] =
     match node
-      case Leaf values =>
-        Leaf(copySetT(values, i & 31, value))
-      case Internal children =>
-        val idx = (i >> (5 * depth)) & 31
-        val newChild = updateAt(children[idx], i, depth - 1, value)
-        Internal(copySetNode(children, idx, newChild))
+    case Leaf values =>
+      Leaf(copySetT(values, i & 31, value))
+    case Internal children =>
+      val idx = (i >> (5 * depth)) & 31
+      val newChild = updateAt(children[idx], i, depth - 1, value)
+      Internal(copySetNode(children, idx, newChild))
 
   // Precondition: root-level overflow check has already been done.
   def tryInsert[T](node: Node[T], newIdx: Int, depth: Int, value: T): Option[Node[T]] =
     match node
-      case Leaf values =>
-        if values.size < 32 then
-          Some(Leaf(copyAppendT(values, value)))
-        else
-          None
+    case Leaf values =>
+      if values.size < 32 then
+        Some(Leaf(copyAppendT(values, value)))
+      else
+        None
 
-      case Internal children =>
-        val branchIdx = (newIdx >> (5 * depth)) & 31
-        if branchIdx < children.size then
-          match tryInsert(children[branchIdx], newIdx, depth - 1, value)
-            case Some newChild =>
-              Some(Internal(copySetNode(children, branchIdx, newChild)))
-            case None =>
-              if children.size < 32 then
-                val sibling = newPath(depth - 1, value)
-                Some(Internal(copyAppendNode(children, sibling)))
-              else
-                None
-        else
-          val newBranch = newPath(depth - 1, value)
-          Some(Internal(copyAppendNode(children, newBranch)))
+    case Internal children =>
+      val branchIdx = (newIdx >> (5 * depth)) & 31
+      if branchIdx < children.size then
+        match tryInsert(children[branchIdx], newIdx, depth - 1, value)
+        case Some newChild =>
+          Some(Internal(copySetNode(children, branchIdx, newChild)))
+        case None =>
+          if children.size < 32 then
+            val sibling = newPath(depth - 1, value)
+            Some(Internal(copyAppendNode(children, sibling)))
+          else
+            None
+      else
+        val newBranch = newPath(depth - 1, value)
+        Some(Internal(copyAppendNode(children, newBranch)))
 
 end // ListImpl

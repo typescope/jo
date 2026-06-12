@@ -51,18 +51,18 @@ private class Validator(source: String)
   //]
   def validate(): Option[String] =
     match validateFlags()
+    case res @ Some(msg) => res
+
+    case None =>
+      match parseAlternation(true)
       case res @ Some(msg) => res
 
       case None =>
-        match parseAlternation(true)
-          case res @ Some(msg) => res
+        if !atEnd() then
+          Some("Unexpected character '" + peek() + "' at position " + i)
 
-          case None =>
-            if !atEnd() then
-              Some("Unexpected character '" + peek() + "' at position " + i)
-
-            else
-              None
+        else
+          None
 
   //[ Parse group names from a pre-validated pattern without re-validating.
     !
@@ -104,51 +104,51 @@ private class Validator(source: String)
 
   private def parseAlternation(top: Bool): Option[String] =
     match parseSequence()
-      case Some(msg) =>
-        Some(msg)
-      case None =>
-        while !atEnd() && peek() == '|' do
-          advance()
-          match parseSequence()
-            case Some(err) => return Some(err)
-            case None => pass
-          end
+    case Some(msg) =>
+      Some(msg)
+    case None =>
+      while !atEnd() && peek() == '|' do
+        advance()
+        match parseSequence()
+        case Some(err) => return Some(err)
+        case None => pass
         end
-        if !top && !atEnd() && peek() != ')' then
-          Some("Expected ')' at position " + i)
-        else
-          None
+      end
+      if !top && !atEnd() && peek() != ')' then
+        Some("Expected ')' at position " + i)
+      else
+        None
 
   private def parseSequence(): Option[String] =
     while !atEnd() && peek() != ')' && peek() != '|' do
       match parsePiece()
-        case Some(msg) => return Some(msg)
-        case None => pass
+      case Some(msg) => return Some(msg)
+      case None => pass
       end
     end
     None
 
   private def parsePiece(): Option[String] =
     match parseAtom()
-      case Some(msg) =>
-        Some(msg)
-      case None =>
-        if !atEnd() then
-          val ch = peek()
-          if ch == '*' || ch == '+' || ch == '?' then
-            advance()
-            match rejectQuantifierSuffix()
-              case Some(err) => return Some(err)
-              case None => pass
-            end
-          else if ch == '{' then
-            match parseBounds()
-              case Some(err) => return Some(err)
-              case None => pass
-            end
+    case Some(msg) =>
+      Some(msg)
+    case None =>
+      if !atEnd() then
+        val ch = peek()
+        if ch == '*' || ch == '+' || ch == '?' then
+          advance()
+          match rejectQuantifierSuffix()
+          case Some(err) => return Some(err)
+          case None => pass
+          end
+        else if ch == '{' then
+          match parseBounds()
+          case Some(err) => return Some(err)
+          case None => pass
           end
         end
-        None
+      end
+      None
 
   private def parseAtom(): Option[String] =
     if atEnd() then
@@ -196,14 +196,14 @@ private class Validator(source: String)
           groupCount = groupCount + 1
         end
         match parseAlternation(false)
-          case Some(msg) =>
-            Some(msg)
-          case None =>
-            if atEnd() || peek() != ')' then
-              Some("Unclosed group at position " + (i - 1))
-            else
-              advance()
-              None
+        case Some(msg) =>
+          Some(msg)
+        case None =>
+          if atEnd() || peek() != ')' then
+            Some("Unclosed group at position " + (i - 1))
+          else
+            advance()
+            None
       else if ch == '[' then
         parseCharClass()
       else if ch == '\\' then
@@ -228,8 +228,8 @@ private class Validator(source: String)
         advance()
       else if ch == '\\' then
         match parseEscape(inClass = true)
-          case Some(msg) => return Some(msg)
-          case None => pass
+        case Some(msg) => return Some(msg)
+        case None => pass
         end
       else
         advance()
@@ -298,28 +298,28 @@ private class Validator(source: String)
     val start = i
     advance()
     match parseNumber()
-      case Some(min) =>
-        if !atEnd() && peek() == '}' then
+    case Some(min) =>
+      if !atEnd() && peek() == '}' then
+        advance()
+        rejectQuantifierSuffix()
+      else if !atEnd() && peek() == ',' then
+        advance()
+        val max =
+          if !atEnd() && peek() == '}' then None
+          else parseNumber()
+        if !atEnd() && peek() != '}' && max.isEmpty then
+          Some("Expected upper bound in repetition at position " + start)
+        else if min > max.getOrElse(min) then
+          Some("Invalid bounded repetition: min > max at position " + start)
+        else if atEnd() || peek() != '}' then
+          Some("Unclosed bounded repetition at position " + start)
+        else
           advance()
           rejectQuantifierSuffix()
-        else if !atEnd() && peek() == ',' then
-          advance()
-          val max =
-            if !atEnd() && peek() == '}' then None
-            else parseNumber()
-          if !atEnd() && peek() != '}' && max.isEmpty then
-            Some("Expected upper bound in repetition at position " + start)
-          else if min > max.getOrElse(min) then
-            Some("Invalid bounded repetition: min > max at position " + start)
-          else if atEnd() || peek() != '}' then
-            Some("Unclosed bounded repetition at position " + start)
-          else
-            advance()
-            rejectQuantifierSuffix()
-        else
-          Some("Invalid bounded repetition at position " + start)
-      case None =>
-        Some("Expected repetition bound at position " + start)
+      else
+        Some("Invalid bounded repetition at position " + start)
+    case None =>
+      Some("Expected repetition bound at position " + start)
     end
 
   private def parseNumber(): Option[Int] =

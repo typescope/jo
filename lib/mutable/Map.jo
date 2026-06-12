@@ -10,7 +10,8 @@ section Map
         eq: Eq[K] with [[K].==],
         hash: Hash[K] with [[K].hashCode]
       )
-  : Map[K, V] =
+    : Map[K, V] =
+
     val buckets = Array.create[jo.List[K ~ V]](Map.initialCapacity)
     var i = 0
     while i < Map.initialCapacity do
@@ -99,13 +100,13 @@ class Map[K, V]
 
   def get(k: K): V =
     match getOpt k
-      case Some(v) => v
-      case None => abort "key not found"
+    case Some(v) => v
+    case None => abort "key not found"
 
   def getOrElse(k: K, default: V): V =
     match getOpt k
-      case Some(v) => v
-      case None => default
+    case Some(v) => v
+    case None => default
 
   def set(k: K, v: V): Unit = update(k, v)
 
