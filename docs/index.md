@@ -42,7 +42,7 @@ features:
   - icon:
       src: /icons/badge-check.svg
     title: Type-Safe by Design
-    details: No runtime type errors, the compiler catches what other languages let slip through.
+    details: A sound type system is the foundation of Jo's security — types describe not just data, but also effects and capabilities.
     link: /language/design-principles
     linkText: Design principles
 

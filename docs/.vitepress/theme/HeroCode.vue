@@ -45,24 +45,42 @@ const snippets = [
       kw('def ') + fn('main') + ' ' + op('=') + '\n' +
       '  ' + c('// prove: process() uses no capabilities') + '\n' +
       '  ' + kw('allow none in') + ' process()\n' +
-      c('  // error: Parameter not allowed: IO.http')
+      c('  // error: Parameter not allowed: http')
   },
   {
     filename: 'html-dsl.jo',
     code:
-      c('// HTML as a first-class DSL — tree syntax, typed attributes') + '\n' +
+      c('// HTML written in plain Jo — indentation forms the document tree') + '\n' +
       kw('val ') + 'doc ' + op('=') + '\n' +
       '  ' + fn('html') + op(':') + '\n' +
       '    ' + str('"lang"') + ' ' + op(':=') + ' ' + str('"en"') + '\n' +
       '    ' + fn('head') + op(':') + '\n' +
       '      ' + fn('title') + op(':') + ' ' + str('"Pixel Bloom"') + '\n' +
       '    ' + fn('body') + op(':') + '\n' +
-      '      ' + fn('div') + op(':') + ' ' + str('"id"') + ' ' + op(':=') + ' ' + str('"app"') + '\n' +
+      '      ' + fn('div') + op(':') + '\n' +
+      '        ' + str('"id"') + ' ' + op(':=') + ' ' + str('"app"') + '\n' +
       '        ' + fn('h1') + op(':') + ' ' + str('"Pixel Bloom"') + '\n' +
-      '        ' + fn('p') + op(':') + ' ' + str('"A computer-art sketch in Jo."') + '\n' +
-      '        ' + fn('div') + op(':') + ' ' + str('"class"') + ' ' + op(':=') + ' ' + str('"art-card"') + '\n' +
+      '        ' + fn('div') + op(':') + '\n' +
+      '          ' + str('"class"') + ' ' + op(':=') + ' ' + str('"art-card"') + '\n' +
       '          ' + fn('span') + op(':') + ' ' + str('"class"') + ' ' + op(':=') + ' ' + str('"pixel p1"') + '\n' +
       '          ' + fn('span') + op(':') + ' ' + str('"class"') + ' ' + op(':=') + ' ' + str('"pixel p2"')
+  },
+  {
+    filename: 'config.jo',
+    code:
+      c('// declarative configuration — plain Jo, fully type-checked') + '\n' +
+      kw('val ') + 'cfg ' + op('=') + ' ' + fn('server') + op(':') + '\n' +
+      '  host ' + op('=') + ' ' + str('"0.0.0.0"') + '\n' +
+      '  port ' + op('=') + ' ' + num('8080') + '\n' +
+      '  routes ' + op('=') + ' [\n' +
+      '    ' + str('"/api/users"') + ',\n' +
+      '    ' + str('"/api/orders"') + ',\n' +
+      '    ' + str('"/health"') + '\n' +
+      '  ]\n' +
+      '  db ' + op('=') + ' ' + fn('database') + op(':') + '\n' +
+      '    host ' + op('=') + ' ' + str('"db.local"') + '\n' +
+      '    port ' + op('=') + ' ' + num('5432') + '\n' +
+      '    name ' + op('=') + ' ' + str('"myapp"')
   },
   {
     filename: 'patterns.jo',
