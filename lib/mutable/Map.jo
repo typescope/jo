@@ -10,7 +10,8 @@ section Map
         eq: Eq[K] with [[K].==],
         hash: Hash[K] with [[K].hashCode]
       )
-  : Map[K, V] =
+    : Map[K, V] =
+
     val buckets = Array.create[jo.List[K ~ V]](Map.initialCapacity)
     var i = 0
     while i < Map.initialCapacity do

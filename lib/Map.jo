@@ -1,18 +1,13 @@
 namespace jo
 
 
-def Map[K, V](elems: ..Pair[K, V])
-    (auto ord: Ord[K] with [[K].compareTo])
-: Map[K, V] =
+def Map[K, V](elems: ..Pair[K, V])(auto ord: Ord[K] with [[K].compareTo]): Map[K, V] =
   var map = Map.empty[K, V]
   for k ~ v in elems do map = map.update(k, v)
   map
 
 section Map
-  def empty[K, V]
-      (auto ord: Ord[K] with [[K].compareTo])
-  : Map[K, V] =
-
+  def empty[K, V](auto ord: Ord[K] with [[K].compareTo]) : Map[K, V] =
     new Map(MapTree.Empty, 0, ord)
 end
 

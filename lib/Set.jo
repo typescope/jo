@@ -1,17 +1,13 @@
 namespace jo
 
-def Set[T](elems: ..T)
-    (auto ord: Ord[T] with [[T].compareTo])
-: Set[T] =
+def Set[T](elems: ..T)(auto ord: Ord[T] with [[T].compareTo]): Set[T] =
   var set = Set.empty[T]
   for e in elems do set = set + e
   set
 
 
 section Set
-  def empty[T]
-      (auto ord: Ord[T] with [[T].compareTo])
-  : Set[T] =
+  def empty[T](auto ord: Ord[T] with [[T].compareTo]): Set[T] =
     new Set(SetTree.Empty, 0, ord)
 end
 

@@ -9,7 +9,8 @@ section Set
       (auto
         eq: Eq[T] with [[T].==],
         hash: Hash[T] with [[T].hashCode])
-  : Set[T] =
+    : Set[T] =
+
     val buckets = Array.create[jo.List[T]](initialCapacity)
     var i = 0
     while i < initialCapacity do
