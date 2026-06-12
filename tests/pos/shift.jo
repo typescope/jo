@@ -32,3 +32,9 @@ def main =
 
   println shiftLeftNoECXSpecialCase(7, 2, 0)
   println shiftRightNoECXSpecialCase(7, 2, 0)
+
+  println shiftRightCountInECX(-8, 0, 1)
+  println shiftRightDestinationInECX(1, 0, -8)
+  println shiftRightNoECXSpecialCase(-8, 1, 0)
+
+  println (-8 >> 1)

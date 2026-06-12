@@ -46,6 +46,7 @@ class Int
   def !=(other: Int): Bool = !(this == other)
 
   // Bitwise operators as methods
+  //[ Arithmetic shift right. //]
   @intrinsic
   def >>(other: Int): Int = ...
 
