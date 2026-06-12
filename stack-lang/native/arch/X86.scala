@@ -207,6 +207,10 @@ object X86 extends Assembler:
     // 58+ rd    POP r32
     pb.addByte((0x58 | reg).toByte)
 
+  def cdq()(using pb: PatchableBuffer) =
+    // 99       CDQ: sign-extend EAX into EDX:EAX
+    pb.addByte(0x99.toByte)
+
   /** Add the value to the register */
   def add(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     v match
@@ -255,7 +259,6 @@ object X86 extends Assembler:
 
   /** Divide the register with the value */
   def div(reg: Int, v: Operand)(using pb: PatchableBuffer) =
-    // TODO: reminder sign does not always agree with divident
     v match
       case Reg(rv) =>
         // F7 /7	IDIV r/m32
@@ -263,16 +266,16 @@ object X86 extends Assembler:
 
         if reg == EAX && rv != EDX then // fast track
           push(EDX)
-          move(Int32(0), EDX)
+          cdq()
           pb.addByte(0xF7.toByte)
           pb.addByte((0xC0 | (7 << 3) | rv).toByte)
           pop(EDX)
 
         else if reg == rv then // it's implied that reg and rv are not EAX
           push(EAX)
-          move(Reg(reg), EAX)  // divisor and divident are EAX
+          move(Reg(reg), EAX)  // divisor and dividend are EAX
           push(EDX)
-          move(Int32(0), EDX)
+          cdq()
           pb.addByte(0xF7.toByte)
           pb.addByte((0xC0 | (7 << 3) | EAX).toByte)
           move(Reg(EAX), reg)
@@ -289,7 +292,7 @@ object X86 extends Assembler:
               move(Reg(rv), freeReg)
               freeReg
 
-          // put divident in EDX:EAX where EDX should be 0
+          // put dividend in EDX:EAX
           // reg can be EDX
           if reg != EAX then
             push(EAX)
@@ -297,8 +300,7 @@ object X86 extends Assembler:
 
           if reg != EDX then
             push(EDX)
-          // import to set high bits to 0
-          move(Int32(0), EDX)
+          cdq()
 
           pb.addByte(0xF7.toByte)
           pb.addByte((0xC0 | (7 << 3) | divisorReg).toByte)
@@ -323,7 +325,7 @@ object X86 extends Assembler:
         if reg != EDX then
           push(EDX)
 
-        move(Int32(0), EDX)
+        cdq()
 
         push(ECX) // to store divisor
         move(v, ECX)
@@ -344,7 +346,6 @@ object X86 extends Assembler:
   /** Modulo the register with the value */
   def mod(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     // https://www.felixcloutier.com/x86/idiv
-    // TODO: reminder sign does not always agree with divident
     v match
       case Reg(rv) =>
         // F7 /7	IDIV r/m32
@@ -352,7 +353,7 @@ object X86 extends Assembler:
 
         if reg == EAX && rv != EDX then // fast track
           push(EDX)
-          move(Int32(0), EDX)
+          cdq()
           pb.addByte(0xF7.toByte)
           pb.addByte((0xC0 | (7 << 3) | rv).toByte)
           move(Reg(EDX), reg)
@@ -361,12 +362,11 @@ object X86 extends Assembler:
         else if reg == rv then       // it's implied that reg and rv are not EAX
           // TODO: const fold
           push(EAX)
-          move(Reg(reg), EAX)        // divisor and divident are EAX
+          move(Reg(reg), EAX)        // divisor and dividend are EAX
           if reg != EDX then
             push(EDX)
 
-          // import to set high bits to 0
-          move(Int32(0), EDX)
+          cdq()
 
           pb.addByte(0xF7.toByte)
           pb.addByte((0xC0 | (7 << 3) | EAX).toByte)
@@ -386,7 +386,7 @@ object X86 extends Assembler:
               move(Reg(rv), freeReg)
               freeReg
 
-          // put divident in EDX:EAX where EDX should be 0
+          // put dividend in EDX:EAX
           // reg can be EDX
           if reg != EAX then
             push(EAX)
@@ -394,8 +394,7 @@ object X86 extends Assembler:
 
           if reg != EDX then
             push(EDX)
-          // import to set high bits to 0
-          move(Int32(0), EDX)
+          cdq()
 
           pb.addByte(0xF7.toByte)
           pb.addByte((0xC0 | (7 << 3) | divisorReg).toByte)
@@ -420,7 +419,7 @@ object X86 extends Assembler:
         if reg != EDX then
           push(EDX)
 
-        move(Int32(0), EDX)
+        cdq()
 
         push(ECX) // to store divisor
         move(v, ECX)
