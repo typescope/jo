@@ -449,7 +449,7 @@ extends Backend(runtime):
         eql()  // Compare for equality
         bnot() // Negate the result
 
-      case runtime.Int_srl  => int2(Instr.Srl)
+      case runtime.Int_sra  => int2(Instr.Sra)
       case runtime.Int_sll  => int2(Instr.Sll)
       case runtime.Int_land => int2(Instr.And)
       case runtime.Int_lor  => int2(Instr.Or)

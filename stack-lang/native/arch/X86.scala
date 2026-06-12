@@ -122,7 +122,7 @@ object X86 extends Assembler:
               // commutative operations
               binaryOperation(op, r2.index, r1)
 
-            case Arith.Sub | Arith.Div | Arith.Mod | Bit.Srl | Bit.Sll  =>
+            case Arith.Sub | Arith.Div | Arith.Mod | Bit.Sra | Bit.Sll  =>
               push(r1.index)
               binaryOperation(op, r1.index, r2)
               move(r1, r2.index)
@@ -158,7 +158,7 @@ object X86 extends Assembler:
               // commutative operations
               binaryOperation(op, r.index, v)
 
-            case Arith.Sub | Arith.Div | Arith.Mod | Bit.Srl | Bit.Sll  =>
+            case Arith.Sub | Arith.Div | Arith.Mod | Bit.Sra | Bit.Sll  =>
               // Spill a register for temporary usage
               val rTemp = if destReg == EAX then EBX else EAX
               push(rTemp)
@@ -488,23 +488,23 @@ object X86 extends Assembler:
         pb.addByte((0xC0 | (4 << 3) | reg).toByte)
         pb.addByte(v.toByte)
 
-  /** Shift right logically */
-  def srl(reg: Int, v: Operand)(using pb: PatchableBuffer) =
+  /** Shift right arithmetically */
+  def sra(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     v match
       case Reg(r2) =>
         shiftByReg(reg, r2, isRightShift = true)
 
       case Int32(v) =>
-        // C1 /5 ib	SHR r/m32, imm8
+        // C1 /7 ib	SAR r/m32, imm8
         assert(v >= 0 && v < 256, "Shift too big, expect < 256, found = " + v)
         pb.addByte(0xC1.toByte)
-        pb.addByte((0xC0 | (5 << 3) | reg).toByte)
+        pb.addByte((0xC0 | (7 << 3) | reg).toByte)
         pb.addByte(v.toByte)
 
   private def shiftByReg(reg: Int, countReg: Int, isRightShift: Boolean)(using pb: PatchableBuffer): Unit =
     // D3 /4	SAL r/m32, CL
-    // D3 /5	SHR r/m32, CL
-    val op = if isRightShift then 5 else 4
+    // D3 /7	SAR r/m32, CL
+    val op = if isRightShift then 7 else 4
 
     def emit(targetReg: Int): Unit =
       pb.addByte(0xD3.toByte)
@@ -949,7 +949,7 @@ object X86 extends Assembler:
       case Bit.Or  => or(reg, v)
       case Bit.Nor => nor(reg, v)
       case Bit.Xor => xor(reg, v)
-      case Bit.Srl => srl(reg, v)
+      case Bit.Sra => sra(reg, v)
       case Bit.Sll => sll(reg, v)
 
       case Ord.Eq  => eql(reg, v)

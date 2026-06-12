@@ -33,7 +33,7 @@ object Assembly:
     case Add, Sub, Mul, Div, Mod
 
   enum Bit:
-    case And, Or, Nor, Xor, Sll, Srl
+    case And, Or, Nor, Xor, Sll, Sra
 
   enum Ord:
     case Gt, Lt, Ge, Le, Eq
@@ -52,7 +52,7 @@ object Assembly:
     def Nor(v1: Operand, v2: Operand, destReg: Int) = Binary(Bit.Nor, v1, v2, destReg)
     def Xor(v1: Operand, v2: Operand, destReg: Int) = Binary(Bit.Xor, v1, v2, destReg)
     def Sll(v1: Operand, v2: Operand, destReg: Int) = Binary(Bit.Sll, v1, v2, destReg)
-    def Srl(v1: Operand, v2: Operand, destReg: Int) = Binary(Bit.Srl, v1, v2, destReg)
+    def Sra(v1: Operand, v2: Operand, destReg: Int) = Binary(Bit.Sra, v1, v2, destReg)
 
     def Gt(v1: Operand, v2: Operand, destReg: Int) = Binary(Ord.Gt, v1, v2, destReg)
     def Lt(v1: Operand, v2: Operand, destReg: Int) = Binary(Ord.Lt, v1, v2, destReg)

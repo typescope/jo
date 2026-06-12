@@ -72,7 +72,7 @@ extends Linker:
   val Int_le   = Core_IntOps.termMember("<=")
   val Int_eq   = Core_IntOps.termMember("==")
   val Int_ne   = Core_IntOps.termMember("!=")
-  val Int_srl  = Core_IntOps.termMember(">>")
+  val Int_sra  = Core_IntOps.termMember(">>")
   val Int_sll  = Core_IntOps.termMember("<<")
   val Int_land = Core_IntOps.termMember("&")
   val Int_lor  = Core_IntOps.termMember("|")
