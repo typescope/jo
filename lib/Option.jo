@@ -3,30 +3,30 @@ namespace jo
 union Option[T] = None | Some(value: T)
   def success: T =
     match this
-      case Some(value) => value
-      case None => abort "unreachable"
+    case Some(value) => value
+    case None => abort "unreachable"
 
   def isEmpty: Bool =
     match this
-      case None => true
-      case _: Some[T] => false
+    case None => true
+    case _: Some[T] => false
 
   def nonEmpty: Bool =
     match this
-      case None => false
-      case _: Some[T] => true
+    case None => false
+    case _: Some[T] => true
 
   def map[U](f: T => U): Option[U] =
     match this
-      case None => None
-      case Some(value) => Some(f(value))
+    case None => None
+    case Some(value) => Some(f(value))
 
   def getOrElse(compute: () => T): T =
     match this
-      case None => compute()
-      case Some(value) => value
+    case None => compute()
+    case Some(value) => value
 
   def toString(auto show: Show[T] with [[T].toString]): String =
     match this
-      case None => "None"
-      case Some value => "Some(\{show.show value})"
+    case None => "None"
+    case Some value => "Some(\{show.show value})"

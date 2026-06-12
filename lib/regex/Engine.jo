@@ -16,6 +16,6 @@ section Engine
 
   private[regex] def findAt(regex: Regex, input: String, pos: Int): Match | None =
     match execPatternAt(regex.pat, input, pos)
-      case m: Match => m.withGroupNames(regex.groupIndexByName)
-      case None => None
+    case m: Match => m.withGroupNames(regex.groupIndexByName)
+    case None => None
 end

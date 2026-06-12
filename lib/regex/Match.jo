@@ -32,20 +32,20 @@ class Match
   //]
   def isGroupMatched(indexOrGroup: Int | String): Bool =
     match indexOrGroup
-      case index: Int =>
-        checkIndex(index)
-        match groups[index]
-          case None => false
-          case _ => true
+    case index: Int =>
+      checkIndex(index)
+      match groups[index]
+      case None => false
+      case _ => true
 
-      case name: String =>
-        match groupIndexByName.getOpt(name)
-          case Some(index) =>
-            match groups[index]
-              case None => false
-              case _ => true
-          case None =>
-            abort("Unknown regex group name: " + name)
+    case name: String =>
+      match groupIndexByName.getOpt(name)
+      case Some(index) =>
+        match groups[index]
+        case None => false
+        case _ => true
+      case None =>
+        abort("Unknown regex group name: " + name)
 
   //[ Captured text for `indexOrGroup`.
     !
@@ -55,13 +55,13 @@ class Match
   //]
   def get(indexOrGroup: Int | String): String =
     match getOpt(indexOrGroup)
-      case Some(value) => value
-      case None =>
-        match indexOrGroup
-          case index: Int =>
-            abort("Regex group " + index + " did not participate in the match")
-          case name: String =>
-            abort("Regex group '" + name + "' did not participate in the match")
+    case Some(value) => value
+    case None =>
+      match indexOrGroup
+      case index: Int =>
+        abort("Regex group " + index + " did not participate in the match")
+      case name: String =>
+        abort("Regex group '" + name + "' did not participate in the match")
 
   //[ Captured text for `indexOrGroup`, or empty string when the group did not
     ! participate.
@@ -70,8 +70,8 @@ class Match
   //]
   def getOrEmpty(indexOrGroup: Int | String): String =
     match getOpt(indexOrGroup)
-      case Some(value) => value
-      case None => ""
+    case Some(value) => value
+    case None => ""
 
   //[ Captured text for `indexOrGroup`, or `None` when the group did not
     ! participate.
@@ -80,20 +80,20 @@ class Match
   //]
   def getOpt(indexOrGroup: Int | String): Option[String] =
     match indexOrGroup
-      case index: Int =>
-        checkIndex(index)
-        match groups[index]
-          case value: String => Some(value)
-          case None => None
+    case index: Int =>
+      checkIndex(index)
+      match groups[index]
+      case value: String => Some(value)
+      case None => None
 
-      case name: String =>
-        match groupIndexByName.getOpt(name)
-          case Some(index) =>
-            match groups[index]
-              case value: String => Some(value)
-              case None => None
-          case None =>
-            abort("Unknown regex group name: " + name)
+    case name: String =>
+      match groupIndexByName.getOpt(name)
+      case Some(index) =>
+        match groups[index]
+        case value: String => Some(value)
+        case None => None
+      case None =>
+        abort("Unknown regex group name: " + name)
 
   private[regex] def withGroupNames(groupIndexByName: Map[String, Int]): Match =
     this.groupIndexByName = groupIndexByName

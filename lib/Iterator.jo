@@ -59,11 +59,11 @@ private section Iterator
       fill()
 
       match buffered
-        case Some(v) =>
-          buffered = None
-          v
-        case None =>
-          abort "iterator exhausted"
+      case Some(v) =>
+        buffered = None
+        v
+      case None =>
+        abort "iterator exhausted"
 
     view Iterator[T]
   end

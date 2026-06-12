@@ -100,13 +100,13 @@ class Map[K, V]
 
   def get(k: K): V =
     match getOpt k
-      case Some(v) => v
-      case None => abort "key not found"
+    case Some(v) => v
+    case None => abort "key not found"
 
   def getOrElse(k: K, default: V): V =
     match getOpt k
-      case Some(v) => v
-      case None => default
+    case Some(v) => v
+    case None => default
 
   def set(k: K, v: V): Unit = update(k, v)
 

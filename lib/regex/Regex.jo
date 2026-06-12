@@ -106,20 +106,20 @@ class Regex
   //[ First match whose search starts at `pos`, or `None`.    //]
   def matchFrom(input: String, pos: Int): Option[Match] =
     match Engine.findAt(this, input, pos)
-      case m: Match => Some(m)
-      case None => None
+    case m: Match => Some(m)
+    case None => None
 
   //[ Match anchored at the start of `input`, or `None`.    //]
   def matchPrefix(input: String): Option[Match] =
     match matchFrom(input, 0)
-      case Some(m) if m.from == 0 => Some(m)
-      case _ => None
+    case Some(m) if m.from == 0 => Some(m)
+    case _ => None
 
   //[ True when the regex matches the entire input.    //]
   def matchesExact(input: String): Bool =
     match matchPrefix(input)
-      case Some(m) => m.length == input.size
-      case None => false
+    case Some(m) => m.length == input.size
+    case None => false
 
   //[ Non-overlapping matches from left to right.
     !
@@ -131,27 +131,27 @@ class Regex
     var done = false
     while !done && pos <= input.size do
       match matchFrom(input, pos)
-        case Some(m) =>
-          found = found + m
-          if m.length > 0 then
-            pos = m.from + m.length
-          else if m.from < input.size then
-            pos = m.from + 1
-          else
-            done = true
-        case None =>
+      case Some(m) =>
+        found = found + m
+        if m.length > 0 then
+          pos = m.from + m.length
+        else if m.from < input.size then
+          pos = m.from + 1
+        else
           done = true
+      case None =>
+        done = true
     end
     found
 
   //[ Replace the first match using `replacement`.    //]
   def replaceFirst(input: String, replacement: Match => String): String =
     match matchFirst(input)
-      case Some(m) =>
-        val until = m.from + m.length
-        input.slice(0, m.from) + replacement(m) + input.slice(until, input.size - until)
-      case None =>
-        input
+    case Some(m) =>
+      val until = m.from + m.length
+      input.slice(0, m.from) + replacement(m) + input.slice(until, input.size - until)
+    case None =>
+      input
 
   //[ Replace all non-overlapping matches using `replacement`.
     !
@@ -163,18 +163,18 @@ class Regex
     var done = false
     while !done && pos <= input.size do
       match matchFrom(input, pos)
-        case Some(m) =>
-          out = out + input.slice(pos, m.from - pos) + replacement(m)
-          if m.length > 0 then
-            pos = m.from + m.length
-          else if m.from < input.size then
-            out = out + input.slice(m.from, 1)
-            pos = m.from + 1
-          else
-            done = true
-            pos = input.size
-        case None =>
+      case Some(m) =>
+        out = out + input.slice(pos, m.from - pos) + replacement(m)
+        if m.length > 0 then
+          pos = m.from + m.length
+        else if m.from < input.size then
+          out = out + input.slice(m.from, 1)
+          pos = m.from + 1
+        else
           done = true
+          pos = input.size
+      case None =>
+        done = true
     end
     out + input.slice(pos, input.size - pos)
 
@@ -190,22 +190,22 @@ class Regex
     var done = false
     while !done && pos <= input.size do
       match matchFrom(input, pos)
-        case Some(m) =>
-          if m.length > 0 then
+      case Some(m) =>
+        if m.length > 0 then
+          parts = parts + input.slice(pos, m.from - pos)
+          pos = m.from + m.length
+        else if m.from < input.size then
+          val next = m.from + 1
+          parts = parts + input.slice(pos, next - pos)
+          pos = next
+        else
+          if m.from > pos then
             parts = parts + input.slice(pos, m.from - pos)
-            pos = m.from + m.length
-          else if m.from < input.size then
-            val next = m.from + 1
-            parts = parts + input.slice(pos, next - pos)
-            pos = next
-          else
-            if m.from > pos then
-              parts = parts + input.slice(pos, m.from - pos)
-            parts = parts + ""
-            done = true
-        case None =>
-          parts = parts + input.slice(pos, input.size - pos)
+          parts = parts + ""
           done = true
+      case None =>
+        parts = parts + input.slice(pos, input.size - pos)
+        done = true
     end
     parts
 end
@@ -231,8 +231,8 @@ section Regex
   def compile(source: String): Result[Regex, String] =
     val v = new Validator(source)
     match v.validate()
-      case None => Ok(compileChecked(v.pat, v.flags))
-      case Some(msg) => Err(msg)
+    case None => Ok(compileChecked(v.pat, v.flags))
+    case Some(msg) => Err(msg)
 
   //[ Escape literal text so it matches itself inside a regex.    //]
   def escape(text: String): String =
