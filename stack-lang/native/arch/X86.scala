@@ -479,16 +479,7 @@ object X86 extends Assembler:
   def sll(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     v match
       case Reg(r2) =>
-        // D3 /4	SAL r/m32, CL
-        if r2 != ECX then
-          push(ECX)
-          move(Reg(r2), ECX)
-          pb.addByte(0xD3.toByte)
-          pb.addByte((0xC0 | (4 << 3) | reg).toByte)
-          pop(ECX)
-        else
-          pb.addByte(0xD3.toByte)
-          pb.addByte((0xC0 | (4 << 3) | reg).toByte)
+        shiftByReg(reg, r2, isRightShift = false)
 
       case Int32(v) =>
         // C1 /4 ib	SAL r/m32, imm8
@@ -501,16 +492,7 @@ object X86 extends Assembler:
   def srl(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     v match
       case Reg(r2) =>
-        // D3 /5	SHR r/m32, CL
-        if reg != ECX then
-          push(ECX)
-          move(Reg(r2), ECX)
-          pb.addByte(0xD3.toByte)
-          pb.addByte((0xC0 | (5 << 3) | reg).toByte)
-          pop(ECX)
-        else
-          pb.addByte(0xD3.toByte)
-          pb.addByte((0xC0 | (5 << 3) | reg).toByte)
+        shiftByReg(reg, r2, isRightShift = true)
 
       case Int32(v) =>
         // C1 /5 ib	SHR r/m32, imm8
@@ -518,6 +500,32 @@ object X86 extends Assembler:
         pb.addByte(0xC1.toByte)
         pb.addByte((0xC0 | (5 << 3) | reg).toByte)
         pb.addByte(v.toByte)
+
+  private def shiftByReg(reg: Int, countReg: Int, isRightShift: Boolean)(using pb: PatchableBuffer): Unit =
+    // D3 /4	SAL r/m32, CL
+    // D3 /5	SHR r/m32, CL
+    val op = if isRightShift then 5 else 4
+
+    def emit(targetReg: Int): Unit =
+      pb.addByte(0xD3.toByte)
+      pb.addByte((0xC0 | (op << 3) | targetReg).toByte)
+
+    if countReg == ECX then
+      emit(reg)
+    else if reg == ECX then
+      // Keep the destination value in a temporary register while CL is prepared.
+      val tempReg = if countReg == EAX then EBX else EAX
+      push(tempReg)
+      move(Reg(reg), tempReg)
+      move(Reg(countReg), ECX)
+      emit(tempReg)
+      move(Reg(tempReg), reg)
+      pop(tempReg)
+    else
+      push(ECX)
+      move(Reg(countReg), ECX)
+      emit(reg)
+      pop(ECX)
 
   def not(reg: Int)(using pb: PatchableBuffer) =
     // F7 /2    NOT r/m32
