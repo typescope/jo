@@ -161,8 +161,12 @@ were not designed to answer such needs, so the restrictions end up in
 gateways and per-agent proxy policies — authority drifts back into
 infrastructure configuration, with all the audit problems above.
 
+Meanwhile, how to protect API credentials is also a headache: prompt
+injection could easily steal the API keys!
+
 With capabilities, the same narrowing is a few lines of trusted code: wrap
 the API in a smaller interface.
+Also, your API credentials are safe: they are invisible to untrusted code.
 
 ### MCPs
 
