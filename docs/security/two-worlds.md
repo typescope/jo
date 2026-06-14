@@ -11,7 +11,7 @@ The confined world contains the libraries that AI code can depend on — no FFI,
 
 <img src="/img/two-worlds.svg" alt="Two-world architecture: capabilities flow from the trusted world to the confined world, linked after type checking" style="max-width:100%;height:auto" />
 
-The `--link` connection is resolved at **link time, after type checking**. There are no
+The `link` connection is resolved at **link time, after type checking**. There are no
 dynamic imports, no reflection, and no runtime class loading across the boundary.
 
 ::: info Transitive closure
