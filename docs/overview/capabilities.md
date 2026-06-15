@@ -5,19 +5,85 @@ is explicitly granted, and the compiler proves it before the program runs.
 Unlike a runtime sandbox — a container, VM, or seccomp filter that polices a
 running program from the outside — the boundary lives in the program itself.
 
+## What is Compile-Time Sandboxing?
+
+<img src="/img/compile-time-sandboxing.svg" alt="What is compile-time sandboxing? Compile-time sandboxing = API gating in the language" style="display:block;margin:1.5rem auto;width:100%;height:auto" />
+
+Function parameters (capabilities) are the only door to the outside world.
+
 ## Why Compile-Time Sandboxing?
 
-- **Least privilege by default** — Code receives no ambient authority. A
-  function can touch a resource only if it was handed a capability for it.
-- **Fine-grained and refinable** — A capability can be subdivided arbitrarily:
-  not "file access" but "read this one file", not "the database" but "this
-  user's rows".
-- **Auditable in types** — The authority a program receives is visible at its
-  interface, not buried in runtime configuration. Reviewers can read what is
-  granted, where it flows, and where it is restricted.
-- **No runtime sandbox to escape** — Confinement is a property the compiler
-  proves. After type checking there is no separate isolation layer to
-  configure, slow things down, or break out of.
+<style>
+.sbx-cmp { border: 1px solid var(--vp-c-divider); border-radius: 12px; overflow: hidden; margin: 24px 0; font-size: 14px; line-height: 1.5; }
+.sbx-cmp .sbx-head, .sbx-cmp .sbx-row { display: grid; grid-template-columns: 1fr 1fr; }
+.sbx-cmp .sbx-cell { padding: 16px 20px; }
+.sbx-cmp .sbx-cell:first-child { border-right: 1px solid var(--vp-c-divider); }
+.sbx-cmp .sbx-row .sbx-cell { border-top: 1px solid var(--vp-c-divider); }
+.sbx-cmp .sbx-ct { background: var(--vp-c-brand-soft); }
+.sbx-cmp .sbx-head .sbx-title { font-weight: 700; font-size: 16px; color: var(--vp-c-text-1); display: flex; align-items: center; gap: 8px; }
+.sbx-cmp .sbx-head .sbx-ct .sbx-title { color: var(--vp-c-brand-1); }
+.sbx-cmp .sbx-sub { font-size: 13px; color: var(--vp-c-text-2); margin-top: 2px; }
+.sbx-cmp .sbx-item { font-weight: 600; color: var(--vp-c-text-1); display: flex; align-items: center; gap: 8px; }
+.sbx-cmp .sbx-desc { color: var(--vp-c-text-2); margin-top: 4px; padding-left: 26px; }
+.sbx-cmp .sbx-ico { flex: none; width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+.sbx-cmp .sbx-no { color: var(--vp-c-red-1); background: var(--vp-c-red-soft); }
+.sbx-cmp .sbx-yes { color: var(--vp-c-green-1); background: var(--vp-c-green-soft); }
+.sbx-cmp .sbx-badge { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 4px; color: var(--vp-c-brand-1); border: 1px solid var(--vp-c-brand-1); margin-left: auto; }
+@media (max-width: 599px) {
+  .sbx-cmp .sbx-head, .sbx-cmp .sbx-row { grid-template-columns: 1fr; }
+  .sbx-cmp .sbx-cell:first-child { border-right: none; }
+  .sbx-cmp .sbx-head .sbx-cell + .sbx-cell { border-top: 1px solid var(--vp-c-divider); }
+}
+</style>
+
+<div class="sbx-cmp">
+  <div class="sbx-head">
+    <div class="sbx-cell">
+      <div class="sbx-title">Runtime sandboxing</div>
+      <div class="sbx-sub">Enforced in the infrastructure, after deployment</div>
+    </div>
+    <div class="sbx-cell sbx-ct">
+      <div class="sbx-title">Compile-time sandboxing <span class="sbx-badge">Jo</span></div>
+      <div class="sbx-sub">Enforced by the compiler, before code runs</div>
+    </div>
+  </div>
+  <div class="sbx-row">
+    <div class="sbx-cell">
+      <div class="sbx-item"><span class="sbx-ico sbx-no">✕</span> Blind to business logic</div>
+      <div class="sbx-desc">Can block syscalls and files, but cannot express rules like "read only this user's rows" or "only these 2 narrowed REST APIs"</div>
+    </div>
+    <div class="sbx-cell sbx-ct">
+      <div class="sbx-item"><span class="sbx-ico sbx-yes">✓</span> Aware of business logic</div>
+      <div class="sbx-desc">Rules like "read only this user's rows" or "only these 5 narrowed REST APIs" are typed capabilities the compiler enforces.</div>
+    </div>
+  </div>
+  <div class="sbx-row">
+    <div class="sbx-cell">
+      <div class="sbx-item"><span class="sbx-ico sbx-no">✕</span> Boundary buried in deployment stack</div>
+      <div class="sbx-desc">Authority is scattered across configs and runtime parameters — auditing means digging through infrastructure.</div>
+    </div>
+    <div class="sbx-cell sbx-ct">
+      <div class="sbx-item"><span class="sbx-ico sbx-yes">✓</span> Boundary is typed, versioned code</div>
+      <div class="sbx-desc">Authority is declared in typed interfaces — auditing means reviewing code in version control.</div>
+    </div>
+  </div>
+  <div class="sbx-row">
+    <div class="sbx-cell">
+      <div class="sbx-item"><span class="sbx-ico sbx-no">✕</span> Violations surface at runtime</div>
+      <div class="sbx-desc">Escapes are discovered at runtime, after the code is already deployed.</div>
+    </div>
+    <div class="sbx-cell sbx-ct">
+      <div class="sbx-item"><span class="sbx-ico sbx-yes">✓</span> Violations are compile errors</div>
+      <div class="sbx-desc">The compiler pinpoints them in source, with detailed errors — avoids unnecessary deployment on infrastructure.</div>
+    </div>
+  </div>
+</div>
+
+A runtime sandbox speaks the operating system's language: processes, files, sockets.
+The rules worth enforcing need to be written
+in the application's language — which rows, which endpoints, which
+user's data — and a boundary can only enforce what it can express. Types are
+the only boundary that operates at the application level.
 
 ## How It Works: Capabilities
 
