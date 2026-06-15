@@ -7,7 +7,7 @@ running program from the outside — the boundary lives in the program itself.
 
 ## What is Compile-Time Sandboxing?
 
-<img src="/img/compile-time-sandboxing.svg" alt="What is compile-time sandboxing? Compile-time sandboxing = API gating in the language" style="display:block;margin:1.5rem auto;max-width:100%;height:auto" />
+<img src="/img/compile-time-sandboxing.svg" alt="What is compile-time sandboxing? Compile-time sandboxing = API gating in the language" style="display:block;margin:1.5rem auto;width:100%;height:auto" />
 
 Function parameters (capabilities) are the only door to the outside world.
 
