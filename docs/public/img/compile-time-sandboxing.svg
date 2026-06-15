@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-23 -96 922 534" role="img" aria-label="Compile-time sandboxing equals API gating in the language. A confined function with no ambient authority: reflection, globals, network, files, type casts, and control effects are all rejected by the compiler, while the function's typed parameters are the only allowed door to the outside world.">
   <!-- Self-contained dark surface so the light-on-dark palette stays legible
        on any page theme (an <img> SVG cannot inherit the host page's theme). -->
-  <rect x="-23" y="-96" width="922" height="534" rx="16" fill="#0D141F"/>
+  <rect x="-23" y="-96" width="922" height="534" rx="16" fill="url(#cts-bg)" stroke="#33445E" stroke-width="1"/>
 
   <!-- Equation title -->
   <text x="450" y="-40" text-anchor="middle" font-family="'IBM Plex Sans', sans-serif" font-size="21" font-weight="600">
@@ -10,6 +10,10 @@
   <line x1="320" y1="-20" x2="580" y2="-20" stroke="#243447" stroke-width="1"/>
 
   <defs>
+    <linearGradient id="cts-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1A2740"/>
+      <stop offset="1" stop-color="#0C131F"/>
+    </linearGradient>
     <marker id="cts-arrow-green" viewBox="0 0 12 12" refX="10.5" refY="6" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
       <path d="M12,6 L0,0 L4,6 L0,12 z" fill="#2dd4bf"/>
     </marker>
