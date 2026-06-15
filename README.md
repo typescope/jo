@@ -27,6 +27,12 @@ The usual defense is a **runtime sandbox**: a container, VM, or seccomp filter t
 
 Jo moves the sandbox into the type system. A capability a function never received is one it cannot use, and the compiler proves this transitively across the entire call graph — before the program runs. The boundary is visible right in the code, there is nothing to escape at runtime, and "only this user's data" becomes an ordinary, checkable type.
 
+<div align="center">
+  <img alt="Compile-time sandboxing = API gating in the language. A confined function has no ambient authority — reflection, globals, network, files, type casts, and control effects are all rejected by the compiler — while its typed parameters are the only door to the outside world." src="./docs/public/img/compile-time-sandboxing.svg" width="720px">
+</div>
+
+Function parameters (capabilities) are the only door to the outside world.
+
 ## Language Highlights
 
 ### Static capability control

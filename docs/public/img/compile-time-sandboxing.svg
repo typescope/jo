@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-23 -96 922 534" role="img" aria-label="Compile-time sandboxing equals API gating in the language. A confined function with no ambient authority: reflection, globals, network, files, type casts, and control effects are all rejected by the compiler, while the function's typed parameters are the only allowed door to the outside world.">
+  <!-- Self-contained dark surface so the light-on-dark palette stays legible
+       on any page theme (an <img> SVG cannot inherit the host page's theme). -->
+  <rect x="-23" y="-96" width="922" height="534" rx="16" fill="#0D141F"/>
+
+  <!-- Equation title -->
+  <text x="450" y="-40" text-anchor="middle" font-family="'IBM Plex Sans', sans-serif" font-size="21" font-weight="600">
+    <tspan fill="#2dd4bf">compile-time sandboxing</tspan><tspan fill="#94A3B8" dx="10">=</tspan><tspan fill="#E8EFF6" dx="10">API gating in the language</tspan>
+  </text>
+  <line x1="320" y1="-20" x2="580" y2="-20" stroke="#243447" stroke-width="1"/>
+
+  <defs>
+    <marker id="cts-arrow-green" viewBox="0 0 12 12" refX="10.5" refY="6" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M12,6 L0,0 L4,6 L0,12 z" fill="#2dd4bf"/>
+    </marker>
+    <marker id="cts-arrow-red" viewBox="0 0 12 12" refX="10.5" refY="6" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M12,6 L0,0 L4,6 L0,12 z" fill="#f87171"/>
+    </marker>
+  </defs>
+
+  <!-- ===== Blocked doors (left) ===== -->
+  <!-- labels -->
+  <text x="135" y="50"  text-anchor="middle" font-family="'IBM Plex Mono', monospace" font-size="14" fill="#f87171">reflection</text>
+  <text x="62"  y="122" text-anchor="middle" font-family="'IBM Plex Mono', monospace" font-size="14" fill="#f87171">globals</text>
+  <text x="45"  y="195" text-anchor="middle" font-family="'IBM Plex Mono', monospace" font-size="14" fill="#f87171">network</text>
+  <text x="45"  y="253" text-anchor="middle" font-family="'IBM Plex Mono', monospace" font-size="14" fill="#f87171">files</text>
+  <text x="60"  y="325" text-anchor="middle" font-family="'IBM Plex Mono', monospace" font-size="14" fill="#f87171">type cast</text>
+  <text x="135" y="398" text-anchor="middle" font-family="'IBM Plex Mono', monospace" font-size="14" fill="#f87171">control effects</text>
+
+  <!-- rejected paths radiating from the function, each crossed out -->
+  <g stroke="#f87171" stroke-width="1.4" stroke-opacity="0.6" stroke-dasharray="5 4" marker-end="url(#cts-arrow-red)">
+    <line x1="215" y1="180" x2="156" y2="81"/>
+    <line x1="200" y1="195" x2="122" y2="150"/>
+    <line x1="200" y1="210" x2="119" y2="202"/>
+    <line x1="200" y1="230" x2="124" y2="240"/>
+    <line x1="200" y1="245" x2="126" y2="286"/>
+    <line x1="215" y1="260" x2="165" y2="344"/>
+  </g>
+  <!-- bold red crosses marking the rejection -->
+  <g stroke="#f87171" stroke-width="2.6" stroke-linecap="round">
+    <g transform="translate(150,71)"><line x1="-6" y1="-6" x2="6" y2="6"/><line x1="-6" y1="6" x2="6" y2="-6"/></g>
+    <g transform="translate(112,144)"><line x1="-6" y1="-6" x2="6" y2="6"/><line x1="-6" y1="6" x2="6" y2="-6"/></g>
+    <g transform="translate(107,201)"><line x1="-6" y1="-6" x2="6" y2="6"/><line x1="-6" y1="6" x2="6" y2="-6"/></g>
+    <g transform="translate(112,242)"><line x1="-6" y1="-6" x2="6" y2="6"/><line x1="-6" y1="6" x2="6" y2="-6"/></g>
+    <g transform="translate(116,292)"><line x1="-6" y1="-6" x2="6" y2="6"/><line x1="-6" y1="6" x2="6" y2="-6"/></g>
+    <g transform="translate(159,354)"><line x1="-6" y1="-6" x2="6" y2="6"/><line x1="-6" y1="6" x2="6" y2="-6"/></g>
+  </g>
+
+  <!-- ===== Confined function (center) ===== -->
+  <text x="600" y="170" text-anchor="end" font-family="'IBM Plex Sans', sans-serif" font-size="14" font-weight="600" fill="#f59e0b">Confined function</text>
+  <rect x="200" y="180" width="400" height="84" rx="8" fill="#f59e0b" fill-opacity="0.07" stroke="#f59e0b" stroke-width="1.6" stroke-dasharray="6 4"/>
+  <text x="220" y="214" font-family="'IBM Plex Mono', monospace" font-size="14.5">
+    <tspan fill="#2dd4bf">def</tspan><tspan fill="#E8EFF6"> work(mailer: </tspan><tspan fill="#2dd4bf">Mailer</tspan><tspan fill="#E8EFF6">, logger: </tspan><tspan fill="#2dd4bf">Logger</tspan><tspan fill="#E8EFF6">) </tspan><tspan fill="#94A3B8">=</tspan>
+  </text>
+  <text x="244" y="240" font-family="'IBM Plex Mono', monospace" font-size="14.5" fill="#5E7A93">...</text>
+
+  <!-- ===== Allowed capabilities (right) ===== -->
+  <!-- green flows: parameters are the only open door -->
+  <path d="M600,210 C642,186 664,158 690,151" fill="none" stroke="#2dd4bf" stroke-width="2" marker-end="url(#cts-arrow-green)"/>
+  <path d="M600,234 C642,256 664,286 690,291" fill="none" stroke="#2dd4bf" stroke-width="2" marker-end="url(#cts-arrow-green)"/>
+
+  <!-- Mailer capability box -->
+  <rect x="698" y="118" width="160" height="68" rx="6" fill="#172030" stroke="#3A5570" stroke-width="1.4"/>
+  <rect x="694" y="138" width="8" height="8" fill="#5E7A93"/>
+  <rect x="694" y="160" width="8" height="8" fill="#5E7A93"/>
+  <text x="778" y="148" text-anchor="middle" font-family="'IBM Plex Mono', monospace" font-size="13" fill="#2dd4bf">interface</text>
+  <text x="778" y="170" text-anchor="middle" font-family="'IBM Plex Mono', monospace" font-size="15" fill="#E8EFF6">Mailer</text>
+
+  <!-- Logger capability box -->
+  <rect x="698" y="258" width="160" height="68" rx="6" fill="#172030" stroke="#3A5570" stroke-width="1.4"/>
+  <rect x="694" y="278" width="8" height="8" fill="#5E7A93"/>
+  <rect x="694" y="300" width="8" height="8" fill="#5E7A93"/>
+  <text x="778" y="288" text-anchor="middle" font-family="'IBM Plex Mono', monospace" font-size="13" fill="#2dd4bf">interface</text>
+  <text x="778" y="310" text-anchor="middle" font-family="'IBM Plex Mono', monospace" font-size="15" fill="#E8EFF6">Logger</text>
+</svg>
