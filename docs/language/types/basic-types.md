@@ -20,13 +20,6 @@ val count: Int = 42
 val negative: Int = -17
 ```
 
-### Byte
-8-bit integer values.
-
-```jo
-val b: Byte = 127
-```
-
 ### Char
 Unicode code points representing single characters. Supports the full Unicode range (U+0000 to U+10FFFF), excluding surrogate code points (U+D800 to U+DFFF).
 

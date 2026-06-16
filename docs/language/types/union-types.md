@@ -111,12 +111,12 @@ A union type `T1 | T2 | ... | Tn` is well-formed if:
    type Foo = Int | String | Int  // Error: Int appears twice
    ```
 
-6. **No multiple numeric branches**. A union type cannot contain multiple numeric types (Int, Byte, Char, Float).
+6. **No multiple numeric branches**. A union type cannot contain multiple numeric types (Int, Char, Float).
 
     ```jo
     // ❌ Invalid - multiple numeric types
     type BadUnion = Int | Float      // Compile error
-    type BadUnion2 = Char | Byte     // Compile error
+    type BadUnion2 = Char | Int      // Compile error
 
     // ✓ Valid - single numeric type
     type GoodUnion = Float | String  // OK

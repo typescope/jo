@@ -5,7 +5,7 @@ Jo's type system supports both functional and object-oriented programming paradi
 ## Type Categories
 
 ### [Basic Types](basic-types.md)
-Primitive types (`Bool`, `Int`, `Byte`, `Char`, `Float`, `String`, `Unit`) and
+Primitive types (`Bool`, `Int`, `Char`, `Float`, `String`, `Unit`) and
 commonly used standard library types (`Option`, `Result`, `List`, `Map`, `Set`).
 
 ### [Lambda Types](lambda-types.md)

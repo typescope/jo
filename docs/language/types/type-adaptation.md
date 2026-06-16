@@ -58,8 +58,8 @@ Jo includes a small set of built-in adaptations.
 Some numeric widening conversions are supported when the target type is known:
 
 ```jo
-val b: Byte = 1
-val i: Int = b
+val c: Char = 'a'
+val i: Int = c
 val f: Float = i
 ```
 
