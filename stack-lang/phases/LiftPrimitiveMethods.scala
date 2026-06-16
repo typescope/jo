@@ -13,7 +13,7 @@ import scala.collection.mutable
 
 /** This phase handles several aspects of primitives
   *
-  * 1. Lifts non-intrinsic methods of primitive classes (Int, Byte, Char, Float,
+  * 1. Lifts non-intrinsic methods of primitive classes (Int, Char, Float,
   * Bool, String) to top-level functions and rewrites all call sites.
   *
   * 2. Rewire methods on Array to backend support methods
