@@ -19,28 +19,18 @@
 |          Expect type Char, found = String
 
 ---------- Error at tests/warn/pattern-literal.jo:20:10 ---------------
-|     case 512 => pass
-|          ^^^
-|          Integer literal 512 out of range for Byte [-128, 127]
-
----------- Error at tests/warn/pattern-literal.jo:21:10 ---------------
-|     case "x" => pass
-|          ^^^
-|          Expect type Byte, found = String
-
----------- Error at tests/warn/pattern-literal.jo:26:10 ---------------
 |     case 23 => pass
 |          ^^
 |          Expect type Bool, found = Int
 
----------- Error at tests/warn/pattern-literal.jo:27:10 ---------------
+---------- Error at tests/warn/pattern-literal.jo:21:10 ---------------
 |     case "hello" => pass
 |          ^^^^^^^
 |          Expect type Bool, found = String
 
----------- Error at tests/warn/pattern-literal.jo:28:10 ---------------
+---------- Error at tests/warn/pattern-literal.jo:22:10 ---------------
 |     case 'a' => pass
 |          ^^^
 |          Expect type Bool, found = Char
 
-9 error(s), 0 warning(s)
+7 error(s), 0 warning(s)

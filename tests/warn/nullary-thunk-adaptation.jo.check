@@ -1,16 +1,11 @@
 ---------- Error at tests/warn/nullary-thunk-adaptation.jo:25:14 ---------------
 |   takesFloat b
 |              ^
-|              Expect type () => Float receives none, found = b: Byte
-
----------- Error at tests/warn/nullary-thunk-adaptation.jo:26:12 ---------------
-|   takesInt b
-|            ^
-|            Expect type () => Int receives none, found = b: Byte
+|              Expect type () => Float receives none, found = b: Int
 
 ---------- Error at tests/warn/nullary-thunk-adaptation.jo:28:19 ---------------
 |   takesStringLike 3
 |                   ^
 |                   Expect type () => StringLike receives none, found = Int
 
-3 error(s), 0 warning(s)
+2 error(s), 0 warning(s)

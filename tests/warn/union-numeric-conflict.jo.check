@@ -9,33 +9,18 @@
 |                  Union type cannot contain multiple numeric/boolean types: (Int, Char)
 
 ---------- Error at tests/warn/union-numeric-conflict.jo:10:18 ---------------
-| type BadUnion3 = Byte | Float
-|                  ^^^^^^^^^^^^
-|                  Union type cannot contain multiple numeric/boolean types: (Byte, Float)
-
----------- Error at tests/warn/union-numeric-conflict.jo:13:18 ---------------
-| type BadUnion4 = Char | Byte
-|                  ^^^^^^^^^^^
-|                  Union type cannot contain multiple numeric/boolean types: (Char, Byte)
-
----------- Error at tests/warn/union-numeric-conflict.jo:16:18 ---------------
 | type BadUnion5 = Int | Char | Float
 |                  ^^^^^^^^^^^^^^^^^^
 |                  Union type cannot contain multiple numeric/boolean types: (Int, Char, Float)
 
----------- Error at tests/warn/union-numeric-conflict.jo:19:18 ---------------
-| type BadUnion6 = Bool | Byte
-|                  ^^^^^^^^^^^
-|                  Union type cannot contain multiple numeric/boolean types: (Bool, Byte)
-
----------- Error at tests/warn/union-numeric-conflict.jo:22:18 ---------------
+---------- Error at tests/warn/union-numeric-conflict.jo:13:18 ---------------
 | type BadUnion7 = Bool | Int
 |                  ^^^^^^^^^^
 |                  Union type cannot contain multiple numeric/boolean types: (Bool, Int)
 
----------- Error at tests/warn/union-numeric-conflict.jo:25:18 ---------------
+---------- Error at tests/warn/union-numeric-conflict.jo:16:18 ---------------
 | type BadUnion8 = Bool | Char
 |                  ^^^^^^^^^^^
 |                  Union type cannot contain multiple numeric/boolean types: (Bool, Char)
 
-8 error(s), 0 warning(s)
+5 error(s), 0 warning(s)

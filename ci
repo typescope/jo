@@ -251,12 +251,7 @@ background_task() {
 
         echo "testing $item"
 
-        # scala native has difficult with unicode
-        if [[ $item == *char-byte-range.jo ]]; then
-          bin/jo.dev compile --js --fatal-warnings $file $OPTIONS > $OUT
-        else
-          bin/jo compile --js --fatal-warnings $file $OPTIONS > $OUT
-        fi
+        bin/jo compile --js --fatal-warnings $file $OPTIONS > $OUT
 
         check $OUT $CHECK
     done

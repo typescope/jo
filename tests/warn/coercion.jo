@@ -1,15 +1,8 @@
 def coercion =
-  // byte
-  val b: Byte = 45
-  println b
-  val x: Char = b           // error
-
   // char
   val c: Char = 'a'
   println c
-  val b_c: Byte = c     // error
 
   // int
   val i: Int = 100
-  val b_i: Byte = i     // error
   val c_i: Char = i     // error

@@ -1,4 +1,0 @@
-def main =
-  val a: Byte = 3
-  val b: Char = a
-  val c: Char = a.toChar

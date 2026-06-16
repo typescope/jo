@@ -1,6 +1,5 @@
 def main =
   testIntArray()
-  testByteArray()
   testBoolArray()
   testCharArray()
   testRefArray()
@@ -13,18 +12,6 @@ def testIntArray =
   arr[2] = 14
 
   println (arr.size )
-  println arr[0]
-  println arr[1]
-  println arr[2]
-
-def testByteArray =
-  val arr = Array.create[Byte] 3
-
-  arr[0] = '1'
-  arr[1] = '2'
-  arr[2] = '3'
-
-  println arr.size
   println arr[0]
   println arr[1]
   println arr[2]

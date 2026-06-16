@@ -6,17 +6,8 @@ type BadUnion1 = Int | Float
 // Int and Char conflict
 type BadUnion2 = Int | Char
 
-// Byte and Float conflict
-type BadUnion3 = Byte | Float
-
-// Char and Byte conflict
-type BadUnion4 = Char | Byte
-
 // Multiple numeric types
 type BadUnion5 = Int | Char | Float
-
-// Bool and Byte conflict
-type BadUnion6 = Bool | Byte
 
 // Bool and Int conflict
 type BadUnion7 = Bool | Int

@@ -15,12 +15,6 @@ def testChar1(c: Char): Unit =
     case 1024   => pass
     case _ => pass
 
-def testByte1(x: Byte): Unit =
-  match x
-    case 512 => pass
-    case "x" => pass
-    case _ => pass
-
 def testBool(x: Bool): Unit =
   match x
     case 23 => pass

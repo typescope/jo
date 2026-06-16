@@ -32,18 +32,6 @@ def testChar2(c: Char): Unit =
     case 99 => println "c"
     case _ => println "not a nor c"
 
-def testByte1(x: Byte): Unit =
-  match x
-    case 'a' => println "a"
-    case 'c' => println "c"
-    case _ => println "not a nor c"
-
-def testByte2(x: Byte): Unit =
-  match x
-    case 97 => println "a"
-    case 99 => println "c"
-    case _ => println "not a nor c"
-
 def testBool(x: Bool): Unit =
   match x
     case true => println "true"
@@ -70,14 +58,6 @@ def main =
   testChar2 'a'
   testChar2 'c'
   testChar2 'd'
-
-  testByte1 'a'
-  testByte1 'c'
-  testByte1 'd'
-
-  testByte2 'a'
-  testByte2 'c'
-  testByte2 'd'
 
   testBool true
   testBool false
