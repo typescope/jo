@@ -2,10 +2,10 @@
 
 def main() =
   // Too large for Byte
-  val b: Byte = 128
+  val b: Byte = 256
 
   // Too small for Byte
-  val b2: Byte = -129
+  val b2: Byte = -1
 
   // Negative for Char
   val c: Char = -1

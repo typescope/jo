@@ -1,7 +1,5 @@
 def test =
-  // Character code 200 is outside signed byte range [-128, 127]
-  val b: Byte = 'È'  // Unicode 200
+  // Character code 256 is outside unsigned byte range [0, 255]
+  val b: Byte = 'Ā'  // Unicode 256
 
-  val c: Byte = 'À'
-
-  val d: Byte = '✨'
+  val d: Byte = '✨'  // Unicode 10024
