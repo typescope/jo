@@ -182,10 +182,6 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
       val classId = IntLit(getClassId(runtime.Core_IntBox))(span)
       transform(valueClassId.isEqualTo(classId))
 
-    else if cls == defn.Byte_type then
-      val classId = IntLit(getClassId(runtime.Core_ByteBox))(span)
-      transform(valueClassId.isEqualTo(classId))
-
     else if cls == defn.Char_type then
       val classId = IntLit(getClassId(runtime.Core_CharBox))(span)
       transform(valueClassId.isEqualTo(classId))
@@ -299,7 +295,6 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
           val section =
             if qual.tpe.isSubtype(defn.BoolType) then runtime.Core_BoolOps
             else if qual.tpe.isSubtype(defn.IntType) then runtime.Core_IntOps
-            else if qual.tpe.isSubtype(defn.ByteType) then runtime.Core_ByteOps
             else if qual.tpe.isSubtype(defn.CharType) then runtime.Core_CharOps
             else runtime.Core_FloatOps
 

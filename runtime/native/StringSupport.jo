@@ -11,7 +11,7 @@ private[native] union StringRepr =
 
 private[native] section StringOps
   private def utf8SeqLen(firstByte: Byte): Int =
-    val b = firstByte.toInt & 0xFF
+    val b = Byte.toInt(firstByte) & 0xFF
     if b < 0x80 then 1
     else if b < 0xE0 then 2
     else if b < 0xF0 then 3
@@ -38,21 +38,21 @@ private[native] section StringOps
     off
 
   private def decodeCodePoint(content: Addr, byteOffset: Int): Char =
-    val b0 = readByte(addAddr content byteOffset).toInt & 0xFF
+    val b0 = Byte.toInt(readByte(addAddr content byteOffset)) & 0xFF
     val cp =
       if b0 < 0x80 then
         b0
       else if b0 < 0xE0 then
-        val b1 = readByte(addAddr content (byteOffset + 1)).toInt & 0x3F
+        val b1 = Byte.toInt(readByte(addAddr content (byteOffset + 1))) & 0x3F
         ((b0 & 0x1F) << 6) | b1
       else if b0 < 0xF0 then
-        val b1 = readByte(addAddr content (byteOffset + 1)).toInt & 0x3F
-        val b2 = readByte(addAddr content (byteOffset + 2)).toInt & 0x3F
+        val b1 = Byte.toInt(readByte(addAddr content (byteOffset + 1))) & 0x3F
+        val b2 = Byte.toInt(readByte(addAddr content (byteOffset + 2))) & 0x3F
         ((b0 & 0x0F) << 12) | (b1 << 6) | b2
       else
-        val b1 = readByte(addAddr content (byteOffset + 1)).toInt & 0x3F
-        val b2 = readByte(addAddr content (byteOffset + 2)).toInt & 0x3F
-        val b3 = readByte(addAddr content (byteOffset + 3)).toInt & 0x3F
+        val b1 = Byte.toInt(readByte(addAddr content (byteOffset + 1))) & 0x3F
+        val b2 = Byte.toInt(readByte(addAddr content (byteOffset + 2))) & 0x3F
+        val b3 = Byte.toInt(readByte(addAddr content (byteOffset + 3))) & 0x3F
         ((b0 & 0x07) << 18) | (b1 << 12) | (b2 << 6) | b3
     cp.toChar
 
@@ -75,7 +75,7 @@ private[native] section StringOps
   def fromCString(addr: Addr): String =
     var byteSize = 0
     var cur = addr
-    while (readByte cur) != 0 do
+    while Byte.toInt(readByte cur) != 0 do
       byteSize = byteSize + 1
       cur = addAddr addr byteSize
     end
@@ -99,7 +99,7 @@ private[native] section StringOps
         if i >= cpN || i < 0 then abort "index out of bound"
 
         if byteN == cpN then
-          (readByte(addAddr content i).toInt & 0xFF).toChar
+          (Byte.toInt(readByte(addAddr content i)) & 0xFF).toChar
         else
           val off = codePointToByteOffset(content, byteN, i)
           decodeCodePoint(content, off)
@@ -127,7 +127,7 @@ private[native] section StringOps
       while isEqual && i < bytesN do
         val l = readByte: addAddr lhsBytes i
         val r = readByte: addAddr rhsBytes i
-        isEqual = l == r
+        isEqual = Byte.eq(l, r)
         i = i + 1
       end
     end
@@ -242,25 +242,25 @@ private[native] class StringIterator(source: String)
   def next: Char =
     if off >= byteN then abort "String iterator exhausted"
 
-    val b0 = readByte(addAddr content off).toInt & 0xFF
+    val b0 = Byte.toInt(readByte(addAddr content off)) & 0xFF
     var cp: Int = -1
     var step: Int = -1
     if b0 < 0x80 then
       cp = b0
       step = 1
     else if b0 < 0xE0 then
-      val b1 = readByte(addAddr content (off + 1)).toInt & 0x3F
+      val b1 = Byte.toInt(readByte(addAddr content (off + 1))) & 0x3F
       cp = ((b0 & 0x1F) << 6) | b1
       step = 2
     else if b0 < 0xF0 then
-      val b1 = readByte(addAddr content (off + 1)).toInt & 0x3F
-      val b2 = readByte(addAddr content (off + 2)).toInt & 0x3F
+      val b1 = Byte.toInt(readByte(addAddr content (off + 1))) & 0x3F
+      val b2 = Byte.toInt(readByte(addAddr content (off + 2))) & 0x3F
       cp = ((b0 & 0x0F) << 12) | (b1 << 6) | b2
       step = 3
     else
-      val b1 = readByte(addAddr content (off + 1)).toInt & 0x3F
-      val b2 = readByte(addAddr content (off + 2)).toInt & 0x3F
-      val b3 = readByte(addAddr content (off + 3)).toInt & 0x3F
+      val b1 = Byte.toInt(readByte(addAddr content (off + 1))) & 0x3F
+      val b2 = Byte.toInt(readByte(addAddr content (off + 2))) & 0x3F
+      val b3 = Byte.toInt(readByte(addAddr content (off + 3))) & 0x3F
       cp = ((b0 & 0x07) << 18) | (b1 << 12) | (b2 << 6) | b3
       step = 4
     end

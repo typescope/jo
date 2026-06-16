@@ -61,7 +61,6 @@ class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
     // Determine which box constructor to use based on numeric type
     val boxConstructor = word.tpe match
       case tpe if Subtyping.conforms(tpe, defn.BoolType) => runtime.Core_BoolBox_fun
-      case tpe if Subtyping.conforms(tpe, defn.ByteType) => runtime.Core_ByteBox_fun
       case tpe if Subtyping.conforms(tpe, defn.CharType) => runtime.Core_CharBox_fun
       case tpe if Subtyping.conforms(tpe, defn.IntType) => runtime.Core_IntBox_fun
       case tpe if Subtyping.conforms(tpe, defn.FloatType) => runtime.Core_FloatBox_fun
@@ -76,7 +75,6 @@ class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
     // Determine which box class to extract from based on target numeric type
     val boxClass = numericType match
       case tpe if Subtyping.conforms(tpe, defn.BoolType) => runtime.Core_BoolBox
-      case tpe if Subtyping.conforms(tpe, defn.ByteType) => runtime.Core_ByteBox
       case tpe if Subtyping.conforms(tpe, defn.CharType) => runtime.Core_CharBox
       case tpe if Subtyping.conforms(tpe, defn.IntType) => runtime.Core_IntBox
       case tpe if Subtyping.conforms(tpe, defn.FloatType) => runtime.Core_FloatBox

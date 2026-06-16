@@ -106,7 +106,7 @@ object Defaults:
         checkConformsLit(sasLit, paramType)
 
       case lit: Ast.CharLit =>
-        val sasLit = NumericTyper.typeCharLit(lit)(using Inference.TargetType.Known(paramType), defn, rp, so)
+        val sasLit = NumericTyper.typeCharLit(lit)(using Inference.TargetType.Known(paramType), defn)
         checkConformsLit(sasLit, paramType)
 
       case lit: Ast.StringLit =>

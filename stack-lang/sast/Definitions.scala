@@ -49,7 +49,6 @@ final class Definitions(private var _index: SymbolIndex) extends Definitions.Laz
   val jo_nameTable = jo.nameTable
 
   // primitive terms without implementation in source code
-  val Byte_type   =  jo.typeMember("Byte")
   val Char_type   =  jo.typeMember("Char")
   val Int_type    =  jo.typeMember("Int")
   val Bool_type   =  jo.typeMember("Bool")
@@ -125,7 +124,6 @@ final class Definitions(private var _index: SymbolIndex) extends Definitions.Laz
 
   val IntType     = StaticRef(Int_type)
   val BoolType    = StaticRef(Bool_type)
-  val ByteType    = StaticRef(Byte_type)
   val CharType    = StaticRef(Char_type)
   val StringType  = StaticRef(String_type)
   val FloatType   = StaticRef(Float_type)
@@ -142,8 +140,7 @@ final class Definitions(private var _index: SymbolIndex) extends Definitions.Laz
   // helper functions
 
   def isNumeric(sym: Symbol): Boolean =
-    sym == Byte_type
-    || sym == Char_type
+    sym == Char_type
     || sym == Int_type
     || sym == Float_type
 

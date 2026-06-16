@@ -132,18 +132,7 @@ object Adaptation:
 
     // Only handle non-literal cases (widening coercion)
     // Literals are already typed with correct type in NumericTyper
-    if origType.isSubtype(defn.ByteType) then
-      if targetType.isSubtype(defn.IntType) then
-        word.select("toInt").appliedTo()
-
-      else if targetType.isSubtype(defn.FloatType) then
-        // Byte -> Float
-        word.select("toFloat").appliedTo()
-
-      else
-        fail()
-
-    else if origType.isSubtype(defn.CharType) then
+    if origType.isSubtype(defn.CharType) then
       if targetType.isSubtype(defn.IntType) then
         word.select("toInt").appliedTo()
 

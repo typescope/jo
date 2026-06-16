@@ -500,7 +500,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else if cls == defn.Bool_type then
             JS.BinOp(JS.UnaryOp("typeof", argExpr), "==", JS.StringLit("boolean"))
 
-          else if cls == defn.Float_type || cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then
+          else if cls == defn.Float_type || cls == defn.Int_type || cls == defn.Char_type then
             JS.BinOp(JS.UnaryOp("typeof", argExpr), "==", JS.StringLit("number"))
 
           else if cls == defn.Array_class then
@@ -781,9 +781,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
         compileIntPrimitive(name, qual, args, enforcePurity)
 
-      case Select(qual, name) if qual.tpe.isSubtype(defn.ByteType) =>
-        compileBytePrimitive(name, qual, args, enforcePurity)
-
       case Select(qual, name) if qual.tpe.isSubtype(defn.CharType) =>
         compileCharPrimitive(name, qual, args, enforcePurity)
 
@@ -1058,10 +1055,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, expr)  // JavaScript numbers are already floats
 
-      case "toByte" =>
-        val (stats, expr) = compileExpr(qual, enforcePurity)
-        (stats, JS.BinOp(expr, "&", JS.IntLit(0xFF)))
-
       case "toChar" =>
         // Char is represented as Int (Unicode code point) in JavaScript, so this is a no-op
         compileExpr(qual, enforcePurity)
@@ -1076,21 +1069,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case _ =>
         throw new Exception(s"Unknown Int method: $name")
-
-  /** Compile Byte primitive operations */
-  private def compileBytePrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
-    name match
-      case "toInt" =>
-        // Byte is already represented as number in JavaScript
-        compileExpr(qual, enforcePurity)
-
-      case "toChar" =>
-        // Both Byte and Char are number in JavaScript
-        compileExpr(qual, enforcePurity)
-
-      case _ =>
-        // All other Byte operations are the same as Int operations
-        compileIntPrimitive(name, qual, args, enforcePurity)
 
   /** Compile Char primitive operations */
   private def compileCharPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
@@ -1109,11 +1087,6 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         val arg :: Nil = args: @unchecked
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
         (stats, JS.BinOp(qualExpr, "!==", argExpr))
-
-      case "toByte" =>
-        // Char is already represented as Int in JavaScript
-        val (stats, expr) = compileExpr(qual, enforcePurity)
-        (stats, JS.BinOp(expr, "&", JS.IntLit(0xFF)))
 
       case "toInt" =>
         // Char is already represented as Int (Unicode code point) in JavaScript

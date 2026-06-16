@@ -31,9 +31,6 @@ class Char
 
   // Conversion methods
   @intrinsic
-  def toByte: Byte = ...
-
-  @intrinsic
   def toInt: Int = ...
 
   @intrinsic

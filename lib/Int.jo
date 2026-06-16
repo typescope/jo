@@ -71,9 +71,6 @@ class Int
   def toChar: Char = ...
 
   @intrinsic
-  def toByte: Byte = ...
-
-  @intrinsic
   def toFloat: Float = ...
 
   @intrinsic

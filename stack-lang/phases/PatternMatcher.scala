@@ -403,9 +403,6 @@ class PatternMatcher(using defn: Definitions) extends Phase:
     else if tp.isSubtype(defn.BoolType) then
       pat.value.select("==").appliedTo(scrut)
 
-    else if tp.isSubtype(defn.ByteType) then
-      Select(pat.value, "==")(pat.span).appliedTo(scrut)
-
     else if tp.isSubtype(defn.CharType) then
       Select(pat.value, "==")(pat.span).appliedTo(scrut)
 

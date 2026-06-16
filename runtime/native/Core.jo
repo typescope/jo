@@ -14,6 +14,11 @@ import jo.runtime.native.ParamSupport
 
 type Addr
 
+// A single byte in [-128, 127]. Native-only: the surface language has no Byte
+// type; it exists here for raw memory and UTF-8 handling. Its operators live in
+// the ByteOps section below.
+type Byte
+
 @intrinsic
 private def writeInt(arr: Addr, value: Int): Unit receives none =
   abort "native writeInt"
@@ -135,24 +140,22 @@ private section IntOps
   @intrinsic def (a: Int) | (b: Int): Int = abort "native Int.|"
   @intrinsic def (a: Int) ^ (b: Int): Int = abort "native Int.^"
   @intrinsic def (a: Int) toChar: Char = abort "native Int.toChar"
-  @intrinsic def (a: Int) toByte: Byte = abort "native Int.toByte"
   @intrinsic def (a: Int) toFloat: Float = abort "native Int.toFloat"
   @intrinsic def ~- (a: Int): Int = abort "native Int.~-"
   def (a: Int) toString: String = intToStr a
 end
 
-private section ByteOps
-  // Byte operators (via numeric coercion to Int)
-  @intrinsic def (a: Byte) == (b: Byte): Bool = abort "native Byte.=="
-  @intrinsic def (a: Byte) != (b: Byte): Bool = abort "native Byte.!="
-  @intrinsic def (a: Byte) > (b: Byte): Bool = abort "native Byte.>"
-  @intrinsic def (a: Byte) < (b: Byte): Bool = abort "native Byte.<"
-  @intrinsic def (a: Byte) >= (b: Byte): Bool = abort "native Byte.>="
-  @intrinsic def (a: Byte) <= (b: Byte): Bool = abort "native Byte.<="
-  @intrinsic def (a: Byte) toInt: Int = abort "native Byte.toInt"
-  @intrinsic def (a: Byte) toChar: Char = abort "native Byte.toChar"
-  @intrinsic def (a: Byte) toFloat: Float = abort "native Byte.toFloat"
-  def (a: Byte) toString: String = intToStr (a.toInt)
+// Byte has no surface-language class. Its operations live here as qualified
+// functions (e.g. `Byte.toInt(b)`, `Byte.eq(a, b)`), visible across the whole
+// native runtime. Ordering comparisons go through `toInt`.
+private[native] section Byte
+  @intrinsic def fromInt(i: Int): Byte = abort "native Byte.fromInt"
+  @intrinsic def eq(a: Byte, b: Byte): Bool = abort "native Byte.eq"
+  @intrinsic def ne(a: Byte, b: Byte): Bool = abort "native Byte.ne"
+  @intrinsic def toInt(a: Byte): Int = abort "native Byte.toInt"
+  @intrinsic def toChar(a: Byte): Char = abort "native Byte.toChar"
+  @intrinsic def toFloat(a: Byte): Float = abort "native Byte.toFloat"
+  def toString(a: Byte): String = intToStr (Byte.toInt a)
 end
 
 private section CharOps
@@ -163,7 +166,6 @@ private section CharOps
   @intrinsic def (a: Char) < (b: Char): Bool = abort "native Char.<"
   @intrinsic def (a: Char) >= (b: Char): Bool = abort "native Char.>="
   @intrinsic def (a: Char) <= (b: Char): Bool = abort "native Char.<="
-  @intrinsic def (a: Char) toByte: Byte = abort "native Char.toByte"
   @intrinsic def (a: Char) toInt: Int = abort "native Char.toInt"
   @intrinsic def (a: Char) toFloat: Float = abort "native Char.toFloat"
   def (a: Char) toString: String = charToStr a
@@ -205,7 +207,6 @@ end
 //
 
 private class BoolBox(value: Bool)
-private class ByteBox(value: Byte)
 private class CharBox(value: Char)
 private class IntBox(value: Int)
 private class FloatBox(value: Float)
@@ -346,22 +347,22 @@ private def charToStr(c: Char): String =
   // Encode code point to UTF-8
   if codePoint <= 0x7F then
     // 1-byte: 0xxxxxxx
-    writeByte content codePoint.toByte
+    writeByte content (Byte.fromInt codePoint)
   else if codePoint <= 0x7FF then
     // 2-byte: 110xxxxx 10xxxxxx
-    writeByte content (0xC0 | (codePoint >> 6)).toByte
-    writeByte (addAddr content 1) (0x80 | (codePoint & 0x3F)).toByte
+    writeByte content (Byte.fromInt(0xC0 | (codePoint >> 6)))
+    writeByte (addAddr content 1) (Byte.fromInt(0x80 | (codePoint & 0x3F)))
   else if codePoint <= 0xFFFF then
     // 3-byte: 1110xxxx 10xxxxxx 10xxxxxx
-    writeByte content (0xE0 | (codePoint >> 12)).toByte
-    writeByte (addAddr content 1) (0x80 | ((codePoint >> 6) & 0x3F)).toByte
-    writeByte (addAddr content 2) (0x80 | (codePoint & 0x3F)).toByte
+    writeByte content (Byte.fromInt(0xE0 | (codePoint >> 12)))
+    writeByte (addAddr content 1) (Byte.fromInt(0x80 | ((codePoint >> 6) & 0x3F)))
+    writeByte (addAddr content 2) (Byte.fromInt(0x80 | (codePoint & 0x3F)))
   else
     // 4-byte: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-    writeByte content (0xF0 | (codePoint >> 18)).toByte
-    writeByte (addAddr content 1) (0x80 | ((codePoint >> 12) & 0x3F)).toByte
-    writeByte (addAddr content 2) (0x80 | ((codePoint >> 6) & 0x3F)).toByte
-    writeByte (addAddr content 3) (0x80 | (codePoint & 0x3F)).toByte
+    writeByte content (Byte.fromInt(0xF0 | (codePoint >> 18)))
+    writeByte (addAddr content 1) (Byte.fromInt(0x80 | ((codePoint >> 12) & 0x3F)))
+    writeByte (addAddr content 2) (Byte.fromInt(0x80 | ((codePoint >> 6) & 0x3F)))
+    writeByte (addAddr content 3) (Byte.fromInt(0x80 | (codePoint & 0x3F)))
 
   cast[String]: Raw(len, 1, content)
 
@@ -383,14 +384,14 @@ private def intToStr(n: Int): String =
       val digit = remains % 10
       writeByte:
         addAddr buf index
-        (48 + digit).toByte // '0' = 48
+        Byte.fromInt(48 + digit) // '0' = 48
 
       index = index - 1
       remains = remains / 10
 
     // sign char
     if negative then
-      writeByte (addAddr buf index) 45 // '-' = 45
+      writeByte (addAddr buf index) (Byte.fromInt 45) // '-' = 45
       index = index - 1
 
     val startIndex = index + 1

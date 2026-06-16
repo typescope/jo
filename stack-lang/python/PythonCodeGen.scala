@@ -556,7 +556,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val className =
           if cls == defn.String_type then "str"
           else if cls == defn.Float_type then "float"
-          else if cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then "int"
+          else if cls == defn.Int_type || cls == defn.Char_type then "int"
           else if cls == defn.Bool_type then "bool"
           else if cls == defn.Array_class then "list"
           else pythonName(cls)
@@ -856,9 +856,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
         compileIntPrimitive(name, qual, args, enforcePurity)
 
-      case Select(qual, name) if qual.tpe.isSubtype(defn.ByteType) =>
-        compileBytePrimitive(name, qual, args, enforcePurity)
-
       case Select(qual, name) if qual.tpe.isSubtype(defn.CharType) =>
         compileCharPrimitive(name, qual, args, enforcePurity)
 
@@ -1067,10 +1064,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.Call(None, "float", List(expr)))
 
-      case "toByte" =>
-        val (stats, expr) = compileExpr(qual, enforcePurity)
-        (stats, P.BinOp(expr, "&", P.IntLit(0xFF)))
-
       case "toChar" =>
         // Char is represented as Int (Unicode code point) in Python, so this is a no-op
         compileExpr(qual, enforcePurity)
@@ -1086,21 +1079,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case _ =>
         throw new Exception(s"Unknown Int method: $name")
 
-  /** Compile Byte primitive operations */
-  private def compileBytePrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
-    name match
-      case "toInt" =>
-        // Byte is already represented as int in Python
-        compileExpr(qual, enforcePurity)
-
-      case "toChar" =>
-        // Both Byte and Char are int in Python
-        compileExpr(qual, enforcePurity)
-
-      case _ =>
-        // All other Byte operations are the same as Int operations
-        compileIntPrimitive(name, qual, args, enforcePurity)
-
   /** Compile Char primitive operations */
   private def compileCharPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
     name match
@@ -1108,11 +1086,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val arg :: Nil = args: @unchecked
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
         (stats, P.BinOp(qualExpr, name, argExpr))
-
-      case "toByte" =>
-        // Char is already represented as Int in Python
-        val (stats, expr) = compileExpr(qual, enforcePurity)
-        (stats, P.BinOp(expr, "&", P.IntLit(0xFF)))
 
       case "toInt" =>
         // Char is already represented as Int (Unicode code point) in Python

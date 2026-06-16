@@ -270,7 +270,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         val className =
           if cls == defn.String_type then "String"
           else if cls == defn.Float_type then "Float"
-          else if cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then "Integer"
+          else if cls == defn.Int_type || cls == defn.Char_type then "Integer"
           else if cls == defn.Array_class then "Array"
           else rubyName(cls)
 
@@ -544,9 +544,6 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
         compileIntPrimitive(name, qual, args)
 
-      case Select(qual, name) if qual.tpe.isSubtype(defn.ByteType) =>
-        compileIntPrimitive(name, qual, args)
-
       case Select(qual, name) if qual.tpe.isSubtype(defn.CharType) =>
         compileCharPrimitive(name, qual, args)
 
@@ -683,14 +680,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case "toFloat" =>
         R.Select(compileExpr(qual), "to_f")
 
-      case "toByte" =>
-        R.BinOp(compileExpr(qual), "&", R.IntLit(0xFF))
-
       case "toChar" =>
         // Char is represented as Int (Unicode code point) in Ruby, so this is a no-op
-        compileExpr(qual)
-
-      case "toInt" =>  // called from Byte
         compileExpr(qual)
 
       case "~-" =>
@@ -727,10 +718,6 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case "==" | "!=" | "<" | ">" | "<=" | ">=" =>
         val arg :: Nil = args: @unchecked
         R.BinOp(compileExpr(qual), name, compileExpr(arg))
-
-      case "toByte" =>
-        // Char is already represented as Int in Ruby
-        R.BinOp(compileExpr(qual), "&", R.IntLit(0xFF))
 
       case "toInt" =>
         // Char is already represented as Int (Unicode code point) in Ruby

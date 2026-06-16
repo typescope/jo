@@ -498,7 +498,6 @@ object Interpreter:
             val isMatch =
               cls == defn.Int_type
               || cls == defn.Char_type
-              || cls == defn.Byte_type
 
             BoolVal(isMatch) :: Nil
 

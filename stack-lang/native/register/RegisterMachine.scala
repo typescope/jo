@@ -527,12 +527,6 @@ extends Backend(runtime):
         // No-op: Char is represented by Int
         // No handling of surrogate code points
 
-      case runtime.Int_toByte =>
-        val v = ctx.vs.pop()
-        val r = freshVirtualReg()
-        gen(Instr.And(v, Int32(0xFF), r))
-        ctx.vs.push(Reg(r))
-
       case runtime.Int_neg =>
         val v = ctx.vs.pop()
         val r = freshVirtualReg()
@@ -546,14 +540,15 @@ extends Backend(runtime):
 
   def callBytePrimitive(sym: Symbol)(using ctx: Context): Unit =
     sym match
+      case runtime.Byte_fromInt =>
+        val v = ctx.vs.pop()
+        val r = freshVirtualReg()
+        gen(Instr.And(v, Int32(0xFF), r))
+        ctx.vs.push(Reg(r))
       case runtime.Byte_eq => eql()
       case runtime.Byte_ne =>
         eql()
         bnot()
-      case runtime.Byte_gt => int2(Instr.Gt)
-      case runtime.Byte_lt => int2(Instr.Lt)
-      case runtime.Byte_ge => int2(Instr.Ge)
-      case runtime.Byte_le => int2(Instr.Le)
       case runtime.Byte_toInt => () // No-op: Byte is already represented as Int
       case runtime.Byte_toChar => () // No-op: Byte (0-255) fits in Char
       case _                    => call(sym)
@@ -569,11 +564,6 @@ extends Backend(runtime):
       case runtime.Char_lt => int2(Instr.Lt)
       case runtime.Char_ge => int2(Instr.Ge)
       case runtime.Char_le => int2(Instr.Le)
-      case runtime.Char_toByte =>
-        val v = ctx.vs.pop()
-        val r = freshVirtualReg()
-        gen(Instr.And(v, Int32(0xFF), r))
-        ctx.vs.push(Reg(r))
       case runtime.Char_toInt => () // No-op: Char is already represented as Int
       case _                    => call(sym)
   end callCharPrimitive

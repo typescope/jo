@@ -48,7 +48,7 @@ extends Linker:
   // Sections for primitive operators
   val Core_BoolOps  = Native.containerMember("BoolOps")
   val Core_IntOps   = Native.containerMember("IntOps")
-  val Core_ByteOps  = Native.containerMember("ByteOps")
+  val Core_ByteOps  = Native.containerMember("Byte")
   val Core_CharOps  = Native.containerMember("CharOps")
   val Core_FloatOps = Native.containerMember("FloatOps")
   val Core_StringOps = Native.containerMember("StringOps")
@@ -78,20 +78,15 @@ extends Linker:
   val Int_lor  = Core_IntOps.termMember("|")
   val Int_lxor = Core_IntOps.termMember("^")
   val Int_toChar = Core_IntOps.termMember("toChar")
-  val Int_toByte = Core_IntOps.termMember("toByte")
   val Int_toFloat = Core_IntOps.termMember("toFloat")
   val Int_neg    = Core_IntOps.termMember("~-")
 
-  // Byte primitive operators (defined in section ByteOps in Native.jo)
-  val Byte_eq = Core_ByteOps.termMember("==")
-  val Byte_ne = Core_ByteOps.termMember("!=")
-  val Byte_gt = Core_ByteOps.termMember(">")
-  val Byte_lt = Core_ByteOps.termMember("<")
-  val Byte_ge = Core_ByteOps.termMember(">=")
-  val Byte_le = Core_ByteOps.termMember("<=")
+  // Byte primitive operations (defined in section Byte in Core.jo)
+  val Byte_fromInt = Core_ByteOps.termMember("fromInt")
+  val Byte_eq = Core_ByteOps.termMember("eq")
+  val Byte_ne = Core_ByteOps.termMember("ne")
   val Byte_toInt = Core_ByteOps.termMember("toInt")
   val Byte_toChar = Core_ByteOps.termMember("toChar")
-  val Byte_toFloat = Core_ByteOps.termMember("toFloat")
 
   // Char primitive operators (defined in section CharOps in Native.jo)
   val Char_eq = Core_CharOps.termMember("==")
@@ -100,7 +95,6 @@ extends Linker:
   val Char_lt = Core_CharOps.termMember("<")
   val Char_ge = Core_CharOps.termMember(">=")
   val Char_le = Core_CharOps.termMember("<=")
-  val Char_toByte = Core_CharOps.termMember("toByte")
   val Char_toInt = Core_CharOps.termMember("toInt")
   val Char_toFloat = Core_CharOps.termMember("toFloat")
 
@@ -119,15 +113,14 @@ extends Linker:
   val Float_neg = Core_FloatOps.termMember("~-")
 
   // Boxing classes for numeric/bool types in union types
+  // (Byte is excluded: it is native-only and cannot appear in a union type)
   val Core_BoolBox = Native.typeMember("BoolBox")
-  val Core_ByteBox = Native.typeMember("ByteBox")
   val Core_CharBox = Native.typeMember("CharBox")
   val Core_IntBox = Native.typeMember("IntBox")
   val Core_FloatBox = Native.typeMember("FloatBox")
 
   // Boxing class constructors (synthesized by the compiler)
   val Core_BoolBox_fun = Native.termMember("BoolBox")
-  val Core_ByteBox_fun = Native.termMember("ByteBox")
   val Core_CharBox_fun = Native.termMember("CharBox")
   val Core_IntBox_fun = Native.termMember("IntBox")
   val Core_FloatBox_fun = Native.termMember("FloatBox")
