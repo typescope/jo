@@ -1050,9 +1050,26 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case _ =>
         throw new Exception(s"Unknown Bool method: $name")
 
+  /** Reduce an integer expression to signed 32-bit (two's-complement wrap):
+    * `((e + 0x80000000) & 0xFFFFFFFF) - 0x80000000`. Python ints are
+    * arbitrary precision, so arithmetic that can overflow must be masked to
+    * keep `Int` 32-bit and consistent with the other backends.
+    */
+  private def wrapInt32(e: P.Expr): P.Expr =
+    val off  = P.IntLit(0x80000000L)
+    val mask = P.IntLit(0xFFFFFFFFL)
+    P.BinOp(P.BinOp(P.BinOp(e, "+", off), "&", mask), "-", off)
+
   private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
     name match
-      case "+" | "-" | "*" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
+      case "+" | "-" | "*" | "<<" =>
+        // Can overflow: wrap to signed 32-bit
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, wrapInt32(P.BinOp(qualExpr, name, argExpr)))
+
+      case "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | ">>" =>
+        // In-range inputs keep the result in range
         val arg :: Nil = args: @unchecked
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
         (stats, P.BinOp(qualExpr, name, argExpr))
@@ -1077,7 +1094,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
       case "~-" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
-        (stats, P.UnaryOp("-", expr))
+        (stats, wrapInt32(P.UnaryOp("-", expr)))
 
       case "toString" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)

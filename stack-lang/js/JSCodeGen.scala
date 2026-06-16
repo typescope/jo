@@ -1029,10 +1029,26 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case _ =>
         throw new Exception(s"Unknown Bool method: $name")
 
+  /** Coerce an integer expression to signed 32-bit via `| 0`. */
+  private def wrap32(e: JS.Expr): JS.Expr = JS.BinOp(e, "|", JS.IntLit(0))
+
   /** Compile Int primitive operations */
   private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
     name match
-      case "+" | "-" | "*" | "%" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
+      case "+" | "-" =>
+        // Can overflow Number: coerce to signed 32-bit
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, wrap32(JS.BinOp(qualExpr, name, argExpr)))
+
+      case "*" =>
+        // Math.imul gives exact 32-bit multiplication (a*b can exceed 2^53)
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.Call(Some(JS.Ident("Math")), "imul", List(qualExpr, argExpr)))
+
+      case "%" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
+        // %, shifts and bitwise already stay within signed 32-bit
         val arg :: Nil = args: @unchecked
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
         (stats, JS.BinOp(qualExpr, name, argExpr))
@@ -1068,7 +1084,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case "~-" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
-        (stats, JS.UnaryOp("-", expr))
+        (stats, wrap32(JS.UnaryOp("-", expr)))
 
       case "toString" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)

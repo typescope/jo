@@ -2,7 +2,10 @@ namespace jo
 
 import jo.compile.intrinsic
 
-//[ Int is the largest platform integer type
+//[ Signed 32-bit integer, the default integer type.
+  !
+  ! Arithmetic uses two's-complement and wraps around on overflow; the range is
+  ! [-2^31, 2^31 - 1].
   !
   ! Int can be used in union types.
 //]

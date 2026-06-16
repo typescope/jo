@@ -674,9 +674,24 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case _ =>
         throw new Exception(s"Unknown Bool method: $name")
 
+  /** Reduce an integer expression to signed 32-bit (two's-complement wrap):
+    * `((e + 0x80000000) & 0xFFFFFFFF) - 0x80000000`. Ruby Integers are
+    * arbitrary precision, so overflow-capable arithmetic is masked to keep
+    * `Int` 32-bit and consistent with the other backends.
+    */
+  private def wrapInt32(e: R.Tree): R.Tree =
+    val off  = R.IntLit(0x80000000L)
+    val mask = R.IntLit(0xFFFFFFFFL)
+    R.BinOp(R.BinOp(R.BinOp(e, "+", off), "&", mask), "-", off)
+
   private def compileIntPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, ctx: Context): R.Tree =
     name match
-      case "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
+      case "+" | "-" | "*" | "<<" =>
+        // Can overflow: wrap to signed 32-bit
+        val arg :: Nil = args: @unchecked
+        wrapInt32(R.BinOp(compileExpr(qual), name, compileExpr(arg)))
+
+      case "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | ">>" =>
         val arg :: Nil = args: @unchecked
         R.BinOp(compileExpr(qual), name, compileExpr(arg))
 
@@ -694,7 +709,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         compileExpr(qual)
 
       case "~-" =>
-        R.UnaryOp("-", compileExpr(qual))
+        wrapInt32(R.UnaryOp("-", compileExpr(qual)))
 
       case "toString" =>
         R.Select(compileExpr(qual), "to_s")
