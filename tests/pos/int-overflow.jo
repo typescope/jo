@@ -1,0 +1,21 @@
+// Int is signed 32-bit: arithmetic wraps with two's-complement semantics on
+// overflow. Every backend must agree — this test guards cross-backend
+// conformance for +, -, *, << and negation.
+
+def main() =
+  val maxI: Int = 2147483647
+
+  // Addition / subtraction overflow
+  println (maxI + 1)
+  println ((1 << 31) - 1)
+
+  // Multiplication overflow
+  println (maxI * 2)
+  println (1000000 * 1000000)
+  println (maxI * maxI)
+
+  // Shift overflow
+  println (1 << 31)
+
+  // Negating the most-negative value wraps back to itself
+  println (0 - (1 << 31))
