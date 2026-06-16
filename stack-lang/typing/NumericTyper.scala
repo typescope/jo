@@ -11,7 +11,7 @@ object NumericTyper:
   /** Type an integer literal from AST to SAST Literal
     *
     * Creates a polymorphic numeric literal based on the expected type:
-    * - Byte: if value in [-128, 127]
+    * - Byte: if value in [0, 255]
     * - Char: if value in [0, 65535]
     * - Float: always valid
     * - Int: default
@@ -22,10 +22,10 @@ object NumericTyper:
     // Determine the literal type based on expected type
     tt.knownType match
       case Some(expectedType) if expectedType.isSubtype(defn.ByteType) =>
-        if intValue >= -128 && intValue <= 127 then
+        if intValue >= 0 && intValue <= 255 then
           Literal(Constant.Int(intValue))(defn.ByteType, lit.span)
         else
-          rp.error(s"Integer literal $intValue out of range for Byte [-128, 127]", lit.span.toPos)
+          rp.error(s"Integer literal $intValue out of range for Byte [0, 255]", lit.span.toPos)
           Literal(Constant.Int(intValue))(defn.ByteType, lit.span)
 
       case Some(expectedType) if expectedType.isSubtype(defn.CharType) =>
@@ -51,7 +51,7 @@ object NumericTyper:
   /** Type a character literal from AST to SAST Literal
     *
     * Creates a polymorphic character literal based on the expected type:
-    * - Byte: if character code in [-128, 127] (for signed byte compatibility)
+    * - Byte: if character code in [0, 255]
     * - Int: widening conversion
     * - Float: widening conversion
     * - Char: default
@@ -62,11 +62,11 @@ object NumericTyper:
     // Determine the literal type based on expected type
     tt.knownType match
       case Some(expectedType) if expectedType.isSubtype(defn.ByteType) =>
-        // Char to Byte: only if character code fits in signed byte range
-        if charValue >= -128 && charValue <= 127 then
+        // Char to Byte: only if character code fits in unsigned byte range
+        if charValue >= 0 && charValue <= 255 then
           Literal(Constant.Int(charValue))(defn.ByteType, lit.span)
         else
-          rp.error(s"Character literal '${Character.toString(lit.value)}' (code $charValue) out of range for Byte [-128, 127]", lit.span.toPos)
+          rp.error(s"Character literal '${Character.toString(lit.value)}' (code $charValue) out of range for Byte [0, 255]", lit.span.toPos)
           Literal(Constant.Int(charValue))(defn.ByteType, lit.span)
 
       case Some(expectedType) if expectedType.isSubtype(defn.IntType) =>
