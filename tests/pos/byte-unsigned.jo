@@ -1,0 +1,25 @@
+// Byte is an unsigned 8-bit value [0, 255].
+// Int.toByte / Char.toByte mask to the low 8 bits; Byte.toInt zero-extends.
+
+def main() =
+  // Negative Int wraps modulo 256 (two's complement low byte)
+  println ((-25).toByte.toInt)    // -25 & 0xFF = 231
+  println ((-1).toByte.toInt)     // 255
+  println ((-128).toByte.toInt)   // 128
+  println ((-256).toByte.toInt)   // 0
+
+  // Non-negative values
+  println (0.toByte.toInt)        // 0
+  println (200.toByte.toInt)      // 200 (high bit set, stays 200 not -56)
+  println (255.toByte.toInt)      // 255
+  println (256.toByte.toInt)      // 0
+  println (300.toByte.toInt)      // 44
+
+  // Char.toByte masks to low 8 bits
+  println ('A'.toByte.toInt)      // 65
+
+  // Comparison treats bytes as unsigned (200 > 100, not -56 > 100)
+  val b: Byte = 200
+  val c: Byte = 100
+  println (b > c)                 // true
+  println (b == 200.toByte)       // true
