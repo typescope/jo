@@ -37,7 +37,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     "true", "false", "null", "undefined", "constructor",
     // JavaScript built-in objects/functions
     "Array", "Object", "String", "Number", "Boolean", "Function",
-    "Math", "Date", "JSON", "Promise", "Error",
+    "Math", "BigInt", "Date", "JSON", "Promise", "Error",
     "parseInt", "parseFloat", "isNaN", "isFinite", "eval",
     "console", "Buffer", "require", "module", "exports",
     "window", "document", "global", "process"
@@ -435,7 +435,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case Literal(c) =>
         // Literals are always pure
-        (Nil, compileLiteral(c))
+        (Nil, compileLiteral(c, word.tpe))
 
       case Ident(sym) =>
         assert(!sym.is(Flags.Context), "Unexpected context parameter")
@@ -500,6 +500,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           else if cls == defn.Bool_type then
             JS.BinOp(JS.UnaryOp("typeof", argExpr), "==", JS.StringLit("boolean"))
 
+          else if cls == defn.Long_type then
+            JS.BinOp(JS.UnaryOp("typeof", argExpr), "===", JS.StringLit("bigint"))
+
           else if cls == defn.Float_type || cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then
             JS.BinOp(JS.UnaryOp("typeof", argExpr), "==", JS.StringLit("number"))
 
@@ -540,11 +543,12 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         throw new Exception("Unexpected in expression position: " + word)
 
   /** Compile a literal constant */
-  private def compileLiteral(c: Constant): JS.Expr =
+  private def compileLiteral(c: Constant, tpe: Types.Type): JS.Expr =
     c match
       case Constant.Bool(b) => JS.BoolLit(b)
       case Constant.String(s) => JS.StringLit(s)
-      case Constant.Int(n) => JS.IntLit(n)
+      case Constant.Int(n) if tpe.isSubtype(defn.LongType) => JS.BigIntLit(n.toLong)
+      case Constant.Int(n) => JS.IntLit(n.toLong)
       case Constant.Float(d) => JS.FloatLit(d)
 
   /** Compile a list of expressions, correctly handling evaluation order */
@@ -780,6 +784,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
         compileIntPrimitive(name, qual, args, enforcePurity)
+
+      case Select(qual, name) if qual.tpe.isSubtype(defn.LongType) =>
+        compileLongPrimitive(name, qual, args, enforcePurity)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.ByteType) =>
         compileBytePrimitive(name, qual, args, enforcePurity)
@@ -1029,10 +1036,22 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case _ =>
         throw new Exception(s"Unknown Bool method: $name")
 
+  /** Coerce an integer expression to signed 32-bit via `| 0`. */
+  private def wrap32(e: JS.Expr): JS.Expr = JS.BinOp(e, "|", JS.IntLit(0))
+
+  /** Coerce a BigInt expression to signed 64-bit. */
+  private def wrapLong64(e: JS.Expr): JS.Expr =
+    JS.Call(Some(JS.Ident("BigInt")), "asIntN", List(JS.IntLit(64), e))
+
+  private def numberToBigInt(e: JS.Expr): JS.Expr =
+    JS.Call(None, "BigInt", List(e))
+
   /** Compile Int primitive operations */
   private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
     name match
-      case "+" | "-" | "*" | "%" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
+      case "%" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" | "+" | "-" | "*" =>
+        // Arithmetic overflow is undefined
+        // %, shifts and bitwise already stay within signed 32-bit
         val arg :: Nil = args: @unchecked
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
         (stats, JS.BinOp(qualExpr, name, argExpr))
@@ -1048,15 +1067,19 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         (stats, JS.BinOp(qualExpr, "!==", argExpr))
 
       case "/" =>
-        // Integer division in JavaScript requires Math.floor
+        // Truncate toward zero to match the other backends (JS `%` already
+        // truncates, so this keeps q*b + r == a). `| 0` also wraps INT_MIN/-1.
         val arg :: Nil = args: @unchecked
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
-        val divExpr = JS.BinOp(qualExpr, "/", argExpr)
-        (stats, JS.Call(Some(JS.Ident("Math")), "floor", List(divExpr)))
+        (stats, wrap32(JS.BinOp(qualExpr, "/", argExpr)))
 
       case "toFloat" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, expr)  // JavaScript numbers are already floats
+
+      case "toLong" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, numberToBigInt(expr))
 
       case "toByte" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
@@ -1070,12 +1093,68 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, JS.UnaryOp("-", expr))
 
+      case "~~" =>
+        // JS bitwise NOT already yields a signed 32-bit result.
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, JS.UnaryOp("~", expr))
+
       case "toString" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, JS.Call(Some(expr), "toString", Nil))
 
       case _ =>
         throw new Exception(s"Unknown Int method: $name")
+
+  /** Compile Long primitive operations using JavaScript BigInt. */
+  private def compileLongPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
+    name match
+      case "<<" =>
+        // Left shift has specified 64-bit two's-complement semantics.
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, wrapLong64(JS.BinOp(qualExpr, "<<", argExpr)))
+
+      case "+" | "-" | "*" | "/" | "%" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | ">>" =>
+        // BigInt division truncates toward zero, and BigInt remainder keeps
+        // the dividend sign. Arithmetic overflow is undefined except for <<.
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, name, argExpr))
+
+      case "==" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, "===", argExpr))
+
+      case "!=" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, JS.BinOp(qualExpr, "!==", argExpr))
+
+      case "~-" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, JS.UnaryOp("-", expr))
+
+      case "~~" =>
+        // BigInt bitwise NOT is exact (~x == -x - 1), always in 64-bit range.
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, JS.UnaryOp("~", expr))
+
+      case "toInt" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        val int32 = JS.Call(Some(JS.Ident("BigInt")), "asIntN", List(JS.IntLit(32), expr))
+        (stats, JS.Call(None, "Number", List(int32)))
+
+      case "toFloat" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, JS.Call(None, "Number", List(expr)))
+
+      case "toString" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, JS.Call(Some(expr), "toString", Nil))
+
+      case _ =>
+        throw new Exception(s"Unknown Long method: $name")
 
   /** Compile Byte primitive operations */
   private def compileBytePrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
@@ -1118,6 +1197,10 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case "toInt" =>
         // Char is already represented as Int (Unicode code point) in JavaScript
         compileExpr(qual, enforcePurity)
+
+      case "toLong" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, numberToBigInt(expr))
 
       case "toString" =>
         // Use String.fromCodePoint to convert Unicode code point to string

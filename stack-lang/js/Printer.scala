@@ -85,6 +85,17 @@ object Printer:
     case "!"|"~"|"-"|"+"|"typeof"|"void"|"delete" => 12  // Unary operators
     case _ => 100        // Atomic expressions (no parens needed)
 
+  /** A `+`/`-` operator, which can merge with a following sign into `++`/`--`. */
+  private def isSign(op: String): Boolean = op == "-" || op == "+"
+
+  /** Whether an expression is emitted starting with a `-` sign (a negative
+    * Int/Float literal); such operands need separating from a preceding sign.
+    * BigInt literals parenthesize their own negatives, so they don't count. */
+  private def startsWithSign(expr: Expr): Boolean = expr match
+    case IntLit(n)   => n < 0
+    case FloatLit(d) => d < 0
+    case _           => false
+
   /** Print a complete JavaScript program */
   def print(program: Program, pw: java.io.PrintWriter): Unit =
     given ctx: Context = Context(0, pw)
@@ -274,6 +285,16 @@ object Printer:
         else
           emitInline(n.toString)
 
+      case BigIntLit(n) =>
+        val literal =
+          if n < 0 then s"(${n}n)"
+          else s"${n}n"
+        if parentPrec > 20 && n >= 0 then
+          // 2n.toString is invalid in JS, (2n).toString is OK
+          emitInline("(", literal, ")")
+        else
+          emitInline(literal)
+
       case FloatLit(d) => emitInline(d.toString)
 
       case StringLit(s) => emitInline("\"" + escape(s) + "\"")
@@ -297,8 +318,11 @@ object Printer:
       case UnaryOp(op, operand) =>
         withParenthesisOpt(op): myPrec =>
           emitInline(op)
-          // Add space if operator is a word (typeof, void, delete)
-          if op.head.isLetter then emitInline(" ")
+          // Separate the operator from the operand when they would otherwise
+          // merge into a different token: a word operator (typeof/void/delete),
+          // or a sign followed by a negative literal (-(-10) must not be `--10`).
+          if op.head.isLetter || (isSign(op) && startsWithSign(operand)) then
+            emitInline(" ")
           emitExpr(operand, myPrec + 1)
 
       case Conditional(cond, thenBranch, elseBranch) =>

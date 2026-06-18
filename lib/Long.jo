@@ -1,0 +1,115 @@
+namespace jo
+
+import jo.compile.intrinsic
+
+//[ Signed 64-bit integer.
+  !
+  ! The range is [-2^63, 2^63 - 1].
+  !
+  ! Arithmetic (`+`, `-`, `*`, unary `-`) that overflows the range is undefined
+  ! behavior — a wrapped result would still be a bug, so it is not specified.
+  !
+  ! Bitwise operations (`<<`, `>>`, `&`, `|`, `^`) respect the 64-bit
+  ! two's-complement representation (e.g. `1 << 63` is the most-negative value).
+  !
+  ! Long can be used in union types.
+//]
+@intrinsic
+class Long
+  private def Long() = abort "Cannot create new Long instance"
+
+  // Arithmetic operators as methods
+  @intrinsic
+  def +(other: Long): Long = ...
+
+  @intrinsic
+  def -(other: Long): Long = ...
+
+  @intrinsic
+  def *(other: Long): Long = ...
+
+  //[ Integer division, truncating toward zero.
+    !
+    ! The fractional part of the exact quotient is discarded. When `a / b` is
+    ! representable, it pairs with `%` so that `(a / b) * b + a % b == a`.
+    !
+    ! When the quotient is not representable — division by zero, or the
+    ! overflowing `LONG_MIN / -1` — both `/` and `%` are runtime-dependent.
+  //]
+  @intrinsic
+  def /(other: Long): Long = ...
+
+  //[ Remainder of truncated division; the result takes the sign of the
+    ! dividend. Runtime-dependent when the corresponding quotient is not
+    ! representable (division by zero, or `LONG_MIN / -1`).
+  //]
+  @intrinsic
+  def %(other: Long): Long = ...
+
+  // Comparison operators as methods
+  @intrinsic
+  def >(other: Long): Bool = ...
+
+  @intrinsic
+  def <(other: Long): Bool = ...
+
+  @intrinsic
+  def >=(other: Long): Bool = ...
+
+  @intrinsic
+  def <=(other: Long): Bool = ...
+
+  @intrinsic
+  def ==(other: Long): Bool = ...
+
+  @intrinsic
+  def !=(other: Long): Bool = !(this == other)
+
+  // Bitwise operators as methods
+
+  //[ Arithmetic shift right.
+    !
+    ! The behavior is undefined if count > 63.
+  //]
+  @intrinsic
+  def >>(count: Long): Long = ...
+
+  //[ Arithmetic shift left.
+    !
+    ! The behavior is undefined if count > 63.
+  //]
+  @intrinsic
+  def <<(count: Long): Long = ...
+
+  @intrinsic
+  def &(other: Long): Long = ...
+
+  @intrinsic
+  def |(other: Long): Long = ...
+
+  @intrinsic
+  def ^(other: Long): Long = ...
+
+  //[ Bitwise complement (prefix `~`)  //]
+  @intrinsic
+  def ~~(): Long = ...
+
+  //[ Prefix negation   //]
+  @intrinsic
+  def ~-(): Long = ...
+
+  // Conversion methods
+  @intrinsic
+  def toInt: Int = ...
+
+  @intrinsic
+  def toFloat: Float = ...
+
+  @intrinsic
+  def toString: String = ...
+
+  def compareTo(other: Long): Int = if this > other then 1 else if this < other then -1 else 0
+  def hashCode: Int = this.toInt
+  def max(other: Long): Long = if this >= other then this else other
+  def min(other: Long): Long = if this <= other then this else other
+end

@@ -37,6 +37,9 @@ class Char
   def toInt: Int = ...
 
   @intrinsic
+  def toLong: Long = ...
+
+  @intrinsic
   def toFloat: Float = ...
 
   @intrinsic

@@ -75,7 +75,7 @@ object Compiler:
 
         val pythonRuntime = new PythonRuntime
         val contextParamsLower = new LowerContextParams(pythonRuntime.ParamSupport)
-        val erasure = new Erasure(primitiveTagged = true)
+        val erasure = new Erasure(Erasure.allTagged)
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView
         val rewire  = FrontEnd.rewireMap.value

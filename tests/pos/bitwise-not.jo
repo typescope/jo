@@ -1,0 +1,45 @@
+// Bitwise complement, written `~~` per the prefix-operator naming convention
+// and invoked as the prefix `~`. `~x == -x - 1`, always in range.
+
+def main =
+  // --- Int ---
+  val a: Int = 5
+  val na = ~a
+  println na               // -6
+
+  val zero: Int = 0
+  println ~zero            // -1
+
+  val negOne: Int = 0 - 1
+  println ~negOne          // 0
+
+  val imax: Int = 2147483647
+  println ~imax            // -2147483648  (INT_MAX -> INT_MIN)
+
+  val imin: Int = -2147483648
+  println ~imin            // 2147483647   (INT_MIN -> INT_MAX)
+
+  // Double complement is the identity.
+  val once = ~a
+  val twice = ~once
+  println twice            // 5
+
+  // ~x == -x - 1
+  println ((0 - a) - 1)    // -6
+
+  // --- Long ---
+  val la: Long = 5
+  println ~la              // -6
+
+  val lzero: Long = 0
+  println ~lzero           // -1
+
+  val lmax: Long = 9223372036854775807
+  println ~lmax            // -9223372036854775808  (LONG_MAX -> LONG_MIN)
+
+  val lmin: Long = -9223372036854775808
+  println ~lmin            // 9223372036854775807   (LONG_MIN -> LONG_MAX)
+
+  val lonce = ~la
+  val ltwice = ~lonce
+  println ltwice           // 5

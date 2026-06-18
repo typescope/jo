@@ -1162,6 +1162,9 @@ object Encoder:
   private def encodeInt(n: Int)(using buf: WriteBuffer): Unit =
     buf.addInt(n)
 
+  private def encodeBigInt(n: BigInt)(using buf: WriteBuffer): Unit =
+    buf.addBigInt(n)
+
   private def encodeIntRaw(n: Int)(using buf: WriteBuffer): Unit =
     buf.addIntRaw(n)
 
@@ -1186,7 +1189,7 @@ object Encoder:
 
       case Constant.Int(value) =>
         encodeByte(Format.IntConst)
-        encodeInt(value)
+        encodeBigInt(value)
 
       case Constant.Float(value) =>
         encodeByte(Format.FloatConst)

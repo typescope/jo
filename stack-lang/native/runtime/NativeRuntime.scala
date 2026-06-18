@@ -51,6 +51,7 @@ extends Linker:
   val Core_ByteOps  = Native.containerMember("ByteOps")
   val Core_CharOps  = Native.containerMember("CharOps")
   val Core_FloatOps = Native.containerMember("FloatOps")
+  val Core_LongOps  = Native.containerMember("LongOps")
   val Core_StringOps = Native.containerMember("StringOps")
 
   // Bool primitive operators (defined in section BoolOps in Native.jo)
@@ -81,6 +82,7 @@ extends Linker:
   val Int_toByte = Core_IntOps.termMember("toByte")
   val Int_toFloat = Core_IntOps.termMember("toFloat")
   val Int_neg    = Core_IntOps.termMember("~-")
+  val Int_not    = Core_IntOps.termMember("~~")
 
   // Byte primitive operators (defined in section ByteOps in Native.jo)
   val Byte_eq = Core_ByteOps.termMember("==")
@@ -124,6 +126,7 @@ extends Linker:
   val Core_CharBox = Native.typeMember("CharBox")
   val Core_IntBox = Native.typeMember("IntBox")
   val Core_FloatBox = Native.typeMember("FloatBox")
+  val Core_LongRepr = Native.typeMember("LongRepr")
 
   // Boxing class constructors (synthesized by the compiler)
   val Core_BoolBox_fun = Native.termMember("BoolBox")
@@ -131,6 +134,7 @@ extends Linker:
   val Core_CharBox_fun = Native.termMember("CharBox")
   val Core_IntBox_fun = Native.termMember("IntBox")
   val Core_FloatBox_fun = Native.termMember("FloatBox")
+  val Core_LongRepr_fun = Native.termMember("LongRepr")
 
   val Core_String_fromByteString = Core_StringOps.termMember("fromByteString")
 

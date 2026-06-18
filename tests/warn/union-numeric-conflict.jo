@@ -23,3 +23,12 @@ type BadUnion7 = Bool | Int
 
 // Bool and Char conflict
 type BadUnion8 = Bool | Char
+
+// Long and Int conflict
+type BadUnion9 = Long | Int
+
+// Long and Float conflict
+type BadUnion10 = Long | Float
+
+// Long and Char conflict
+type BadUnion11 = Long | Char

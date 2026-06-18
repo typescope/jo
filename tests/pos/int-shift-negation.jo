@@ -1,0 +1,26 @@
+// Edge cases for Int left shift and unary negation.
+//
+// Left shift is defined only for counts 0..31 (see lib/Int.jo); within that
+// range the result is the signed 32-bit two's-complement value, so shifting
+// into or past bit 31 must produce a negative number. Unary negation is plain
+// arithmetic negation (negating INT_MIN is undefined and not exercised here).
+
+def main =
+  // Left shift across the defined range, including into the sign bit.
+  println (1 << 0)        // 1
+  println (1 << 1)        // 2
+  println (1 << 30)       // 1073741824
+  println (1 << 31)       // -2147483648  (sign bit set)
+  println (255 << 24)     // -16777216    (0xFF000000)
+  println (3 << 30)       // -1073741824  (bits shifted past bit 31 dropped)
+
+  val neg1: Int = 0 - 1
+  println (neg1 << 31)    // -2147483648
+  println (neg1 << 1)     // -2
+
+  // Unary negation (operands kept in range; -INT_MIN is undefined).
+  val a: Int = 5
+  val b: Int = 0 - 7
+  println (-a)            // -5
+  println (-b)            // 7
+  println (-(-a))         // 5

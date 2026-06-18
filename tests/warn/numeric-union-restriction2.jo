@@ -1,6 +1,3 @@
-// Test that numeric types cannot subtype to union types
-// This restriction prevents function contravariance issues
-
 section A
   type IntOrString = Int | String
 

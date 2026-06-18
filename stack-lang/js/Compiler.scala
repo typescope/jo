@@ -73,7 +73,7 @@ object Compiler:
 
         val jsRuntime = new JSRuntime
         val contextParamsLower = new LowerContextParams(jsRuntime.ParamSupport)
-        val erasure = new Erasure(primitiveTagged = true)
+        val erasure = new Erasure(Erasure.allTagged)
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView
         val backend: Step[List[FileUnit], Unit] =

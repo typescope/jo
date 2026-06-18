@@ -112,7 +112,7 @@ extends Backend(runtime):
             call(runtime.Core_String_fromByteString)
 
           case Constant.Int(n) =>
-            ctx.vs.push(Int32(n))
+            ctx.vs.push(Int32(n.toInt))
 
           case Constant.Float(_) =>
             throw new Exception("Floating point not supported for native backend")
@@ -539,6 +539,13 @@ extends Backend(runtime):
         gen(Instr.Sub(Int32(0), v, r))
         ctx.vs.push(Reg(r))
 
+      case runtime.Int_not =>
+        // Bitwise complement: x ^ 0xFFFFFFFF
+        val v = ctx.vs.pop()
+        val r = freshVirtualReg()
+        gen(Instr.Xor(v, Int32(-1), r))
+        ctx.vs.push(Reg(r))
+
       case _ =>
         call(sym)
 
@@ -603,7 +610,7 @@ extends Backend(runtime):
 
     else if sym == runtime.Core_getInterfaceTable then
       val Literal(Constant.Int(classId)) = app.args.head.runtimeChecked
-      val classInfo = runtime.itable.getClassSymbol(classId).classInfo
+      val classInfo = runtime.itable.getClassSymbol(classId.toInt).classInfo
       val label = runtime.itable.getInterfaceTable(classInfo)
 
       // Mark all interface methods reachable

@@ -556,7 +556,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val className =
           if cls == defn.String_type then "str"
           else if cls == defn.Float_type then "float"
-          else if cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then "int"
+          else if cls == defn.Int_type || cls == defn.Long_type || cls == defn.Byte_type || cls == defn.Char_type then "int"
           else if cls == defn.Bool_type then "bool"
           else if cls == defn.Array_class then "list"
           else pythonName(cls)
@@ -599,7 +599,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     c match
       case Constant.Bool(b) => P.BoolLit(b)
       case Constant.String(s) => P.StringLit(s)
-      case Constant.Int(n) => P.IntLit(n)
+      case Constant.Int(n) => P.IntLit(n.toLong)
       case Constant.Float(d) => P.FloatLit(d)
 
 
@@ -856,6 +856,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
         compileIntPrimitive(name, qual, args, enforcePurity)
 
+      case Select(qual, name) if qual.tpe.isSubtype(defn.LongType) =>
+        compileLongPrimitive(name, qual, args, enforcePurity)
+
       case Select(qual, name) if qual.tpe.isSubtype(defn.ByteType) =>
         compileBytePrimitive(name, qual, args, enforcePurity)
 
@@ -1050,22 +1053,54 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case _ =>
         throw new Exception(s"Unknown Bool method: $name")
 
+  /** Reduce an integer expression to signed 32-bit (two's-complement wrap):
+    * `((e + 0x80000000) & 0xFFFFFFFF) - 0x80000000`. Python ints are
+    * arbitrary precision, so arithmetic that can overflow must be masked to
+    * keep `Int` 32-bit and consistent with the other backends.
+    */
+  private def wrapInt32(e: P.Expr): P.Expr =
+    val off  = P.IntLit(0x80000000L)
+    val mask = P.IntLit(0xFFFFFFFFL)
+    P.BinOp(P.BinOp(P.BinOp(e, "+", off), "&", mask), "-", off)
+
   private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
     name match
-      case "+" | "-" | "*" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
+      case "<<" =>
+        // Left shift is a bit operation with defined 32-bit semantics
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, wrapInt32(P.BinOp(qualExpr, "<<", argExpr)))
+
+      case "+" | "-" | "*" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | ">>" =>
+        // Arithmetic overflow is undefined
+        // comparisons and the other bit ops stay within range for in-range inputs
         val arg :: Nil = args: @unchecked
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
         (stats, P.BinOp(qualExpr, name, argExpr))
 
       case "/" =>
-        // Integer division in Python requires //
+        // Truncate toward zero. int(a / b) is exact for 32-bit operands
+        // (|a| < 2^53 means float division never crosses an integer boundary).
+        // The only overflowing division, INT_MIN / -1, is runtime-dependent.
         val arg :: Nil = args: @unchecked
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
-        (stats, P.BinOp(qualExpr, "//", argExpr))
+        (stats, P.Call(None, "int", List(P.BinOp(qualExpr, "/", argExpr))))
+
+      case "%" =>
+        // Truncated remainder (sign of dividend): a - b * int(a / b).
+        // Operands appear twice, so enforce purity to bind them to temps.
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity = true)
+        val q = P.Call(None, "int", List(P.BinOp(qualExpr, "/", argExpr)))
+        (stats, P.BinOp(qualExpr, "-", P.BinOp(argExpr, "*", q)))
 
       case "toFloat" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.Call(None, "float", List(expr)))
+
+      case "toLong" =>
+        // Int/Byte/Char -> Long: same value in Python (already in range)
+        compileExpr(qual, enforcePurity)
 
       case "toByte" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
@@ -1079,12 +1114,95 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.UnaryOp("-", expr))
 
+      case "~~" =>
+        // Bitwise NOT (~x == -x - 1) stays in 32-bit range, so no wrap needed.
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, P.UnaryOp("~", expr))
+
       case "toString" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.Call(None, "str", List(expr)))
 
       case _ =>
         throw new Exception(s"Unknown Int method: $name")
+
+  /** Reduce an integer expression to signed 64-bit (two's-complement wrap):
+    * `((e + 2^63) & (2^64 - 1)) - 2^63`. The constants exceed Long, so they
+    * are emitted as `1 << 63` / `(1 << 64) - 1`.
+    */
+  private def wrapInt64(e: P.Expr): P.Expr =
+    val off  = P.BinOp(P.IntLit(1), "<<", P.IntLit(63))
+    val mask = P.BinOp(P.BinOp(P.IntLit(1), "<<", P.IntLit(64)), "-", P.IntLit(1))
+    P.BinOp(P.BinOp(P.BinOp(e, "+", off), "&", mask), "-", off)
+
+  /** Sign-aware truncating div/mod, exact for 64-bit operands (the float
+    * `int(a / b)` loses precision past 2^53):
+    *   quotient:  (abs(a) // abs(b)) * (1 - 2 * (a ^ b < 0))
+    *   remainder: (abs(a) % abs(b)) * (1 - 2 * (a < 0))
+    * Written without conditionals or comparison operands so it survives Python
+    * comparison chaining. `a` and `b` must be stable (referenced several times).
+    */
+  private def absSign(magOp: String, a: P.Expr, b: P.Expr, signCond: P.Expr): P.Expr =
+    val mag  = P.BinOp(P.Call(None, "abs", List(a)), magOp, P.Call(None, "abs", List(b)))
+    val sign = P.BinOp(P.IntLit(1), "-", P.BinOp(P.IntLit(2), "*", signCond))
+    P.BinOp(mag, "*", sign)
+
+  private def truncDiv(a: P.Expr, b: P.Expr): P.Expr =
+    absSign("//", a, b, P.BinOp(P.BinOp(a, "^", b), "<", P.IntLit(0)))
+
+  private def truncMod(a: P.Expr, b: P.Expr): P.Expr =
+    absSign("%", a, b, P.BinOp(a, "<", P.IntLit(0)))
+
+  /** Compile Long primitive operations (signed 64-bit). */
+  private def compileLongPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
+    name match
+      case "<<" =>
+        // Left shift is a bit operation with defined 64-bit semantics
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, wrapInt64(P.BinOp(qualExpr, "<<", argExpr)))
+
+      case "+" | "-" | "*" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | ">>" =>
+        // Arithmetic overflow is undefined; comparisons and the other bit ops
+        // stay within range for in-range inputs
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        (stats, P.BinOp(qualExpr, name, argExpr))
+
+      case "/" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity = true)
+        (stats, truncDiv(qualExpr, argExpr))
+
+      case "%" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity = true)
+        (stats, truncMod(qualExpr, argExpr))
+
+      case "~-" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, P.UnaryOp("-", expr))
+
+      case "~~" =>
+        // Bitwise NOT (~x == -x - 1) stays in 64-bit range, so no wrap needed.
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, P.UnaryOp("~", expr))
+
+      case "toInt" =>
+        // Long -> Int: low 32 bits, signed
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, wrapInt32(expr))
+
+      case "toFloat" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, P.Call(None, "float", List(expr)))
+
+      case "toString" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, P.Call(None, "str", List(expr)))
+
+      case _ =>
+        throw new Exception(s"Unknown Long method: $name")
 
   /** Compile Byte primitive operations */
   private def compileBytePrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
@@ -1116,6 +1234,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
       case "toInt" =>
         // Char is already represented as Int (Unicode code point) in Python
+        compileExpr(qual, enforcePurity)
+
+      case "toLong" =>
+        // Char -> Long: same int value in Python
         compileExpr(qual, enforcePurity)
 
       case "toString" =>

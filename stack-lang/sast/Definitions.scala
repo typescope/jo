@@ -52,6 +52,7 @@ final class Definitions(private var _index: SymbolIndex) extends Definitions.Laz
   val Byte_type   =  jo.typeMember("Byte")
   val Char_type   =  jo.typeMember("Char")
   val Int_type    =  jo.typeMember("Int")
+  val Long_type   =  jo.typeMember("Long")
   val Bool_type   =  jo.typeMember("Bool")
   val Float_type  =  jo.typeMember("Float")
   val String_type =  jo.typeMember("String")
@@ -124,6 +125,7 @@ final class Definitions(private var _index: SymbolIndex) extends Definitions.Laz
   val abort = jo.termMember("abort")
 
   val IntType     = StaticRef(Int_type)
+  val LongType    = StaticRef(Long_type)
   val BoolType    = StaticRef(Bool_type)
   val ByteType    = StaticRef(Byte_type)
   val CharType    = StaticRef(Char_type)
@@ -145,6 +147,7 @@ final class Definitions(private var _index: SymbolIndex) extends Definitions.Laz
     sym == Byte_type
     || sym == Char_type
     || sym == Int_type
+    || sym == Long_type
     || sym == Float_type
 
   def isNumericOrBool(sym: Symbol): Boolean =

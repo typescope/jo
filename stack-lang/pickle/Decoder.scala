@@ -1525,6 +1525,9 @@ object Decoder:
   private def decodeInt()(using buf: ReadBuffer): Int =
     buf.readInt()
 
+  private def decodeBigInt()(using buf: ReadBuffer): BigInt =
+    buf.readBigInt()
+
   private def decodeIntRaw()(using buf: ReadBuffer): Int =
     buf.readIntRaw()
 
@@ -1549,7 +1552,7 @@ object Decoder:
         Constant.Bool(value)
 
       case Format.IntConst =>
-        val value = decodeInt()
+        val value = decodeBigInt()
         Constant.Int(value)
 
       case Format.FloatConst =>

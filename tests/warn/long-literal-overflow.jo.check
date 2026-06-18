@@ -1,0 +1,16 @@
+---------- Error at tests/warn/long-literal-overflow.jo:5:17 ---------------
+|   val a: Long = 9223372036854775808
+|                 ^^^^^^^^^^^^^^^^^^^
+|                 Integer literal overflow: 9223372036854775808
+
+---------- Error at tests/warn/long-literal-overflow.jo:8:17 ---------------
+|   val b: Long = -9223372036854775809
+|                 ^^^^^^^^^^^^^^^^^^^^
+|                 Integer literal overflow: -9223372036854775809
+
+---------- Error at tests/warn/long-literal-overflow.jo:11:17 ---------------
+|   val c: Long = 0x10000000000000000
+|                 ^^^^^^^^^^^^^^^^^^^
+|                 Hexadecimal literal too long (max 16 hex digits): 10000000000000000
+
+3 error(s), 0 warning(s)

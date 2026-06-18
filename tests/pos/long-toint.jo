@@ -1,0 +1,54 @@
+// Long.toInt keeps the low 32 bits and reinterprets them as a signed Int, so
+// the high 32 bits are discarded and bit 31 of the result determines its sign.
+
+def main =
+  // --- Values already in Int range: toInt is the identity ---
+  val zero: Long = 0
+  println zero.toInt                   // 0
+
+  val small: Long = 42
+  println small.toInt                  // 42
+
+  val negOne: Long = 0 - 1             // 0xFFFFFFFFFFFFFFFF -> low32 0xFFFFFFFF
+  println negOne.toInt                 // -1
+
+  val negTwo: Long = 0 - 2
+  println negTwo.toInt                 // -2
+
+  val negHundred: Long = 0 - 100
+  println negHundred.toInt             // -100
+
+  val intMin: Long = -2147483648       // INT_MIN, in range
+  println intMin.toInt                 // -2147483648
+
+  val intMax: Long = 2147483647        // INT_MAX, in range
+  println intMax.toInt                 // 2147483647
+
+  // --- Values out of Int range: low 32 bits, reinterpreted signed ---
+  val maxL: Long = 9223372036854775807  // 0x7FFFFFFFFFFFFFFF -> low32 0xFFFFFFFF
+  println maxL.toInt                    // -1
+
+  val maxLminus1: Long = 9223372036854775806 // 0x7FFFFFFFFFFFFFFE -> low32 0xFFFFFFFE
+  println maxLminus1.toInt             // -2
+
+  val minL: Long = -9223372036854775808 // 0x8000000000000000 -> low32 0x00000000
+  println minL.toInt                   // 0
+
+  val minLplus1: Long = -9223372036854775807 // 0x8000000000000001 -> low32 0x00000001
+  println minLplus1.toInt              // 1
+
+  val pow32: Long = 4294967296         // 0x0000000100000000 -> low32 0x00000000
+  println pow32.toInt                  // 0
+
+  val mixed: Long = 4294967297         // 0x0000000100000001 -> low32 0x00000001
+  println mixed.toInt                  // 1
+
+  val allOnes32: Long = 4294967295     // 0x00000000FFFFFFFF -> low32 0xFFFFFFFF
+  println allOnes32.toInt              // -1
+
+  val signBit: Long = 2147483648       // 0x0000000080000000 -> low32 0x80000000
+  println signBit.toInt                // -2147483648
+
+  // Negative Long whose low 32 bits are positive: -2^32 + 1 -> low32 0x00000001
+  val negFlips: Long = -4294967295     // 0xFFFFFFFF00000001
+  println negFlips.toInt               // 1

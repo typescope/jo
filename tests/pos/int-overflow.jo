@@ -1,0 +1,21 @@
+// Int is signed 32-bit, but arithmetic overflow is undefined.
+// This test keeps boundary arithmetic inside the defined range so every
+// backend has a stable result to agree on.
+
+def main() =
+  val maxI: Int = 2147483647
+  val minI: Int = -2147483648
+
+  // Addition / subtraction at the range boundaries, without overflow
+  println (maxI + 0)
+  println (minI - 0)
+  println (minI + 1)
+  println (maxI - 1)
+
+  // Multiplication near the boundary, without overflow
+  println (46340 * 46340)
+  println ((0 - 46340) * 46340)
+
+  // Shifts that stay within the positive range
+  println (1 << 30)
+  println ((1 << 30) - 1)

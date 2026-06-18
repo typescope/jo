@@ -2,7 +2,10 @@ namespace jo
 
 import jo.compile.intrinsic
 
-// [-128, 127]
+//[ Unsigned 8-bit value, [0, 255].
+  !
+  !Storage/octet type: no arithmetic — convert to Int to compute.
+//]
 @intrinsic
 class Byte
   private def Byte() = abort "Cannot create new Byte instance"
@@ -29,6 +32,9 @@ class Byte
   // Conversion methods
   @intrinsic
   def toInt: Int = ...
+
+  @intrinsic
+  def toLong: Long = ...
 
   @intrinsic
   def toChar: Char = ...

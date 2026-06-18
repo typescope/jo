@@ -88,9 +88,9 @@ py.call(someCallable, ..items, sep = "-")
 `cast[T]` reinterprets a `py.Dynamic` as a Jo type without any runtime conversion. The programmer asserts that the underlying Python value conforms to `T`. If the assertion is wrong, later operations on the result will fail at runtime.
 
 ```jo
-val n: Int    = someValue.asInt
-val s: String = someValue.asString
-val b: Bool   = someValue.asBool
+val n: Int    = someValue.cast[Int]
+val s: String = someValue.cast[String]
+val b: Bool   = someValue.cast[Bool]
 ```
 
 ### Convenience cast shortcuts

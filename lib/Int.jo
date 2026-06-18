@@ -2,7 +2,15 @@ namespace jo
 
 import jo.compile.intrinsic
 
-//[ Int is the largest platform integer type
+//[ Signed 32-bit integer
+  !
+  ! The default integer type. the range is [-2^31, 2^31 - 1].
+  !
+  ! Arithmetic (`+`, `-`, `*`, unary `-`) that overflows the range is undefined
+  ! behavior — a wrapped result would still be a bug, so it is not specified.
+  !
+  ! Bitwise operations (`<<`, `>>`, `&`, `|`, `^`) respect the 32-bit
+  ! two's-complement representation (e.g. `1 << 31` is the most-negative value).
   !
   ! Int can be used in union types.
 //]
@@ -20,9 +28,26 @@ class Int
   @intrinsic
   def *(other: Int): Int = ...
 
+  //[ Integer division, truncating toward zero.
+    !
+    ! The fractional part of the exact quotient is discarded, e.g.
+    ! `(0 - 7) / 2 == -3`. When `a / b` is representable, it pairs with `%` so
+    ! that `(a / b) * b + a % b == a`.
+    !
+    ! When the quotient is not representable — division by zero, or the
+    ! overflowing `INT_MIN / -1` — both `/` and `%` are runtime-dependent.
+  //]
   @intrinsic
   def /(other: Int): Int = ...
 
+  //[ Remainder of truncated division.
+    !
+    ! The result takes the sign of the dividend, e.g. `(0 - 7) % 2 == -1` and
+    ! `7 % (0 - 2) == 1`.
+    !
+    ! When the corresponding quotient `a / b` is not representable — division
+    ! by zero, or `INT_MIN / -1` — both `/` and `%` are runtime-dependent.
+  //]
   @intrinsic
   def %(other: Int): Int = ...
 
@@ -46,12 +71,20 @@ class Int
   def !=(other: Int): Bool = !(this == other)
 
   // Bitwise operators as methods
-  //[ Arithmetic shift right. //]
-  @intrinsic
-  def >>(other: Int): Int = ...
 
+  //[ Arithmetic shift right.
+    !
+    ! The behavior is undefined if count > 31.
+  //]
   @intrinsic
-  def <<(other: Int): Int = ...
+  def >>(count: Int): Int = ...
+
+  //[ Arithmetic shift left.
+    !
+    ! The behavior is undefined if count > 31 .
+  //]
+  @intrinsic
+  def <<(count: Int): Int = ...
 
   @intrinsic
   def &(other: Int): Int = ...
@@ -62,7 +95,11 @@ class Int
   @intrinsic
   def ^(other: Int): Int = ...
 
-  // Prefix negation
+  //[ Bitwise complement (prefix `~`)   //]
+  @intrinsic
+  def ~~(): Int = ...
+
+  //[ Prefix negation   //]
   @intrinsic
   def ~-(): Int = ...
 
@@ -72,6 +109,9 @@ class Int
 
   @intrinsic
   def toByte: Byte = ...
+
+  @intrinsic
+  def toLong: Long = ...
 
   @intrinsic
   def toFloat: Float = ...

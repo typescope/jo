@@ -37,8 +37,19 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     "true", "false", "nil", "and", "or", "not", "in", "then"
   )
 
+  // Ruby built-in constants/classes that the generated code references
+  // directly (see ClassTest and Long division). Reserve them so a user symbol
+  // is never emitted with one of these names and shadows the runtime class we
+  // depend on.
+  val builtinConstants = List(
+    "Integer", "Float", "String", "Array", "Rational", "TrueClass", "FalseClass"
+  )
+
   // Make keywords unavailable
   for word <- keywords do reservedNames.freshName(word)
+
+  // Make built-in constants unavailable
+  for name <- builtinConstants do reservedNames.freshName(name)
 
   // Make runtime symbols unavailable
   for name <- runtime.runtimeNames do reservedNames.freshName(name)
@@ -214,7 +225,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       c match
         case Constant.Bool(b) => R.BoolLit(b)
         case Constant.String(s) => R.StringLit(s)
-        case Constant.Int(n) => R.IntLit(n)
+        case Constant.Int(n) => R.IntLit(n.toLong)
         case Constant.Float(d) => R.FloatLit(d)
 
     case Ident(sym) =>
@@ -270,7 +281,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         val className =
           if cls == defn.String_type then "String"
           else if cls == defn.Float_type then "Float"
-          else if cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then "Integer"
+          else if cls == defn.Int_type || cls == defn.Long_type || cls == defn.Byte_type || cls == defn.Char_type then "Integer"
           else if cls == defn.Array_class then "Array"
           else rubyName(cls)
 
@@ -544,6 +555,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case Select(qual, name) if qual.tpe.isSubtype(defn.IntType) =>
         compileIntPrimitive(name, qual, args)
 
+      case Select(qual, name) if qual.tpe.isSubtype(defn.LongType) =>
+        compileLongPrimitive(name, qual, args)
+
       case Select(qual, name) if qual.tpe.isSubtype(defn.ByteType) =>
         compileIntPrimitive(name, qual, args)
 
@@ -674,14 +688,64 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case _ =>
         throw new Exception(s"Unknown Bool method: $name")
 
+  /** Reduce an integer expression to signed 32-bit (two's-complement wrap):
+    * `((e + 0x80000000) & 0xFFFFFFFF) - 0x80000000`. Ruby Integers are
+    * arbitrary precision, so overflow-capable arithmetic is masked to keep
+    * `Int` 32-bit and consistent with the other backends.
+    *
+    * The `& 0xFFFFFFFF` keeps the low 32 bits; the surrounding `+ 0x80000000`
+    * / `- 0x80000000` performs sign extension, so a result with bit 31 set
+    * comes back negative (e.g. `1 << 31` -> -2147483648). A bare
+    * `& 0xFFFFFFFF` would instead yield the unsigned value (2147483648).
+    */
+  private def wrapInt32(e: R.Tree): R.Tree =
+    val off  = R.IntLit(0x80000000L)
+    val mask = R.IntLit(0xFFFFFFFFL)
+    R.BinOp(R.BinOp(R.BinOp(e, "+", off), "&", mask), "-", off)
+
+  /** Reduce an integer expression to signed 64-bit (two's-complement wrap).
+    * Same scheme as [[wrapInt32]] at 64-bit width: mask to the low 64 bits and
+    * sign-extend so bit 63 determines the sign.
+    */
+  private def wrapInt64(e: R.Tree): R.Tree =
+    val off  = R.BinOp(R.IntLit(1), "<<", R.IntLit(63))
+    val mask = R.BinOp(R.BinOp(R.IntLit(1), "<<", R.IntLit(64)), "-", R.IntLit(1))
+    R.BinOp(R.BinOp(R.BinOp(e, "+", off), "&", mask), "-", off)
+
   private def compileIntPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, ctx: Context): R.Tree =
     name match
-      case "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
+      case "<<" =>
+        // Left shift, defined only for counts 0..31 (lib/Int.jo). wrapInt32
+        // sign-extends the result, so shifting into bit 31 yields a negative
+        // Int (e.g. `1 << 31` -> -2147483648); a bare `& 0xFFFFFFFF` would
+        // give the unsigned 2147483648 instead.
+        val arg :: Nil = args: @unchecked
+        wrapInt32(R.BinOp(compileExpr(qual), name, compileExpr(arg)))
+
+      case "/" =>
+        // Truncate toward zero: a.fdiv(b).truncate. The only overflowing
+        // division, INT_MIN / -1, is runtime-dependent.
+        val arg :: Nil = args: @unchecked
+        val f = R.Call(Some(compileExpr(qual)), "fdiv", List(compileExpr(arg)))
+        R.Call(Some(f), "truncate", Nil)
+
+      case "%" =>
+        // Truncated remainder (sign of dividend): Integer#remainder
+        val arg :: Nil = args: @unchecked
+        R.Call(Some(compileExpr(qual)), "remainder", List(compileExpr(arg)))
+
+      case "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | ">>" | "+" | "-" | "*" =>
+        // Arithmetic overflow is undefined
+        // comparisons and the other bit ops stay within range for in-range inputs
         val arg :: Nil = args: @unchecked
         R.BinOp(compileExpr(qual), name, compileExpr(arg))
 
       case "toFloat" =>
         R.Select(compileExpr(qual), "to_f")
+
+      case "toLong" =>
+        // Int/Byte/Char -> Long: same value in Ruby (all are Integer)
+        compileExpr(qual)
 
       case "toByte" =>
         R.BinOp(compileExpr(qual), "&", R.IntLit(0xFF))
@@ -694,13 +758,70 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         compileExpr(qual)
 
       case "~-" =>
+        // Negation overflow (-INT_MIN) is undefined, like +/-/*, so no wrap.
         R.UnaryOp("-", compileExpr(qual))
+
+      case "~~" =>
+        // Bitwise NOT (~x == -x - 1) stays in 32-bit range, so no wrap needed.
+        R.UnaryOp("~", compileExpr(qual))
 
       case "toString" =>
         R.Select(compileExpr(qual), "to_s")
 
       case _ =>
         throw new Exception(s"Unknown Int method: $name")
+
+  /** Compile Long primitive operations (signed 64-bit). */
+  private def compileLongPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, ctx: Context): R.Tree =
+    name match
+      case "<<" =>
+        // Left shift, defined only for counts 0..63 (lib/Long.jo). wrapInt64
+        // sign-extends the result, so shifting into bit 63 yields a negative
+        // Long (e.g. `1 << 63` is the most-negative value).
+        val arg :: Nil = args: @unchecked
+        wrapInt64(R.BinOp(compileExpr(qual), "<<", compileExpr(arg)))
+
+      case "/" =>
+        // Truncate toward zero exactly via Rational: Rational(a, b).truncate.
+        // Rational arithmetic is exact (unlike Float#fdiv, which loses
+        // precision beyond 53 bits) and Rational#truncate rounds toward zero.
+        // Each operand is referenced once, so side-effecting operands are
+        // evaluated exactly once without temporaries. A zero divisor raises
+        // ZeroDivisionError, matching integer division.
+        val arg :: Nil = args: @unchecked
+        val rat = R.Call(None, "Rational", List(compileExpr(qual), compileExpr(arg)))
+        R.Call(Some(rat), "truncate", Nil)
+
+      case "%" =>
+        // Truncated remainder (sign of dividend): Integer#remainder
+        val arg :: Nil = args: @unchecked
+        R.Call(Some(compileExpr(qual)), "remainder", List(compileExpr(arg)))
+
+      case "+" | "-" | "*" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | ">>" =>
+        // Arithmetic overflow is undefined; comparisons and the other bit ops
+        // stay within range for in-range inputs.
+        val arg :: Nil = args: @unchecked
+        R.BinOp(compileExpr(qual), name, compileExpr(arg))
+
+      case "~-" =>
+        R.UnaryOp("-", compileExpr(qual))
+
+      case "~~" =>
+        // Bitwise NOT (~x == -x - 1) stays in 64-bit range, so no wrap needed.
+        R.UnaryOp("~", compileExpr(qual))
+
+      case "toInt" =>
+        // Long -> Int: low 32 bits, signed
+        wrapInt32(compileExpr(qual))
+
+      case "toFloat" =>
+        R.Select(compileExpr(qual), "to_f")
+
+      case "toString" =>
+        R.Select(compileExpr(qual), "to_s")
+
+      case _ =>
+        throw new Exception(s"Unknown Long method: $name")
 
   /** Compile Float primitive operations */
   private def compileFloatPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, ctx: Context): R.Tree =
@@ -734,6 +855,10 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
       case "toInt" =>
         // Char is already represented as Int (Unicode code point) in Ruby
+        compileExpr(qual)
+
+      case "toLong" =>
+        // Char -> Long: same Unicode code point value in Ruby
         compileExpr(qual)
 
       case "toString" =>

@@ -137,7 +137,9 @@ private section IntOps
   @intrinsic def (a: Int) toChar: Char = abort "native Int.toChar"
   @intrinsic def (a: Int) toByte: Byte = abort "native Int.toByte"
   @intrinsic def (a: Int) toFloat: Float = abort "native Int.toFloat"
+  def (a: Int) toLong: Long = LongOps.fromInt a
   @intrinsic def ~- (a: Int): Int = abort "native Int.~-"
+  @intrinsic def ~~ (a: Int): Int = abort "native Int.~~"
   def (a: Int) toString: String = intToStr a
 end
 
@@ -152,6 +154,7 @@ private section ByteOps
   @intrinsic def (a: Byte) toInt: Int = abort "native Byte.toInt"
   @intrinsic def (a: Byte) toChar: Char = abort "native Byte.toChar"
   @intrinsic def (a: Byte) toFloat: Float = abort "native Byte.toFloat"
+  def (a: Byte) toLong: Long = LongOps.fromInt a.toInt
   def (a: Byte) toString: String = intToStr (a.toInt)
 end
 
@@ -166,6 +169,7 @@ private section CharOps
   @intrinsic def (a: Char) toByte: Byte = abort "native Char.toByte"
   @intrinsic def (a: Char) toInt: Int = abort "native Char.toInt"
   @intrinsic def (a: Char) toFloat: Float = abort "native Char.toFloat"
+  def (a: Char) toLong: Long = LongOps.fromInt a.toInt
   def (a: Char) toString: String = charToStr a
 end
 
@@ -194,6 +198,196 @@ private section FloatOps
   @intrinsic def ~- (a: Float): Float = abort "native Float.~-"
   @intrinsic def (a: Float) toInt: Int = abort "native Float.toInt"
   def (a: Float) toString: String = floatToStr a
+end
+
+//------------------------------------------------------------------------------
+//
+// Long support
+//
+// The native backend is 32-bit. Jo Long is represented as a regular object
+// containing the high and low 32-bit words of a two's-complement value.
+//
+
+private class LongRepr(hi: Int, lo: Int)
+
+private section LongOps
+  def make(hi: Int, lo: Int): Long =
+    cast[Long] LongRepr(hi, lo)
+
+  def hi(a: Long): Int =
+    (cast[LongRepr] a).hi
+
+  def lo(a: Long): Int =
+    (cast[LongRepr] a).lo
+
+  def zero: Long = make(0, 0)
+  def one: Long = make(0, 1)
+  def ten: Long = make(0, 10)
+
+  def fromInt(a: Int): Long =
+    if a < 0 then make(-1, a) else make(0, a)
+
+  def unsignedLt(a: Int, b: Int): Bool =
+    if a < 0 then
+      if b < 0 then a < b else false
+    else
+      if b < 0 then true else a < b
+
+  def unsignedLtLong(a: Long, b: Long): Bool =
+    val ahi = hi a
+    val bhi = hi b
+    if ahi != bhi then unsignedLt(ahi, bhi)
+    else unsignedLt(lo a, lo b)
+
+  def negative(a: Long): Bool = hi(a) < 0
+
+  def isZero(a: Long): Bool =
+    hi(a) == 0 && lo(a) == 0
+
+  def isMinValue(a: Long): Bool =
+    hi(a) == -2147483648 && lo(a) == 0
+
+  def (a: Long) == (b: Long): Bool =
+    hi(a) == hi(b) && lo(a) == lo(b)
+
+  def (a: Long) != (b: Long): Bool = !(a == b)
+
+  def (a: Long) < (b: Long): Bool =
+    val ahi = hi a
+    val bhi = hi b
+    if ahi != bhi then ahi < bhi
+    else unsignedLt(lo a, lo b)
+
+  def (a: Long) > (b: Long): Bool = b < a
+  def (a: Long) <= (b: Long): Bool = !(b < a)
+  def (a: Long) >= (b: Long): Bool = !(a < b)
+
+  def (a: Long) + (b: Long): Long =
+    val alo = lo a
+    val blo = lo b
+    val sumLo = alo + blo
+    val carryBits = (alo & blo) | ((alo | blo) & (sumLo ^ -1))
+    val carry = if carryBits < 0 then 1 else 0
+    make(hi(a) + hi(b) + carry, sumLo)
+
+  def ~- (a: Long): Long =
+    val alo = lo a
+    val lo2 = 0 - alo
+    val borrow = if alo == 0 then 0 else 1
+    make(0 - hi(a) - borrow, lo2)
+
+  def (a: Long) - (b: Long): Long = a + (-b)
+
+  def shl1(a: Long): Long =
+    make((hi(a) << 1) | ((lo(a) >> 31) & 1), lo(a) << 1)
+
+  def shr1(a: Long): Long =
+    make(hi(a) >> 1, ((lo(a) >> 1) & 0x7fffffff) | ((hi(a) & 1) << 31))
+
+  def ushr1(a: Long): Long =
+    make((hi(a) >> 1) & 0x7fffffff, ((lo(a) >> 1) & 0x7fffffff) | ((hi(a) & 1) << 31))
+
+  def setLowBit(a: Long): Long =
+    make(hi(a), lo(a) | 1)
+
+  def (a: Long) << (b: Long): Long =
+    val n = lo(b) & 63
+    if n == 0 then a
+    else if n < 32 then
+      // the top n bits of lo move into the low n bits of hi
+      val carried = (lo(a) >> (32 - n)) & ((1 << n) - 1)
+      make((hi(a) << n) | carried, lo(a) << n)
+    else
+      make(lo(a) << (n - 32), 0)
+
+  def (a: Long) >> (b: Long): Long =
+    val n = lo(b) & 63
+    if n == 0 then a
+    else if n < 32 then
+      // the low n bits of hi move into the high n bits of lo; hi keeps its sign
+      val loShifted = (lo(a) >> n) & ((1 << (32 - n)) - 1)
+      make(hi(a) >> n, loShifted | (hi(a) << (32 - n)))
+    else
+      make(hi(a) >> 31, hi(a) >> (n - 32))
+
+  def (a: Long) & (b: Long): Long = make(hi(a) & hi(b), lo(a) & lo(b))
+  def (a: Long) | (b: Long): Long = make(hi(a) | hi(b), lo(a) | lo(b))
+  def (a: Long) ^ (b: Long): Long = make(hi(a) ^ hi(b), lo(a) ^ lo(b))
+  def ~~ (a: Long): Long = make(hi(a) ^ -1, lo(a) ^ -1)
+
+  def abs(a: Long): Long =
+    if negative(a) then -a else a
+
+  def (a: Long) * (b: Long): Long =
+    // shift-and-add, stopping once the remaining multiplier bits are all zero
+    var res = zero
+    var x = a
+    var y = b
+    while !(isZero y) do
+      if (lo(y) & 1) != 0 then
+        res = res + x
+      x = shl1 x
+      y = ushr1 y
+    res
+
+  def divUnsigned(a: Long, b: Long): Long =
+    var q = zero
+    var r = zero
+    var n = a
+    var i = 0
+    while i < 64 do
+      r = shl1 r
+      if hi(n) < 0 then
+        r = setLowBit r
+      n = shl1 n
+      q = shl1 q
+      if !(unsignedLtLong(r, b)) then
+        r = r - b
+        q = setLowBit q
+      i = i + 1
+    q
+
+  def remUnsigned(a: Long, b: Long): Long =
+    var r = zero
+    var n = a
+    var i = 0
+    while i < 64 do
+      r = shl1 r
+      if hi(n) < 0 then
+        r = setLowBit r
+      n = shl1 n
+      if !(unsignedLtLong(r, b)) then
+        r = r - b
+      i = i + 1
+    r
+
+  def (a: Long) / (b: Long): Long =
+    val neg = negative(a) != negative(b)
+    val q = divUnsigned(abs(a), abs(b))
+    if neg then -q else q
+
+  def (a: Long) % (b: Long): Long =
+    val r = remUnsigned(abs(a), abs(b))
+    if negative(a) then -r else r
+
+  def (a: Long) toInt: Int = lo a
+
+  def (a: Long) toFloat: Float =
+    // Native Float is not implemented yet; this is a best-effort placeholder.
+    (lo a).toFloat
+
+  def (a: Long) toString: String =
+    if isZero a then "0"
+    else if isMinValue a then "-9223372036854775808"
+    else
+      val neg = negative a
+      var n = if neg then -a else a
+      var s = ""
+      while !(isZero n) do
+        val digit = (n % ten).toInt
+        s = (48 + digit).toChar.toString + s
+        n = n / ten
+      if neg then "-" + s else s
 end
 
 //------------------------------------------------------------------------------

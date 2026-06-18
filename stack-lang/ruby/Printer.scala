@@ -96,7 +96,7 @@ object Printer:
     case ">>"|"<<" => 8
     case "+"|"-" => 9
     case "*"|"/"|"%" => 10
-    case "!"|"-" => 11
+    case "!"|"-"|"~" => 11
     case _ => 100  // Atomic expressions (no parens needed)
 
   /** Print a complete Ruby program */
@@ -184,7 +184,10 @@ object Printer:
         withParenthesisOpt(op): myPrec =>
           emitTree(left, myPrec)
           emitInline(" ", op, " ")
-          emitTree(right, myPrec)
+          // All binary operators here are left-associative, so the right
+          // operand must be parenthesized when it has the same precedence
+          // (e.g. `a - (b - c)` must not become `a - b - c`).
+          emitTree(right, myPrec + 1)
 
       case UnaryOp(op, operand) =>
         withParenthesisOpt(op): myPrec =>
