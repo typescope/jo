@@ -184,7 +184,10 @@ object Printer:
         withParenthesisOpt(op): myPrec =>
           emitTree(left, myPrec)
           emitInline(" ", op, " ")
-          emitTree(right, myPrec)
+          // All binary operators here are left-associative, so the right
+          // operand must be parenthesized when it has the same precedence
+          // (e.g. `a - (b - c)` must not become `a - b - c`).
+          emitTree(right, myPrec + 1)
 
       case UnaryOp(op, operand) =>
         withParenthesisOpt(op): myPrec =>
