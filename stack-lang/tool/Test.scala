@@ -186,6 +186,8 @@ private case class Step(cmds: List[String], expected: Option[String])
  *      (null-command string literals in bash — content is taken literally)
  *    - Commands before a `: ''` or `: '` block belong to that step
  *    - Commands without a following block form a step with no expected output
+ *    - `{{JO_VERSION}}` in an expected block expands to the current major.minor
+ *      version, so scaffolding output survives version bumps
  */
 private def parseSteps(content: String): List[Step] =
   val lines  = content.linesIterator.toList
@@ -255,7 +257,10 @@ private def runStepsFile(stepsFile: Path, specDir: Path)(using Logger): List[Pat
             println(actual)
           failed ::= stepsFile
 
-      case Some(expected) =>
+      case Some(expectedRaw) =>
+        // `{{JO_VERSION}}` expands to the current major.minor, so scaffolding
+        // expectations (e.g. the generated jo.toml) survive version bumps.
+        val expected = expectedRaw.replace("{{JO_VERSION}}", joVersionShort)
         if actual == expected then
           println(s"  ok: $stepsFile [${step.cmds.mkString("; ")}]")
         else
@@ -540,6 +545,10 @@ private def printModel(kind: String, path: String): Unit =
 
 
 // ---- Shared helpers ----------------------------------------------------------
+
+/** The `major.minor` constraint emitted by scaffolding (`jo new`). */
+private def joVersionShort: String =
+  s"${JoVersion.current.major}.${JoVersion.current.minor}"
 
 private def findFiles(pattern: String): List[Path] =
   val i       = pattern.indexWhere(c => c == '*' || c == '?')
