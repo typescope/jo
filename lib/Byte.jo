@@ -34,6 +34,9 @@ class Byte
   def toInt: Int = ...
 
   @intrinsic
+  def toLong: Long = ...
+
+  @intrinsic
   def toChar: Char = ...
 
   @intrinsic

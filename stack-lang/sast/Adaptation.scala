@@ -136,6 +136,10 @@ object Adaptation:
       if targetType.isSubtype(defn.IntType) then
         word.select("toInt").appliedTo()
 
+      else if targetType.isSubtype(defn.LongType) then
+        // Byte -> Long (exact)
+        word.select("toLong").appliedTo()
+
       else if targetType.isSubtype(defn.FloatType) then
         // Byte -> Float
         word.select("toFloat").appliedTo()
@@ -147,6 +151,10 @@ object Adaptation:
       if targetType.isSubtype(defn.IntType) then
         word.select("toInt").appliedTo()
 
+      else if targetType.isSubtype(defn.LongType) then
+        // Char -> Long (exact)
+        word.select("toLong").appliedTo()
+
       else if targetType.isSubtype(defn.FloatType) then
         // Char -> Float
         word.select("toFloat").appliedTo()
@@ -155,12 +163,19 @@ object Adaptation:
         fail()
 
     else if origType.isSubtype(defn.IntType) then
-      if targetType.isSubtype(defn.FloatType) then
+      if targetType.isSubtype(defn.LongType) then
+        // Int -> Long (exact: 32-bit fits in 64-bit)
+        word.select("toLong").appliedTo()
+
+      else if targetType.isSubtype(defn.FloatType) then
         // Int -> Float
         word.select("toFloat").appliedTo()
 
       else
         fail()
+
+    // Long -> Float is lossy (Float has a 53-bit mantissa), so it is not an
+    // implicit widening; use `.toFloat` explicitly.
 
     else
       fail()
