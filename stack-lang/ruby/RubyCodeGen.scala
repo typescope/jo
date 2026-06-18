@@ -270,7 +270,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         val className =
           if cls == defn.String_type then "String"
           else if cls == defn.Float_type then "Float"
-          else if cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then "Integer"
+          else if cls == defn.Int_type || cls == defn.Long_type || cls == defn.Byte_type || cls == defn.Char_type then "Integer"
           else if cls == defn.Array_class then "Array"
           else rubyName(cls)
 

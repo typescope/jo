@@ -556,7 +556,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val className =
           if cls == defn.String_type then "str"
           else if cls == defn.Float_type then "float"
-          else if cls == defn.Int_type || cls == defn.Byte_type || cls == defn.Char_type then "int"
+          else if cls == defn.Int_type || cls == defn.Long_type || cls == defn.Byte_type || cls == defn.Char_type then "int"
           else if cls == defn.Bool_type then "bool"
           else if cls == defn.Array_class then "list"
           else pythonName(cls)
