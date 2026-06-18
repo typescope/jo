@@ -47,6 +47,7 @@ object Interpreter:
 
   enum Denotation:
     case IntVal(value: Int)
+    case LongVal(value: Long)
     case FloatVal(value: Double)
     case BoolVal(value: Boolean)
     case StringVal(value: String)
@@ -71,6 +72,8 @@ object Interpreter:
       else this match
         case IntVal(value) => value.toString
 
+        case LongVal(value) => value.toString
+
         case FloatVal(value) => value.toString
 
         case BoolVal(value) => value.toString
@@ -92,7 +95,7 @@ object Interpreter:
           val methods = defs.take(5).keys.mkString(", ")
           "{" + fields + ", " + methods + "}"
 
-  type Value = IntVal | FloatVal | BoolVal | StringVal | RecordVal | ClosureVal | ObjectVal | ArrayVal | PlatformVal
+  type Value = IntVal | LongVal | FloatVal | BoolVal | StringVal | RecordVal | ClosureVal | ObjectVal | ArrayVal | PlatformVal
 
   enum Env:
     case RootEnv()
@@ -391,10 +394,11 @@ object Interpreter:
 
   def exec(word: Word)(using env: Env, params: Params, defn: Definitions, runtime: Runtime): List[Denotation] =
     word match
-      case Literal(c)  =>
+      case lit @ Literal(c)  =>
         c match
           case Constant.Int(n) =>
-            IntVal(n.toInt) :: Nil
+            if lit.tpe.isSubtype(defn.LongType) then LongVal(n.toLong) :: Nil
+            else IntVal(n.toInt) :: Nil
 
           case Constant.Float(d) =>
             FloatVal(d) :: Nil
@@ -501,6 +505,8 @@ object Interpreter:
               || cls == defn.Byte_type
 
             BoolVal(isMatch) :: Nil
+
+          case _: LongVal => BoolVal(cls == defn.Long_type) :: Nil
 
           case objVal: ObjectVal => BoolVal(cls == objVal.self.owner) :: Nil
 
@@ -768,6 +774,10 @@ object Interpreter:
                   assert(argVals.isEmpty)
                   FloatVal(intVal.value.toDouble) :: Nil
 
+                else if name == "toLong" then
+                  assert(argVals.isEmpty)
+                  LongVal(intVal.value.toLong) :: Nil
+
                 else if name == "~-" then
                   assert(argVals.isEmpty)
                   IntVal(-intVal.value) :: Nil
@@ -786,6 +796,93 @@ object Interpreter:
 
                 else
                    throw new Exception(s"Unexpect method $name on int")
+
+              case longVal: LongVal =>
+                assert(autos.isEmpty, "autos non empty")
+                val argVals = args.map(eval)
+
+                if name == "+" then
+                  val LongVal(other) :: Nil = argVals: @unchecked
+                  LongVal(longVal.value + other) :: Nil
+
+                else if name == "-" then
+                  val LongVal(other) :: Nil = argVals: @unchecked
+                  LongVal(longVal.value - other) :: Nil
+
+                else if name == "*" then
+                  val LongVal(other) :: Nil = argVals: @unchecked
+                  LongVal(longVal.value * other) :: Nil
+
+                else if name == "/" then
+                  val LongVal(other) :: Nil = argVals: @unchecked
+                  LongVal(longVal.value / other) :: Nil
+
+                else if name == "%" then
+                  val LongVal(other) :: Nil = argVals: @unchecked
+                  LongVal(longVal.value % other) :: Nil
+
+                else if name == ">" then
+                  val LongVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(longVal.value > other) :: Nil
+
+                else if name == "<" then
+                  val LongVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(longVal.value < other) :: Nil
+
+                else if name == ">=" then
+                  val LongVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(longVal.value >= other) :: Nil
+
+                else if name == "<=" then
+                  val LongVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(longVal.value <= other) :: Nil
+
+                else if name == "==" then
+                  val LongVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(longVal.value == other) :: Nil
+
+                else if name == "!=" then
+                  val LongVal(other) :: Nil = argVals: @unchecked
+                  BoolVal(longVal.value != other) :: Nil
+
+                else if name == ">>" then
+                  val LongVal(other) :: Nil = argVals: @unchecked
+                  LongVal(longVal.value >> other.toInt) :: Nil
+
+                else if name == "<<" then
+                  val LongVal(other) :: Nil = argVals: @unchecked
+                  LongVal(longVal.value << other.toInt) :: Nil
+
+                else if name == "&" then
+                  val LongVal(other) :: Nil = argVals: @unchecked
+                  LongVal(longVal.value & other) :: Nil
+
+                else if name == "|" then
+                  val LongVal(other) :: Nil = argVals: @unchecked
+                  LongVal(longVal.value | other) :: Nil
+
+                else if name == "^" then
+                  val LongVal(other) :: Nil = argVals: @unchecked
+                  LongVal(longVal.value ^ other) :: Nil
+
+                else if name == "~-" then
+                  assert(argVals.isEmpty)
+                  LongVal(-longVal.value) :: Nil
+
+                else if name == "toInt" then
+                  assert(argVals.isEmpty)
+                  IntVal(longVal.value.toInt) :: Nil
+
+                else if name == "toFloat" then
+                  assert(argVals.isEmpty)
+                  FloatVal(longVal.value.toDouble) :: Nil
+
+                else if name == "toString" then
+                  assert(argVals.isEmpty)
+                  StringVal(longVal.value.toString) :: Nil
+
+                else
+                   throw new Exception(s"Unexpect method $name on long")
 
               case clos: ClosureVal =>
                 assert(autos.isEmpty, "Unexpected autos for interface closure")
