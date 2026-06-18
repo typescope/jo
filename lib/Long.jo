@@ -90,7 +90,11 @@ class Long
   @intrinsic
   def ^(other: Long): Long = ...
 
-  // Prefix negation
+  //[ Bitwise complement (prefix `~`)  //]
+  @intrinsic
+  def ~~(): Long = ...
+
+  //[ Prefix negation   //]
   @intrinsic
   def ~-(): Long = ...
 

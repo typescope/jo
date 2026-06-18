@@ -782,6 +782,10 @@ object Interpreter:
                   assert(argVals.isEmpty)
                   IntVal(-intVal.value) :: Nil
 
+                else if name == "~~" then
+                  assert(argVals.isEmpty)
+                  IntVal(~intVal.value) :: Nil
+
                 else if name == "toString" then
                   assert(argVals.isEmpty)
                   if qual.tpe.isSubtype(defn.CharType) then
@@ -868,6 +872,10 @@ object Interpreter:
                 else if name == "~-" then
                   assert(argVals.isEmpty)
                   LongVal(-longVal.value) :: Nil
+
+                else if name == "~~" then
+                  assert(argVals.isEmpty)
+                  LongVal(~longVal.value) :: Nil
 
                 else if name == "toInt" then
                   assert(argVals.isEmpty)

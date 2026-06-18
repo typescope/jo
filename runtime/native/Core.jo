@@ -139,6 +139,7 @@ private section IntOps
   @intrinsic def (a: Int) toFloat: Float = abort "native Int.toFloat"
   def (a: Int) toLong: Long = LongOps.fromInt a
   @intrinsic def ~- (a: Int): Int = abort "native Int.~-"
+  @intrinsic def ~~ (a: Int): Int = abort "native Int.~~"
   def (a: Int) toString: String = intToStr a
 end
 
@@ -312,6 +313,7 @@ private section LongOps
   def (a: Long) & (b: Long): Long = make(hi(a) & hi(b), lo(a) & lo(b))
   def (a: Long) | (b: Long): Long = make(hi(a) | hi(b), lo(a) | lo(b))
   def (a: Long) ^ (b: Long): Long = make(hi(a) ^ hi(b), lo(a) ^ lo(b))
+  def ~~ (a: Long): Long = make(hi(a) ^ -1, lo(a) ^ -1)
 
   def abs(a: Long): Long =
     if negative(a) then -a else a

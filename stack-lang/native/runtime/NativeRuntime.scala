@@ -82,6 +82,7 @@ extends Linker:
   val Int_toByte = Core_IntOps.termMember("toByte")
   val Int_toFloat = Core_IntOps.termMember("toFloat")
   val Int_neg    = Core_IntOps.termMember("~-")
+  val Int_not    = Core_IntOps.termMember("~~")
 
   // Byte primitive operators (defined in section ByteOps in Native.jo)
   val Byte_eq = Core_ByteOps.termMember("==")

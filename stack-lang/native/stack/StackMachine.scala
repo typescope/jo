@@ -471,6 +471,13 @@ extends Backend(runtime):
           cb.add(Instr.Sub(Int32(0), Reg(r), r))
           push(Reg(r))
 
+      case runtime.Int_not =>
+        // Bitwise complement: x ^ 0xFFFFFFFF
+        useReg: r =>
+          pop(r, Size.B32)
+          cb.add(Instr.Xor(Reg(r), Int32(-1), r))
+          push(Reg(r))
+
       case _ => call(sym)
   end callIntPrimitive
 

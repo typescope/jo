@@ -539,6 +539,13 @@ extends Backend(runtime):
         gen(Instr.Sub(Int32(0), v, r))
         ctx.vs.push(Reg(r))
 
+      case runtime.Int_not =>
+        // Bitwise complement: x ^ 0xFFFFFFFF
+        val v = ctx.vs.pop()
+        val r = freshVirtualReg()
+        gen(Instr.Xor(v, Int32(-1), r))
+        ctx.vs.push(Reg(r))
+
       case _ =>
         call(sym)
 

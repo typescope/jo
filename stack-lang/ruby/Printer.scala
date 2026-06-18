@@ -96,7 +96,7 @@ object Printer:
     case ">>"|"<<" => 8
     case "+"|"-" => 9
     case "*"|"/"|"%" => 10
-    case "!"|"-" => 11
+    case "!"|"-"|"~" => 11
     case _ => 100  // Atomic expressions (no parens needed)
 
   /** Print a complete Ruby program */

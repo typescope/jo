@@ -1093,6 +1093,11 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, JS.UnaryOp("-", expr))
 
+      case "~~" =>
+        // JS bitwise NOT already yields a signed 32-bit result.
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, JS.UnaryOp("~", expr))
+
       case "toString" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, JS.Call(Some(expr), "toString", Nil))
@@ -1129,6 +1134,11 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case "~-" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, JS.UnaryOp("-", expr))
+
+      case "~~" =>
+        // BigInt bitwise NOT is exact (~x == -x - 1), always in 64-bit range.
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, JS.UnaryOp("~", expr))
 
       case "toInt" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)

@@ -761,6 +761,10 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         // Negation overflow (-INT_MIN) is undefined, like +/-/*, so no wrap.
         R.UnaryOp("-", compileExpr(qual))
 
+      case "~~" =>
+        // Bitwise NOT (~x == -x - 1) stays in 32-bit range, so no wrap needed.
+        R.UnaryOp("~", compileExpr(qual))
+
       case "toString" =>
         R.Select(compileExpr(qual), "to_s")
 
@@ -801,6 +805,10 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
       case "~-" =>
         R.UnaryOp("-", compileExpr(qual))
+
+      case "~~" =>
+        // Bitwise NOT (~x == -x - 1) stays in 64-bit range, so no wrap needed.
+        R.UnaryOp("~", compileExpr(qual))
 
       case "toInt" =>
         // Long -> Int: low 32 bits, signed

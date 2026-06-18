@@ -95,7 +95,11 @@ class Int
   @intrinsic
   def ^(other: Int): Int = ...
 
-  // Prefix negation
+  //[ Bitwise complement (prefix `~`)   //]
+  @intrinsic
+  def ~~(): Int = ...
+
+  //[ Prefix negation   //]
   @intrinsic
   def ~-(): Int = ...
 

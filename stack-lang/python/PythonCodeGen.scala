@@ -1114,6 +1114,11 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.UnaryOp("-", expr))
 
+      case "~~" =>
+        // Bitwise NOT (~x == -x - 1) stays in 32-bit range, so no wrap needed.
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, P.UnaryOp("~", expr))
+
       case "toString" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.Call(None, "str", List(expr)))
@@ -1177,6 +1182,11 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case "~-" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.UnaryOp("-", expr))
+
+      case "~~" =>
+        // Bitwise NOT (~x == -x - 1) stays in 64-bit range, so no wrap needed.
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, P.UnaryOp("~", expr))
 
       case "toInt" =>
         // Long -> Int: low 32 bits, signed
