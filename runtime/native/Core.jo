@@ -290,20 +290,24 @@ private section LongOps
     make(hi(a), lo(a) | 1)
 
   def (a: Long) << (b: Long): Long =
-    var res = a
-    var n = lo(b) & 63
-    while n > 0 do
-      res = shl1 res
-      n = n - 1
-    res
+    val n = lo(b) & 63
+    if n == 0 then a
+    else if n < 32 then
+      // the top n bits of lo move into the low n bits of hi
+      val carried = (lo(a) >> (32 - n)) & ((1 << n) - 1)
+      make((hi(a) << n) | carried, lo(a) << n)
+    else
+      make(lo(a) << (n - 32), 0)
 
   def (a: Long) >> (b: Long): Long =
-    var res = a
-    var n = lo(b) & 63
-    while n > 0 do
-      res = shr1 res
-      n = n - 1
-    res
+    val n = lo(b) & 63
+    if n == 0 then a
+    else if n < 32 then
+      // the low n bits of hi move into the high n bits of lo; hi keeps its sign
+      val loShifted = (lo(a) >> n) & ((1 << (32 - n)) - 1)
+      make(hi(a) >> n, loShifted | (hi(a) << (32 - n)))
+    else
+      make(hi(a) >> 31, hi(a) >> (n - 32))
 
   def (a: Long) & (b: Long): Long = make(hi(a) & hi(b), lo(a) & lo(b))
   def (a: Long) | (b: Long): Long = make(hi(a) | hi(b), lo(a) | lo(b))
@@ -313,16 +317,15 @@ private section LongOps
     if negative(a) then -a else a
 
   def (a: Long) * (b: Long): Long =
+    // shift-and-add, stopping once the remaining multiplier bits are all zero
     var res = zero
     var x = a
     var y = b
-    var i = 0
-    while i < 64 do
+    while !(isZero y) do
       if (lo(y) & 1) != 0 then
         res = res + x
       x = shl1 x
       y = ushr1 y
-      i = i + 1
     res
 
   def divUnsigned(a: Long, b: Long): Long =
