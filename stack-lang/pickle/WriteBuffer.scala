@@ -31,6 +31,9 @@ class WriteBuffer(initialSize: Int) extends (Byte => Unit):
   /** Write base-128 encoding of non-negative long */
   def addLongNat(x: Long): Unit = Base128.encodeLongNat(x, this)
 
+  /** Write signed base-128 encoding of an arbitrary-precision integer */
+  def addBigInt(x: BigInt): Unit = Base128.encodeBigInt(x, this)
+
   /** Write 4-byte big-endian 2's complement integer */
   def addIntRaw(x: Int): Unit =
     addByte(((x >> 24) & 0xFF).toByte)

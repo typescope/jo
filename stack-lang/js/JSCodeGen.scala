@@ -544,7 +544,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     c match
       case Constant.Bool(b) => JS.BoolLit(b)
       case Constant.String(s) => JS.StringLit(s)
-      case Constant.Int(n) => JS.IntLit(n)
+      case Constant.Int(n) => JS.IntLit(n.toLong)
       case Constant.Float(d) => JS.FloatLit(d)
 
   /** Compile a list of expressions, correctly handling evaluation order */

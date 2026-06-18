@@ -86,6 +86,39 @@ object Base128:
     end while
     y
 
+  // Arbitrary-precision variants. Same signed base-128 scheme generalized to
+  // BigInt: small values still encode in a single byte, but the width is
+  // unbounded. BigInt removes the -Long.MinValue edge case of decodeLong.
+  def encodeBigInt(x: BigInt, addByte: Byte => Unit): Unit =
+    val m = x.abs
+    val y = (m << 1) | (if x >= 0 then BigInt(0) else BigInt(1))
+    encodeBigNat(y, addByte)
+
+  def encodeBigNat(x: BigInt, addByte: Byte => Unit): Unit =
+    val MASK = BigInt(0x7F)
+
+    def addPrefix(prefix: BigInt): Unit =
+      if prefix != 0 then
+        addPrefix(prefix >> 7)
+        addByte((prefix & MASK).toByte)
+
+    addPrefix(x >> 7)
+    addByte(((x & MASK) | BigInt(0x80)).toByte)
+
+  def decodeBigInt(readByte: () => Byte): BigInt =
+    val y = decodeBigNat(readByte)
+    if (y & 1) == 0 then y >> 1 else -(y >> 1)
+
+  def decodeBigNat(readByte: () => Byte): BigInt =
+    var y = BigInt(0)
+    var continue = true
+    while continue do
+      val b = readByte()
+      y = (y << 7) | BigInt(b & 0x7F)
+      continue = (b & 0x80) == 0
+    end while
+    y
+
   def main(args: Array[String]): Unit =
     import scala.collection.mutable.ArrayBuffer
 

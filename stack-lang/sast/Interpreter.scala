@@ -394,7 +394,7 @@ object Interpreter:
       case Literal(c)  =>
         c match
           case Constant.Int(n) =>
-            IntVal(n) :: Nil
+            IntVal(n.toInt) :: Nil
 
           case Constant.Float(d) =>
             FloatVal(d) :: Nil
