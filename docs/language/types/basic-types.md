@@ -22,10 +22,11 @@ val negative: Int = -17
 ```
 
 ### Byte
-8-bit integer values.
+An unsigned 8-bit value in the range `[0, 255]`. Byte is a storage type with no
+arithmetic of its own; convert to `Int` with `toInt` to compute.
 
 ```jo
-val b: Byte = 127
+val b: Byte = 200
 ```
 
 ### Char
