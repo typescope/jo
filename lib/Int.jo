@@ -2,10 +2,15 @@ namespace jo
 
 import jo.compile.intrinsic
 
-//[ Signed 32-bit integer, the default integer type.
+//[ Signed 32-bit integer
   !
-  ! Arithmetic uses two's-complement and wraps around on overflow; the range is
-  ! [-2^31, 2^31 - 1].
+  ! The default integer type. the range is [-2^31, 2^31 - 1].
+  !
+  ! Arithmetic (`+`, `-`, `*`, unary `-`) that overflows the range is undefined
+  ! behavior — a wrapped result would still be a bug, so it is not specified.
+  !
+  ! Bitwise operations (`<<`, `>>`, `&`, `|`, `^`) respect the 32-bit
+  ! two's-complement representation (e.g. `1 << 31` is the most-negative value).
   !
   ! Int can be used in union types.
 //]
