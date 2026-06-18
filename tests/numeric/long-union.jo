@@ -1,0 +1,29 @@
+type U = Long | String
+
+def classify(v: U): String =
+  match v
+    case l: Long => "long: " + l
+    case s: String => "string: " + s
+
+// Receiver of the division has an observable side effect; it must run once.
+def loud(): Long =
+  println "evaluated"
+  20
+
+def main =
+  val three: Long = 3
+  println (loud() / three)        // prints "evaluated" once, then 6
+
+  val small: Long = 5
+  val big: Long = 9223372036854775807
+  val neg: Long = -9223372036854775808
+
+  val a: U = small
+  val b: U = big
+  val c: U = neg
+  val s: U = "hi"
+
+  println (classify a)            // long: 5
+  println (classify b)            // long: 9223372036854775807
+  println (classify c)            // long: -9223372036854775808
+  println (classify s)            // string: hi
