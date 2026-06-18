@@ -26,11 +26,11 @@ class Int
   //[ Integer division, truncating toward zero.
     !
     ! The fractional part of the exact quotient is discarded, e.g.
-    ! `(0 - 7) / 2 == -3`. Together with `%` the identity
-    ! `(a / b) * b + a % b == a` holds.
+    ! `(0 - 7) / 2 == -3`. When `a / b` is representable it pairs with `%` so
+    ! that `(a / b) * b + a % b == a`.
     !
-    ! Division by zero and the overflowing case `INT_MIN / -1` are
-    ! runtime-dependent.
+    ! When the quotient is not representable — division by zero, or the
+    ! overflowing `INT_MIN / -1` — both `/` and `%` are runtime-dependent.
   //]
   @intrinsic
   def /(other: Int): Int = ...
@@ -40,7 +40,8 @@ class Int
     ! The result takes the sign of the dividend, e.g. `(0 - 7) % 2 == -1` and
     ! `7 % (0 - 2) == 1`.
     !
-    ! A zero divisor is runtime-dependent.
+    ! When the corresponding quotient `a / b` is not representable — division
+    ! by zero, or `INT_MIN / -1` — both `/` and `%` are runtime-dependent.
   //]
   @intrinsic
   def %(other: Int): Int = ...
