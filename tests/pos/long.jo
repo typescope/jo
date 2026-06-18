@@ -1,0 +1,45 @@
+// Long is a signed 64-bit integer. Arithmetic overflow is undefined, so this
+// test covers edge literals and specified bitwise/conversion/division behavior.
+
+def main() =
+  val maxL: Long = 9223372036854775807
+  val minL: Long = -9223372036854775808
+  println maxL
+  println minL
+
+  // 64-bit multiplication that stays in range
+  val billion: Long = 1000000000
+  println (billion * billion)    // 1000000000000000000
+
+  // Truncating division and remainder keep the dividend sign.
+  val a: Long = 0 - 7
+  println (a / 2)                // -3
+  println (a % 2)                // -1
+  println (minL / 3)             // -3074457345618258602
+  println (minL % 3)             // -2
+
+  // Widening coercions to Long
+  val bv: Byte = 200
+  val lb: Long = bv
+  println lb                     // 200
+  val cv: Char = 'A'
+  val lc: Long = cv
+  println lc                     // 65
+
+  // Bitwise operations use signed 64-bit two's-complement semantics.
+  val one: Long = 1
+  println (one << 40)            // 1099511627776
+  println (one << 63)            // -9223372036854775808
+  println (minL >> 63)           // -1
+  println (maxL & 0xFF)          // 255
+  println (minL | 0xFF)          // -9223372036854775553
+  println (maxL ^ minL)          // -1
+
+  // Conversions
+  println (maxL.toInt)           // -1
+  println (minL.toInt)           // 0
+  val i: Int = 100
+  println (i.toLong + billion)   // 1000000100
+
+  // Comparison
+  println (maxL > billion)       // true
