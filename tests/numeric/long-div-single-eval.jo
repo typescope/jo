@@ -1,0 +1,17 @@
+// Operands of Long division and remainder must be evaluated exactly once,
+// even when they have side effects. Regression test: the Ruby backend used to
+// inline each compiled operand several times in (a - a.remainder(b)).div(b),
+// so a side-effecting operand printed two or three times. Each call below must
+// print its name exactly once.
+
+def a(): Long =
+  println "a"
+  17
+
+def b(): Long =
+  println "b"
+  5
+
+def main =
+  println (a() / b())     // a, b, 3
+  println (a() % b())     // a, b, 2
