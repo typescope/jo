@@ -268,7 +268,15 @@ object Printer:
 
     expr match
       case IntLit(n) =>
-        if parentPrec > 20 then
+        // A negative literal carries a leading '-', so it binds like a unary
+        // minus: routing it through the precedence logic parenthesizes it
+        // wherever a unary minus would need it (e.g. -(-10) -> -(-10), not the
+        // invalid `--10`; and (-10).toString()). Non-negative literals are
+        // atomic and only need parens before a member access.
+        if n < 0 then
+          withParenthesisOpt("-"): _ =>
+            emitInline(n.toString)
+        else if parentPrec > 20 then
           // 2.toString is invalid in JS, (2).toString is OK
           emitInline("(", n.toString, ")")
         else
@@ -284,7 +292,14 @@ object Printer:
         else
           emitInline(literal)
 
-      case FloatLit(d) => emitInline(d.toString)
+      case FloatLit(d) =>
+        // A negative float binds like a unary minus (see IntLit), so route it
+        // through the precedence logic to avoid `--1.5` when negated.
+        if d < 0 then
+          withParenthesisOpt("-"): _ =>
+            emitInline(d.toString)
+        else
+          emitInline(d.toString)
 
       case StringLit(s) => emitInline("\"" + escape(s) + "\"")
 
