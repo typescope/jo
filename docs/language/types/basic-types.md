@@ -13,7 +13,8 @@ val isReady: Bool = false
 ```
 
 ### Int
-Integer values for numeric computations.
+A signed 32-bit integer, the default integer type. Arithmetic uses two's
+complement and wraps around on overflow; the range is `[-2^31, 2^31 - 1]`.
 
 ```jo
 val count: Int = 42
