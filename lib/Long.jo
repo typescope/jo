@@ -10,7 +10,7 @@ import jo.compile.intrinsic
   ! behavior — a wrapped result would still be a bug, so it is not specified.
   !
   ! Bitwise operations (`<<`, `>>`, `&`, `|`, `^`) respect the 64-bit
-  ! two's-complement representation (e.g. `1 << 31` is the most-negative value).
+  ! two's-complement representation (e.g. `1 << 63` is the most-negative value).
   !
   ! Long can be used in union types.
 //]
