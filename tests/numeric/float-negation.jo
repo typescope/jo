@@ -1,0 +1,10 @@
+// Negating a negative Float literal must not emit adjacent minus signs in the
+// JS backend (it used to print `-(-1.5)` as the invalid `--1.5`). Native has no
+// floating point, so this lives in tests/numeric (eval/js/ruby/python).
+
+def main =
+  println (-(-1.5))         // 1.5
+  println (-(-(-2.25)))     // -2.25
+
+  val f: Float = 0.0 - 2.5
+  println (-f)              // 2.5

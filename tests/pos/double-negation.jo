@@ -1,0 +1,23 @@
+// Negating a negative literal must not emit adjacent minus signs (the JS
+// backend used to print `-(-10)` as the invalid `--10`). Covers literals and
+// variables, plus negation mixed with subtraction.
+
+def main =
+  // Double negation of integer literals
+  println (-(-10))          // 10
+  println (-(-1))           // 1
+
+  // Triple negation
+  println (-(-(-10)))       // -10
+
+  // Double negation through a variable
+  val a: Int = 10
+  println (-(-a))           // 10
+
+  // Negation of a negative-valued variable
+  val b: Int = 0 - 5
+  println (-b)              // 5
+
+  // Subtraction of a negative literal (already valid, must stay correct)
+  println (0 - -7)          // 7
+  println (3 - -4)          // 7
