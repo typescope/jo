@@ -28,6 +28,19 @@ import native.runtime.NativeRuntime
   */
 class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
 
+  override def transformLiteral(lit: Literal)(using Context): Word =
+    lit match
+      case Literal(Constant.Int(n)) if lit.tpe.isSubtype(defn.LongType) =>
+        val value = n.toLong
+        val hi = (value >> 32).toInt
+        val lo = value.toInt
+        val constructorCall = Ident(runtime.Core_LongRepr_fun)(lit.span)
+          .appliedTo(IntLit(hi)(lit.span), IntLit(lo)(lit.span))
+        Encoded(constructorCall)(defn.LongType)
+
+      case _ =>
+        lit
+
   override def transformEncoded(encoded: Encoded)(using Context): Word =
     val Encoded(repr) = encoded
     val repr2 = transform(repr)
@@ -50,11 +63,15 @@ class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
 
   /** Check if boxing is needed: numeric -> union/any containing that numeric */
   private def needsBoxing(reprType: Type, targetType: Type): Boolean =
-    targetType.dealias.isAnyType && reprType.isNumericOrBoolType
+    targetType.dealias.isAnyType
+      && reprType.isNumericOrBoolType
+      && !reprType.isSubtype(defn.LongType)
 
   /** Check if unboxing is needed: union/any -> numeric */
   private def needsUnboxing(reprType: Type, targetType: Type): Boolean =
-    reprType.approx.isAnyType && targetType.isNumericOrBoolType
+    reprType.approx.isAnyType
+      && targetType.isNumericOrBoolType
+      && !targetType.isSubtype(defn.LongType)
 
   /** Box a numeric value into a union type */
   private def boxValue(word: Word, unionType: Type, span: Span): Word =

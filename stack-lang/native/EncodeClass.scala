@@ -194,6 +194,10 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
       val classId = IntLit(getClassId(runtime.Core_FloatBox))(span)
       transform(valueClassId.isEqualTo(classId))
 
+    else if cls == defn.Long_type then
+      val classId = IntLit(getClassId(runtime.Core_LongRepr))(span)
+      transform(valueClassId.isEqualTo(classId))
+
     else
       val classId = IntLit(getClassId(cls))(span)
       transform(valueClassId.isEqualTo(classId))
@@ -301,6 +305,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
             else if qual.tpe.isSubtype(defn.IntType) then runtime.Core_IntOps
             else if qual.tpe.isSubtype(defn.ByteType) then runtime.Core_ByteOps
             else if qual.tpe.isSubtype(defn.CharType) then runtime.Core_CharOps
+            else if qual.tpe.isSubtype(defn.LongType) then runtime.Core_LongOps
             else runtime.Core_FloatOps
 
           // Try to find operator in section - use operator name directly

@@ -76,12 +76,20 @@ object Compiler:
       val namespacesSAST = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, "jo.runtime.native.RefArray") <| "Frontend"
 
       locally {
-        given Definitions = lazyDefn.value
+        given defn: Definitions = lazyDefn.value
 
         val backend = backendBuilder.createLinux86(FrontEnd.rewireMap.value)
         val backendStep = Step("backend", backend.compile)
 
-        val erasure = new Erasure(primitiveTagged = false)
+        val untaggedTypes =
+          Set(
+            defn.Bool_type,
+            defn.Byte_type,
+            defn.Char_type,
+            defn.Int_type,
+            defn.Float_type,
+          )
+        val erasure = new Erasure(Erasure.untaggedTypes(untaggedTypes))
         val closureConvert = new ElimCapture
         val contextParamsLower = new phases.LowerContextParams(backend.runtime.ParamSupport)
         val encodeClass = new native.EncodeClass(backend.runtime)

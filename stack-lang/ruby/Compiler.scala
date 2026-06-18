@@ -72,7 +72,7 @@ object Compiler:
 
         val rubyRuntime = new RubyRuntime
         val contextParamsLower = new LowerContextParams(rubyRuntime.ParamSupport)
-        val erasure = new Erasure(primitiveTagged = true)
+        val erasure = new Erasure(Erasure.allTagged)
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView
         val rewire  = FrontEnd.rewireMap.value

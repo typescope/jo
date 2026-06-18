@@ -12,11 +12,13 @@ import scala.collection.mutable
   *
   * Optional: Add bridge methods to classes for boxing mismatch of abstract interface methods.
   *
-  * @param primitiveTagged whether primitive values are tagged for the target platform (true for JS/Ruby/Python)
+  * @param isTagged whether values of a type are tagged for the target platform
   */
-class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
+class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
   private val prevDefinitions = defn.snapshot
   private val eraseTypeMap = new Erasure.EraseTypeMap(using prevDefinitions)
+
+  private val allPrimitivesTagged = isTagged `eq` Erasure.allTagged
 
   override def initContext()(using Context): Unit =
     Erasure.bridges.set(mutable.Map.empty)
@@ -32,7 +34,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
           val tp2 = eraseType(tp)
           changed = changed || tp2.ne(tp)
 
-          if !primitiveTagged then
+          if !allPrimitivesTagged then
             val interfaceInfo = tp2.classInfo
             for method <- interfaceInfo.methods if method.is(Flags.Defer) do
               val implMeth = info.memberSymbol(method.name)
@@ -67,12 +69,8 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
 
   def eraseType(tp: Type): Type = eraseTypeMap.apply(tp)(using Set.empty)
 
-  /** assume !primitiveTagged */
-  def tagged(tp: Type): Boolean = !tp.isNumericOrBoolType
-
-  /** assume !primitiveTagged */
   def taggingConforms(tp1: Type, tp2: Type): Boolean =
-    tagged(tp1) == tagged(tp2) && {
+    isTagged(tp1) == isTagged(tp2) && {
       if !tp1.isLambdaType && !tp2.isLambdaType then
         true
 
@@ -99,7 +97,6 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
 
   /** Create a bridge method symbol
     *
-    * Assume !primitiveTagged
     */
   def makeBridge(methDefer: Symbol, methImpl: Symbol): Option[Symbol] =
     val procType1 = eraseType(methDefer.tpe).asProcType
@@ -143,7 +140,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
 
       // println("value.tpe = " + value.tpe.show + ", expect = " + expectedType.show)
 
-      if primitiveTagged then
+      if allPrimitivesTagged then
         // fast path for JS/Ruby/Python
         // Lambdas do not matter because all values are tagged
         if conforms then value else Encoded(value)(expectedType)
@@ -151,7 +148,7 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
       else
         if !expectedType.isLambdaType && !valueType.isLambdaType then
           if conforms then
-            if tagged(valueType) || !tagged(expectedType) then
+            if isTagged(valueType) || !isTagged(expectedType) then
               value
 
             else
@@ -440,6 +437,14 @@ class Erasure(primitiveTagged: Boolean)(using defn: Definitions) extends Phase:
 object Erasure:
   val bridges: Phase.PhaseKey[mutable.Map[Symbol, List[(Symbol, Symbol)]]] =
     new Phase.PhaseKey("bridges")
+
+  val allTagged: Type => Boolean = _ => true
+
+  def untaggedTypes(symbols: Set[Symbol])(using Definitions): Type => Boolean =
+    tp =>
+      tp.approx match
+        case StaticRef(sym) if symbols.contains(sym) => false
+        case _ => true
 
   /** Erasure type parameters of classes and functions
     *
