@@ -1,0 +1,12 @@
+// Integer division and modulo truncate toward zero; the remainder takes the
+// sign of the dividend, so q*b + r == a holds. Every backend must agree.
+
+def main() =
+  println ((0 - 7) / 2)         // -3
+  println ((0 - 7) % 2)         // -1
+  println (7 / (0 - 2))         // -3
+  println (7 % (0 - 2))         //  1
+  println ((0 - 7) / (0 - 2))   //  3
+  println ((0 - 7) % (0 - 2))   // -1
+  println (7 / 2)               //  3
+  println (7 % 2)               //  1
