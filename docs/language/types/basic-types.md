@@ -5,6 +5,7 @@ Jo provides primitive types that form the foundation of the type system.
 ## Primitive Types
 
 ### Bool
+
 Boolean values representing true or false.
 
 ```jo
@@ -13,15 +14,32 @@ val isReady: Bool = false
 ```
 
 ### Int
-A signed 32-bit integer, the default integer type. Arithmetic uses two's
-complement and wraps around on overflow; the range is `[-2^31, 2^31 - 1]`.
+
+A signed 32-bit integer, the default integer type; the range is `[-2^31, 2^31 - 1]`.
+Arithmetic (`+`, `-`, `*`, unary `-`) that overflows the range is undefined
+behavior — a wrapped result is still a bug, so it is left unspecified. Bitwise
+operations (`<<`, `>>`, `&`, `|`, `^`) respect the 32-bit two's-complement
+representation (for example, `1 << 31` is the most-negative value).
 
 ```jo
 val count: Int = 42
 val negative: Int = -17
 ```
 
+### Long
+
+A signed 64-bit integer; the range is `[-2^63, 2^63 - 1]`. As with `Int`,
+arithmetic overflow is undefined behavior while bitwise operations respect the
+64-bit two's-complement representation.
+
+```jo
+val big: Long = 9223372036854775807
+val small: Int = 42
+val widened: Long = small   // Int widens to Long automatically
+```
+
 ### Byte
+
 An unsigned 8-bit value in the range `[0, 255]`. Byte is a storage type with no
 arithmetic of its own; convert to `Int` with `toInt` to compute.
 
@@ -30,6 +48,7 @@ val b: Byte = 200
 ```
 
 ### Char
+
 Unicode code points representing single characters. Supports the full Unicode range (U+0000 to U+10FFFF), excluding surrogate code points (U+D800 to U+DFFF).
 
 ```jo
@@ -49,6 +68,7 @@ val max: Char = 0x10FFFF    // U+10FFFF (highest valid Unicode code point)
 ```
 
 ### Float
+
 Floating-point numbers for decimal values.
 
 ```jo
@@ -57,6 +77,7 @@ val temperature: Float = 98.6
 ```
 
 ### String
+
 Text values.
 
 ```jo
@@ -138,7 +159,6 @@ Immutable collection of unique elements based on binary search tree. Requires an
 val numbers = Set(1, 2, 3, 4, 5)
 val hasTwo = numbers.contains(2)  // true
 ```
-
 
 ## See Also
 
