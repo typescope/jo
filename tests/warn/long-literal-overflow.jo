@@ -1,0 +1,13 @@
+// Test Long literal overflow detection
+
+def main() =
+  // Decimal overflow - exceeds Long.MaxValue (9223372036854775807)
+  val a: Long = 9223372036854775808
+
+  // Negative overflow - exceeds Long.MinValue (-9223372036854775808)
+  val b: Long = -9223372036854775809
+
+  // Hexadecimal overflow - more than 16 hex digits
+  val c: Long = 0x10000000000000000
+
+  print a
