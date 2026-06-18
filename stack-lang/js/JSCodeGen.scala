@@ -1064,11 +1064,11 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         (stats, JS.BinOp(qualExpr, "!==", argExpr))
 
       case "/" =>
-        // Integer division in JavaScript requires Math.floor
+        // Truncate toward zero to match the other backends (JS `%` already
+        // truncates, so this keeps q*b + r == a). `| 0` also wraps INT_MIN/-1.
         val arg :: Nil = args: @unchecked
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
-        val divExpr = JS.BinOp(qualExpr, "/", argExpr)
-        (stats, JS.Call(Some(JS.Ident("Math")), "floor", List(divExpr)))
+        (stats, wrap32(JS.BinOp(qualExpr, "/", argExpr)))
 
       case "toFloat" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)

@@ -257,7 +257,11 @@ object X86 extends Assembler:
         pb.addByte((0xC0 | (reg << 3) | reg).toByte)
         pb.addInt(v)
 
-  /** Divide the register with the value */
+  /** Divide the register with the value.
+    *
+    * INT_MIN / -1 overflows and traps x86 idiv (#DE); that case is documented
+    * as runtime-dependent, so it is intentionally left to crash here.
+    */
   def div(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     v match
       case Reg(rv) =>
@@ -347,7 +351,20 @@ object X86 extends Assembler:
   def mod(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     // https://www.felixcloutier.com/x86/idiv
     v match
+      case Int32(-1) =>
+        // a % -1 == 0 (avoids the idiv #DE overflow trap)
+        move(Int32(0), reg)
+
       case Reg(rv) =>
+        // Guard the INT_MIN / -1 case, which traps idiv on x86: modulo by -1
+        // is always 0. The idiv path below runs only when divisor != -1.
+        val idivL = new Label("imod")
+        val doneL = new Label("imod_done")
+        cmpImmJne(rv, -1, idivL)
+        move(Int32(0), reg)
+        jump(doneL)
+        pb.defineLabel(idivL)
+
         // F7 /7	IDIV r/m32
         // division uses dedicated registers EDX:EAX
 
@@ -408,6 +425,8 @@ object X86 extends Assembler:
 
           if divisorReg != rv then
             pop(divisorReg)
+
+        pb.defineLabel(doneL)
 
       case _: Int32 =>
         // F7 /7	IDIV r/m32
@@ -867,6 +886,20 @@ object X86 extends Assembler:
           val relativeAddr = loc - currentAddr - 5
           bb.addByte(0xE9.toByte)
           bb.addInt(relativeAddr)
+
+  /** Compare reg with imm32 (flags only), then jump to `label` if not equal. */
+  def cmpImmJne(reg: Int, imm: Int, label: Label)(using pb: PatchableBuffer) =
+    // 81 /7 id   CMP r/m32, imm32
+    pb.addByte(0x81.toByte)
+    pb.addByte((0xC0 | (7 << 3) | reg).toByte)
+    pb.addInt(imm)
+    // 0F 85 cd   JNE rel32
+    val offset = pb.currentAddr()
+    withPatch(label, 6): (bb, loc) =>
+      val rel = loc - offset - 6
+      bb.addByte(0x0F)
+      bb.addByte(0x85.toByte)
+      bb.addInt(rel)
 
   def eql(reg: Int, v: Operand)(using pb: PatchableBuffer) =
     cmp(reg, v, 0x94.toByte)

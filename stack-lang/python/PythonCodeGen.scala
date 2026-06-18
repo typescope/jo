@@ -1068,17 +1068,27 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
         (stats, wrapInt32(P.BinOp(qualExpr, name, argExpr)))
 
-      case "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | ">>" =>
+      case "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | ">>" =>
         // In-range inputs keep the result in range
         val arg :: Nil = args: @unchecked
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
         (stats, P.BinOp(qualExpr, name, argExpr))
 
       case "/" =>
-        // Integer division in Python requires //
+        // Truncate toward zero. int(a / b) is exact for 32-bit operands
+        // (|a| < 2^53 means float division never crosses an integer boundary).
+        // The only overflowing division, INT_MIN / -1, is runtime-dependent.
         val arg :: Nil = args: @unchecked
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
-        (stats, P.BinOp(qualExpr, "//", argExpr))
+        (stats, P.Call(None, "int", List(P.BinOp(qualExpr, "/", argExpr))))
+
+      case "%" =>
+        // Truncated remainder (sign of dividend): a - b * int(a / b).
+        // Operands appear twice, so enforce purity to bind them to temps.
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity = true)
+        val q = P.Call(None, "int", List(P.BinOp(qualExpr, "/", argExpr)))
+        (stats, P.BinOp(qualExpr, "-", P.BinOp(argExpr, "*", q)))
 
       case "toFloat" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)

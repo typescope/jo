@@ -691,7 +691,19 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         val arg :: Nil = args: @unchecked
         wrapInt32(R.BinOp(compileExpr(qual), name, compileExpr(arg)))
 
-      case "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | ">>" =>
+      case "/" =>
+        // Truncate toward zero: a.fdiv(b).truncate. The only overflowing
+        // division, INT_MIN / -1, is runtime-dependent.
+        val arg :: Nil = args: @unchecked
+        val f = R.Call(Some(compileExpr(qual)), "fdiv", List(compileExpr(arg)))
+        R.Call(Some(f), "truncate", Nil)
+
+      case "%" =>
+        // Truncated remainder (sign of dividend): Integer#remainder
+        val arg :: Nil = args: @unchecked
+        R.Call(Some(compileExpr(qual)), "remainder", List(compileExpr(arg)))
+
+      case "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | ">>" =>
         val arg :: Nil = args: @unchecked
         R.BinOp(compileExpr(qual), name, compileExpr(arg))
 
