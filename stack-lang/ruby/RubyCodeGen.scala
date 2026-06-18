@@ -818,6 +818,10 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         // Char is already represented as Int (Unicode code point) in Ruby
         compileExpr(qual)
 
+      case "toLong" =>
+        // Char -> Long: same Unicode code point value in Ruby
+        compileExpr(qual)
+
       case "toString" =>
         // Use chr with UTF-8 encoding to support Unicode code points > 255
         R.Call(Some(compileExpr(qual)), "chr", List(R.RawCode("Encoding::UTF_8")))
