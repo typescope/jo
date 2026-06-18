@@ -753,9 +753,12 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         wrapInt64(R.BinOp(compileExpr(qual), "<<", compileExpr(arg)))
 
       case "/" =>
-        // Truncate toward zero; Ruby Integer#/ floors for negative operands.
+        // Truncate toward zero exactly: (a - a.remainder(b)).div(b)
         val arg :: Nil = args: @unchecked
-        R.Call(Some(R.Call(Some(compileExpr(qual)), "fdiv", List(compileExpr(arg)))), "truncate", Nil)
+        val qualExpr = compileExpr(qual)
+        val argExpr = compileExpr(arg)
+        val rem = R.Call(Some(qualExpr), "remainder", List(argExpr))
+        R.Call(Some(R.BinOp(qualExpr, "-", rem)), "div", List(argExpr))
 
       case "%" =>
         // Truncated remainder (sign of dividend): Integer#remainder
