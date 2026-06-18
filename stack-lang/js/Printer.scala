@@ -85,6 +85,17 @@ object Printer:
     case "!"|"~"|"-"|"+"|"typeof"|"void"|"delete" => 12  // Unary operators
     case _ => 100        // Atomic expressions (no parens needed)
 
+  /** A `+`/`-` operator, which can merge with a following sign into `++`/`--`. */
+  private def isSign(op: String): Boolean = op == "-" || op == "+"
+
+  /** Whether an expression is emitted starting with a `-` sign (a negative
+    * Int/Float literal); such operands need separating from a preceding sign.
+    * BigInt literals parenthesize their own negatives, so they don't count. */
+  private def startsWithSign(expr: Expr): Boolean = expr match
+    case IntLit(n)   => n < 0
+    case FloatLit(d) => d < 0
+    case _           => false
+
   /** Print a complete JavaScript program */
   def print(program: Program, pw: java.io.PrintWriter): Unit =
     given ctx: Context = Context(0, pw)
@@ -268,15 +279,7 @@ object Printer:
 
     expr match
       case IntLit(n) =>
-        // A negative literal carries a leading '-', so it binds like a unary
-        // minus: routing it through the precedence logic parenthesizes it
-        // wherever a unary minus would need it (e.g. -(-10) -> -(-10), not the
-        // invalid `--10`; and (-10).toString()). Non-negative literals are
-        // atomic and only need parens before a member access.
-        if n < 0 then
-          withParenthesisOpt("-"): _ =>
-            emitInline(n.toString)
-        else if parentPrec > 20 then
+        if parentPrec > 20 then
           // 2.toString is invalid in JS, (2).toString is OK
           emitInline("(", n.toString, ")")
         else
@@ -292,14 +295,7 @@ object Printer:
         else
           emitInline(literal)
 
-      case FloatLit(d) =>
-        // A negative float binds like a unary minus (see IntLit), so route it
-        // through the precedence logic to avoid `--1.5` when negated.
-        if d < 0 then
-          withParenthesisOpt("-"): _ =>
-            emitInline(d.toString)
-        else
-          emitInline(d.toString)
+      case FloatLit(d) => emitInline(d.toString)
 
       case StringLit(s) => emitInline("\"" + escape(s) + "\"")
 
@@ -322,8 +318,11 @@ object Printer:
       case UnaryOp(op, operand) =>
         withParenthesisOpt(op): myPrec =>
           emitInline(op)
-          // Add space if operator is a word (typeof, void, delete)
-          if op.head.isLetter then emitInline(" ")
+          // Separate the operator from the operand when they would otherwise
+          // merge into a different token: a word operator (typeof/void/delete),
+          // or a sign followed by a negative literal (-(-10) must not be `--10`).
+          if op.head.isLetter || (isSign(op) && startsWithSign(operand)) then
+            emitInline(" ")
           emitExpr(operand, myPrec + 1)
 
       case Conditional(cond, thenBranch, elseBranch) =>
