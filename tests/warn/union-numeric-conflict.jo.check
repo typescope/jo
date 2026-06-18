@@ -38,4 +38,19 @@
 |                  ^^^^^^^^^^^
 |                  Union type cannot contain multiple numeric/boolean types: (Bool, Char)
 
-8 error(s), 0 warning(s)
+---------- Error at tests/warn/union-numeric-conflict.jo:28:18 ---------------
+| type BadUnion9 = Long | Int
+|                  ^^^^^^^^^^
+|                  Union type cannot contain multiple numeric/boolean types: (Long, Int)
+
+---------- Error at tests/warn/union-numeric-conflict.jo:31:19 ---------------
+| type BadUnion10 = Long | Float
+|                   ^^^^^^^^^^^^
+|                   Union type cannot contain multiple numeric/boolean types: (Long, Float)
+
+---------- Error at tests/warn/union-numeric-conflict.jo:34:19 ---------------
+| type BadUnion11 = Long | Char
+|                   ^^^^^^^^^^^
+|                   Union type cannot contain multiple numeric/boolean types: (Long, Char)
+
+11 error(s), 0 warning(s)
