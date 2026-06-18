@@ -37,8 +37,19 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     "true", "false", "nil", "and", "or", "not", "in", "then"
   )
 
+  // Ruby built-in constants/classes that the generated code references
+  // directly (see ClassTest and Long division). Reserve them so a user symbol
+  // is never emitted with one of these names and shadows the runtime class we
+  // depend on.
+  val builtinConstants = List(
+    "Integer", "Float", "String", "Array", "Rational", "TrueClass", "FalseClass"
+  )
+
   // Make keywords unavailable
   for word <- keywords do reservedNames.freshName(word)
+
+  // Make built-in constants unavailable
+  for name <- builtinConstants do reservedNames.freshName(name)
 
   // Make runtime symbols unavailable
   for name <- runtime.runtimeNames do reservedNames.freshName(name)
@@ -753,12 +764,15 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         wrapInt64(R.BinOp(compileExpr(qual), "<<", compileExpr(arg)))
 
       case "/" =>
-        // Truncate toward zero exactly: (a - a.remainder(b)).div(b)
+        // Truncate toward zero exactly via Rational: Rational(a, b).truncate.
+        // Rational arithmetic is exact (unlike Float#fdiv, which loses
+        // precision beyond 53 bits) and Rational#truncate rounds toward zero.
+        // Each operand is referenced once, so side-effecting operands are
+        // evaluated exactly once without temporaries. A zero divisor raises
+        // ZeroDivisionError, matching integer division.
         val arg :: Nil = args: @unchecked
-        val qualExpr = compileExpr(qual)
-        val argExpr = compileExpr(arg)
-        val rem = R.Call(Some(qualExpr), "remainder", List(argExpr))
-        R.Call(Some(R.BinOp(qualExpr, "-", rem)), "div", List(argExpr))
+        val rat = R.Call(None, "Rational", List(compileExpr(qual), compileExpr(arg)))
+        R.Call(Some(rat), "truncate", Nil)
 
       case "%" =>
         // Truncated remainder (sign of dividend): Integer#remainder
