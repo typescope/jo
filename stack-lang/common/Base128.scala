@@ -160,4 +160,17 @@ object Base128:
     for value <- longNatValues do
       testValue(value, encodeLongNat, decodeLongNat, "LongNat")
 
+    // Test big integers (arbitrary precision)
+    val bigValues = List[BigInt](
+        0, 1, -1, 42, -42, 127, -127, 128, -128, 16383,
+        BigInt(Long.MaxValue),
+        BigInt(Long.MinValue),
+        BigInt(2).pow(200),
+        -BigInt(2).pow(200)
+    )
+
+    for value <- bigValues do
+      testValue(value, encodeBigInt, decodeBigInt, "BigInt")
+
+
     println("All Base128 tests passed!")
