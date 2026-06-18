@@ -31,7 +31,7 @@ class Int
   //[ Integer division, truncating toward zero.
     !
     ! The fractional part of the exact quotient is discarded, e.g.
-    ! `(0 - 7) / 2 == -3`. When `a / b` is representable it pairs with `%` so
+    ! `(0 - 7) / 2 == -3`. When `a / b` is representable, it pairs with `%` so
     ! that `(a / b) * b + a % b == a`.
     !
     ! When the quotient is not representable — division by zero, or the

@@ -31,7 +31,7 @@ class Long
   //[ Integer division, truncating toward zero.
     !
     ! The fractional part of the exact quotient is discarded. When `a / b` is
-    ! representable it pairs with `%` so that `(a / b) * b + a % b == a`.
+    ! representable, it pairs with `%` so that `(a / b) * b + a % b == a`.
     !
     ! When the quotient is not representable — division by zero, or the
     ! overflowing `LONG_MIN / -1` — both `/` and `%` are runtime-dependent.
