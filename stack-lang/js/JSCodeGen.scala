@@ -1035,19 +1035,8 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   /** Compile Int primitive operations */
   private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
     name match
-      case "+" | "-" =>
-        // Can overflow Number: coerce to signed 32-bit
-        val arg :: Nil = args: @unchecked
-        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
-        (stats, wrap32(JS.BinOp(qualExpr, name, argExpr)))
-
-      case "*" =>
-        // Math.imul gives exact 32-bit multiplication (a*b can exceed 2^53)
-        val arg :: Nil = args: @unchecked
-        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
-        (stats, JS.Call(Some(JS.Ident("Math")), "imul", List(qualExpr, argExpr)))
-
-      case "%" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" =>
+      case "%" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" | "+" | "-" | "*" =>
+        // Arithmetic overflow is undefined
         // %, shifts and bitwise already stay within signed 32-bit
         val arg :: Nil = args: @unchecked
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)

@@ -1062,14 +1062,15 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
   private def compileIntPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
     name match
-      case "+" | "-" | "*" | "<<" =>
-        // Can overflow: wrap to signed 32-bit
+      case "<<" =>
+        // Left shift is a bit operation with defined 32-bit semantics
         val arg :: Nil = args: @unchecked
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
-        (stats, wrapInt32(P.BinOp(qualExpr, name, argExpr)))
+        (stats, wrapInt32(P.BinOp(qualExpr, "<<", argExpr)))
 
-      case "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | ">>" =>
-        // In-range inputs keep the result in range
+      case "+" | "-" | "*" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | ">>" =>
+        // Arithmetic overflow is undefined
+        // comparisons and the other bit ops stay within range for in-range inputs
         val arg :: Nil = args: @unchecked
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
         (stats, P.BinOp(qualExpr, name, argExpr))
@@ -1104,7 +1105,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
       case "~-" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
-        (stats, wrapInt32(P.UnaryOp("-", expr)))
+        (stats, P.UnaryOp("-", expr))
 
       case "toString" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)

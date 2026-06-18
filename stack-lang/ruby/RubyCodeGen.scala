@@ -686,8 +686,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
   private def compileIntPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, ctx: Context): R.Tree =
     name match
-      case "+" | "-" | "*" | "<<" =>
-        // Can overflow: wrap to signed 32-bit
+      case "<<" =>
+        // Left shift is a bit operation with defined 32-bit semantics
         val arg :: Nil = args: @unchecked
         wrapInt32(R.BinOp(compileExpr(qual), name, compileExpr(arg)))
 
@@ -703,7 +703,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         val arg :: Nil = args: @unchecked
         R.Call(Some(compileExpr(qual)), "remainder", List(compileExpr(arg)))
 
-      case "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | ">>" =>
+      case "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | ">>" | "+" | "-" | "*" =>
+        // Arithmetic overflow is undefined
+        // comparisons and the other bit ops stay within range for in-range inputs
         val arg :: Nil = args: @unchecked
         R.BinOp(compileExpr(qual), name, compileExpr(arg))
 
