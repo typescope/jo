@@ -71,12 +71,20 @@ class Int
   def !=(other: Int): Bool = !(this == other)
 
   // Bitwise operators as methods
-  //[ Arithmetic shift right. //]
-  @intrinsic
-  def >>(other: Int): Int = ...
 
+  //[ Arithmetic shift right.
+    !
+    ! The behavior is undefined if count > 31.
+  //]
   @intrinsic
-  def <<(other: Int): Int = ...
+  def >>(count: Int): Int = ...
+
+  //[ Arithmetic shift left.
+    !
+    ! The behavior is undefined if count > 31 .
+  //]
+  @intrinsic
+  def <<(count: Int): Int = ...
 
   @intrinsic
   def &(other: Int): Int = ...

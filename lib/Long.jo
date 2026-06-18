@@ -66,10 +66,18 @@ class Long
   def !=(other: Long): Bool = !(this == other)
 
   // Bitwise operators as methods
-  //[ Arithmetic shift right. //]
+
+  //[ Arithmetic shift right.
+    !
+    ! The behavior is undefined if count > 63.
+  //]
   @intrinsic
   def >>(other: Long): Long = ...
 
+  //[ Arithmetic shift left.
+    !
+    ! The behavior is undefined if count > 63.
+  //]
   @intrinsic
   def <<(other: Long): Long = ...
 
