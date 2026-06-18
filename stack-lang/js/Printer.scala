@@ -274,6 +274,16 @@ object Printer:
         else
           emitInline(n.toString)
 
+      case BigIntLit(n) =>
+        val literal =
+          if n < 0 then s"(${n}n)"
+          else s"${n}n"
+        if parentPrec > 20 && n >= 0 then
+          // 2n.toString is invalid in JS, (2n).toString is OK
+          emitInline("(", literal, ")")
+        else
+          emitInline(literal)
+
       case FloatLit(d) => emitInline(d.toString)
 
       case StringLit(s) => emitInline("\"" + escape(s) + "\"")

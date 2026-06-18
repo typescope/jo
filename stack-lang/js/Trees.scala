@@ -17,6 +17,7 @@ object Trees:
 
   /** Literals */
   case class IntLit(value: Long) extends Expr
+  case class BigIntLit(value: Long) extends Expr
   case class FloatLit(value: Double) extends Expr
   case class StringLit(value: String) extends Expr
   case class BoolLit(value: Boolean) extends Expr
