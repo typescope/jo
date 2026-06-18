@@ -94,6 +94,9 @@ class Int
   def toByte: Byte = ...
 
   @intrinsic
+  def toLong: Long = ...
+
+  @intrinsic
   def toFloat: Float = ...
 
   @intrinsic

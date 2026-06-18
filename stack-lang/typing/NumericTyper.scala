@@ -17,11 +17,11 @@ object NumericTyper:
     * - Int: default
     */
   def typeIntLit(lit: Ast.IntLit)(using tt: TargetType, defn: Definitions, rp: Reporter, src: Source): Literal =
-    val intValue = parseIntLiteral(lit.value, lit.isHex, lit.span)
-
-    // Determine the literal type based on expected type
+    // Determine the literal type based on expected type. Parsing is done per
+    // branch so each type uses the matching width (Int: 32-bit, Long: 64-bit).
     tt.knownType match
       case Some(expectedType) if expectedType.isSubtype(defn.ByteType) =>
+        val intValue = parseIntLiteral(lit.value, lit.isHex, lit.span)
         if intValue >= 0 && intValue <= 255 then
           Literal(Constant.Int(intValue))(defn.ByteType, lit.span)
         else
@@ -29,6 +29,7 @@ object NumericTyper:
           Literal(Constant.Int(intValue))(defn.ByteType, lit.span)
 
       case Some(expectedType) if expectedType.isSubtype(defn.CharType) =>
+        val intValue = parseIntLiteral(lit.value, lit.isHex, lit.span)
         // Valid Unicode range is U+0000 to U+10FFFF, excluding surrogates (U+D800 to U+DFFF)
         if intValue >= 0 && intValue <= 0x10FFFF then
           // Reject surrogate code points (0xD800 to 0xDFFF)
@@ -41,11 +42,17 @@ object NumericTyper:
           rp.error(f"Integer literal $intValue%X out of range for Char [0, 10FFFF]", lit.span.toPos)
           Literal(Constant.Int(intValue))(defn.CharType, lit.span)
 
+      case Some(expectedType) if expectedType.isSubtype(defn.LongType) =>
+        val longValue = parseLongLiteral(lit.value, lit.isHex, lit.span)
+        Literal(Constant.Int(longValue))(defn.LongType, lit.span)
+
       case Some(expectedType) if expectedType.isSubtype(defn.FloatType) =>
+        val intValue = parseIntLiteral(lit.value, lit.isHex, lit.span)
         Literal(Constant.Float(intValue.toDouble))(defn.FloatType, lit.span)
 
       case _ =>
         // Default to Int
+        val intValue = parseIntLiteral(lit.value, lit.isHex, lit.span)
         Literal(Constant.Int(intValue))(defn.IntType, lit.span)
 
   /** Type a character literal from AST to SAST Literal
@@ -157,6 +164,71 @@ object NumericTyper:
 
     sum
   end str2Int
+
+  /** Parse an integer literal as a signed 64-bit value (for `Long`).
+    *
+    * Mirrors `parseIntLiteral` but accumulates in 64 bits: hex literals are
+    * bit patterns (up to 16 digits) and decimals are overflow-checked.
+    */
+  private def parseLongLiteral(str: String, isHex: Boolean, span: Span)(using rp: Reporter, src: Source): Long =
+    if isHex then
+      hexStr2Long(str, span)
+    else
+      str2Long(str, span)
+
+  private def hexStr2Long(str: String, span: Span)(using rp: Reporter, src: Source): Long =
+    val cleaned = str.replace("_", "")
+
+    val isNegative = cleaned(0) == '-'
+    val prefixLen = if isNegative then 3 else 2 // Skip "-0x" or "0x"
+    val hexDigits = cleaned.substring(prefixLen)
+    val length = hexDigits.size
+
+    if length > 16 then
+      rp.error(s"Hexadecimal literal too long (max 16 hex digits): $hexDigits", span.toPos)
+      return 0L
+
+    var sum: Long = 0
+    var i = 0
+    while i < length do
+      val c = hexDigits(i)
+      val v = if c >= '0' && c <= '9' then c - '0'
+              else if c >= 'a' && c <= 'f' then c - 'a' + 10
+              else if c >= 'A' && c <= 'F' then c - 'A' + 10
+              else 0
+      sum = (sum << 4) | v.toLong
+      i += 1
+
+    if isNegative then -sum else sum
+  end hexStr2Long
+
+  private def str2Long(str: String, span: Span)(using rp: Reporter, src: Source): Long =
+    val cleaned = str.replace("_", "")
+
+    val first = cleaned(0)
+    val length = cleaned.size
+    val isNegative = first == '-'
+
+    var sum: Long = 0
+    if !isNegative then sum = (first - '0').toLong
+    var overflow = false
+
+    var i = 1
+    while i < length do
+      val c = cleaned(i)
+      val v = (c - '0').toLong
+      sum = sum * 10 + (if isNegative then -v else v)
+
+      if !isNegative && sum < 0 then overflow = true
+      if isNegative && sum > 0 then overflow = true
+
+      i += 1
+
+    if overflow then
+      rp.error(s"Integer literal overflow: $str", span.toPos)
+
+    sum
+  end str2Long
 
   /** Parse float literal string to Double value */
   private def parseFloatLiteral(str: String, span: Span)(using rp: Reporter, src: Source): Double =
