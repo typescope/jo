@@ -692,13 +692,21 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     * `((e + 0x80000000) & 0xFFFFFFFF) - 0x80000000`. Ruby Integers are
     * arbitrary precision, so overflow-capable arithmetic is masked to keep
     * `Int` 32-bit and consistent with the other backends.
+    *
+    * The `& 0xFFFFFFFF` keeps the low 32 bits; the surrounding `+ 0x80000000`
+    * / `- 0x80000000` performs sign extension, so a result with bit 31 set
+    * comes back negative (e.g. `1 << 31` -> -2147483648). A bare
+    * `& 0xFFFFFFFF` would instead yield the unsigned value (2147483648).
     */
   private def wrapInt32(e: R.Tree): R.Tree =
     val off  = R.IntLit(0x80000000L)
     val mask = R.IntLit(0xFFFFFFFFL)
     R.BinOp(R.BinOp(R.BinOp(e, "+", off), "&", mask), "-", off)
 
-  /** Reduce an integer expression to signed 64-bit (two's-complement wrap). */
+  /** Reduce an integer expression to signed 64-bit (two's-complement wrap).
+    * Same scheme as [[wrapInt32]] at 64-bit width: mask to the low 64 bits and
+    * sign-extend so bit 63 determines the sign.
+    */
   private def wrapInt64(e: R.Tree): R.Tree =
     val off  = R.BinOp(R.IntLit(1), "<<", R.IntLit(63))
     val mask = R.BinOp(R.BinOp(R.IntLit(1), "<<", R.IntLit(64)), "-", R.IntLit(1))
@@ -707,7 +715,10 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   private def compileIntPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, ctx: Context): R.Tree =
     name match
       case "<<" =>
-        // Left shift is a bit operation with defined 32-bit semantics
+        // Left shift, defined only for counts 0..31 (lib/Int.jo). wrapInt32
+        // sign-extends the result, so shifting into bit 31 yields a negative
+        // Int (e.g. `1 << 31` -> -2147483648); a bare `& 0xFFFFFFFF` would
+        // give the unsigned 2147483648 instead.
         val arg :: Nil = args: @unchecked
         wrapInt32(R.BinOp(compileExpr(qual), name, compileExpr(arg)))
 
@@ -747,7 +758,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         compileExpr(qual)
 
       case "~-" =>
-        wrapInt32(R.UnaryOp("-", compileExpr(qual)))
+        // Negation overflow (-INT_MIN) is undefined, like +/-/*, so no wrap.
+        R.UnaryOp("-", compileExpr(qual))
 
       case "toString" =>
         R.Select(compileExpr(qual), "to_s")
@@ -759,7 +771,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   private def compileLongPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, ctx: Context): R.Tree =
     name match
       case "<<" =>
-        // Left shift is a bit operation with defined 64-bit semantics
+        // Left shift, defined only for counts 0..63 (lib/Long.jo). wrapInt64
+        // sign-extends the result, so shifting into bit 63 yields a negative
+        // Long (e.g. `1 << 63` is the most-negative value).
         val arg :: Nil = args: @unchecked
         wrapInt64(R.BinOp(compileExpr(qual), "<<", compileExpr(arg)))
 

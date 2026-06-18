@@ -1091,7 +1091,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case "~-" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
-        (stats, wrap32(JS.UnaryOp("-", expr)))
+        (stats, JS.UnaryOp("-", expr))
 
       case "toString" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
