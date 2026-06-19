@@ -572,7 +572,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val id = name()
     val defs = repeated:
       val item = peekItem()
-      if item.isDedent(secToken) then None
+      if item.indent.isDedent(secToken.indent) then None
       else Some(parseTopLevelDef())
 
     eatEndOpt(secToken.indent)

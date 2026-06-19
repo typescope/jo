@@ -40,10 +40,7 @@ object Tokens:
     span: Span,
     indent: Indent,
     precedingComments: List[RawComment]
-  ):
-    /** Whether this token is a dedent relative to the reference. */
-    def isDedent(ref: TokenInfo): Boolean =
-      this.token == Token.EOF || this.indent.isDedent(ref.indent)
+  )
 
   /** Support for indentation syntax
     *
