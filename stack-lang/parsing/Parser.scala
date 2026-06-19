@@ -1809,7 +1809,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     def shouldContinueWithLimit: Boolean =
       if !item.indent.isFirstOfLine then return true
 
-      if item.indent.isDedent(limit.get) then return false
+      if item.indent.isOutdent(limit.get) then return false
 
       val isLastOperator = buf.last match
         case Ident(name) if Naming.isOperator(name) => true
