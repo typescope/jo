@@ -97,7 +97,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def next(): TokenInfo = scanner.next()
   def peek(): Token = scanner.peek(0)
   def peek(i: Int): Token = scanner.peek(i)
-  def peekItem(): TokenInfo = scanner.peekItem(0)
+  def peekItem(i: Int = 0): TokenInfo = scanner.peekItem(i)
   def eat(expect: Token): TokenInfo =
     val item = peekItem()
     if item.token != expect then
@@ -1427,7 +1427,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     Allow(body, params)(allowItem.span | body.span)
 
   /** delimited expression, possibly limited by newline for inline colon args */
-  def expr(endOnNewLine: Boolean = false): Word =
+  def expr(limit: Option[Indent] = None): Word =
     val item = peekItem()
     val token = item.token
     token match
@@ -1447,7 +1447,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case _ =>
         word(prevWord = null) match
           case Some(w) =>
-            words(mutable.ArrayBuffer(w), endOnNewLine)
+            words(mutable.ArrayBuffer(w), limit)
 
           case None =>
             error("Expect delimited expression (words, if/else, lambda), found = " + token, item.span.toPos)
@@ -1474,7 +1474,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             throw new SyntaxError
 
         val item = peekItem()
-        if headItem.indent.isUnindent(item.indent) then return w
+        val isDedent = headItem.indent.isUnindent(item.indent)
 
         item.token match
           case Token.EQL if allowAssign =>
@@ -1486,7 +1486,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           case Token.COLON =>
             colonCall(w)
 
-          case Token.DOT =>
+          case Token.DOT if !isDedent =>
             dotChain(w, headItem.indent)
 
           case Token.RESCUE =>
@@ -1502,18 +1502,18 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
               RescueExpr(w, pat, handler)(w.span | handler.span)
 
           case _ =>
-            words(mutable.ArrayBuffer(w), endOnNewLine = true)
+            words(mutable.ArrayBuffer(w), limit = Some(headItem.indent))
 
   private def inlineColonArgs(colonIndent: Indent): List[CallArg] =
     def inlineColonArg(): CallArg =
       if peek().isInstanceOf[Token.Name] && peek(1) == Token.EQL then
         val id = name()
         eat(Token.EQL)
-        val rhs = expr(endOnNewLine = true)
+        val rhs = expr(limit = Some(colonIndent))
         NamedArg(id, rhs)(id.span | rhs.span)
 
       else
-        expr(endOnNewLine = true)
+        expr(limit = Some(colonIndent))
 
     val acc = mutable.ArrayBuffer.empty[CallArg]
 
@@ -1783,12 +1783,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def words(keyword: TokenInfo): Word =
     word(prevWord = null) match
-      case Some(w) => words(mutable.ArrayBuffer(w), endOnNewLine = false)
+      case Some(w) => words(mutable.ArrayBuffer(w), limit = None)
       case None =>
         error("Expect words after " + keyword.token + ", found none", keyword.span.toPos)
         throw new SyntaxError
 
-  def words(buf: mutable.ArrayBuffer[Word], endOnNewLine: Boolean): Word =
+  def words(buf: mutable.ArrayBuffer[Word], limit: Option[Indent]): Word =
     assert(buf.nonEmpty, "empty buf")
 
     def finish(): Word =
@@ -1805,12 +1805,38 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             Expr(buf.toList)(span)
 
     val item = peekItem()
-    if endOnNewLine && item.indent.isFirstOfLine || item.token == Token.EOF then
+
+    def shouldContinueWithLimit: Boolean =
+      if !item.indent.isFirstOfLine then return true
+
+      if limit.get.isUnindent(item.indent) then return false
+
+      val isLastOperator = buf.last match
+        case Ident(name) if Naming.isOperator(name) => true
+        case _ => false
+
+      val isCurrentInfix = item.token match
+        case _: Token.Operator =>
+          // check whether current is infix instead of prefix
+          //
+          // prefix operator must be followed immediately by the operand
+          val item2 = peekItem(1)
+          !item2.span.followsImmediate(item.span)
+
+        case _ => false
+
+      if isLastOperator then !isCurrentInfix else isCurrentInfix
+
+    val shouldStop =
+        limit.nonEmpty && !shouldContinueWithLimit
+        || item.token == Token.EOF
+
+    if shouldStop then
       finish()
 
     else
       word(prevWord = buf.last) match
-        case Some(w) => words(buf += w, endOnNewLine)
+        case Some(w) => words(buf += w, limit)
         case None => finish()
 
   def phrase(): Word =
