@@ -18,7 +18,7 @@ def main =
 
   mix 6 List 8 pass
 
-  .. l
+  ..l
 
   println (.. List("hello"))
 
