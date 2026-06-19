@@ -1,0 +1,14 @@
+// A more-indented continuation line only joins the previous expression when it
+// is an infix-operator boundary. A prefix operator (no space before its
+// operand) is NOT a continuation, so `-a` here starts a new, misaligned line
+// and the indentation checker reports it.
+//
+// Note the difference from `- a` (with a space), which would be parsed as an
+// infix continuation `a + 1 - a`.
+
+def main =
+  val a = 3
+  val x =
+    a + 1
+      -a
+  println x
