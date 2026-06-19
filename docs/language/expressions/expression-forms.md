@@ -50,8 +50,8 @@ Expressions are sequences of one or more words, plus a few extended forms:
 
 See [Applications](applications.md) for colon call and dot chain syntax, [Control Flow](control-flow.md) for `if`, `match`, and `rescue`, [Lambdas](lambdas.md) for lambda syntax.
 
-::: info Multi-line open expressions
-An open expression may span several lines when it is broken at an **infix operator** boundary — either a line ends with an operator (trailing), or the next line begins with an infix operator (leading):
+::: info Multi-line open word sequence
+An open word sequence may span several lines when it is broken at an **infix operator** boundary — either a line ends with an operator (trailing), or the next line begins with an infix operator (leading):
 
 ```jo
 val total =
