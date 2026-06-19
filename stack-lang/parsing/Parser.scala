@@ -318,8 +318,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def skipIndented(limitIndent: Indent) =
     var item = peekItem()
     while
-      (!limitIndent.isUnindent(item.indent) || item.token == Token.END
-      && !limitIndent.isOutdent(item.indent))
+      (!item.indent.isDedent(limitIndent) ||
+       item.token == Token.END && !item.indent.isOutdent(limitIndent))
       && item.token != Token.EOF
     do
       next()
@@ -572,7 +572,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val id = name()
     val defs = repeated:
       val item = peekItem()
-      if secToken.isUnindent(item) then None
+      if item.isDedent(secToken) then None
       else Some(parseTopLevelDef())
 
     eatEndOpt(secToken.indent)
@@ -762,7 +762,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     eat(Token.EQL)
     val item = peekItem()
-    if pat.indent.isUnindent(item.indent) then
+    if item.indent.isDedent(pat.indent) then
        error("Expect cases, found nothing before the unindentation", item.span.toPos)
        throw new SyntaxError
 
@@ -776,7 +776,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         repeated:
           if peek() == Token.CASE then
             val caseToken = next()
-            val pat = pattern(indent => caseToken.indent.isIndentOrSameLine(indent))
+            val pat = pattern(indent => indent.isIndentOrSameLine(caseToken.indent))
             val caseDef = Case(pat, Block(Nil)(pat.span))(caseToken.span | pat.span)
 
             if count > 0 then checkAlign(item, caseToken)
@@ -864,7 +864,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     var continue = true
     while continue do
       val item = peekItem()
-      if item.token == Token.EOF || klass.indent.isUnindent(item.indent) then
+      if item.token == Token.EOF || item.indent.isDedent(klass.indent) then
         continue = false
 
       else if item.token == Token.VIEW then
@@ -932,7 +932,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     val members: List[FunDef] = repeated:
       val item = peekItem()
-      if interface.indent.isUnindent(item.indent) then
+      if item.indent.isDedent(interface.indent) then
         None
       else if item.token == Token.AT || item.token == Token.DEF || item.token == Token.PRIVATE || item.token == Token.DEFER then
         // Get doc comment from the first token before modifiers
@@ -967,7 +967,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     // Parse methods (same as interface, but bodies are required)
     val members: List[FunDef] = repeated:
       val item = peekItem()
-      if extToken.indent.isUnindent(item.indent) then
+      if item.indent.isDedent(extToken.indent) then
         None
       else if item.token == Token.AT || item.token == Token.DEF || item.token == Token.PRIVATE || item.token == Token.DEFER then
         val doc = processComments(peekItem().precedingComments)
@@ -1008,7 +1008,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     var continue = true
     while continue do
       val item = peekItem()
-      if item.token == Token.EOF || obj.indent.isUnindent(item.indent) then
+      if item.token == Token.EOF || item.indent.isDedent(obj.indent) then
         continue = false
 
       else if item.token == Token.VIEW then
@@ -1130,7 +1130,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     // Parse optional methods (same pattern as extensionDef)
     val funs: List[FunDef] = repeated:
       val item = peekItem()
-      if union.indent.isUnindent(item.indent) then
+      if item.indent.isDedent(union.indent) then
         None
       else if item.token == Token.AT || item.token == Token.DEF || item.token == Token.PRIVATE || item.token == Token.DEFER then
         val doc = processComments(peekItem().precedingComments)
@@ -1362,7 +1362,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         error("Expected a phrase after " + lastItem.token, lastItem.span.toPos)
         throw new SyntaxError
 
-    else if limitIndent.isUnindent(item.indent) then
+    else if item.indent.isDedent(limitIndent) then
       error("Code expected after " + lastItem.token + ", but nothing found", lastItem.span.toPos)
       Block(phrases = Nil)(lastItem.span.endPoint)
 
@@ -1379,7 +1379,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         Block(phrases.toList)(span)
 
     val item = peekItem()
-    if limitIndent.isUnindent(item.indent) || item.token == Token.EOF then
+    if item.indent.isDedent(limitIndent) || item.token == Token.EOF then
       finalResult()
 
     else
@@ -1474,7 +1474,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
             throw new SyntaxError
 
         val item = peekItem()
-        val isDedent = headItem.indent.isUnindent(item.indent)
+        val isDedent = item.indent.isDedent(headItem.indent)
 
         item.token match
           case Token.EQL if allowAssign =>
@@ -1547,7 +1547,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     while continue do
       val item = peekItem()
 
-      if colonIndent.isUnindent(item.indent) || item.token == Token.EOF then
+      if item.indent.isDedent(colonIndent) || item.token == Token.EOF then
         continue = false
 
       else
@@ -1573,7 +1573,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     if colonIndent.isSameLine(item.indent) then
       inlineColonArgs(colonIndent)
 
-    else if colonIndent.isIndent(item.indent) then
+    else if item.indent.isIndent(colonIndent) then
       indentedColonArgs(colonIndent)
 
     else
@@ -1775,7 +1775,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         chain = Apply(chain, args)(chain.span | args.last.span)
 
       val item = peekItem()
-      continue = item.token == Token.DOT && !limitIndent.isUnindent(item.indent)
+      continue = item.token == Token.DOT && !item.indent.isDedent(limitIndent)
     end while
 
     chain
@@ -1809,7 +1809,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     def shouldContinueWithLimit: Boolean =
       if !item.indent.isFirstOfLine then return true
 
-      if limit.get.isUnindent(item.indent) then return false
+      if item.indent.isDedent(limit.get) then return false
 
       val isLastOperator = buf.last match
         case Ident(name) if Naming.isOperator(name) => true
@@ -1895,7 +1895,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val nextItem = peekItem()
 
     val value =
-      if retItem.indent.isUnindent(nextItem.indent) then None
+      if nextItem.indent.isDedent(retItem.indent) then None
       else Some(block(retItem.indent, retItem))
 
     Return(value)(retItem.span | value.map(_.span).getOrElse(retItem.span))
@@ -2151,7 +2151,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val nextItem = peekItem()
     val elsep =
       // outdent else belongs to outer if/else
-      if nextItem.token == Token.ELSE && !ifItem.indent.isOutdent(nextItem.indent) then
+      if nextItem.token == Token.ELSE && !nextItem.indent.isOutdent(ifItem.indent) then
         val elseItem = eat(Token.ELSE)
         // if cond then
         // else if cond then
@@ -2306,7 +2306,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
   def cases(acc: mutable.ArrayBuffer[(Case, TokenInfo)], limitIndent: Indent): List[Case] =
     val item = peekItem()
-    if item.token == Token.CASE && !limitIndent.isOutdent(item.indent) then
+    if item.token == Token.CASE && !item.indent.isOutdent(limitIndent) then
       val caseItem = eat(Token.CASE)
 
       if acc.nonEmpty then
