@@ -6,10 +6,9 @@ Fix #XXX: A short description
 
 ## What has changed
 
-## Testing
+## Checklist
 
 - [ ] Added / updated tests under `tests/pos/` or `tests/warn/`
-- [ ] Ran `./ci` locally and all tests pass
 - [ ] Docs updated if the change affects user-visible behavior
 - [ ] All commits are signed off ([why?](https://github.com/typescope/jo/blob/main/CONTRIBUTING.md#contribution-terms))
 
