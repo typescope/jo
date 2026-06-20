@@ -21,11 +21,12 @@ Jo classifies expressions into three categories and applies distinct parsing str
 
 | Expression Context | Precedence | Operator | Shape |
 |-------------------|------------|----------|-------|
-| Expressions       | ✓          | ✓        | ✓     |
+| term expressions  | ✓          | ✓        | ✓     |
 | Pattern expressions | ✗        | ✓        | ✓     |
-| Type expressions  | ✗          | ✓        | ✓     |
+| Type expressions  | ✗          | ✓        | ✗     |
 
-**Precedence parsing applies to expressions only, not to pattern or type expressions.**
+- Precedence parsing applies to terms only, not to patterns or types.
+- Shape parsing applies to terms and patterns, not to types.
 
 ## Precedence Expressions
 
