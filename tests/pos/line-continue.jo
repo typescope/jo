@@ -1,0 +1,40 @@
+// Indented infix operator line continuation.
+//
+// A words-expression continues onto a more-indented next line when the break
+// happens at an infix-operator boundary: either the previous line ends with an
+// operator (trailing), or the next line starts with an infix operator (leading).
+
+def main =
+  // trailing operator, inline colon head on the first line
+  println: 3 + 4
+    + 4                       // 11
+
+  // leading operators under an indented colon block
+  println:
+    "hello, this is a very long message"
+       + " some more content"
+       + " more content"      // concatenated string
+
+  // trailing operator, with a prefix operand on the continuation line
+  println:
+    3 + 4 +
+      -4 + 9                  // 12
+
+  // leading boolean operators chained across lines
+  println:
+    5 > 4
+      || 6 > 9
+      || 10 > 3               // true
+
+  // mixed leading and trailing in a single expression
+  println:
+    1 > 0
+      && 2 > 0 ||
+      3 > 0                   // true
+
+  // continuation works for a plain (non-colon) words expression too
+  val sum =
+    10 +
+      20 +
+      30
+  println sum                 // 60

@@ -9,6 +9,8 @@ Bundle all repository changes for the release into a single PR and merge it to
 
 - [ ] Bump the version: `stack-lang/tool/JoVersion.scala` —
       `val current: Version = Version(X, Y, Z)`
+- [ ] Update the release badge in `README.md` to `vX.Y.Z` (both the badge
+      image URL and the release tag link)
 - [ ] Update `CHANGELOG.md` with notable changes under the new version heading
 - [ ] Append the new entry to `docs/public/versions.jsonl` (the release
       download/checksum URLs follow the `vX.Y.Z` naming, so they can be added

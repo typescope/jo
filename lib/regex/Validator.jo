@@ -341,15 +341,15 @@ private class Validator(source: String)
     else
       None
 
-  private def isSupportedEscape(ch: Char): Bool = (
+  private def isSupportedEscape(ch: Char): Bool =
     ch == '.' || ch == '*' || ch == '+' || ch == '?' ||
-    ch == '(' || ch == ')' || ch == '[' || ch == ']' ||
-    ch == '{' || ch == '}' || ch == '|' || ch == '\\' ||
-    ch == 'n' || ch == 'r' || ch == 't' || ch == 'f' ||
-    ch == 'b' || ch == 'B' ||
-    ch == 'd' || ch == 'D' || ch == 'w' || ch == 'W' ||
-    ch == 's' || ch == 'S'
-  )
+      ch == '(' || ch == ')' || ch == '[' || ch == ']' ||
+      ch == '{' || ch == '}' || ch == '|' || ch == '\\' ||
+      ch == 'n' || ch == 'r' || ch == 't' || ch == 'f' ||
+      ch == 'b' || ch == 'B' ||
+      ch == 'd' || ch == 'D' || ch == 'w' || ch == 'W' ||
+      ch == 's' || ch == 'S'
+
 
   private def isAlpha(ch: Char): Bool =
     ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z')

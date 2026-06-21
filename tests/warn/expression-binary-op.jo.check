@@ -1,11 +1,11 @@
----------- Error at tests/warn/expression-binary-op.jo:14:3 ---------------
+---------- Error at tests/warn/expression-binary-op.jo:14:5 ---------------
 |   | * 6
-|   ^
-|   A value expected here for precedence expression
+|     ^
+|     A value expected here for precedence expression
 
----------- Error at tests/warn/expression-binary-op.jo:19:3 ---------------
-|   * 6
-|   ^
-|   Function * expects 1 pre arguments, found = 0
+---------- Error at tests/warn/expression-binary-op.jo:14:7 ---------------
+|   | * 6
+|       ^
+|       An infix operator expected here for precedence expression
 
 2 error(s), 0 warning(s)

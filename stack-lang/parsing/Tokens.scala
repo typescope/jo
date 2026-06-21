@@ -40,10 +40,7 @@ object Tokens:
     span: Span,
     indent: Indent,
     precedingComments: List[RawComment]
-  ):
-    /** Whether the other indentation is a unindentation to the current one */
-    def isUnindent(that: TokenInfo): Boolean =
-      that.token == Token.EOF || this.indent.isUnindent(that.indent)
+  )
 
   /** Support for indentation syntax
     *
@@ -74,30 +71,33 @@ object Tokens:
 
     def isFirstOfLine: Boolean = lineIndent == tokenOffset
 
-    /** Whether the other indentation is an unindentation to the current one
+    /** Whether this indentation is a dedent relative to the reference.
       *
-      * TODO: rename to dedent or <=
+      * A dedent begins a line whose indentation is less than or equal (`<=`)
+      * to the reference line's indentation.
       */
-    def isUnindent(other: Indent): Boolean =
-      other.isFirstOfLine && other.tokenOffset <= this.lineIndent
+    def isDedent(ref: Indent): Boolean =
+      this.isFirstOfLine && this.tokenOffset <= ref.lineIndent
 
-    /** Whether the other indentation is a out-indentation to the current one
+    /** Whether this indentation is an outdent relative to the reference.
       *
-      * An outdent is strictly smaller (<), while unindent is <=.
+      * An outdent is strictly smaller (`<`), while a dedent is `<=`.
       *
-      * Outdent is usually in checking if/else where "else" is an unindent but
-      * not outdent.
+      * Outdent is used when checking if/else where an `else` aligned under its
+      * `if` is a dedent but not an outdent.
       */
-    def isOutdent(other: Indent): Boolean =
-      other.isFirstOfLine && other.tokenOffset < this.lineIndent
+    def isOutdent(ref: Indent): Boolean =
+      this.isFirstOfLine && this.tokenOffset < ref.lineIndent
 
-    /** Whether the other is an indentation to the current one */
-    def isIndent(other: Indent): Boolean =
-      other.isFirstOfLine && other.tokenOffset > this.lineIndent
+    /** Whether this indentation is an indent relative to the reference. */
+    def isIndent(ref: Indent): Boolean =
+      this.isFirstOfLine && this.tokenOffset > ref.lineIndent
 
-    /** Whether the other is an indentation to the current one or both on the same line? */
-    def isIndentOrSameLine(other: Indent): Boolean =
-      isSameLine(other) || isIndent(other)
+    /** Whether this indentation is an indent relative to the reference, or both
+      * are on the same line.
+      */
+    def isIndentOrSameLine(ref: Indent): Boolean =
+      isSameLine(ref) || isIndent(ref)
 
     /** Either of the following is true:
       * - `this` is first of line and has the same offset as line indentation of `this`

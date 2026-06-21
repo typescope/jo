@@ -39,12 +39,12 @@
 |   Found extra value, an expression should produce a single value
 
 ---------- Error at tests/warn/vararg.jo:21:3 ---------------
-|   .. l
+|   ..l
 |   ^^
 |   Undefined term name ..
 
 ---------- Error at tests/warn/vararg.jo:21:3 ---------------
-|   .. l
+|   ..l
 |   ^^
 |   Expect a function, found = ..: Error
 

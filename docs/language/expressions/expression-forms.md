@@ -50,6 +50,37 @@ Expressions are sequences of one or more words, plus a few extended forms:
 
 See [Applications](applications.md) for colon call and dot chain syntax, [Control Flow](control-flow.md) for `if`, `match`, and `rescue`, [Lambdas](lambdas.md) for lambda syntax.
 
+::: info Multi-line open word sequence
+An open word sequence may span several lines when it is broken at an **infix operator** boundary — either a line ends with an operator (trailing), or the next line begins with an infix operator (leading):
+
+```jo
+val total =
+  100 +
+  200 +
+  300
+
+val eligible =
+  user.active
+  && user.verified
+  || user.isAdmin
+```
+
+A continuation line must be **aligned with, or more indented than**, the first line of the expression; a line that is *less* indented ends it. Continuation also requires an operator boundary, so consecutive statements at the same indentation stay separate:
+
+```jo
+println total
+println count          // a separate statement: no separating operator
+```
+
+The token at the break must be a genuine **infix** operator. A line that merely *begins* with a prefix operator — written with no space before its operand, such as `-x` — does not, on its own, continue the previous line. It does continue when the previous line ends with a trailing infix operator, in which case the prefix expression is its right operand:
+
+```jo
+val net =
+  gross +
+  -fee                 // operand of the trailing `+`, so the line continues
+```
+:::
+
 ## Phrases
 
 A phrase is anything that can appear in a block. Every expression is a valid phrase. Phrase-only constructs (not valid in delimited positions) are:

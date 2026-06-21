@@ -1,0 +1,6 @@
+---------- Warning at tests/warn/line-continue-misaligned.jo:13:7 ---------------
+|       -a
+|       ^
+|       Operator(-) is not aligned with Name(a), expect offset = 4, found = 6
+
+0 error(s), 1 warning(s)

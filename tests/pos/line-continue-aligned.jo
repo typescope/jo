@@ -1,0 +1,30 @@
+// Indented infix operator line continuation, aligned variant.
+//
+// A continuation line may sit at the *same* indentation as the expression head
+// (not only deeper). Only a strictly-dedented line ends the expression, so an
+// operator-aligned style familiar from other languages is accepted.
+
+def main =
+  // trailing operators aligned with the head
+  val total =
+    100 +
+    200 +
+    300
+  println total              // 600
+
+  // leading operators aligned with the head
+  val flag =
+    1 > 0
+    && 2 > 0
+    || 3 < 0
+  println flag               // true
+
+  // aligned continuation under an inline colon head
+  println:
+    "a"
+    + "b"
+    + "c"                    // abc
+
+  // a non-operator line at the same indentation stays a separate statement
+  println "one"
+  println "two"
