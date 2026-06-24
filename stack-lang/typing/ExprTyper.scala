@@ -8,7 +8,6 @@ import ast.Naming
 
 import sast.*
 import sast.Trees.*
-import sast.Denotations.*
 
 import Inference.TargetType
 
@@ -141,70 +140,15 @@ class ExprTyper(namer: Namer):
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, checks: Checks)
   : TypeTree =
 
-    val isOperatorExpr = tpt.types.exists:
-      case Ast.Ident(name) if Naming.isOperator(name) => true
-      case _ => false
+    val handler = new ExprTyper.OperatorHandler[Ast.TypeTree]:
+      def infix(lhs: Ast.TypeTree, binder: Ast.Ident, rhs: Ast.TypeTree): Ast.TypeTree =
+        Ast.AppliedType(binder, lhs :: rhs :: Nil)(lhs.span | rhs.span)
 
-    if isOperatorExpr then
-      val handler = new ExprTyper.OperatorHandler[Ast.TypeTree]:
-        def infix(lhs: Ast.TypeTree, binder: Ast.Ident, rhs: Ast.TypeTree): Ast.TypeTree =
-          Ast.AppliedType(binder, lhs :: rhs :: Nil)(lhs.span | rhs.span)
+      def error(span: Span): Ast.TypeTree = Ast.Ident("Bottom")(span)
 
-        def error(span: Span): Ast.TypeTree = Ast.Ident("Bottom")(span)
-
-      val words = mutable.ListBuffer.from(tpt.types)
-      val word = parseOperatorExpr(words, handler)
-      namer.transformValueType(word, allowPackType = allowPackType)
-
-    else
-      transformShapeExprType(tpt, allowPackType)
-
-  def transformShapeExprType(tpt: Ast.ExprType, allowPackType: Boolean)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, checks: Checks)
-  : TypeTree =
-
-    val lambdaTypeHandler = new ShapeHandler[Ast.TypeTree, Ast.TypeTree]:
-      var count = 0
-      def bundle(preArgs: List[Ast.TypeTree], binder: Ast.TypeTree, postArgs: List[Ast.TypeTree]): Ast.TypeTree =
-        val startSpan = if preArgs.isEmpty then binder.span else preArgs.head.span
-        val endSpan = if postArgs.isEmpty then binder.span else postArgs.last.span
-        Ast.AppliedType(binder, preArgs ++ postArgs)(startSpan | endSpan)
-
-      def resolveShape(tpt: Ast.TypeTree): Option[Shape[Ast.TypeTree]] =
-        count += 1
-        tpt match
-          case Ast.Ident(name) if Naming.isOperator(name) =>
-            val typed =
-              tpt.getKeyOrUpdate(Namer.TypedTypeTree):
-                namer.transformType(tpt, allowPackType = allowPackType && count <= 1)
-
-            typed.tpe.typeSymbolOpt.flatMap: tsym =>
-              tsym.info match
-                case cinfo: ClassInfo if cinfo.tparams.nonEmpty =>
-                  val shape = Shape[Ast.TypeTree](tpt, preParams = 0, postParams = cinfo.tparams.size)
-                  Some(shape)
-
-                case toi: TypeOperatorInfo =>
-                  val shape = Shape[Ast.TypeTree](tpt, toi.preParamCount, toi.postParamCount)
-                  Some(shape)
-
-                case _ =>
-                  None
-
-          case _ =>
-            None
-
-    val types: mutable.ListBuffer[Ast.TypeTree] = mutable.ListBuffer.from(tpt.types)
-    val typeTrees = parseShapeExpr(types, lambdaTypeHandler)
-
-    assert(types.isEmpty, types)
-    if typeTrees.size > 1 then
-      val rest = typeTrees.init
-      val span = rest.head.span | rest.last.span
-      Reporter.error("Found extra type, a type expression should produce a single type", span.toPos)
-
-    namer.transformValueType(typeTrees.last, allowPackType = allowPackType)
-  end transformShapeExprType
+    val words = mutable.ListBuffer.from(tpt.types)
+    val word = parseOperatorExpr(words, handler)
+    namer.transformValueType(word, allowPackType = allowPackType)
 
 
   /** Form AST from the words based on shape but not on precedence */
