@@ -216,16 +216,17 @@ Classes can have class parameters (data class) or an explicit constructor method
 ```jo
 class Point(x: Int, y: Int)             // data class
 
-class Counter                            // explicit constructor
+class Counter
   var count: Int = 0
-  def Counter(v: Int): Counter =
+
+  def Counter(v: Int): Counter =        // explicit constructor
     this.count = v
-    this
+
   def increment(): Unit = count = count + 1
   def value: Int = count
 end
 
-val p = new Point(3, 4)
+val p = Point(3, 4)
 val c = new Counter
 c.increment()
 println c.value                          // 1
@@ -249,7 +250,7 @@ end
 
 def print(d: Describable): Unit = println d.describe()
 
-print (new Point(3, 4))                  // (3, 4)
+print Point(3, 4)                  // (3, 4)
 ```
 
 A `view` can also delegate to a field — all interface methods are forwarded automatically:
@@ -270,15 +271,15 @@ See [Interface Definitions](../language/definitions/interface-definitions.md).
 param indent: Int = 0
 
 def line(text: String): Unit =
-  println " " * indent + text
+  println: " " * indent + text
 
-def section(title: String, items: List[String]): Unit =
+def list(title: String, items: List[String]): Unit =
   line title
   with indent = indent + 2 in
     for item in items do line item
 
 def main =
-  section("Colors", ["red", "green", "blue"])
+  list("Colors", ["red", "green", "blue"])
 ```
 
 Output:
