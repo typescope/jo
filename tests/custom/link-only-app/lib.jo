@@ -1,0 +1,8 @@
+// A library that provides an entry point. An app can link `jo.main` to it
+// and compile with NO source files of its own.
+namespace Lib
+
+import jo.IO.stdout
+
+def entry(): Unit receives stdout =
+  println("hello from linked entry")
