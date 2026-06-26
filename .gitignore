@@ -37,4 +37,5 @@ tests/tool-build/*/jo.lock
 tests/tool-build/*/*/jo.lock
 tests/tool-build/lock-refresh/jo-old.lock
 tests/tool-graph/*/jo.lock
+tests/custom/*/jo.lock
 tests/tool-resolver/*/repo/

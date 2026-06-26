@@ -53,11 +53,18 @@ git push origin vX.Y.Z
 
 ## 4. Create GitHub Release
 
+Use this version's `CHANGELOG.md` section as the release notes so they are
+self-contained on the release page:
+
 ```sh
+# Extract the section for this version (heading excluded) into release notes
+awk -v v="## [X.Y.Z]" 'index($0, v)==1 {f=1; next} /^## \[/ {f=0} f' \
+  CHANGELOG.md > RELEASE_NOTES.md
+
 gh release create vX.Y.Z jo-X.Y.Z.tar.gz jo-X.Y.Z.tar.gz.sha256 \
   --repo typescope/jo \
   --title "Jo X.Y.Z" \
-  --notes "See CHANGELOG.md for details."
+  --notes-file RELEASE_NOTES.md
 ```
 
 - [ ] GitHub release published (not draft, not pre-release)
@@ -78,4 +85,5 @@ gh workflow run docs.yml --repo typescope/jo
 
 ## 7. Clean Up
 
-- [ ] Remove local `jo-X.Y.Z.tar.gz` and `jo-X.Y.Z.tar.gz.sha256`
+- [ ] Remove local `jo-X.Y.Z.tar.gz`, `jo-X.Y.Z.tar.gz.sha256`, and
+      `RELEASE_NOTES.md`
