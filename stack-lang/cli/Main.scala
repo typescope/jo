@@ -5,9 +5,22 @@ import java.nio.file.Paths
 object Main:
   val Version = tool.JoVersion.current.toString
 
-  def main(args: Array[String]): Unit =
+  def main(rawArgs: Array[String]): Unit =
+    // Accept `-v` as an alias for `--verbose` (but not after the `--` that
+    // separates application arguments).
+    val sep = rawArgs.indexOf("--")
+    val args = rawArgs.zipWithIndex.map: (a, i) =>
+      if a == "-v" && (sep < 0 || i < sep) then "--verbose" else a
+
+    val verbose = args.contains("--verbose")
+    val command = args.headOption.getOrElse("")
+
+    // `jo run` is quiet by default — it just runs the app (build steps are
+    // incidental). Other commands show their build steps. `--verbose` / `-v`
+    // shows the full trace everywhere. Warnings and errors always print.
     given tool.Logger =
-      if args.contains("--verbose") then tool.Logger(tool.LogLevel.Log)
+      if verbose then tool.Logger(tool.LogLevel.Log)
+      else if command == "run" then tool.Logger(tool.LogLevel.Warn)
       else tool.Logger.stderr
 
     given tool.PackageProvider = tool.PackageProvider.default()
