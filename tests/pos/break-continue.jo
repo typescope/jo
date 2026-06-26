@@ -14,9 +14,11 @@ def sumWithWhile(limit: Int): Int =
 def sumWithFor(): Int =
   var acc = 0
   for x in [1, 2, 3, 4, 5, 6] do
-    if x == 2 then continue
     if x == 5 then break
-    acc = acc + x
+
+    acc =
+      if x == 2 then continue
+      else acc + x
   acc
 
 def nestedControl(): Int =
@@ -26,8 +28,10 @@ def nestedControl(): Int =
     while inner < 5 do
       inner = inner + 1
       if inner == 2 then continue
-      if inner == 4 then break
-      acc = acc + i * 10 + inner
+
+      acc =
+        if inner == 4 then break
+        else acc + i * 10 + inner
     end
   acc
 

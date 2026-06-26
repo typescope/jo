@@ -1,0 +1,2 @@
+def main(): Unit receives jo.IO.stdout =
+  println("hello from app")

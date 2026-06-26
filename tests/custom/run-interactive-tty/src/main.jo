@@ -1,0 +1,5 @@
+// `jo run` must execute the app with a real terminal so interactive features
+// (readline history, isatty-gated output, …) work. Report whether stdout is a
+// TTY; the test runs this under a pseudo-terminal and expects `true`.
+def main(): Unit receives jo.IO.stdout =
+  println("stdout-isatty:" + py.module("os").isatty(1).asBool)

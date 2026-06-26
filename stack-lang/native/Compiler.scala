@@ -47,11 +47,13 @@ object Compiler:
 
     val (config, sources) = cli.OptionParser.parseConfig(args, layout :: Config.appOptions)
 
-    if sources.isEmpty then
-      println("Expect source file as input")
-      return
-
     given Config = config
+
+    // Zero source files is allowed when an entry point is linked in from
+    // libraries (e.g. an app that only pulls in packages and links jo.main).
+    if sources.isEmpty && Config.linkMap.value.isEmpty then
+      println("Expect source file as input")
+      System.exit(1)
 
     Config.useRuntimeApi.value match
       case Some(runtime) if runtime != "native" =>
