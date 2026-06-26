@@ -65,16 +65,18 @@ jo versions remove 0.9.0
 Each version is installed under `~/.jo/compilers/<version>/`:
 
 ```
-~/.jo/compilers/0.10.0/
-  jo.jar
+~/.jo/compilers/0.11.1/
   bin/
     jo
+    jo.jar
   libs/
   assets/
   LICENSE
 ```
 
-The active launcher at `~/.local/bin/jo` delegates to the selected version's `bin/jo`.
+The launcher `bin/jo` sets `JO_HOME` to the version directory and runs the sibling
+`bin/jo.jar`. The active launcher at `~/.local/bin/jo` delegates to the selected
+version's `bin/jo`.
 
 ## See Also
 
