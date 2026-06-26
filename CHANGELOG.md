@@ -2,6 +2,36 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.11.1] - 2026-06-27
+
+### Added
+
+- Multiline expression: an expression may continue onto the next line at the
+  same or deeper indentation, separated by an infix operator. ([#35])
+- Link-only compilation. ([#37])
+- `bin/install --native` builds and installs a native executable launcher for
+  faster startup with no JVM dependency, plus a docs guide for converting an
+  existing install to native via GraalVM Native Image.
+
+### Changed
+
+- `break` and `continue` now have type `Bottom`, so they type-check in any
+  expression position. ([#37])
+- `jo run` logs at a higher level. ([#37])
+
+### Removed
+
+- Support for typed shape expressions. ([#36])
+
+### Fixed
+
+- `runInteractive`. ([#37])
+- Typos in the language tour. ([#36])
+
+[#35]: https://github.com/typescope/jo/pull/35
+[#36]: https://github.com/typescope/jo/pull/36
+[#37]: https://github.com/typescope/jo/pull/37
+
 ## [0.11.0] - 2026-06-18
 
 Tightened numeric semantics for predictable, portable behavior across all
