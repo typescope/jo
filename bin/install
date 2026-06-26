@@ -112,24 +112,24 @@ cp -r "$ROOT_DIR/libs" "$INSTALL_DIR/"
 cp -r "$ROOT_DIR/assets" "$INSTALL_DIR/"
 
 if [ "$BUILD_NATIVE" = true ]; then
-  cp "$ROOT_DIR/bin/jo.native" "$INSTALL_DIR/jo.native"
+  cp "$ROOT_DIR/bin/jo.native" "$INSTALL_BIN_DIR/jo.native"
 
   cat > "$INSTALL_BIN_DIR/jo" << 'EOF'
 #!/bin/bash
 BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 JO_HOME="$(cd "$BIN_DIR/.." && pwd)"
 export JO_HOME
-exec "$JO_HOME/jo.native" "$@"
+exec "$BIN_DIR/jo.native" "$@"
 EOF
 else
-  cp "$ROOT_DIR/bin/jo.jar" "$INSTALL_DIR/jo.jar"
+  cp "$ROOT_DIR/bin/jo.jar" "$INSTALL_BIN_DIR/jo.jar"
 
   cat > "$INSTALL_BIN_DIR/jo" << 'EOF'
 #!/bin/bash
 BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 JO_HOME="$(cd "$BIN_DIR/.." && pwd)"
 export JO_HOME
-exec java -jar "$JO_HOME/jo.jar" "$@"
+exec java -jar "$BIN_DIR/jo.jar" "$@"
 EOF
 fi
 

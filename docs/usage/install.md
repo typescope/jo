@@ -22,6 +22,26 @@ Verify the installation:
 jo --version
 ```
 
+## Pro tip: native launcher for faster startup
+
+The default launcher runs `jo.jar` on the JVM, paying a cold-start cost on every call.
+Compiling the jar to a native binary makes startup near-instant.
+
+Install [GraalVM](https://www.graalvm.org/downloads/) (its JDK ships `native-image`)
+and confirm `native-image --version` works. Then compile the installed jar and point
+the launcher at the result:
+
+```sh
+cd "$HOME/.jo/compilers/$(jo --version)/bin"
+native-image --no-fallback -jar jo.jar -o jo.native
+```
+
+Then change the last line of `jo` to launch the native binary:
+
+```sh
+exec "$BIN_DIR/jo.native" "$@"
+```
+
 ## Troubleshooting
 
 **`autojump: directory '...' not found`** — autojump defines its own `jo` command (open file manager) that shadows the compiler. Add this to your shell config to override it:

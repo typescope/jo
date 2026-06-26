@@ -76,16 +76,8 @@ main() {
   mkdir -p "$INSTALL_DIR" "$ACTIVE_BIN_DIR"
   cp -r "$TMP/jo-$BARE/." "$INSTALL_DIR/"
 
-  # Write the versioned launcher
+  # The versioned launcher ships in the tarball
   INSTALL_BIN="$INSTALL_DIR/bin/jo"
-  mkdir -p "$INSTALL_DIR/bin"
-  cat > "$INSTALL_BIN" << 'EOF'
-#!/bin/sh
-BIN_DIR="$(cd "$(dirname "$0")" && pwd)"
-JO_HOME="$(cd "$BIN_DIR/.." && pwd)"
-export JO_HOME
-exec java -jar "$JO_HOME/jo.jar" "$@"
-EOF
   chmod +x "$INSTALL_BIN"
 
   # Write the active launcher
