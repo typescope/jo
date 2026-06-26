@@ -20,10 +20,10 @@ for arg in "$@"; do
       ;;
     *)
       echo "Unknown option: $arg"
-      echo "Usage: ./build [-native] [-fat] [-release]"
-      echo "  -native     Build native executable (slower build, faster startup)"
-      echo "  -fat        Build fat JAR with all dependencies (JAR only)"
-      echo "  -release    Package release zip (requires -fat)"
+      echo "Usage: ./build [--native] [--fat] [--release]"
+      echo "  --native     Build native executable (slower build, faster startup)"
+      echo "  --fat        Build fat JAR with all dependencies (JAR only)"
+      echo "  --release    Package release zip (requires -fat)"
       exit 1
       ;;
   esac
@@ -129,6 +129,9 @@ if [ "$BUILD_RELEASE" = true ]; then
   rm -rf "$TEMP_DIR"
 
   sha256sum "$RELEASE_TARBALL" > "${RELEASE_TARBALL}.sha256"
+
+  echo "Smoke-testing release tarball..."
+  bin/check-release-tar "$RELEASE_TARBALL"
 
   echo "Release package created: ${RELEASE_TARBALL}"
   echo "Checksum:                 ${RELEASE_TARBALL}.sha256"
