@@ -1,0 +1,7 @@
+jo   = "0.11"
+name = "ttytest"
+
+[main]
+target          = "python"
+src             = ["src/"]
+compile-options = ["--use-runtime-api", "python"]
