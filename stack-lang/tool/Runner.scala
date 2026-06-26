@@ -88,24 +88,20 @@ object Runner:
             case app: CompileTask.AppTask => runInteractive(app, Nil)
             case _ => Result.Err("test module task must be an AppTask")
 
-  /** Execute the compiled app interactively: stdout/stderr/stdin inherit from the parent process. */
+  /** Execute the compiled app interactively: stdin/stdout/stderr inherit from
+   *  the parent process, so the app sees a real terminal (a TTY). This is what
+   *  lets interactive programs use readline, ANSI/isatty-gated output, etc.
+   *  Output is not captured here; on a non-zero exit it has already been shown.
+   */
   def runInteractive(app: CompileTask.AppTask, appArgs: List[String]): Result[Unit] =
     val cmd = app.target.interpreter :: app.outFile.toString :: appArgs
     val pb = ProcessBuilder(cmd.asJava)
-    pb.redirectErrorStream(true)
     pb.redirectInput(ProcessBuilder.Redirect.INHERIT)
+    pb.redirectOutput(ProcessBuilder.Redirect.INHERIT)
+    pb.redirectError(ProcessBuilder.Redirect.INHERIT)
     val proc = pb.start()
-    val in = proc.getInputStream
-    val out = new java.io.ByteArrayOutputStream
-    val chunk = new Array[Byte](8192)
-    var n = in.read(chunk)
-    while n != -1 do
-      System.out.write(chunk, 0, n)
-      System.out.flush()
-      out.write(chunk, 0, n)
-      n = in.read(chunk)
     val exit = proc.waitFor()
-    if exit != 0 then Result.Err(out.toString("UTF-8")) else Result.unit
+    if exit != 0 then Result.Err(s"program exited with status $exit") else Result.unit
 
   /** Execute the compiled app, capturing and returning stdout.
    *
