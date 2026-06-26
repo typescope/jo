@@ -983,24 +983,24 @@ class Namer(using Config) extends Applications with SelectionTyper:
           Return(label, value)(ret.span)
 
   private def transformBreak(brk: Ast.Break)
-      (using rp: Reporter, so: Source, cs: ControlScope, defn: Definitions): Word =
+      (using rp: Reporter, so: Source, cs: ControlScope): Word =
     cs.loops.headOption match
       case None =>
         Reporter.error("break is only allowed inside while/for", brk.pos)
         errorWord(brk.span)
       case Some(loopFrame) =>
         loopFrame.markBreakUsed()
-        Return(loopFrame.breakLabel, Block(Nil)(brk.span))(brk.span).dropValue
+        Return(loopFrame.breakLabel, Block(Nil)(brk.span))(brk.span)
 
   private def transformContinue(cont: Ast.Continue)
-      (using rp: Reporter, so: Source, cs: ControlScope, defn: Definitions): Word =
+      (using rp: Reporter, so: Source, cs: ControlScope): Word =
     cs.loops.headOption match
       case None =>
         Reporter.error("continue is only allowed inside while/for", cont.pos)
         errorWord(cont.span)
       case Some(loopFrame) =>
         loopFrame.markContinueUsed()
-        Return(loopFrame.continueLabel, Block(Nil)(cont.span))(cont.span).dropValue
+        Return(loopFrame.continueLabel, Block(Nil)(cont.span))(cont.span)
 
   private def transformIf(ifte: Ast.If)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope): Word =
     val Ast.If(cond, thenp, elsep) = ifte
