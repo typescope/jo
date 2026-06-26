@@ -147,8 +147,7 @@ class HttpInstaller(
           else
             Files.createDirectories(installBase)
             moveDir(extracted, installDir)
-            writeLauncher(installDir)
-            Result.Ok(())
+            ensureLauncherExecutable(installDir)
       yield ()
     finally
       deleteDir(tmp)
@@ -169,18 +168,18 @@ class HttpInstaller(
     if code == 0 then Result.Ok(())
     else Result.Err(s"tar extraction failed (exit $code): $output")
 
-  private def writeLauncher(installDir: Path): Unit =
-    val bin = installDir.resolve("bin")
-    Files.createDirectories(bin)
-    val launcher = bin.resolve("jo")
-    Files.writeString(launcher,
-      s"""#!/bin/sh
-         |BIN_DIR="$$(cd "$$(dirname "$$0")" && pwd)"
-         |JO_HOME="$$(cd "$$BIN_DIR/.." && pwd)"
-         |export JO_HOME
-         |exec java -jar "$$JO_HOME/jo.jar" "$$@"
-         |""".stripMargin)
-    launcher.toFile.setExecutable(true)
+  /** The versioned launcher ships in the tarball at `bin/jo`, so it is the single
+   *  source of truth for the layout. Just ensure it is executable rather than
+   *  regenerating it (which would hardcode the jar path and drift from the tarball).
+   */
+  private def ensureLauncherExecutable(installDir: Path): Result[Unit] =
+    val launcher = installDir.resolve("bin").resolve("jo")
+
+    if !Files.exists(launcher) then
+      Result.Err("unexpected tarball layout: missing bin/jo launcher")
+    else
+      launcher.toFile.setExecutable(true)
+      Result.Ok(())
 
   private def fetchText(url: String): Result[String] =
     try
