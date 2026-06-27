@@ -43,57 +43,17 @@ confirm_remove() {
   esac
 }
 
-build_local() {
-  if [ "$BUILD_NATIVE" = true ]; then
-    echo "$(blue "Building Jo native launcher...")"
-    scala-cli --power package -f --native-image "$ROOT_DIR/project.scala" "$ROOT_DIR/stack-lang" -M cli.Main -o "$ROOT_DIR/bin/jo.native" -- --no-fallback
-
-    cat > "$ROOT_DIR/bin/jo" << 'EOF'
-#!/bin/bash
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-JO_HOME="$(cd "$SCRIPT_DIR/.." && pwd)"
-export JO_HOME
-exec "$SCRIPT_DIR/jo.native" "$@"
-EOF
-  else
-    echo "$(blue "Building Jo launcher...")"
-    scala-cli --power package -f "$ROOT_DIR/project.scala" "$ROOT_DIR/stack-lang" -M cli.Main -o "$ROOT_DIR/bin/jo.jar"
-
-    cat > "$ROOT_DIR/bin/jo" << 'EOF'
-#!/bin/bash
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-JO_HOME="$(cd "$SCRIPT_DIR/.." && pwd)"
-export JO_HOME
-exec java -jar "$SCRIPT_DIR/jo.jar" "$@"
-EOF
-  fi
-
-  chmod +x "$ROOT_DIR/bin/jo"
-
-  echo "$(blue "Building bundled libraries...")"
-  rm -rf "$ROOT_DIR/libs"
-
-  "$ROOT_DIR/bin/jo" compile --sast "$ROOT_DIR/libs/stdlib" --test-pickling --explicit-return-type --check-shadowing --no-stdlib \
-    "$ROOT_DIR"/lib/*.jo "$ROOT_DIR"/lib/**/*.jo
-
-  "$ROOT_DIR/bin/jo" compile --sast "$ROOT_DIR/libs/runtime-interpreter" --test-pickling --explicit-return-type --check-shadowing \
-    "$ROOT_DIR/runtime/Interpreter.jo"
-
-  "$ROOT_DIR/bin/jo" compile --sast "$ROOT_DIR/libs/runtime-javascript" --test-pickling --explicit-return-type --check-shadowing \
-    "$ROOT_DIR"/runtime/javascript/*.jo
-
-  "$ROOT_DIR/bin/jo" compile --sast "$ROOT_DIR/libs/runtime-ruby" --test-pickling --explicit-return-type --check-shadowing \
-    "$ROOT_DIR"/runtime/ruby/*.jo
-
-  "$ROOT_DIR/bin/jo" compile --sast "$ROOT_DIR/libs/runtime-python" --test-pickling --explicit-return-type --check-shadowing \
-    "$ROOT_DIR"/runtime/python/*.jo
-
-  "$ROOT_DIR/bin/jo" compile --sast "$ROOT_DIR/libs/runtime-native" --test-pickling --explicit-return-type --check-shadowing \
-    "$ROOT_DIR"/runtime/native/*.jo "$ROOT_DIR"/runtime/native/**/*.jo
-}
-
+# Build the compiler artifacts (launcher, payload, bundled libraries) via the
+# build script, the single source of truth for how a compiler is produced.
 echo "$(blue "Building Jo from source...")"
-build_local
+
+if [ "$BUILD_NATIVE" = true ]; then
+  PAYLOAD="jo.native"
+  ( cd "$ROOT_DIR" && ./build --native )
+else
+  PAYLOAD="jo.jar"
+  ( cd "$ROOT_DIR" && ./build --fat )
+fi
 
 VERSION="$("$ROOT_DIR/bin/jo" --version)"
 INSTALL_DIR="$HOME/.jo/compilers/$VERSION"
@@ -111,29 +71,11 @@ cp "$ROOT_DIR/LICENSE" "$INSTALL_DIR/LICENSE"
 cp -r "$ROOT_DIR/libs" "$INSTALL_DIR/"
 cp -r "$ROOT_DIR/assets" "$INSTALL_DIR/"
 
-if [ "$BUILD_NATIVE" = true ]; then
-  cp "$ROOT_DIR/bin/jo.native" "$INSTALL_BIN_DIR/jo.native"
-
-  cat > "$INSTALL_BIN_DIR/jo" << 'EOF'
-#!/bin/bash
-BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-JO_HOME="$(cd "$BIN_DIR/.." && pwd)"
-export JO_HOME
-exec "$BIN_DIR/jo.native" "$@"
-EOF
-else
-  cp "$ROOT_DIR/bin/jo.jar" "$INSTALL_BIN_DIR/jo.jar"
-
-  cat > "$INSTALL_BIN_DIR/jo" << 'EOF'
-#!/bin/bash
-BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-JO_HOME="$(cd "$BIN_DIR/.." && pwd)"
-export JO_HOME
-exec java -jar "$BIN_DIR/jo.jar" "$@"
-EOF
-fi
-
-chmod +x "$INSTALL_BIN_DIR/jo"
+# Reuse the launcher and payload produced by the build (same layout as the
+# release tarball: bin/jo runs the sibling bin/$PAYLOAD).
+cp "$ROOT_DIR/bin/jo" "$INSTALL_BIN_DIR/jo"
+cp "$ROOT_DIR/bin/$PAYLOAD" "$INSTALL_BIN_DIR/$PAYLOAD"
+chmod +x "$INSTALL_BIN_DIR/jo" "$INSTALL_BIN_DIR/$PAYLOAD"
 
 if [ -e "$ACTIVE_BIN" ] || [ -L "$ACTIVE_BIN" ]; then
   confirm_remove "$ACTIVE_BIN"

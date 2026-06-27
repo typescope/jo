@@ -1,0 +1,61 @@
+#!/bin/bash
+# Smoke-test a release tarball by unpacking it and running a real program
+# through its bundled launcher.
+#
+# Both install paths (docs/public/install.sh and `jo versions install`) now only
+# unpack the tarball and mark bin/jo executable -- they no longer rewrite the
+# launcher. So verifying the tarball verifies the installed result, and this
+# guards against incorrect packing when the build script changes.
+
+set -euo pipefail
+
+TARBALL="${1:?usage: bin/check-release-tar <jo-X.Y.Z.tar.gz>}"
+TARBALL="$(cd "$(dirname "$TARBALL")" && pwd)/$(basename "$TARBALL")"
+
+BASE="$(basename "$TARBALL" .tar.gz)"   # jo-X.Y.Z
+VERSION="${BASE#jo-}"                    # X.Y.Z
+CONSTRAINT="$(echo "$VERSION" | cut -d. -f1,2)"  # X.Y
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+tar -xzf "$TARBALL" -C "$TMP"
+
+JO="$TMP/$BASE/bin/jo"
+if [ ! -x "$JO" ]; then
+  echo "[smoke] error: missing or non-executable launcher: $BASE/bin/jo"
+  exit 1
+fi
+
+# Minimal project that exercises the launcher, JO_HOME, and stdlib resolution.
+APP="$TMP/app"
+mkdir -p "$APP/src"
+cat > "$APP/jo.toml" <<EOF
+jo   = "$CONSTRAINT"
+name = "smoke"
+
+[main]
+target = "python"
+src    = ["src/"]
+EOF
+cat > "$APP/src/Main.jo" <<EOF
+def main(): Unit =
+  println: "smoke ok"
+EOF
+
+cd "$APP"
+if ! OUT="$("$JO" run 2>&1)"; then
+  echo "[smoke] error: 'jo run' failed for $BASE"
+  echo "-- output --"
+  echo "$OUT"
+  exit 1
+fi
+
+if ! echo "$OUT" | grep -q "smoke ok"; then
+  echo "[smoke] error: unexpected output from $BASE"
+  echo "-- output --"
+  echo "$OUT"
+  exit 1
+fi
+
+echo "[smoke] release tarball OK ($BASE)"

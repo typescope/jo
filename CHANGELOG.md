@@ -2,6 +2,16 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.11.2] - 2026-06-27
+
+### Fixed
+
+- `jo versions install` wrote a launcher pointing at the wrong location for the
+  bundled compiler jar, so a version installed this way failed to run. The
+  installer now uses the launcher shipped in the release archive. ([#39])
+
+[#39]: https://github.com/typescope/jo/pull/39
+
 ## [0.11.1] - 2026-06-27
 
 ### Added
