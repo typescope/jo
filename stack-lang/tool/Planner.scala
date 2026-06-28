@@ -86,7 +86,7 @@ object Planner:
           testTarget,
           rootBase.resolve(s"target/${root.name}-test${testTarget.ext}"),
           root.testSastDir,
-          compileOptions = Nil
+          compileOptions = runtimeCompileOptions(root) ++ testSpec.compileOptions
         )
 
         val mainAsLib = mainPlan.copy(
