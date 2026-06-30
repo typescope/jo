@@ -1,0 +1,6 @@
+jo = "1.0"
+name = "test-runtime-api"
+
+[test]
+compile-options = ["--use-runtime-api", "python"]
+src = ["tests/"]

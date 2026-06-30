@@ -1,0 +1,9 @@
+import lib
+
+// Uses `py.*`, which is only in scope if the test module is compiled with the
+// package runtime API (`--use-runtime-api python`). Guards Planner wiring that
+// propagates `[package].runtime` (and `[test] compile-options`) to tests.
+def main =
+  val d = py.dict("k" ~ "v")
+  println d.get("k", "").asString
+  println lib.tag()
