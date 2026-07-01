@@ -8,10 +8,17 @@ enum DepLink:
   case Check   // visible to user code (type-check library)
   case Link    // hidden; resolves defer defs at link time
 
+/** Identifies a specific point in a git repository. */
+enum GitRef:
+  case Tag(tag: String)
+  case Branch(branch: String)
+  case Rev(rev: String)
+
 /** Where the dep comes from. */
 enum DepSource:
   case Path(path: String, spec: Option[String] = None)
   case Registry(constraint: VersionSpec)
+  case Git(url: String, ref: Option[GitRef] = None)
 
 case class DepSpec(source: DepSource, link: DepLink = DepLink.Check)
 
@@ -141,11 +148,24 @@ object BuildSpec:
           DepSpec(DepSource.Path(p, spec), link)
         case Some(_) => throw TomlError(s"dependency '$name'.path must be a string")
         case None    =>
-          fields.get("version") match
-            case Some(Str(c)) =>
-              DepSpec(DepSource.Registry(parseVersionSpec(c, s"dependency '$name'.version")), link)
-            case Some(_) => throw TomlError(s"dependency '$name'.version must be a string")
-            case None    => throw TomlError(s"dependency '$name' must have 'path' or 'version'")
+          fields.get("git") match
+            case Some(Str(url)) =>
+              val tagOpt    = fields.get("tag").map(v => GitRef.Tag(asStr(v, s"$name.tag")))
+              val revOpt    = fields.get("rev").map(v => GitRef.Rev(asStr(v, s"$name.rev")))
+              val branchOpt = fields.get("branch").map(v => GitRef.Branch(asStr(v, s"$name.branch")))
+              val givenRefs = List(tagOpt, revOpt, branchOpt).flatten
+
+              if givenRefs.length > 1 then
+                throw TomlError(s"dependency '$name' must specify at most one of 'tag', 'rev', or 'branch'")
+
+              DepSpec(DepSource.Git(url, givenRefs.headOption), link)
+            case Some(_) => throw TomlError(s"dependency '$name'.git must be a string")
+            case None    =>
+              fields.get("version") match
+                case Some(Str(c)) =>
+                  DepSpec(DepSource.Registry(parseVersionSpec(c, s"dependency '$name'.version")), link)
+                case Some(_) => throw TomlError(s"dependency '$name'.version must be a string")
+                case None    => throw TomlError(s"dependency '$name' must have 'path', 'git', or 'version'")
     case _ => throw TomlError(s"dependency '$name' must be a string or inline table")
 
   private def validateName(name: String): Unit =

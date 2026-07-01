@@ -210,7 +210,7 @@ private object ReleaseJson:
 
 // ---- Minimal recursive-descent JSON parser -----------------------------------
 
-private object JsonParser:
+private[tool] object JsonParser:
   def parseObj(input: String): Either[String, Map[String, Any]] =
     parseObject(input, 0) match
       case Right((obj, _)) => Right(obj)

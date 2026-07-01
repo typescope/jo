@@ -1,7 +1,7 @@
 package tool
 
 import java.io.IOException
-import java.nio.file.Path
+import java.nio.file.{Files, Path}
 import scala.collection.mutable
 import tool.toml.TomlError
 
@@ -76,8 +76,10 @@ object Build:
   def makePlanResult(project: Project, modules: List[ModuleKind])(using Logger, PackageProvider): Result[(ProjectPlan, Path)] =
     try
       val lockPath = LockFile.pathForSpec(project.specPath)
-      materializeRegistryLibs(project, lockPath, useExistingLock = true, modules).map: registrySastDirs =>
-        (Planner.plan(project, registrySastDirs), project.joBin)
+      val gitDeps  = collectLockedGitDeps(project)
+      materializeRegistryLibs(project, lockPath, useExistingLock = true, modules, gitDeps).flatMap: registrySastDirs =>
+        materializeGitPackages(project).map: gitSastDirs =>
+          (Planner.plan(project, registrySastDirs ++ gitSastDirs), project.joBin)
     catch
       case e: ArchiveError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
@@ -85,10 +87,11 @@ object Build:
   def lockResult(project: Project)(using Logger, PackageProvider): Result[Unit] =
     try
       val lockPath = LockFile.pathForSpec(project.specPath)
+      val gitDeps  = collectLockedGitDeps(project)
       resolvePackages(project, lockPath, useExistingLock = false).flatMap: resolved =>
         warnUnusedPinning(resolved)
         validatePackageDepths(project, resolved, List(ModuleKind.Main, ModuleKind.Test)).flatMap: _ =>
-          writeLock(lockPath, project.joVersion, resolved.packages)
+          writeLock(lockPath, project.joVersion, resolved.packages, gitDeps)
     catch
       case e: ArchiveError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
@@ -113,11 +116,12 @@ object Build:
     lockPath: Path,
     useExistingLock: Boolean,
     modules: List[ModuleKind],
+    gitDeps: List[LockedGitDep],
   )(using logger: Logger, provider: PackageProvider): Result[Map[String, Path]] =
     resolvePackages(project, lockPath, useExistingLock).flatMap: resolved =>
       warnUnusedPinning(resolved)
       validatePackageDepths(project, resolved, modules).flatMap: _ =>
-        writeLock(lockPath, project.joVersion, resolved.packages).flatMap: _ =>
+        writeLock(lockPath, project.joVersion, resolved.packages, gitDeps).flatMap: _ =>
           resolved.packages.foldLeft(Result.Ok(Map.empty[String, Path])): (acc, pkg) =>
             acc.flatMap: paths =>
               provider.materialize(pkg.name, pkg.version).map: unpacked =>
@@ -164,7 +168,12 @@ object Build:
   private def loadLock(path: Path): Result[Option[LockFile]] =
     LockFile.load(path)
 
-  private def writeLock(path: Path, joVersion: Version, pkgs: List[ResolvedPackage])(using provider: PackageProvider): Result[Unit] =
+  private def writeLock(
+    path: Path,
+    joVersion: Version,
+    pkgs: List[ResolvedPackage],
+    gitDeps: List[LockedGitDep],
+  )(using provider: PackageProvider): Result[Unit] =
     val locked = new mutable.ArrayBuffer[LockedPackage]
     val sorted = pkgs.sortBy(_.name)
     val it = sorted.iterator
@@ -182,7 +191,57 @@ object Build:
     if error != null then
       Result.Err(error)
     else
-      LockFile.write(path, LockFile(Some(joVersion), locked.toList))
+      LockFile.write(path, LockFile(Some(joVersion), locked.toList, gitDeps))
+
+  /** Collect all locked git dep entries from a project and its transitive path deps. */
+  private def collectLockedGitDeps(project: Project): List[LockedGitDep] =
+    val seen = collection.mutable.LinkedHashSet.empty[String]
+    val result = collection.mutable.ListBuffer.empty[LockedGitDep]
+
+    def collect(p: Project): Unit =
+      p.gitPackageDeps.foreach: dep =>
+        if seen.add(dep.depName) then
+          result += LockedGitDep(dep.depName, dep.gitUrl, LockedGitSource.Precompiled(dep.joyUrl, dep.sha512))
+      p.gitSourceDeps.foreach: dep =>
+        if seen.add(dep.depName) then
+          result += LockedGitDep(dep.depName, dep.gitUrl, LockedGitSource.Source(dep.rev))
+      p.deps.foreach(d => collect(d.project))
+      p.testDeps.foreach(d => collect(d.project))
+
+    collect(project)
+    result.toList
+
+  /** Unpack each precompiled git .joy archive and return a map of dep name → SAST dir. */
+  private def materializeGitPackages(project: Project): Result[Map[String, Path]] =
+    val seen = collection.mutable.LinkedHashSet.empty[String]
+    val allDeps = collection.mutable.ListBuffer.empty[GitPackageDep]
+
+    def collect(p: Project): Unit =
+      p.gitPackageDeps.foreach: dep =>
+        if seen.add(dep.depName) then allDeps += dep
+      p.deps.foreach(d => collect(d.project))
+      p.testDeps.foreach(d => collect(d.project))
+
+    collect(project)
+
+    allDeps.foldLeft(Result.Ok(Map.empty[String, Path])): (acc, dep) =>
+      acc.flatMap: paths =>
+        val outDir = dep.joyPath.getParent.resolve("unpacked")
+        materializeGitJoy(dep.joyPath, outDir).map: sastDir =>
+          paths + (dep.depName -> sastDir)
+
+  private def materializeGitJoy(joyPath: Path, outDir: Path): Result[Path] =
+    try
+      val digest = Digest.sha512Hex(joyPath)
+      val marker = outDir.resolve(".digest")
+      if !(Files.isDirectory(outDir) && Files.exists(marker) && Files.readString(marker) == digest) then
+        if Files.exists(outDir) then deleteDir(outDir)
+        JoyArchive.unpack(joyPath, outDir)
+        Files.writeString(marker, digest)
+      Result.Ok(outDir)
+    catch
+      case e: ArchiveError => Result.Err(e.getMessage)
+      case e: Exception    => Result.Err(e.getMessage)
 
   private def docOptions(project: Project): List[String] =
     val docSpec = project.doc.getOrElse(DocSpec())

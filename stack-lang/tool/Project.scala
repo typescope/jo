@@ -10,6 +10,24 @@ case class ProjectDep(
   project: Project,
 )
 
+/** A git dependency resolved to a precompiled .joy release asset. */
+case class GitPackageDep(
+  depName: String,
+  gitUrl:  String,
+  version: Version,
+  joyPath: Path,
+  joyUrl:  String,
+  sha512:  String,
+  depInfo: PackageDependencyInfo,
+)
+
+/** A git dependency resolved by downloading and compiling source. */
+case class GitSourceDep(
+  depName: String,
+  gitUrl:  String,
+  rev:     String,
+)
+
 final class Project private (
   val dir: Path,
   val specPath: Path,
@@ -18,6 +36,8 @@ final class Project private (
   val testDeps: List[ProjectDep],
   val joVersion: Version,
   val joBin: Path,
+  val gitPackageDeps: List[GitPackageDep] = Nil,
+  val gitSourceDeps: List[GitSourceDep] = Nil,
 ):
   def name: String = spec.name
 
@@ -78,16 +98,19 @@ object Project:
     val canonicalSpecPath = absolutePath.toRealPath()
     val specDir = canonicalSpecPath.getParent
     loadSpec(specDir, canonicalSpecPath.getFileName.toString).flatMap: spec =>
-      resolveCompiler(canonicalSpecPath, spec.jo, resolveJo, resolveExactJo).flatMap: (joVersion, joBin) =>
-        resolve(spec, canonicalSpecPath, joVersion, joBin)
+      val lockPath = LockFile.pathForSpec(canonicalSpecPath)
+      LockFile.load(lockPath).flatMap: lockOpt =>
+        resolveCompilerFromLock(spec.jo, lockOpt, resolveJo, resolveExactJo).flatMap: (joVersion, joBin) =>
+          val lockedGitDeps = lockOpt.map(_.gitDeps.map(d => d.name -> d).toMap).getOrElse(Map.empty)
+          resolve(spec, canonicalSpecPath, joVersion, joBin, lockedGitDeps)
 
-  private def resolveCompiler(
-    specPath: Path,
+  private def resolveCompilerFromLock(
     constraint: VersionSpec,
+    lockOpt: Option[LockFile],
     resolveJo: VersionSpec => Result[(Version, Path)],
     resolveExactJo: Version => Result[Path],
   ): Result[(Version, Path)] =
-    LockFile.load(LockFile.pathForSpec(specPath)).flatMap:
+    lockOpt match
       case Some(lock) =>
         lock.jo match
           case Some(version) =>
@@ -102,18 +125,32 @@ object Project:
       case None =>
         resolveJo(constraint)
 
-  /** Resolve all path dependencies starting from rootSpec at rootDir.
+  /** Resolve all path and git dependencies starting from rootSpec at rootDir.
    *  Registry deps are ignored at this stage.
    *  All path deps share the same joVersion/joBin as the root.
    */
-  def resolve(rootSpec: BuildSpec, rootSpecPath: Path, joVersion: Version, joBin: Path): Result[Project] =
+  def resolve(
+    rootSpec: BuildSpec,
+    rootSpecPath: Path,
+    joVersion: Version,
+    joBin: Path,
+    lockedGitDeps: Map[String, LockedGitDep] = Map.empty,
+  ): Result[Project] =
     val resolved = collection.mutable.Map.empty[Path, Project]
     val heights = collection.mutable.Map.empty[Path, Int]
     val inProgress = collection.mutable.Set.empty[Path]
     val inProgressNames = collection.mutable.ArrayBuffer.empty[String]
 
-    def resolveDeps(specDir: Path, depEntries: List[(String, DepSpec)]): Result[List[ProjectDep]] =
-      val ordered = collection.mutable.ListBuffer.empty[ProjectDep]
+    case class DepResolution(
+      projectDeps: List[ProjectDep],
+      gitPackageDeps: List[GitPackageDep],
+      gitSourceDeps: List[GitSourceDep],
+    )
+
+    def resolveDeps(specDir: Path, depEntries: List[(String, DepSpec)]): Result[DepResolution] =
+      val orderedProject  = collection.mutable.ListBuffer.empty[ProjectDep]
+      val orderedPackages = collection.mutable.ListBuffer.empty[GitPackageDep]
+      val orderedSource   = collection.mutable.ListBuffer.empty[GitSourceDep]
       val seen = collection.mutable.LinkedHashSet.empty[Path]
 
       depEntries.foldLeft(Result.Ok(()): Result[Unit]): (acc, entry) =>
@@ -132,11 +169,31 @@ object Project:
                 else
                   visit(depName, depBuildSpec, depSpecPath).map: dep =>
                     if seen.add(dep.dir) then
-                      ordered += ProjectDep(depName, depSpec.link, dep)
+                      orderedProject += ProjectDep(depName, depSpec.link, dep)
 
             case DepSource.Registry(_) =>
               Result.unit
-      .map(_ => ordered.toList)
+
+            case DepSource.Git(url, ref) =>
+              GitSource.resolve(url, ref, lockedGitDeps.get(depName), joVersion, Config.cache).flatMap:
+                case GitResolution.Precompiled(joyPath, joyUrl, sha512, version, depInfo) =>
+                  orderedPackages += GitPackageDep(depName, url, version, joyPath, joyUrl, sha512, depInfo)
+                  Result.unit
+
+                case GitResolution.Source(sourceDir, rev) =>
+                  orderedSource += GitSourceDep(depName, url, rev)
+                  val depToml    = "jo.toml"
+                  val depSpecPath = sourceDir.resolve(depToml)
+                  loadSpec(sourceDir, depToml).flatMap: depBuildSpec =>
+                    if !depBuildSpec.jo.contains(joVersion) then
+                      Result.Err(
+                        s"git dependency '$depName' requires Jo ${depBuildSpec.jo.show}, but the selected compiler is $joVersion"
+                      )
+                    else
+                      visit(depName, depBuildSpec, depSpecPath).map: dep =>
+                        if seen.add(dep.dir) then
+                          orderedProject += ProjectDep(depName, depSpec.link, dep)
+      .map(_ => DepResolution(orderedProject.toList, orderedPackages.toList, orderedSource.toList))
 
     def visit(name: String, spec: BuildSpec, specPath: Path): Result[Project] =
       val canonicalSpecPath = specPath.toRealPath()
@@ -154,22 +211,32 @@ object Project:
       inProgressNames += name
 
       val result =
-        resolveDeps(canonicalDir, spec.main.dependencies.toList).flatMap: deps =>
-          val mainSet = deps.iterator.map(_.project.dir).toSet
+        resolveDeps(canonicalDir, spec.main.dependencies.toList).flatMap: mainResolved =>
+          val mainSet = mainResolved.projectDeps.iterator.map(_.project.dir).toSet
           spec.test match
             case Some(test) =>
-              resolveDeps(canonicalDir, test.dependencies.toList).map: testDeps0 =>
-                val testDeps = testDeps0.filterNot(dep => mainSet.contains(dep.project.dir))
-                val depHeights = deps.map(dep => heights(dep.project.dir))
+              resolveDeps(canonicalDir, test.dependencies.toList).map: testResolved =>
+                val testDeps = testResolved.projectDeps.filterNot(dep => mainSet.contains(dep.project.dir))
+                val allGitPackageDeps = mainResolved.gitPackageDeps ++ testResolved.gitPackageDeps
+                val allGitSourceDeps  = mainResolved.gitSourceDeps  ++ testResolved.gitSourceDeps
+                val depHeights = mainResolved.projectDeps.map(dep => heights(dep.project.dir))
                 val height = depHeights.maxOption.map(_ + 1).getOrElse(0)
-                val project = Project(canonicalDir, canonicalSpecPath, spec, deps, testDeps, joVersion, joBin)
+                val project = Project(
+                  canonicalDir, canonicalSpecPath, spec,
+                  mainResolved.projectDeps, testDeps, joVersion, joBin,
+                  allGitPackageDeps, allGitSourceDeps,
+                )
                 resolved(canonicalDir) = project
                 heights(canonicalDir) = height
                 project
             case None =>
-              val depHeights = deps.map(dep => heights(dep.project.dir))
+              val depHeights = mainResolved.projectDeps.map(dep => heights(dep.project.dir))
               val height = depHeights.maxOption.map(_ + 1).getOrElse(0)
-              val project = Project(canonicalDir, canonicalSpecPath, spec, deps, Nil, joVersion, joBin)
+              val project = Project(
+                canonicalDir, canonicalSpecPath, spec,
+                mainResolved.projectDeps, Nil, joVersion, joBin,
+                mainResolved.gitPackageDeps, mainResolved.gitSourceDeps,
+              )
               resolved(canonicalDir) = project
               heights(canonicalDir) = height
               Result.Ok(project)

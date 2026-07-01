@@ -40,7 +40,7 @@ object ToolPrinter:
     sb.toString.stripTrailing()
 
   def print(lock: LockFile): String =
-    if lock.jo.isEmpty && lock.packages.isEmpty then return "packages = []"
+    if lock.jo.isEmpty && lock.packages.isEmpty && lock.gitDeps.isEmpty then return "packages = []"
 
     val sb = new StringBuilder
 
@@ -51,6 +51,17 @@ object ToolPrinter:
       sb.append(s"  name = ${str(p.name)}\n")
       sb.append(s"  version = ${str(p.version)}\n")
       sb.append(s"  sha512 = ${str(p.sha512)}\n")
+
+    for dep <- lock.gitDeps do
+      sb.append(s"git:\n")
+      sb.append(s"  name = ${str(dep.name)}\n")
+      sb.append(s"  url = ${str(dep.url)}\n")
+      dep.source match
+        case LockedGitSource.Precompiled(joyUrl, sha512) =>
+          sb.append(s"  joy-url = ${str(joyUrl)}\n")
+          sb.append(s"  sha512 = ${str(sha512)}\n")
+        case LockedGitSource.Source(rev) =>
+          sb.append(s"  rev = ${str(rev)}\n")
 
     sb.toString.stripTrailing()
 
@@ -90,6 +101,10 @@ object ToolPrinter:
           case DepSource.Path(p, None)       => s"path ${str(p)}"
           case DepSource.Path(p, Some(spec)) => s"path ${str(p)} spec ${str(spec)}"
           case DepSource.Registry(c)         => s"registry ${str(c.show)}"
+          case DepSource.Git(url, None)                    => s"git ${str(url)}"
+          case DepSource.Git(url, Some(GitRef.Tag(t)))     => s"git ${str(url)} tag ${str(t)}"
+          case DepSource.Git(url, Some(GitRef.Branch(b)))  => s"git ${str(url)} branch ${str(b)}"
+          case DepSource.Git(url, Some(GitRef.Rev(r)))     => s"git ${str(url)} rev ${str(r)}"
 
         sb.append(s"$pad  $k = $sourceStr$linkTag\n")
 

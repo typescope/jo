@@ -25,6 +25,7 @@ object DependencyResolver:
     case Root(name: String, module: ModuleKind)
     case Project(dir: Path, name: String)
     case Package(name: String)
+    case GitPackage(name: String)
 
   private type DependencyGraph = mutable.LinkedHashMap[Node, mutable.ArrayBuffer[Node]]
 
@@ -433,6 +434,7 @@ object DependencyResolver:
         case Node.Root(rootName, ModuleKind.Test) => s"$rootName [test]"
         case Node.Project(_, projectName)         => projectName
         case Node.Package(packageName)            => packageName
+        case Node.GitPackage(packageName)         => s"git:$packageName"
       ) :+ name
       labels.mkString(" -> ")
 
@@ -471,6 +473,12 @@ object DependencyResolver:
 
           case _ =>
             ()
+
+        current.gitPackageDeps.foreach: dep =>
+          val gitNode = Node.GitPackage(dep.depName)
+          addEdge(gitNode, parent)
+          dep.depInfo.dependencies.foreach: (depName, constraint) =>
+            pending += (PackageConstraint(depName, constraint) -> gitNode)
 
         current.deps.foreach: dep =>
           val child = Node.Project(dep.project.dir, dep.project.name)
@@ -532,9 +540,10 @@ object DependencyResolver:
     deepest match
       case Some(depth, path) =>
         val labels = path.map:
-          case Node.Root(name, _)     => name
-          case Node.Project(_, name)  => name
-          case Node.Package(name)  => name
+          case Node.Root(name, _)    => name
+          case Node.Project(_, name) => name
+          case Node.Package(name)    => name
+          case Node.GitPackage(name) => s"git:$name"
         .drop(1)
 
         (depth, labels)
