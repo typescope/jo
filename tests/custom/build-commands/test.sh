@@ -45,5 +45,23 @@ if "$JO" bogus >out.txt 2>err.txt; then fail "jo bogus should have failed"; fi
 grep -q "unknown command 'bogus'" err.txt || fail "missing unknown-command error"
 grep -q "Defined commands:" err.txt || fail "did not list defined commands"
 
+# 7. A command's exit status propagates, so shell `&&`/`||`/`set -e` and CI see
+#    failures. `fails` runs then exits 3; jo must exit 3 too.
+"$JO" fails >out.txt 2>err.txt
+code=$?
+[ "$code" -eq 3 ] || fail "exit status not propagated (expected 3, got $code)"
+grep -q "before-failure" out.txt || fail "command ran but its output was lost"
+
+# 8. Shell chaining: the `&&` here is the invoking shell's, not jo's. jo exits 0
+#    after a successful command, so the right-hand side runs.
+{ "$JO" dev && echo success; } >out.txt 2>err.txt || fail "jo dev && echo success failed"
+grep -q "hi-dev" out.txt  || fail "jo dev output missing in the && chain"
+grep -q "success" out.txt || fail "&& did not run after a successful jo dev"
+
+# 8b. And it short-circuits: a failing command's nonzero exit stops the chain.
+{ "$JO" fails && echo should-not-run; } >out.txt 2>err.txt
+grep -q "before-failure" out.txt   || fail "jo fails did not run in the && chain"
+grep -q "should-not-run" out.txt   && fail "&& ran the RHS despite jo fails exiting nonzero"
+
 rm -f out.txt err.txt
 echo "  ✓ All tests passed for $TEST_NAME"
