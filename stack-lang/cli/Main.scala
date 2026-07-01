@@ -134,13 +134,52 @@ object Main:
       case "help" | "--help" | "-h" =>
         printUsage()
 
+      case "exec" =>
+        // Always run a project-defined command, bypassing builtins.
+        val rest = args.drop(1)
+        if rest.isEmpty then
+          println("Error: 'exec' requires a command name")
+          System.exit(1)
+        else
+          runProjectCommand(rest(0), rest.drop(1), forced = true)
+
       case file if file.endsWith(".jo") =>
         // Default to eval if a .jo file is provided directly
         sast.Interpreter.main(args)
 
-      case _ =>
-        println(s"Error: Unknown command '${args(0)}'")
-        printUsage()
+      case name =>
+        // Not a builtin: as a last resort, try a project-defined [commands] entry.
+        runProjectCommand(name, args.drop(1), forced = false)
+
+  /** Run a `[commands]` entry from the current project's jo.toml, passing any
+   *  extra args through. `forced` marks the explicit `jo exec` form (builtins
+   *  already ruled out); when false this is the `jo <name>` fallthrough, so a miss
+   *  reports an unknown command. Exits with the command's status.
+   */
+  private def runProjectCommand(name: String, extra: Array[String], forced: Boolean): Unit =
+    tool.Project.loadSpec(Paths.get("").toAbsolutePath) match
+      case tool.Result.Ok(spec) =>
+        spec.commands.get(name) match
+          case Some(cmd) =>
+            val full = if extra.isEmpty then cmd else s"$cmd ${extra.mkString(" ")}"
+            val code = ProcessBuilder("sh", "-c", full).inheritIO().start().waitFor()
+            System.exit(code)
+
+          case None =>
+            System.err.println(s"Error: unknown command '$name'")
+            if spec.commands.nonEmpty then
+              System.err.println(s"Defined commands: ${spec.commands.keys.toSeq.sorted.mkString(", ")}")
+            else if !forced then
+              printUsage()
+            System.exit(1)
+
+      case tool.Result.Err(msg) =>
+        // No (or invalid) project here: `exec` surfaces why; the bare fallthrough
+        // just reports an unknown command as before.
+        if forced then System.err.println(s"Error: cannot run '$name': $msg")
+        else
+          println(s"Error: Unknown command '$name'")
+          printUsage()
         System.exit(1)
 
   enum Backend:
@@ -208,6 +247,8 @@ object Main:
       |  jo lock [--spec <file.toml>]           Resolve dependencies and rewrite the lock file
       |  jo info <pkg>[@<version>]              Show package metadata and available versions
       |  jo eval <source.jo>                    Run program with interpreter
+      |  jo <name> [args...]                    Run a project command from [commands] (builtins win)
+      |  jo exec <name> [args...]               Run a [commands] entry, bypassing builtins
       |  jo versions                             List installed and available compiler versions
       |  jo versions install <version>          Download and install a compiler version
       |  jo versions use <version>              Switch the active compiler version

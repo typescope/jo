@@ -37,6 +37,11 @@ object ToolPrinter:
         sb.append("test:\n")
         appendSection(sb, t, "  ")
 
+    if spec.commands.nonEmpty then
+      sb.append("commands:\n")
+      for (name, cmd) <- spec.commands.toSeq.sortBy(_._1) do
+        sb.append(s"  $name = ${str(cmd)}\n")
+
     sb.toString.stripTrailing()
 
   def print(lock: LockFile): String =
