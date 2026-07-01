@@ -24,6 +24,12 @@ grep -q "hi-dev alpha beta" out.txt || fail "jo dev did not pass args through"
 "$JO" exec dev >out.txt 2>err.txt || fail "jo exec dev failed"
 grep -q "hi-dev" out.txt || fail "jo exec dev did not run the command"
 
+# 3b. Extra args are literal data — shell metacharacters are NOT interpreted.
+#     `jo dev "&& echo INJECTED"` must print the text, not run a second command.
+"$JO" dev "&& echo INJECTED" >out.txt 2>err.txt || fail "jo dev with metachars failed"
+grep -q -- "hi-dev && echo INJECTED" out.txt || fail "argument was not passed literally"
+grep -qx "INJECTED" out.txt && fail "argument was shell-injected (ran as a second command)"
+
 # 4. Built-ins win: 'help' is defined as a command AND is a built-in;
 #    `jo help` must run the built-in (print usage), not the command.
 "$JO" help >out.txt 2>err.txt || fail "jo help failed"

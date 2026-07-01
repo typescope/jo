@@ -161,8 +161,21 @@ object Main:
       case tool.Result.Ok(spec) =>
         spec.commands.get(name) match
           case Some(cmd) =>
-            val full = if extra.isEmpty then cmd else s"$cmd ${extra.mkString(" ")}"
-            val code = ProcessBuilder("sh", "-c", full).inheritIO().start().waitFor()
+            // The command string is run through the shell, so `&&`, pipes, etc.
+            // in the *definition* work. Extra CLI args are appended as literal
+            // positional parameters via "$@" — never spliced into the shell text
+            // — so a metacharacter in an argument (`jo dev "&& rm -rf /"`) is
+            // passed as data, not executed.
+            //
+            // In `sh -c <script> A B C`, the argument after the script becomes
+            // `$0`, and only the rest become `$1`, `$2`, … (what "$@" expands
+            // to). So a placeholder must occupy `$0`, or the first real arg would
+            // be swallowed and dropped from "$@". We use "jo" as that `$0` so any
+            // shell diagnostics are attributed to `jo` (e.g. `jo: line 1: …`).
+            val argv =
+              if extra.isEmpty then List("sh", "-c", cmd)
+              else List("sh", "-c", cmd + " \"$@\"", "jo") ++ extra.toList
+            val code = ProcessBuilder(argv*).inheritIO().start().waitFor()
             System.exit(code)
 
           case None =>
