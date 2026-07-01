@@ -1,0 +1,9 @@
+jo = "1.0"
+name = "cmd-app"
+
+[main]
+target = "python"
+
+[commands]
+dev = "jo build --spec sandbox/guest/jo.toml && jo run"
+fmt = "echo formatting"

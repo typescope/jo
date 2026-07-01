@@ -45,6 +45,8 @@ final class Project private (
 
   def test: Option[ModuleSpec] = spec.test
 
+  def commands: Map[String, String] = spec.commands
+
   def runtime: Option[String] = spec.pkg.flatMap(_.runtime)
 
   /** Root of this project's build output: `<dir>/.build/<name>/`. */

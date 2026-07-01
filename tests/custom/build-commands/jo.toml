@@ -1,0 +1,7 @@
+jo   = "0.11"
+name = "commands-demo"
+
+[commands]
+dev   = "echo hi-dev"
+help  = "echo SHADOWED-HELP"
+fails = "echo before-failure; exit 3"

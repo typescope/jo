@@ -51,6 +51,7 @@ case class BuildSpec(
   doc: Option[DocSpec],
   main: ModuleSpec,
   test: Option[ModuleSpec],
+  commands: Map[String, String] = Map.empty, // [commands] → `jo <name>` shell aliases
 ):
   def isLib: Boolean = pkg.isDefined
 
@@ -69,8 +70,17 @@ object BuildSpec:
     val mainTbl = doc.get("main").map(asTbl(_, "main")).getOrElse(Map.empty)
     val main    = decodeSection(mainTbl, "main")
     val test    = doc.get("test").map(v => decodeSection(asTbl(v, "test"), "test"))
+    val commands = doc.get("commands").map(v => decodeCommands(asTbl(v, "commands"))).getOrElse(Map.empty)
 
-    BuildSpec(jo, name, depth, pinning, pkg, docSpec, main, test)
+    BuildSpec(jo, name, depth, pinning, pkg, docSpec, main, test, commands)
+
+  private def decodeCommands(tbl: Map[String, TomlValue]): Map[String, String] =
+    tbl.map: (name, value) =>
+      val cmd = asStr(value, s"[commands].$name")
+      if cmd.trim.isEmpty then
+        throw TomlError(s"[commands].$name must be a non-empty command string")
+      name -> cmd
+    .toMap
 
   private def decodePinning(tbl: Map[String, TomlValue]): Map[String, Version] =
     tbl.toSeq.sortBy(_._1).map: (name, value) =>
