@@ -2,6 +2,21 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.11.3] - 2026-07-01
+
+### Added
+
+- Custom commands: a `[commands]` table in `jo.toml` defines named shell
+  commands, run as `jo <name>` (built-ins take precedence) or `jo exec <name>`
+  (bypassing built-ins). ([#41])
+
+### Fixed
+
+- Test builds now respect the test module's `compile-options`. ([#40])
+
+[#40]: https://github.com/typescope/jo/pull/40
+[#41]: https://github.com/typescope/jo/pull/41
+
 ## [0.11.2] - 2026-06-27
 
 ### Fixed
