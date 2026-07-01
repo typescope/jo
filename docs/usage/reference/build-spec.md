@@ -93,3 +93,27 @@ Explicit wiring of `defer def`s. All entries are required — unresolved `defer 
 ```
 
 `[test.links]` is merged with `[main.links]`. Test overrides take precedence.
+
+## `[commands]` — Project Commands
+
+Named shell commands you invoke as `jo <name>` — the project's command palette, comparable to `npm run` scripts. Each value is a command line run through the system shell (`sh -c`) from the project root.
+
+```toml
+[commands]
+dev    = "jo build --spec sandbox/guest/jo.toml && jo run"
+fmt    = "jo compile --doc src/ --out api"
+deploy = "./scripts/deploy.sh"
+```
+
+Invoke by name; any extra arguments are appended:
+
+```sh
+jo dev
+jo dev --port 8080     # runs the command with `--port 8080` appended
+```
+
+Built-in commands always win: if a command shares a name with a built-in (e.g. `build`), `jo build` runs the built-in, so a project can never shadow Jo's own verbs. Use [`jo exec <name>`](../commands/exec.md) to run a defined command unambiguously. Commands run only when invoked — there are no install/lifecycle hooks that run automatically.
+
+::: info Design choice: built-ins are unshadowable
+This precedence is a deliberate security decision — it keeps `jo build`/`jo run`/`jo test` safe to run in an untrusted checkout. See [Why built-ins take precedence](../commands/exec.md#how-it-works) for the rationale.
+:::

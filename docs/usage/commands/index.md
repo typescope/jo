@@ -15,6 +15,7 @@
 | [`jo clean`](clean.md) | Remove build artifacts |
 | [`jo versions`](versions.md) | Manage compiler versions |
 | [`jo compile`](compile.md) | Raw compiler interface |
+| [`jo <name>` / `jo exec`](exec.md) | Run a project command from `[commands]` |
 
 ## Global Options
 
