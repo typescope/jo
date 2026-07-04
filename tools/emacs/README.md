@@ -58,6 +58,26 @@ If you use `use-package`, add this to your configuration:
   :mode "\\.jo\\'")
 ```
 
+### Using straight.el (e.g. Doom Emacs)
+
+Taking the Doom Emacs directory structure as an example:
+
+doom/packages.el
+
+``` elisp
+(package! jo-mode
+  :recipe (:host github
+           :repo "typescope/jo"
+           :files ("tools/emacs/*.el")))
+```
+
+doom/config.el
+
+``` elisp
+(use-package! jo-mode
+  :mode "\\.jo\\'")
+```
+
 ### Development Setup
 
 If you're working on the Jo compiler itself and want to load the mode directly from the repository:
