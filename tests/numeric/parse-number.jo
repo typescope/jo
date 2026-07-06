@@ -24,25 +24,20 @@ def testIntParse =
   println Int.parse(" 12") is None
   println Int.parse("12 ") is None
 
-def expectLongParse(s: String, expected: Long): Bool =
-  match Long.parse(s)
-  case Some(value) => value == expected
-  case None => false
-
 def testLongParse =
   val maxLong: Long = 9223372036854775807
   val minLong: Long = -9223372036854775808
 
   println "--- long.parse ---"
-  println expectLongParse("0", 0)
-  println expectLongParse("123", 123)
-  println expectLongParse("+42", 42)
-  println expectLongParse("-7", -7)
-  println expectLongParse("-0", 0)
-  println expectLongParse("000", 0)
-  println expectLongParse("00123", 123)
-  println expectLongParse("9223372036854775807", maxLong)
-  println expectLongParse("-9223372036854775808", minLong)
+  println Long.parse("0") is Some(0)
+  println Long.parse("123") is Some(123)
+  println Long.parse("+42") is Some(42)
+  println Long.parse("-7") is Some(-7)
+  println Long.parse("-0") is Some(0)
+  println Long.parse("000") is Some(0)
+  println Long.parse("00123") is Some(123)
+  println Long.parse("9223372036854775807") is Some(maxLong)
+  println Long.parse("-9223372036854775808") is Some(minLong)
   println Long.parse("9223372036854775808") is None
   println Long.parse("-9223372036854775809") is None
   println Long.parse("") is None
