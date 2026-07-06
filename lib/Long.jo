@@ -142,24 +142,26 @@ section Long
       val ch = s.get(i)
       if ch < '0' || ch > '9' then
         ok = false
-      else
-        val digit = (ch.toInt - '0'.toInt).toLong
-        if negative then
-          if value < minDiv10 || (value == minDiv10 && digit > 8) then
-            ok = false
-          else
-            value = value * 10 - digit
-            i = i + 1
-          end
+        break
+
+
+      val digit = (ch.toInt - '0'.toInt).toLong
+      if negative then
+        if value < minDiv10 || (value == minDiv10 && digit > 8) then
+          ok = false
         else
-          if value > maxDiv10 || (value == maxDiv10 && digit > 7) then
-            ok = false
-          else
-            value = value * 10 + digit
-            i = i + 1
-          end
+          value = value * 10 - digit
+          i = i + 1
+        end
+      else
+        if value > maxDiv10 || (value == maxDiv10 && digit > 7) then
+          ok = false
+        else
+          value = value * 10 + digit
+          i = i + 1
         end
       end
+
     end
 
     if ok then Some(value) else None

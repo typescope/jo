@@ -169,10 +169,10 @@ section Int
       val ch = s.get(i)
       if ch < '0' || ch > '9' then
         ok = false
-      else
-        value = value * 10 + (ch.toInt - '0'.toInt)
-        i = i + 1
-      end
+        break
+
+      value = value * 10 + (ch.toInt - '0'.toInt)
+      i = i + 1
     end
 
     if ok then Some(sign * value) else None
