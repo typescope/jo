@@ -263,11 +263,11 @@ def compile_code(code: str) -> tuple[bool, str]:
 
     cmd = [
         os.path.join(PROJECT_ROOT, "bin", "jo"),
-        "build", "-python",
-        "-link", "jo.main=AgentRuntime.platformMain",
-        "-link", "AgentAPI.runTask=UserTask.runTask",
-        "-lib", os.path.join(OUT_DIR, "api"),
-        "-runtime", os.path.join(OUT_DIR, "runtime"),
+        "compile", "--python",
+        "--link", "jo.main=DatabaseRuntime.platformMain",
+        "--link", "DatabaseAPI.analyzeDocuments=UserTask.analyzeDocuments",
+        "--lib", os.path.join(OUT_DIR, "api"),
+        "--link-lib", os.path.join(OUT_DIR, "runtime"),
         TASK_JO,
         "-o", TASK_PY,
     ]
