@@ -111,7 +111,7 @@ section Float
 
       return Some(value)
 
-    else s.get(i) is a && a != 'e' && a != 'E' then
+    else if s.get(i) is a && a != 'e' && a != 'E' then
       return None
 
     var expSign = 1
