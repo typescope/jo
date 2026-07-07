@@ -1,0 +1,14 @@
+namespace harpe
+
+import harpe.Model.Rendered
+
+class Anthropic
+  def ask(rendered: Rendered, model: String, client: py.Dynamic, messages: List[String]) =
+    client.messages.create:
+      model = model
+      max_tokens = 8096
+      system = rendered.system
+      messages = messages
+end
+
+def main = println "anthropic"
