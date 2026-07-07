@@ -1,0 +1,33 @@
+// options: --explicit-this
+
+class Counter
+  var value: Int
+
+  def Counter(initial: Int) =
+    this.value = initial
+
+  def set(n: Int): Unit =
+    this.value = n
+
+  def increment(): Unit =
+    value = value + 1
+
+  def read(): Int =
+    value
+
+  def reset(): Unit =
+    set 0
+
+  def explicitOk(): Int =
+    this.set(1)
+    this.value
+
+interface Named
+  def raw(): String
+
+  def decorated(): String =
+    raw()
+
+  def explicitDecorated(): String =
+    this.raw()
+end
