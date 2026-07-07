@@ -1,0 +1,23 @@
+import jo.compile.Named
+import jo.compile.Mixed
+
+class Rendered(message: String)
+
+def foo(args: ..Mixed[String]) =
+  for arg in args do println arg
+
+def bar(args: ..Named[String]) =
+  for arg in args do println arg
+
+def main =
+  val name = "Jo"
+
+  val rendered = Rendered("prompt")
+
+  foo:
+    title = "hello"
+    author = name
+
+  bar:
+    title = "hello"
+    prompt = rendered.message
