@@ -57,6 +57,7 @@ These options enable stricter compile-time checks.
 | `--explicit-return-type` | flag | Require functions to declare an explicit return type. |
 | `--check-shadowing` | flag | Report shadowing of local definitions. |
 | `--explicit-this` | flag | Require method calls and field accesses on the current receiver to be written with an explicit `this.` selection. |
+| `--no-star-import` | flag | Forbid wildcard imports such as `import foo.*`. |
 
 ## App Compilation Options
 
