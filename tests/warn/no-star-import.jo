@@ -1,0 +1,6 @@
+// options: --no-star-import
+
+import jo.mutable.*
+
+def main: Unit =
+  println "no star imports"

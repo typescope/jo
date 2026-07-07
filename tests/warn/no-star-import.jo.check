@@ -1,0 +1,6 @@
+---------- Error at tests/warn/no-star-import.jo:3:8 ---------------
+| import jo.mutable.*
+|        ^^^^^^^^^^^^
+|        --no-star-import is set for this project, write imports explicitly instead of using `*`
+
+1 error(s), 0 warning(s)
