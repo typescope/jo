@@ -1230,7 +1230,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case "toInt" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
-        (stats, JS.Call(Some(JS.Ident("Math")), "floor", List(expr)))
+        (stats, JS.Call(Some(JS.Ident("Math")), "trunc", List(expr)))
 
       case "~-" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
