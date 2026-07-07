@@ -47,6 +47,7 @@ class Float
   def ~-(): Float = ...
 
   // Conversion methods
+  //[ Truncates toward zero. //]
   @intrinsic
   def toInt: Int = ...
 
