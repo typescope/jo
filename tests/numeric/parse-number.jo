@@ -53,11 +53,6 @@ def testLongParse =
   println Long.parse(" 12") is None
   println Long.parse("12 ") is None
 
-def expectLongParse(s: String, expected: Long): Bool =
-  match Long.parse(s)
-  case Some(value) => value == expected
-  case None => false
-
 def testFloatParse =
   println "--- float.parse ---"
   println Float.parse("0") is Some(0.0)

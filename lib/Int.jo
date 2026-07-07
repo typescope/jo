@@ -145,7 +145,11 @@ def (a: Int) != (b: Int): Bool = ! (a == b)
 
 
 section Int
-  //[ Parse signed decimal integer. Returns None on invalid input. //]
+  //[ Parse signed decimal integer. Returns None on invalid input.
+    !
+    ! Whitespaces are not allowed. Call `s.trim` first if surrounding
+    ! whitespaces are allowed.
+  //]
   def parse(s: String): Option[Int] =
     val n = s.size
     if n == 0 then return None

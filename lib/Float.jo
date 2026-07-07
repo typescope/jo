@@ -63,7 +63,12 @@ class Float
 end
 
 section Float
-  // Parse decimal float with optional sign and exponent. Returns None on invalid input.
+  //[ Parse decimal float with optional sign and exponent. Returns None on invalid input.
+    !
+    !
+    ! Whitespaces are not allowed. Call `s.trim` first if surrounding
+    ! whitespaces are allowed.
+  //]
   def parse(s: String): Option[Float] =
     val n = s.size
     if n == 0 then return None
@@ -122,9 +127,10 @@ section Float
       val c = s.get(i)
       if c == '+' then
         i = i + 1
-      else if c == '-'
+      else if c == '-' then
         expSign = -1
         i = i + 1
+      end
     end
 
     if i >= n || s.get(i) is c && (c < '0' || c > '9') then return None

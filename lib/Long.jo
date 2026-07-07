@@ -115,7 +115,12 @@ class Long
 end
 
 section Long
-  //[ Parse signed decimal long integer. Returns None on invalid input. //]
+  //[ Parse signed decimal long integer. Returns None on invalid input.
+    !
+    !
+    ! Whitespaces are not allowed. Call `s.trim` first if surrounding
+    ! whitespaces are allowed.
+  //]
   def parse(s: String): Option[Long] =
     val n = s.size
     if n == 0 then return None
