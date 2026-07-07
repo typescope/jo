@@ -113,3 +113,60 @@ class Long
   def max(other: Long): Long = if this >= other then this else other
   def min(other: Long): Long = if this <= other then this else other
 end
+
+section Long
+  //[ Parse signed decimal long integer. Returns None on invalid input.
+    !
+    !
+    ! Whitespaces are not allowed. Call `s.trim` first if surrounding
+    ! whitespaces are allowed.
+  //]
+  def parse(s: String): Option[Long] =
+    val n = s.size
+    if n == 0 then return None
+
+    var i = 0
+    var negative = false
+
+    val first = s.get(0)
+    if first == '+' then
+      i = 1
+    else if first == '-' then
+      i = 1
+      negative = true
+    end
+
+    if i >= n then return None
+
+    val maxDiv10: Long = 922337203685477580
+    val minDiv10: Long = -922337203685477580
+
+    var value: Long = 0
+    var ok = true
+    while i < n && ok do
+      val ch = s.get(i)
+      if ch < '0' || ch > '9' then
+        ok = false
+        break
+
+
+      val digit = (ch.toInt - '0'.toInt).toLong
+      if negative then
+        if value < minDiv10 || (value == minDiv10 && digit > 8) then
+          ok = false
+        else
+          value = value * 10 - digit
+          i = i + 1
+        end
+      else
+        if value > maxDiv10 || (value == maxDiv10 && digit > 7) then
+          ok = false
+        else
+          value = value * 10 + digit
+          i = i + 1
+        end
+      end
+
+    end
+
+    if ok then Some(value) else None
