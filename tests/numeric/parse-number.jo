@@ -14,6 +14,9 @@ def testIntParse =
   println Int.parse("000") is Some(0)
   println Int.parse("00123") is Some(123)
   println Int.parse("2147483647") is Some(2147483647)
+  println Int.parse("-2147483648") is Some(-2147483648)
+  println Int.parse("2147483648") is None
+  println Int.parse("-2147483649") is None
   println Int.parse("") is None
   println Int.parse("+") is None
   println Int.parse("-") is None
@@ -49,6 +52,11 @@ def testLongParse =
   println Long.parse("1.0") is None
   println Long.parse(" 12") is None
   println Long.parse("12 ") is None
+
+def expectLongParse(s: String, expected: Long): Bool =
+  match Long.parse(s)
+  case Some(value) => value == expected
+  case None => false
 
 def testFloatParse =
   println "--- float.parse ---"
