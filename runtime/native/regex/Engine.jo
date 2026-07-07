@@ -1,7 +1,7 @@
 namespace jo.runtime.native.regex
 
 import jo.runtime.native
-import jo.runtime.native.regex.Ast.*
+import jo.runtime.native.regex.Ast
 
 class Segment(from: Int, to: Int)
 
@@ -18,7 +18,7 @@ section Engine
   class Thread
     var start: Int
     var step: Int
-    var captureStack: List[CaptureId ~ Int]
+    var captureStack: List[Ast.CaptureId ~ Int]
     var indexed: Array[Option[Segment]]
     var named: Map[String, Segment]
     var priority: List[Int]
@@ -26,7 +26,7 @@ section Engine
     def Thread(
         start: Int,
         step: Int,
-        captureStack: List[CaptureId ~ Int],
+        captureStack: List[Ast.CaptureId ~ Int],
         indexed: Array[Option[Segment]],
         named: Map[String, Segment],
         priority: List[Int]) =
@@ -92,10 +92,10 @@ section Engine
         found = true
     found
 
-  def enterCapture(t: Thread, id: CaptureId, pos: Int): Unit =
+  def enterCapture(t: Thread, id: Ast.CaptureId, pos: Int): Unit =
     t.captureStack = t.captureStack + (id ~ pos)
 
-  def exitCapture(t: Thread, id: CaptureId, pos: Int): Unit =
+  def exitCapture(t: Thread, id: Ast.CaptureId, pos: Int): Unit =
     match t.captureStack
       case [..xs, top] =>
         val topId ~ startPos = top
@@ -112,7 +112,7 @@ section Engine
         abort "Unexpected empty capture stack"
 
   def isActiveState(nfa: NFA, state: Int): Bool =
-    state == Finish || nfa.getTransitions(state).exists(edge => edge.label is (_: Atom))
+    state == Finish || nfa.getTransitions(state).exists(edge => edge.label is (_: Ast.Atom))
 
   def epsilonClosure(
       nfa: NFA,
@@ -143,7 +143,7 @@ section Engine
         case ExitCapture(name) =>
           exitCapture(t, name, pos)
           Some(edge.to ~ t)
-        case _: Atom =>
+        case _: Ast.Atom =>
           None
 
     while work.size > 0 do
@@ -194,7 +194,7 @@ section Engine
       while iter.hasNext do
         val edge = iter.next()
         match edge.label
-          case a: Atom =>
+          case a: Ast.Atom =>
             if Chars.atomMatches(a, c, dotall, ignoreCase) then
               val t = withPriorityChoice(cloneThread(thread), idx)
               t.step = posAfter
