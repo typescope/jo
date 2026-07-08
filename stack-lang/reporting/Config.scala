@@ -107,6 +107,7 @@ object Config:
   val explicitReturnType: Setting[Boolean] = BooleanSetting("--explicit-return-type",  false, "Require functions to have explicit return type")
   val checkShadowing: Setting[Boolean] = BooleanSetting("--check-shadowing",  false, "Check shadowing of local definitions")
   val explicitThis: Setting[Boolean] = BooleanSetting("--explicit-this",  false, "Method calls and field accesses must be explicit select on `this`")
+  val noStarImport: Setting[Boolean] = BooleanSetting("--no-star-import",  false, "Forbid wildcard imports")
 
   //----------------------------------------------------------------------------
   // output config
@@ -247,6 +248,7 @@ object Config:
     explicitReturnType,
     checkShadowing,
     explicitThis,
+    noStarImport,
     sastDir,
   )
 

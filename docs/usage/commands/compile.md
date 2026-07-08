@@ -9,19 +9,24 @@ Raw compiler interface. No project spec required.
 jo compile [--sast <dir>] <file.jo>... [--lib <dir>]...
 
 # Compile to executable or script
-jo compile --python|--ruby|--js|--stack|--reg [--sast <dir>] <file.jo>... \
+jo compile --python|--ruby|--js [--sast <dir>] <file.jo>... \
            [--lib <dir>]... [--link-lib <dir>]... [--link <src>=<tgt>]... -o <output>
 
-# Generate documentation from source files
-jo compile --doc [--out <dir>] [--title <name>] [--include-private] [--include-source] \
-           <file.jo>...
+# Generate documentation from source files (experimental)
+jo compile --doc [--out <dir>] [--title <name>] [--readme <file>] \
+           [--include-private] [--include-source] <file.jo>...
 ```
 
 Without a backend flag, the compiler type-checks only. With a backend flag, it produces an executable or script. `--sast <dir>` is optional in both cases — if present, `.sast` files are written to `<dir>` alongside the primary output.
 
-`--doc` switches the compiler into primitive documentation mode. This is the low-level interface for generating docs directly from source files. For normal project workflows, prefer [`jo doc`](doc.md).
+`--doc` is an experimental low-level interface for generating docs directly from
+source files. It may change. For normal project workflows, prefer [`jo doc`](doc.md).
 
 ## Options
+
+This page lists the main user-facing options. For the full low-level option set,
+including stricter checking and compiler-development flags, see
+[Compiler Options](../reference/compiler-options.md).
 
 ### Common
 
@@ -34,11 +39,14 @@ Without a backend flag, the compiler type-checks only. With a backend flag, it p
 
 ### Documentation
 
+Experimental.
+
 | Flag | Description |
 |------|-------------|
 | `--doc` | Generate documentation instead of normal compile output |
 | `--out <dir>` | Documentation output directory |
 | `--title <name>` | Documentation title |
+| `--readme <file>` | Markdown file to use as the generated documentation home page |
 | `--include-private` | Include private symbols |
 | `--include-source` | Embed source code in output |
 
@@ -49,7 +57,6 @@ Without a backend flag, the compiler type-checks only. With a backend flag, it p
 | `--ruby`                  | Target Ruby (default) |
 | `--python`                | Target Python |
 | `--js`                    | Target JavaScript (experimental) |
-| `--stack\|--reg`          | Target native backend (internal testing) |
 | `--link-lib <dir>`        | Link library directory (resolves `defer def`s, can be repeated) |
 | `--link <src>=<tgt>`      | Wire a specific `defer def` explicitly (can be repeated) |
 | `-o <output>`             | Output file path |

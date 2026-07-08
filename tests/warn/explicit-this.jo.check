@@ -1,0 +1,26 @@
+---------- Error at tests/warn/explicit-this.jo:13:13 ---------------
+|     value = value + 1
+|             ^^^^^
+|             --explicit-this is set for this project, write member `value` explicitly as `this.value`
+
+---------- Error at tests/warn/explicit-this.jo:13:5 ---------------
+|     value = value + 1
+|     ^^^^^
+|     --explicit-this is set for this project, write member `value` explicitly as `this.value`
+
+---------- Error at tests/warn/explicit-this.jo:16:5 ---------------
+|     value
+|     ^^^^^
+|     --explicit-this is set for this project, write member `value` explicitly as `this.value`
+
+---------- Error at tests/warn/explicit-this.jo:19:5 ---------------
+|     set 0
+|     ^^^
+|     --explicit-this is set for this project, write member `set` explicitly as `this.set`
+
+---------- Error at tests/warn/explicit-this.jo:29:5 ---------------
+|     raw()
+|     ^^^
+|     --explicit-this is set for this project, write member `raw` explicitly as `this.raw`
+
+5 error(s), 0 warning(s)

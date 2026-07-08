@@ -145,6 +145,7 @@ export default defineConfig({
           text: 'Reference',
           items: [
             { text: 'Build Spec', link: '/usage/reference/build-spec' },
+            { text: 'Compiler Options', link: '/usage/reference/compiler-options' },
             { text: 'Library Metadata', link: '/usage/reference/library-metadata' },
             { text: 'Dependency Resolution', link: '/usage/reference/dependency-resolution' },
             { text: 'Registry', link: '/usage/reference/registry' },

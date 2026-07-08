@@ -85,23 +85,23 @@ bin/jo compile --verbose --sast $STDLIB --test-pickling --explicit-return-type -
 
 # build interpreter runtime
 INT_RUNTIME=libs/runtime-interpreter
-bin/jo compile --verbose --sast $INT_RUNTIME --test-pickling --explicit-return-type --check-shadowing runtime/Interpreter.jo
+bin/jo compile --verbose --sast $INT_RUNTIME --test-pickling --explicit-return-type --no-star-import --check-shadowing runtime/Interpreter.jo
 
 # build JS runtime
 JS_RUNTIME=libs/runtime-javascript
-bin/jo compile --verbose --sast $JS_RUNTIME --test-pickling --explicit-return-type --check-shadowing runtime/javascript/*.jo
+bin/jo compile --verbose --sast $JS_RUNTIME --test-pickling --explicit-return-type --no-star-import --check-shadowing runtime/javascript/*.jo
 
 # build Ruby runtime
 RUBY_RUNTIME=libs/runtime-ruby
-bin/jo compile --verbose --sast $RUBY_RUNTIME --test-pickling --explicit-return-type --check-shadowing runtime/ruby/*.jo
+bin/jo compile --verbose --sast $RUBY_RUNTIME --test-pickling --explicit-return-type --no-star-import --check-shadowing runtime/ruby/*.jo
 
 # build Python runtime
 PYTHON_RUNTIME=libs/runtime-python
-bin/jo compile --verbose --sast $PYTHON_RUNTIME --test-pickling --explicit-return-type --check-shadowing runtime/python/*.jo
+bin/jo compile --verbose --sast $PYTHON_RUNTIME --test-pickling --explicit-return-type --no-star-import --check-shadowing runtime/python/*.jo
 
 # build native runtime
 NATIVE_RUNTIME=libs/runtime-native
-bin/jo compile --verbose --sast $NATIVE_RUNTIME --test-pickling --explicit-return-type --check-shadowing runtime/native/*.jo runtime/native/**/*.jo
+bin/jo compile --verbose --sast $NATIVE_RUNTIME --test-pickling --explicit-return-type --no-star-import --check-shadowing runtime/native/*.jo runtime/native/**/*.jo
 
 # Package release if requested
 if [ "$BUILD_RELEASE" = true ]; then

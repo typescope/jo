@@ -7,6 +7,7 @@ import sast.*
 import sast.Symbols.*
 import sast.Types.*
 
+import reporting.Config
 import reporting.Reporter
 
 import scala.collection.mutable
@@ -62,7 +63,7 @@ object Imports:
 
   def doImport
       (qualid: Ast.RefTree, alias: Option[String], importScope: Scope, rootNameTable: NameTable)
-      (using rp: Reporter, so: Source, index: SymbolIndex)
+      (using rp: Reporter, so: Source, index: SymbolIndex, config: Config)
   : List[Symbol] =
 
     val imports = new mutable.ArrayBuffer[Symbol]
@@ -116,6 +117,10 @@ object Imports:
     qualid match
       case Ast.Select(qual, name) =>
         val isStar = name == "*"
+
+        if isStar && Config.noStarImport.value then
+          rp.error("--no-star-import is set for this project, write imports explicitly instead of using `*`", qualid.pos)
+
         if isStar && alias.isDefined then
           rp.error("Cannot rename a wildcard import", qualid.pos)
         else

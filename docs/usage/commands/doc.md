@@ -45,4 +45,4 @@ jo doc
 jo doc --spec agent-api.toml
 ```
 
-For the primitive source-file interface, use [`jo compile --doc`](compile.md).
+The primitive source-file interface, [`jo compile --doc`](compile.md), is experimental.

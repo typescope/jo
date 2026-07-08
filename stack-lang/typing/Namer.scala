@@ -404,6 +404,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
     def handlePrefix(sym: Symbol, oob: OutOfBand): Word =
       oob.testKey(Scope.PrefixKey) match
         case Some(prefix) =>
+          checkExplicitThis(prefix, sym, id.pos)
           // Normalize SAST
           val qual = Ident(prefix)(id.span.point)
           Select(qual, sym.name)(id.span)
@@ -429,6 +430,10 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
       case _ =>
         tryTermName().adapt
+
+  private def checkExplicitThis(prefix: Symbol, sym: Symbol, pos: SourcePosition)(using Reporter): Unit =
+    if Config.explicitThis.value && sym.isOneOf(Flags.Field | Flags.Method) then
+      Reporter.error(s"--explicit-this is set for this project, write member `${sym.name}` explicitly as `${prefix.name}.${sym.name}`", pos)
 
   def transformSelect(word: Ast.Select)(using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope): Word =
     val Ast.Select(qual, name) = word
@@ -692,7 +697,9 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
         if sym.isField then
           // Normalize SAST
-          val qual = Ident(oob.getKey(Scope.PrefixKey))(id.span)
+          val prefix = oob.getKey(Scope.PrefixKey)
+          checkExplicitThis(prefix, sym, id.pos)
+          val qual = Ident(prefix)(id.span)
           val lhs2 = Select(qual, sym.name)(lhs.span)
           FieldAssign(lhs2, rhs2)
 
