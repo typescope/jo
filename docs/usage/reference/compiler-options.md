@@ -28,7 +28,6 @@ Backend selectors are handled before the shared compiler options are parsed.
 | `--ruby` | Compile a Ruby application. |
 | `--python` | Compile a Python application. |
 | `--js` | Compile a JavaScript application. Experimental. |
-| `--doc` | Generate API documentation instead of normal compile output. Experimental. |
 
 ## Common Options
 
