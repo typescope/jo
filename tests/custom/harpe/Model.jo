@@ -1,0 +1,5 @@
+namespace harpe
+
+section Model
+  class Rendered(system: String)
+end

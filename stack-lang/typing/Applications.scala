@@ -433,7 +433,7 @@ trait Applications extends DynamicTyper:
     */
   private def wrapNamedArg(name: String, arg: Word)(using defn: Definitions): Word =
     val span = arg.span
-    val fun = Ident(defn.compile_namedArg)(span).appliedToTypes(arg.tpe)
+    val fun = Ident(defn.compile_namedArg)(span).appliedToTypes(arg.tpe.widen)
     Apply(fun, List(StringLit(name)(span), arg), Nil)(span)
 
   /** Handle a call to a vararg function whose vararg element type is Mixed[T].

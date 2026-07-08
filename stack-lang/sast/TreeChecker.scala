@@ -161,6 +161,19 @@ class TreeChecker()(using defn: Definitions, rp: Reporter, so: Source) extends T
         if !fun.tpe.isPolyType then
           Reporter.error(s"TypeApply expects polymorphic function type, found = ${fun.tpe.show}", fun.pos)
         else
+          for targ <- targs do
+            targ.tpe match
+              case ref: MemberRef =>
+                Reporter.error(s"Unexpected member ref as type argument, found = ${ref.show}", targ.pos)
+
+              case const: ConstantType =>
+                Reporter.error(s"Unexpected constant type as type argument, found = ${const.show}", targ.pos)
+
+              case ref: StaticRef if ref.symbol.isTerm =>
+                Reporter.error(s"Unexpected term ref as type argument, found = ${ref.show}", targ.pos)
+
+              case _ =>
+
           val procType = fun.tpe.asProcType
           val n = targs.size
           val pre = procType.preTypeParamCount
