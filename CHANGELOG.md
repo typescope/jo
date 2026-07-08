@@ -2,6 +2,30 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.11.4] - 2026-07-08
+
+### Added
+
+- `Long.parse` and broader numeric parsing coverage. ([#48])
+- Compile options documentation, including `--explicit-this` and
+  `--no-star-import` usage from the command line and build specs. ([#49])
+- Doom Emacs installation notes for the Jo Emacs mode. ([#45])
+
+### Fixed
+
+- `Float.toInt` now truncates correctly in the JavaScript backend. ([#47])
+- Synthesized named varargs now use the widened argument type as their type
+  argument. ([#52])
+- The data-query-agent and sandbox-agent examples use the correct compilation
+  command. ([#46])
+
+[#45]: https://github.com/typescope/jo/pull/45
+[#46]: https://github.com/typescope/jo/pull/46
+[#47]: https://github.com/typescope/jo/pull/47
+[#48]: https://github.com/typescope/jo/pull/48
+[#49]: https://github.com/typescope/jo/pull/49
+[#52]: https://github.com/typescope/jo/pull/52
+
 ## [0.11.3] - 2026-07-01
 
 ### Added
