@@ -224,11 +224,33 @@ object Trees:
 
     def allArgs: List[Word] = args ++ autos
 
+    /** The symbol of a non-prefixed invokable target
+      *
+      * Top-level/local functions, local variables of lambda types
+      */
     def funSymbol: Option[Symbol] =
       fun match
         case Ident(sym)               => Some(sym)
         case TypeApply(Ident(sym), _) => Some(sym)
         case _                        => None
+
+    /** The symbol of a prefixed invokable target
+      *
+      * Class/interface methods, field member of lambda types
+      */
+    def memberSymbol: Option[Symbol] =
+      fun match
+        case sel: Select =>
+          sel.tpe match
+            case MemberRef(_, sym) => Some(sym)
+            case _ => None
+
+        case TypeApply(sel: Select, _) =>
+          sel.tpe match
+            case MemberRef(_, sym) => Some(sym)
+            case _ => None
+
+        case _ => None
 
   case class New
     (classType: TypeTree)
