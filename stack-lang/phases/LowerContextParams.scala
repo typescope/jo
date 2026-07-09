@@ -116,7 +116,7 @@ extends Phase:
   /** Create a call to paramKey(paramIdent)
     * where paramIdent is an Ident referring to the context parameter symbol.
     */
-  private def makeParamSymbol(paramSym: Symbol, span: Span): Word =
+  private def makeParamKey(paramSym: Symbol, span: Span): Word =
     val paramIdent = Ident(paramSym)(span)
     val tparam = TypeTree(paramSym.tpe)(span)
     val funParamKey = TypeApply(Ident(paramKeySym)(span), tparam :: Nil)(span)
@@ -137,7 +137,7 @@ extends Phase:
     stmts += Assign(Ident(batchSym)(span), startBatch)
 
     for param <- receives do
-      val key = makeParamSymbol(param, span)
+      val key = makeParamKey(param, span)
       val tparam = TypeTree(param.tpe)(span)
       val getParamFun = TypeApply(Ident(getParamSym)(span), tparam :: Nil)(span)
       val value = getParamFun.appliedTo(Ident(callCtx)(span), key)
@@ -153,7 +153,7 @@ extends Phase:
     word match
       case Ident(sym) if sym.is(Flags.Context) =>
         val ctx = Ident(ensureCtx(word.span))(word.span)
-        val key = makeParamSymbol(sym, word.span)
+        val key = makeParamKey(sym, word.span)
         val tparam = TypeTree(sym.tpe)(word.span)
         val getParamFun = TypeApply(Ident(getParamSym)(word.span), tparam :: Nil)(word.span)
         getParamFun.appliedTo(ctx, key)
@@ -305,7 +305,7 @@ extends Phase:
     stats += Assign(Ident(batchSym)(word.span), startBatch)
 
     for (arg, argValueSym) <- args.zip(argValueSyms) do
-      val key = makeParamSymbol(arg.symbol, arg.ident.span)
+      val key = makeParamKey(arg.symbol, arg.ident.span)
       val value = Ident(argValueSym)(arg.rhs.span)
       val tparam = TypeTree(arg.symbol.tpe)(arg.span)
       val addBindingFun = TypeApply(Ident(addBindingSym)(arg.span), tparam :: Nil)(arg.span)
