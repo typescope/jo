@@ -15,13 +15,15 @@ import scala.collection.mutable
   * @param isTagged whether values of a type are tagged for the target platform
   */
 class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
-  private val prevDefinitions = defn.snapshot
-  private val eraseTypeMap = new Erasure.EraseTypeMap(using prevDefinitions)
-
   private val allPrimitivesTagged = isTagged `eq` Erasure.allTagged
 
   override def initContext()(using Context): Unit =
     Erasure.bridges.set(mutable.Map.empty)
+
+    val prevDefinitions = defn.snapshot
+    Erasure.prevDefinitions.set(prevDefinitions)
+    Erasure.eraseTypeMap.set(new Erasure.EraseTypeMap(using prevDefinitions))
+
     defn.index.installTransform: (_, denot) =>
       eraseDenotation(denot)
 
@@ -67,7 +69,8 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
 
       case tp: Type => eraseType(tp)
 
-  def eraseType(tp: Type): Type = eraseTypeMap.apply(tp)(using Set.empty)
+  def eraseType(tp: Type)(using Context): Type =
+    Erasure.eraseTypeMap.value.apply(tp)(using Set.empty)
 
   def taggingConforms(tp1: Type, tp2: Type): Boolean =
     isTagged(tp1) == isTagged(tp2) && {
@@ -98,7 +101,7 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
   /** Create a bridge method symbol
     *
     */
-  def makeBridge(methDefer: Symbol, methImpl: Symbol): Option[Symbol] =
+  def makeBridge(methDefer: Symbol, methImpl: Symbol)(using Context): Option[Symbol] =
     val procType1 = eraseType(methDefer.tpe).asProcType
     val procType2 = eraseType(methImpl.tpe).asProcType
 
@@ -117,7 +120,7 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
         Visibility.Default,
         methImpl.owner,
         methImpl.sourcePos
-      )(using prevDefinitions)
+      )(using Erasure.prevDefinitions.value)
 
       Some(bridge)
 
@@ -204,7 +207,7 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
           adapt(paramRef, paramType)
 
         adapt(Apply(value, args, autos = Nil)(value.span), resType2)
-      })(using prevDefinitions)
+      })(using Erasure.prevDefinitions.value)
 
   def eraseWord(word: Word, expectedType: Type, returnType: Type | Null)(using Context): Word = common.Debug.trace("erase " + word.show, (_: Word).show, enable = false):
     word match
@@ -400,7 +403,7 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
         val app = Apply(targetRef, paramRefs, autoRefs)(bridgeSym.span)
         val resType = procType.resultType
         eraseWord(app, expectedType = resType, returnType = resType)
-      })(using prevDefinitions)
+      })(using Erasure.prevDefinitions.value)
     end for
 
   override def transformClassDef(cdef: ClassDef)(using Context): ClassDef =
@@ -437,6 +440,10 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
 object Erasure:
   val bridges: Phase.PhaseKey[mutable.Map[Symbol, List[(Symbol, Symbol)]]] =
     new Phase.PhaseKey("bridges")
+
+  val prevDefinitions: Phase.PhaseKey[Definitions] = new Phase.PhaseKey("prevDefinitions")
+
+  val eraseTypeMap: Phase.PhaseKey[EraseTypeMap] = new Phase.PhaseKey("eraseTypeMap")
 
   val allTagged: Type => Boolean = _ => true
 

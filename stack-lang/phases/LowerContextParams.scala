@@ -57,7 +57,6 @@ extends Phase:
   private val currentCtxSym = new Phase.PhaseKey[Symbol]("currentCtxSym")
 
   override def initContext()(using Context): Unit =
-    // Function symbols only. Lambdas are rewritten explicitly in transformLambda.
     defn.index.installTransform: (_, denot) =>
       denot match
         case info: ClassInfo => info
