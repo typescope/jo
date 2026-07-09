@@ -1,0 +1,5 @@
+class Tool(run: Int => Unit receives IO.stdout)
+
+def main =
+  val t = Tool(x => println x)
+  t.run 10
