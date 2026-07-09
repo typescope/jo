@@ -2,6 +2,7 @@ package typing
 
 import sast.*
 import sast.Trees.*
+import sast.Types.ProcType
 
 import ast.Positions.*
 import reporting.Reporter
@@ -40,9 +41,41 @@ object ViewChecker:
 
   def checkClassDef(cdef: ClassDef)(using defn: Definitions, rp: Reporter, src: Source): Unit =
     for viewTree <- cdef.views do
-      checkDirectView(cdef, viewTree)
+      checkView(cdef, viewTree)
 
-  def checkDirectView
+    def receivesCompatible(proc1: ProcType, proc2: ProcType): Boolean =
+      proc1.receives.isEmpty && proc2.receives.isEmpty
+      || proc1.receives.nonEmpty && proc2.receives.nonEmpty
+
+    def summarize(procType: ProcType): String =
+       if procType.receives.isEmpty then "empty" else "non-empty"
+
+    for implMethod <- cdef.funs do
+      val methodName = implMethod.name
+      val implMethodSym = implMethod.symbol
+
+      val defers = implMethodSym.implementedDefers
+
+      defers match
+      case defer1 :: rest =>
+        val proc1 = defer1.tpe.asProcType
+
+        rest.find: defer2 =>
+          val proc2 = defer2.tpe.asProcType
+          val found = !receivesCompatible(proc1, proc2)
+          if found then
+            rp.error(
+              s"Deferred methods implemented by $methodName should all have non-empty receives or all empty receives.\n" +
+              s"  interface ${defer1.owner}: ${summarize(proc1)}\n" +
+              s"  interface ${defer2.owner}: ${summarize(proc2)}",
+              implMethod.pos
+            )
+          found
+
+      case _ =>
+    end for
+
+  def checkView
       (cdef: ClassDef, viewTree: TypeTree)
       (using defn: Definitions, rp: Reporter, src: Source)
   : Unit =
@@ -56,15 +89,16 @@ object ViewChecker:
     // Check each required method is implemented
     for requiredMethod <- requiredMethods do
       val methodName = requiredMethod.name
-      val requiredType = viewType.termMember(methodName).widenTermRef
+      val requiredType = viewType.termMember(methodName).asProcType
 
       val isAbstract = requiredMethod.is(Flags.Defer)
 
       // Find matching method in the class
       cdef.funs.find(_.symbol.name == methodName) match
         case Some(implMethod) =>
+          val implMethodSym = implMethod.symbol
           if isAbstract then
-            val implType = implMethod.symbol.tpe
+            val implType = implMethodSym.tpe
 
             if !Subtyping.conforms(implType, requiredType) then
               rp.error(
