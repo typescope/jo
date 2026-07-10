@@ -2,6 +2,20 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.11.5] - 2026-07-10
+
+### Fixed
+
+- Snapshot definition ordering during denotation transforms, fixing lambda
+  erasure cases. ([#54])
+- Context parameter desugaring for overriding methods now respects the target
+  interface signature. ([#55])
+- New-expression parsing in colon-call argument blocks. ([#59])
+
+[#54]: https://github.com/typescope/jo/pull/54
+[#55]: https://github.com/typescope/jo/pull/55
+[#59]: https://github.com/typescope/jo/pull/59
+
 ## [0.11.4] - 2026-07-08
 
 ### Added
