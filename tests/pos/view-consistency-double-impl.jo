@@ -27,3 +27,9 @@ def main =
   val c = new C
   println c.foo()
   println c.bar()
+
+  with p = 10 in
+    println (c as A).foo()
+    println (c as B).foo()
+    println (c as X).bar()
+    println (c as Y).bar()
