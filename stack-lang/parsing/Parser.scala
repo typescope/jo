@@ -1593,7 +1593,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       error("Colon call head should be followed immediately by `:` with no space in between", base.pos)
 
     val args = colonArgs(colon.indent)
-    Apply(base, args)(base.span | args.last.span)
+    base match
+      case New(tpt, Nil) if tpt.span.endOffset == base.span.endOffset =>
+        New(tpt, args)(base.span | args.last.span)
+
+      case _ =>
+        Apply(base, args)(base.span | args.last.span)
 
   def word(prevWord: Word | Null): Option[Word] =
     val w = atom() match
