@@ -1,0 +1,8 @@
+class Point(x: Int, y: Int)
+  def toString: String = "(\{x}, \{y})"
+
+def main =
+  println:
+    new Point:
+      10
+      20

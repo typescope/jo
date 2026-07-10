@@ -1,0 +1,6 @@
+---------- Error at tests/warn/colon-call-new.jo:6:5 ---------------
+|     new Point():
+|     ^^^^^^^^^^^
+|     The function expects 2 argument(s), found = 0
+
+1 error(s), 0 warning(s)
