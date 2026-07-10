@@ -1,0 +1,29 @@
+param p: Int
+
+interface A
+  def foo(): Int receives p
+
+interface B
+  def foo(): Int receives IO.stdout
+
+
+interface X
+  def bar(): Int receives none
+
+interface Y
+  def bar(): Int receives none
+
+class C
+  view A
+  view B
+
+  view X
+  view Y
+
+  def bar(): Int = 20
+  def foo(): Int receives none = 10
+
+def main =
+  val c = new C
+  println c.foo()
+  println c.bar()
