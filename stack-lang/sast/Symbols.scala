@@ -230,6 +230,13 @@ object Symbols:
         case info: NameTable => info.resolveAnnotation(name).getOrElse(error())
         case _ => error()
 
+    /** Defered interface methods implemente by the current method */
+    def implementedDefers(using Definitions): List[Symbol] =
+      assert(this.isMethod, "Not a method symbol: " + this.fullName)
+
+      this.owner.classInfo.views.flatMap: view =>
+        view.classInfo.methods.find(_.name == this.name).toList
+
     /** The visibile scope of a symbol is defined as follows:
       *
       * 1. The visible scope of a local symbol is its enclosing function.

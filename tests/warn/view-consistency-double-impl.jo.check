@@ -1,0 +1,8 @@
+---------- Error at tests/warn/view-consistency-double-impl.jo:10:3 ---------------
+|   def foo(): Int receives none = 10
+|   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+|   Deferred methods implemented by foo should all have non-empty receives or all empty receives.
+  interface A: empty
+  interface B: non-empty
+
+1 error(s), 0 warning(s)

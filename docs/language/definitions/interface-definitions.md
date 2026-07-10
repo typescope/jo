@@ -149,6 +149,39 @@ val p = Point(10, 20)
 p.draw()
 ```
 
+::: warning Restriction on same-named methods of multiple interfaces
+
+If a class implements multiple interfaces that have same-named deferred methods:
+
+- Either all of them should have non-empty receives, or
+- all of them should have empty receives.
+
+This implementation restriction is essential for platforms that check signature
+compatibility, e.g. Python and JVM.
+
+The following example is rejected, because the method `A.foo` has empty receives
+while `B.foo` has non-empty receives.
+
+
+```
+interface A
+  def foo(): Int
+
+interface B
+  def foo(): Int receives IO.stdout
+
+class C
+  view A
+  view B
+  def foo(): Int receives none = 10
+```
+
+We do not follow the alternative design that blindly materialize context
+parameters for deferred interface methods because that would complicate language
+interoperability.
+
+:::
+
 ## Lambda Interface Adaptation
 
 Lambdas automatically adapt to single-method interfaces:

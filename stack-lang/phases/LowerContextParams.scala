@@ -20,7 +20,7 @@ import scala.collection.mutable
   *      is actually needed.
   *
   * 2. Function call/definition materialization
-  *    - For function symbols with `receives.nonEmpty` (from `prevInfo`), append
+  *    - For function symbols with `receives.nonEmpty`, append
   *      hidden trailing `__ctx` parameter and pass ctx at call sites.
   *    - Install a symbol-info transform for function `ProcType` so later phases
   *      observe explicit ctx parameter shape.
@@ -57,7 +57,7 @@ extends Phase:
   private val currentCtxSym = new Phase.PhaseKey[Symbol]("currentCtxSym")
 
   override def initContext()(using Context): Unit =
-    defn.index.installTransform: (_, denot) =>
+    defn.index.installTransform: (sym, denot) =>
       denot match
         case info: ClassInfo => info
 
@@ -65,6 +65,8 @@ extends Phase:
           val body2 = typeMap(toi.body)(using ())
           if toi.body `eq` body2 then toi
           else TypeOperatorInfo(toi.tparams, body2, toi.preParamCount)
+
+        case procType: ProcType => transformFunDenot(sym, procType)
 
         case tp: Type => typeMap(tp)(using ())
 
@@ -88,18 +90,6 @@ extends Phase:
         case Some(sym) => Phase.owner.set(sym)
         case None => Phase.owner.unset()
 
-  private def invokeReceives(tp: InvokableType)(using Definitions): List[Symbol] =
-    tp match
-      case pt: ProcType => pt.receives
-      case lt: LambdaType => lt.receives
-
-  private def shouldAddCtxParam(sym: Symbol): Boolean =
-    defn.index.prevInfo(sym) match
-      case pt: ProcType =>
-        pt.receives.nonEmpty
-      case _ =>
-        false
-
   private def ensureCtx(span: Span)(using Context): Symbol =
     given Source = Phase.source.value
     assert(currentCtxSym.exists, "Missing current context at: " + span.toPos)
@@ -116,7 +106,7 @@ extends Phase:
   /** Create a call to paramKey(paramIdent)
     * where paramIdent is an Ident referring to the context parameter symbol.
     */
-  private def makeParamSymbol(paramSym: Symbol, span: Span): Word =
+  private def makeParamKey(paramSym: Symbol, span: Span): Word =
     val paramIdent = Ident(paramSym)(span)
     val tparam = TypeTree(paramSym.tpe)(span)
     val funParamKey = TypeApply(Ident(paramKeySym)(span), tparam :: Nil)(span)
@@ -137,7 +127,7 @@ extends Phase:
     stmts += Assign(Ident(batchSym)(span), startBatch)
 
     for param <- receives do
-      val key = makeParamSymbol(param, span)
+      val key = makeParamKey(param, span)
       val tparam = TypeTree(param.tpe)(span)
       val getParamFun = TypeApply(Ident(getParamSym)(span), tparam :: Nil)(span)
       val value = getParamFun.appliedTo(Ident(callCtx)(span), key)
@@ -153,13 +143,26 @@ extends Phase:
     word match
       case Ident(sym) if sym.is(Flags.Context) =>
         val ctx = Ident(ensureCtx(word.span))(word.span)
-        val key = makeParamSymbol(sym, word.span)
+        val key = makeParamKey(sym, word.span)
         val tparam = TypeTree(sym.tpe)(word.span)
         val getParamFun = TypeApply(Ident(getParamSym)(word.span), tparam :: Nil)(word.span)
         getParamFun.appliedTo(ctx, key)
 
       case _ =>
         word
+
+
+  /** Does any of the implemented deferred methods have non-empty receives?
+    *
+    *  The ViewChecker ensures all implemented deferred methods
+    *  either all have non-empty receives or all have empty receives.
+    */
+  private def implementedDefersReceives(meth: Symbol): Boolean =
+    meth.implementedDefers.exists: deferMeth =>
+      // Note: the receives spec is not erased during denotation transform
+      //
+      // However, to avoid cycles, we use previous info
+      defn.index.prevInfo(deferMeth).as[ProcType].receives.nonEmpty
 
   override def transformApply(apply: Apply)(using Context): Word =
     val Apply(fun, args, autos) = apply
@@ -169,12 +172,34 @@ extends Phase:
     val args2 = args.map(this(_))
     val autos2 = autos.map(this(_))
 
-    val needCtx = invokeReceives(baseInvokeType).nonEmpty
+    var isDummyCtxParam = false
+
+    val needCtx =
+      baseInvokeType match
+        case pt: ProcType =>
+          // Note: the receives spec is not erased during denotation transform
+          if pt.receives.nonEmpty then
+            true
+          else
+            apply.memberSymbol match
+              case Some(sym) =>
+                isDummyCtxParam = implementedDefersReceives(sym)
+                isDummyCtxParam
+
+              case _ => false
+
+        case lt: LambdaType =>
+          lt.receives.nonEmpty
 
     val changed = (fun2 ne fun) || args2.zip(args).exists((a, b) => a ne b) || autos2.zip(autos).exists((a, b) => a ne b)
 
     if needCtx then
-      val ctxArg = Ident(ensureCtx(apply.span))(apply.span)
+      val ctxArg =
+        if isDummyCtxParam then
+          Ident(emptyCtxSym)(apply.span).appliedTo()
+        else
+          Ident(ensureCtx(apply.span))(apply.span)
+
       Apply(fun2, args2 :+ ctxArg, autos2)(apply.span, apply.isPartialApply)
 
     else if changed then
@@ -186,10 +211,14 @@ extends Phase:
   override def transformTypeApply(tapply: TypeApply)(using Context): Word =
     val TypeApply(fun, targs) = tapply
 
-    val tp = tapply.tpe
-    val tp2 = typeMap(tp)(using ())
+    val procType = tapply.tpe.asProcType
 
-    var changed = tp ne tp2
+    var changed =
+      procType.receives.nonEmpty || {
+        tapply.memberSymbol match
+          case Some(meth) => implementedDefersReceives(meth)
+          case _ => false
+      }
 
     val fun2 = this(fun)
 
@@ -215,12 +244,49 @@ extends Phase:
     else
       If(cond2, thenp2, elsep2)(tp2, ifElse.span)
 
+
+  private def transformFunDenot(funSym: Symbol, procType: ProcType): Type =
+    val params2 =
+      val paramsTransformed =
+        for param <- procType.params
+        yield param.copy(info = this.typeMap(param.info)(using ()))
+
+      if procType.receives.nonEmpty || funSym.isMethod && implementedDefersReceives(funSym) then
+        paramsTransformed :+ NamedInfo("__ctx", CtxType)
+
+      else
+        paramsTransformed
+
+    val autos2 =
+      for auto <- procType.autos
+      yield auto.copy(info = this.typeMap(auto.info)(using ()))
+
+    val candidates2 = procType.candidates.map(_ => Nil)
+
+    val resType2 = this.typeMap(procType.resultType)(using ())
+    // DefaultValue contains no Types to map; thread defaultsFun through unchanged
+    ProcType(
+      procType.tparams, params2, autos2, candidates2, resType2, procType.receives,
+      procType.preParamCount, procType.preTypeParamCount
+    )(procType.defaultsLazy)
+
+
   override def transformFunDef(fdef: FunDef)(using Context): FunDef = try
     val sym = fdef.symbol
 
+    val shouldAddCtxParam =
+      // Note that the receives spec is not erased during denotation transform.
+      sym.info match
+        case pt: ProcType =>
+          pt.receives.nonEmpty || sym.isMethod && implementedDefersReceives(sym)
+
+        case _ =>
+          false
+
     val maybeCtxParam =
-      if shouldAddCtxParam(sym) then
+      if shouldAddCtxParam then
         Some(TermSymbol.create("__ctx", CtxType, Flags.Param | Flags.Synthetic, Visibility.Default, sym, sym.sourcePos))
+
       else
         None
 
@@ -305,7 +371,7 @@ extends Phase:
     stats += Assign(Ident(batchSym)(word.span), startBatch)
 
     for (arg, argValueSym) <- args.zip(argValueSyms) do
-      val key = makeParamSymbol(arg.symbol, arg.ident.span)
+      val key = makeParamKey(arg.symbol, arg.ident.span)
       val value = Ident(argValueSym)(arg.rhs.span)
       val tparam = TypeTree(arg.symbol.tpe)(arg.span)
       val addBindingFun = TypeApply(Ident(addBindingSym)(arg.span), tparam :: Nil)(arg.span)
@@ -346,29 +412,7 @@ object LowerContextParams:
           LambdaType(params2, resType2, receives = lambdaType.receives)
 
         case procType: ProcType =>
-          val params2 =
-            val paramsTransformed =
-              for param <- procType.params
-              yield param.copy(info = this(param.info))
-
-            if procType.receives.nonEmpty then
-              paramsTransformed :+ NamedInfo("__ctx", CtxType)
-
-            else
-              paramsTransformed
-
-          val autos2 =
-            for auto <- procType.autos
-            yield auto.copy(info = this(auto.info))
-
-          val candidates2 = procType.candidates.map(_ => Nil)
-
-          val resType2 = this(procType.resultType)
-          // DefaultValue contains no Types to map; thread defaultsFun through unchanged
-          ProcType(
-            procType.tparams, params2, autos2, candidates2, resType2, procType.receives,
-            procType.preParamCount, procType.preTypeParamCount
-          )(procType.defaultsLazy)
+          throw new Exception("Unexpected proc type: " + procType)
 
         case _ =>
           recur(tp)

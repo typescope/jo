@@ -203,6 +203,29 @@ object Trees:
         else
           procType.instantiatePreTypeParams(targs.map(_.tpe))
 
+    /** The symbol of a non-prefixed invokable target
+      *
+      * Top-level/local functions, local variables of lambda types
+      */
+    def funSymbol: Option[Symbol] =
+      fun match
+        case Ident(sym) => Some(sym)
+        case _          => None
+
+    /** The symbol of a prefixed invokable target
+      *
+      * Class/interface methods, field member of lambda types
+      */
+    def memberSymbol: Option[Symbol] =
+      fun match
+        case sel: Select =>
+          sel.tpe match
+            case MemberRef(_, sym) => Some(sym)
+            case _ => None
+
+        case _ => None
+
+
   case class Apply
     (fun: Word, args: List[Word], autos: List[Word])
     (val span: Span, val isPartialApply: Boolean = false)
@@ -224,11 +247,30 @@ object Trees:
 
     def allArgs: List[Word] = args ++ autos
 
+    /** The symbol of a non-prefixed invokable target
+      *
+      * Top-level/local functions, local variables of lambda types
+      */
     def funSymbol: Option[Symbol] =
       fun match
-        case Ident(sym)               => Some(sym)
-        case TypeApply(Ident(sym), _) => Some(sym)
-        case _                        => None
+        case Ident(sym)        => Some(sym)
+        case tapply: TypeApply => tapply.funSymbol
+        case _                 => None
+
+    /** The symbol of a prefixed invokable target
+      *
+      * Class/interface methods, field member of lambda types
+      */
+    def memberSymbol: Option[Symbol] =
+      fun match
+        case sel: Select =>
+          sel.tpe match
+            case MemberRef(_, sym) => Some(sym)
+            case _ => None
+
+        case tapply: TypeApply => tapply.memberSymbol
+
+        case _ => None
 
   case class New
     (classType: TypeTree)
