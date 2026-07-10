@@ -1,0 +1,16 @@
+param p: Int
+
+interface Greeter
+  def greet(): Int receives p
+end
+
+class Plain
+  view Greeter
+  def greet(): Int = 42        // pure impl of an effectful interface method
+end
+
+def main: Unit receives IO.stdout =
+  val g: Greeter = new Plain
+
+  println:
+    with p = 1 in g.greet()
