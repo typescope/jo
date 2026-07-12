@@ -127,13 +127,6 @@ contexts are distinctive:
   `if`/`while`/`match`/`for` — has a terminator (a bracket or a keyword) that no form's
   delimiter matches, and so admits every form with nothing added or removed.
 
-This rule governs *admissibility* — which forms a context accepts — and lives entirely in
-the syntactic phase of [Expression Syntax](../language/syntax/expression-syntax.md), the
-phase that recognizes the item sequence. It is orthogonal to the semantic phase, where
-precedence, operator, and shape parsing build the tree from that sequence. Widening the set
-of admissible forms changes neither how a form is delimited nor how it is later organized
-into an AST; the two phases are unaffected by each other.
-
 ### Grammar
 
 The rule reduces to two productions. `simple_expr` is every form except the inline colon
@@ -334,6 +327,30 @@ form, exactly as a fence or interpolation does. A `match` or an indented colon c
 used as a condition. A pathologically nested else-less `if` such as `if if a then b then c`
 still parses deterministically — if the result reads badly, that is the author's problem to
 fix, not a grammatical ambiguity; the compiler is never in doubt.
+
+## Prior art: Ruby
+
+Ruby is the one widely used language that ships this exact construct — a comma-separated
+call with no brackets (its *command call*) — so its choices are the natural check. Ruby
+meets the identical collision and resolves it in two moves, and the split between them is
+telling:
+
+- A bare command may **not** be a *non-final* argument. `p(1, foo 2, 3)` is a **syntax
+  error**, because `foo 2, 3`'s commas cannot be told from `p`'s. This is precisely the case
+  Jo rejects: Ruby and Jo agree that a comma-list must exclude the ambiguous inline call.
+- A bare command **may** be the *final* argument, where it greedily consumes the rest of the
+  line. `p(foo 2, 3)` parses as `p(foo(2, 3))`, and `p foo bar 2, 3` as `p(foo(bar(2, 3)))`.
+  This is exactly the *invisible associativity rule* named under
+  [Alternatives](#alternatives-considered): the boundary is fixed by a right-greedy
+  convention the reader must already know, not by anything on the page.
+
+Jo keeps the first move and declines the second. Where Ruby accepts `f(foo 1, 2)` as
+`f(foo(1, 2))`, Jo rejects the corresponding `f(foo: 1, 2)` and asks for `f(foo(1, 2))` or
+the indented form. The cost is one keystroke in the position Ruby would have taken for free;
+the benefit is that grouping is always legible from local layout, and no reader ever has to
+know a greedy-consumption rule to parse a comma. Ruby's own decision to make the *non-final*
+case a hard error is independent evidence that the collision is real and not a matter of
+taste.
 
 ## Alternatives considered
 
