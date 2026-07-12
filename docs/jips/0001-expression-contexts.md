@@ -31,8 +31,8 @@ recall which forms live in which tier:
 | word sequence, lambda, `if` | ✅ | ✅ |
 | `match`, colon call, dot chain, `rescue`, `allow`/`with` | — | ✅ |
 
-Nothing about the *shape* of `match` explains why it is disallowed where `if` is allowed;
-the line is arbitrary from the user's seat. The friction shows up in ordinary code:
+Nothing about the *shape* of `match` explains why it is disallowed where `if` is allowed.
+The line is arbitrary from the user's seat. The friction shows up in ordinary code:
 
 ```jo
 // today: a colon call may not appear in an argument list
@@ -93,10 +93,10 @@ own and composes everywhere. A **dot chain** is the multi-line form, and the gra
 requires each continuation `.` to *begin its own line* (the parser rejects a continuation
 dot that is not the first token of a line). So the chain's spine is delimited by newlines,
 never by a comma — again no collision. Its one comma-bearing part is a *trailing inline
-colon call* (`.foldl: 0, add`, whose `:` must sit on its dot's line): those commas are
-exactly an inline colon call's commas, governed by the inline-colon rule on the chain's
-tail, not by the chain. A dot chain that instead ends in an *indented* colon tail carries
-no comma and composes freely.
+colon call* (`.foldl: 0, add`, whose `:` must sit on its dot's line). Those commas are
+exactly an inline colon call's commas. They are governed by the inline-colon rule on the
+chain's tail, not by the chain. A dot chain that instead ends in an *indented* colon tail
+carries no comma and composes freely.
 
 ## Specification
 
@@ -117,8 +117,8 @@ contexts are distinctive:
 - A **comma-list** is terminated by a comma. The only form whose top-level delimiter is a
   comma is the inline colon call, so that is the one form it excludes. Words, lambdas, `if`,
   `match`, dot chains, and indented colon calls all remain admissible — none separates its
-  own parts with commas (a dot chain that ends in an *inline* colon tail is the one edge
-  case, and it is excluded on the tail's account, not the chain's; see below).
+  own parts with commas. A dot chain that ends in an *inline* colon tail is the one edge
+  case, and it is excluded on the tail's account, not the chain's (see below).
 - A **block** is terminated by a dedent relative to its own indentation. Nested forms open
   their indentation regions at deeper columns, so they never reach that dedent prematurely
   and compose freely. A block admits every form, plus the phrase-only statements (`val`,
@@ -130,7 +130,7 @@ contexts are distinctive:
 ### Grammar
 
 The rule reduces to two productions. `simple_expr` is every form except the inline colon
-call; `expr` adds it back:
+call. `expr` adds it back:
 
 ```ebnf
 simple_expr = words
@@ -138,7 +138,7 @@ simple_expr = words
             | if_expr                       (* with or without else *)
             | match_expr
             | indented_colon_call
-            | dot_chain                     (* multi-line; its own inline-colon tail is the sole caveat, below *)
+            | dot_chain                     (* multi-line. inline-colon tail is the sole caveat, below *)
             | allow_expr | with_expr
             | rescue_expr
 
@@ -159,7 +159,7 @@ The `[name "="]` restores named arguments, which the colon call and parenthesize
 both carry (`send: to = a, subject = b`). The bindings of `with`/`allow` are comma-lists
 too — `with p = simple_expr {"," ...} in` and `allow q {"," ...} in` — and their right-hand
 sides are therefore `simple_expr`, bounded by `in`. In short, *every* comma-separated
-position takes `simple_expr`; only the inline colon call is thereby excluded.
+position takes `simple_expr`. Only the inline colon call is thereby excluded.
 
 This replaces the `expr` / `open_expr` split in the current grammar, and it follows the
 file's existing convention that the `simple_` variant is the restricted one
@@ -167,22 +167,21 @@ file's existing convention that the `simple_` variant is the restricted one
 from `simple_expr` — the inline colon call — *is* the entire content of the former
 open/closed distinction.
 
-Mapping onto today's grammar, so the two can be diffed without confusion: the new `expr`
-is the old `open_expr` (with its `colon_call` split into the inline and indented forms and
-the phrase-only statements factored out into `phrase_only`); the new `simple_expr` is that
-same set minus the inline colon call; and the old *closed* `expr` category is dissolved —
-the positions it governed now take `simple_expr`, which is strictly larger. Note the name
-`expr` is reused but widened: the new `expr` is **not** the old closed `expr`. When this
-proposal lands, the `expr` and `open_expr` productions in
+It helps to map these onto today's grammar. The new `expr` is the old `open_expr`, with its
+`colon_call` split into inline and indented forms and the phrase-only statements moved into
+`phrase_only`. The new `simple_expr` is that same set minus the inline colon call. The old
+*closed* `expr` category disappears. The positions it governed now take `simple_expr`, which
+is strictly larger. The name `expr` is reused but widened, so the new `expr` is **not** the
+old closed `expr`. When this proposal lands, the old `expr` and `open_expr` productions in
 [Syntax Summary](../language/syntax/syntax-summary.md) are replaced wholesale by the two
-above, so no stale definition survives to collide with the new one.
+above. No stale definition survives to collide with the new one.
 
 Two properties are worth drawing out, because the ergonomics depend on them:
 
 - **Self-reference.** An inline colon call's arguments are `simple_expr`, so an inline colon
   call cannot appear inside another one's argument list. Nesting requires parentheses
-  (`foo: a, bar(c, d)`) or the indented form. No separate "no nested colon" rule is needed;
-  it falls out of the production.
+  (`foo: a, bar(c, d)`) or the indented form. No separate "no nested colon" rule is needed.
+  It falls out of the production.
 - **Commas stay on the `:` line.** The arguments of an inline colon call keep their commas
   on the same line as the `:` — an invariant carried over from today's grammar. Because a
   form that opens an indentation region necessarily ends its line, no comma can follow it,
@@ -199,13 +198,13 @@ The two forms that continue across lines without an introducing keyword — the 
 colon call and the newline-leading dot chain — are anchored on their **head**, not on the
 surrounding context:
 
-- an indented colon call's arguments are indented relative to the head that precedes `:`;
+- an indented colon call's arguments are indented relative to the head that precedes `:`.
 - a dot chain's continuation lines are indented relative to the head atom that precedes the
   first `.`.
 
 Because the anchor is the head, it is well-defined wherever the form appears — a block
 phrase, an indented colon argument, or nested inside a bracket. A bracket does not need to
-establish an indentation frame; the head already does. The bracket merely contributes its
+establish an indentation frame. The head already does. The bracket merely contributes its
 closing token as an additional terminator, which never competes with the anchor:
 
 ```jo
@@ -258,7 +257,7 @@ another's.
 **Trailing lambdas and trailing blocks.** These need no "last argument" exception. A lambda
 body, a `match`, or an indented colon call is delimited by `=>`, `case`, or indentation —
 never by a comma — so each is an ordinary admissible argument. And because such a form ends
-its line, nothing can follow it; it lands last as a consequence, not by a rule:
+its line, nothing can follow it. It lands last as a consequence, not by a rule:
 
 ```jo
 list.fold: 0, (acc, x) =>
@@ -309,7 +308,7 @@ becomes invalid.
   ambiguity arises — an `if` is never a comma-delimited form.
 - The only rejections that remain are the genuine collisions — an inline colon call directly
   inside a comma-list (`f(foo: 1, 2)`, `foo: bar: 1, 2`). These were already rejected under
-  the open/closed scheme; the difference is that they are now rejected for a stateable reason
+  the open/closed scheme. The difference is that they are now rejected for a stateable reason
   (*commas do not nest*) rather than by membership in an arbitrary category.
 
 ## Design decisions
@@ -322,11 +321,11 @@ carries no comma, so it would compose everywhere), but the multi-argument form i
 ergonomic and worth the one narrow exclusion.
 
 **Conditions admit the full `expr`.** The condition of `if`/`while`/`match`/`for` is not a
-special context; its keyword terminator matches no form's delimiter, so it admits every
+special context. Its keyword terminator matches no form's delimiter, so it admits every
 form, exactly as a fence or interpolation does. A `match` or an indented colon call may be
 used as a condition. A pathologically nested else-less `if` such as `if if a then b then c`
-still parses deterministically — if the result reads badly, that is the author's problem to
-fix, not a grammatical ambiguity; the compiler is never in doubt.
+still parses deterministically. If the result reads badly, that is the author's problem to
+fix, not a grammatical ambiguity. The compiler is never in doubt.
 
 ## Prior art: Ruby
 
@@ -346,11 +345,10 @@ telling:
 
 Jo keeps the first move and declines the second. Where Ruby accepts `f(foo 1, 2)` as
 `f(foo(1, 2))`, Jo rejects the corresponding `f(foo: 1, 2)` and asks for `f(foo(1, 2))` or
-the indented form. The cost is one keystroke in the position Ruby would have taken for free;
-the benefit is that grouping is always legible from local layout, and no reader ever has to
-know a greedy-consumption rule to parse a comma. Ruby's own decision to make the *non-final*
-case a hard error is independent evidence that the collision is real and not a matter of
-taste.
+the indented form. The cost is one keystroke in the position Ruby would have taken for free.
+The benefit is that grouping is always legible from local layout. No reader ever has to know
+a greedy-consumption rule to parse a comma. Ruby's own decision to make the *non-final* case
+a hard error is independent evidence that the collision is real and not a matter of taste.
 
 ## Alternatives considered
 
