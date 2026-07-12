@@ -164,26 +164,6 @@ Two properties are worth drawing out, because the ergonomics depend on them:
 Against [Expression Forms](../language/expressions/expression-forms.md): the `Open only`
 column is deleted, and every row of its *Expressions* table becomes one `expr`.
 
-### Form terminators
-
-The design is a function of a single column — the token that ends each form:
-
-| Form | Top-level terminator | Excluded from |
-|---|---|---|
-| words, `is`, `as`, prefix application | none — self-delimited | — |
-| lambda | none, or dedent (block body) | — |
-| `if … then … else …` | none — bracketed by `then`/`else` | — |
-| `if … then …` (no `else`) | dedent (block body) | — |
-| **inline** colon call `f: a, b` | **comma** | comma-lists (parenthesize or use the indented form) |
-| **indented** colon call | dedent | — |
-| dot chain | dedent | — |
-| `match` | dedent (cases opened by `case`) | — |
-| `allow` / `with` | dedent (block after `in`) | — |
-| `rescue` | none (inline body) or dedent (block) | — |
-
-Only the inline colon call carries a terminator that can collide — the comma. Every other
-form is self-delimited or dedent-delimited, and composes in every context.
-
 ### Indentation anchoring
 
 The two forms that continue across lines without an introducing keyword — the indented
