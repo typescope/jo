@@ -111,7 +111,8 @@ inline or multiline.
 
 ### Restrictions
 
-Colon calls are phrase syntax, only available in indentation contexts. They are not allowed in delimited contexts such as parentheses, ordinary call arguments, bracket arguments, or collection literals:
+Inline colon syntax are not allowed in comma contexts, such as
+parenthesis-call arguments, bracket arguments, or collection literals:
 
 ```jo
 (foo: 1, 2)     // Invalid

@@ -83,30 +83,6 @@ val net =
 ```
 :::
 
-## One restriction: commas do not nest
-
-An **inline colon call** separates its arguments with commas on a single line:
-
-```jo
-send: to, subject
-```
-
-Usage of inline colon call in a comma-separated context leads to confusion: `f(foo: 1, 2)` could mean `f(foo(1, 2))` or `f(foo(1), 2)`.
-So we make it a rule: **inline colon call may not appear directly inside a comma-separated context**:
-
-```jo
-// Not valid: the inline colon call's commas collide with the call's
-foo(bar: 1, 2)
-
-// Valid: parenthesize
-foo((bar: 1, 2))
-
-// Valid: indented colon call, bounded by indentation
-foo(bar:
-  1
-  2)
-```
-
 
 ## Phrases
 
