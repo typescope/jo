@@ -1,6 +1,6 @@
 # Class Definitions
 
-Classes define new types with fields and methods. Jo supports data classes with automatic constructors and full classes with explicit constructors and mutable state.
+Classes define new types with fields and methods. A class either declares class parameters, for which the compiler generates a constructor, factory function, and pattern automatically, or defines an explicit constructor with custom initialization logic.
 
 ## Syntax
 
@@ -49,21 +49,40 @@ class Point
 end
 ```
 
-A class with class parameters and **no additional fields** in the class body is considered a **data class**. For data classes, the compiler automatically generates a factory function and a pattern definition for pattern matching:
+For **any** class with class parameters, the compiler also synthesizes a factory
+function and a pattern definition for pattern matching:
 
 ```jo
-class Point(x: Int, y: Int)  // data class: no extra fields in body
-```
-
-The following are synthesized automatically:
-
-```jo
-// Automatically generated constructor function
+// Automatically generated factory function
 def Point(x: Int, y: Int): Point = new Point(x, y)
 
 // Automatically generated pattern for pattern matching
 pattern Point(x: Int, y: Int): Point =
   case p then x = p.x, y = p.y
+```
+
+The factory function lets you construct a value without `new` (`Point(3, 4)`),
+and the pattern lets you destructure one (`case Point(x, y)`).
+
+Both are derived **solely from the class-parameter list** — additional fields
+declared in the class body (such as `cachedHash` above) do not affect them. In
+particular, the pattern captures the class parameters, not the object's full
+state. For a class with mutable (`var`) fields, matching and rebuilding does not
+reconstruct the mutable part.
+
+#### Overriding the synthesized definitions
+
+Synthesis is unconditional, but a user-defined factory function or pattern with
+the same name as the class **overrides** the corresponding synthesized one. This
+is the escape hatch for a validating "smart constructor" or a custom pattern:
+
+```jo
+class Nat(value: Int)
+
+// Overrides the synthesized factory with a validating one
+def Nat(value: Int): Nat =
+  require(value >= 0, "Nat must be non-negative")
+  new Nat(value)
 ```
 
 ### Explicit Constructor

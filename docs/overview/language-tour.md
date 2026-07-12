@@ -211,10 +211,10 @@ See [Pattern Forms](../language/patterns/pattern-forms.md).
 
 ## Class
 
-Classes can have class parameters (data class) or an explicit constructor method. Jo automatically generates a constructor function for data class with the fields defined by parameters.
+Classes can have class parameters or an explicit constructor method. For a class with class parameters, Jo automatically generates a factory function and a pattern from those parameters.
 
 ```jo
-class Point(x: Int, y: Int)             // data class
+class Point(x: Int, y: Int)             // class parameters
 
 class Counter
   var count: Int = 0
