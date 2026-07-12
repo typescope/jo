@@ -35,6 +35,14 @@ git rebase --signoff HEAD~3
 
 <!-- Does this touch capability checking, FFI boundaries, or auth paths? If so, describe. -->
 
+## Compatibility impact
+
+<!-- Does this affect compatibility? If so, describe. -->
+
+- [ ] Source compatibility
+- [ ] Sast compatibility
+- [ ] Build tool compatibility
+
 ---
 
 ## Implementation checklist (for new language features)
