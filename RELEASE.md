@@ -7,16 +7,26 @@ Checklist for cutting a new Jo release.
 Bundle all repository changes for the release into a single PR and merge it to
 `main`. Each PR is verified green before merge, so no re-verification is needed.
 
-- [ ] Bump the version: `stack-lang/tool/JoVersion.scala` —
-      `val current: Version = Version(X, Y, Z)`
-- [ ] Update the release badge in `README.md` to `vX.Y.Z` (both the badge
-      image URL and the release tag link)
-- [ ] Update `CHANGELOG.md` with notable changes under the new version heading
-- [ ] Append the new entry to `docs/public/versions.jsonl` (the release
-      download/checksum URLs follow the `vX.Y.Z` naming, so they can be added
-      before the release is published):
+- [ ] Bump the version: `stack-lang/tool/JoVersion.scala`
 
-      {"version":"X.Y.Z","url":"https://github.com/typescope/jo/releases/download/vX.Y.Z/jo-X.Y.Z.tar.gz","sha256url":"https://github.com/typescope/jo/releases/download/vX.Y.Z/jo-X.Y.Z.tar.gz.sha256","date":"YYYY-MM-DD"}
+          val current: Version = Version(X, Y, Z)
+
+- [ ] Update the release badge in `README.md` to `vX.Y.Z`
+
+      Both the badge image URL and the release tag link.
+
+- [ ] Update `CHANGELOG.md` with notable changes under the new version heading
+
+      In particular, there should be a section for security and a section for
+      compatibility. The descriptions of PRs contain such information if it has
+      an impact on these aspects.
+
+- [ ] Append the new entry to `docs/public/versions.jsonl`
+
+      The release download/checksum URLs follow the `vX.Y.Z` naming, so they can
+      be added before the release is published):
+
+          {"version":"X.Y.Z","url":"https://github.com/typescope/jo/releases/download/vX.Y.Z/jo-X.Y.Z.tar.gz","sha256url":"https://github.com/typescope/jo/releases/download/vX.Y.Z/jo-X.Y.Z.tar.gz.sha256","date":"YYYY-MM-DD"}
 
 Verify the version, then merge:
 
