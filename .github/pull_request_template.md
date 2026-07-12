@@ -39,9 +39,11 @@ git rebase --signoff HEAD~3
 
 <!-- Does this affect compatibility? If so, describe. -->
 
-- [ ] Source compatibility
-- [ ] Sast compatibility
-- [ ] Build tool compatibility
+- [ ] Source compatibility: existing code continue to compile
+- [ ] Library compatibility
+  - [ ] forward compatibility: new libraries can be used by old compiler
+  - [ ] backward comopatibility: old libraries can be used by new compiler
+- [ ] Build tool compatibility: old projects continue to build
 
 ---
 
