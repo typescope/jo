@@ -1,0 +1,7 @@
+// An inline colon call cannot nest directly inside another one's arguments.
+
+def add(a: Int, b: Int): Int = a + b
+def wrap(x: Int): Int = x
+
+def main =
+  wrap: add: 1, 2
