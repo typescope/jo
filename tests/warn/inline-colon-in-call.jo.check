@@ -1,0 +1,6 @@
+---------- Error at tests/warn/inline-colon-in-call.jo:7:20 ---------------
+|   println: id(add: 3, 4)
+|                    ^
+|                    An inline colon call cannot appear in a comma-context.  Parenthesize it or use the indented colon syntax
+
+1 error(s), 0 warning(s)
