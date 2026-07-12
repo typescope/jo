@@ -86,6 +86,18 @@ form — dot chains, `match`, `rescue`, `allow`, `with` — is delimited by inde
 its own keywords, never by a comma, so none of them ever collides. Their exclusion from
 delimited positions was never grammatically necessary.
 
+The dot chain deserves a word, because it looks like a counterexample and is not. Two
+constructs share the `.` character but are different forms. An **inline select chain**
+(`xs.map(g).sum`, no spaces, no line breaks) is an *atom* — it can carry no comma of its
+own and composes everywhere. A **dot chain** is the multi-line form, and the grammar
+requires each continuation `.` to *begin its own line* (the parser rejects a continuation
+dot that is not the first token of a line). So the chain's spine is delimited by newlines,
+never by a comma — again no collision. Its one comma-bearing part is a *trailing inline
+colon call* (`.foldl: 0, add`, whose `:` must sit on its dot's line): those commas are
+exactly an inline colon call's commas, governed by the inline-colon rule on the chain's
+tail, not by the chain. A dot chain that instead ends in an *indented* colon tail carries
+no comma and composes freely.
+
 ## Specification
 
 ### The rule
@@ -105,7 +117,8 @@ contexts are distinctive:
 - A **comma-list** is terminated by a comma. The only form whose top-level delimiter is a
   comma is the inline colon call, so that is the one form it excludes. Words, lambdas, `if`,
   `match`, dot chains, and indented colon calls all remain admissible — none separates its
-  own parts with commas.
+  own parts with commas (a dot chain that ends in an *inline* colon tail is the one edge
+  case, and it is excluded on the tail's account, not the chain's; see below).
 - A **block** is terminated by a dedent relative to its own indentation. Nested forms open
   their indentation regions at deeper columns, so they never reach that dedent prematurely
   and compose freely. A block admits every form, plus the phrase-only statements (`val`,
@@ -113,6 +126,13 @@ contexts are distinctive:
 - Every other position — a fence `(e)`, an interpolation `\{e}`, the condition of
   `if`/`while`/`match`/`for` — has a terminator (a bracket or a keyword) that no form's
   delimiter matches, and so admits every form with nothing added or removed.
+
+This rule governs *admissibility* — which forms a context accepts — and lives entirely in
+the syntactic phase of [Expression Syntax](../language/syntax/expression-syntax.md), the
+phase that recognizes the item sequence. It is orthogonal to the semantic phase, where
+precedence, operator, and shape parsing build the tree from that sequence. Widening the set
+of admissible forms changes neither how a form is delimited nor how it is later organized
+into an AST; the two phases are unaffected by each other.
 
 ### Grammar
 
@@ -125,16 +145,16 @@ simple_expr = words
             | if_expr                       (* with or without else *)
             | match_expr
             | indented_colon_call
-            | dot_chain
+            | dot_chain                     (* multi-line; its own inline-colon tail is the sole caveat, below *)
             | allow_expr | with_expr
             | rescue_expr
 
 expr = simple_expr | inline_colon_call
 
-inline_colon_call = atom NS ":" simple_expr {"," simple_expr}   (* commas stay on the ":" line *)
+inline_colon_call = atom NS ":" comma_arg {"," comma_arg}   (* commas stay on the ":" line *)
 
-(* context usage: comma positions take simple_expr, everything else takes expr *)
-comma_arg    = simple_expr                    (* call args, list/bracket, named args, inline colon args *)
+(* context usage: every comma-separated position takes a comma_arg, everything else takes expr *)
+comma_arg    = [name "="] simple_expr         (* call args, list/bracket items, index, inline colon args *)
 block_phrase = expr | phrase_only             (* a block additionally admits statements *)
                                               (* a fence (e), interpolation \{e}, and condition take expr *)
 
@@ -142,11 +162,27 @@ phrase_only  = assign | while | for | return | break | continue
              | val_def | var_def | pat_val_def | auto_def | fun_def | pat_def
 ```
 
+The `[name "="]` restores named arguments, which the colon call and parenthesized call
+both carry (`send: to = a, subject = b`). The bindings of `with`/`allow` are comma-lists
+too — `with p = simple_expr {"," ...} in` and `allow q {"," ...} in` — and their right-hand
+sides are therefore `simple_expr`, bounded by `in`. In short, *every* comma-separated
+position takes `simple_expr`; only the inline colon call is thereby excluded.
+
 This replaces the `expr` / `open_expr` split in the current grammar, and it follows the
 file's existing convention that the `simple_` variant is the restricted one
 (`simple_type ⊂ type`, `simple_pattern ⊂ pattern`). The single alternative separating `expr`
 from `simple_expr` — the inline colon call — *is* the entire content of the former
 open/closed distinction.
+
+Mapping onto today's grammar, so the two can be diffed without confusion: the new `expr`
+is the old `open_expr` (with its `colon_call` split into the inline and indented forms and
+the phrase-only statements factored out into `phrase_only`); the new `simple_expr` is that
+same set minus the inline colon call; and the old *closed* `expr` category is dissolved —
+the positions it governed now take `simple_expr`, which is strictly larger. Note the name
+`expr` is reused but widened: the new `expr` is **not** the old closed `expr`. When this
+proposal lands, the `expr` and `open_expr` productions in
+[Syntax Summary](../language/syntax/syntax-summary.md) are replaced wholesale by the two
+above, so no stale definition survives to collide with the new one.
 
 Two properties are worth drawing out, because the ergonomics depend on them:
 
@@ -268,8 +304,16 @@ becomes invalid.
 - Any expression may now appear as a condition: `if xs.filter(p).any then …`, or a `match`
   or colon call used as a condition.
 - `match`, `allow`, `with`, dot chains, and indented colon calls may now appear as arguments
-  in parenthesized calls, list literals, and fences, bounded by the bracket.
+  in parenthesized calls, list literals, and fences, bounded by the bracket. The lone
+  caveat is a dot chain whose tail is an *inline* colon call (`f(xs.map(g).foldl: 0, add)`):
+  its trailing commas collide with the list's, so wrap the tail — `f((xs.map(g).foldl: 0, add))`
+  — or use the chain's indented colon form. This is the inline-colon rule applying to the
+  tail, not a separate restriction.
 - Trailing lambdas and trailing blocks work uniformly across every call form.
+- An **else-less `if`** is now admissible in a comma-list, where the closed tier previously
+  required an `else` (`f(if c then a, b)`). It terminates cleanly: the `then` block is
+  delimited by the comma, so `a` is the whole consequent and `b` is the next argument. No
+  ambiguity arises — an `if` is never a comma-delimited form.
 - The only rejections that remain are the genuine collisions — an inline colon call directly
   inside a comma-list (`f(foo: 1, 2)`, `foo: bar: 1, 2`). These were already rejected under
   the open/closed scheme; the difference is that they are now rejected for a stateable reason
