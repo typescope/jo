@@ -143,10 +143,10 @@ atom = integer
      | ident
      | "(" expr ")"                                   -- fence
      | "new" qualid [targs] [args]                    -- new_expr
-     | "[" [expr {"," expr}] "]"                      -- list_literal
+     | "[" [simple_expr {"," simple_expr}] "]"        -- list_literal
      | atom NS "." NS ident                           -- select
      | atom NS "(" [call_arg {"," call_arg}] ")"      -- apply
-     | atom NS "[" expr {"," expr} "]"                -- bracket_apply
+     | atom NS "[" simple_expr {"," simple_expr} "]"  -- bracket_apply
 
 (* invariant: no need for external delimiters *)
 word = atom
@@ -158,32 +158,32 @@ word = atom
 (* invariant: no comma, no keyword, no "=", no colon *)
 words = word {word}
 
-(* delimited/closed expressions, used for call arguments and inline bindings *)
-(* invariant: no comma, no "=", no colon *)
-expr = words
-     | (lambda_param_section | name) "=>" block             -- lambda
-     | "if" words "then" block "else" block ["end"]
+(* simple_expr: every expression form except the inline colon call.          *)
+(* admissible in any position, including a comma-separated list.              *)
+simple_expr = words
+            | (lambda_param_section | name) "=>" block            -- lambda
+            | "if" expr "then" block ["else" block] ["end"]
+            | "match" expr {"case" pattern "=>" block} ["end"]
+            | indented_colon_call
+            | dot_chain
+            | "allow" qualid {"," qualid} "in" block
+            | "with" qualid "=" simple_expr {"," qualid "=" simple_expr} "in" block
+            | atom "rescue" simple_pattern "=>" block             -- rescue_expr
 
-(* open expressions, used for indented colon call arguments, phrases and indented bindings *)
-(* invariant: words end by new line *)
-open_expr  = words NL
-              | (lambda_param_section | name) "=>" block    -- lambda
-              | colon_call
-              | dot_chain
-              | "if" words "then" block ["else" block] ["end"]
-              | "match" words {"case" pattern "=>" block} ["end"]
-              | "allow" qualid {"," qualid} "in" block
-              | "with" qualid "=" expr {"," qualid "=" expr} "in" block
-              | atom "rescue" simple_pattern "=>" block         -- rescue_expr
+(* expr: simple_expr plus the inline colon call.                              *)
+(* admissible everywhere except directly inside a comma-separated list.       *)
+expr = simple_expr | inline_colon_call
 
-(* invariant: words end by new line *)
-phrase = open_expr
-       | (name | select | bracket_apply) "=" block          -- assign
-       | "return" [block]
+(* phrase: an expr, or a phrase-only statement. a block is a run of phrases   *)
+(* only a definition "=", "=>", and the keywords then/else/do/in open a block.  *)
+(* an assignment and a return take a single expr, never a multi-phrase block.    *)
+phrase = expr
+       | (name | select | bracket_apply) "=" expr           -- assign
+       | "return" [expr]
        | "break"
        | "continue"
-       | "while" words "do" block ["end"]
-       | "for" expr_pattern "in" words ["if" words] "do" block ["end"]
+       | "while" expr "do" block ["end"]
+       | "for" expr_pattern "in" expr ["if" expr] "do" block ["end"]
        | ("val" | "var") name [":" type] "=" block
        | "val" expr_pattern "=" block                        -- pat_val_def
        | "auto" name ":" type "=" block                      -- auto_def
@@ -194,25 +194,31 @@ phrase = open_expr
 block = ⟨LIMIT⟩ phrase {phrase} ⟨DEDENT⟩
 
 args = "(" [call_arg {"," call_arg}] ")"
-call_arg = [name "="] expr
+(* invariant: a comma position takes simple_expr, never the inline colon call *)
+call_arg = [name "="] simple_expr
 
-(* invariant: (1) all commas on same line for inline syntax; (2) vertial align for indented syntax *)
-colon_call = atom NS ":" colon_args
-colon_args = inline_colon_args | indented_colon_args
+(* colon call. inline keeps all commas on the ":" line. indented separates    *)
+(* its arguments by newline, vertically aligned and bounded by a dedent.       *)
+inline_colon_call   = atom NS ":" inline_colon_args
+indented_colon_call = atom NS ":" indented_colon_args
 
-inline_colon_args = call_arg {"," call_arg}
+inline_colon_args   = call_arg {"," call_arg}
 indented_colon_args = NL ⟨LIMIT⟩ indented_call_arg {NL indented_call_arg} ⟨DEDENT⟩
-indented_call_arg = [name "="] open_expr
+indented_call_arg   = [name "="] expr
+colon_args          = inline_colon_args | indented_colon_args
 
-bracket_args = "[" expr {"," expr} "]"
+bracket_args = "[" simple_expr {"," simple_expr} "]"
 
-(* invariant: vertical alignment of dots  *)
+(* invariant: each continuation dot begins its own line, vertically aligned.   *)
+(* invariant: a segment's colon may be inline only where the chain is not a     *)
+(*            comma-list element; in a comma position every colon must be        *)
+(*            indented (an inline colon's commas would collide with the list's). *)
 dot_chain = atom NL "." NS ident {NS dot_chain_suffix} [":" colon_args]
           | dot_chain NL "." NS ident {NS dot_chain_suffix} [":" colon_args]
 
 dot_chain_suffix = "." NS ident
                  | "(" [call_arg {"," call_arg}] ")"      -- apply
-                 | "[" expr {"," expr} "]"                -- bracket_apply
+                 | "[" simple_expr {"," simple_expr} "]"  -- bracket_apply
 
 (*================================== patterns ================================*)
 
