@@ -1552,21 +1552,21 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     acc.toList
 
 
-  private def colonArgs(colonIndent: Indent, allowInlineColon: Boolean): List[CallArg] =
+  private def colonArgs(colon: TokenInfo, allowInlineColon: Boolean): List[CallArg] =
     val item = peekItem()
 
-    if colonIndent.isSameLine(item.indent) then
+    if colon.indent.isSameLine(item.indent) then
       if !allowInlineColon then
         error(
           "An inline colon call cannot appear in a comma-context.  " +
             "Parenthesize it or use the indented colon syntax",
-          item.span.toPos
+          colon.span.toPos
         )
 
-      inlineColonArgs(colonIndent)
+      inlineColonArgs(colon.indent)
 
-    else if item.indent.isIndent(colonIndent) then
-      indentedColonArgs(colonIndent)
+    else if item.indent.isIndent(colon.indent) then
+      indentedColonArgs(colon.indent)
 
     else
       error("Expect a colon-call argument", item.span.toPos)
@@ -1584,7 +1584,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     if !colon.span.followsImmediate(base.span) then
       error("Colon call head should be followed immediately by `:` with no space in between", base.pos)
 
-    val args = colonArgs(colon.indent, allowInlineColon)
+    val args = colonArgs(colon, allowInlineColon)
     base match
       case New(tpt, Nil) if tpt.span.endOffset == base.span.endOffset =>
         New(tpt, args)(base.span | args.last.span)
@@ -1770,7 +1770,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
         // a multi-line chain's colon sits on its own indented dot line, so its
         // inline args never collide with an enclosing comma list — always allowed
-        val args = colonArgs(colonIndent = colon.indent, allowInlineColon = true)
+        val args = colonArgs(colon, allowInlineColon = true)
         chain = Apply(chain, args)(chain.span | args.last.span)
 
       val item = peekItem()

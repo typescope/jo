@@ -8,19 +8,19 @@
 |         ^
 |         Expected a phrase after EQL
 
----------- Error at tests/warn/colon-call-invalid.jo:7:18 ---------------
+---------- Error at tests/warn/colon-call-invalid.jo:7:16 ---------------
 |   val b = [send: to = "x", subject = "y"]   // error
-|                  ^^
-|                  An inline colon call cannot appear in a comma-context.  Parenthesize it or use the indented colon syntax
+|                ^
+|                An inline colon call cannot appear in a comma-context.  Parenthesize it or use the indented colon syntax
 
----------- Error at tests/warn/colon-call-invalid.jo:10:22 ---------------
+---------- Error at tests/warn/colon-call-invalid.jo:10:20 ---------------
 |   val c = send(send: to = "x", subject = "y") // error
-|                      ^^
-|                      An inline colon call cannot appear in a comma-context.  Parenthesize it or use the indented colon syntax
+|                    ^
+|                    An inline colon call cannot appear in a comma-context.  Parenthesize it or use the indented colon syntax
 
----------- Error at tests/warn/colon-call-invalid.jo:13:15 ---------------
+---------- Error at tests/warn/colon-call-invalid.jo:13:13 ---------------
 |   send: send: "x", "y"   // error
-|               ^
-|               An inline colon call cannot appear in a comma-context.  Parenthesize it or use the indented colon syntax
+|             ^
+|             An inline colon call cannot appear in a comma-context.  Parenthesize it or use the indented colon syntax
 
 5 error(s), 0 warning(s)

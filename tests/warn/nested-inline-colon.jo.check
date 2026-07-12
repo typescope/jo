@@ -1,6 +1,6 @@
----------- Error at tests/warn/nested-inline-colon.jo:7:14 ---------------
+---------- Error at tests/warn/nested-inline-colon.jo:7:12 ---------------
 |   wrap: add: 1, 2
-|              ^
-|              An inline colon call cannot appear in a comma-context.  Parenthesize it or use the indented colon syntax
+|            ^
+|            An inline colon call cannot appear in a comma-context.  Parenthesize it or use the indented colon syntax
 
 1 error(s), 0 warning(s)

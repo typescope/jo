@@ -1,6 +1,6 @@
----------- Error at tests/warn/inline-colon-in-list.jo:6:18 ---------------
+---------- Error at tests/warn/inline-colon-in-list.jo:6:16 ---------------
 |   val xs = [add: 1, 2]
-|                  ^
-|                  An inline colon call cannot appear in a comma-context.  Parenthesize it or use the indented colon syntax
+|                ^
+|                An inline colon call cannot appear in a comma-context.  Parenthesize it or use the indented colon syntax
 
 1 error(s), 0 warning(s)
