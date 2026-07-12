@@ -1,0 +1,41 @@
+// Open forms (match, if, dot chain, indented colon call) are admissible as
+// call arguments and conditions. See docs/jips/0001-expression-contexts.md.
+
+def id(x: Int): Int = x
+def add(a: Int, b: Int): Int = a + b
+def apply(f: Int => Int, x: Int): Int = f(x)
+
+def main =
+  // match as a call argument
+  println: id(match 1
+    case 1 => 100
+    case _ => 0)
+
+  // if/else as a call argument
+  println: id(if true then 10 else 20)
+
+  // multi-line dot chain as a call argument
+  println: id([1, 2, 3]
+    .map(x => x * 2)
+    .size)
+
+  // indented colon call as a call argument
+  println: id(add:
+    3
+    4
+  )
+
+  // trailing lambda through an inline colon call
+  val forty2 = apply: (x => x + 1), 41
+  println forty2
+
+  // match as a condition
+  if match 2
+     case 2 => true
+     case _ => false
+  then
+    println "cond-match"
+
+  // dot chain in a condition
+  if [1, 2, 3, 4].size > 2 then
+    println "cond-chain"
