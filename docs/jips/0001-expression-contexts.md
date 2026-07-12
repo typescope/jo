@@ -164,16 +164,22 @@ Two properties follow:
 ## Prior art: Ruby
 
 Ruby is the one widely used language that ships a comma-separated call with
-no brackets (its *command call*). It meets the same collision and splits it two ways:
+no parentheses (its *command call*).
 
-- A bare command may **not** be a *non-final* argument: `p(1, foo 2, 3)` is a **syntax error**.
-  This is exactly the case Jo rejects.
-- A bare command **may** be the *final* argument, greedily consuming the rest: `p(foo 2, 3)`
-  is `p(foo(2, 3))`. This is the *invisible associativity rule* of
-  [Alternatives](#alternatives-considered) — the boundary is set by a right-greedy convention,
-  not by the page.
+Ruby restricts that a bare command **may** be the *only* argument of nested
+call, greedily consuming the rest:
 
-Jo keeps the first move and declines the second.
+- `p(foo 2, 3)` and `p foo 2, 3` is `p(foo(2, 3))`
+- `p(1, foo 2, 3)` and `p 1, foo 2, 3` is a **syntax error**
+
+Jo's colon syntax is intended to improve both flexibility and clarity:
+
+```jo
+p: foo 2 3        // valid
+p: 1, foo 2 3     // valid
+
+p: foo: 2, 3      // error
+```
 
 ## Alternatives considered
 
