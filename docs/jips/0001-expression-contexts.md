@@ -4,75 +4,56 @@ status: Draft
 created: 2026-07-12
 ---
 
-# JIP 0001 — Replacing open/closed expressions with delimiter collision
+# JIP 0001 — Regularize expression syntax
 
 ## Summary
 
-Jo's grammar currently divides expressions into two tiers. **Closed** expressions may appear
-in delimited positions — inside `(...)`, call arguments, and string interpolations `\{...}`.
-**Open** expressions may appear as block phrases and as indented colon-call arguments. Colon
-calls, dot chains, `match`, `rescue`, `allow`, and `with` are *open-only*: they cannot appear
-in a delimited position at all.
+Jo's grammar splits expressions into two tiers. **Closed** expressions appear in delimited
+positions — `(...)`, call arguments, interpolations `\{...}`. **Open** expressions appear as
+block phrases and indented colon arguments. Colon calls, dot chains, `match`, `rescue`,
+`allow`, and `with` are *open-only*.
 
-This proposal removes that two-tier scheme and replaces it with a single principle:
+This proposal replaces the two tiers with one principle:
 
-> A form may appear in a context unless its own top-level delimiter is the same token that
+> A form may appear in a context unless its own top-level delimiter is the token that
 > terminates the context.
 
-Under this rule the open/closed distinction disappears. Almost every form becomes usable
-everywhere, matching what a programmer's syntactic intuition already expects. Exactly one
-restriction survives — an *inline* colon call may not appear directly inside a
-comma-separated list — and it survives for a reason a user can state in four words: *commas
-do not nest*.
+With the current proposal, only one restriction survives: an *inline* colon
+call may not appear directly inside a comma-separated list — because *commas do
+not nest*.
 
 ## Motivation
 
-The closed/open distinction imposes a memory tax. To write Jo correctly a programmer must
-recall which forms live in which tier:
+The closed/open split is a memory tax. Nothing about the shape of `match` explains why it is
+barred where `if` is allowed:
 
 | Form | Closed | Open |
 |---|---|---|
 | word sequence, lambda, `if` | ✅ | ✅ |
 | `match`, colon call, dot chain, `rescue`, `allow`/`with` | — | ✅ |
 
-Nothing about the *shape* of `match` explains why it is disallowed where `if` is allowed.
-The line is arbitrary from the user's seat. The friction shows up in ordinary code:
+The same friction blocks a `match`, a dot chain, or an indented colon call from appearing as
+an argument or a condition. Each must be lifted into a `val` and named before use.
 
-```jo
-// today: a colon call may not appear in an argument list
-foo(bar: 1, 2)          // rejected
+The split does two unrelated jobs, and only one is worth keeping:
 
-// so the value must be lifted out and named
-val r = bar: 1, 2
-foo(r)
-```
+1. **Disambiguation** — stop a comma-separated argument list from colliding with a
+   comma-separated colon call.
+2. **Style** — discourage nestings that are legible to the parser but hard for a human.
 
-The distinction is really doing two unrelated jobs, and only one is worth keeping:
+This proposal keeps job 1 as a one-line rule and drops the rest.
 
-1. **Grammatical disambiguation** — stopping a comma-separated argument list from colliding
-   with a comma-separated colon call.
-2. **Style** — discouraging nestings that are legible to the parser but hard for a human.
+## What actually collides
 
-The pain is that job 2 is welded to job 1. Once they are separated, job 1 turns out to be a
-*single* genuine ambiguity — the commas of an inline colon call — and everything else is a
-restriction with no grammatical basis. This proposal keeps job 1 as a one-line rule and
-drops the rest.
+The distinction that matters is which token *ends* an expression, and whether a form reuses
+that token as its own separator. The colon call is the main concern, because only it can
+interfere with a comma-list.
 
-## Rationale: what actually collides
 
-The distinction that matters is not open vs. closed. It is **what token ends an
-expression**, and whether a form reuses that same token as one of its own separators.
+There are two forms of colon calls:
 
-The colon call is the whole story, because it is the only form with two shapes that carry
-*different* top-level delimiters:
-
-- an **inline** colon call separates its arguments with **commas**:
-
-  ```jo
-  foo: a, b
-  ```
-
-- an **indented** colon call separates its arguments with **newlines**:
+- **inline** — arguments separated by **commas**: `foo: a, b`
+- **indented** — arguments separated by **newlines**:
 
   ```jo
   foo:
@@ -80,61 +61,39 @@ The colon call is the whole story, because it is the only form with two shapes t
     b
   ```
 
-Drop either one into a comma-separated list. The inline form's commas merge with the list's
-commas — `f(foo: 1, 2)` could mean `f(foo(1, 2))` or `f(foo(1), 2)`, and nothing on the page
-decides. The indented form has no such problem: its arguments are separated by indentation,
-so the surrounding commas remain unambiguously the list's own.
+Drop each into a comma-list. The inline form leads to confusion — `f(foo: 1, 2)`
+could mean `f(foo(1, 2))` or `f(foo(1), 2)`. The indented form is separated by
+indentation, so the list's commas stay unambiguously its own.
 
-That single asymmetry accounts for every restriction worth keeping. Every other open-only
-form — dot chains, `match`, `rescue`, `allow`, `with` — is delimited by indentation or by
-its own keywords, never by a comma, so none of them ever collides. Their exclusion from
-delimited positions was never grammatically necessary.
+The inline colon call is also the **only comma-list with no closing bracket**. A call ends in
+`)`, a list in `]`, an `allow`/`with` binding list in `in` — but an inline colon call's right
+edge is just the end of the line.
 
-The dot chain deserves a word, because it looks like a counterexample and is not. Two
-constructs share the `.` character but are different forms. An **inline select chain**
-(`xs.map(g).sum`, no spaces, no line breaks) is an *atom* — it can carry no comma of its
-own and composes everywhere. A **dot chain** is the multi-line form, and the grammar
-requires each continuation `.` to *begin its own line* (the parser rejects a continuation
-dot that is not the first token of a line). So the chain's spine is delimited by newlines,
-never by a comma — again no collision. Its one comma-bearing part is a *trailing inline
-colon call* (`.foldl: 0, add`, whose `:` must sit on its dot's line). Those commas are
-exactly an inline colon call's commas. They are governed by the inline-colon rule on the
-chain's tail, not by the chain. A dot chain that instead ends in an *indented* colon tail
-carries no comma and composes freely.
+**Dot chains are not an exception.** An *inline select chain* (`xs.map(g).sum`) is an atom and
+composes everywhere. A *dot chain* is the multi-line form — each continuation `.` begins its
+own line — so its spine is newline-delimited and never collides.
 
 ## Specification
 
 ### The rule
 
-> A form is admissible in a context unless its top-level delimiter is the same token that
+> A form is admissible in a context unless its top-level delimiter is the token that
 > terminates the context.
 
-Contexts are classified by their terminator. Most terminators — a closing bracket, a
-keyword — are matched by no form's delimiter, so most positions admit every form. Only two
-contexts are distinctive:
+Contexts are classified by terminator. Most terminators — a closing bracket, a keyword —
+match no form's delimiter, so most positions admit every form. Two are distinctive:
 
-| Context | Terminator | Effect | Examples |
-|---|---|---|---|
-| **Comma-list** | comma / closing bracket | removes the inline colon call | `f(a, b)`, `[a, b]`, `arr[i, j]`, inline colon args, named args |
-| **Block** | dedent | adds the phrase-only forms | block phrases, indented colon arguments |
+| Context | Terminator | Effect |
+|---|---|---|
+| **Comma-list** — `f(a, b)`, `[a, b]`, `arr[i, j]`, inline colon args, named args | comma | removes the inline colon call |
+| **Block** — phrases, indented colon arguments | dedent | adds the phrase-only statements |
 
-- A **comma-list** is terminated by a comma. The only form whose top-level delimiter is a
-  comma is the inline colon call, so that is the one form it excludes. Words, lambdas, `if`,
-  `match`, dot chains, and indented colon calls all remain admissible — none separates its
-  own parts with commas. A dot chain that ends in an *inline* colon tail is the one edge
-  case, and it is excluded on the tail's account, not the chain's (see below).
-- A **block** is terminated by a dedent relative to its own indentation. Nested forms open
-  their indentation regions at deeper columns, so they never reach that dedent prematurely
-  and compose freely. A block admits every form, plus the phrase-only statements (`val`,
-  `def`, `while`, assignment, …).
-- Every other position — a fence `(e)`, an interpolation `\{e}`, the condition of
-  `if`/`while`/`match`/`for` — has a terminator (a bracket or a keyword) that no form's
-  delimiter matches, and so admits every form with nothing added or removed.
+A comma-list excludes only the inline colon call, the sole form whose top-level delimiter is a
+comma. A block admits every form plus statements (`val`, `def`, assignment, …). Every other
+position — a fence, an interpolation, an `if`/`while`/`match`/`for` condition — admits every
+form unchanged.
 
 ### Grammar
-
-The rule reduces to two productions. `simple_expr` is every form except the inline colon
-call. `expr` adds it back:
 
 ```ebnf
 simple_expr = words
@@ -142,7 +101,7 @@ simple_expr = words
             | if_expr                       (* with or without else *)
             | match_expr
             | indented_colon_call
-            | dot_chain                     (* multi-line. inline-colon tail is the sole caveat, below *)
+            | dot_chain                     (* multi-line. inline-colon tail is the sole caveat *)
             | allow_expr | with_expr
             | rescue_expr
 
@@ -150,223 +109,80 @@ expr = simple_expr | inline_colon_call
 
 inline_colon_call = atom NS ":" comma_arg {"," comma_arg}   (* commas stay on the ":" line *)
 
-(* context usage: every comma-separated position takes a comma_arg, everything else takes expr *)
-comma_arg    = [name "="] simple_expr         (* call args, list/bracket items, index, inline colon args *)
-block_phrase = expr | phrase_only             (* a block additionally admits statements *)
-                                              (* a fence (e), interpolation \{e}, and condition take expr *)
-
-phrase_only  = assign | while | for | return | break | continue
-             | val_def | var_def | pat_val_def | auto_def | fun_def | pat_def
+comma_arg = [name "="] simple_expr    (* call args, list/bracket items, index, inline colon args *)
 ```
 
-The `[name "="]` restores named arguments, which the colon call and parenthesized call
-both carry (`send: to = a, subject = b`). The bindings of `with`/`allow` are comma-lists
-too — `with p = simple_expr {"," ...} in` and `allow q {"," ...} in` — and their right-hand
-sides are therefore `simple_expr`, bounded by `in`. In short, *every* comma-separated
-position takes `simple_expr`. Only the inline colon call is thereby excluded.
+Every comma-separated position takes `simple_expr` — call arguments, list and index items,
+inline colon arguments, and the right-hand sides of `with`/`allow` bindings (bounded by `in`).
+Only the inline colon call is thereby excluded. A block additionally admits the phrase-only
+statements (`assign`, `while`, `for`, `val`/`var`, `def`, …).
 
-This replaces the `expr` / `open_expr` split in the current grammar, and it follows the
-file's existing convention that the `simple_` variant is the restricted one
-(`simple_type ⊂ type`, `simple_pattern ⊂ pattern`). The single alternative separating `expr`
-from `simple_expr` — the inline colon call — *is* the entire content of the former
-open/closed distinction.
+Two properties follow:
 
-It helps to map these onto today's grammar. The new `expr` is the old `open_expr`, with its
-`colon_call` split into inline and indented forms and the phrase-only statements moved into
-`phrase_only`. The new `simple_expr` is that same set minus the inline colon call. The old
-*closed* `expr` category disappears. The positions it governed now take `simple_expr`, which
-is strictly larger. The name `expr` is reused but widened, so the new `expr` is **not** the
-old closed `expr`. When this proposal lands, the old `expr` and `open_expr` productions in
-[Syntax Summary](../language/syntax/syntax-summary.md) are replaced wholesale by the two
-above. No stale definition survives to collide with the new one.
+- **Nesting.** An inline colon call's arguments are `simple_expr`, so one cannot nest directly
+  in another — parentheses or the indented form are required. No separate rule is needed.
 
-Two properties are worth drawing out, because the ergonomics depend on them:
-
-- **Self-reference.** An inline colon call's arguments are `simple_expr`, so an inline colon
-  call cannot appear inside another one's argument list. Nesting requires parentheses
-  (`foo: a, bar(c, d)`) or the indented form. No separate "no nested colon" rule is needed.
-  It falls out of the production.
-- **Commas stay on the `:` line.** The arguments of an inline colon call keep their commas
-  on the same line as the `:` — an invariant carried over from today's grammar. Because a
-  form that opens an indentation region necessarily ends its line, no comma can follow it,
-  so any indentation-opening argument is automatically the *last* one. This is what makes a
-  trailing lambda or trailing block work without a special "last argument" rule (see
-  [Consequences](#consequences)).
-
-Against [Expression Forms](../language/expressions/expression-forms.md): the `Open only`
-column is deleted, and every row of its *Expressions* table becomes one `expr`.
-
-### Indentation anchoring
-
-The two forms that continue across lines without an introducing keyword — the indented
-colon call and the newline-leading dot chain — are anchored on their **head**, not on the
-surrounding context:
-
-- an indented colon call's arguments are indented relative to the head that precedes `:`.
-- a dot chain's continuation lines are indented relative to the head atom that precedes the
-  first `.`.
-
-Because the anchor is the head, it is well-defined wherever the form appears — a block
-phrase, an indented colon argument, or nested inside a bracket. A bracket does not need to
-establish an indentation frame. The head already does. The bracket merely contributes its
-closing token as an additional terminator, which never competes with the anchor:
-
-```jo
-f(xs
-    .map(g)      // anchored on xs
-    .sum)        // also ends at )
-
-f(g:
-    a            // anchored on g
-    b)
-```
-
-No context-specific indentation rule is required: the head-relative behavior these forms
-already have carries into every context unchanged.
+- **Commas stay on the `:` line.** A form that opens an indentation region ends its line, so
+  no comma can follow it. Any indentation-opening argument is therefore automatically last,
+  which is what makes trailing lambdas and blocks work with no "last argument" rule.
 
 ## Consequences
 
-Several things that would otherwise need dedicated rules are simply instances of the one
-rule.
+- **Colon calls as arguments.** An indented colon call is a legal argument
+  (indentation-delimited, bracket-bounded). An inline one is not:
 
-**Colon calls in parenthesized calls.** An indented colon call is admissible as any argument
-of a comma-list — its delimiter is indentation, and the bracket bounds it:
+  ```jo
+  f(g:
+      a
+      b)
+  f(foo: 1, 2)     // rejected — write `f foo(1, 2)`
+  ```
 
-```jo
-f(g:
-    a
-    b)
-```
+- **Nested colon calls.** An inline nesting needs parentheses. An indented one does not:
 
-The inline colon call is not, because its commas would merge with the call's:
+  ```jo
+  foo: a, bar(c, d)   // inline argument → parentheses required
+  foo: a, bar:        // indented argument → nesting is fine
+    c
+    d
+  ```
 
-```jo
-f(foo: 1, 2)     // rejected — write f(foo(1, 2))
-```
+- **Trailing lambdas and blocks** need no exception. A lambda body, `match`, or indented colon
+  call is delimited by `=>`, `case`, or indentation, so it is an ordinary argument that lands
+  last because it ends its line:
 
-**Nested colon calls.** An inline colon call's arguments are themselves a comma-list, so the
-same rule forbids an inline colon call there but permits an indented one:
+  ```jo
+  list.fold: 0, (acc, x) =>
+    acc + x
+  ```
 
-```jo
-foo: a, bar(c, d)   // inline argument is a comma context → parentheses required
-
-foo: a, bar:        // indented argument is dedent-bounded → nesting is fine
-  c
-  d
-```
-
-Grouping stays visible in the layout: one colon call's commas never share a line with
-another's.
-
-**Trailing lambdas and trailing blocks.** These need no "last argument" exception. A lambda
-body, a `match`, or an indented colon call is delimited by `=>`, `case`, or indentation —
-never by a comma — so each is an ordinary admissible argument. And because such a form ends
-its line, nothing can follow it. It lands last as a consequence, not by a rule:
-
-```jo
-list.fold: 0, (acc, x) =>
-  acc + x
-
-each: items, x =>
-  log(x)
-  process(x)
-```
-
-**Indentation already lives inside brackets.** An `if`/`else` with block bodies is already a
-legal call argument today, so brackets never "suppressed" indentation to begin with. A
-block-introducer (`then`, `=>`, `in`, `case =>`) opens its region wherever it appears. The
-rule needs no clause for this — it is simply not a collision.
-
-## Why the inline colon call is the one sensitive form
-
-There is a deeper reason the inline colon call, and only it, must be constrained: **it is
-the sole comma-list with no closing delimiter.** Every other comma-list is bounded — a call
-ends in `)`, a list in `]`, an index in `]`, an `allow`/`with` binding list in `in`. Their
-contents can lean on that closing token. The inline colon call's right edge is nothing but
-the end of the line.
-
-This is why its commas must stay on the `:` line: it is the one comma-list that cannot be
-rescued by a bracket. And it is why the inline/indented distinction of the colon call is
-load-bearing rather than cosmetic — the inline form is the single thing a comma-list must
-exclude, and the indented form is admissible everywhere its indentation can be bounded,
-which is everywhere.
-
-## Impact on existing code
-
-The change is a strict enlargement of the grammar: the new productions only *add*
-alternatives in positions that previously rejected them. No program that is valid today
-becomes invalid.
-
-- Any expression may now appear as a condition: `if xs.filter(p).any then …`, or a `match`
-  or colon call used as a condition.
-- `match`, `allow`, `with`, dot chains, and indented colon calls may now appear as arguments
-  in parenthesized calls, list literals, and fences, bounded by the bracket. The lone
-  caveat is a dot chain whose tail is an *inline* colon call (`f(xs.map(g).foldl: 0, add)`):
-  its trailing commas collide with the list's, so wrap the tail — `f((xs.map(g).foldl: 0, add))`
-  — or use the chain's indented colon form. This is the inline-colon rule applying to the
-  tail, not a separate restriction.
-- Trailing lambdas and trailing blocks work uniformly across every call form.
-- An **else-less `if`** is now admissible in a comma-list, where the closed tier previously
-  required an `else` (`f(if c then a, b)`). It terminates cleanly: the `then` block is
-  delimited by the comma, so `a` is the whole consequent and `b` is the next argument. No
-  ambiguity arises — an `if` is never a comma-delimited form.
-- The only rejections that remain are the genuine collisions — an inline colon call directly
-  inside a comma-list (`f(foo: 1, 2)`, `foo: bar: 1, 2`). These were already rejected under
-  the open/closed scheme. The difference is that they are now rejected for a stateable reason
-  (*commas do not nest*) rather than by membership in an arbitrary category.
-
-## Design decisions
-
-**Inline colon calls keep multiple arguments.** `send: user, message` remains legal at
-phrase level. The cost is that the inline colon call stays the rule's single casualty inside
-a comma-list — nesting it needs parentheses or the indented form. Restricting inline colon
-calls to a single argument would have removed even that casualty (a one-argument colon call
-carries no comma, so it would compose everywhere), but the multi-argument form is a core
-ergonomic and worth the one narrow exclusion.
-
-**Conditions admit the full `expr`.** The condition of `if`/`while`/`match`/`for` is not a
-special context. Its keyword terminator matches no form's delimiter, so it admits every
-form, exactly as a fence or interpolation does. A `match` or an indented colon call may be
-used as a condition. A pathologically nested else-less `if` such as `if if a then b then c`
-still parses deterministically. If the result reads badly, that is the author's problem to
-fix, not a grammatical ambiguity. The compiler is never in doubt.
+- **Conditions** admit any expression: `if xs.filter(p).any then …`, or a `match` as a
+  condition.
+- **Else-less `if` in a comma-list** is now legal (`f(if c then a, b)`) — the `then` block
+  ends at the comma.
 
 ## Prior art: Ruby
 
-Ruby is the one widely used language that ships this exact construct — a comma-separated
-call with no brackets (its *command call*) — so its choices are the natural check. Ruby
-meets the identical collision and resolves it in two moves, and the split between them is
-telling:
+Ruby is the one widely used language that ships a comma-separated call with
+no brackets (its *command call*). It meets the same collision and splits it two ways:
 
-- A bare command may **not** be a *non-final* argument. `p(1, foo 2, 3)` is a **syntax
-  error**, because `foo 2, 3`'s commas cannot be told from `p`'s. This is precisely the case
-  Jo rejects: Ruby and Jo agree that a comma-list must exclude the ambiguous inline call.
-- A bare command **may** be the *final* argument, where it greedily consumes the rest of the
-  line. `p(foo 2, 3)` parses as `p(foo(2, 3))`, and `p foo bar 2, 3` as `p(foo(bar(2, 3)))`.
-  This is exactly the *invisible associativity rule* named under
-  [Alternatives](#alternatives-considered): the boundary is fixed by a right-greedy
-  convention the reader must already know, not by anything on the page.
+- A bare command may **not** be a *non-final* argument: `p(1, foo 2, 3)` is a **syntax error**.
+  This is exactly the case Jo rejects.
+- A bare command **may** be the *final* argument, greedily consuming the rest: `p(foo 2, 3)`
+  is `p(foo(2, 3))`. This is the *invisible associativity rule* of
+  [Alternatives](#alternatives-considered) — the boundary is set by a right-greedy convention,
+  not by the page.
 
-Jo keeps the first move and declines the second. Where Ruby accepts `f(foo 1, 2)` as
-`f(foo(1, 2))`, Jo rejects the corresponding `f(foo: 1, 2)` and asks for `f(foo(1, 2))` or
-the indented form. The cost is one keystroke in the position Ruby would have taken for free.
-The benefit is that grouping is always legible from local layout. No reader ever has to know
-a greedy-consumption rule to parse a comma. Ruby's own decision to make the *non-final* case
-a hard error is independent evidence that the collision is real and not a matter of taste.
+Jo keeps the first move and declines the second.
 
 ## Alternatives considered
 
-**Keep open/closed, widen both tiers until they overlap.** Add targeted exceptions — let
-`if`/`while`/`match` conditions be open, let `with`/`allow`/`rescue` appear in closed
-positions — so that the two sets coincide for common code. This reduces friction but does
-not remove it: it trades one list of restrictions for a longer list of exceptions, and still
-presents the constraint as two arbitrary tiers rather than one rule. The delimiter-collision
-rule subsumes every exception this option would enumerate.
+**Widen both tiers until they overlap.** Add targeted exceptions until the two sets coincide
+for common code. This trades one list of restrictions for a longer list of exceptions, and
+still presents two arbitrary tiers rather than one rule.
 
-**Cancel the distinction entirely and let users own the style.** Allow every form everywhere
-and treat awkward nestings as the programmer's responsibility. This under-delivers on its
-own terms: its two headline targets — nested inline colon calls, and inline colon calls
-inside parenthesized calls — are exactly the comma-collision cases, which cannot be admitted
-without either an invisible comma/colon associativity rule or genuinely reader-ambiguous
-grouping. The delimiter-collision rule keeps precisely those two cases out while freeing
-everything else — achieving the goal of this alternative without its ambiguity.
+**Cancel the distinction entirely.** Allow every form everywhere and treat awkward nesting as
+the programmer's problem. Its two targets — nested inline colon calls, and inline colon calls
+in parenthesized calls — are exactly the comma collisions, which cannot be admitted without an
+invisible associativity rule or reader-ambiguous grouping. Such code is not a problem of style,
+it is simply wrong.
