@@ -35,6 +35,16 @@ git rebase --signoff HEAD~3
 
 <!-- Does this touch capability checking, FFI boundaries, or auth paths? If so, describe. -->
 
+## Compatibility impact
+
+<!-- Does this affect compatibility? If so, describe. -->
+
+- [ ] Source compatibility: existing code continue to compile
+- [ ] Library compatibility
+  - [ ] forward compatibility: new libraries can be used by old compiler
+  - [ ] backward comopatibility: old libraries can be used by new compiler
+- [ ] Build tool compatibility: old projects continue to build
+
 ---
 
 ## Implementation checklist (for new language features)

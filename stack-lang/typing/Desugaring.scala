@@ -94,7 +94,7 @@ object Desugaring:
         case edef: UnionDef  => synthesizeUnionDef(edef)
         case edef: ExtensionDef => desugarExtensionDef(edef)
         case pdef: ParamDef => desugarParamDef(pdef)
-        case cdef: ClassDef => desugarDataClass(cdef, defs)
+        case cdef: ClassDef => synthesizeClassParamDefs(cdef, defs)
         case odef: ObjectDef => desugarObjectDef(odef)
         case defn => defn :: Nil
 
@@ -280,37 +280,44 @@ object Desugaring:
 
       tdef :: classDefs.toList
 
-  /** Desugar a data class definition
+  /** Synthesize a factory function and a pattern for a class with parameters.
     *
-    * Given a data class
+    * Given a class with class parameters
     *
     *     class A[X, ...](x1: T1, ...)
+    *       ... // arbitrary fields and methods
     *
     * It will desugar to
     *
     *     class A[X, ...](x1: T1, ...)
+    *       ...
     *
     *     def A[X, ...](x1: T1, ...): A[X, ...] = new A[X, ...](x1, ...)
     *
     *     pattern A[X, ...](x1: T1, ...): A[X, ...] = case o then x1 = o.x1, ...
     *
-    * A data class is a class defined with class parameters but without fields
-    * declared in class body.
+    * The factory and pattern are derived solely from the class-parameter list;
+    * additional fields declared in the class body do not affect them. The
+    * pattern therefore captures the class parameters, not the full object state.
     *
-    * The desguaring of the class itself is delayed during type checking.
+    * Synthesis is unconditional for any class with parameters, except that a
+    * user-defined factory function or pattern with the same name overrides the
+    * synthesized one (see `hasConstructorFun` / `hasPatDef` below).
+    *
+    * The desugaring of the class itself is delayed during type checking.
     */
-  def desugarDataClass(cdef: ClassDef, defs: List[Def]): List[Def] =
+  def synthesizeClassParamDefs(cdef: ClassDef, defs: List[Def]): List[Def] =
     val id = cdef.ident
 
     val tp =
       if cdef.tparams.isEmpty then id
       else AppliedType(id, cdef.tparams.map(_.ident))(id.span | cdef.tparams.last.span)
 
-    val isDataClass =
+    val synthesize =
       cdef.params.nonEmpty &&
-      cdef.vals.isEmpty &&
-      // If a member constructor exists, class-parameter data-class synthesis
-      // must be disabled to avoid conflicting constructor/pattern generation.
+      // An explicit member constructor (a method named like the class) conflicts
+      // with class parameters and is reported separately; skip synthesis here to
+      // avoid cascading errors.
       !cdef.funs.exists(_.name == id.name)
 
     val hasConstructorFun = defs.exists:
@@ -352,8 +359,8 @@ object Desugaring:
 
     var res: List[Def] = Nil
 
-    // Generate standalone constructor function
-    if isDataClass then
+    // Generate standalone factory function and pattern
+    if synthesize then
       if !hasConstructorFun then
         res = createConstructorFun() :: res
 

@@ -24,13 +24,13 @@ type Color = Red | Green | Blue
 object Red;  object Green;  object Blue
 ```
 
-**Branch with parameters** → data class:
+**Branch with parameters** → class with parameters:
 
 ```jo
 union Option[T] = Some(value: T) | None
 // desugars to:
 type Option[T] = Some[T] | None
-class Some[T](value: T)   // + constructor function + pattern
+class Some[T](value: T)   // + factory function + pattern
 object None
 ```
 

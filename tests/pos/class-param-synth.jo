@@ -1,0 +1,30 @@
+// A class with class parameters gets a synthesized factory and pattern even
+// when it declares additional fields and methods in its body.
+class Point(x: Int, y: Int)
+  val cachedHash: Int = x * 31 + y
+
+  def toString(): String = "Point(\{x}, \{y})"
+end
+
+// A user-defined factory with the class name overrides the synthesized one.
+class Nat(value: Int)
+
+def Nat(value: Int): Nat =
+  val v = if value < 0 then 0 else value
+  new Nat(v)
+
+def main(): Unit =
+  // synthesized factory (no `new`) on a class with an extra field
+  val p = Point(3, 4)
+  println(p.toString())
+  println(p.cachedHash)
+
+  // synthesized pattern captures the class parameters
+  match p case Point(a, b) => println(a + b)
+
+  // user-defined factory overrides the synthesized one (clamps to 0)
+  val n = Nat(-5)
+  println(n.value)
+
+  // synthesized pattern is still available for Nat
+  match n case Nat(v) => println(v)
