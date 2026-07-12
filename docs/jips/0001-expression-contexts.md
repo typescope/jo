@@ -1,6 +1,6 @@
 # JIP 0001 — Replacing open/closed expressions with delimiter collision
 
-**Status:** Draft &nbsp;·&nbsp; **Created:** 2026-07-12
+**Author:** Fengyun Liu &nbsp;·&nbsp; **Status:** Draft &nbsp;·&nbsp; **Created:** 2026-07-12
 
 ## Summary
 
