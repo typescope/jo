@@ -1558,8 +1558,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     if colonIndent.isSameLine(item.indent) then
       if !allowInlineColon then
         error(
-          "an inline colon call cannot appear in a comma-separated list — " +
-            "parenthesize it or use the indented colon form",
+          "An inline colon call cannot appear in a comma-context.  " +
+            "Parenthesize it or use the indented colon syntax",
           item.span.toPos
         )
 
