@@ -25,6 +25,11 @@ def main =
     4
   )
 
+  // indented colon call as a call argument with `)` on the same line
+  println: id(add:
+    6
+    7)
+
   // trailing lambda through an inline colon call
   val forty2 = apply: (x => x + 1), 41
   println forty2

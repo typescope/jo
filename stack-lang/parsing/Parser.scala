@@ -1532,7 +1532,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     while continue do
       val item = peekItem()
 
-      if item.indent.isDedent(colonIndent) || item.token == Token.EOF then
+      if item.indent.isDedent(colonIndent) || item.token == Token.EOF || !item.indent.isFirstOfLine then
         continue = false
 
       else
