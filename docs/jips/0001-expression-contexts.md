@@ -187,8 +187,8 @@ rest and so becomes the only argument. Anywhere else is a syntax error:
 - `p(foo 2, 3)` and `p foo 2, 3` parse as `p(foo(2, 3))` — `foo` is first, so it takes the rest
 - `p(1, foo 2)` and `p 1, foo 2` are rejected — `foo` is not first, even though it is last
 
-Jo resolves the same ambiguity by making the grouping explicit instead of relying on a greedy
-rule:
+Jo intends to improve the design of parenthesis-less call syntax in both
+flexibility and clarity:
 
 ```jo
 p: foo 2 3        // valid
