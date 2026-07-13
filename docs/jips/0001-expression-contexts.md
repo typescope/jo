@@ -59,8 +59,8 @@ Nesting an inline colon call is always confusing: `f(foo: 1, 2)` could mean
 `f(foo(1, 2))` or `f(foo(1), 2)`. Therefore, it is not a style problem, it is
 simply wrong.
 
-In contrast, nesting an indented colon call in parenthesis-calls is only a style
-problem:
+In contrast, nesting an indented colon call or `match`-expression in
+parenthesis-calls is only a style problem:
 
 ```jo
 fact(
@@ -70,6 +70,12 @@ fact(
   ,
   20
 )
+
+foo(
+  match opt
+  case Some x => x
+  case None   => 0
+)
 ```
 
 The code above is clear to the reader, even though it can be better written as
@@ -78,12 +84,23 @@ The code above is clear to the reader, even though it can be better written as
 fact:
   foo: a b
   20
+
+foo:
+  match opt
+  case Some x => x
+  case None   => 0
+
 ```
 
 or
 
 ```jo
 fact: foo(a, b), 20
+
+foo:
+  match opt
+    case Some x => x
+    case None   => 0
 ```
 
 If we leave style problems to programmers but still guard against nested inline
