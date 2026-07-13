@@ -8,92 +8,90 @@ created: 2026-07-12
 
 ## Summary
 
-Jo's grammar splits expressions into two tiers. **Closed** expressions appear in delimited
-positions — `(...)`, call arguments, interpolations `\{...}`. **Open** expressions appear as
-block phrases and indented colon arguments. Colon calls, dot chains, `match`, `rescue`,
-`allow`, and `with` are *open-only*.
+Jo splits expressions into two categories. **Closed** expressions may appear in
+delimited positions — inside `(...)`, in call arguments, in an interpolation
+`\{...}`. **Open** expressions are limited to block phrases and indented colon
+arguments. Colon calls, dot chains, `match`, `rescue`, `allow`, and `with` are
+open-only: they are allowed nowhere else.
 
-This proposal replaces the two tiers with one principle:
+This proposal intends to eliminate the two categories.  With this proposal,
+almost every syntactic form becomes usable almost everywhere. One restriction
+remains, and it is easy to state and justify:
 
-> A form may appear in a context unless its own top-level delimiter is the token that
-> terminates the context.
-
-With the current proposal, only one restriction survives: an *inline* colon
-call may not appear directly inside a comma-separated list — because *commas do
-not nest*.
+> An *inline* colon call may not appear directly in a comma-context,
+> because *commas do not nest*.
 
 ## Motivation
 
-The closed/open split is a memory tax. Nothing about the shape of `match` explains why it is
-barred where `if` is allowed:
+While the closed/open split may improve readability, it pays a high price for
+regularity and usability. Nothing about the shape of a `match` explains why it
+is rejected where an `if` is allowed:
 
 | Form | Closed | Open |
 |---|---|---|
 | word sequence, lambda, `if` | ✅ | ✅ |
 | `match`, colon call, dot chain, `rescue`, `allow`/`with` | — | ✅ |
 
-The same friction blocks a `match`, a dot chain, or an indented colon call from appearing as
-an argument or a condition. Each must be lifted into a `val` and named before use.
+The line is arbitrary and difficult to justify. A `match`, a dot chain, or an indented
+colon call cannot be passed to a function or used as a condition. Each must first be lifted into
+a `val` and named.
 
-The split does two unrelated jobs, and only one is worth keeping:
+On reflection, the split actually addresses two different problems:
 
-1. **Disambiguation** — stop a comma-separated argument list from colliding with a
-   comma-separated colon call.
-2. **Style** — discourage nestings that are legible to the parser but hard for a human.
+1. **Disambiguation** — keep a comma-separated argument list from colliding with a comma-separated colon call.
+2. **Style** — discourage nestings that the parser accepts but a human finds hard to read.
 
-This proposal keeps job 1 as a one-line rule and drops the rest.
+Trying to addressing style problems in the syntax is dangerous:
 
-## What actually collides
+- **Justification**: It is difficult to justify styles as they are in the end a problem of "style".
+- **Complexity**: Addressing style problems in the syntax would unnecessarily complicate the grammar.
 
-The distinction that matters is which token *ends* an expression, and whether a form reuses
-that token as its own separator. The colon call is the main concern, because only it can
-interfere with a comma-list.
+If we leave the style problem to programmers, and base the syntax design only on
+uncontroversial cases about disambiguation, we may achieve simplicity and
+regularity.
 
+## What actually matters
 
-There are two forms of colon calls:
+What the syntax design really cares about is to disallow nesting inline colon
+calls inside a comma-list, because **commas do not nest**.
 
-- **inline** — arguments separated by **commas**: `foo: a, b`
-- **indented** — arguments separated by **newlines**:
+Nesting an inline colon call is always confusing: `f(foo: 1, 2)` could mean
+`f(foo(1, 2))` or `f(foo(1), 2)`. Therefore, it is not a style problem, it is
+simply wrong.
 
-  ```jo
+In contrast, nesting an indented colon call in parenthesis-calls is only a style
+problem:
+
+```jo
+fact(
   foo:
     a
     b
-  ```
+  ,
+  20
+)
+```
 
-Drop each into a comma-list. The inline form leads to confusion — `f(foo: 1, 2)`
-could mean `f(foo(1, 2))` or `f(foo(1), 2)`. The indented form is separated by
-indentation, so the list's commas stay unambiguously its own.
+The code above is clear to the reader, even though it can be better written as
 
-The inline colon call is also the **only comma-list with no closing bracket**. A call ends in
-`)`, a list in `]`, an `allow`/`with` binding list in `in` — but an inline colon call's right
-edge is just the end of the line.
+```jo
+fact:
+  foo: a b
+  20
+```
 
-**Dot chains are not an exception.** An *inline select chain* (`xs.map(g).sum`) is an atom and
-composes everywhere. A *dot chain* is the multi-line form — each continuation `.` begins its
-own line — so its spine is newline-delimited and never collides.
+or
+
+```jo
+fact: foo(a, b), 20
+```
+
+If we leave style problems to programmers but still guard against nested inline
+colon syntax in a comma-context, simplicity and regularity can be restored.
 
 ## Specification
 
-### The rule
-
-> A form is admissible in a context unless its top-level delimiter is the token that
-> terminates the context.
-
-Contexts are classified by terminator. Most terminators — a closing bracket, a keyword —
-match no form's delimiter, so most positions admit every form. Two are distinctive:
-
-| Context | Terminator | Effect |
-|---|---|---|
-| **Comma-list** — `f(a, b)`, `[a, b]`, `arr[i, j]`, inline colon args, named args | comma | removes the inline colon call |
-| **Block** — phrases, indented colon arguments | dedent | adds the phrase-only statements |
-
-A comma-list excludes only the inline colon call, the sole form whose top-level delimiter is a
-comma. A block admits every form plus statements (`val`, `def`, assignment, …). Every other
-position — a fence, an interpolation, an `if`/`while`/`match`/`for` condition — admits every
-form unchanged.
-
-### Grammar
+The following syntax design achieves the design goal:
 
 ```ebnf
 simple_expr = words
@@ -113,82 +111,70 @@ comma_arg = [name "="] simple_expr    (* call args, list/bracket items, index, i
 ```
 
 Every comma-separated position takes `simple_expr` — call arguments, list and index items,
-inline colon arguments, and the right-hand sides of `with`/`allow` bindings (bounded by `in`).
-Only the inline colon call is thereby excluded. A block additionally admits the phrase-only
-statements (`assign`, `while`, `for`, `val`/`var`, `def`, …).
+inline colon arguments, and the right-hand side of a `with`/`allow` binding (bounded by `in`).
+That single choice keeps the inline colon call out of all of them. A block is terminated by a
+dedent rather than a comma, so it also takes the phrase-only statements (`assign`, `while`,
+`for`, `val`/`var`, `def`, …).
 
-Two properties follow:
-
-- **Nesting.** An inline colon call's arguments are `simple_expr`, so one cannot nest directly
-  in another — parentheses or the indented form are required. No separate rule is needed.
-
-- **Commas stay on the `:` line.** A form that opens an indentation region ends its line, so
-  no comma can follow it. Any indentation-opening argument is therefore automatically last,
-  which is what makes trailing lambdas and blocks work with no "last argument" rule.
+With the design above, a comma-delimited expression may only be `simple_expr`, so
+one can never nest inline colon calls directly in these positions.
 
 ## Consequences
 
-- **Colon calls as arguments.** An indented colon call is a legal argument
-  (indentation-delimited, bracket-bounded). An inline one is not:
+**Colon calls as arguments.** An indented colon call is a valid argument: it is delimited by
+indentation and bounded by the bracket. The inline form is not:
 
-  ```jo
-  f(g:
-      a
-      b)
-  f(foo: 1, 2)     // rejected — write `f foo(1, 2)`
-  ```
+```jo
+f(g:
+    a
+    b)
+f(foo: 1, 2)     // rejected — write `f foo(1, 2)`
+```
 
-- **Nested colon calls.** An inline nesting needs parentheses. An indented one does not:
+**Nested colon calls.** The rule that rejects an inline nesting allows an indented one:
 
-  ```jo
-  foo: a, bar(c, d)   // inline argument → parentheses required
-  foo: a, bar:        // indented argument → nesting is fine
-    c
-    d
-  ```
+```jo
+foo: a, bar(c, d)   // inline argument → parentheses required
+foo: a, bar:        // indented argument → nesting is fine
+  c
+  d
+```
 
-- **Trailing lambdas and blocks** need no exception. A lambda body, `match`, or indented colon
-  call is delimited by `=>`, `case`, or indentation, so it is an ordinary argument that lands
-  last because it ends its line:
+**Trailing lambdas and blocks.** These need no special case. A lambda body, a `match`, or an
+indented colon call is delimited by `=>`, `case`, or indentation — never a comma — so it is an
+ordinary argument that lands last because it ends its line:
 
-  ```jo
-  list.fold: 0, (acc, x) =>
-    acc + x
-  ```
+```jo
+list.fold: 0, (acc, x) =>
+  acc + x
+```
 
-- **Conditions** admit any expression: `if xs.filter(p).any then …`, or a `match` as a
-  condition.
-- **Else-less `if` in a comma-list** is now legal (`f(if c then a, b)`) — the `then` block
-  ends at the comma.
+**Conditions.** Any expression can now be a condition — `if xs.filter(p).any then …`, or a
+`match` used directly as one. An else-less `if` is also allowed in a comma-list: `f(if c then a,
+b)`, but it will be rejected by the typer.
 
 ## Prior art: Ruby
 
-Ruby is the one widely used language that ships a comma-separated call with
-no parentheses (its *command call*).
+Ruby is the only language that has a comma-separated call syntax without
+parentheses, its *command call*.
 
-Ruby restricts that a bare command **may** be the *only* argument of nested
-call, greedily consuming the rest:
+Ruby allows a bare command only as a call's **first** argument, where it greedily consumes the
+rest and so becomes the only argument. Anywhere else is a syntax error:
 
-- `p(foo 2, 3)` and `p foo 2, 3` is `p(foo(2, 3))`
-- `p(1, foo 2, 3)` and `p 1, foo 2, 3` is a **syntax error**
+- `p(foo 2, 3)` and `p foo 2, 3` parse as `p(foo(2, 3))` — `foo` is first, so it takes the rest
+- `p(1, foo 2)` and `p 1, foo 2` are rejected — `foo` is not first, even though it is last
 
-Jo's colon syntax is intended to improve both flexibility and clarity:
+Jo resolves the same ambiguity by making the grouping explicit instead of relying on a greedy
+rule:
 
 ```jo
 p: foo 2 3        // valid
 p: 1, foo 2 3     // valid
-
-p: foo: 2, 3      // error
+p: foo: 2, 3      // rejected — commas do not nest
 ```
 
 ## Alternatives considered
 
-**Widen both tiers until they overlap.** Add targeted exceptions until the two sets coincide
-for common code. This trades one list of restrictions for a longer list of exceptions, and
-still presents two arbitrary tiers rather than one rule.
-
-**Cancel the distinction entirely.** Allow every form everywhere and treat awkward nesting as
-the programmer's problem. Its two targets — nested inline colon calls, and inline colon calls
-in parenthesized calls — are exactly the comma collisions, which cannot be admitted without an
-invisible associativity rule or reader-ambiguous grouping. Such code is not a problem of style,
-it is simply wrong.
+**Widen both tiers until they overlap.** Keep closed and open, then add exceptions until the two
+sets coincide for common code. This trades one list of restrictions for a longer list of
+exceptions, which is both complex and difficult to justify.
