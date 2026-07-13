@@ -1,0 +1,8 @@
+jo = "1.0"
+name = "source-removal"
+
+[main]
+target = "python"
+
+[test]
+src = ["tests/"]
