@@ -125,9 +125,9 @@ object Runner:
   )(using Logger): Result[Unit] =
     val sentinel = sentinelFile
     val args = buildLibArgs(lib, jo)
-    if requiredOutputs.forall(Files.exists(_)) && isUpToDate(lib.sources, lib.checkLibs, Nil, sentinel, args) then
+    if Files.isDirectory(lib.outDir) && requiredOutputs.forall(Files.exists(_)) && isUpToDate(lib.sources, lib.checkLibs, Nil, sentinel, args) then
       return Result.unit
-    Files.createDirectories(lib.outDir)
+    recreateDir(lib.outDir)
     exec(args) match
       case ok @ Result.Ok(_) =>
         Files.writeString(sentinel, fingerprint(args))
@@ -137,9 +137,9 @@ object Runner:
   private def runApp(app: CompileTask.AppTask, jo: String)(using Logger): Result[Unit] =
     val sentinel = appSentinel(app)
     val args = buildAppArgs(app, jo)
-    if Files.exists(app.outFile) && isUpToDate(app.sources, app.checkLibs, app.linkLibs, sentinel, args) then return Result.unit
+    if Files.exists(app.outFile) && Files.isDirectory(app.sastDir) && isUpToDate(app.sources, app.checkLibs, app.linkLibs, sentinel, args) then return Result.unit
     Files.createDirectories(app.outFile.getParent)
-    Files.createDirectories(app.sastDir)
+    recreateDir(app.sastDir)
     exec(args) match
       case ok @ Result.Ok(_) =>
         Files.writeString(sentinel, fingerprint(args))
@@ -151,6 +151,10 @@ object Runner:
 
   private def dirSentinel(dir: Path): Path =
     dir.resolveSibling(dir.getFileName.toString + ".done")
+
+  private def recreateDir(dir: Path): Unit =
+    if Files.exists(dir) then deleteDir(dir)
+    Files.createDirectories(dir)
 
   private def buildLibArgs(lib: CompileTask.LibTask, jo: String): List[String] =
     val args = ArrayBuffer[String]()
