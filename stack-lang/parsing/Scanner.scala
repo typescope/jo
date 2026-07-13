@@ -37,6 +37,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case Token.CLASS | Token.INTERFACE | Token.OBJECT | Token.EXTENSION => true
       case Token.PARAM | Token.PATTERN | Token.UNION => true
       case Token.SECTION | Token.AUTO | Token.VIEW => true
+      case Token.AT => true
       case _ => false
 
   /** Collect raw preceding comments (no processing).
@@ -164,7 +165,8 @@ class Scanner(stream: CharStream)(using Reporter, Source):
           token.withInfo(indent, commentsFor(token))
 
         else if isOperatorChar(c) then
-          operator().withInfo(indent, Nil)
+          val token = operator()
+          token.withInfo(indent, commentsFor(token))
 
         else if isSpace(c) then
           next()
