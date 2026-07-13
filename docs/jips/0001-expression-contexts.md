@@ -103,6 +103,12 @@ foo:
     case None   => 0
 ```
 
+The style problems are not clear-cut: if `if/else` can be allowed in call
+parentheses, why not `match` and `with/in`? why not indented colon calls and dot
+chains? Facing such questions, it is very difficult to stand on the line of
+inconsistency to defend the goal of good styles. A distinction in design must be
+well-founded based on solid and strong justification. Otherwise, it is shaky.
+
 If we leave style problems to programmers but still guard against nested inline
 colon syntax in a comma-context, simplicity and regularity can be restored.
 
