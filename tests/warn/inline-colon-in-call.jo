@@ -1,0 +1,7 @@
+// An inline colon call may not appear directly inside a comma-separated list.
+
+def add(a: Int, b: Int): Int = a + b
+def id(x: Int): Int = x
+
+def main =
+  println: id(add: 3, 4)

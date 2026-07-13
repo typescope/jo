@@ -22,14 +22,16 @@ expression, a `Unit` value is synthesized.
 
 The following tokens introduce a block after themselves:
 
-**Control flow:** `then`, `else`, `do` (in `while`/`for`), `case =>`, `in` (in `allow`/`with`), `return`
+**Control flow:** `then`, `else`, `do` (in `while`/`for`), `case =>`, `in` (in `allow`/`with`)
 
 **Definitions:** `=` in `val`/`var`/`def`/`param`
 
-**Assignments and lambdas:** `=` (assignment), `=>` (lambda body)
+**Lambdas:** `=>` (lambda body)
 
 ::: info
-Pattern definitions (`pattern ... =`) do not start blocks. Their right-hand side consists of case clauses, which are not expressions.
+An **assignment** (`x = ...`) and a **`return`** take a single expression, not a block. Only a *definition's* `=` opens a block, so a bare `=` after a plain name never begins a multi-phrase region.
+
+Pattern definitions (`pattern ... =`) do not start blocks either. Their right-hand side consists of case clauses, which are not expressions.
 :::
 
 ## Block Delimiters
@@ -54,5 +56,5 @@ the same name.
 ## See Also
 
 - [Phrases](phrases.md) — Elements of blocks
-- [Expression Forms](expression-forms.md) — Open expressions and where they appear
+- [Expression Forms](expression-forms.md) — Expression forms and where they appear
 - [Syntax Summary](../syntax/syntax-summary.md) — Complete grammar

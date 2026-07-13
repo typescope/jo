@@ -11,26 +11,16 @@
 ---------- Error at tests/warn/colon-call-invalid.jo:7:16 ---------------
 |   val b = [send: to = "x", subject = "y"]   // error
 |                ^
-|                Unexpected token, found = COLON, expect = RBRACKET
-
----------- Error at tests/warn/colon-call-invalid.jo:7:9 ---------------
-|   val b = [send: to = "x", subject = "y"]   // error
-|         ^
-|         Expected a phrase after EQL
+|                An inline colon call cannot appear in a comma-context.  Parenthesize it or use the indented colon syntax
 
 ---------- Error at tests/warn/colon-call-invalid.jo:10:20 ---------------
 |   val c = send(send: to = "x", subject = "y") // error
 |                    ^
-|                    Unexpected token, found = COLON, expect = RPAREN
-
----------- Error at tests/warn/colon-call-invalid.jo:10:9 ---------------
-|   val c = send(send: to = "x", subject = "y") // error
-|         ^
-|         Expected a phrase after EQL
+|                    An inline colon call cannot appear in a comma-context.  Parenthesize it or use the indented colon syntax
 
 ---------- Error at tests/warn/colon-call-invalid.jo:13:13 ---------------
 |   send: send: "x", "y"   // error
 |             ^
-|             Expect an expression, found = COLON
+|             An inline colon call cannot appear in a comma-context.  Parenthesize it or use the indented colon syntax
 
-7 error(s), 0 warning(s)
+5 error(s), 0 warning(s)

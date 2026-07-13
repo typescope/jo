@@ -1,0 +1,7 @@
+// An inline colon call may not appear as a list element (a comma-separated list).
+
+def add(a: Int, b: Int): Int = a + b
+
+def main =
+  val xs = [add: 1, 2]
+  println xs.size

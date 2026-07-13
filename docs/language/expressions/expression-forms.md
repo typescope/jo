@@ -36,17 +36,19 @@ See [Literals](literals.md), [Is Expression](is-expression.md), [Regular Express
 
 Expressions are sequences of one or more words, plus a few extended forms:
 
-| Form | Example | Open only |
-|---|---|---|
-| Word sequence | `add 1 2`, `List.map f xs` | |
-| Lambda | `x => x + 1`, `(x, y) => x + y` | |
-| If expression | `if x > 0 then "pos" else "neg"` | |
-| Colon call | `println: "hello"` | ✓ |
-| Indented colon call | `send:`<br>&nbsp;&nbsp;`to = "alice"`<br>&nbsp;&nbsp;`subject = "Hi"` | ✓ |
-| Dot chain | `[1,2,3]`<br>&nbsp;&nbsp;`.exclude(x => x % 2 == 0)`<br>&nbsp;&nbsp;`.materialize` | ✓ |
-| Match | `match x`<br>`case Some(n) => n`<br>`case None => 0` | ✓ |
-| Rescue | `opt rescue None => "default"` | ✓ |
-| Allow / with | `allow IO in ...`, `with logger = f in ...` | ✓ |
+| Form | Example |
+|---|---|
+| Word sequence | `add 1 2`, `List.map f xs` |
+| Lambda | `x => x + 1`, `(x, y) => x + y` |
+| If expression | `if x > 0 then "pos" else "neg"` |
+| Inline colon call | `println: "hello"`, `send: to, subject` |
+| Indented colon call | `send:`<br>&nbsp;&nbsp;`to = "alice"`<br>&nbsp;&nbsp;`subject = "Hi"` |
+| Dot chain | `[1,2,3]`<br>&nbsp;&nbsp;`.exclude(x => x % 2 == 0)`<br>&nbsp;&nbsp;`.materialize` |
+| Match | `match x`<br>`case Some(n) => n`<br>`case None => 0` |
+| Rescue | `opt rescue None => "default"` |
+| Allow / with | `allow IO in ...`, `with logger = f in ...` |
+
+Every one of these forms may appear in essentially any position — a call argument, a list element, a condition, or a block phrase. The single exception is the **inline colon call**, whose arguments are separated by commas on the `:` line. It may not appear directly inside a comma-separated list, because its commas would merge with the list's own (`f(foo: 1, 2)` is ambiguous). Parenthesize it — `f((foo: 1, 2))` — or use the indented colon form, whose arguments carry no comma. See [One restriction: commas do not nest](overview.md#one-restriction-commas-do-not-nest).
 
 See [Applications](applications.md) for colon call and dot chain syntax, [Control Flow](control-flow.md) for `if`, `match`, and `rescue`, [Lambdas](lambdas.md) for lambda syntax.
 
@@ -81,9 +83,10 @@ val net =
 ```
 :::
 
+
 ## Phrases
 
-A phrase is anything that can appear in a block. Every expression is a valid phrase. Phrase-only constructs (not valid in delimited positions) are:
+A phrase is anything that can appear in a block. Every expression is a valid phrase. Phrase-only constructs — valid only as a block phrase, never as an expression argument or condition — are:
 
 | Form | Example |
 |---|---|
@@ -101,4 +104,4 @@ See [Phrases](phrases.md) and [Control Flow](control-flow.md).
 
 ## Blocks
 
-A block is a vertically aligned sequence of phrases, introduced by `=`, `=>`, `then`, `else`, `do`, `in`, or `case =>`. See [Blocks](blocks.md).
+A block is a vertically aligned sequence of phrases, introduced by a definition's `=`, by `=>`, or by `then`, `else`, `do`, `in`, or `case =>`. An assignment's `=` and a `return` take a single expression, not a block. See [Blocks](blocks.md).
