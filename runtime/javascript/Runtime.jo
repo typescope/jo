@@ -70,6 +70,24 @@ end
 
 //------------------------------------------------------------------------------
 //
+// Bytes operations (Bytes.Repr is a Uint8Array)
+//
+//------------------------------------------------------------------------------
+
+private section RefBytes
+  def size(repr: Bytes.Repr): Int = js.dynamic(repr).length.asInt
+
+  def get(repr: Bytes.Repr, index: Int): Byte = js.dynamic(repr)[index].cast[Byte]
+
+  def slice(repr: Bytes.Repr, offset: Int, length: Int): Bytes =
+    js.dynamic(repr).slice(offset, offset + length).cast[Bytes]
+
+  def toBase64(repr: Bytes.Repr): String =
+    js.global.Buffer.from(repr).callDynamic("toString", "base64").asString
+end
+
+//------------------------------------------------------------------------------
+//
 // String support
 //
 

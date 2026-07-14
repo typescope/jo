@@ -25,6 +25,11 @@ object Compiler:
 
     "jo.Array.create" -> "jo.js.runtime.RefArray.create",
 
+    "jo.Bytes.size"     -> "jo.js.runtime.RefBytes.size",
+    "jo.Bytes.get"      -> "jo.js.runtime.RefBytes.get",
+    "jo.Bytes.slice"    -> "jo.js.runtime.RefBytes.slice",
+    "jo.Bytes.toBase64" -> "jo.js.runtime.RefBytes.toBase64",
+
     // Regex engine hooks
     "jo.regex.Engine.compilePattern" -> "jo.js.runtime.RegexEngine.compilePattern",
     "jo.regex.Engine.execPatternAt"  -> "jo.js.runtime.RegexEngine.execPatternAt",
