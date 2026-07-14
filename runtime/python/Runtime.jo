@@ -54,6 +54,14 @@ private section RefBytes
 
   def toBase64(repr: Bytes.Repr): String =
     base64Mod.callDynamic("b64encode", repr).callDynamic("decode", "ascii").asString
+
+  def fill(size: Int, values: Int => Byte): Bytes =
+    val ba = py.module("builtins").callDynamic("bytearray", size)
+    var i = 0
+    while i < size do
+      py.dynamic(ba)[i] = values(i).toInt
+      i = i + 1
+    py.module("builtins").callDynamic("bytes", ba).cast[Bytes]
 end
 
 private section RefArray

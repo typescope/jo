@@ -70,6 +70,15 @@ private section RefBytes
   // [str].pack("m0") is strict base64 with no newlines — avoids requiring the base64 gem.
   def toBase64(repr: Bytes.Repr): String =
     rbRaw("[]").callDynamic("push", repr).callDynamic("pack", "m0").asString
+
+  // [ints].pack("C*") builds a binary String of those bytes.
+  def fill(size: Int, values: Int => Byte): Bytes =
+    val arr = rbRaw("[]")
+    var i = 0
+    while i < size do
+      arr.callDynamic("push", values(i).toInt)
+      i = i + 1
+    arr.callDynamic("pack", "C*").cast[Bytes]
 end
 
 //------------------------------------------------------------------------------

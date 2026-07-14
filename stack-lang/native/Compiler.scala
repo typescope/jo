@@ -37,6 +37,7 @@ object Compiler:
     "jo.Bytes.get"      -> "jo.runtime.native.RefBytes.get",
     "jo.Bytes.slice"    -> "jo.runtime.native.RefBytes.slice",
     "jo.Bytes.toBase64" -> "jo.runtime.native.RefBytes.toBase64",
+    "jo.Bytes.fill"     -> "jo.runtime.native.RefBytes.fill",
 
     // Regex engine hooks
     "jo.regex.Engine.compilePattern" -> "jo.runtime.native.regex.Regex.compilePattern",

@@ -31,6 +31,7 @@ object Compiler:
     "jo.Bytes.get"      -> "jo.py.runtime.RefBytes.get",
     "jo.Bytes.slice"    -> "jo.py.runtime.RefBytes.slice",
     "jo.Bytes.toBase64" -> "jo.py.runtime.RefBytes.toBase64",
+    "jo.Bytes.fill"     -> "jo.py.runtime.RefBytes.fill",
 
     // Regex engine hooks
     "jo.regex.Engine.compilePattern" -> "jo.py.runtime.RegexEngine.compilePattern",

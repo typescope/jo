@@ -31,4 +31,7 @@ section Bytes
 
   //[ These bytes as a base64 string. //]
   defer def (repr: Repr) toBase64: String
+
+  //[ Build `size` bytes, where byte `i` is `values(i)`. //]
+  defer def fill(size: Int, values: Int => Byte): Bytes
 end

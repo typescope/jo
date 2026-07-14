@@ -679,6 +679,18 @@ private section RefBytes
       o = o + 4
 
     StringOps.fromByteString outBuf
+
+  def fill(size: Int, values: Int => Byte): Bytes =
+    val dst = GC.alloc (size + 8)
+    writeInt dst 0                        // reserved cid (unused)
+    writeInt (addAddr dst 4) size
+
+    var i = 0
+    while i < size do
+      writeByte (addAddr dst (i + 8)) (values(i))
+      i = i + 1
+
+    cast[Bytes] dst
 end
 
 private section RefArray

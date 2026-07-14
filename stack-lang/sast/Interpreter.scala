@@ -26,6 +26,7 @@ object Interpreter:
     "jo.Bytes.get"      -> "jo.runtime.interpreter.RefBytes.get",
     "jo.Bytes.slice"    -> "jo.runtime.interpreter.RefBytes.slice",
     "jo.Bytes.toBase64" -> "jo.runtime.interpreter.RefBytes.toBase64",
+    "jo.Bytes.fill"     -> "jo.runtime.interpreter.RefBytes.fill",
     "jo.regex.Engine.compilePattern" -> "jo.runtime.interpreter.RegexEngine.compilePattern",
     "jo.regex.Engine.execPatternAt"  -> "jo.runtime.interpreter.RegexEngine.execPatternAt",
   )
@@ -224,6 +225,17 @@ object Interpreter:
       "bytesToBase64" -> { (args: List[Value]) =>
         val PlatformVal(bytes: Array[Byte]) :: Nil = args: @unchecked
         StringVal(java.util.Base64.getEncoder.encodeToString(bytes)) :: Nil
+      },
+
+      "bytesAlloc" -> { (args: List[Value]) =>
+        val IntVal(size) :: Nil = args: @unchecked
+        PlatformVal(new Array[Byte](size)) :: Nil
+      },
+
+      "bytesSet" -> { (args: List[Value]) =>
+        val PlatformVal(bytes: Array[Byte]) :: IntVal(index) :: IntVal(value) :: Nil = args: @unchecked
+        bytes(index) = value.toByte
+        UnitValue
       },
 
       "abort" -> { (args: List[Value]) =>

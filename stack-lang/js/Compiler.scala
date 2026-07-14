@@ -29,6 +29,7 @@ object Compiler:
     "jo.Bytes.get"      -> "jo.js.runtime.RefBytes.get",
     "jo.Bytes.slice"    -> "jo.js.runtime.RefBytes.slice",
     "jo.Bytes.toBase64" -> "jo.js.runtime.RefBytes.toBase64",
+    "jo.Bytes.fill"     -> "jo.js.runtime.RefBytes.fill",
 
     // Regex engine hooks
     "jo.regex.Engine.compilePattern" -> "jo.js.runtime.RegexEngine.compilePattern",

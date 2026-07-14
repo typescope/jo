@@ -21,6 +21,14 @@ private section RefBytes
   def get(repr: Bytes.Repr, index: Int): Byte = platformCall2("bytesGet", repr, index)
   def slice(repr: Bytes.Repr, offset: Int, length: Int): Bytes = platformCall3("bytesSlice", repr, offset, length)
   def toBase64(repr: Bytes.Repr): String = platformCall1("bytesToBase64", repr)
+
+  def fill(size: Int, values: Int => Byte): Bytes =
+    val b: Bytes = platformCall1("bytesAlloc", size)
+    var i = 0
+    while i < size do
+      platformCall3("bytesSet", b, i, values(i))
+      i = i + 1
+    b
 end
 
 private section RefArray

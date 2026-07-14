@@ -29,6 +29,7 @@ object Compiler:
     "jo.Bytes.get"      -> "jo.rb.runtime.RefBytes.get",
     "jo.Bytes.slice"    -> "jo.rb.runtime.RefBytes.slice",
     "jo.Bytes.toBase64" -> "jo.rb.runtime.RefBytes.toBase64",
+    "jo.Bytes.fill"     -> "jo.rb.runtime.RefBytes.fill",
 
     // Regex engine hooks
     "jo.regex.Engine.compilePattern" -> "jo.rb.runtime.RegexEngine.compilePattern",
