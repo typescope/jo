@@ -620,6 +620,67 @@ private def floatToStr(f: Float): String =
 // The class id (cid) makes it possible to tell an array value from class
 // instances.
 
+// Bytes operations. Bytes.Repr is an Addr to a `[cid: Int(4)][size: Int(4)][bytes...]`
+// block. The leading `cid` word is reserved for layout uniformity with other heap
+// objects (arrays lead with ArrayClassId); the bump allocator never reads it, so it
+// is written as 0 for now. The bytes therefore start at offset 8.
+private def base64Char(v: Int): Int =
+  if v < 26 then 65 + v               // 'A'..'Z'
+  else if v < 52 then 97 + (v - 26)   // 'a'..'z'
+  else if v < 62 then 48 + (v - 52)   // '0'..'9'
+  else if v == 62 then 43             // '+'
+  else 47                             // '/'
+
+private section RefBytes
+  def size(repr: Bytes.Repr): Int = readInt (addAddr (cast[Addr] repr) 4)
+
+  def get(repr: Bytes.Repr, index: Int): Byte =
+    readByte (addAddr (cast[Addr] repr) (index + 8))
+
+  def slice(repr: Bytes.Repr, offset: Int, length: Int): Bytes =
+    val src = cast[Addr] repr
+    val dst = GC.alloc (length + 8)
+    writeInt dst 0                        // reserved cid (unused)
+    writeInt (addAddr dst 4) length
+
+    var i = 0
+    while i < length do
+      writeByte (addAddr dst (i + 8)) (readByte (addAddr src (offset + 8 + i)))
+      i = i + 1
+
+    cast[Bytes] dst
+
+  def toBase64(repr: Bytes.Repr): String =
+    val src = cast[Addr] repr
+    val n = readInt (addAddr src 4)
+    val content = addAddr src 8
+    val outLen = ((n + 2) / 3) * 4
+
+    // Output goes to StringOps.fromByteString, which reads a `[byteSize(4)][content]`
+    // byte string — not a Bytes object — so no cid word here.
+    val outBuf = GC.alloc (outLen + 4)
+    writeInt outBuf outLen
+    val out = addAddr outBuf 4
+
+    var i = 0
+    var o = 0
+    while i < n do
+      val b0 = (readByte (addAddr content i)).toInt & 0xFF
+      val b1 = if i + 1 < n then (readByte (addAddr content (i + 1))).toInt & 0xFF else 0
+      val b2 = if i + 2 < n then (readByte (addAddr content (i + 2))).toInt & 0xFF else 0
+      val triple = (b0 << 16) | (b1 << 8) | b2
+
+      writeByte (addAddr out o)       (base64Char ((triple >> 18) & 0x3F)).toByte
+      writeByte (addAddr out (o + 1)) (base64Char ((triple >> 12) & 0x3F)).toByte
+      writeByte (addAddr out (o + 2)) (if i + 1 < n then base64Char ((triple >> 6) & 0x3F) else 61).toByte
+      writeByte (addAddr out (o + 3)) (if i + 2 < n then base64Char (triple & 0x3F) else 61).toByte
+
+      i = i + 3
+      o = o + 4
+
+    StringOps.fromByteString outBuf
+end
+
 private section RefArray
   @intrinsic
   def ArrayClassId: Int = ...
