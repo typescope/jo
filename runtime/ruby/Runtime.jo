@@ -58,7 +58,7 @@ end
 // Bytes operations (Bytes.Repr is a binary String)
 //
 
-private section RefBytes
+private section RawBytes
   def size(repr: Bytes.Repr): Int = rb.dynamic(repr).bytesize.asInt
 
   def get(repr: Bytes.Repr, index: Int): Byte =

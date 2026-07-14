@@ -631,7 +631,7 @@ private def base64Char(v: Int): Int =
   else if v == 62 then 43             // '+'
   else 47                             // '/'
 
-private section RefBytes
+private section RawBytes
   def size(repr: Bytes.Repr): Int = readInt (addAddr (cast[Addr] repr) 4)
 
   def get(repr: Bytes.Repr, index: Int): Byte =

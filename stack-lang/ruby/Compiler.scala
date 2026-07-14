@@ -25,11 +25,11 @@ object Compiler:
 
     "jo.Array.create" -> "jo.rb.runtime.RefArray.create",
 
-    "jo.Bytes.size"     -> "jo.rb.runtime.RefBytes.size",
-    "jo.Bytes.get"      -> "jo.rb.runtime.RefBytes.get",
-    "jo.Bytes.slice"    -> "jo.rb.runtime.RefBytes.slice",
-    "jo.Bytes.toBase64" -> "jo.rb.runtime.RefBytes.toBase64",
-    "jo.Bytes.fill"     -> "jo.rb.runtime.RefBytes.fill",
+    "jo.Bytes.size"     -> "jo.rb.runtime.RawBytes.size",
+    "jo.Bytes.get"      -> "jo.rb.runtime.RawBytes.get",
+    "jo.Bytes.slice"    -> "jo.rb.runtime.RawBytes.slice",
+    "jo.Bytes.toBase64" -> "jo.rb.runtime.RawBytes.toBase64",
+    "jo.Bytes.fill"     -> "jo.rb.runtime.RawBytes.fill",
 
     // Regex engine hooks
     "jo.regex.Engine.compilePattern" -> "jo.rb.runtime.RegexEngine.compilePattern",

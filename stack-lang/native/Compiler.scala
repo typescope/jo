@@ -33,11 +33,11 @@ object Compiler:
 
     "jo.Array.create" -> "jo.runtime.native.RefArray.create",
 
-    "jo.Bytes.size"     -> "jo.runtime.native.RefBytes.size",
-    "jo.Bytes.get"      -> "jo.runtime.native.RefBytes.get",
-    "jo.Bytes.slice"    -> "jo.runtime.native.RefBytes.slice",
-    "jo.Bytes.toBase64" -> "jo.runtime.native.RefBytes.toBase64",
-    "jo.Bytes.fill"     -> "jo.runtime.native.RefBytes.fill",
+    "jo.Bytes.size"     -> "jo.runtime.native.RawBytes.size",
+    "jo.Bytes.get"      -> "jo.runtime.native.RawBytes.get",
+    "jo.Bytes.slice"    -> "jo.runtime.native.RawBytes.slice",
+    "jo.Bytes.toBase64" -> "jo.runtime.native.RawBytes.toBase64",
+    "jo.Bytes.fill"     -> "jo.runtime.native.RawBytes.fill",
 
     // Regex engine hooks
     "jo.regex.Engine.compilePattern" -> "jo.runtime.native.regex.Regex.compilePattern",

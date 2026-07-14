@@ -25,11 +25,11 @@ object Compiler:
 
     "jo.Array.create" -> "jo.js.runtime.RefArray.create",
 
-    "jo.Bytes.size"     -> "jo.js.runtime.RefBytes.size",
-    "jo.Bytes.get"      -> "jo.js.runtime.RefBytes.get",
-    "jo.Bytes.slice"    -> "jo.js.runtime.RefBytes.slice",
-    "jo.Bytes.toBase64" -> "jo.js.runtime.RefBytes.toBase64",
-    "jo.Bytes.fill"     -> "jo.js.runtime.RefBytes.fill",
+    "jo.Bytes.size"     -> "jo.js.runtime.RawBytes.size",
+    "jo.Bytes.get"      -> "jo.js.runtime.RawBytes.get",
+    "jo.Bytes.slice"    -> "jo.js.runtime.RawBytes.slice",
+    "jo.Bytes.toBase64" -> "jo.js.runtime.RawBytes.toBase64",
+    "jo.Bytes.fill"     -> "jo.js.runtime.RawBytes.fill",
 
     // Regex engine hooks
     "jo.regex.Engine.compilePattern" -> "jo.js.runtime.RegexEngine.compilePattern",

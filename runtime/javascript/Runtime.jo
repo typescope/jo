@@ -74,7 +74,7 @@ end
 //
 //------------------------------------------------------------------------------
 
-private section RefBytes
+private section RawBytes
   def size(repr: Bytes.Repr): Int = js.dynamic(repr).length.asInt
 
   def get(repr: Bytes.Repr, index: Int): Byte = js.dynamic(repr)[index].cast[Byte]

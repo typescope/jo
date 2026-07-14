@@ -22,11 +22,11 @@ object Interpreter:
   val defaultLinkMappings = Map(
     "jo.abort" -> "jo.runtime.interpreter.abort",
     "jo.Array.create" -> "jo.runtime.interpreter.RefArray.create",
-    "jo.Bytes.size"     -> "jo.runtime.interpreter.RefBytes.size",
-    "jo.Bytes.get"      -> "jo.runtime.interpreter.RefBytes.get",
-    "jo.Bytes.slice"    -> "jo.runtime.interpreter.RefBytes.slice",
-    "jo.Bytes.toBase64" -> "jo.runtime.interpreter.RefBytes.toBase64",
-    "jo.Bytes.fill"     -> "jo.runtime.interpreter.RefBytes.fill",
+    "jo.Bytes.size"     -> "jo.runtime.interpreter.RawBytes.size",
+    "jo.Bytes.get"      -> "jo.runtime.interpreter.RawBytes.get",
+    "jo.Bytes.slice"    -> "jo.runtime.interpreter.RawBytes.slice",
+    "jo.Bytes.toBase64" -> "jo.runtime.interpreter.RawBytes.toBase64",
+    "jo.Bytes.fill"     -> "jo.runtime.interpreter.RawBytes.fill",
     "jo.regex.Engine.compilePattern" -> "jo.runtime.interpreter.RegexEngine.compilePattern",
     "jo.regex.Engine.execPatternAt"  -> "jo.runtime.interpreter.RegexEngine.execPatternAt",
   )
