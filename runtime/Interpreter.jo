@@ -15,6 +15,14 @@ private def platformCall3(fn: String, arg1: Any, arg2: Any, arg3: Any): Bottom =
 
 private def abort(s: String): Bottom = platformCall1("abort", s)
 
+// Bytes operations (Bytes.Repr is a JVM byte[])
+private section RefBytes
+  def size(repr: Bytes.Repr): Int = platformCall1("bytesSize", repr)
+  def get(repr: Bytes.Repr, index: Int): Byte = platformCall2("bytesGet", repr, index)
+  def slice(repr: Bytes.Repr, offset: Int, length: Int): Bytes = platformCall3("bytesSlice", repr, offset, length)
+  def toBase64(repr: Bytes.Repr): String = platformCall1("bytesToBase64", repr)
+end
+
 private section RefArray
   def create[T](size: Int): Array[T] =
     platformCall1("createRefArray", size)
