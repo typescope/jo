@@ -1,0 +1,34 @@
+namespace jo
+
+//[ An immutable sequence of bytes.
+  !
+  ! `Bytes` is an opaque buffer with a backend-defined representation (`Bytes.Repr` —
+  ! Python `bytes`, JavaScript `Uint8Array`, and so on). The representation is never
+  ! visible: a program works through the operators below, so no foreign value leaks
+  ! into Jo code.
+  !
+  !     b.size          // the number of bytes
+  !     b.get(0)        // the first byte, in [0, 255]
+  !     b.slice(0, 4)   // the first four bytes
+  !     b.toBase64      // the bytes as a base64 string
+//]
+type Bytes = Bytes.Repr :+ [Bytes.size, Bytes.get, Bytes.slice, Bytes.toBase64]
+
+section Bytes
+  //[ The backend byte buffer. Abstract here; each backend runtime binds it to its
+    ! native bytes type and links the operators below.
+  //]
+  type Repr
+
+  //[ The number of bytes. //]
+  defer def (repr: Repr) size: Int
+
+  //[ The byte at `index`. //]
+  defer def (repr: Repr) get(index: Int): Byte
+
+  //[ The `length` bytes starting at `offset`. //]
+  defer def (repr: Repr) slice(offset: Int, length: Int): Bytes
+
+  //[ These bytes as a base64 string. //]
+  defer def (repr: Repr) toBase64: String
+end
