@@ -35,6 +35,27 @@ end
 
 private def builtins: BuiltIn = py.module("builtins").cast[BuiltIn]
 
+//------------------------------------------------------------------------------
+//
+// Bytes operations (Bytes.Repr is Python `bytes`)
+//
+//------------------------------------------------------------------------------
+
+private def base64Mod: py.Dynamic = py.module("base64")
+
+private section RefBytes
+  def size(repr: Bytes.Repr): Int = builtins.len(repr)
+
+  def get(repr: Bytes.Repr, index: Int): Byte = py.dynamic(repr)[index].cast[Byte]
+
+  def slice(repr: Bytes.Repr, offset: Int, length: Int): Bytes =
+    val sliceObj = py.module("builtins").callDynamic("slice", offset, offset + length)
+    py.dynamic(repr).callDynamic("__getitem__", sliceObj).cast[Bytes]
+
+  def toBase64(repr: Bytes.Repr): String =
+    base64Mod.callDynamic("b64encode", repr).callDynamic("decode", "ascii").asString
+end
+
 private section RefArray
   def create[T](size: Int): Array[T] =
     val result: py.List = builtins.list()
