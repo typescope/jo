@@ -15,9 +15,7 @@ namespace jo
 type Bytes = Bytes.Repr :+ [Bytes.size, Bytes.get, Bytes.slice, Bytes.toBase64]
 
 section Bytes
-  //[ The backend byte buffer. Abstract here; each backend runtime binds it to its
-    ! native bytes type and links the operators below.
-  //]
+  //[ The backend byte buffer //]
   type Repr
 
   //[ The number of bytes. //]
@@ -26,7 +24,7 @@ section Bytes
   //[ The byte at `index`. //]
   defer def (repr: Repr) get(index: Int): Byte
 
-  //[ The `length` bytes starting at `offset`. //]
+  //[ Slice `length` bytes starting at `offset`. //]
   defer def (repr: Repr) slice(offset: Int, length: Int): Bytes
 
   //[ These bytes as a base64 string. //]
