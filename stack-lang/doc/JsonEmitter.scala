@@ -382,7 +382,9 @@ object JsonEmitter:
         fieldFirst = false
         val sym = field.symbol
         val visibility = if sym.isPrivate then "private" else "public"
-        out.print(s"""$indent    { "name": ${jsonString(sym.name)}, "type": ${emitType(field.tpt.tpe)}, "visibility": "$visibility" }""")
+        val docLines = defn.index.docComment(sym)
+        val doc = if docLines.nonEmpty then jsonString(docLines.mkString("\n")) else "null"
+        out.print(s"""$indent    { "name": ${jsonString(sym.name)}, "type": ${emitType(field.tpt.tpe)}, "visibility": "$visibility", "doc": $doc }""")
       out.println()
       out.println(s"""$indent  ],""")
 

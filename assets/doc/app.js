@@ -556,6 +556,22 @@ const app = {
         html += `<div class="doc">${this.renderDoc(item.doc)}</div>`;
       }
 
+      // Fields (class)
+      if (item.fields && item.fields.length > 0) {
+        html += `<h3>Fields</h3>`;
+        html += `<div class="members-list">`;
+        for (const f of item.fields) {
+          html += `
+            <div class="member-item">
+              <span class="kind-badge kind-field">field</span>
+              <code>${f.name}: ${this.renderType(f.type)}</code>
+              ${f.doc ? `<div class="doc">${this.renderDoc(f.doc)}</div>` : ''}
+            </div>
+          `;
+        }
+        html += `</div>`;
+      }
+
       // Methods (class/interface)
       if (item.methods && item.methods.length > 0) {
         html += `<h3>Methods</h3>`;
@@ -624,6 +640,22 @@ const app = {
       // Doc
       if (item.doc) {
         html += `<div class="doc">${this.renderDoc(item.doc)}</div>`;
+      }
+
+      // Fields (class)
+      if (item.fields && item.fields.length > 0) {
+        html += `<h3>Fields</h3>`;
+        html += `<div class="members-list">`;
+        for (const f of item.fields) {
+          html += `
+            <div class="member-item">
+              <span class="kind-badge kind-field">field</span>
+              <code>${f.name}: ${this.renderType(f.type)}</code>
+              ${f.doc ? `<div class="doc">${this.renderDoc(f.doc)}</div>` : ''}
+            </div>
+          `;
+        }
+        html += `</div>`;
       }
 
       // Methods for classes/interfaces without foldable (edge case)

@@ -391,6 +391,7 @@ h3 {
 .kind-abstract  { background: linear-gradient(135deg, #64748b, #475569); color: #fff; }
 .kind-section   { background: linear-gradient(135deg, #7c3aed, #2563eb); color: #fff; }
 .kind-method    { background: linear-gradient(135deg, #14b8a6, #0891b2); color: #fff; }
+.kind-field     { background: linear-gradient(135deg, #0f766e, #047857); color: #fff; }
 .kind-context   { background: linear-gradient(135deg, #f59e0b, #f97316); color: #fff; }
 .kind-object    { background: linear-gradient(135deg, #f97316, #ef4444); color: #fff; }
 

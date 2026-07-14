@@ -1,3 +1,28 @@
 namespace Greeter
 
+import jo.compile.intrinsic
+
 def greet(name: String): String = "Hello, " + name
+
+//[ Annotated top-level function doc
+  ! Kept when an annotation sits before the definition.
+//]
+@intrinsic
+def taggedGreeting(name: String): String = greet(name)
+
+//[ Annotated class doc
+  ! Kept when an annotation sits before the class.
+//]
+@intrinsic
+class Annotated(seed: Int)
+  //[ Annotated field doc
+    ! Visible in the field list.
+  //]
+  @intrinsic
+  val count: Int = seed
+
+  //[ Annotated method doc
+    ! Visible in the method list.
+  //]
+  @intrinsic
+  def describe: String = "count"
