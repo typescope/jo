@@ -66,8 +66,9 @@ same `from`. See [Build Spec](../reference/build-spec.md).
 
 ## Platform-Bound Packages
 
-The `platform` field in `meta.toml` indicates whether a package is pure Jo or
-tied to a platform:
+A package's `meta.toml` records whether it is pure Jo or tied to a platform. The
+field is called `runtime` there, because `meta.toml` is generated rather than
+written — see [Library Metadata](../reference/library-metadata.md):
 
 | Value      | Meaning                     |
 |------------|-----------------------------|
@@ -94,7 +95,8 @@ adapter needs and its dependents do not.
 
 Lib modules default to `"pure"`. App modules always name a platform, so a
 published app module records the one it is built for. `jo package` derives the
-`meta.toml` value from the module, so it cannot disagree with what was compiled.
+`meta.toml` `runtime` from the module's `platform`, so it cannot disagree with
+what was compiled.
 
 `platform` is **contagious** through the dependency graph. If a source module
 dependency is not `"pure"`, the dependent module is bound to that platform too.
