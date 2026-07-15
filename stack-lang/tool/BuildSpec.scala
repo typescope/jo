@@ -26,7 +26,7 @@ case class LinkSpec(from: String, to: String)
 
 case class ModuleSpec(
   kind: ModuleKind,
-  src: List[String],            // globs; empty = use module default
+  src: List[String],            // globs; required in jo.toml
   platform: Option[Platform],   // app backend or lib platform binding
   enableFfi: Boolean,           // whether this module may call py.*/rb.*
   depth: Option[Int],           // optional package-depth override for this module
@@ -117,7 +117,9 @@ object BuildSpec:
         case "app" => ModuleKind.App
         case _     => throw TomlError(s"invalid module.${id.value}.kind '$kindRaw', must be one of: lib, app")
 
-    val src = tbl.get("src").map(asStrList(_, s"module.${id.value}.src")).getOrElse(Nil)
+    val src = tbl.get("src") match
+      case Some(value) => asStrList(value, s"module.${id.value}.src")
+      case None        => throw TomlError(s"missing required field 'module.${id.value}.src'")
     if tbl.contains("target") then
       throw TomlError(s"module.${id.value}.target is no longer supported; use module.${id.value}.platform")
     val platform = tbl.get("platform").map: v =>

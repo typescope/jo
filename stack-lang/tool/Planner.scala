@@ -44,7 +44,7 @@ object Planner:
                 val sourceCheckLibs = sourceDeps.collect:
                   case (depProject, depModule, DepLink.Check) => depProject.sastDir(depModule)
 
-                val sources = SourceGlob.expand(spec.src, project0.dir, SourceGlob.defaultModuleSrc(id))
+                val sources = SourceGlob.expand(spec.src, project0.dir)
                 val compileOptions = ffiCompileOptions(spec) ++ spec.compileOptions
                 val task =
                   spec.kind match

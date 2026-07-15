@@ -63,8 +63,7 @@ object ToolPrinter:
 
   private def appendSection(sb: StringBuilder, s: ModuleSpec, pad: String): Unit =
     sb.append(s"${pad}kind = ${str(s.kind.toString.toLowerCase)}\n")
-    val src = if s.src.isEmpty then "(default)" else strList(s.src)
-    sb.append(s"${pad}src = $src\n")
+    sb.append(s"${pad}src = ${strList(s.src)}\n")
     s.platform.foreach(p => sb.append(s"${pad}platform = ${str(p.value)}\n"))
     if s.enableFfi then sb.append(s"${pad}enable-ffi = true\n")
     s.depth.foreach(d => sb.append(s"${pad}depth = $d\n"))

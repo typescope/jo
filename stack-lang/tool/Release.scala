@@ -33,7 +33,7 @@ object Release:
                   Files.createDirectories(stageDir)
                   Files.createDirectories(sourceStageDir)
                   stageRelease(project, module, spec, dependencies, sastDir, stageDir).flatMap: _ =>
-                    stageSources(project, module, spec, sourceStageDir).map: _ =>
+                    stageSources(project, spec, sourceStageDir).map: _ =>
                       JoyArchive.pack(stageDir, archivePath)
                       JoyArchive.pack(sourceStageDir, sourcesPath)
                       val archiveSha = Digest.sha512Hex(archivePath)
@@ -154,8 +154,8 @@ object Release:
       Files.copy(file, target)
     Result.unit
 
-  private def stageSources(project: Project, module: ModuleId, spec: ModuleSpec, stageDir: Path): Result[Unit] =
-    val sources = SourceGlob.expand(spec.src, project.dir, SourceGlob.defaultModuleSrc(module))
+  private def stageSources(project: Project, spec: ModuleSpec, stageDir: Path): Result[Unit] =
+    val sources = SourceGlob.expand(spec.src, project.dir)
 
     if sources.isEmpty then
       return Result.Err(s"no source files found for package '${spec.pkg.get.name}'")

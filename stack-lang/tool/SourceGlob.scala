@@ -4,17 +4,13 @@ import java.nio.file.{Path, Files, FileSystems}
 import scala.jdk.CollectionConverters.*
 
 object SourceGlob:
-  def defaultModuleSrc(module: ModuleId): List[String] =
-    List(s"${module.value}/src/**/*.jo")
-
   /** Expand a list of glob patterns relative to baseDir. Returns sorted .jo paths. */
-  def expand(patterns: List[String], baseDir: Path, default: List[String]): List[Path] =
-    val effective = if patterns.isEmpty then default else patterns
+  def expand(patterns: List[String], baseDir: Path): List[Path] =
     val fs = FileSystems.getDefault
     // Java's PathMatcher requires ** to match at least one path segment, so
     // "src/**/*.jo" does not match "src/Foo.jo". Work around this by also emitting
     // the zero-segment variant: "src/**/*.jo" → also "src/*.jo".
-    val expanded = effective.flatMap: p =>
+    val expanded = patterns.flatMap: p =>
       if p.contains("/**/") then List(p, p.replace("/**/", "/")) else List(p)
     expanded
       .flatMap: pattern =>
