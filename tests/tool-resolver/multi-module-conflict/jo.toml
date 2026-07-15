@@ -1,0 +1,15 @@
+jo = "1.0"
+
+[module.api]
+kind = "lib"
+
+dependencies = [
+  { package = "pkg-a", version = "1.0" },
+]
+
+[module.worker]
+kind = "lib"
+
+dependencies = [
+  { package = "pkg-b", version = "1.0" },
+]
