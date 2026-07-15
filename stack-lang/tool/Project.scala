@@ -295,7 +295,7 @@ object Project:
 
     try Result.Ok(BuildSpec.decode(TomlParser.parse(src)))
     catch case e: TomlError =>
-      Result.Err(s"in $file: ${e.getMessage}")
+      Result.Err(s"in ${LogFormat.path(file)}: ${e.getMessage}")
 
   private def populatePlatformCache(project: Project): Result[Unit] =
     val memo = project.platformByModule

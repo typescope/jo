@@ -1,0 +1,1 @@
+error: in tests/tool-graph/no-modules/jo.toml: missing required [module.<id>] section
