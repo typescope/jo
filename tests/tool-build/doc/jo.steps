@@ -15,25 +15,25 @@ grep -qF 'home page for the doc demo' .build/app/doc/data.js
 : ''
 
 
-grep -qF 'Annotated top-level function doc' .build/doc-demo/doc/data.js
+grep -qF 'Annotated top-level function doc' .build/app/doc/data.js
 : ''
 
-grep -qF 'Annotated class doc' .build/doc-demo/doc/data.js
+grep -qF 'Annotated class doc' .build/app/doc/data.js
 : ''
 
-grep -qF 'Annotated field doc' .build/doc-demo/doc/data.js
+grep -qF 'Annotated field doc' .build/app/doc/data.js
 : ''
 
-grep -qF 'Visible in the field list.' .build/doc-demo/doc/data.js
+grep -qF 'Visible in the field list.' .build/app/doc/data.js
 : ''
 
-grep -qF 'Annotated method doc' .build/doc-demo/doc/data.js
+grep -qF 'Annotated method doc' .build/app/doc/data.js
 : ''
 
-grep -qF 'Visible in the method list.' .build/doc-demo/doc/data.js
+grep -qF 'Visible in the method list.' .build/app/doc/data.js
 : ''
 
-grep -qF 'Fields</h3>' .build/doc-demo/doc/assets/app.js
+grep -qF 'Fields</h3>' .build/app/doc/assets/app.js
 : ''
 
 rm -rf .build/app/doc
