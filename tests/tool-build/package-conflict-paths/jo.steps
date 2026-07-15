@@ -4,8 +4,8 @@ rm -f jo.lock
 jo build
 : '
 error: conflicting requirements for jo-core
-  app -> pkg-a.lib -> jo-core(1.0)
-  app -> pkg-b.lib -> jo-core(2.0)
+  [app] -> pkg-a [lib] -> jo-core(1.0)
+  [app] -> pkg-b [lib] -> jo-core(2.0)
   Jo had already fixed jo-core to 1.5.0.
   Jo resolves dependencies level by level and does not later switch to a larger version.
 '
