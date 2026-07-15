@@ -1,0 +1,30 @@
+jo = "1.0"
+default = "test"
+
+[module.app-a]
+kind = "app"
+platform = "python"
+src = ["app-a/"]
+
+links = [
+  { from = "Service.run", to = "AppA.run" },
+]
+
+[module.app-b]
+kind = "app"
+platform = "python"
+src = ["app-b/"]
+
+links = [
+  { from = "Service.run", to = "AppB.run" },
+]
+
+[module.test]
+kind = "app"
+platform = "python"
+src = ["test/"]
+
+dependencies = [
+  { module = "app-a" },
+  { module = "app-b" },
+]
