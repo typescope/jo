@@ -12,7 +12,7 @@ packages = [{ name = "greeter-pkg", version = "1.0" }]
 [module.test]
 kind = "app"
 platform = "python"
-src = ["tests/*.jo"]
+src = ["tests"]
 
 modules = ["app"]
 packages = [{ name = "test-pkg", version = "1.0" }]
