@@ -166,7 +166,14 @@ object Project:
     val stack = mutable.ArrayBuffer.empty[Path]
 
     def loadAt(path: Path, inheritedCompiler: Option[(Version, Path)] = None): Result[Project] =
-      val canonicalSpecPath = path.toAbsolutePath.toRealPath()
+      val specPath = path.toAbsolutePath.normalize()
+      if !Files.exists(specPath) then
+        return Result.Err(s"spec file not found: ${LogFormat.path(specPath)}")
+
+      val canonicalSpecPath =
+        try specPath.toRealPath()
+        catch case e: IOException =>
+          return Result.Err(s"spec file not found: ${LogFormat.path(specPath)}: ${e.getMessage}")
       val specDir = canonicalSpecPath.getParent
 
       resolved.get(canonicalSpecPath) match
@@ -289,7 +296,7 @@ object Project:
     val file = dir.resolve(tomlFile)
 
     if !Files.exists(file) then
-      return Result.Err(s"spec file not found: $file")
+      return Result.Err(s"spec file not found: ${LogFormat.path(file)}")
 
     val src = Files.readString(file)
 
