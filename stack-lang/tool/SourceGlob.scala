@@ -7,6 +7,9 @@ object SourceGlob:
   val defaultMainSrc = List("src/**/*.jo")
   val defaultTestSrc = List("tests/**/*.jo")
 
+  def defaultModuleSrc(module: ModuleId): List[String] =
+    List(s"${module.value}/src/**/*.jo")
+
   /** Expand a list of glob patterns relative to baseDir. Returns sorted .jo paths. */
   def expand(patterns: List[String], baseDir: Path, default: List[String] = defaultMainSrc): List[Path] =
     val effective = if patterns.isEmpty then default else patterns

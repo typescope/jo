@@ -5,164 +5,183 @@ import java.nio.file.Path
 import scala.collection.mutable
 import tool.toml.TomlError
 
-/** Helpers for the `jo build`, `jo check`, `jo run`, and `jo test` commands. */
+/** Helpers for the `jo build`, `jo check`, `jo run`, and related project commands. */
 object Build:
   private val specOpt = CommandLine.OptionStringSetting("--spec", "project spec file")
 
-  case class ProjectCommandArgs(specFile: String)
-  case class RunCommandArgs(specFile: String, appArgs: List[String])
+  case class ProjectCommandArgs(specFile: String, module: Option[ModuleId])
+  case class RunCommandArgs(specFile: String, module: Option[ModuleId], appArgs: List[String])
 
   def clean(project: Project)(using Logger): Result[Unit] =
     try
-      val buildDir = project.buildDir
+      val buildDir = project.dir.resolve(".build")
 
       if java.nio.file.Files.exists(buildDir) then
         deleteDir(buildDir)
         Logger.info(s"[clean] removed ${LogFormat.path(buildDir)}\n")
         Result.unit
       else
-        Logger.info(s"[clean] nothing to clean (use 'jo clean' in each path dependency to clean those separately)\n")
+        Logger.info(s"[clean] nothing to clean\n")
         Result.unit
     catch
       case e: IOException => Result.Err(s"error: ${e.getMessage}")
 
-  def buildDoc(project: Project)(using Logger, PackageProvider): Result[Unit] =
-    makePlanResult(project, List(ModuleKind.Main)).flatMap: (plans, joBin) =>
-      val outDir = project.buildDir.resolve("doc")
-      val mainWithDoc = plans.main.copy(
-        task = plans.main.task match
+  def buildDoc(project: Project, module: ModuleId)(using Logger, PackageProvider): Result[Unit] =
+    makePlanResult(project, List(module)).flatMap: plans =>
+      val plan = plans.modules.head
+      val outDir = project.buildDir(module).resolve("doc")
+      val withDoc = plan.copy(
+        task = plan.task match
           case lib: CompileTask.LibTask =>
-            lib.copy(compileOptions = lib.compileOptions ++ docOptions(project))
+            lib.copy(compileOptions = lib.compileOptions ++ docOptions(project, module))
 
           case app: CompileTask.AppTask =>
-            CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, docOptions(project))
+            CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, docOptions(project, module))
       )
-      Runner.doc(mainWithDoc, joBin, outDir).map: _ =>
+      Runner.doc(withDoc, outDir).map: _ =>
         Logger.info(s"[output] ${LogFormat.path(outDir)}\n")
 
-  def deps(project: Project)(using Logger, PackageProvider): Result[Unit] =
-    depsResult(project).map: output =>
+  def deps(project: Project, module: ModuleId)(using Logger, PackageProvider): Result[Unit] =
+    depsResult(project, module).map: output =>
       print(output)
 
   def lock(project: Project)(using Logger, PackageProvider): Result[Unit] =
     lockResult(project)
 
-  def build(project: Project)(using Logger, PackageProvider): Result[Unit] =
-    makePlanResult(project, List(ModuleKind.Main)).flatMap: (plans, joBin) =>
-      Runner.run(plans.main, joBin)
+  def build(project: Project, module: ModuleId)(using Logger, PackageProvider): Result[Unit] =
+    makePlanResult(project, List(module)).flatMap: plans =>
+      Runner.run(plans.modules.head)
 
-  def check(project: Project)(using Logger, PackageProvider): Result[Unit] =
-    makePlanResult(project, List(ModuleKind.Main)).flatMap: (plans, joBin) =>
-      Runner.check(plans.main, joBin, "check")
+  def check(project: Project, module: ModuleId)(using Logger, PackageProvider): Result[Unit] =
+    makePlanResult(project, List(module)).flatMap: plans =>
+      Runner.check(plans.modules.head, "check")
 
-  def test(project: Project)(using Logger, PackageProvider): Result[Unit] =
-    makePlanResult(project, List(ModuleKind.Main, ModuleKind.Test)).flatMap: (plans, joBin) =>
-      Runner.test(plans.test, joBin)
-
-  def run(project: Project, appArgs: List[String])(using Logger, PackageProvider): Result[Unit] =
-    makePlanResult(project, List(ModuleKind.Main)).flatMap: (plans, joBin) =>
-      val main = plans.main
-      Runner.run(main, joBin).flatMap: _ =>
-        main.task match
+  def run(project: Project, module: ModuleId, appArgs: List[String])(using Logger, PackageProvider): Result[Unit] =
+    makePlanResult(project, List(module)).flatMap: plans =>
+      val plan = plans.modules.head
+      Runner.run(plan).flatMap: _ =>
+        plan.task match
           case app: CompileTask.AppTask =>
-            Logger.info(s"[run] ${project.name}\n")
+            Logger.info(s"[run] ${module.value}\n")
             Runner.runInteractive(app, appArgs)
 
           case _: CompileTask.LibTask =>
-            Result.Err("error: 'jo run' requires an app build (no [package] section)")
+            Result.Err(s"error: 'jo run' requires an app module, but '${module.value}' is kind = \"lib\"")
 
   // ---- Helpers ---------------------------------------------------------------
 
-  def makePlanResult(project: Project, modules: List[ModuleKind])(using Logger, PackageProvider): Result[(ProjectPlan, Path)] =
+  def selectedModule(project: Project, parsed: ProjectCommandArgs): ModuleId =
+    parsed.module.getOrElse(project.defaultModuleId)
+
+  def selectedModule(project: Project, parsed: RunCommandArgs): ModuleId =
+    parsed.module.getOrElse(project.defaultModuleId)
+
+  def makePlanResult(project: Project, modules: List[ModuleId])(using Logger, PackageProvider): Result[ProjectPlan] =
     try
-      val lockPath = LockFile.pathForSpec(project.specPath)
-      materializeRegistryLibs(project, lockPath, useExistingLock = true, modules).map: registrySastDirs =>
-        (Planner.plan(project, registrySastDirs), project.joBin)
+      materializeRegistryLibs(project, modules).map: registrySastDirs =>
+        Planner.plan(project, modules, registrySastDirs)
     catch
       case e: ArchiveError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
+      case e: IllegalArgumentException => Result.Err(e.getMessage)
+      case e: IllegalStateException => Result.Err(e.getMessage)
 
   def lockResult(project: Project)(using Logger, PackageProvider): Result[Unit] =
     try
       val lockPath = LockFile.pathForSpec(project.specPath)
-      resolvePackages(project, lockPath, useExistingLock = false).flatMap: resolved =>
+      resolvePackages(project, project.moduleIds, lockPath, useExistingLock = false).flatMap: resolved =>
         warnUnusedPinning(resolved)
-        validatePackageDepths(project, resolved, List(ModuleKind.Main, ModuleKind.Test)).flatMap: _ =>
+        validatePackageDepths(project, resolved, project.moduleIds).flatMap: _ =>
           writeLock(lockPath, project.joVersion, resolved.packages)
     catch
       case e: ArchiveError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
 
-  def depsResult(project: Project)(using Logger, PackageProvider): Result[String] =
+  def depsResult(project: Project, module: ModuleId)(using Logger, PackageProvider): Result[String] =
     try
       val lockPath = LockFile.pathForSpec(project.specPath)
-      val modules =
-        if project.test.isDefined then List(ModuleKind.Main, ModuleKind.Test)
-        else List(ModuleKind.Main)
-
-      resolvePackages(project, lockPath, useExistingLock = true).flatMap: resolved =>
+      resolvePackages(project, List(module), lockPath, useExistingLock = true, requireLockCoverage = true).flatMap: resolved =>
         warnUnusedPinning(resolved)
-        validatePackageDepths(project, resolved, modules).map: _ =>
-          DepsPrinter.render(project, resolved)
+        validatePackageDepths(project, resolved, List(module)).map: _ =>
+          DepsPrinter.render(project, List(module), resolved)
     catch
       case e: ArchiveError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
 
   private def materializeRegistryLibs(
     project: Project,
-    lockPath: Path,
-    useExistingLock: Boolean,
-    modules: List[ModuleKind],
-  )(using logger: Logger, provider: PackageProvider): Result[Map[String, Path]] =
-    resolvePackages(project, lockPath, useExistingLock).flatMap: resolved =>
+    modules: List[ModuleId],
+  )(using logger: Logger, provider: PackageProvider): Result[Planner.RegistrySastDirs] =
+    val lockPath = LockFile.pathForSpec(project.specPath)
+    resolvePackagesForBuild(project, modules, lockPath).flatMap: resolved =>
       warnUnusedPinning(resolved)
       validatePackageDepths(project, resolved, modules).flatMap: _ =>
-        writeLock(lockPath, project.joVersion, resolved.packages).flatMap: _ =>
-          resolved.packages.foldLeft(Result.Ok(Map.empty[String, Path])): (acc, pkg) =>
-            acc.flatMap: paths =>
-              provider.materialize(pkg.name, pkg.version).map: unpacked =>
-                paths + (pkg.name -> unpacked)
+        resolved.packages.foldLeft(Result.Ok(Map.empty[String, Path]): Result[Planner.RegistrySastDirs]): (pkgAcc, pkg) =>
+          pkgAcc.flatMap: currentPaths =>
+            provider.materialize(pkg.name, pkg.version).map: unpacked =>
+              currentPaths + (pkg.name -> unpacked)
+
+  private def resolvePackagesForBuild(
+    project: Project,
+    modules: List[ModuleId],
+    lockPath: Path,
+  )(using PackageProvider): Result[ResolutionResult] =
+    loadLock(lockPath).flatMap:
+      case Some(lock) =>
+        DependencyResolver.resolveProject(project, modules, lock).flatMap: resolved =>
+          requireLockCoverage(lock, resolved).map(_ => resolved)
+
+      case None =>
+        DependencyResolver.resolveProject(project, project.moduleIds).flatMap: resolved =>
+          validatePackageDepths(project, resolved, project.moduleIds).flatMap: _ =>
+            writeLock(lockPath, project.joVersion, resolved.packages).map(_ => resolved)
 
   private def resolvePackages(
     project: Project,
+    modules: List[ModuleId],
     lockPath: Path,
     useExistingLock: Boolean,
+    requireLockCoverage: Boolean = false,
   )(using PackageProvider): Result[ResolutionResult] =
     if !useExistingLock then
-      DependencyResolver.resolveProject(project)
+      DependencyResolver.resolveProject(project, modules)
     else
-      loadLock(lockPath).flatMap: lockOpt =>
-        lockOpt match
-          case Some(lock) => DependencyResolver.resolveProject(project, lock)
-          case None       => DependencyResolver.resolveProject(project)
+      loadLock(lockPath).flatMap:
+        case Some(lock) =>
+          DependencyResolver.resolveProject(project, modules, lock).flatMap: resolved =>
+            if requireLockCoverage then this.requireLockCoverage(lock, resolved).map(_ => resolved)
+            else Result.Ok(resolved)
+        case None       => DependencyResolver.resolveProject(project, modules)
 
   private def validatePackageDepths(
     project: Project,
     resolved: ResolutionResult,
-    modules: List[ModuleKind],
+    modules: List[ModuleId],
   ): Result[Unit] =
     modules.distinct.foldLeft(Result.unit): (acc, module) =>
       acc.flatMap: _ =>
-        val (actualDepth, deepestPath) = module match
-          case ModuleKind.Main => (resolved.mainPackageDepth, resolved.mainDeepestPath)
-          case ModuleKind.Test => (resolved.testPackageDepth, resolved.testDeepestPath)
+        val info = resolved.packageDepthByModule.getOrElse(module, DepthInfo(0, Nil))
         val allowedDepth = project.depthOf(module)
 
-        if actualDepth > allowedDepth then
-          val moduleName = module match
-            case ModuleKind.Main => "main"
-            case ModuleKind.Test => "test"
-
+        if info.depth > allowedDepth then
           Result.Err(
-            s"""package dependency depth exceeded for '${project.name}' $moduleName module: actual $actualDepth, allowed $allowedDepth
+            s"""package dependency depth exceeded for module '${module.value}': actual ${info.depth}, allowed $allowedDepth
                |
-               |  Path: ${(project.name :: deepestPath).mkString(" -> ")}""".stripMargin
+               |  Path: ${(module.value :: info.deepestPath).mkString(" -> ")}""".stripMargin
           )
         else
           Result.unit
 
   private def loadLock(path: Path): Result[Option[LockFile]] =
     LockFile.load(path)
+
+  private def requireLockCoverage(lock: LockFile, resolved: ResolutionResult): Result[Unit] =
+    val locked = lock.packages.map(_.name).toSet
+    val missing = resolved.packages.map(_.name).filterNot(locked).sorted
+    if missing.isEmpty then
+      Result.unit
+    else
+      Result.Err(s"lock file is missing package entries for: ${missing.mkString(", ")}; run 'jo lock'")
 
   private def writeLock(path: Path, joVersion: Version, pkgs: List[ResolvedPackage])(using provider: PackageProvider): Result[Unit] =
     val locked = new mutable.ArrayBuffer[LockedPackage]
@@ -184,14 +203,14 @@ object Build:
     else
       LockFile.write(path, LockFile(Some(joVersion), locked.toList))
 
-  private def docOptions(project: Project): List[String] =
+  private def docOptions(project: Project, module: ModuleId): List[String] =
     val docSpec = project.doc.getOrElse(DocSpec())
     val options = collection.mutable.ListBuffer[String](
       "--doc",
       "--out",
-      project.buildDir.resolve("doc").toString,
+      project.buildDir(module).resolve("doc").toString,
       "--title",
-      docSpec.title.getOrElse(project.name),
+      docSpec.title.getOrElse(module.value),
     )
     docSpec.readme.foreach(r => options ++= List("--readme", project.dir.resolve(r).toString))
     if docSpec.includePrivate then options += "--include-private"
@@ -206,7 +225,9 @@ object Build:
     CommandLine.parse(args, List(CommandLine.verboseOpt, specOpt)).flatMap: parsed =>
       parsed.positional match
         case Nil =>
-          Result.Ok(ProjectCommandArgs(parsed.value(specOpt).getOrElse("jo.toml")))
+          Result.Ok(ProjectCommandArgs(parsed.value(specOpt).getOrElse("jo.toml"), None))
+        case module :: Nil =>
+          Result.Ok(ProjectCommandArgs(parsed.value(specOpt).getOrElse("jo.toml"), Some(ModuleId(module))))
         case arg :: _ =>
           Result.Err(s"error: unexpected argument '$arg'")
 
@@ -214,9 +235,12 @@ object Build:
     CommandLine.parse(args, List(CommandLine.verboseOpt, specOpt)).flatMap: parsed =>
       parsed.positional match
         case Nil =>
-          Result.Ok(RunCommandArgs(parsed.value(specOpt).getOrElse("jo.toml"), parsed.trailing))
+          Result.Ok(RunCommandArgs(parsed.value(specOpt).getOrElse("jo.toml"), None, parsed.trailing))
+        case module :: Nil =>
+          Result.Ok(RunCommandArgs(parsed.value(specOpt).getOrElse("jo.toml"), Some(ModuleId(module)), parsed.trailing))
         case arg :: _ =>
           Result.Err(s"error: unexpected argument '$arg' (use '--' to pass app arguments)")
+
 private[tool] def deleteDir(dir: Path): Unit =
   if java.nio.file.Files.exists(dir) then
     java.nio.file.Files.walk(dir)

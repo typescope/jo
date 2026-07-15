@@ -1,68 +1,113 @@
 package tool
 
 import java.nio.file.{Files, Path}
+import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 
 object Release:
-  def buildPackage(project: Project)(using Logger, PackageProvider): Result[Unit] =
-    if !project.isLib then
-      return Result.Err("'jo package' requires a library build ([package] section)")
+  def buildPackage(project: Project, module: ModuleId)(using Logger, PackageProvider): Result[Unit] =
+    project.requireModule(module).flatMap: spec =>
+      spec.pkg match
+        case None =>
+          Result.Err(s"'jo package' requires [module.${module.value}.package]")
 
-    Logger.info(s"[package] ${project.name}.main\n")
-    validatePackageDependencies(project) match
-      case Result.Err(msg) => return Result.Err(msg)
-      case Result.Ok(_)    =>
+        case Some(pkg) =>
+          Logger.info(s"[package] ${project.projectName}.${module.value}\n")
+          validatePackageDependencies(project, module).flatMap: _ =>
+            Build.makePlanResult(project, List(module)).flatMap: plans =>
+              Runner.run(plans.modules.head).flatMap: _ =>
+                val version = pkg.version
+                val sastDir = project.sastDir(module)
+                val releaseDir = project.buildDir(module).resolve("release")
+                val archiveName = s"${pkg.name}-v$version.joy"
+                val archivePath = releaseDir.resolve(archiveName)
+                val archiveDigestPath = releaseDir.resolve(s"$archiveName.sha512")
+                val sourcesName = s"${pkg.name}-v$version-sources.zip"
+                val sourcesPath = releaseDir.resolve(sourcesName)
+                val sourcesDigestPath = releaseDir.resolve(s"$sourcesName.sha512")
+                val tempDir = Files.createTempDirectory("jo-release-")
 
-    Build.makePlanResult(project, List(ModuleKind.Main)).flatMap: (plans, joBin) =>
-      Runner.run(plans.main, joBin).flatMap: _ =>
-        val version = project.pkg.get.version
-        val sastDir = project.mainSastDir
-        val releaseDir = project.buildDir.resolve("release")
-        val archiveName = s"${project.name}-v$version.joy"
-        val archivePath = releaseDir.resolve(archiveName)
-        val archiveDigestPath = releaseDir.resolve(s"$archiveName.sha512")
-        val sourcesName = s"${project.name}-v$version-sources.zip"
-        val sourcesPath = releaseDir.resolve(sourcesName)
-        val sourcesDigestPath = releaseDir.resolve(s"$sourcesName.sha512")
-        val tempDir = Files.createTempDirectory("jo-release-")
+                try
+                  val stageDir = tempDir.resolve("stage")
+                  val sourceStageDir = tempDir.resolve("sources")
+                  Files.createDirectories(stageDir)
+                  Files.createDirectories(sourceStageDir)
+                  stageRelease(project, module, spec, sastDir, stageDir).flatMap: _ =>
+                    stageSources(project, module, spec, sourceStageDir).map: _ =>
+                      JoyArchive.pack(stageDir, archivePath)
+                      JoyArchive.pack(sourceStageDir, sourcesPath)
+                      val archiveSha = Digest.sha512Hex(archivePath)
+                      val sourceSha = Digest.sha512Hex(sourcesPath)
+                      Files.writeString(archiveDigestPath, s"$archiveSha  $archiveName\n")
+                      Files.writeString(sourcesDigestPath, s"$sourceSha  $sourcesName\n")
+                      Logger.info(s"[artifact] ${LogFormat.path(archivePath)}\n")
+                      Logger.info(s"[artifact] ${LogFormat.path(sourcesPath)}\n")
+                finally deleteDir(tempDir)
 
-        try
-          val stageDir = tempDir.resolve("stage")
-          val sourceStageDir = tempDir.resolve("sources")
-          Files.createDirectories(stageDir)
-          Files.createDirectories(sourceStageDir)
-          stageRelease(project, sastDir, stageDir).flatMap: _ =>
-            stageSources(project, sourceStageDir).map: _ =>
-              JoyArchive.pack(stageDir, archivePath)
-              JoyArchive.pack(sourceStageDir, sourcesPath)
-              val archiveSha = Digest.sha512Hex(archivePath)
-              val sourceSha = Digest.sha512Hex(sourcesPath)
-              Files.writeString(archiveDigestPath, s"$archiveSha  $archiveName\n")
-              Files.writeString(sourcesDigestPath, s"$sourceSha  $sourcesName\n")
-              Logger.info(s"[artifact] ${LogFormat.path(archivePath)}\n")
-              Logger.info(s"[artifact] ${LogFormat.path(sourcesPath)}\n")
-        finally deleteDir(tempDir)
+  private def validatePackageDependencies(project: Project, module: ModuleId)(using PackageProvider): Result[Unit] =
+    packageDependencies(project, module).flatMap: _ =>
+      DependencyResolver.resolveProject(project, List(module)).flatMap: resolved =>
+        resolved.packages.find(_.meta.platform != "pure") match
+          case Some(pkg) =>
+            Result.Err(
+              s"'jo package' only allows published packages to depend on pure packages; dependency '${pkg.name}' requires platform=${pkg.meta.platform}"
+            )
+          case None =>
+            Result.unit
 
-  private def validatePackageDependencies(project: Project)(using PackageProvider): Result[Unit] =
-    val dependencyEntries = project.main.dependencies.toSeq.sortBy(_._1)
+  private def packageDependencies(project: Project, module: ModuleId): Result[Map[String, VersionSpec]] =
+    project.requireModule(module).flatMap: spec =>
+      val dependencies = mutable.LinkedHashMap.empty[String, VersionSpec]
+      val moduleDeps = mutable.Queue(project.moduleDepsOf(module)*)
 
-    dependencyEntries.find(_._2.source.isInstanceOf[DepSource.Path]) match
-      case Some((name, _)) =>
-        Result.Err(
-          s"'jo package' does not support local path dependency '$name'; replace it with a publishable package dependency"
-        )
+      def addDependency(name: String, constraint: VersionSpec): Result[Unit] =
+        dependencies.get(name) match
+          case Some(existing) if existing != constraint =>
+            Result.Err(
+              s"package dependency '$name' has conflicting constraints '${existing.show}' and '${constraint.show}' in module '${module.value}'"
+            )
+          case _ =>
+            dependencies(name) = constraint
+            Result.unit
 
+      spec.dependencies.foldLeft(Result.unit): (acc, depSpec) =>
+        acc.flatMap: _ =>
+          if depSpec.link == DepLink.Link then
+            Result.unit
+          else
+            depSpec.source match
+              case DepSource.Registry(name, constraint) =>
+                addDependency(name, constraint)
+
+              case DepSource.Module(depModule, sourcePath) =>
+                moduleDeps.dequeueFirst(dep => dep.module == depModule && dep.sourcePath == sourcePath) match
+                  case None =>
+                    Result.Err(s"module dependency '${depModule.value}' was not resolved for module '${module.value}'")
+
+                  case Some(dep) =>
+                    val depProject = dep.project.getOrElse(project)
+                    depProject.pkg(depModule) match
+                      case None =>
+                        Result.Err(
+                          s"module '${module.value}' depends on source module '${depModule.value}', but that module has no [module.${depModule.value}.package]"
+                        )
+                      case Some(pkg) =>
+                        addDependency(pkg.name, versionConstraint(pkg.version, depModule))
+      .map(_ => dependencies.toMap)
+
+  private def versionConstraint(version: String, module: ModuleId): VersionSpec =
+    Version.parse(version) match
+      case Some(parsed) => VersionSpec(Version(parsed.major, parsed.minor, 0))
       case None =>
-        DependencyResolver.resolveProject(project).flatMap: resolved =>
-          resolved.packages.find(_.meta.runtime != "pure") match
-            case Some(pkg) =>
-              Result.Err(
-                s"'jo package' only allows published packages to depend on pure packages; dependency '${pkg.name}' requires runtime=${pkg.meta.runtime}"
-              )
-            case None =>
-              Result.unit
+        throw IllegalArgumentException(s"invalid package version '$version' for module '${module.value}'")
 
-  private def stageRelease(project: Project, sastDir: Path, stageDir: Path): Result[Unit] =
+  private def stageRelease(
+    project: Project,
+    module: ModuleId,
+    spec: ModuleSpec,
+    sastDir: Path,
+    stageDir: Path,
+  ): Result[Unit] =
     if !Files.isDirectory(sastDir) then
       return Result.Err(s"sast output not found: $sastDir")
 
@@ -84,26 +129,22 @@ object Release:
       return Result.Err("all source files must belong to the same root namespace")
 
     val namespace = rootDir.iterator.asScala.map(_.toString).mkString(".")
-    val runtime = project.runtime.getOrElse("pure")
-    val dependencies = collection.mutable.LinkedHashMap.empty[String, VersionSpec]
-    project.main.dependencies.toSeq.sortBy(_._1).foreach:
-      case (name, DepSpec(DepSource.Registry(constraint), _)) =>
-        dependencies(name) = constraint
-      case _ =>
-        ()
-
+    val pkg = spec.pkg.get
+    val dependencies = packageDependencies(project, module) match
+      case Result.Ok(deps) => deps
+      case Result.Err(msg) => return Result.Err(msg)
     val meta = PackageMeta(
       namespace,
-      project.name,
+      pkg.name,
       project.joVersionSpec,
-      project.pkg.get.version,
-      runtime,
-      project.pkg.flatMap(_.description),
-      project.pkg.map(_.authors).getOrElse(Nil),
-      project.pkg.flatMap(_.homepage),
-      project.pkg.flatMap(_.license),
-      project.pkg.map(_.keywords).getOrElse(Nil),
-      dependencies.toMap,
+      pkg.version,
+      project.platform(module).value,
+      pkg.description,
+      pkg.authors,
+      pkg.homepage,
+      pkg.license,
+      pkg.keywords,
+      dependencies,
     )
 
     Files.writeString(stageDir.resolve("meta.toml"), renderMeta(meta))
@@ -115,11 +156,11 @@ object Release:
       Files.copy(file, target)
     Result.unit
 
-  private def stageSources(project: Project, stageDir: Path): Result[Unit] =
-    val sources = SourceGlob.expand(project.main.src, project.dir)
+  private def stageSources(project: Project, module: ModuleId, spec: ModuleSpec, stageDir: Path): Result[Unit] =
+    val sources = SourceGlob.expand(spec.src, project.dir, SourceGlob.defaultModuleSrc(module))
 
     if sources.isEmpty then
-      return Result.Err(s"no source files found for package '${project.name}'")
+      return Result.Err(s"no source files found for package '${spec.pkg.get.name}'")
 
     for file <- sources do
       val rel = project.dir.relativize(file)
@@ -134,7 +175,7 @@ object Release:
     sb.append(s"""name = "${meta.name}"\n""")
     sb.append(s"""jo = "${meta.jo.show}"\n""")
     sb.append(s"""version = "${meta.version}"\n""")
-    sb.append(s"""runtime = "${meta.runtime}"\n""")
+    sb.append(s"""platform = "${meta.platform}"\n""")
     meta.description.foreach(d => sb.append(s"""description = "$d"\n"""))
     if meta.authors.nonEmpty then
       sb.append(s"authors = ${renderStrList(meta.authors)}\n")

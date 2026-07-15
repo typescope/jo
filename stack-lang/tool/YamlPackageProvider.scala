@@ -149,7 +149,9 @@ case class YamlPackageProvider(repoFile: Path, cacheHome: Path) extends PackageP
   private def decodeMeta(name: String, version: String, fields: Map[String, YamlValue], ctx: String, path: Path): PackageMeta =
     val namespace = requireStr(fields, "namespace", ctx, path)
     val jo = requireVersionSpec(fields, "jo", ctx, path)
-    val runtime = fields.get("runtime").map(asStr(_, s"$ctx.runtime", path)).getOrElse("pure")
+    val platform = fields.get("platform").map(asStr(_, s"$ctx.platform", path)).getOrElse("pure")
+    if fields.contains("runtime") then
+      throw YamlRepoError(s"in $path: '$ctx.runtime' is no longer supported; use '$ctx.platform'")
     val description = fields.get("description").map(asStr(_, s"$ctx.description", path))
     val homepage = fields.get("homepage").map(asStr(_, s"$ctx.homepage", path))
     val license = fields.get("license").map(asStr(_, s"$ctx.license", path))
@@ -159,7 +161,7 @@ case class YamlPackageProvider(repoFile: Path, cacheHome: Path) extends PackageP
       name,
       jo,
       version,
-      runtime,
+      platform,
       description = description,
       homepage = homepage,
       license = license,

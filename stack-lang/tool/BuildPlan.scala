@@ -23,17 +23,14 @@ enum CompileTask:
     compileOptions: List[String],
   )
 
-enum ModuleKind:
-  case Main
-  case Test
-
 /** Build plan for a single module: execute dep modules first, then compile this module's task. */
 case class ModulePlan(
   projectName: String,
-  module: ModuleKind,
+  module: ModuleId,
+  joBin: Path,
   task: CompileTask,
   deps: List[ModulePlan],
 )
 
-/** Build plans for a project: always has a main module, optionally a test module. */
-case class ProjectPlan(main: ModulePlan, test: Option[ModulePlan], joBin: Path)
+/** Build plans for selected modules in a project, preserving selection order. */
+case class ProjectPlan(modules: List[ModulePlan])

@@ -3,131 +3,170 @@ package tool
 import java.nio.file.Path
 
 object Planner:
-  /** Produce a list of ModulePlans (Main first, then Test if present) from a resolved project. */
-  def plan(project: Project, registrySastDirs: Map[String, Path]): ProjectPlan =
-    val root = project
-    val allRegistrySastDirs = registrySastDirs.toList.sortBy(_._1).map(_._2)
-    val rootRegistryLinkLibs = root.main.dependencies.toList.flatMap:
-      case (name, DepSpec(DepSource.Registry(_), DepLink.Link)) => registrySastDirs.get(name).toList
-      case _ => Nil
+  type RegistrySastDirs = Map[String, Path]
+  private case class EffectiveLink(to: String, source: String)
+  private case class EffectiveAppLinks(linkLibs: List[Path], links: Map[String, EffectiveLink])
 
-    def makeDepPlan(dep: ProjectDep, allDeps: List[Project]): Option[ModulePlan] =
-      val project = dep.project
+  def plan(project: Project, selected: List[ModuleId], registrySastDirs: RegistrySastDirs): ProjectPlan =
+    val memo = collection.mutable.Map.empty[(Path, ModuleId), ModulePlan]
+    val stack = collection.mutable.Set.empty[(Path, ModuleId)]
+    val linkMemo = collection.mutable.Map.empty[(Path, ModuleId), EffectiveAppLinks]
+    val linkStack = collection.mutable.Set.empty[(Path, ModuleId)]
 
-      if !project.isLib then None
-      else
-        val sources = SourceGlob.expand(project.main.src, project.dir)
-        val depCheckLibs = checkLibsOf(project, allDeps) ++ allRegistrySastDirs
-        val compileOptions = runtimeCompileOptions(project) ++ project.main.compileOptions
-        val task = CompileTask.LibTask(sources, depCheckLibs, project.mainSastDir, compileOptions)
-        val directDeps = project.deps.flatMap(d => makeDepPlan(d, allDeps))
-        Some(ModulePlan(dep.name, ModuleKind.Main, task, directDeps))
+    def moduleLabel(project0: Project, id: ModuleId): String =
+      s"${project0.projectName}.${id.value}"
 
-    val mainDeps = Project.mainDepsTopological(project)
-    val testOnlyDeps = Project.testDepsTopological(project)
-    val mainDepEdges = allDepEdges(project)
+    def registryCheckLibs(module: ModuleSpec): List[Path] =
+      module.dependencies.flatMap:
+        case DepSpec(DepSource.Registry(name, _), DepLink.Check) => registrySastDirs.get(name)
+        case _ => Nil
 
-    val checkLibs = mainDepEdges.collect:
-      case dep if dep.link == DepLink.Check => dep.project.mainSastDir
+    def sourceClosure(project0: Project, id: ModuleId): List[(Project, ModuleId, DepLink)] =
+      val out = collection.mutable.ListBuffer.empty[(Project, ModuleId, DepLink)]
+      val seen = collection.mutable.Set.empty[(Path, ModuleId)]
 
-    val linkLibs = mainDepEdges.collect:
-      case dep if dep.link == DepLink.Link => dep.project.mainSastDir
+      def walk(currentProject: Project, current: ModuleId): Unit =
+        for dep <- currentProject.moduleDepsOf(current) do
+          val depProject = dep.project.getOrElse(currentProject)
+          val key = depProject.specPath -> dep.module
+          if seen.add(key) then
+            out += ((depProject, dep.module, dep.link))
+            walk(depProject, dep.module)
 
-    val rootBase = root.buildBaseDir
+      walk(project0, id)
+      out.toList
 
-    val mainTask: CompileTask =
-      if root.isLib then
-        val sources = SourceGlob.expand(root.main.src, root.dir)
-        val compileOptions = runtimeCompileOptions(root) ++ root.main.compileOptions
-        CompileTask.LibTask(sources, checkLibs ++ allRegistrySastDirs, root.mainSastDir, compileOptions)
-      else
-        val sources = SourceGlob.expand(root.main.src, root.dir)
-        val target = resolveTarget(root)
-        CompileTask.AppTask(
-          sources,
-          checkLibs ++ allRegistrySastDirs,
-          linkLibs ++ rootRegistryLinkLibs,
-          root.main.links,
-          target,
-          rootBase.resolve(s"target/${root.name}${target.ext}"),
-          root.mainSastDir,
-          root.main.compileOptions,
-        )
+    def requireSpec(project0: Project, id: ModuleId): ModuleSpec =
+      project0.requireModule(id) match
+        case Result.Ok(value) => value
+        case Result.Err(msg)  => throw IllegalArgumentException(msg)
 
-    val mainPlan = ModulePlan(root.name, ModuleKind.Main, mainTask, project.deps.flatMap(d => makeDepPlan(d, mainDeps)))
+    def effectiveAppLinks(project0: Project, id: ModuleId): EffectiveAppLinks =
+      val key = project0.specPath -> id
+      linkMemo.getOrElseUpdate(
+        key,
+        {
+          if linkStack.contains(key) then
+            throw IllegalStateException(s"circular app link inheritance detected at ${moduleLabel(project0, id)}")
+          linkStack += key
 
-    root.test match
-      case None =>
-        ProjectPlan(mainPlan, None, root.joBin)
+          try
+            val spec = requireSpec(project0, id)
+            spec.kind match
+              case ModuleKind.Lib =>
+                EffectiveAppLinks(Nil, Map.empty)
 
-      case Some(testSpec) =>
-        val rootSastDir = root.mainSastDir
-        val testRegistryLinkLibs = testSpec.dependencies.toList.flatMap:
-          case (name, DepSpec(DepSource.Registry(_), DepLink.Link)) => registrySastDirs.get(name).toList
-          case _ => Nil
-        val testDepEdges = allDepEdges(project, test = true)
-        val testCheckLibs = rootSastDir :: checkLibs ++ allRegistrySastDirs ++
-          testDepEdges.collect:
-            case dep if dep.link == DepLink.Check => dep.project.mainSastDir
-        val testLinkLibs = linkLibs ++ rootRegistryLinkLibs ++ testRegistryLinkLibs ++
-          testDepEdges.collect:
-            case dep if dep.link == DepLink.Link => dep.project.mainSastDir
-        val testTarget: Target = testSpec.target
-          .orElse(root.main.target)
-          .orElse(root.pkg.flatMap(_.runtime).flatMap(Target.parse))
-          .getOrElse(Target.Python)
-        val testSources = SourceGlob.expand(testSpec.src, root.dir, SourceGlob.defaultTestSrc)
+              case ModuleKind.App =>
+                val owner = moduleLabel(project0, id)
+                val ownOverrides = spec.links.map(_.from).toSet
+                val linkLibs = collection.mutable.ListBuffer.empty[Path]
+                val inheritedLinks = collection.mutable.LinkedHashMap.empty[String, EffectiveLink]
 
-        val testTask = CompileTask.AppTask(
-          testSources,
-          testCheckLibs,
-          testLinkLibs,
-          root.main.links ++ testSpec.links,
-          testTarget,
-          rootBase.resolve(s"target/${root.name}-test${testTarget.ext}"),
-          root.testSastDir,
-          compileOptions = runtimeCompileOptions(root) ++ testSpec.compileOptions
-        )
+                def mergeInherited(from: String, link: EffectiveLink): Unit =
+                  if ownOverrides.contains(from) then
+                    ()
+                  else
+                    inheritedLinks.get(from) match
+                      case None =>
+                        inheritedLinks(from) = link
+                      case Some(existing) if existing.to == link.to =>
+                        ()
+                      case Some(existing) =>
+                        throw IllegalArgumentException(
+                          s"""conflicting inherited links for module '$owner'
+                             |
+                             |  $from -> ${existing.to} from ${existing.source}
+                             |  $from -> ${link.to} from ${link.source}
+                             |
+                             |Declare an explicit module.${id.value}.links entry for '$from' to override.""".stripMargin
+                        )
 
-        val mainAsLib = mainPlan.copy(
-          task = mainPlan.task match
-            case app: CompileTask.AppTask =>
-              CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.compileOptions)
-            case lib => lib
-        )
+                spec.dependencies.foreach:
+                  case DepSpec(DepSource.Registry(name, _), DepLink.Link) =>
+                    registrySastDirs.get(name).foreach(linkLibs += _)
 
-        val testDepPlans = project.testDeps.flatMap(d => makeDepPlan(d, mainDeps ++ testOnlyDeps))
-        val testPlan = ModulePlan(root.name, ModuleKind.Test, testTask, mainAsLib :: testDepPlans)
-        ProjectPlan(mainPlan, Some(testPlan), root.joBin)
+                  case DepSpec(DepSource.Registry(_, _), DepLink.Check) =>
+                    ()
 
-  private def checkLibsOf(project: Project, allDeps: List[Project]): List[Path] =
-    project.deps.flatMap: dep =>
-      if dep.link == DepLink.Check then
-        allDeps.find(_.dir == dep.project.dir).map(_.mainSastDir).toList
-      else Nil
+                  case DepSpec(DepSource.Module(depModule, sourcePath), linkMode) =>
+                    val dep = project0.moduleDepOf(id, depModule, sourcePath).getOrElse:
+                      throw IllegalArgumentException(s"module '${id.value}' depends on unresolved module '${depModule.value}'")
+                    val depProject = dep.project.getOrElse(project0)
+                    if linkMode == DepLink.Link then
+                      linkLibs += depProject.sastDir(depModule)
 
-  private def allDepEdges(project: Project, test: Boolean = false): List[ProjectDep] =
-    val ordered = collection.mutable.ListBuffer.empty[ProjectDep]
-    val seen = collection.mutable.LinkedHashSet.empty[Path]
-    val deps = if test then project.testDeps else project.deps
+                    val depSpec = requireSpec(depProject, depModule)
+                    if depSpec.kind == ModuleKind.App then
+                      val inherited = effectiveAppLinks(depProject, depModule)
+                      linkLibs ++= inherited.linkLibs
+                      inherited.links.foreach: (from, link) =>
+                        mergeInherited(from, link)
 
-    def collect(edges: List[ProjectDep], includeTestDeps: Boolean): Unit =
-      for dep <- edges do
-        collect(dep.project.deps, includeTestDeps = false)
+                spec.links.foreach: link =>
+                  inheritedLinks(link.from) = EffectiveLink(link.to, owner)
 
-        if includeTestDeps then
-          collect(dep.project.testDeps, includeTestDeps = true)
+                EffectiveAppLinks(linkLibs.toList.distinct, inheritedLinks.toMap)
+          finally
+            linkStack -= key
+        }
+      )
 
-        if seen.add(dep.project.dir) then
-          ordered += dep
+    def makePlan(project0: Project, id: ModuleId): ModulePlan =
+      val key = project0.specPath -> id
+      memo.getOrElseUpdate(
+        key,
+        {
+          if stack.contains(key) then
+            throw IllegalStateException(s"circular module dependency detected at ${id.value}")
+          stack += key
+          val spec = requireSpec(project0, id)
 
-    collect(deps, test)
-    ordered.toList
+          val depPlans = project0.moduleDepsOf(id).map: dep =>
+            makePlan(dep.project.getOrElse(project0), dep.module)
 
-  private def resolveTarget(project: Project): Target =
-    project.main.target
-      .orElse(project.pkg.flatMap(_.runtime).flatMap(Target.parse))
-      .getOrElse(Target.Python)
+          val sourceDeps = sourceClosure(project0, id)
+          val sourceCheckLibs = sourceDeps.collect:
+            case (depProject, depModule, DepLink.Check) => depProject.sastDir(depModule)
 
-  private def runtimeCompileOptions(project: Project): List[String] =
-    project.runtime.filter(_ != "pure").toList.flatMap(runtime => List("--use-runtime-api", runtime))
+          val sources = SourceGlob.expand(spec.src, project0.dir, SourceGlob.defaultModuleSrc(id))
+          val compileOptions = ffiCompileOptions(spec) ++ spec.compileOptions
+          val task =
+            spec.kind match
+              case ModuleKind.Lib =>
+                CompileTask.LibTask(
+                  sources,
+                  sourceCheckLibs ++ registryCheckLibs(spec),
+                  project0.sastDir(id),
+                  compileOptions,
+                )
+
+              case ModuleKind.App =>
+                val target = resolveTarget(project0, id)
+                val effectiveLinks = effectiveAppLinks(project0, id)
+                CompileTask.AppTask(
+                  sources,
+                  sourceCheckLibs ++ registryCheckLibs(spec),
+                  effectiveLinks.linkLibs,
+                  effectiveLinks.links.view.mapValues(_.to).toMap,
+                  target,
+                  project0.appOutFile(id, target),
+                  project0.sastDir(id),
+                  compileOptions,
+                )
+
+          stack -= key
+          ModulePlan(project0.projectName, id, project0.joBin, task, depPlans)
+        }
+      )
+
+    ProjectPlan(selected.map(id => makePlan(project, id)))
+
+  private def resolveTarget(project: Project, module: ModuleId): Target =
+    project.platform(module).target.getOrElse:
+      throw IllegalArgumentException(s"module '${module.value}' has no app platform")
+
+  private def ffiCompileOptions(module: ModuleSpec): List[String] =
+    if module.enableFfi then
+      module.platform.flatMap(_.target).toList.flatMap(target => List("--use-runtime-api", target.flag))
+    else
+      Nil

@@ -1,6 +1,7 @@
 package tool.toml
 
 import Token.*
+import scala.collection.immutable.ListMap
 
 /** Recursive descent TOML parser for the jo build tool subset. */
 class TomlParser(tokens: List[ScannedToken]):
@@ -121,7 +122,7 @@ class TomlParser(tokens: List[ScannedToken]):
       else
         insertAt(result, path, value, append = false)
 
-    result.toMap
+    ListMap.from(result)
 
   private def insertAt(
     map: collection.mutable.LinkedHashMap[String, TomlValue],
@@ -153,9 +154,9 @@ class TomlParser(tokens: List[ScannedToken]):
       // Write back
       map.get(key) match
         case Some(TomlValue.Arr(items)) =>
-          map(key) = TomlValue.Arr(items.init :+ TomlValue.Tbl(sub.toMap))
+          map(key) = TomlValue.Arr(items.init :+ TomlValue.Tbl(ListMap.from(sub)))
         case _ =>
-          map(key) = TomlValue.Tbl(sub.toMap)
+          map(key) = TomlValue.Tbl(ListMap.from(sub))
 
   // ---- Key and value parsers -----------------------------------------------
 
@@ -251,7 +252,7 @@ class TomlParser(tokens: List[ScannedToken]):
         throw TomlError(s"expected ',' or '}' in inline table but got $curTok", curLine)
 
     expect(TRBrace)
-    TomlValue.Tbl(map.toMap)
+    TomlValue.Tbl(ListMap.from(map))
 
 object TomlParser:
   def parse(input: String): TomlDoc =

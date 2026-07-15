@@ -7,17 +7,14 @@ import scala.jdk.CollectionConverters.*
 /** Executes build plans by invoking `jo compile` subprocesses. */
 object Runner:
   private def moduleLabel(plan: ModulePlan): String =
-    val module = plan.module match
-      case ModuleKind.Main => "main"
-      case ModuleKind.Test => "test"
-    s"${plan.projectName}.$module"
+    s"${plan.projectName}.${plan.module.value}"
 
   /** Build a module: recursively build deps, then compile this module's task. */
-  def run(plan: ModulePlan, joBin: Path, action: String = "build")(using Logger): Result[Unit] =
-    val jo = joBin.toString
+  def run(plan: ModulePlan, action: String = "build")(using Logger): Result[Unit] =
+    val jo = plan.joBin.toString
     val it = plan.deps.iterator
     while it.hasNext do
-      run(it.next(), joBin) match
+      run(it.next()) match
         case Result.Err(msg) => return Result.Err(msg)
         case _ =>
     plan.task match
@@ -37,11 +34,11 @@ object Runner:
               info(s"[output] ${LogFormat.path(app.outFile)}\n")
 
   /** Type-check only: compile everything as libs (--sast), skip app link step. */
-  def check(plan: ModulePlan, joBin: Path, action: String)(using Logger): Result[Unit] =
-    val jo = joBin.toString
+  def check(plan: ModulePlan, action: String)(using Logger): Result[Unit] =
+    val jo = plan.joBin.toString
     val it = plan.deps.iterator
     while it.hasNext do
-      check(it.next(), joBin, action) match
+      check(it.next(), action) match
         case Result.Err(msg) => return Result.Err(msg)
         case _ =>
     info(s"[$action] ${moduleLabel(plan)}\n")
@@ -55,11 +52,11 @@ object Runner:
           sentinelFile = dirSentinel(app.sastDir),
         )
 
-  def doc(plan: ModulePlan, joBin: Path, outDir: Path)(using Logger): Result[Unit] =
-    val jo = joBin.toString
+  def doc(plan: ModulePlan, outDir: Path)(using Logger): Result[Unit] =
+    val jo = plan.joBin.toString
     val it = plan.deps.iterator
     while it.hasNext do
-      check(it.next(), joBin, "check") match
+      check(it.next(), "check") match
         case Result.Err(msg) => return Result.Err(msg)
         case _ =>
     info(s"[doc] ${moduleLabel(plan)}\n")
@@ -76,18 +73,6 @@ object Runner:
         )
 
   /** Build the test module (which includes main as a lib dep), then run tests. */
-  def test(testOpt: Option[ModulePlan], joBin: Path)(using Logger): Result[Unit] =
-    testOpt match
-      case None =>
-        info("no tests defined\n")
-        Result.unit
-      case Some(tp) =>
-        run(tp, joBin).flatMap: _ =>
-          info(s"[test] ${tp.projectName}\n")
-          tp.task match
-            case app: CompileTask.AppTask => runInteractive(app, Nil)
-            case _ => Result.Err("test module task must be an AppTask")
-
   /** Execute the compiled app interactively: stdin/stdout/stderr inherit from
    *  the parent process, so the app sees a real terminal (a TTY). This is what
    *  lets interactive programs use readline, ANSI/isatty-gated output, etc.

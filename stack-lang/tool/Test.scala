@@ -290,26 +290,35 @@ private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String
       New.scaffold(parsed.name, parsed.isLib, specDir)
 
   if command == "package" then
-    val specPath = Build.parseProjectArgs(cmdArgs) match
-      case Result.Ok(parsed) => Paths.get(resolveSpecDir(parsed.specFile, specDir)).toAbsolutePath
+    val parsed = Build.parseProjectArgs(cmdArgs) match
+      case Result.Ok(parsed) => parsed
       case Result.Err(msg)   => return Result.Err(s"$msg\n")
-    return Project.load(specPath, resolveJo).flatMap(Release.buildPackage(_)) match
+    val specPath = Paths.get(resolveSpecDir(parsed.specFile, specDir)).toAbsolutePath
+    val result = Project.load(specPath, resolveJo).flatMap: project =>
+      Release.buildPackage(project, Build.selectedModule(project, parsed))
+    return result match
       case Result.Ok(_)    => Result.Ok("")
       case Result.Err(msg) => Result.Err(s"error: $msg\n")
 
   if command == "lock" then
-    val specPath = Build.parseProjectArgs(cmdArgs) match
-      case Result.Ok(parsed) => Paths.get(resolveSpecDir(parsed.specFile, specDir)).toAbsolutePath
+    val parsed = Build.parseProjectArgs(cmdArgs) match
+      case Result.Ok(parsed) => parsed
       case Result.Err(msg)   => return Result.Err(s"$msg\n")
+    if parsed.module.isDefined then
+      return Result.Err("error: 'jo lock' resolves all modules and does not take a module argument\n")
+    val specPath = Paths.get(resolveSpecDir(parsed.specFile, specDir)).toAbsolutePath
     return Project.load(specPath, resolveJo).flatMap(Build.lockResult(_)) match
       case Result.Ok(_)    => Result.Ok("")
       case Result.Err(msg) => Result.Err(s"error: $msg\n")
 
   if command == "deps" then
-    val specPath = Build.parseProjectArgs(cmdArgs) match
-      case Result.Ok(parsed) => Paths.get(resolveSpecDir(parsed.specFile, specDir)).toAbsolutePath
+    val parsed = Build.parseProjectArgs(cmdArgs) match
+      case Result.Ok(parsed) => parsed
       case Result.Err(msg)   => return Result.Err(s"$msg\n")
-    return Project.load(specPath, resolveJo).flatMap(Build.depsResult(_)) match
+    val specPath = Paths.get(resolveSpecDir(parsed.specFile, specDir)).toAbsolutePath
+    val result = Project.load(specPath, resolveJo).flatMap: project =>
+      Build.depsResult(project, Build.selectedModule(project, parsed))
+    return result match
       case Result.Ok(out)   => Result.Ok(out)
       case Result.Err(msg)  => Result.Err(s"error: $msg\n")
 
@@ -319,10 +328,13 @@ private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String
       case Result.Err(msg)  => Result.Err(s"error: $msg\n")
 
   if command == "doc" then
-    val specPath = Build.parseProjectArgs(cmdArgs) match
-      case Result.Ok(parsed) => Paths.get(resolveSpecDir(parsed.specFile, specDir)).toAbsolutePath
+    val parsed = Build.parseProjectArgs(cmdArgs) match
+      case Result.Ok(parsed) => parsed
       case Result.Err(msg)   => return Result.Err(s"$msg\n")
-    return Project.load(specPath, resolveJo).flatMap(Build.buildDoc(_)) match
+    val specPath = Paths.get(resolveSpecDir(parsed.specFile, specDir)).toAbsolutePath
+    val result = Project.load(specPath, resolveJo).flatMap: project =>
+      Build.buildDoc(project, Build.selectedModule(project, parsed))
+    return result match
       case Result.Ok(_)    => Result.Ok("")
       case Result.Err(msg) => Result.Err(s"error: $msg\n")
 
@@ -334,50 +346,42 @@ private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String
       case Result.Ok(_)    => return Result.Ok(buf.toString("UTF-8"))
       case Result.Err(msg) => return Result.Err(buf.toString("UTF-8") + s"error: $msg\n")
 
-  val specFile0 = command match
+  if command == "test" then
+    return Result.Err("error: 'jo test' was removed; define a test app module and run it with 'jo run <module>'\n")
+
+  val (specFile0, moduleArg, appArgs) = command match
     case "run" =>
       Build.parseRunArgs(cmdArgs) match
-        case Result.Ok(parsed) => parsed.specFile
+        case Result.Ok(parsed) => (parsed.specFile, parsed.module, parsed.appArgs)
         case Result.Err(msg)   => return Result.Err(s"$msg\n")
 
     case _ =>
       Build.parseProjectArgs(cmdArgs) match
-        case Result.Ok(parsed) => parsed.specFile
+        case Result.Ok(parsed) => (parsed.specFile, parsed.module, Nil)
         case Result.Err(msg)   => return Result.Err(s"$msg\n")
   val specPath = Paths.get(resolveSpecDir(specFile0, specDir)).toAbsolutePath
-  val modules = command match
-    case "test" => List(ModuleKind.Main, ModuleKind.Test)
-    case _      => List(ModuleKind.Main)
-  val plan = Project.load(specPath, resolveJo).flatMap(Build.makePlanResult(_, modules))
+  val plan = Project.load(specPath, resolveJo).flatMap: project =>
+    val module = moduleArg.getOrElse(project.defaultModuleId)
+    Build.makePlanResult(project, List(module)).map(project -> _)
 
-  val (plans, joBin2) = plan match
+  val (_, plans) = plan match
     case Result.Ok(value) => value
     case Result.Err(msg)  => return Result.Err(s"error: $msg\n")
 
+  val selectedPlan = plans.modules.head
+
   command match
     case "run" =>
-      val main = plans.main
-      Runner.run(main, joBin2).flatMap: _ =>
-        main.task match
-          case app: CompileTask.AppTask => Runner.execute(app, Nil)
+      Runner.run(selectedPlan).flatMap: _ =>
+        selectedPlan.task match
+          case app: CompileTask.AppTask => Runner.execute(app, appArgs)
           case _: CompileTask.LibTask   => Result.Ok("")
 
-    case "test" =>
-      plans.test match
-        case None => Result.Ok("no tests defined\n")
-        case Some(tp) =>
-          Runner.run(tp, joBin2).flatMap: _ =>
-            tp.task match
-              case app: CompileTask.AppTask => Runner.execute(app, Nil)
-              case _                        => Result.Ok("")
-
     case "build" | "check" =>
-      val run =
-        if command == "build" then
-          (plan: ModulePlan, joBin: Path) => Runner.run(plan, joBin)
-        else
-          (plan: ModulePlan, joBin: Path) => Runner.check(plan, joBin, "check")
-      run(plans.main, joBin2).map(_ => "")
+      val result =
+        if command == "build" then Runner.run(selectedPlan)
+        else Runner.check(selectedPlan, "check")
+      result.map(_ => "")
 
     case other => Result.Err(s"unknown jo subcommand '$other' in test")
 
@@ -485,26 +489,16 @@ private def lockCheck(specFile: String): String =
     case Result.Err(msg)    => s"error: $msg\n"
 
 private def validateLockPackageDepths(project: Project, resolved: ResolutionResult): Result[Unit] =
-  val modules =
-    if project.test.isDefined then List(ModuleKind.Main, ModuleKind.Test)
-    else List(ModuleKind.Main)
-
-  modules.foldLeft(Result.unit): (acc, module) =>
+  project.moduleIds.foldLeft(Result.unit): (acc, module) =>
     acc.flatMap: _ =>
-      val (actualDepth, deepestPath) = module match
-        case ModuleKind.Main => (resolved.mainPackageDepth, resolved.mainDeepestPath)
-        case ModuleKind.Test => (resolved.testPackageDepth, resolved.testDeepestPath)
+      val info = resolved.packageDepthByModule.getOrElse(module, DepthInfo(0, Nil))
       val allowedDepth = project.depthOf(module)
 
-      if actualDepth > allowedDepth then
-        val moduleName = module match
-          case ModuleKind.Main => "main"
-          case ModuleKind.Test => "test"
-
+      if info.depth > allowedDepth then
         Result.Err(
-          s"""package dependency depth exceeded for '${project.name}' $moduleName module: actual $actualDepth, allowed $allowedDepth
+          s"""package dependency depth exceeded for module '${module.value}': actual ${info.depth}, allowed $allowedDepth
              |
-             |  Path: ${(project.name :: deepestPath).mkString(" -> ")}""".stripMargin
+             |  Path: ${(module.value :: info.deepestPath).mkString(" -> ")}""".stripMargin
         )
       else
         Result.unit
@@ -516,10 +510,10 @@ private def printPlan(specFile: String): Unit =
     val joBin = Paths.get("bin/jo").toAbsolutePath
     val resolveJo = (constraint: VersionSpec) => Result.Ok((constraint.minimumVersion, joBin))
     val result = Project.load(Paths.get(specFile).toAbsolutePath, resolveJo).flatMap: project =>
-      Build.makePlanResult(project, List(ModuleKind.Main)).map((project, _))
+      Build.makePlanResult(project, List(project.defaultModuleId)).map((project, _))
 
     result match
-      case Result.Ok((project, (plans, _))) =>
+      case Result.Ok((project, plans)) =>
         val specDir = project.specPath.getParent
         println(PlanPrinter.print(plans, specDir))
 
