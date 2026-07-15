@@ -5,7 +5,7 @@ Create a new project with a standard scaffold.
 ## Usage
 
 ```
-jo new <name> [--lib]
+jo new [--lib] <name>
 ```
 
 ## Options
@@ -14,7 +14,27 @@ jo new <name> [--lib]
 |---------|-----------------------------------------|
 | `--lib` | Create a library project. Default: app. |
 
-## Output
+## App Scaffold
+
+`jo new my-agent` prints:
+
+```text
+Created 'my-agent'
+
+You can now:
+  cd my-agent
+  jo run
+  jo run test
+```
+
+It creates:
+
+```text
+my-agent/
+  jo.toml
+  src/
+  tests/
+```
 
 **App** (`my-agent/jo.toml`):
 
@@ -25,6 +45,37 @@ jo = "1.0"
 kind = "app"
 src = ["src/"]
 target = "python"
+
+[module.test]
+kind = "app"
+src = ["tests/"]
+target = "python"
+
+dependencies = [
+  { module = "app" },
+]
+```
+
+## Library Scaffold
+
+`jo new --lib my-lib` prints:
+
+```text
+Created 'my-lib'
+
+You can now:
+  cd my-lib
+  jo build
+  jo run test
+```
+
+It creates:
+
+```text
+my-lib/
+  jo.toml
+  src/
+  tests/
 ```
 
 **Library** (`my-lib/jo.toml`):
@@ -39,4 +90,13 @@ src = ["src/"]
 [module.lib.package]
 name = "my-lib"
 version = "0.1.0"
+
+[module.test]
+kind = "app"
+src = ["tests/"]
+target = "python"
+
+dependencies = [
+  { module = "lib" },
+]
 ```

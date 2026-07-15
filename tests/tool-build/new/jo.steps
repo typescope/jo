@@ -6,6 +6,7 @@ Created 'myapp'
 You can now:
   cd myapp
   jo run
+  jo run test
 '
 cat myapp/jo.toml
 : '
@@ -15,12 +16,31 @@ jo = "{{JO_VERSION}}"
 kind = "app"
 src = ["src/"]
 target = "python"
+
+[module.test]
+kind = "app"
+src = ["tests/"]
+target = "python"
+
+dependencies = [
+  { module = "app" },
+]
 '
 cat myapp/src/Main.jo
 : '
 def main = println "Hello, myapp!"
 '
+cat myapp/tests/Main.jo
+: '
+namespace Test
+
+def main = println "OK"
+'
 cat myapp/.gitignore
 : '
 .build/
+'
+jo run --spec myapp/jo.toml test
+: '
+OK
 '
