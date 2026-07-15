@@ -64,14 +64,19 @@ dependencies = [
 ]
 ```
 
-Use it in `src/main.jo`:
+Use it in `src/main.jo`. Give the module a namespace so other modules can import it:
 
 ```jo
+namespace Hello
+
 import Template
 
-def main() =
+def greet(name: String): String =
   val tmpl = Template.parse("Hello, {{name}}!")
-  println tmpl.render({ "name": "world" })
+  tmpl.render({ "name": name })
+
+def main() =
+  println: greet "world"
 ```
 
 Run it:
@@ -88,7 +93,7 @@ Hello, world!
 
 ## Testing
 
-Tests are ordinary app modules. Add a `test` module with its own dependencies:
+Tests are ordinary app modules. Add a `test` module that depends on the `app` module it tests:
 
 ```toml
 jo = "1.0"
@@ -107,26 +112,27 @@ kind = "app"
 src = ["tests/"]
 target = "python"
 dependencies = [
-  { package = "mustache", version = "1.0" },
+  { module = "app" },
   { package = "jo-test", version = "0.1" },
 ]
 ```
 
-Write a test in `tests/Main.jo`:
+`{ module = "app" }` gives the tests access to everything in `src/`. Both modules are apps, and `jo run test` runs the test's `main` — an app module's own `main` is only used when you build that module.
+
+Write a test in `tests/Main.jo`. It imports the app's namespace and tests the app's own function:
 
 ```jo
 import Test.*
-import Template
+import Hello
 
 def main() =
   run do () =>
-    suiteTemplate()
+    suiteGreet()
 
-def suiteTemplate() =
-  suite "template" do
-    test "render" do
-      val tmpl = Template.parse("Hello, {{name}}!")
-      assertEqual tmpl.render({ "name": "world" }) "Hello, world!"
+def suiteGreet() =
+  suite "greet" do
+    test "renders the name" do
+      assertEqual (Hello.greet "world") "Hello, world!"
     end
   end
 ```
@@ -138,8 +144,8 @@ jo run test
 ```
 
 ```
-template
-  ✓ render
+greet
+  ✓ renders the name
 1 passed
 ```
 

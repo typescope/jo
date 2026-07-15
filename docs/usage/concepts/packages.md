@@ -40,6 +40,10 @@ dependencies = [
 This separation prevents user code from accidentally depending on
 platform-specific implementation details.
 
+Link libraries are valid only on app modules, since only an app module produces
+an executable to link. A module that depends on an app module inherits that
+module's link libraries, and cannot override them.
+
 ## Deferred Definitions
 
 A library can expose extension points using `defer def`:
@@ -59,6 +63,10 @@ links = [
 ```
 
 If any `defer def` is unresolved at link time, the build fails.
+
+`links` belongs to app modules only. A module that depends on an app module
+inherits its links and may override any of them by declaring a link with the
+same `from`. See [Build Spec](../reference/build-spec.md).
 
 ## Runtime-Constrained Packages
 

@@ -25,6 +25,22 @@ dependencies = [
 
 Every app module declares its own `target`. Lib modules have no target — they compile to `.sast`, which is backend-independent.
 
+## Depending On An App Module
+
+An app module is a lib module plus a target, link wiring, and an entry point. Other modules can depend on one, which is what makes a test module possible:
+
+```toml
+[module.test]
+kind = "app"
+target = "python"
+src = ["tests/"]
+dependencies = [
+  { module = "app" },
+]
+```
+
+The test sees the app's code. It does not inherit the app's entry point, because Jo takes the entry point from the sources of the module being built. It does inherit the app's links, which it may override, and its link libraries, which it may not. See [Testing](../guides/testing.md).
+
 If `default` is omitted, the first module in the file is the default for commands such as `jo build`, `jo run`, `jo doc`, `jo deps`, and `jo package`.
 
 ## Build Output Layout

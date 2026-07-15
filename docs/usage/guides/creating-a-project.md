@@ -43,7 +43,7 @@ version = "0.1.0"
 
 ## Tests
 
-Tests are app modules:
+Tests are app modules that depend on the module they test. For the app project above:
 
 ```toml
 [module.test]
@@ -51,17 +51,17 @@ kind = "app"
 target = "python"
 src = ["tests/"]
 dependencies = [
-  { module = "lib" },
+  { module = "app" },
 ]
 ```
 
-Run them with:
+For the library project, depend on `lib` instead. Either way, run them with:
 
 ```sh
 jo run test
 ```
 
-See [Testing](testing.md) for test dependencies, link dependencies, and depth settings.
+An app module can be depended on like a library. See [Testing](testing.md) for inherited links, link dependencies, and depth settings.
 
 ## Multiple Modules
 

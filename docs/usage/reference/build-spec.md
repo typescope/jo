@@ -46,7 +46,7 @@ Module ids must start with a letter and may contain letters, digits, and hyphens
 | `depth`           | integer          | no       | Maximum registry package dependency depth for this module. Default: `0` for `lib`, `1` for `app`. |
 | `compile-options` | array of strings | no       | Extra flags passed verbatim to `jo compile` for this module. |
 | `dependencies`    | array of tables  | no       | Registry or source module dependencies. |
-| `links`           | array of tables  | no       | Explicit `defer def` wiring. |
+| `links`           | array of tables  | app only | Explicit `defer def` wiring. Invalid on lib modules. |
 
 Every app module states its own `target`. There is no default and no inheritance from another module, so a test module in a Ruby project declares `target = "ruby"` like any other app module.
 
@@ -99,17 +99,55 @@ dependencies = [
 ]
 ```
 
-Add `link = true` for link-only dependencies. Link dependencies are hidden from user code and are omitted from generated package metadata.
+Add `link = true` for link-only dependencies. Link dependencies are hidden from user code and are omitted from generated package metadata. Like `links`, they are valid only on app modules — a link library resolves deferred definitions when an executable is produced, and only app modules produce one.
 
 ## Links
 
-Explicit wiring of `defer def`s:
+Explicit wiring of `defer def`s. Valid only on app modules:
 
 ```toml
 links = [
   { from = "agentapi.runTask", to = "app.runTask" },
 ]
 ```
+
+Duplicate `from` symbols within one module's `links` are an error.
+
+### Depending On An App Module
+
+An app module is a lib module plus a target, link wiring, and an entry point. A source dependency on one copies its links and its link libraries into the depending module.
+
+Copied links are **overridable**. Declare a link with the same `from` and the local one wins:
+
+```toml
+[module.app]
+kind = "app"
+target = "python"
+links = [
+  { from = "agentapi.runTask", to = "app.runTask" },
+]
+
+[module.test]
+kind = "app"
+target = "python"
+dependencies = [
+  { module = "app" },
+]
+links = [
+  { from = "agentapi.runTask", to = "mocks.fakeRunTask" },
+]
+```
+
+Copied link libraries are **not** overridable. They are inherited as-is. A module that needs different link libraries should depend on the lib module holding the shared code instead, and declare its own.
+
+Other rules:
+
+- copying is transitive through a chain of app modules
+- a dependent app module must declare the same `target` as the app module it depends on
+- two copied links with the same `from` and different `to` are an error, unless the dependent declares its own link for that `from`
+- depending on a lib module copies nothing, since lib modules have no links
+
+`jo.main` is an ordinary link. Most apps never declare it — Jo finds a conforming `main` in the module's own sources. A `main` arriving through a dependency's compiled output is never a candidate, which is what lets an app module serve as a library. But if an app *does* declare `{ from = "jo.main", to = "..." }`, a dependent app module inherits it and must override it to run its own entry point.
 
 ## `[module.<id>.package]`
 
