@@ -1,0 +1,10 @@
+jo = "1.0"
+
+[module.app]
+kind = "app"
+platform = "python"
+
+dependencies = [
+  { path = "api", module = "api" },
+  { path = "api/", module = "api" },
+]
