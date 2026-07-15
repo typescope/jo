@@ -1,0 +1,4 @@
+jo build
+: '
+error: spec file not found: tests/tool-build/non-project/jo.toml
+'
