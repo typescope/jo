@@ -12,10 +12,17 @@ object Build:
   case class ProjectCommandArgs(specFile: String, module: Option[ModuleId])
   case class RunCommandArgs(specFile: String, module: Option[ModuleId], appArgs: List[String])
 
-  def clean(project: Project)(using Logger): Result[Unit] =
-    try
-      val buildDir = project.dir.resolve(".build")
+  def clean(project: Project, module: Option[ModuleId])(using Logger): Result[Unit] =
+    module match
+      case Some(id) =>
+        project.requireModule(id).flatMap: _ =>
+          cleanDir(project.buildDir(id))
 
+      case None =>
+        cleanDir(project.dir.resolve(".build"))
+
+  private def cleanDir(buildDir: Path)(using Logger): Result[Unit] =
+    try
       if java.nio.file.Files.exists(buildDir) then
         deleteDir(buildDir)
         Logger.info(s"[clean] removed ${LogFormat.path(buildDir)}\n")

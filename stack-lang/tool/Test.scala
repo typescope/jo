@@ -311,6 +311,15 @@ private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String
       case Result.Ok(_)    => Result.Ok("")
       case Result.Err(msg) => Result.Err(s"error: $msg\n")
 
+  if command == "clean" then
+    val parsed = Build.parseProjectArgs(cmdArgs) match
+      case Result.Ok(parsed) => parsed
+      case Result.Err(msg)   => return Result.Err(s"$msg\n")
+    val specPath = Paths.get(resolveSpecDir(parsed.specFile, specDir)).toAbsolutePath
+    return Project.load(specPath, resolveJo).flatMap(project => Build.clean(project, parsed.module)) match
+      case Result.Ok(_)    => Result.Ok("")
+      case Result.Err(msg) => Result.Err(s"error: $msg\n")
+
   if command == "deps" then
     val parsed = Build.parseProjectArgs(cmdArgs) match
       case Result.Ok(parsed) => parsed

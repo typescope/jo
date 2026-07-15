@@ -38,9 +38,9 @@ object Main:
         tool.New.run(args.drop(1))
 
       case "clean" =>
-        val specFile = tool.Build.parseProjectArgs(args.drop(1)).map(_.specFile).orExit
-        val project = loadProject(specFile).orExit
-        tool.Build.clean(project).orExit
+        val parsed = tool.Build.parseProjectArgs(args.drop(1)).orExit
+        val project = loadProject(parsed.specFile).orExit
+        tool.Build.clean(project, parsed.module).orExit
 
       case "build" =>
         val parsed = tool.Build.parseProjectArgs(args.drop(1)).orExit
@@ -256,7 +256,7 @@ object Main:
     println("""Usage:
       |  jo <source.jo>                         Run program (defaults to 'eval')
       |  jo new <name>                           Create a new project
-      |  jo clean                                Remove this project's build artifacts (not path dependencies)
+      |  jo clean [module]                       Remove build artifacts (default: all modules)
       |  jo build [module]                       Build a module (default module if omitted)
       |  jo check [module]                       Type-check and compile to sast, skip executable
       |  jo run   [module] [-- ...]
