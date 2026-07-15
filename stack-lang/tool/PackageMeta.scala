@@ -9,6 +9,12 @@ case class PackageDependencyInfo(
   dependencies: Map[String, VersionSpec],
 )
 
+/** Metadata for a published package.
+ *
+ *  `platform` is serialized as `runtime`, in `meta.toml` and in the registry's JSONL index.
+ *  The build spec renamed the field to `platform` because authors write it; published
+ *  artifacts and registry records are produced elsewhere and keep the original key.
+ */
 case class PackageMeta(
   namespace: String,
   name: String,
@@ -36,14 +42,10 @@ object PackageMeta:
     val name      = requireStr(doc, "name")
     val jo        = requireVersionSpec(doc, "jo")
     val version   = requireStr(doc, "version")
-    val platformRaw =
-      doc.get("platform")
-        .orElse(doc.get("runtime"))
-        .map(asStr(_, "platform"))
-        .getOrElse("pure")
+    val runtimeRaw = doc.get("runtime").map(asStr(_, "runtime")).getOrElse("pure")
     val platform =
-      Platform.parse(platformRaw).getOrElse:
-        throw TomlError(s"invalid platform value '$platformRaw'")
+      Platform.parse(runtimeRaw).getOrElse:
+        throw TomlError(s"invalid runtime value '$runtimeRaw'")
     val description = doc.get("description").map(asStr(_, "description"))
     val authors = doc.get("authors").map(asStrList(_, "authors")).getOrElse(Nil)
     val homepage = doc.get("homepage").map(asStr(_, "homepage"))

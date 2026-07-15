@@ -50,7 +50,7 @@ object Release:
         resolved.packages.find(_.meta.platform != Platform.Pure) match
           case Some(pkg) =>
             Result.Err(
-              s"'jo package' only allows published packages to depend on pure packages; dependency '${pkg.name}' requires platform=${pkg.meta.platform.value}"
+              s"'jo package' only allows published packages to depend on pure packages; dependency '${pkg.name}' requires runtime=${pkg.meta.platform.value}"
             )
           case None =>
             Result.Ok(dependencies)
@@ -168,7 +168,7 @@ object Release:
     sb.append(s"""name = "${meta.name}"\n""")
     sb.append(s"""jo = "${meta.jo.show}"\n""")
     sb.append(s"""version = "${meta.version}"\n""")
-    sb.append(s"""platform = "${meta.platform.value}"\n""")
+    sb.append(s"""runtime = "${meta.platform.value}"\n""")
     meta.description.foreach(d => sb.append(s"""description = "$d"\n"""))
     if meta.authors.nonEmpty then
       sb.append(s"authors = ${renderStrList(meta.authors)}\n")

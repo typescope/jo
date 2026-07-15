@@ -6,7 +6,11 @@ import java.nio.file.{Files, Path}
 import java.util.zip.ZipFile
 import tool.toml.TomlParser
 
-/** A single parsed line from a package's JSONL release index. */
+/** A single parsed line from a package's JSONL release index.
+ *
+ *  The wire key for the platform is `runtime`: the registry daemon writes it, and the
+ *  build spec's `platform` rename does not reach data Jo does not produce.
+ */
 private case class ReleaseRecord(
   version: Version,
   url: String,
@@ -52,7 +56,7 @@ case class HttpPackageProvider(
         case Some(platform) =>
           Result.Ok(PackageDependencyInfo(rec.jo, platform, rec.deps))
         case None =>
-          Result.Err(s"invalid platform value '${rec.platform}' in $name.jsonl")
+          Result.Err(s"invalid runtime value '${rec.platform}' in $name.jsonl")
 
   def meta(name: String, version: Version): Result[PackageMeta] =
     path(name, version).flatMap: archive =>
@@ -187,7 +191,7 @@ private object ReleaseJson:
         url        <- requireStr(obj, "url")
         sha512     <- requireStr(obj, "sha512")
         joStr      <- requireStr(obj, "jo")
-        platform   <- requireStr(obj, "platform")
+        platform   <- requireStr(obj, "runtime")
         version    <- Version.parse(versionStr).toRight(s"invalid version: $versionStr")
         jo         <- VersionSpec.parse(joStr).left.map(msg => s"invalid jo '$joStr': $msg")
       yield
