@@ -47,7 +47,7 @@ object ToolPrinter:
     sb.append(s"name = ${str(meta.name)}\n")
     sb.append(s"jo = ${str(meta.jo.show)}\n")
     sb.append(s"version = ${str(meta.version)}\n")
-    sb.append(s"platform = ${str(meta.platform)}\n")
+    sb.append(s"platform = ${str(meta.platform.value)}\n")
     meta.description.foreach(d => sb.append(s"description = ${str(d)}\n"))
     if meta.authors.nonEmpty then sb.append(s"authors = ${strList(meta.authors)}\n")
     meta.homepage.foreach(h => sb.append(s"homepage = ${str(h)}\n"))

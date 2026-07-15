@@ -48,10 +48,11 @@ case class HttpPackageProvider(
 
   def dependencyInfo(name: String, version: Version): Result[PackageDependencyInfo] =
     recordFor(name, version).flatMap: rec =>
-      if !BuildSpec.validPlatforms.contains(rec.platform) then
-        Result.Err(s"invalid platform value '${rec.platform}' in $name.jsonl")
-      else
-        Result.Ok(PackageDependencyInfo(rec.jo, rec.platform, rec.deps))
+      Platform.parse(rec.platform) match
+        case Some(platform) =>
+          Result.Ok(PackageDependencyInfo(rec.jo, platform, rec.deps))
+        case None =>
+          Result.Err(s"invalid platform value '${rec.platform}' in $name.jsonl")
 
   def meta(name: String, version: Version): Result[PackageMeta] =
     path(name, version).flatMap: archive =>

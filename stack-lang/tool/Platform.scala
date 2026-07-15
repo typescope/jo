@@ -24,4 +24,3 @@ object Platform:
     case _        => None
 
   val all: List[Platform] = List(Pure, Python, Ruby)
-  val app: List[Platform] = List(Python, Ruby)

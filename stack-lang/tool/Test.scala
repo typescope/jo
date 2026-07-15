@@ -442,7 +442,7 @@ private def printResolved(specFile: String): Unit =
 
   val provider = YamlPackageProvider(repoFile, specDir.resolve(".cache"))
   given PackageProvider = provider
-  Project.load(specPath, resolveJo).flatMap(DependencyResolver.resolveProject(_)) match
+  Project.load(specPath, resolveJo).flatMap(project => DependencyResolver.resolveProject(project, project.moduleIds)) match
     case Result.Ok(resolved) =>
       resolved.unusedPins.foreach: (name, version) =>
         println(s"warning: unused [pinning] entry $name = \"$version\"")
@@ -469,8 +469,8 @@ private def lockCheck(specFile: String): String =
 
   val resolved = Project.load(specPath, resolveJo).flatMap: project =>
     LockFile.load(lockPath).flatMap:
-      case Some(lock) => DependencyResolver.resolveProject(project, lock).map(resolved => (project, resolved))
-      case None       => DependencyResolver.resolveProject(project).map(resolved => (project, resolved))
+      case Some(lock) => DependencyResolver.resolveProject(project, project.moduleIds, lock).map(resolved => (project, resolved))
+      case None       => DependencyResolver.resolveProject(project, project.moduleIds).map(resolved => (project, resolved))
 
   val result = resolved.flatMap: (project, resolved) =>
     validateLockPackageDepths(project, resolved).flatMap: _ =>

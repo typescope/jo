@@ -47,10 +47,10 @@ object Release:
   private def validatePackageDependencies(project: Project, module: ModuleId)(using PackageProvider): Result[Map[String, VersionSpec]] =
     packageDependencies(project, module).flatMap: dependencies =>
       DependencyResolver.resolveProject(project, List(module)).flatMap: resolved =>
-        resolved.packages.find(_.meta.platform != "pure") match
+        resolved.packages.find(_.meta.platform != Platform.Pure) match
           case Some(pkg) =>
             Result.Err(
-              s"'jo package' only allows published packages to depend on pure packages; dependency '${pkg.name}' requires platform=${pkg.meta.platform}"
+              s"'jo package' only allows published packages to depend on pure packages; dependency '${pkg.name}' requires platform=${pkg.meta.platform.value}"
             )
           case None =>
             Result.Ok(dependencies)
@@ -58,7 +58,6 @@ object Release:
   private def packageDependencies(project: Project, module: ModuleId): Result[Map[String, VersionSpec]] =
     project.requireModule(module).flatMap: spec =>
       val dependencies = mutable.LinkedHashMap.empty[String, VersionSpec]
-      val moduleDeps = mutable.Queue(project.moduleDepsOf(module)*)
 
       def addDependency(name: String, constraint: VersionSpec): Result[Unit] =
         dependencies.get(name) match
@@ -80,7 +79,7 @@ object Release:
                 addDependency(name, constraint)
 
               case DepSource.Module(depModule, sourcePath) =>
-                moduleDeps.dequeueFirst(dep => dep.module == depModule && dep.sourcePath == sourcePath) match
+                project.moduleDepOf(module, depModule, sourcePath) match
                   case None =>
                     Result.Err(s"module dependency '${depModule.value}' was not resolved for module '${module.value}'")
 
@@ -137,7 +136,7 @@ object Release:
       pkg.name,
       project.joVersionSpec,
       pkg.version,
-      project.platform(module).value,
+      project.platform(module),
       pkg.description,
       pkg.authors,
       pkg.homepage,
@@ -174,7 +173,7 @@ object Release:
     sb.append(s"""name = "${meta.name}"\n""")
     sb.append(s"""jo = "${meta.jo.show}"\n""")
     sb.append(s"""version = "${meta.version}"\n""")
-    sb.append(s"""platform = "${meta.platform}"\n""")
+    sb.append(s"""platform = "${meta.platform.value}"\n""")
     meta.description.foreach(d => sb.append(s"""description = "$d"\n"""))
     if meta.authors.nonEmpty then
       sb.append(s"authors = ${renderStrList(meta.authors)}\n")

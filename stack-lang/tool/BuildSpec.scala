@@ -71,8 +71,6 @@ case class BuildSpec(
     defaultModule.getOrElse(modules.head.id)
 
 object BuildSpec:
-  val validPlatforms = Set("pure", "ruby", "python")
-
   private val reservedTopLevel = Set("name", "package", "main", "test")
 
   def decode(doc: TomlDoc): BuildSpec =

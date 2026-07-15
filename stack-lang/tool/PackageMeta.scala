@@ -5,7 +5,7 @@ import tool.toml.{TomlValue, TomlDoc, TomlError}
 
 case class PackageDependencyInfo(
   jo: VersionSpec,
-  platform: String,
+  platform: Platform,
   dependencies: Map[String, VersionSpec],
 )
 
@@ -14,7 +14,7 @@ case class PackageMeta(
   name: String,
   jo: VersionSpec,
   version: String,
-  platform: String,
+  platform: Platform,
   description: Option[String] = None,
   authors: List[String] = Nil,
   homepage: Option[String] = None,
@@ -36,20 +36,20 @@ object PackageMeta:
     val name      = requireStr(doc, "name")
     val jo        = requireVersionSpec(doc, "jo")
     val version   = requireStr(doc, "version")
-    val platform =
+    val platformRaw =
       doc.get("platform")
         .orElse(doc.get("runtime"))
         .map(asStr(_, "platform"))
         .getOrElse("pure")
+    val platform =
+      Platform.parse(platformRaw).getOrElse:
+        throw TomlError(s"invalid platform value '$platformRaw'")
     val description = doc.get("description").map(asStr(_, "description"))
     val authors = doc.get("authors").map(asStrList(_, "authors")).getOrElse(Nil)
     val homepage = doc.get("homepage").map(asStr(_, "homepage"))
     val license = doc.get("license").map(asStr(_, "license"))
     val keywords = doc.get("keywords").map(asStrList(_, "keywords")).getOrElse(Nil)
     val dependencies = doc.get("dependencies").map(asDependencies(_, "dependencies")).getOrElse(Map.empty)
-
-    if !BuildSpec.validPlatforms.contains(platform) then
-      throw TomlError(s"invalid platform value '$platform'")
 
     PackageMeta(namespace, name, jo, version, platform, description, authors, homepage, license, keywords, dependencies)
 

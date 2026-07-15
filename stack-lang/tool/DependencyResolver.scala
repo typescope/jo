@@ -61,14 +61,8 @@ object DependencyResolver:
    *  Error behavior is explicit: failures are returned as Result.Err rather
    *  than being used for control flow via exceptions.
    */
-  def resolveProject(project: Project)(using provider: PackageProvider): Result[ResolutionResult] =
-    resolve(project, project.moduleIds, Map.empty)
-
   def resolveProject(project: Project, modules: List[ModuleId])(using provider: PackageProvider): Result[ResolutionResult] =
     resolve(project, modules, Map.empty)
-
-  def resolveProject(project: Project, lock: LockFile)(using provider: PackageProvider): Result[ResolutionResult] =
-    resolve(project, project.moduleIds, lock.packages.map(pkg => pkg.name -> pkg).toMap)
 
   def resolveProject(project: Project, modules: List[ModuleId], lock: LockFile)(using provider: PackageProvider): Result[ResolutionResult] =
     resolve(project, modules, lock.packages.map(pkg => pkg.name -> pkg).toMap)
@@ -299,32 +293,29 @@ object DependencyResolver:
     root: ModuleId,
     rootSpecPath: Path,
   ): DepthInfo =
-    val memo = mutable.Map.empty[Node, (Int, List[Node])]
+    val memo = mutable.Map.empty[Node, Option[(Int, List[Node])]]
 
-    def longest(node: Node): (Int, List[Node]) =
+    def longest(node: Node): Option[(Int, List[Node])] =
       memo.getOrElseUpdate(node, computeLongest(node))
 
-    def computeLongest(node: Node): (Int, List[Node]) =
+    def computeLongest(node: Node): Option[(Int, List[Node])] =
       node match
         case Node.Root(module) =>
-          if module == root then 0 -> List(node)
-          else -10000 -> List(node)
+          if module == root then Some(0 -> List(node))
+          else None
 
         case _ =>
           val parents = graph.getOrElse(node, mutable.ArrayBuffer.empty)
-          if parents.isEmpty then -10000 -> List(node)
-          else
-            parents.map: parent =>
-              val (depth, path) = longest(parent)
+          parents.flatMap: parent =>
+            longest(parent).map: (depth, path) =>
               val nextDepth = node match
                 case Node.Package(_) => depth + 1
                 case _               => depth
               (nextDepth, path :+ node)
-            .maxBy(_._1)
+          .maxByOption(_._1)
 
     val deepest = selectedPackages
-      .map(name => longest(Node.Package(name)))
-      .filter(_._1 >= 0)
+      .flatMap(name => longest(Node.Package(name)))
       .maxByOption(_._1)
 
     deepest match

@@ -1,5 +1,6 @@
 package tool
 
+import java.io.IOException
 import java.nio.file.{Files, Path}
 import scala.collection.mutable
 import tool.toml.{TomlError, TomlParser}
@@ -9,7 +10,7 @@ case class ModuleDep(
   module: ModuleId,
   link: DepLink,
   project: Option[Project],
-  sourcePath: Option[String] = None,
+  projectSpecPath: Option[Path] = None,
 )
 
 final class Project private (
@@ -43,7 +44,16 @@ final class Project private (
     moduleDeps.getOrElse(id, Nil)
 
   def moduleDepOf(id: ModuleId, depModule: ModuleId, sourcePath: Option[String]): Option[ModuleDep] =
-    moduleDepsOf(id).find(dep => dep.module == depModule && dep.sourcePath == sourcePath)
+    sourcePath match
+      case None =>
+        moduleDepsOf(id).find(dep => dep.module == depModule && dep.projectSpecPath.isEmpty)
+
+      case Some(path) =>
+        Project.canonicalDependencySpecPath(dir, path) match
+          case Result.Ok(depSpecPath) =>
+            moduleDepsOf(id).find(dep => dep.module == depModule && dep.projectSpecPath.contains(depSpecPath))
+          case Result.Err(_) =>
+            None
 
   def defaultDepth(id: ModuleId): Int =
     module(id) match
@@ -231,6 +241,19 @@ object Project:
       acc.flatMap: byModule =>
         val deps = mutable.ListBuffer.empty[ModuleDep]
         val module = moduleDef.id
+
+        def addModuleDep(dep: ModuleDep): Result[Unit] =
+          val duplicate = deps.exists: existing =>
+            existing.module == dep.module && existing.projectSpecPath == dep.projectSpecPath
+          if duplicate then
+            val label = dep.projectSpecPath match
+              case Some(specPath) => s"${LogFormat.path(specPath)} [${dep.module.value}]"
+              case None           => dep.module.value
+            Result.Err(s"duplicate module dependency '$label' in module.${module.value}.dependencies")
+          else
+            deps += dep
+            Result.unit
+
         val result = moduleDef.spec.dependencies.foldLeft(Result.unit): (depAcc, depSpec) =>
           depAcc.flatMap: _ =>
             depSpec.source match
@@ -238,20 +261,14 @@ object Project:
                 if spec.module(depModule).isEmpty then
                   Result.Err(s"module '${module.value}' depends on undefined module '${depModule.value}'")
                 else
-                  deps += ModuleDep(depModule, depSpec.link, None, None)
-                  Result.unit
+                  addModuleDep(ModuleDep(depModule, depSpec.link, None, None))
 
               case DepSource.Module(depModule, Some(relPath)) =>
-                val depDir = specDir.resolve(relPath).normalize().toRealPath()
-                val depSpecPath = depDir.resolve("jo.toml")
-                if !Files.exists(depSpecPath) then
-                  Result.Err(s"module dependency '${depModule.value}' not found: $depSpecPath")
-                else
+                canonicalDependencySpecPath(specDir, relPath).flatMap: depSpecPath =>
                   loadAt(depSpecPath).flatMap: depProject =>
                     depProject.module(depModule) match
                       case Some(_) =>
-                        deps += ModuleDep(depModule, depSpec.link, Some(depProject), Some(relPath))
-                        Result.unit
+                        addModuleDep(ModuleDep(depModule, depSpec.link, Some(depProject), Some(depProject.specPath)))
                       case None =>
                         Result.Err(s"module dependency '${depModule.value}' is not defined in ${LogFormat.path(depProject.specPath)}")
 
@@ -259,6 +276,14 @@ object Project:
                 Result.unit
 
         result.map(_ => byModule + (module -> deps.toList))
+
+  private[tool] def canonicalDependencySpecPath(specDir: Path, relPath: String): Result[Path] =
+    val depSpecPath = specDir.resolve(relPath).normalize().resolve("jo.toml")
+    if !Files.exists(depSpecPath) then
+      Result.Err(s"module dependency not found: $depSpecPath")
+    else
+      try Result.Ok(depSpecPath.toAbsolutePath.toRealPath())
+      catch case e: IOException => Result.Err(s"module dependency not found: $depSpecPath: ${e.getMessage}")
 
   def loadSpec(dir: Path, tomlFile: String = "jo.toml"): Result[BuildSpec] =
     val file = dir.resolve(tomlFile)
