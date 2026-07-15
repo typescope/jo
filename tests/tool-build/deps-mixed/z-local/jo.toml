@@ -5,7 +5,5 @@ kind = "lib"
 src = ["src/"]
 depth = 2
 
-dependencies = [
-  { path = "beta-local", module = "lib" },
-  { package = "gamma-pkg", version = "1.0" },
-]
+modules = [{ id = "lib", path = "beta-local" }]
+packages = [{ name = "gamma-pkg", version = "1.0" }]

@@ -5,6 +5,4 @@ kind = "app"
 platform = "python"
 src = ["src/"]
 
-dependencies = [
-  { package = "core-pkg", version = "1.0" },
-]
+packages = [{ name = "core-pkg", version = "1.0" }]

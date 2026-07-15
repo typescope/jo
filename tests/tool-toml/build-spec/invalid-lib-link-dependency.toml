@@ -4,6 +4,4 @@ jo = "1.0"
 kind = "lib"
 src = ["src/"]
 
-dependencies = [
-  { package = "runtime", version = "1.0", link = true },
-]
+packages = [{ name = "runtime", version = "1.0", link = true }]

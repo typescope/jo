@@ -21,10 +21,7 @@ platform = "python"
 kind = "app"
 src = ["tests/"]
 platform = "python"
-
-dependencies = [
-  { module = "app" },
-]
+modules = ["app"]
 '
 cat myapp/src/Main.jo
 : '

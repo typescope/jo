@@ -5,6 +5,4 @@ kind = "app"
 platform = "python"
 src = ["src/"]
 
-dependencies = [
-  { package = "jo-core", version = "1.0" },
-]
+packages = [{ name = "jo-core", version = "1.0" }]

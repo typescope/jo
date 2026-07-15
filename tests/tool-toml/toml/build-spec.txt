@@ -1,24 +1,20 @@
 module:
   app:
-    dependencies:
-      module = "utils"
-      path = "../utils"
-    dependencies:
-      package = "http"
-      version = "1.0"
     kind = "app"
     links:
       from = "MyApp.Iface.run"
       to = "MyApp.Impl.run"
+    modules:
+      id = "utils"
+      path = "../utils"
+    packages:
+      name = "http"
+      version = "1.0"
     platform = "python"
     src = ["src/", "vendor/"]
   test:
-    dependencies:
-      module = "app"
-    dependencies:
-      module = "testlib"
-      path = "../testlib"
     kind = "app"
+    modules = ["app", {id = "testlib", path = "../testlib"}]
     platform = "python"
     src = ["tests/"]
 namespace = "MyApp"

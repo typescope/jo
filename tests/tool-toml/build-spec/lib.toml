@@ -4,9 +4,7 @@ jo = "1.0"
 kind = "lib"
 src = ["api/src/"]
 
-dependencies = [
-  { package = "jo-core", version = "1.0" },
-]
+packages = [{ name = "jo-core", version = "1.0" }]
 
 [module.api.package]
 name = "agent-api"
@@ -18,7 +16,5 @@ kind = "app"
 platform = "python"
 src = ["test/src/"]
 
-dependencies = [
-  { module = "api" },
-  { package = "jo-test", version = "0.1" },
-]
+modules = ["api"]
+packages = [{ name = "jo-test", version = "0.1" }]

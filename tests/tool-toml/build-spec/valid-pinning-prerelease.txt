@@ -5,5 +5,5 @@ module.app:
   kind = "app"
   src = ["src/"]
   platform = "python"
-  dependencies:
-    - package "mustache" "1.2"
+  packages:
+    - "mustache" "1.2"

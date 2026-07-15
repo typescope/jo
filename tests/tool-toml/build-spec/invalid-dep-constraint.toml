@@ -4,6 +4,4 @@ jo = "1.0"
 kind = "app"
 platform = "python"
 src = ["src/"]
-dependencies = [
-  { package = "mylib", version = "^1.0.0" },
-]
+packages = [{ name = "mylib", version = "^1.0.0" }]

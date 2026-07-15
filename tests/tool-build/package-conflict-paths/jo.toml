@@ -5,7 +5,7 @@ kind = "app"
 platform = "python"
 src = ["src/"]
 
-dependencies = [
-  { path = "pkg-a", module = "lib" },
-  { path = "pkg-b", module = "lib" },
+modules = [
+  { id = "lib", path = "pkg-a" },
+  { id = "lib", path = "pkg-b" },
 ]

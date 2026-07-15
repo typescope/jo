@@ -5,7 +5,5 @@ kind = "app"
 platform = "python"
 src = []
 
-dependencies = [
-  { path = "api", module = "api" },
-  { package = "mustache", version = "2.0" },
-]
+modules = [{ id = "api", path = "api" }]
+packages = [{ name = "mustache", version = "2.0" }]

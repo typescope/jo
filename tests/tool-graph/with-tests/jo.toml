@@ -5,16 +5,14 @@ kind = "app"
 platform = "python"
 src = ["src/"]
 
-dependencies = [
-  { path = "./lib", module = "lib" },
-]
+modules = [{ id = "lib", path = "./lib" }]
 
 [module.test]
 kind = "app"
 platform = "python"
 src = ["tests/"]
 
-dependencies = [
-  { module = "app" },
-  { path = "./test-fw", module = "lib" },
+modules = [
+  "app",
+  { id = "lib", path = "./test-fw" },
 ]

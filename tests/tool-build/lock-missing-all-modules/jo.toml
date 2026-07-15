@@ -6,14 +6,10 @@ kind = "app"
 platform = "python"
 src = ["src/"]
 
-dependencies = [
-  { package = "greeter-pkg", version = "1.0" },
-]
+packages = [{ name = "greeter-pkg", version = "1.0" }]
 
 [module.tool]
 kind = "lib"
 src = ["tool/"]
 
-dependencies = [
-  { package = "alpha-pkg", version = "1.0" },
-]
+packages = [{ name = "alpha-pkg", version = "1.0" }]

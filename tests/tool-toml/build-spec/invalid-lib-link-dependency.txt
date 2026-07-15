@@ -1,1 +1,1 @@
-error: module.lib.dependencies cannot use link = true when kind = "lib"
+error: module.lib.packages cannot use link = true when kind = "lib"

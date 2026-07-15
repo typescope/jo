@@ -9,6 +9,4 @@ kind = "app"
 platform = "python"
 src = ["tests/"]
 
-dependencies = [
-  { module = "lib" },
-]
+modules = ["lib"]

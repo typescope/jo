@@ -6,17 +6,13 @@ platform = "python"
 src = ["src/"]
 depth = 2
 
-dependencies = [
-  { path = "helpers", module = "lib" },
-  { package = "greeter-pkg", version = "1.0" },
-]
+modules = [{ id = "lib", path = "helpers" }]
+packages = [{ name = "greeter-pkg", version = "1.0" }]
 
 [module.test]
 kind = "app"
 platform = "python"
 src = ["tests/*.jo"]
 
-dependencies = [
-  { module = "app" },
-  { package = "test-pkg", version = "1.0" },
-]
+modules = ["app"]
+packages = [{ name = "test-pkg", version = "1.0" }]

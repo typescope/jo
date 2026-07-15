@@ -10,6 +10,4 @@ platform = "python"
 enable-ffi = true
 src = ["tests/"]
 
-dependencies = [
-  { module = "lib" },
-]
+modules = ["lib"]

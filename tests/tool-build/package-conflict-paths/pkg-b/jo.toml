@@ -5,9 +5,7 @@ kind = "lib"
 src = ["src/"]
 depth = 1
 
-dependencies = [
-  { package = "jo-core", version = "2.0" },
-]
+packages = [{ name = "jo-core", version = "2.0" }]
 
 [module.lib.package]
 name = "pkg-b"

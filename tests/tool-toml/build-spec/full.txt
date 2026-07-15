@@ -10,10 +10,11 @@ module.app:
   src = ["src/", "vendor/"]
   platform = "python"
   depth = 2
-  dependencies:
-    - path "../utils" module "utils"
-    - package "http" "1.0"
-    - path "../runtime" module "agent-runtime" [link]
+  modules:
+    - "utils" path "../utils"
+    - "agent-runtime" path "../runtime" [link]
+  packages:
+    - "http" "1.0"
   links:
     - "MyApp.Iface.run" -> "MyApp.Impl.run"
 module.test:
@@ -21,6 +22,6 @@ module.test:
   src = ["tests/"]
   platform = "python"
   depth = 3
-  dependencies:
-    - module "app"
-    - path "../testlib" module "testlib"
+  modules:
+    - "app"
+    - "testlib" path "../testlib"

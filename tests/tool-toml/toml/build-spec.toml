@@ -7,10 +7,8 @@ kind = "app"
 platform = "python"
 src = ["src/", "vendor/"]
 
-dependencies = [
-  { path = "../utils", module = "utils" },
-  { package = "http", version = "1.0" },
-]
+modules = [{ id = "utils", path = "../utils" }]
+packages = [{ name = "http", version = "1.0" }]
 
 links = [
   { from = "MyApp.Iface.run", to = "MyApp.Impl.run" },
@@ -21,7 +19,7 @@ kind = "app"
 platform = "python"
 src = ["tests/"]
 
-dependencies = [
-  { module = "app" },
-  { path = "../testlib", module = "testlib" },
+modules = [
+  "app",
+  { id = "testlib", path = "../testlib" },
 ]

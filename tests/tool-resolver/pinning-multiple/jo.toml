@@ -9,7 +9,7 @@ kind = "app"
 platform = "python"
 src = ["src/"]
 
-dependencies = [
-  { package = "alpha-pkg", version = "1.0" },
-  { package = "zeta-pkg", version = "1.0" },
+packages = [
+  { name = "alpha-pkg", version = "1.0" },
+  { name = "zeta-pkg", version = "1.0" },
 ]

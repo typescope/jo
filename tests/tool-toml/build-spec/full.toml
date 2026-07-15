@@ -15,11 +15,11 @@ src = ["src/", "vendor/"]
 platform = "python"
 depth = 2
 
-dependencies = [
-  { path = "../utils", module = "utils" },
-  { package = "http", version = "1.0" },
-  { path = "../runtime", module = "agent-runtime", link = true },
+modules = [
+  { id = "utils", path = "../utils" },
+  { id = "agent-runtime", path = "../runtime", link = true },
 ]
+packages = [{ name = "http", version = "1.0" }]
 
 links = [
   { from = "MyApp.Iface.run", to = "MyApp.Impl.run" },
@@ -31,7 +31,7 @@ platform = "python"
 src = ["tests/"]
 depth = 3
 
-dependencies = [
-  { module = "app" },
-  { path = "../testlib", module = "testlib" },
+modules = [
+  "app",
+  { id = "testlib", path = "../testlib" },
 ]

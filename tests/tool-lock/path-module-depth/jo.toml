@@ -5,6 +5,4 @@ kind = "app"
 platform = "python"
 src = []
 
-dependencies = [
-  { path = "api", module = "api" },
-]
+modules = [{ id = "api", path = "api" }]

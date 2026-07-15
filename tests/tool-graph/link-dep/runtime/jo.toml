@@ -5,9 +5,7 @@ kind = "lib"
 src = ["src/"]
 platform = "python"
 
-dependencies = [
-  { path = "../api", module = "lib" },
-]
+modules = [{ id = "lib", path = "../api" }]
 
 [module.lib.package]
 name = "agent-runtime"

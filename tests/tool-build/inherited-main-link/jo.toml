@@ -15,9 +15,7 @@ kind = "app"
 platform = "python"
 src = ["test/"]
 
-dependencies = [
-  { module = "app" },
-]
+modules = ["app"]
 
 links = [
   { from = "jo.main", to = "Test.entry" },

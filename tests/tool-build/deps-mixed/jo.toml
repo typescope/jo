@@ -6,17 +6,13 @@ platform = "python"
 src = ["src/"]
 depth = 3
 
-dependencies = [
-  { package = "alpha-pkg", version = "1.0" },
-  { path = "z-local", module = "lib" },
-]
+modules = [{ id = "lib", path = "z-local" }]
+packages = [{ name = "alpha-pkg", version = "1.0" }]
 
 [module.test]
 kind = "app"
 platform = "python"
 src = ["tests/*.jo"]
 
-dependencies = [
-  { module = "app" },
-  { package = "test-only-pkg", version = "1.0" },
-]
+modules = ["app"]
+packages = [{ name = "test-only-pkg", version = "1.0" }]

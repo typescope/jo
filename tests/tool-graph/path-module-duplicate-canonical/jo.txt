@@ -1,1 +1,1 @@
-error: duplicate module dependency 'tests/tool-graph/path-module-duplicate-canonical/api/jo.toml [api]' in module.app.dependencies
+error: duplicate module dependency 'tests/tool-graph/path-module-duplicate-canonical/api/jo.toml [api]' in module.app.modules

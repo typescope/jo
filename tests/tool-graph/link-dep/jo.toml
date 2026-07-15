@@ -5,7 +5,7 @@ kind = "app"
 platform = "python"
 src = ["src/"]
 
-dependencies = [
-  { path = "./api", module = "lib" },
-  { path = "./runtime", module = "lib", link = true },
+modules = [
+  { id = "lib", path = "./api" },
+  { id = "lib", path = "./runtime", link = true },
 ]

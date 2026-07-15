@@ -14,9 +14,7 @@ kind = "app"
 platform = "python"
 src = ["app/"]
 
-dependencies = [
-  { module = "runtime", link = true },
-]
+modules = [{ id = "runtime", link = true }]
 
 links = [
   { from = "jo.main", to = "App.entry" },
@@ -28,9 +26,9 @@ kind = "app"
 platform = "python"
 src = ["test/"]
 
-dependencies = [
-  { module = "app" },
-  { module = "test-runtime", link = true },
+modules = [
+  "app",
+  { id = "test-runtime", link = true },
 ]
 
 links = [

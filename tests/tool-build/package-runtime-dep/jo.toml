@@ -4,9 +4,7 @@ jo = "1.0"
 kind = "lib"
 src = ["src/"]
 
-dependencies = [
-  { package = "runtime-helper", version = "1.0" },
-]
+packages = [{ name = "runtime-helper", version = "1.0" }]
 
 [module.lib.package]
 name = "package-runtime-dep"

@@ -4,9 +4,7 @@ jo = "1.0"
 kind = "lib"
 src = ["src/"]
 
-dependencies = [
-  { path = "./helper", module = "lib" },
-]
+modules = [{ id = "lib", path = "./helper" }]
 
 [module.lib.package]
 name = "package-path-dep"

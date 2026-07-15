@@ -5,6 +5,4 @@ kind = "app"
 platform = "python"
 src = ["src/"]
 
-dependencies = [
-  { path = "./b", module = "lib" },
-]
+modules = [{ id = "lib", path = "./b" }]

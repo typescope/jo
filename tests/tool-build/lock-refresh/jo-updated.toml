@@ -5,7 +5,7 @@ kind = "app"
 platform = "python"
 src = ["src/"]
 
-dependencies = [
-  { package = "greeter-pkg", version = "1.0" },
-  { package = "alpha-pkg", version = "1.0" },
+packages = [
+  { name = "greeter-pkg", version = "1.0" },
+  { name = "alpha-pkg", version = "1.0" },
 ]

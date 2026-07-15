@@ -24,10 +24,7 @@ version = "0.1.0"
 kind = "app"
 src = ["tests/"]
 platform = "python"
-
-dependencies = [
-  { module = "lib" },
-]
+modules = ["lib"]
 '
 cat mylib/tests/Main.jo
 : '

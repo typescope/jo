@@ -4,6 +4,4 @@ jo = "1.0"
 kind = "lib"
 src = []
 
-dependencies = [
-  { package = "pkg-a", version = "1.0" },
-]
+packages = [{ name = "pkg-a", version = "1.0" }]

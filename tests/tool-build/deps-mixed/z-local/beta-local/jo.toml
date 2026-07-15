@@ -5,6 +5,4 @@ kind = "lib"
 src = ["src/"]
 depth = 1
 
-dependencies = [
-  { package = "core-pkg", version = "1.0" },
-]
+packages = [{ name = "core-pkg", version = "1.0" }]

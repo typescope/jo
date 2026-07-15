@@ -4,9 +4,7 @@ jo = "1.0"
 kind = "lib"
 src = ["src/"]
 
-dependencies = [
-  { path = "../a", module = "lib" },
-]
+modules = [{ id = "lib", path = "../a" }]
 
 [module.lib.package]
 name = "b"

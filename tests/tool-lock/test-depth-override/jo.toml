@@ -11,7 +11,5 @@ platform = "python"
 src = ["tests/"]
 depth = 2
 
-dependencies = [
-  { module = "app" },
-  { package = "pkg-a", version = "1.0" },
-]
+modules = ["app"]
+packages = [{ name = "pkg-a", version = "1.0" }]

@@ -8,6 +8,4 @@ kind = "app"
 platform = "python"
 src = ["src/"]
 
-dependencies = [
-  { package = "mustache", version = "1.2" },
-]
+packages = [{ name = "mustache", version = "1.2" }]

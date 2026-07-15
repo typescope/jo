@@ -5,9 +5,9 @@ kind = "app"
 platform = "python"
 src = []
 
-dependencies = [
-  { module = "api" },
-  { path = "../deps-path-labels-api", module = "api" },
+modules = [
+  "api",
+  { id = "api", path = "../deps-path-labels-api" },
 ]
 
 [module.api]
