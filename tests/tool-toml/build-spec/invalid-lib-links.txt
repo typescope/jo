@@ -1,0 +1,1 @@
+error: module.lib.links is valid only for kind = "app"
