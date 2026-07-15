@@ -1,0 +1,8 @@
+jo = "1.0"
+
+[module.api]
+kind = "lib"
+
+[module.app]
+kind = "app"
+platform = "python"
