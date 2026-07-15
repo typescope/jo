@@ -31,7 +31,8 @@ object DependencyResolver:
    *
    *  Algorithm:
    *
-   *  1. Validate that every requested root module exists.
+   *  1. Validate that every requested root module exists and that the source
+   *     module graph reachable from those roots is acyclic.
    *  2. Build the source-module part of the dependency graph for the requested
    *     module roots. Same-project and external source module dependencies are
    *     walked into the same resolution universe.
@@ -86,6 +87,10 @@ object DependencyResolver:
     missingModule match
       case Some(msg) => return Result.Err(msg)
       case None =>
+
+    Project.validateModuleAcyclic(project, selectedModules) match
+      case Result.Err(msg) => return Result.Err(msg)
+      case Result.Ok(_) =>
 
     val (pendingSeeds, graph) = seedGraph(project, selectedModules)
     val packageConstraints = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[(PackageConstraint, Node)]]

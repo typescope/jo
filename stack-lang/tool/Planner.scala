@@ -8,8 +8,12 @@ object Planner:
   private case class EffectiveAppLinks(linkLibs: List[Path], links: Map[String, EffectiveLink])
 
   def plan(project: Project, selected: List[ModuleId], registrySastDirs: RegistrySastDirs): ProjectPlan =
+    Project.validateModuleAcyclic(project, selected) match
+      case Result.Err(msg) => throw IllegalStateException(msg)
+      case Result.Ok(_) =>
+
     val memo = collection.mutable.Map.empty[(Path, ModuleId), ModulePlan]
-    val stack = collection.mutable.Set.empty[(Path, ModuleId)]
+    val stack = collection.mutable.ArrayBuffer.empty[(Project, ModuleId)]
     val linkMemo = collection.mutable.Map.empty[(Path, ModuleId), EffectiveAppLinks]
     val linkStack = collection.mutable.Set.empty[(Path, ModuleId)]
 
@@ -116,46 +120,49 @@ object Planner:
       memo.getOrElseUpdate(
         key,
         {
-          if stack.contains(key) then
-            throw IllegalStateException(s"circular module dependency detected at ${id.value}")
-          stack += key
-          val spec = requireSpec(project0, id)
+          val cycleStart = stack.indexWhere((p, m) => p.specPath == project0.specPath && m == id)
+          if cycleStart >= 0 then
+            throw IllegalStateException(Project.formatModuleCycle(project, stack.drop(cycleStart).toList :+ ((project0, id))))
+          stack += ((project0, id))
+          try
+            val spec = requireSpec(project0, id)
 
-          val depPlans = project0.moduleDepsOf(id).map: dep =>
-            makePlan(dep.project.getOrElse(project0), dep.module)
+            val depPlans = project0.moduleDepsOf(id).map: dep =>
+              makePlan(dep.project.getOrElse(project0), dep.module)
 
-          val sourceDeps = sourceClosure(project0, id)
-          val sourceCheckLibs = sourceDeps.collect:
-            case (depProject, depModule, DepLink.Check) => depProject.sastDir(depModule)
+            val sourceDeps = sourceClosure(project0, id)
+            val sourceCheckLibs = sourceDeps.collect:
+              case (depProject, depModule, DepLink.Check) => depProject.sastDir(depModule)
 
-          val sources = SourceGlob.expand(spec.src, project0.dir, SourceGlob.defaultModuleSrc(id))
-          val compileOptions = ffiCompileOptions(spec) ++ spec.compileOptions
-          val task =
-            spec.kind match
-              case ModuleKind.Lib =>
-                CompileTask.LibTask(
-                  sources,
-                  sourceCheckLibs ++ registryCheckLibs(spec),
-                  project0.sastDir(id),
-                  compileOptions,
-                )
+            val sources = SourceGlob.expand(spec.src, project0.dir, SourceGlob.defaultModuleSrc(id))
+            val compileOptions = ffiCompileOptions(spec) ++ spec.compileOptions
+            val task =
+              spec.kind match
+                case ModuleKind.Lib =>
+                  CompileTask.LibTask(
+                    sources,
+                    sourceCheckLibs ++ registryCheckLibs(spec),
+                    project0.sastDir(id),
+                    compileOptions,
+                  )
 
-              case ModuleKind.App =>
-                val target = resolveTarget(project0, id)
-                val effectiveLinks = effectiveAppLinks(project0, id)
-                CompileTask.AppTask(
-                  sources,
-                  sourceCheckLibs ++ registryCheckLibs(spec),
-                  effectiveLinks.linkLibs,
-                  effectiveLinks.links.view.mapValues(_.to).toMap,
-                  target,
-                  project0.appOutFile(id, target),
-                  project0.sastDir(id),
-                  compileOptions,
-                )
+                case ModuleKind.App =>
+                  val target = resolveTarget(project0, id)
+                  val effectiveLinks = effectiveAppLinks(project0, id)
+                  CompileTask.AppTask(
+                    sources,
+                    sourceCheckLibs ++ registryCheckLibs(spec),
+                    effectiveLinks.linkLibs,
+                    effectiveLinks.links.view.mapValues(_.to).toMap,
+                    target,
+                    project0.appOutFile(id, target),
+                    project0.sastDir(id),
+                    compileOptions,
+                  )
 
-          stack -= key
-          ModulePlan(moduleLabel(project0, id), id, project0.joBin, task, depPlans)
+            ModulePlan(moduleLabel(project0, id), id, project0.joBin, task, depPlans)
+          finally
+            stack.remove(stack.length - 1)
         }
       )
 

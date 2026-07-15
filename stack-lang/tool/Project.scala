@@ -70,7 +70,7 @@ final class Project private (
       case Result.Err(msg)  => throw IllegalStateException(msg)
 
   private[tool] def effectivePlatform(id: ModuleId): Result[Platform] =
-    Project.effectivePlatform(this, this, id, Set.empty)
+    Project.effectivePlatform(this, this, id, Nil)
 
   /** Root of this module's build output: `<dir>/.build/<module-id>/`. */
   def buildDir(id: ModuleId): Path =
@@ -109,6 +109,38 @@ object Project:
     else
       try root.relativize(project).toString
       catch case _: IllegalArgumentException => project.toString
+
+  private[tool] def validateModuleAcyclic(root: Project, roots: List[ModuleId]): Result[Unit] =
+    val visited = collection.mutable.Set.empty[(Path, ModuleId)]
+    val stack = collection.mutable.ArrayBuffer.empty[(Project, ModuleId)]
+
+    def walk(project: Project, module: ModuleId): Result[Unit] =
+      val key = project.specPath -> module
+      val cycleStart = stack.indexWhere(sameModule(_, project, module))
+      if cycleStart >= 0 then
+        return Result.Err(formatModuleCycle(root, stack.drop(cycleStart).toList :+ ((project, module))))
+
+      if visited.contains(key) then
+        Result.unit
+      else
+        stack += ((project, module))
+        val result = project.moduleDepsOf(module).foldLeft(Result.unit): (acc, dep) =>
+          acc.flatMap: _ =>
+            walk(dep.project.getOrElse(project), dep.module)
+        stack.remove(stack.length - 1)
+        result.map: _ =>
+          visited += key
+          ()
+
+    roots.foldLeft(Result.unit): (acc, module) =>
+      acc.flatMap(_ => walk(root, module))
+
+  private[tool] def formatModuleCycle(root: Project, cycle: List[(Project, ModuleId)]): String =
+    val path = cycle.map((project, module) => project.moduleLabel(root, module)).mkString(" -> ")
+    s"circular module dependency detected: $path"
+
+  private def sameModule(entry: (Project, ModuleId), project: Project, module: ModuleId): Boolean =
+    entry._1.specPath == project.specPath && entry._2 == module
 
   def load(specPath: Path): Result[Project] =
     load(specPath, JoResolver.resolve, JoResolver.resolveExact)
@@ -246,12 +278,14 @@ object Project:
     root: Project,
     project: Project,
     module: ModuleId,
-    seen: Set[(Path, ModuleId)],
+    stack: List[(Project, ModuleId)],
   ): Result[Platform] =
-    val key = project.specPath -> module
-    if seen.contains(key) then return Result.Ok(Platform.Pure)
+    val cycleStart = stack.indexWhere(sameModule(_, project, module))
+    if cycleStart >= 0 then
+      return Result.Err(formatModuleCycle(root, stack.drop(cycleStart) :+ ((project, module))))
 
     val contributors = collection.mutable.LinkedHashMap.empty[String, Platform]
+    val nextStack = stack :+ ((project, module))
 
     val own = project.declaredPlatform(module)
     if own != Platform.Pure then
@@ -260,7 +294,7 @@ object Project:
     project.moduleDepsOf(module).foldLeft(Result.unit): (acc, dep) =>
       acc.flatMap: _ =>
         val depProject = dep.project.getOrElse(project)
-        effectivePlatform(root, depProject, dep.module, seen + key).map: depPlatform =>
+        effectivePlatform(root, depProject, dep.module, nextStack).map: depPlatform =>
           if depPlatform != Platform.Pure then
             contributors(depProject.moduleLabel(root, dep.module)) = depPlatform
     .flatMap: _ =>
