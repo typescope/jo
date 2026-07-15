@@ -1,0 +1,11 @@
+jo = "1.0"
+
+[module.api]
+kind = "lib"
+src = []
+
+[module.test]
+kind = "app"
+platform = "python"
+src = []
+modules = ["main"]
