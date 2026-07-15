@@ -1,6 +1,6 @@
 # Packages
 
-A Jo package is a `.joy` file — a tar archive containing compiled `.sast` files and a `meta.toml` describing the package.
+A Jo package is a `.joy` archive containing compiled `.sast` files and a `meta.toml` file.
 
 ## The `.joy` Format
 
@@ -12,23 +12,33 @@ agent-api-v1.2.0.joy
     QueryDSL.sast
 ```
 
-`.sast` files are target-independent in format — the same `.joy` serves all backends (Python and Ruby).
+`.sast` files are target-independent in format, so the same `.joy` can serve
+multiple backends.
 
-## Check Libraries and Link Libraries
+## Check And Link Dependencies
 
-When a package appears in `[main.dependencies]`, it can play one of two roles:
+When a module lists a dependency, it can play one of two roles:
 
-**Check library** (default) — available for type checking. User code can import its namespaces, use its types, and call its functions.
-
-**Link library** (`link = true`) — used only at link time to resolve `defer def`s. Hidden from user code; its namespaces cannot be imported.
+**Check library** (default) — available for type checking. User code can import
+its namespaces, use its types, and call its functions.
 
 ```toml
-[main.dependencies]
-agent-api            = "1.0"                        # check library
-agent-runtime-python = { version = "1.0", link = true }  # link library
+dependencies = [
+  { package = "agent-api", version = "1.0" },
+]
 ```
 
-This separation prevents user code from accidentally depending on platform-specific implementation details.
+**Link library** (`link = true`) — used only at link time to resolve
+`defer def`s. It is hidden from user code. Its namespaces cannot be imported.
+
+```toml
+dependencies = [
+  { package = "agent-runtime-python", version = "1.0", link = true },
+]
+```
+
+This separation prevents user code from accidentally depending on
+platform-specific implementation details.
 
 ## Deferred Definitions
 
@@ -40,42 +50,42 @@ namespace agentapi
 defer def runTask(input: String): String
 ```
 
-The app wires implementations at link time via `[main.links]`:
+An app wires implementations explicitly:
 
 ```toml
-[main.links]
-"agentapi.runTask" = "usertask.runTask"
+links = [
+  { from = "agentapi.runTask", to = "usertask.runTask" },
+]
 ```
 
-All wiring is explicit — there is no auto-inference. If any `defer def` is unresolved at link time, the build fails with a clear error.
-
-For tests, `[test.links]` is merged with `[main.links]`, allowing specific `defer def`s to be overridden with mock implementations:
-
-```toml
-[test.links]
-"agentapi.runTask" = "mocks.fakeRunTask"
-```
+If any `defer def` is unresolved at link time, the build fails.
 
 ## Runtime-Constrained Packages
 
-The `runtime` field in `meta.toml` indicates whether a package is pure-Jo or tied to a specific runtime:
+The `runtime` field in `meta.toml` indicates whether a package is pure Jo or tied to a runtime:
 
-| Value      | Meaning                                      |
-|------------|----------------------------------------------|
-| `"pure"`   | Pure Jo                          |
-| `"python"` | Requires the Python runtime                  |
-| `"ruby"`   | Requires the Ruby runtime                    |
+| Value      | Meaning                     |
+|------------|-----------------------------|
+| `"pure"`   | Pure Jo                     |
+| `"python"` | Requires the Python runtime |
+| `"ruby"`   | Requires the Ruby runtime   |
 
-`runtime` is **contagious**: if any dependency has `runtime != "pure"`, the package inherits that value. Two dependencies with conflicting `runtime` values is a build error.
-
-A library author can assert platform-independence in `jo.toml`:
+A package author can assert runtime in `[module.<id>.package]`:
 
 ```toml
-[package]
-runtime = "pure"    # build error if any dep introduces a runtime constraint
+[module.runtime.package]
+name = "agent-runtime-python"
+version = "1.0.0"
+runtime = "python"
 ```
 
-If omitted, `runtime` is computed automatically from source and dependencies.
+If omitted, `runtime` defaults to `"pure"`.
 
-Published packages may depend only on `pure` packages. Runtime-constrained packages are
-meant to be thin adapter packages at the edge of the graph, not deep transitive layers.
+`runtime` is **contagious** through the dependency graph: if a source module
+dependency has `runtime != "pure"`, the dependent module is treated as requiring
+that runtime too. Two dependencies with conflicting non-`pure` runtime values
+are a build error.
+
+Published package dependencies must be `pure`. Runtime-constrained packages are
+meant to be thin adapter packages at the edge of the graph, not deep transitive
+layers.

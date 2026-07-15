@@ -3,12 +3,11 @@
 | Command | Description |
 |---------|-------------|
 | [`jo new`](new.md) | Create a new project with scaffold |
-| [`jo build`](build.md) | Build the project |
-| [`jo run`](run.md) | Build and run the application |
-| [`jo test`](test.md) | Run tests |
+| [`jo build`](build.md) | Build a module |
+| [`jo run`](run.md) | Build and run an app module |
 | [`jo check`](check.md) | Type-check only, no code generation |
-| [`jo doc`](doc.md) | Generate API documentation |
-| [`jo package`](package.md) | Build a distributable package |
+| [`jo doc`](doc.md) | Generate module API documentation |
+| [`jo package`](package.md) | Build a distributable module package |
 | [`jo info`](info.md) | Show package metadata and versions |
 | [`jo deps`](deps.md) | Show dependencies |
 | [`jo lock`](lock.md) | Resolve dependencies and write the lock file |
@@ -19,6 +18,7 @@
 
 ## Global Options
 
-| Option      | Description                                    |
-|-------------|------------------------------------------------|
-| `--verbose` | Enable verbose logging (build progress, resolution details) |
+| Option          | Description                                    |
+|-----------------|------------------------------------------------|
+| `--spec <file>` | Build spec to act on. Default: `jo.toml` in the current directory. Use it to run a command against a project in another directory, for example `jo build --spec ../agent-api/jo.toml`. |
+| `--verbose`     | Enable verbose logging (build progress, resolution details) |

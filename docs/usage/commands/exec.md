@@ -19,11 +19,11 @@ dev = "jo build --spec sandbox/guest/jo.toml && jo run"
 fmt = "echo formatting..."
 ```
 
-- **`jo <name>`** resolves built-in commands first (`build`, `run`, `test`, …), then falls back to a `[commands]` entry. Built-ins can never be shadowed by a project, so `jo build` is always the real build even if a `build` command is defined.
+- **`jo <name>`** resolves built-in commands first (`build`, `run`, `check`, ...), then falls back to a `[commands]` entry. Built-ins can never be shadowed by a project, so `jo build` is always the real build even if a `build` command is defined.
 - **`jo exec <name>`** skips built-ins and runs the `[commands]` entry directly. Use it when a command shares a name with a built-in, or to stay stable if a future Jo version adds a built-in of the same name.
 
 ::: info Why built-ins take precedence — a deliberate design choice
-`jo <name>` resolves built-ins **before** project commands on purpose, so a `jo.toml` can never redefine `jo build`, `jo run`, or `jo test`. This keeps those commands safe to type in any directory: cloning an untrusted repository and running `jo build` will never execute shell defined in its manifest.
+`jo <name>` resolves built-ins **before** project commands on purpose, so a `jo.toml` can never redefine commands such as `jo build` or `jo run`. This keeps those commands safe to type in any directory: cloning an untrusted repository and running `jo build` will never execute shell defined in its manifest.
 
 The trade-off is intentional. Letting project commands override built-ins would be convenient, but to be useful an override must fire automatically whenever anyone types the verb — which is exactly what would turn `git clone && jo build` into arbitrary code execution.
 

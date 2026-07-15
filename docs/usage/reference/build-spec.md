@@ -1,18 +1,21 @@
 # Build Spec Reference
 
-The build spec is a TOML file (`jo.toml` by default) that describes how to build a project. Pass `--spec <file.toml>` to use a different file.
+The build spec is a TOML file (`jo.toml` by default) that describes one project. A project contains one or more ordered modules under `[module.<id>]`.
 
 ## Top-Level Fields
 
-| Field  | Type   | Required | Description |
-|--------|--------|----------|-------------|
-| `jo`   | string | yes      | Compiler compatibility line, e.g. `"1.0"`. Uses `MAJOR.MINOR` format. `1.0` means “any compatible `1.x.y` compiler version, at least `1.0.0`”. |
-| `name`  | string  | yes      | Project name. Must start with a letter; may contain letters, digits, and hyphens (e.g. `"my-app"`, `"http2-client"`). Used as the build output directory name and, for lib builds, the package identifier. |
-| `depth` | integer | no       | Default maximum package-dependency tree height for this project. `[main].depth` and `[test].depth` may override it per module. If no module override is present, the effective default is `0` for libraries and `1` for apps. Local `path` projects do not count toward this value. |
+| Field     | Type    | Required | Description |
+|-----------|---------|----------|-------------|
+| `jo`      | string  | yes      | Compiler compatibility line, e.g. `"1.0"`. Uses `MAJOR.MINOR` format. |
+| `default` | string  | no       | Default module id. If omitted, the first `[module.<id>]` section is the default. |
+
+Module declaration order is part of the spec's meaning: it selects the default module when `default` is absent, and it fixes the order of diagnostics.
+
+There is no project-level `depth`. Depth is declared per module — see [Dependency Depth](../concepts/dependency-depth.md).
 
 ## `[pinning]` — Root-Only Exact Overrides
 
-`[pinning]` lets the root build spec force an exact package version when normal
+`[pinning]` lets the root project force an exact package version when normal
 compatibility-line resolution needs a manual override.
 
 ```toml
@@ -23,96 +26,135 @@ mustache = "1.2.3"
 Rules:
 
 - values use `MAJOR.MINOR.PATCH`
-- only the root build spec may contain `[pinning]`
+- pinning belongs at the top level of the root `jo.toml`
 - `meta.toml` never contains pinning
 - published packages never export pins transitively
 - a pin is a hard requirement: if it conflicts with dependency constraints, Jo fails explicitly
 
-This is mainly intended for apps and top-level builds. Libraries should continue to
-declare normal compatibility constraints only.
+This is mainly intended for apps and top-level builds. Libraries should continue
+to declare normal compatibility constraints only.
 
-## `[package]` — Library Build Options
+## `[module.<id>]`
 
-Presence of this section marks the build as a **library**. Publishing metadata fields are described in [Library Metadata](library-metadata.md). The following fields affect the build:
-
-| Field        | Type    | Required | Description |
-|--------------|---------|----------|-------------|
-| `version`    | string  | yes      | Package version in `MAJOR.MINOR.PATCH` format, e.g. `"1.2.3"`. |
-| `runtime`    | string  | no       | Optional assertion: `"pure"`, `"python"`, `"ruby"`. For library builds, `jo build` uses it to derive the matching `--use-runtime-api` flag. For app builds, it constrains target selection but does not inject `--use-runtime-api`. `jo package` verifies it against the computed value. |
-
-## `[main]` — Main Source
+Module ids must start with a letter and may contain letters, digits, and hyphens.
 
 | Field             | Type             | Required | Description |
 |-------------------|------------------|----------|-------------|
-| `src`             | array of globs   | no       | Source files. Default: `["src/**/*.jo"]`. |
-| `target`          | string           | no       | Backend: `"python"`, `"ruby"`. Default: `"python"`. |
-| `depth`           | integer          | no       | Maximum allowed package-dependency tree height for the main module. Overrides the top-level `depth`. If absent, `main` inherits the project-level `depth`, or defaults to `0` for libraries and `1` for apps. Local `path` projects do not count toward this value. See [Dependency Resolution](dependency-resolution.md). |
-| `compile-options` | array of strings | no       | Extra flags passed verbatim to `jo compile` when building this module. For example, `["--no-stdlib"]` is used when building the standard library itself. This can still be used to request a specific runtime API manually when needed. See [Compiler Options](compiler-options.md). |
+| `kind`            | string           | yes      | `"lib"` or `"app"`. |
+| `src`             | array of globs   | no       | Source files. Default: `["<id>/src/**/*.jo"]`. |
+| `target`          | string           | app only | Backend: `"python"` or `"ruby"`. Required for `kind = "app"`, invalid for `kind = "lib"`. |
+| `depth`           | integer          | no       | Maximum registry package dependency depth for this module. Default: `0` for `lib`, `1` for `app`. |
+| `compile-options` | array of strings | no       | Extra flags passed verbatim to `jo compile` for this module. |
+| `dependencies`    | array of tables  | no       | Registry or source module dependencies. |
+| `links`           | array of tables  | no       | Explicit `defer def` wiring. |
 
-## `[test]` — Test Source
+Every app module states its own `target`. There is no default and no inheritance from another module, so a test module in a Ruby project declares `target = "ruby"` like any other app module.
 
-| Field    | Type           | Required | Description |
-|----------|----------------|----------|-------------|
-| `src`    | array of globs | no       | Test files. Default: `["tests/**/*.jo"]`. |
-| `target` | string         | no       | Backend for tests. Resolved in order: explicit `[test].target` → `[main].target` → inherited from `package.runtime` → inferred from runtime-constrained deps in `[test.dependencies]` → `"python"`. Values: `"python"`, `"ruby"`. |
-| `depth`  | integer        | no       | Maximum allowed package-dependency tree height for the test module. Overrides the top-level `depth`. If absent, `test` inherits the project-level `depth`; if the project also omits `depth`, `test` inherits `main`'s effective depth. Local `path` projects do not count toward this value. |
-
-## `[main.dependencies]` and `[test.dependencies]`
+Example:
 
 ```toml
-[main.dependencies]
-# Registry package — check library (default)
-agent-api = "1.0"
+jo = "1.0"
+default = "app"
 
-# Registry package — link library (hidden from user code; resolves defer defs)
-agent-runtime-python = { version = "1.0", link = true }
+[module.api]
+kind = "lib"
+src = ["api/src/"]
 
-# Local path — uses jo.toml in that directory
-agent-api = { path = "../agent-api" }
-
-# Local path — explicit spec
-agent-api = { path = "../agent-api", spec = "api.toml" }
-
-# Same directory — different spec
-agent-api = { path = ".", spec = "api.toml" }
+[module.app]
+kind = "app"
+src = ["app/src/"]
+target = "python"
+dependencies = [
+  { module = "api" },
+  { package = "mustache", version = "1.0" },
+]
+links = [
+  { from = "agentapi.runTask", to = "app.runTask" },
+]
 ```
 
-`[test.dependencies]` are used only during `jo test` and not included in release artifacts.
+## Dependencies
 
-## `[main.links]` and `[test.links]`
-
-Explicit wiring of `defer def`s. All entries are required — unresolved `defer def`s are a build error.
+Registry packages require a compatibility line:
 
 ```toml
-[main.links]
-"agentapi.runTask"   = "usertask.runTask"
-"agentapi.onStartup" = "usertask.onStartup"
-
-[test.links]
-"agentapi.runTask" = "mocks.fakeRunTask"   # override for tests
+dependencies = [
+  { package = "mustache", version = "1.0" },
+]
 ```
 
-`[test.links]` is merged with `[main.links]`. Test overrides take precedence.
+Same-project source modules use only a module id and never a version:
 
-## `[commands]` — Project Commands
+```toml
+dependencies = [
+  { module = "api" },
+]
+```
 
-Named shell commands you invoke as `jo <name>` — the project's command palette, comparable to `npm run` scripts. Each value is a command line run through the system shell (`sh -c`) from the project root.
+External project source modules use `path` plus a module id. Jo loads `path/jo.toml` for that module's sources and dependencies. It resolves them together with this project's own. The external project's packages are locked in this project's `jo.lock`. Its own `jo.lock` is ignored. See [Dependency Resolution](dependency-resolution.md).
+
+```toml
+dependencies = [
+  { path = "../agent-api", module = "api" },
+]
+```
+
+Add `link = true` for link-only dependencies. Link dependencies are hidden from user code and are omitted from generated package metadata.
+
+## Links
+
+Explicit wiring of `defer def`s:
+
+```toml
+links = [
+  { from = "agentapi.runTask", to = "app.runTask" },
+]
+```
+
+## `[module.<id>.package]`
+
+Any module can be publishable by adding a nested package section.
+
+| Field         | Type            | Required | Description |
+|---------------|-----------------|----------|-------------|
+| `name`        | string          | yes      | Package name. Must start with a letter and may contain letters, digits, and hyphens. |
+| `version`     | string          | yes      | Package version in `MAJOR.MINOR.PATCH` format. |
+| `runtime`     | string          | no       | Optional assertion: `"pure"`, `"python"`, or `"ruby"`. Non-`pure` values add the matching runtime API compile option. |
+| `description` | string          | no       | Package description. |
+| `authors`     | array of string | no       | Package authors. |
+| `homepage`    | string          | no       | Homepage URL. |
+| `license`     | string          | no       | License identifier. |
+| `keywords`    | array of string | no       | Search keywords. |
+
+```toml
+[module.api.package]
+name = "agent-api"
+version = "1.2.0"
+runtime = "pure"
+```
+
+When packaging, direct registry dependencies are recorded in `meta.toml`. Direct source module dependencies are recorded by their package name and version line, unless `link = true`.
+
+## `[doc]`
+
+Documentation settings apply to `jo doc <module>`.
+
+```toml
+[doc]
+title = "Agent API"
+readme = "README.md"
+include-private = false
+include-source = false
+```
+
+## `[commands]`
+
+Named shell commands invoked as `jo <name>`:
 
 ```toml
 [commands]
-dev    = "jo build --spec sandbox/guest/jo.toml && jo run"
-deploy = "./scripts/deploy.sh"
+dev = "jo build app && jo run app"
+fmt = "jo fmt src"
 ```
 
-Invoke by name; any extra arguments are appended:
-
-```sh
-jo dev
-jo dev --port 8080     # runs the command with `--port 8080` appended
-```
-
-Built-in commands always win: if a command shares a name with a built-in (e.g. `build`), `jo build` runs the built-in, so a project can never shadow Jo's own verbs. Use [`jo exec <name>`](../commands/exec.md) to run a defined command unambiguously. Commands run only when invoked — there are no install/lifecycle hooks that run automatically.
-
-::: info Design choice: built-ins are unshadowable
-This precedence is a deliberate security decision — it keeps `jo build`/`jo run`/`jo test` safe to run in an untrusted checkout. See [Why built-ins take precedence](../commands/exec.md#how-it-works) for the rationale.
-:::
+Built-in commands always win. Use `jo exec <name>` to run a defined command unambiguously.

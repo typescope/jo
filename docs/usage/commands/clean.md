@@ -5,24 +5,20 @@ Remove build artifacts for the current project.
 ## Usage
 
 ```
-jo clean [--spec <file.toml>]
+jo clean [module]
 ```
 
 ## What It Does
 
-Deletes `.build/<name>/` in the project directory, where `<name>` is the project name from the spec file. This includes compiled `.sast` files, target executables, and the `.done` sentinels used for incremental builds.
+With no module argument, `jo clean` deletes the project's whole `.build/` directory. With a module argument, it deletes `.build/<module>/` only and leaves the other modules' output in place.
 
-**Only the current project is cleaned.** Path dependencies have their own `.build/` directories and must be cleaned separately by running `jo clean` in each dependency's directory. The global package cache (`~/.jo/cache/packages/`) is never affected.
+Either way this removes compiled `.sast` files, target output, release and doc output, and the `.done` sentinels used for incremental builds.
 
-## Options
-
-| Option          | Description                                        |
-|-----------------|----------------------------------------------------|
-| `--spec <file>` | Spec file to read the project name from. Default: `jo.toml`. |
+**Only the current project is cleaned.** Projects reached through `path` dependencies have their own `.build/` directories and must be cleaned separately by running `jo clean` in each one. The global package cache (`~/.jo/cache/packages/`) is never affected.
 
 ## Examples
 
 ```sh
-jo clean                        # clean .build/my-app/ for the default jo.toml
-jo clean --spec agent-api.toml  # clean .build/agent-api/
+jo clean      # remove .build/
+jo clean api  # remove .build/api/ only
 ```

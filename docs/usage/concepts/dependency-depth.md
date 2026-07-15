@@ -50,80 +50,109 @@ Beyond version conflicts, deep trees introduce:
 
 ## Solution
 
-Jo makes package dependency depth **visible and intentional**. Each build spec can declare a project-level default `depth`, and `main` or `test` can override it when they need different limits. Adding published package dependencies requires an explicit opt-in, recorded in the build spec and visible in code review.
+Jo makes package dependency depth **visible and intentional**. Each module declares its own `depth` when it needs more than the default for its kind. Adding registry package dependencies requires an explicit opt-in, recorded in the build spec and visible in code review.
 
 Zero-dependency libraries are the default. They are easier to audit, more portable, and simpler to compose — properties that make them reliable building blocks for larger systems.
 
 ## How It Works
 
-Only published package dependencies count toward dependency depth. Local `path` projects do not.
+Only registry package dependencies count toward dependency depth. Source module dependencies are code you build, not artifacts you pull in, so the edge to one costs nothing.
 
-The depth of a package is the maximum depth of its package dependencies plus one. Leaf packages (no package dependencies) have depth 0.
+The packages *behind* that edge still count. If your app depends on a source module that depends on `mustache`, that is a package your build acquired, and it counts toward your app's depth. This holds whether the source module sits in your own `jo.toml` or in another project reached through `path`. Otherwise `depth` would mean very little: any limit could be evaded by moving dependencies into a sibling directory.
 
-Each build spec may declare a top-level `depth` — the default maximum depth among its package dependencies. `main` and `test` may override that with their own `depth` values. `jo build` and `jo test` error if the actual package depth for the module being built exceeds its effective limit.
+For a module, the actual package depth is the longest path from that module through registry package dependencies, counting source module edges as zero. A direct dependency on a leaf package has depth 1. A package that depends on another package creates depth 2, and so on.
 
-The effective depth is chosen in this order:
+A module declares its maximum depth with `[module.<id>].depth`. If it declares none, it gets the built-in default for its kind:
 
-1. module `depth` (`[main].depth` or `[test].depth`)
-2. top-level `depth`
-3. built-in default
+| Module kind | Default `depth` |
+|-------------|-----------------|
+| `lib`       | `0` — no registry packages by default |
+| `app`       | `1` — may depend directly on leaf packages |
 
-Built-in defaults:
+Commands error if a module's actual package depth exceeds its limit.
 
-| Module | Default `depth` |
-|--------|-----------------|
-| `main` in a library | `0` — no dependencies by default |
-| `main` in an app | `1` — may depend on depth-0 libraries |
-| `test` | inherit `main`'s effective depth |
+Depth is per module, and there is no project-level default. A shared default would be read as "this project's budget" and would quietly raise every library in the project from `0` to `1` as soon as one app needed a deeper graph — the depth-0 library default is worth more than the saved line of TOML.
+
+Tests are ordinary app modules. A test module uses the same rules as any other app module: set `[module.test].depth` if tests need a deeper package graph than the code under test.
+
+`jo lock` resolves all modules and reports depth violations anywhere in the project. `jo build`, `jo check`, `jo run`, `jo doc`, and `jo deps` enforce depth for the selected module closure.
 
 Higher depths are permitted by raising the value explicitly. The defaults ensure that any increase in dependency complexity is a deliberate decision.
 
 ## Examples
 
-A depth-0 library — no dependencies:
+A depth-0 library — no registry dependencies:
 
 ```toml
-name    = "mustache"
-# main.depth = 0 (default)
+jo = "1.0"
 
-[package]
+[module.mustache]
+kind = "lib"
+
+[module.mustache.package]
+name = "mustache"
 version = "1.0.0"
 ```
 
-A depth-1 library — depends on depth-0 libraries:
+A depth-1 library — depends directly on a leaf package:
 
 ```toml
-name    = "agent-api"
-depth   = 1
+jo = "1.0"
 
-[package]
-version = "1.0.0"
-```
-
-An app using a depth-1 library — raises its own depth to accommodate the full tree:
-
-```toml
-name   = "my-app"
-depth  = 2
-
-[main]
-target = "python"
-```
-
-Tests may use a different depth than `main`:
-
-```toml
-name  = "my-app"
+[module.api]
+kind = "lib"
 depth = 1
+dependencies = [
+  { package = "mustache", version = "1.0" },
+]
 
-[main]
-target = "python"
-
-[test]
-depth = 2
+[module.api.package]
+name = "agent-api"
+version = "1.0.0"
 ```
 
-Here the app itself stays shallow, while tests are allowed to depend on a deeper package graph.
+An app using a package with one level of transitive package dependencies — raises its own depth to accommodate the full tree:
+
+```toml
+jo = "1.0"
+
+[module.app]
+kind = "app"
+target = "python"
+depth = 2
+dependencies = [
+  { package = "agent-api", version = "1.0" },
+]
+```
+
+Tests may use a different depth than the code they test:
+
+```toml
+jo = "1.0"
+default = "app"
+
+[module.core]
+kind = "lib"
+
+[module.app]
+kind = "app"
+target = "python"
+dependencies = [
+  { module = "core" },
+]
+
+[module.test]
+kind = "app"
+target = "python"
+src = ["tests/**/*.jo"]
+depth = 2
+dependencies = [
+  { module = "core" },
+  { package = "jo-test", version = "1.0" },
+]
+```
+
+Here `core` stays at the library default of `0` and the app at `1`, while tests are allowed to depend on a deeper package graph. Each limit is stated where it applies.
 
 ## Reducing Dependency Depth
 
@@ -147,20 +176,26 @@ def findRelevant(question: String, k: Int): List[String] =
 
 The library defines the *shape* of its dependencies without taking a dependency on any embedding or search package. Concrete implementations are supplied at link time by the application:
 
-```bash
-bin/jo compile --python app.jo \
-  --link AgentAPI.embed=OpenAI.embed \
-  --link AgentAPI.vectorSearch=Pinecone.search \
-  -o app.py
+```toml
+[module.app]
+kind = "app"
+target = "python"
+dependencies = [
+  { module = "agent-api" },
+]
+links = [
+  { from = "AgentAPI.embed", to = "OpenAI.embed" },
+  { from = "AgentAPI.vectorSearch", to = "Pinecone.search" },
+]
 ```
 
-Because `agent-api` carries no imports, it remains depth-0. The concrete packages (`openai`, `pinecone`) are wired in only at the application layer, where the extra depth is already expected. The dependency graph is inverted: the library no longer depends on its collaborators — the application does.
+Because `agent-api` carries no imports, it remains depth-0. The concrete packages are wired in only at the application layer, where the extra depth is already expected. The dependency graph is inverted: the library no longer depends on its collaborators — the application does.
 
 Linking is verified at compile time — type mismatches are errors, not surprises.
 
 ### Context Parameters
 
-Context parameters let a library consume services (loggers, connections, finders) without importing their implementations. The library declares a typed parameter; callers supply the value:
+Context parameters let a library consume services (loggers, connections, finders) without importing their implementations. The library declares a typed parameter. Callers supply the value:
 
 ```jo
 // report-lib/report.jo  (depth-0 library)
