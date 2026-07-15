@@ -13,7 +13,7 @@ object Release:
 
         case Some(pkg) =>
           Logger.info(s"[package] ${project.moduleLabel(project, module)}\n")
-          validatePackageDependencies(project, module).flatMap: _ =>
+          validatePackageDependencies(project, module).flatMap: dependencies =>
             Build.makePlanResult(project, List(module)).flatMap: plans =>
               Runner.run(plans.modules.head).flatMap: _ =>
                 val version = pkg.version
@@ -32,7 +32,7 @@ object Release:
                   val sourceStageDir = tempDir.resolve("sources")
                   Files.createDirectories(stageDir)
                   Files.createDirectories(sourceStageDir)
-                  stageRelease(project, module, spec, sastDir, stageDir).flatMap: _ =>
+                  stageRelease(project, module, spec, dependencies, sastDir, stageDir).flatMap: _ =>
                     stageSources(project, module, spec, sourceStageDir).map: _ =>
                       JoyArchive.pack(stageDir, archivePath)
                       JoyArchive.pack(sourceStageDir, sourcesPath)
@@ -44,8 +44,8 @@ object Release:
                       Logger.info(s"[artifact] ${LogFormat.path(sourcesPath)}\n")
                 finally deleteDir(tempDir)
 
-  private def validatePackageDependencies(project: Project, module: ModuleId)(using PackageProvider): Result[Unit] =
-    packageDependencies(project, module).flatMap: _ =>
+  private def validatePackageDependencies(project: Project, module: ModuleId)(using PackageProvider): Result[Map[String, VersionSpec]] =
+    packageDependencies(project, module).flatMap: dependencies =>
       DependencyResolver.resolveProject(project, List(module)).flatMap: resolved =>
         resolved.packages.find(_.meta.platform != "pure") match
           case Some(pkg) =>
@@ -53,7 +53,7 @@ object Release:
               s"'jo package' only allows published packages to depend on pure packages; dependency '${pkg.name}' requires platform=${pkg.meta.platform}"
             )
           case None =>
-            Result.unit
+            Result.Ok(dependencies)
 
   private def packageDependencies(project: Project, module: ModuleId): Result[Map[String, VersionSpec]] =
     project.requireModule(module).flatMap: spec =>
@@ -105,6 +105,7 @@ object Release:
     project: Project,
     module: ModuleId,
     spec: ModuleSpec,
+    dependencies: Map[String, VersionSpec],
     sastDir: Path,
     stageDir: Path,
   ): Result[Unit] =
@@ -130,9 +131,6 @@ object Release:
 
     val namespace = rootDir.iterator.asScala.map(_.toString).mkString(".")
     val pkg = spec.pkg.get
-    val dependencies = packageDependencies(project, module) match
-      case Result.Ok(deps) => deps
-      case Result.Err(msg) => return Result.Err(msg)
     val meta = PackageMeta(
       namespace,
       pkg.name,
