@@ -31,12 +31,12 @@ fi
 APP="$TMP/app"
 mkdir -p "$APP/src"
 cat > "$APP/jo.toml" <<EOF
-jo   = "$CONSTRAINT"
-name = "smoke"
+jo = "$CONSTRAINT"
 
-[main]
-target = "python"
-src    = ["src/"]
+[module.app]
+kind = "app"
+src = ["src/"]
+platform = "python"
 EOF
 cat > "$APP/src/Main.jo" <<EOF
 def main(): Unit =
