@@ -1,0 +1,14 @@
+jo lock
+: '
+error: circular module dependency detected: [api] -> [util] -> [api]
+'
+
+jo deps
+: '
+error: circular module dependency detected: [api] -> [util] -> [api]
+'
+
+jo build
+: '
+error: circular module dependency detected: [api] -> [util] -> [api]
+'

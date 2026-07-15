@@ -1,0 +1,26 @@
+jo = "1.0"
+
+[module.app]
+kind = "app"
+platform = "python"
+src = ["src/"]
+
+dependencies = [
+  { module = "api" },
+]
+
+[module.api]
+kind = "lib"
+src = ["api/"]
+
+dependencies = [
+  { module = "util" },
+]
+
+[module.util]
+kind = "lib"
+src = ["util/"]
+
+dependencies = [
+  { module = "api" },
+]
