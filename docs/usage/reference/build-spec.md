@@ -41,7 +41,7 @@ Module ids must start with a letter and may contain letters, digits, and hyphens
 | Field             | Type             | Required | Description |
 |-------------------|------------------|----------|-------------|
 | `kind`            | string           | yes      | `"lib"` or `"app"`. |
-| `src`             | array of globs   | no       | Source files. Default: `["<id>/src/**/*.jo"]`. |
+| `src`             | array of globs   | yes      | Source files for this module. |
 | `platform`        | string           | app only | Platform this module is bound to. Apps: `"python"` or `"ruby"`, required. Libs: `"pure"`, `"python"`, or `"ruby"`, default `"pure"`. |
 | `enable-ffi`      | boolean          | no       | May this module's own code call the platform's FFI API (`py.*`, `rb.*`). Default: `false`. |
 | `depth`           | integer          | no       | Maximum registry package dependency depth for this module. Default: `0` for `lib`, `1` for `app`. |
