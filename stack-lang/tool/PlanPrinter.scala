@@ -31,10 +31,10 @@ object PlanPrinter:
         val label =
           if isRoot then
             plan.task match
-              case _: CompileTask.LibTask => s"root ${plan.projectName}.${plan.module.value} (lib)"
-              case _: CompileTask.AppTask => s"root ${plan.projectName}.${plan.module.value} (app)"
+              case _: CompileTask.LibTask => s"root ${plan.moduleLabel} (lib)"
+              case _: CompileTask.AppTask => s"root ${plan.moduleLabel} (app)"
           else
-            s"lib: ${plan.projectName}.${plan.module.value}"
+            s"lib: ${plan.moduleLabel}"
         appendCmd(label, plan.task)
 
     plans.modules.foreach(plan => traverse(plan, isRoot = true))

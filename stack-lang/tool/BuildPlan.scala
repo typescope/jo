@@ -25,7 +25,7 @@ enum CompileTask:
 
 /** Build plan for a single module: execute dep modules first, then compile this module's task. */
 case class ModulePlan(
-  projectName: String,
+  moduleLabel: String,
   module: ModuleId,
   joBin: Path,
   task: CompileTask,

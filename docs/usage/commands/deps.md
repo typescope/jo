@@ -12,8 +12,9 @@ jo deps [module]
 
 `jo deps` prints the resolved dependency tree for a module. If `module` is omitted, Jo uses the project default module.
 
-- source modules are shown as `<project path> [<module id>]`
-- the project path is relative to the root project directory, so modules in the current project show as `.`
+- source modules are shown as `[<module id>]` for the current project
+- source modules from another project are shown as `<project path> [<module id>]`
+- project paths are relative to the root project directory
 - published packages are shown with their resolved version
 - sibling entries are printed in stable lexical order by dependency name
 
@@ -22,8 +23,8 @@ A module id alone would be ambiguous, since two projects in one tree may both de
 ## Examples
 
 ```text
-. [app]
-  . [api]
+[app]
+  [api]
   ../agent-api [api]
   greeter-pkg 1.0.0
     jo-core 1.0.0

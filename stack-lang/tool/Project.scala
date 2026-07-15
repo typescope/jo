@@ -19,11 +19,6 @@ final class Project private (
   val joVersion: Version,
   val joBin: Path,
 ):
-  def projectName: String =
-    val fileName = specPath.getFileName.toString
-    if fileName == "jo.toml" then dir.getFileName.toString
-    else fileName.stripSuffix(".toml")
-
   def joVersionSpec: VersionSpec = spec.jo
 
   def pinning: Map[String, Version] = spec.pinning
@@ -75,7 +70,7 @@ final class Project private (
       case Result.Err(msg)  => throw IllegalStateException(msg)
 
   private[tool] def effectivePlatform(id: ModuleId): Result[Platform] =
-    Project.effectivePlatform(this, id, Set.empty)
+    Project.effectivePlatform(this, this, id, Set.empty)
 
   /** Root of this module's build output: `<dir>/.build/<module-id>/`. */
   def buildDir(id: ModuleId): Path =
@@ -92,7 +87,29 @@ final class Project private (
   def appOutFile(id: ModuleId, target: Target): Path =
     buildBaseDir(id).resolve(s"target/${id.value}${target.ext}")
 
+  def relativeProjectPath(root: Project): String =
+    Project.relativeProjectPath(root.dir, dir)
+
+  def moduleLabel(root: Project, module: ModuleId): String =
+    Project.moduleLabel(root.dir, dir, module)
+
 object Project:
+  def moduleLabelFromSpec(rootSpecPath: Path, specPath: Path, module: ModuleId): String =
+    moduleLabel(rootSpecPath.getParent, specPath.getParent, module)
+
+  private[tool] def moduleLabel(rootDir: Path, projectDir: Path, module: ModuleId): String =
+    val projectPath = relativeProjectPath(rootDir, projectDir)
+    if projectPath == "." then s"[${module.value}]"
+    else s"$projectPath [${module.value}]"
+
+  private[tool] def relativeProjectPath(rootDir: Path, projectDir: Path): String =
+    val root = rootDir.toAbsolutePath.normalize()
+    val project = projectDir.toAbsolutePath.normalize()
+    if root == project then "."
+    else
+      try root.relativize(project).toString
+      catch case _: IllegalArgumentException => project.toString
+
   def load(specPath: Path): Result[Project] =
     load(specPath, JoResolver.resolve, JoResolver.resolveExact)
 
@@ -226,6 +243,7 @@ object Project:
       Result.Err(s"in $file: ${e.getMessage}")
 
   private[tool] def effectivePlatform(
+    root: Project,
     project: Project,
     module: ModuleId,
     seen: Set[(Path, ModuleId)],
@@ -237,14 +255,14 @@ object Project:
 
     val own = project.declaredPlatform(module)
     if own != Platform.Pure then
-      contributors(s"${project.projectName}.${module.value}") = own
+      contributors(project.moduleLabel(root, module)) = own
 
     project.moduleDepsOf(module).foldLeft(Result.unit): (acc, dep) =>
       acc.flatMap: _ =>
         val depProject = dep.project.getOrElse(project)
-        effectivePlatform(depProject, dep.module, seen + key).map: depPlatform =>
+        effectivePlatform(root, depProject, dep.module, seen + key).map: depPlatform =>
           if depPlatform != Platform.Pure then
-            contributors(s"${depProject.projectName}.${dep.module.value}") = depPlatform
+            contributors(depProject.moduleLabel(root, dep.module)) = depPlatform
     .flatMap: _ =>
       val distinct = contributors.values.toList.distinct
       if distinct.length > 1 then

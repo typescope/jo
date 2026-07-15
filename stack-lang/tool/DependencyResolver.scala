@@ -491,15 +491,8 @@ object DependencyResolver:
     find(node)
 
   private def labelOf(node: Node, rootSpecPath: Path): String = node match
-    case Node.Root(module) => module.value
-    case Node.Module(specPath, module) if specPath == rootSpecPath =>
-      module.value
+    case Node.Root(module) =>
+      Project.moduleLabelFromSpec(rootSpecPath, rootSpecPath, module)
     case Node.Module(specPath, module) =>
-      val project = projectName(specPath)
-      if project == module.value then project else s"$project.${module.value}"
+      Project.moduleLabelFromSpec(rootSpecPath, specPath, module)
     case Node.Package(name) => name
-
-  private def projectName(specPath: Path): String =
-    val fileName = specPath.getFileName.toString
-    if fileName == "jo.toml" then specPath.getParent.getFileName.toString
-    else fileName.stripSuffix(".toml")

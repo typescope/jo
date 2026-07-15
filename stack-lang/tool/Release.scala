@@ -12,7 +12,7 @@ object Release:
           Result.Err(s"'jo package' requires [module.${module.value}.package]")
 
         case Some(pkg) =>
-          Logger.info(s"[package] ${project.projectName}.${module.value}\n")
+          Logger.info(s"[package] ${project.moduleLabel(project, module)}\n")
           validatePackageDependencies(project, module).flatMap: _ =>
             Build.makePlanResult(project, List(module)).flatMap: plans =>
               Runner.run(plans.modules.head).flatMap: _ =>

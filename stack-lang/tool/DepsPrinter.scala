@@ -21,31 +21,32 @@ object DepsPrinter:
     module: ModuleId,
     packages: Map[String, ResolvedPackage],
   ): Unit =
-    appendLine(out, 0, s"${project.projectName} [${module.value}]")
-    appendChildren(out, 1, project, module, packages)
+    appendLine(out, 0, project.moduleLabel(project, module))
+    appendChildren(out, 1, project, project, module, packages)
 
   private def appendChildren(
     out: StringBuilder,
     indent: Int,
+    root: Project,
     project: Project,
     module: ModuleId,
     packages: Map[String, ResolvedPackage],
   ): Unit =
     val moduleDeps = project.moduleDepsOf(module).map: dep =>
       val depProject = dep.project.getOrElse(project)
-      dep.module.value -> Child.Module(depProject, dep.module)
+      (dep.module.value, depProject.relativeProjectPath(root)) -> Child.Module(depProject, dep.module)
 
     val packageDeps = project.module(module).toList.flatMap: spec =>
       spec.dependencies.flatMap:
         case DepSpec(DepSource.Registry(name, _), _) =>
-          packages.get(name).map(pkg => name -> Child.Package(name, pkg))
+          packages.get(name).map(pkg => (name, name) -> Child.Package(name, pkg))
         case _ =>
           None
 
     (moduleDeps ++ packageDeps).sortBy(_._1).foreach:
       case (_, Child.Module(depProject, depModule)) =>
-        appendLine(out, indent, s"${depProject.projectName} [${depModule.value}]")
-        appendChildren(out, indent + 1, depProject, depModule, packages)
+        appendLine(out, indent, depProject.moduleLabel(root, depModule))
+        appendChildren(out, indent + 1, root, depProject, depModule, packages)
 
       case (_, Child.Package(name, pkg)) =>
         appendLine(out, indent, s"$name ${pkg.version}")

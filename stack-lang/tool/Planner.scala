@@ -14,7 +14,7 @@ object Planner:
     val linkStack = collection.mutable.Set.empty[(Path, ModuleId)]
 
     def moduleLabel(project0: Project, id: ModuleId): String =
-      s"${project0.projectName}.${id.value}"
+      project0.moduleLabel(project, id)
 
     def registryCheckLibs(module: ModuleSpec): List[Path] =
       module.dependencies.flatMap:
@@ -155,7 +155,7 @@ object Planner:
                 )
 
           stack -= key
-          ModulePlan(project0.projectName, id, project0.joBin, task, depPlans)
+          ModulePlan(moduleLabel(project0, id), id, project0.joBin, task, depPlans)
         }
       )
 

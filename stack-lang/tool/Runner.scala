@@ -7,7 +7,7 @@ import scala.jdk.CollectionConverters.*
 /** Executes build plans by invoking `jo compile` subprocesses. */
 object Runner:
   private def moduleLabel(plan: ModulePlan): String =
-    s"${plan.projectName}.${plan.module.value}"
+    plan.moduleLabel
 
   /** Build a module: recursively build deps, then compile this module's task. */
   def run(plan: ModulePlan, action: String = "build")(using Logger): Result[Unit] =

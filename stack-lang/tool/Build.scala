@@ -174,7 +174,7 @@ object Build:
           Result.Err(
             s"""package dependency depth exceeded for module '${module.value}': actual ${info.depth}, allowed $allowedDepth
                |
-               |  Path: ${(module.value :: info.deepestPath).mkString(" -> ")}""".stripMargin
+               |  Path: ${(project.moduleLabel(project, module) :: info.deepestPath).mkString(" -> ")}""".stripMargin
           )
         else
           Result.unit
