@@ -85,13 +85,11 @@ object Build:
 
   def makePlanResult(project: Project, modules: List[ModuleId])(using Logger, PackageProvider): Result[ProjectPlan] =
     try
-      materializeRegistryLibs(project, modules).map: registrySastDirs =>
+      materializeRegistryLibs(project, modules).flatMap: registrySastDirs =>
         Planner.plan(project, modules, registrySastDirs)
     catch
       case e: ArchiveError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
-      case e: IllegalArgumentException => Result.Err(e.getMessage)
-      case e: IllegalStateException => Result.Err(e.getMessage)
 
   def lockResult(project: Project)(using Logger, PackageProvider): Result[Unit] =
     try

@@ -92,14 +92,15 @@ object Release:
                           s"module '${module.value}' depends on source module '${depModule.value}', but that module has no [module.${depModule.value}.package]"
                         )
                       case Some(pkg) =>
-                        addDependency(pkg.name, versionConstraint(pkg.version, depModule))
+                        versionConstraint(pkg.version, depModule).flatMap: constraint =>
+                          addDependency(pkg.name, constraint)
       .map(_ => dependencies.toMap)
 
-  private def versionConstraint(version: String, module: ModuleId): VersionSpec =
+  private def versionConstraint(version: String, module: ModuleId): Result[VersionSpec] =
     Version.parse(version) match
-      case Some(parsed) => VersionSpec(Version(parsed.major, parsed.minor, 0))
+      case Some(parsed) => Result.Ok(VersionSpec(Version(parsed.major, parsed.minor, 0)))
       case None =>
-        throw IllegalArgumentException(s"invalid package version '$version' for module '${module.value}'")
+        Result.Err(s"invalid package version '$version' for module '${module.value}'")
 
   private def stageRelease(
     project: Project,
