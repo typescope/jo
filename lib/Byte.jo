@@ -4,7 +4,7 @@ import jo.compile.intrinsic
 
 //[ Unsigned 8-bit value, [0, 255].
   !
-  !Storage/octet type: no arithmetic — convert to Int to compute.
+  ! Storage/octet type: no arithmetic — convert to Int to compute.
 //]
 @intrinsic
 class Byte
