@@ -1,0 +1,5 @@
+namespace App
+
+def entry(): Unit = println "app"
+
+def run(): Unit = println "app-run"

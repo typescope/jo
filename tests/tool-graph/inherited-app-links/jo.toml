@@ -1,0 +1,39 @@
+jo = "1.0"
+default = "test"
+
+[module.runtime]
+kind = "lib"
+src = ["runtime/"]
+
+[module.test-runtime]
+kind = "lib"
+src = ["test-runtime/"]
+
+[module.app]
+kind = "app"
+platform = "python"
+src = ["app/"]
+
+dependencies = [
+  { module = "runtime", link = true },
+]
+
+links = [
+  { from = "jo.main", to = "App.entry" },
+  { from = "App.Service.run", to = "App.Real.run" },
+]
+
+[module.test]
+kind = "app"
+platform = "python"
+src = ["test/"]
+
+dependencies = [
+  { module = "app" },
+  { module = "test-runtime", link = true },
+]
+
+links = [
+  { from = "jo.main", to = "Test.entry" },
+  { from = "App.Service.run", to = "Test.Fake.run" },
+]
