@@ -1,0 +1,22 @@
+jo = "1.0"
+
+[module.first]
+kind = "app"
+platform = "python"
+src = ["first/src/"]
+
+[module.second]
+kind = "app"
+platform = "python"
+
+[module.third]
+kind = "app"
+platform = "python"
+
+[module.fourth]
+kind = "app"
+platform = "python"
+
+[module.fifth]
+kind = "app"
+platform = "python"

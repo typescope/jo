@@ -1,0 +1,2 @@
+# root default-order.first (app)
+jo compile --python first/src/Main.jo -o .build/first/jo-1.0/target/first.py

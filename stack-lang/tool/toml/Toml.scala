@@ -1,15 +1,17 @@
 package tool.toml
 
+import scala.collection.immutable.ListMap
+
 /** Minimal TOML value ADT covering the subset used by jo.toml / jo.lock / meta.toml */
 enum TomlValue:
   case Str(value: String)
   case Integer(value: Long)
   case Bool(value: Boolean)
   case Arr(items: List[TomlValue])
-  case Tbl(fields: Map[String, TomlValue])
+  case Tbl(fields: ListMap[String, TomlValue])
 
 /** A TOML document is a top-level table mapping keys to values. */
-type TomlDoc = Map[String, TomlValue]
+type TomlDoc = ListMap[String, TomlValue]
 
 /** Parse or decode error with a line number (1-based; 0 = unknown / decode phase). */
 case class TomlError(message: String, line: Int = 0) extends Exception(
