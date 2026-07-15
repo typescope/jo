@@ -18,9 +18,7 @@ src = ["api/src/"]
 kind = "app"
 src = ["app/src/"]
 platform = "python"
-dependencies = [
-  { module = "api" },
-]
+modules = ["api"]
 ```
 
 Every app module declares its own `platform` — the backend it emits. Lib modules compile to `.sast`, which is backend-independent, so they default to `platform = "pure"` and only name a platform when their output requires one.
@@ -34,9 +32,7 @@ An app module is a lib module plus a platform, link wiring, and an entry point. 
 kind = "app"
 platform = "python"
 src = ["tests/"]
-dependencies = [
-  { module = "app" },
-]
+modules = ["app"]
 ```
 
 The test sees the app's code. It does not inherit the app's entry point, because Jo takes the entry point from the sources of the module being built. It does inherit the app's links, which it may override, and its link libraries, which it may not. See [Testing](../guides/testing.md).
@@ -72,9 +68,7 @@ license = "MIT"
 A module can depend on a module from another project:
 
 ```toml
-dependencies = [
-  { path = "../agent-api", module = "api" },
-]
+modules = [{ id = "api", path = "../agent-api" }]
 ```
 
 Jo reads the external project's `jo.toml` to find that module's sources and dependencies, then builds it as part of this build: one resolution, one `jo.lock`, one compiler. The external project's own `jo.lock` applies only when that project is built on its own.

@@ -19,10 +19,8 @@ src = ["src/"]
 kind = "app"
 platform = "python"
 src = ["tests/"]
-dependencies = [
-  { module = "app" },
-  { package = "jo-test", version = "0.1" },
-]
+modules = ["app"]
+packages = [{ name = "jo-test", version = "0.1" }]
 ```
 
 The test module now sees everything the app defines. You do not need to split the app into a library to test it.
@@ -40,10 +38,8 @@ Depend on the lib module. This is the same shape:
 kind = "app"
 platform = "python"
 src = ["tests/"]
-dependencies = [
-  { module = "lib" },
-  { package = "jo-test", version = "0.1" },
-]
+modules = ["lib"]
+packages = [{ name = "jo-test", version = "0.1" }]
 ```
 
 The test module has its own dependency list. Package dependencies are not inherited from the module under test — declare what the tests themselves import.
@@ -73,10 +69,8 @@ links = [
 kind = "app"
 platform = "python"
 src = ["tests/"]
-dependencies = [
-  { module = "app" },
-  { package = "jo-test", version = "0.1" },
-]
+modules = ["app"]
+packages = [{ name = "jo-test", version = "0.1" }]
 links = [
   { from = "agentapi.runTask", to = "mocks.fakeRunTask" },
 ]
@@ -99,19 +93,15 @@ src = ["src/"]
 kind = "app"
 platform = "python"
 src = ["app/"]
-dependencies = [
-  { module = "core" },
-  { package = "agent-runtime-python", version = "1.0", link = true },
-]
+modules = ["core"]
+packages = [{ name = "agent-runtime-python", version = "1.0", link = true }]
 
 [module.test]
 kind = "app"
 platform = "python"
 src = ["tests/"]
-dependencies = [
-  { module = "core" },
-  { package = "agent-runtime-test", version = "1.0", link = true },
-]
+modules = ["core"]
+packages = [{ name = "agent-runtime-test", version = "1.0", link = true }]
 ```
 
 Lib modules carry no links and no link libraries, so depending on one inherits nothing. Each app module states its own runtime.
@@ -128,8 +118,6 @@ kind = "app"
 platform = "python"
 src = ["tests/"]
 depth = 2
-dependencies = [
-  { module = "app" },
-  { package = "jo-test", version = "0.1" },
-]
+modules = ["app"]
+packages = [{ name = "jo-test", version = "0.1" }]
 ```

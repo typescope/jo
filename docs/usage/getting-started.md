@@ -59,9 +59,7 @@ jo = "1.0"
 kind = "app"
 src = ["src/"]
 platform = "python"
-dependencies = [
-  { package = "mustache", version = "1.0" },
-]
+packages = [{ name = "mustache", version = "1.0" }]
 ```
 
 Use it in `src/main.jo`. Give the module a namespace so other modules can import it:
@@ -103,21 +101,17 @@ default = "app"
 kind = "app"
 src = ["src/"]
 platform = "python"
-dependencies = [
-  { package = "mustache", version = "1.0" },
-]
+packages = [{ name = "mustache", version = "1.0" }]
 
 [module.test]
 kind = "app"
 src = ["tests/"]
 platform = "python"
-dependencies = [
-  { module = "app" },
-  { package = "jo-test", version = "0.1" },
-]
+modules = ["app"]
+packages = [{ name = "jo-test", version = "0.1" }]
 ```
 
-`{ module = "app" }` gives the tests access to everything in `src/`. Both modules are apps, and `jo run test` runs the test's `main` — an app module's own `main` is only used when you build that module.
+`modules = ["app"]` gives the tests access to everything in `src/`. Both modules are apps, and `jo run test` runs the test's `main` — an app module's own `main` is only used when you build that module.
 
 Write a test in `tests/Main.jo`. It imports the app's namespace and tests the app's own function:
 

@@ -102,9 +102,7 @@ jo = "1.0"
 [module.api]
 kind = "lib"
 depth = 1
-dependencies = [
-  { package = "mustache", version = "1.0" },
-]
+packages = [{ name = "mustache", version = "1.0" }]
 
 [module.api.package]
 name = "agent-api"
@@ -120,9 +118,7 @@ jo = "1.0"
 kind = "app"
 platform = "python"
 depth = 2
-dependencies = [
-  { package = "agent-api", version = "1.0" },
-]
+packages = [{ name = "agent-api", version = "1.0" }]
 ```
 
 Tests may use a different depth than the code they test:
@@ -137,19 +133,15 @@ kind = "lib"
 [module.app]
 kind = "app"
 platform = "python"
-dependencies = [
-  { module = "core" },
-]
+modules = ["core"]
 
 [module.test]
 kind = "app"
 platform = "python"
 src = ["tests/**/*.jo"]
 depth = 2
-dependencies = [
-  { module = "core" },
-  { package = "jo-test", version = "1.0" },
-]
+modules = ["core"]
+packages = [{ name = "jo-test", version = "1.0" }]
 ```
 
 Here `core` stays at the library default of `0` and the app at `1`, while tests are allowed to depend on a deeper package graph. Each limit is stated where it applies.
@@ -180,9 +172,7 @@ The library defines the *shape* of its dependencies without taking a dependency 
 [module.app]
 kind = "app"
 platform = "python"
-dependencies = [
-  { module = "agent-api" },
-]
+modules = ["agent-api"]
 links = [
   { from = "AgentAPI.embed", to = "OpenAI.embed" },
   { from = "AgentAPI.vectorSearch", to = "Pinecone.search" },

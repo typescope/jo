@@ -51,9 +51,7 @@ kind = "app"
 src = ["tests/"]
 platform = "python"
 
-dependencies = [
-  { module = "app" },
-]
+modules = ["app"]
 ```
 
 ## Library Scaffold
@@ -96,7 +94,5 @@ kind = "app"
 src = ["tests/"]
 platform = "python"
 
-dependencies = [
-  { module = "lib" },
-]
+modules = ["lib"]
 ```

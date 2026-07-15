@@ -1,33 +1,40 @@
 # Managing Dependencies
 
-## Registry Packages
-
-Add registry packages to a module's `dependencies` array:
+A module declares two kinds of dependency in two arrays. `modules` are built from source. `packages` are resolved from the registry.
 
 ```toml
 [module.app]
 kind = "app"
 platform = "python"
-dependencies = [
-  { package = "mustache", version = "1.0" },
-]
+src = ["src/"]
+modules = ["api"]
+packages = [{ name = "mustache", version = "1.0" }]
+```
+
+## Registry Packages
+
+Every package needs a name and a compatibility line:
+
+```toml
+packages = [{ name = "mustache", version = "1.0" }]
 ```
 
 ## Source Module Dependencies
 
-Same-project module dependencies do not use a version constraint:
+A module in the same project is just its id:
 
 ```toml
-dependencies = [
-  { module = "api" },
-]
+modules = ["api", "core"]
 ```
 
-External project module dependencies use `path` plus a module id:
+Source modules never carry a version. They are built from source, so there is nothing to resolve.
+
+A module from another project adds a `path`:
 
 ```toml
-dependencies = [
-  { path = "../agent-api", module = "api" },
+modules = [
+  "api",
+  { id = "helpers", path = "../agent-api" },
 ]
 ```
 
@@ -37,12 +44,11 @@ Its own `jo.lock` is ignored while you consume it as source. That lock is for bu
 
 ## Link Dependencies
 
-Add `link = true` for a dependency that resolves `defer def`s at link time but is hidden from user code:
+Add `link = true` for a dependency that resolves `defer def`s at link time but is hidden from user code. It works on either array:
 
 ```toml
-dependencies = [
-  { package = "agent-runtime-python", version = "1.0", link = true },
-]
+modules = [{ id = "runtime", link = true }]
+packages = [{ name = "agent-runtime-python", version = "1.0", link = true }]
 ```
 
 Link dependencies are ignored when generating package metadata.
@@ -56,10 +62,8 @@ Tests are app modules:
 kind = "app"
 platform = "python"
 src = ["tests/"]
-dependencies = [
-  { module = "api" },
-  { package = "jo-test", version = "0.1" },
-]
+modules = ["api"]
+packages = [{ name = "jo-test", version = "0.1" }]
 ```
 
 Run them with:

@@ -46,7 +46,8 @@ Module ids must start with a letter and may contain letters, digits, and hyphens
 | `enable-ffi`      | boolean          | no       | May this module's own code call the platform's FFI API (`py.*`, `rb.*`). Default: `false`. |
 | `depth`           | integer          | no       | Maximum registry package dependency depth for this module. Default: `0` for `lib`, `1` for `app`. |
 | `compile-options` | array of strings | no       | Extra flags passed verbatim to `jo compile` for this module. |
-| `dependencies`    | array of tables  | no       | Registry or source module dependencies. |
+| `modules`         | array            | no       | Source module dependencies. Strings, or tables with `id`. |
+| `packages`        | array of tables  | no       | Registry package dependencies. |
 | `links`           | array of tables  | app only | Explicit `defer def` wiring. Invalid on lib modules. |
 
 ### `platform`
@@ -96,10 +97,8 @@ src = ["api/src/"]
 kind = "app"
 src = ["app/src/"]
 platform = "python"
-dependencies = [
-  { module = "api" },
-  { package = "mustache", version = "1.0" },
-]
+modules = ["api"]
+packages = [{ name = "mustache", version = "1.0" }]
 links = [
   { from = "agentapi.runTask", to = "app.runTask" },
 ]
@@ -107,31 +106,54 @@ links = [
 
 ## Dependencies
 
-Registry packages require a compatibility line:
+Source modules and registry packages are separate arrays.
+
+### `modules`
+
+A bare string is a module in this project:
 
 ```toml
-dependencies = [
-  { package = "mustache", version = "1.0" },
+modules = ["api", "core"]
+```
+
+That is shorthand for `{ id = "api" }`. Use the table form when an entry needs more:
+
+```toml
+modules = [
+  "api",
+  { id = "helpers", path = "../testing" },
+  { id = "runtime", link = true },
 ]
 ```
 
-Same-project source modules use only a module id and never a version:
+| Field  | Required | Description |
+|--------|----------|-------------|
+| `id`   | yes      | Module id. Never carries a version — source modules are built from source. |
+| `path` | no       | Directory containing the `jo.toml` that defines the module. Omit for this project. |
+| `link` | no       | Link-only dependency. Default `false`. |
+
+`path` makes the module an external source dependency. Jo loads `path/jo.toml` for that module's sources and dependencies and resolves them together with this project's own. The external project's packages are locked in this project's `jo.lock`, and its own `jo.lock` is ignored. See [Dependency Resolution](dependency-resolution.md).
+
+### `packages`
 
 ```toml
-dependencies = [
-  { module = "api" },
+packages = [
+  { name = "mustache", version = "1.0" },
+  { name = "agent-runtime-python", version = "1.0", link = true },
 ]
 ```
 
-External project source modules use `path` plus a module id. Jo loads `path/jo.toml` for that module's sources and dependencies. It resolves them together with this project's own. The external project's packages are locked in this project's `jo.lock`. Its own `jo.lock` is ignored. See [Dependency Resolution](dependency-resolution.md).
+| Field     | Required | Description |
+|-----------|----------|-------------|
+| `name`    | yes      | Registry package name. |
+| `version` | yes      | Compatibility line, e.g. `"1.0"`. |
+| `link`    | no       | Link-only dependency. Default `false`. |
 
-```toml
-dependencies = [
-  { path = "../agent-api", module = "api" },
-]
-```
+There is no short form for packages, because a package dependency always needs both a name and a version. A module dependency needs only an id, which is why it has one.
 
-Add `link = true` for link-only dependencies. Link dependencies are hidden from user code and are omitted from generated package metadata. Like `links`, they are valid only on app modules — a link library resolves deferred definitions when an executable is produced, and only app modules produce one.
+### Link dependencies
+
+`link = true` works on either array. Link dependencies are hidden from user code and are omitted from generated package metadata. Like `links`, they are valid only on app modules — a link library resolves deferred definitions when an executable is produced, and only app modules produce one.
 
 ## Links
 
@@ -162,9 +184,7 @@ links = [
 [module.test]
 kind = "app"
 platform = "python"
-dependencies = [
-  { module = "app" },
-]
+modules = ["app"]
 links = [
   { from = "agentapi.runTask", to = "mocks.fakeRunTask" },
 ]

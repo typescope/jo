@@ -39,9 +39,7 @@ you ask, so this module requires Python but cannot call `py.*`:
 [module.core]
 kind = "lib"
 platform = "python"
-dependencies = [
-  { module = "runtime" },
-]
+modules = ["runtime"]
 ```
 
 `core` requires Python because the `runtime` module does, and its `meta.toml`
@@ -58,9 +56,7 @@ there is no FFI API to enable.
 An FFI package commonly implements `defer def`s from an API package:
 
 ```toml
-dependencies = [
-  { package = "agent-api", version = "1.0" },
-]
+packages = [{ name = "agent-api", version = "1.0" }]
 ```
 
 The app wires implementations through module links:

@@ -50,9 +50,7 @@ Tests are app modules that depend on the module they test. For the app project a
 kind = "app"
 platform = "python"
 src = ["tests/"]
-dependencies = [
-  { module = "app" },
-]
+modules = ["app"]
 ```
 
 For the library project, depend on `lib` instead. Either way, run them with:
@@ -78,7 +76,5 @@ src = ["api/src/"]
 kind = "app"
 src = ["app/src/"]
 platform = "python"
-dependencies = [
-  { module = "api" },
-]
+modules = ["api"]
 ```

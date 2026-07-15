@@ -23,18 +23,14 @@ When a module lists a dependency, it can play one of two roles:
 its namespaces, use its types, and call its functions.
 
 ```toml
-dependencies = [
-  { package = "agent-api", version = "1.0" },
-]
+packages = [{ name = "agent-api", version = "1.0" }]
 ```
 
 **Link library** (`link = true`) — used only at link time to resolve
 `defer def`s. It is hidden from user code. Its namespaces cannot be imported.
 
 ```toml
-dependencies = [
-  { package = "agent-runtime-python", version = "1.0", link = true },
-]
+packages = [{ name = "agent-runtime-python", version = "1.0", link = true }]
 ```
 
 This separation prevents user code from accidentally depending on
