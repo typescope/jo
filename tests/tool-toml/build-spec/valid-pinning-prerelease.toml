@@ -5,6 +5,7 @@ mustache = "1.2.0-rc1"
 
 [module.app]
 kind = "app"
+platform = "python"
 dependencies = [
   { package = "mustache", version = "1.2" },
 ]

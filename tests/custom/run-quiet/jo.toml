@@ -2,5 +2,5 @@ jo   = "0.11"
 name = "runquiet"
 
 [main]
-target = "python"
+platform = "python"
 src    = ["src/"]

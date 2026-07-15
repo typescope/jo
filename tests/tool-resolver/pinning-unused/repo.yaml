@@ -3,8 +3,8 @@ packages:
     1.0.0:
       namespace: jo.core
       jo: "1.0"
-      runtime: pure
+      platform: pure
     1.2.0:
       namespace: jo.core
       jo: "1.0"
-      runtime: pure
+      platform: pure

@@ -6,12 +6,12 @@ module.api:
     name = "agent-api"
     version = "1.0.0"
     description = "Sandbox agent framework API"
-    runtime = "pure"
   dependencies:
     - package "jo-core" "1.0"
 module.test:
   kind = "app"
   src = (default)
+  platform = "python"
   dependencies:
     - module "api"
     - package "jo-test" "0.1"

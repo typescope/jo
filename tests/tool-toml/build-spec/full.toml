@@ -12,7 +12,7 @@ include-source = true
 [module.app]
 kind = "app"
 src = ["src/", "vendor/"]
-target = "python"
+platform = "python"
 depth = 2
 
 dependencies = [
@@ -27,6 +27,7 @@ links = [
 
 [module.test]
 kind = "app"
+platform = "python"
 src = ["tests/"]
 depth = 3
 

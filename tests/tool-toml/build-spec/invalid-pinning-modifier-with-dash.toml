@@ -5,3 +5,4 @@ mustache = "1.2.0-rc-1"
 
 [module.app]
 kind = "app"
+platform = "python"

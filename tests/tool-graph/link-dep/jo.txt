@@ -2,7 +2,7 @@
 jo compile --sast api/.build/lib/jo-1.0/sast api/src/Main.jo
 
 # lib: runtime.lib
-jo compile --use-runtime-api python --sast runtime/.build/lib/jo-1.0/sast runtime/src/Main.jo --lib api/.build/lib/jo-1.0/sast
+jo compile --sast runtime/.build/lib/jo-1.0/sast runtime/src/Main.jo --lib api/.build/lib/jo-1.0/sast
 
 # root link-dep.app (app)
 jo compile --python src/Main.jo --lib api/.build/lib/jo-1.0/sast --link-lib runtime/.build/lib/jo-1.0/sast -o .build/app/jo-1.0/target/app.py

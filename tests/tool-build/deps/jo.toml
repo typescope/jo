@@ -2,6 +2,7 @@ jo = "1.0"
 
 [module.app]
 kind = "app"
+platform = "python"
 src = ["src/"]
 depth = 2
 
@@ -12,6 +13,7 @@ dependencies = [
 
 [module.test]
 kind = "app"
+platform = "python"
 src = ["tests/*.jo"]
 
 dependencies = [

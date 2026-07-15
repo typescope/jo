@@ -6,7 +6,8 @@ src = ["src/"]
 
 [module.test]
 kind = "app"
-compile-options = ["--use-runtime-api", "python"]
+platform = "python"
+enable-ffi = true
 src = ["tests/"]
 
 dependencies = [

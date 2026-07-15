@@ -6,6 +6,7 @@ src = ["src/"]
 
 [module.test]
 kind = "app"
+platform = "python"
 src = ["tests/"]
 
 dependencies = [

@@ -5,6 +5,7 @@ mustache = "1.1.0"
 
 [module.app]
 kind = "app"
+platform = "python"
 src = ["src/"]
 
 dependencies = [

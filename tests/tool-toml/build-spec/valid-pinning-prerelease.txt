@@ -4,5 +4,6 @@ pinning:
 module.app:
   kind = "app"
   src = (default)
+  platform = "python"
   dependencies:
     - package "mustache" "1.2"

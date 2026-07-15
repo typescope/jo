@@ -11,10 +11,10 @@ dependencies = [
 name = "agent-api"
 version = "1.0.0"
 description = "Sandbox agent framework API"
-runtime = "pure"
 
 [module.test]
 kind = "app"
+platform = "python"
 
 dependencies = [
   { module = "api" },

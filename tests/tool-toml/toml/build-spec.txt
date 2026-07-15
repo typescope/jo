@@ -10,6 +10,7 @@ module:
     links:
       from = "MyApp.Iface.run"
       to = "MyApp.Impl.run"
+    platform = "python"
     src = ["src/", "vendor/"]
   test:
     dependencies:
@@ -18,7 +19,8 @@ module:
       module = "testlib"
       path = "../testlib"
     kind = "app"
+    platform = "python"
     src = ["tests/"]
 namespace = "MyApp"
-runtime = "pure"
+platform = "pure"
 version = "1.0.0"

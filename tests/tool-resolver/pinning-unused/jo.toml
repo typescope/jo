@@ -5,6 +5,7 @@ unused-pkg = "1.2.3"
 
 [module.app]
 kind = "app"
+platform = "python"
 src = ["src/"]
 
 dependencies = [

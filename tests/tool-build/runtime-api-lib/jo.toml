@@ -3,8 +3,9 @@ jo = "1.0"
 [module.lib]
 kind = "lib"
 src = ["src/"]
+platform = "python"
+enable-ffi = true
 
 [module.lib.package]
 name = "runtime-api-lib"
 version = "1.0.0"
-runtime = "python"

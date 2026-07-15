@@ -3,9 +3,9 @@ packages:
     1.0.0:
       namespace: pkg.mustache
       jo: "1.0"
-      runtime: pure
+      platform: pure
     1.1.0:
       namespace: pkg.mustache
       jo: "1.0"
-      runtime: pure
+      platform: pure
       yanked: true

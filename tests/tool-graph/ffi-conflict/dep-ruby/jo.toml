@@ -3,8 +3,8 @@ jo = "1.0"
 [module.lib]
 kind = "lib"
 src = ["src/"]
+platform = "ruby"
 
 [module.lib.package]
 name = "dep-ruby"
 version = "1.0.0"
-runtime = "ruby"

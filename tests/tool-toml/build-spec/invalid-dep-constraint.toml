@@ -2,6 +2,7 @@ jo = "1.0"
 
 [module.app]
 kind = "app"
+platform = "python"
 dependencies = [
   { package = "mylib", version = "^1.0.0" },
 ]

@@ -15,12 +15,12 @@ jo = "{{JO_VERSION}}"
 [module.app]
 kind = "app"
 src = ["src/"]
-target = "python"
+platform = "python"
 
 [module.test]
 kind = "app"
 src = ["tests/"]
-target = "python"
+platform = "python"
 
 dependencies = [
   { module = "app" },

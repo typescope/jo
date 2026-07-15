@@ -2,8 +2,4 @@ jo = "1.0"
 
 [module.lib]
 kind = "lib"
-
-[module.lib.package]
-name = "mylib"
-version = "1.0.0"
-runtime = "node"
+enable-ffi = true

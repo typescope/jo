@@ -3,7 +3,7 @@ packages:
     1.0.0:
       namespace: greeter.pkg
       jo: "1.0"
-      runtime: pure
+      platform: pure
       description: First stable release
       homepage: https://example.com/greeter
       license: MIT
@@ -12,7 +12,7 @@ packages:
     1.1.0:
       namespace: greeter.pkg
       jo: "1.0"
-      runtime: pure
+      platform: pure
       description: Improved greeting helpers
       homepage: https://example.com/greeter
       license: MIT
@@ -23,9 +23,9 @@ packages:
     1.0.0:
       namespace: jo.core
       jo: "1.0"
-      runtime: pure
+      platform: pure
   jo-util:
     1.0.0:
       namespace: jo.util
       jo: "1.0"
-      runtime: pure
+      platform: pure

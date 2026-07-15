@@ -2,7 +2,7 @@ namespace = "test.only.pkg"
 name = "test-only-pkg"
 jo = "1.0"
 version = "1.0.0"
-runtime = "pure"
+platform = "pure"
 
 [dependencies]
 test-support-pkg = "1.0"

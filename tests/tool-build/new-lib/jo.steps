@@ -23,7 +23,7 @@ version = "0.1.0"
 [module.test]
 kind = "app"
 src = ["tests/"]
-target = "python"
+platform = "python"
 
 dependencies = [
   { module = "lib" },

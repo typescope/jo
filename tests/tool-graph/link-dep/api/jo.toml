@@ -7,4 +7,3 @@ src = ["src/"]
 [module.lib.package]
 name = "agent-api"
 version = "1.0.0"
-runtime = "pure"

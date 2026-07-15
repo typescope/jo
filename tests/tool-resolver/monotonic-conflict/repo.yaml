@@ -3,15 +3,15 @@ packages:
     1.5.0:
       namespace: jo
       jo: "1.0"
-      runtime: pure
+      platform: pure
     2.1.0:
       namespace: jo
       jo: "2.0"
-      runtime: pure
+      platform: pure
   pkg-a:
     1.0.0:
       namespace: pkg
       jo: "1.0"
-      runtime: pure
+      platform: pure
       dependencies:
         jo-core: 2.0

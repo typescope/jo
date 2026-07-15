@@ -5,6 +5,7 @@ jo-core = "2.0.0"
 
 [module.app]
 kind = "app"
+platform = "python"
 src = ["src/"]
 
 dependencies = [

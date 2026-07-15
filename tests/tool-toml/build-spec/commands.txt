@@ -2,7 +2,7 @@ jo = "1.0"
 module.app:
   kind = "app"
   src = (default)
-  target = "python"
+  platform = "python"
 commands:
   dev = "jo build --spec sandbox/guest/jo.toml && jo run"
   fmt = "echo formatting"

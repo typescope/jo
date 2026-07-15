@@ -5,3 +5,4 @@ jo-core = 1
 
 [module.app]
 kind = "app"
+platform = "python"

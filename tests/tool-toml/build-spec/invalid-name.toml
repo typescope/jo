@@ -2,4 +2,5 @@ jo = "1.0"
 
 [module.my_app]
 kind = "app"
+platform = "python"
 src = ["src/"]

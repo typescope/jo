@@ -3,5 +3,5 @@ jo = "1.0"
 [module.app]
 kind = "app"
 src = ["src/"]
-target = "python"
-compile-options = ["--use-runtime-api", "python"]
+platform = "python"
+enable-ffi = true

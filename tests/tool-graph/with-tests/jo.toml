@@ -2,6 +2,7 @@ jo = "1.0"
 
 [module.app]
 kind = "app"
+platform = "python"
 src = ["src/"]
 
 dependencies = [
@@ -10,6 +11,7 @@ dependencies = [
 
 [module.test]
 kind = "app"
+platform = "python"
 src = ["tests/"]
 
 dependencies = [

@@ -8,7 +8,7 @@ doc.include-source = true
 module.app:
   kind = "app"
   src = ["src/", "vendor/"]
-  target = "python"
+  platform = "python"
   depth = 2
   dependencies:
     - path "../utils" module "utils"
@@ -19,6 +19,7 @@ module.app:
 module.test:
   kind = "app"
   src = ["tests/"]
+  platform = "python"
   depth = 3
   dependencies:
     - module "app"

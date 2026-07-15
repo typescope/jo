@@ -3,8 +3,8 @@ packages:
     1.5.0:
       namespace: jo
       jo: "1.0"
-      runtime: pure
+      platform: pure
     2.1.0:
       namespace: jo
       jo: "2.0"
-      runtime: pure
+      platform: pure

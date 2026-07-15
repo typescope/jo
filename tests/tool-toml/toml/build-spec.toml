@@ -1,9 +1,10 @@
 namespace = "MyApp"
 version = "1.0.0"
-runtime = "pure"
+platform = "pure"
 
 [module.app]
 kind = "app"
+platform = "python"
 src = ["src/", "vendor/"]
 
 dependencies = [
@@ -17,6 +18,7 @@ links = [
 
 [module.test]
 kind = "app"
+platform = "python"
 src = ["tests/"]
 
 dependencies = [

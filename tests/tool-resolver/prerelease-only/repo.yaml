@@ -3,8 +3,8 @@ packages:
     1.2.0-alpha1:
       namespace: pkg.mustache
       jo: "1.0"
-      runtime: pure
+      platform: pure
     1.2.0-rc1:
       namespace: pkg.mustache
       jo: "1.0"
-      runtime: pure
+      platform: pure
