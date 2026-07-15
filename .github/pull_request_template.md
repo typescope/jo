@@ -40,9 +40,12 @@ git rebase --signoff HEAD~3
 <!-- Does this affect compatibility? If so, describe. -->
 
 - [ ] Source compatibility: existing code continue to compile
-- [ ] Library compatibility
+- [ ] SAST compatibility
   - [ ] forward compatibility: new libraries can be used by old compiler
   - [ ] backward comopatibility: old libraries can be used by new compiler
+- [ ] Standard Library compatibility:
+  - [ ] forward compatibility: new code can work with old stdlib
+  - [ ] backward comopatibility: old code work with the new stdlib
 - [ ] Build tool compatibility: old projects continue to build
 
 ---

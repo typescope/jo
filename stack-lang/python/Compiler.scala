@@ -26,6 +26,13 @@ object Compiler:
 
     "jo.Array.create" -> "jo.py.runtime.RefArray.create",
 
+    // Bytes operations
+    "jo.Bytes.size"     -> "jo.py.runtime.RawBytes.size",
+    "jo.Bytes.get"      -> "jo.py.runtime.RawBytes.get",
+    "jo.Bytes.slice"    -> "jo.py.runtime.RawBytes.slice",
+    "jo.Bytes.toBase64" -> "jo.py.runtime.RawBytes.toBase64",
+    "jo.Bytes.fill"     -> "jo.py.runtime.RawBytes.fill",
+
     // Regex engine hooks
     "jo.regex.Engine.compilePattern" -> "jo.py.runtime.RegexEngine.compilePattern",
     "jo.regex.Engine.execPatternAt"  -> "jo.py.runtime.RegexEngine.execPatternAt",

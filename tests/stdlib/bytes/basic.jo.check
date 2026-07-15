@@ -1,0 +1,13 @@
+--- bytes.fill / size / get ---
+5
+104
+111
+--- bytes.slice ---
+ZWxs
+5
+--- bytes.toBase64 ---
+aGVsbG8=
+AECA
+--- bytes empty ---
+0
+

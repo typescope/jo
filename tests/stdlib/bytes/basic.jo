@@ -1,0 +1,40 @@
+def main =
+  testFillAndGet()
+  testSlice()
+  testBase64()
+  testEmpty()
+
+// "hello" = [104, 101, 108, 108, 111]
+def byteAt(i: Int): Byte =
+  match i
+  case 0 => 104.toByte
+  case 1 => 101.toByte
+  case 2 => 108.toByte
+  case 3 => 108.toByte
+  case _ => 111.toByte
+
+def testFillAndGet =
+  println "--- bytes.fill / size / get ---"
+  val b = Bytes.fill(5, i => byteAt(i))
+  println b.size
+  println b.get(0).toInt
+  println b.get(4).toInt
+
+def testSlice =
+  println "--- bytes.slice ---"
+  val b = Bytes.fill(5, i => byteAt(i))
+  println (b.slice(1, 3).toBase64)
+  println (b.slice(0, 5).size)
+
+def testBase64 =
+  println "--- bytes.toBase64 ---"
+  val b = Bytes.fill(5, i => byteAt(i))
+  println b.toBase64
+  val p = Bytes.fill(3, i => (i * 64).toByte)
+  println p.toBase64
+
+def testEmpty =
+  println "--- bytes empty ---"
+  val e = Bytes.fill(0, i => 0.toByte)
+  println e.size
+  println e.toBase64

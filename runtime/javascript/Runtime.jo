@@ -70,6 +70,32 @@ end
 
 //------------------------------------------------------------------------------
 //
+// Bytes operations (Bytes.Repr is a Uint8Array)
+//
+//------------------------------------------------------------------------------
+
+private section RawBytes
+  def size(repr: Bytes.Repr): Int = js.dynamic(repr).length.asInt
+
+  def get(repr: Bytes.Repr, index: Int): Byte = js.dynamic(repr)[index].cast[Byte]
+
+  def slice(repr: Bytes.Repr, offset: Int, length: Int): Bytes =
+    js.dynamic(repr).slice(offset, offset + length).cast[Bytes]
+
+  def toBase64(repr: Bytes.Repr): String =
+    js.global.Buffer.from(repr).callDynamic("toString", "base64").asString
+
+  def fill(size: Int, values: Int => Byte): Bytes =
+    val arr = js.init(js.global.Uint8Array, size)
+    var i = 0
+    while i < size do
+      js.dynamic(arr)[i] = values(i).toInt
+      i = i + 1
+    arr.cast[Bytes]
+end
+
+//------------------------------------------------------------------------------
+//
 // String support
 //
 

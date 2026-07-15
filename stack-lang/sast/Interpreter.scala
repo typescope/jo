@@ -22,6 +22,11 @@ object Interpreter:
   val defaultLinkMappings = Map(
     "jo.abort" -> "jo.runtime.interpreter.abort",
     "jo.Array.create" -> "jo.runtime.interpreter.RefArray.create",
+    "jo.Bytes.size"     -> "jo.runtime.interpreter.RawBytes.size",
+    "jo.Bytes.get"      -> "jo.runtime.interpreter.RawBytes.get",
+    "jo.Bytes.slice"    -> "jo.runtime.interpreter.RawBytes.slice",
+    "jo.Bytes.toBase64" -> "jo.runtime.interpreter.RawBytes.toBase64",
+    "jo.Bytes.fill"     -> "jo.runtime.interpreter.RawBytes.fill",
     "jo.regex.Engine.compilePattern" -> "jo.runtime.interpreter.RegexEngine.compilePattern",
     "jo.regex.Engine.execPatternAt"  -> "jo.runtime.interpreter.RegexEngine.execPatternAt",
   )
@@ -200,6 +205,37 @@ object Interpreter:
       "cloneRefArray" -> { (args: List[Value]) =>
         val (arrayVal: ArrayVal) :: Nil = args: @unchecked
         ArrayVal(arrayVal.content.clone()) :: Nil
+      },
+
+      "bytesSize" -> { (args: List[Value]) =>
+        val PlatformVal(bytes: Array[Byte]) :: Nil = args: @unchecked
+        IntVal(bytes.length) :: Nil
+      },
+
+      "bytesGet" -> { (args: List[Value]) =>
+        val PlatformVal(bytes: Array[Byte]) :: IntVal(index) :: Nil = args: @unchecked
+        IntVal(bytes(index) & 0xFF) :: Nil
+      },
+
+      "bytesSlice" -> { (args: List[Value]) =>
+        val PlatformVal(bytes: Array[Byte]) :: IntVal(offset) :: IntVal(length) :: Nil = args: @unchecked
+        PlatformVal(bytes.slice(offset, offset + length)) :: Nil
+      },
+
+      "bytesToBase64" -> { (args: List[Value]) =>
+        val PlatformVal(bytes: Array[Byte]) :: Nil = args: @unchecked
+        StringVal(java.util.Base64.getEncoder.encodeToString(bytes)) :: Nil
+      },
+
+      "bytesAlloc" -> { (args: List[Value]) =>
+        val IntVal(size) :: Nil = args: @unchecked
+        PlatformVal(new Array[Byte](size)) :: Nil
+      },
+
+      "bytesSet" -> { (args: List[Value]) =>
+        val PlatformVal(bytes: Array[Byte]) :: IntVal(index) :: IntVal(value) :: Nil = args: @unchecked
+        bytes(index) = value.toByte
+        UnitValue
       },
 
       "abort" -> { (args: List[Value]) =>
