@@ -2,7 +2,9 @@ jo = "1.0"
 
 [module.api]
 kind = "lib"
+src = []
 
 [module.app]
 kind = "app"
 platform = "python"
+src = []

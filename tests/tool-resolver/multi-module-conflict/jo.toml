@@ -2,6 +2,7 @@ jo = "1.0"
 
 [module.api]
 kind = "lib"
+src = []
 
 dependencies = [
   { package = "pkg-a", version = "1.0" },
@@ -9,6 +10,7 @@ dependencies = [
 
 [module.worker]
 kind = "lib"
+src = []
 
 dependencies = [
   { package = "pkg-b", version = "1.0" },

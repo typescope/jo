@@ -1,7 +1,7 @@
 jo = "1.0"
 module.app:
   kind = "app"
-  src = (default)
+  src = []
   platform = "python"
 commands:
   dev = "jo build --spec sandbox/guest/jo.toml && jo run"

@@ -3,6 +3,7 @@ jo = "1.0"
 [module.app]
 kind = "app"
 platform = "python"
+src = []
 
 [commands]
 dev = "jo build --spec sandbox/guest/jo.toml && jo run"

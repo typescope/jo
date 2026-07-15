@@ -8,15 +8,19 @@ src = ["first/src/"]
 [module.second]
 kind = "app"
 platform = "python"
+src = ["second/src/"]
 
 [module.third]
 kind = "app"
 platform = "python"
+src = ["third/src/"]
 
 [module.fourth]
 kind = "app"
 platform = "python"
+src = ["fourth/src/"]
 
 [module.fifth]
 kind = "app"
 platform = "python"
+src = ["fifth/src/"]

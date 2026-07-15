@@ -2,6 +2,7 @@ jo = "1.0"
 
 [module.api]
 kind = "lib"
+src = ["api/src/"]
 
 dependencies = [
   { package = "jo-core", version = "1.0" },
@@ -15,6 +16,7 @@ description = "Sandbox agent framework API"
 [module.test]
 kind = "app"
 platform = "python"
+src = ["test/src/"]
 
 dependencies = [
   { module = "api" },

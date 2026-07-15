@@ -3,7 +3,7 @@ pinning:
   mustache = "1.2.0-rc1"
 module.app:
   kind = "app"
-  src = (default)
+  src = ["src/"]
   platform = "python"
   dependencies:
     - package "mustache" "1.2"

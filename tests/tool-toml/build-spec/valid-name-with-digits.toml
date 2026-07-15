@@ -3,3 +3,4 @@ jo = "1.0"
 [module.http2-client]
 kind = "app"
 platform = "python"
+src = ["src/"]

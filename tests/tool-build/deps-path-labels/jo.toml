@@ -3,6 +3,7 @@ jo = "1.0"
 [module.app]
 kind = "app"
 platform = "python"
+src = []
 
 dependencies = [
   { module = "api" },
@@ -11,3 +12,4 @@ dependencies = [
 
 [module.api]
 kind = "lib"
+src = []

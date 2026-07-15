@@ -1,5 +1,5 @@
 jo = "1.0"
 module.http2-client:
   kind = "app"
-  src = (default)
+  src = ["src/"]
   platform = "python"

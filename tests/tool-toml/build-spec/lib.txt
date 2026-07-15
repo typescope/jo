@@ -1,7 +1,7 @@
 jo = "1.0"
 module.api:
   kind = "lib"
-  src = (default)
+  src = ["api/src/"]
   package:
     name = "agent-api"
     version = "1.0.0"
@@ -10,7 +10,7 @@ module.api:
     - package "jo-core" "1.0"
 module.test:
   kind = "app"
-  src = (default)
+  src = ["test/src/"]
   platform = "python"
   dependencies:
     - module "api"
