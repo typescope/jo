@@ -1,8 +1,12 @@
 jo = "1.0"
-name = "app"
 
 [pinning]
 mustache = "1.1.0"
 
-[main.dependencies]
-mustache = "1.0"
+[module.app]
+kind = "app"
+src = ["src/"]
+
+dependencies = [
+  { package = "mustache", version = "1.0" },
+]

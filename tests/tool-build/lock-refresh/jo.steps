@@ -8,9 +8,9 @@ jo package --spec dep2/jo.toml
 
 mkdir -p repo/greeter-pkg/1.0.0 repo/alpha-pkg/1.0.0
 
-cp dep/.build/greeter-pkg/release/greeter-pkg-v1.0.0.joy repo/greeter-pkg/1.0.0/
+cp dep/.build/lib/release/greeter-pkg-v1.0.0.joy repo/greeter-pkg/1.0.0/
 
-cp dep2/.build/alpha-pkg/release/alpha-pkg-v1.0.0.joy repo/alpha-pkg/1.0.0/
+cp dep2/.build/lib/release/alpha-pkg-v1.0.0.joy repo/alpha-pkg/1.0.0/
 
 jo lock
 : ''
@@ -23,6 +23,8 @@ sed -n 's/^\(greeter-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\
 greeter-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
 '
 
+cp jo.toml jo-base.toml
+
 cp jo-updated.toml jo.toml
 : ''
 
@@ -30,6 +32,11 @@ cp jo-old.lock jo.lock
 : ''
 
 jo build
+: '
+error: lock file is missing package entries for: alpha-pkg; run 'jo lock'
+'
+
+jo lock
 : ''
 
 sed -n -e 's/^\(alpha-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' -e 's/^\(greeter-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' jo.lock
@@ -38,19 +45,10 @@ alpha-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
 greeter-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
 '
 
-cp jo-old.lock jo.lock
+jo build
 : ''
 
 jo check
-: ''
-
-sed -n -e 's/^\(alpha-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' -e 's/^\(greeter-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' jo.lock
-: '
-alpha-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
-greeter-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
-'
-
-cp jo-old.lock jo.lock
 : ''
 
 jo run
@@ -58,20 +56,14 @@ jo run
 Hello, Lock!
 '
 
-sed -n -e 's/^\(alpha-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' -e 's/^\(greeter-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' jo.lock
-: '
-alpha-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
-greeter-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
-'
+jo doc
+: ''
 
 cp jo-old.lock jo.lock
 : ''
 
-jo doc
+cp jo-base.toml jo.toml
 : ''
 
-sed -n -e 's/^\(alpha-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' -e 's/^\(greeter-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' jo.lock
-: '
-alpha-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
-greeter-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
-'
+rm -f jo-base.toml
+: ''

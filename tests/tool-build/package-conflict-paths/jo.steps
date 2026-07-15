@@ -1,9 +1,13 @@
+cp jo.lock jo.lock.bak
+rm -f jo.lock
+: ''
 jo build
 : '
 error: conflicting requirements for jo-core
-  package-conflict-paths -> pkg-a -> jo-core(1.0)
-  package-conflict-paths -> pkg-b -> jo-core(2.0)
-
-  Jo had already fixed jo-core to 1.5.0 when it was first selected.
+  app -> pkg-a.lib -> jo-core(1.0)
+  app -> pkg-b.lib -> jo-core(2.0)
+  Jo had already fixed jo-core to 1.5.0.
   Jo resolves dependencies level by level and does not later switch to a larger version.
 '
+mv jo.lock.bak jo.lock
+: ''

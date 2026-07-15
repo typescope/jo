@@ -1,9 +1,10 @@
 jo = "1.0"
-name = "lock-refresh"
 
-[main]
+[module.app]
+kind = "app"
 src = ["src/"]
 
-[main.dependencies]
-greeter-pkg = "1.0"
-alpha-pkg = "1.0"
+dependencies = [
+  { package = "greeter-pkg", version = "1.0" },
+  { package = "alpha-pkg", version = "1.0" },
+]

@@ -1,10 +1,14 @@
 jo = "1.0"
+
+[module.lib]
+kind = "lib"
+src = ["src/"]
+depth = 1
+
+dependencies = [
+  { package = "jo-core", version = "2.0" },
+]
+
+[module.lib.package]
 name = "pkg-b"
-
-[package]
 version = "1.0.0"
-
-[main]
-
-[main.dependencies]
-jo-core = "2.0"

@@ -1,8 +1,10 @@
 jo = "1.0"
-name = "package-conflict-paths"
 
-[main]
+[module.app]
+kind = "app"
+src = ["src/"]
 
-[main.dependencies]
-pkg-a = { path = "pkg-a" }
-pkg-b = { path = "pkg-b" }
+dependencies = [
+  { path = "pkg-a", module = "lib" },
+  { path = "pkg-b", module = "lib" },
+]
