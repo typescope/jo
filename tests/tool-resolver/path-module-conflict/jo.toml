@@ -1,0 +1,10 @@
+jo = "1.0"
+
+[module.app]
+kind = "app"
+platform = "python"
+
+dependencies = [
+  { path = "api", module = "api" },
+  { package = "mustache", version = "2.0" },
+]

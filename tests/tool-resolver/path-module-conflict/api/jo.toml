@@ -1,0 +1,8 @@
+jo = "1.0"
+
+[module.api]
+kind = "lib"
+
+dependencies = [
+  { package = "mustache", version = "1.0" },
+]
