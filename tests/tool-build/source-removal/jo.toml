@@ -1,8 +1,13 @@
 jo = "1.0"
-name = "source-removal"
 
-[main]
-target = "python"
+[module.app]
+kind = "app"
+platform = "python"
+src = ["src/"]
 
-[test]
+[module.test]
+kind = "app"
+platform = "python"
 src = ["tests/"]
+
+modules = ["app"]

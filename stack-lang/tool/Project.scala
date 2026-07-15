@@ -1,70 +1,155 @@
 package tool
 
+import java.io.IOException
 import java.nio.file.{Files, Path}
+import scala.collection.mutable
 import tool.toml.{TomlError, TomlParser}
 
-/** A local project discovered through path-dependency expansion. */
-case class ProjectDep(
-  name: String,
+/** A source module dependency. `project = None` means same project. */
+case class ModuleDep(
+  module: ModuleId,
   link: DepLink,
-  project: Project,
+  project: Option[Project],
+  projectSpecPath: Option[Path] = None,
 )
 
 final class Project private (
   val dir: Path,
   val specPath: Path,
   private val spec: BuildSpec,
-  val deps: List[ProjectDep],
-  val testDeps: List[ProjectDep],
+  val moduleDeps: Map[ModuleId, List[ModuleDep]],
   val joVersion: Version,
   val joBin: Path,
 ):
-  def name: String = spec.name
+  private val platformByModule: mutable.Map[ModuleId, Platform] = mutable.LinkedHashMap.empty
 
   def joVersionSpec: VersionSpec = spec.jo
 
   def pinning: Map[String, Version] = spec.pinning
 
-  def defaultDepth: Int = spec.depth.getOrElse(if isLib then 0 else 1)
+  def modules: List[ModuleDef] = spec.modules
 
-  def mainDepth: Int = spec.main.depth.getOrElse(defaultDepth)
+  def moduleIds: List[ModuleId] = modules.map(_.id)
 
-  def testDepth: Int = spec.test.flatMap(_.depth).getOrElse(spec.depth.getOrElse(mainDepth))
+  def defaultModuleId: ModuleId = spec.defaultModuleId
 
-  def depthOf(module: ModuleKind): Int = module match
-    case ModuleKind.Main => mainDepth
-    case ModuleKind.Test => testDepth
+  def module(id: ModuleId): Option[ModuleSpec] = spec.module(id)
 
-  def isLib: Boolean = spec.isLib
+  def requireModule(id: ModuleId): Result[ModuleSpec] =
+    module(id) match
+      case Some(spec) => Result.Ok(spec)
+      case None       => Result.Err(s"module '${id.value}' is not defined in ${LogFormat.path(specPath)}")
 
-  def pkg: Option[PackageSpec] = spec.pkg
+  def moduleDepsOf(id: ModuleId): List[ModuleDep] =
+    moduleDeps.getOrElse(id, Nil)
+
+  def moduleDepOf(id: ModuleId, depModule: ModuleId, sourcePath: Option[String]): Option[ModuleDep] =
+    sourcePath match
+      case None =>
+        moduleDepsOf(id).find(dep => dep.module == depModule && dep.projectSpecPath.isEmpty)
+
+      case Some(path) =>
+        Project.canonicalDependencySpecPath(dir, path) match
+          case Result.Ok(depSpecPath) =>
+            moduleDepsOf(id).find(dep => dep.module == depModule && dep.projectSpecPath.contains(depSpecPath))
+          case Result.Err(_) =>
+            None
+
+  def defaultDepth(id: ModuleId): Int =
+    module(id) match
+      case Some(m) =>
+        m.kind match
+          case ModuleKind.Lib => 0
+          case ModuleKind.App => 1
+      case None =>
+        1
+
+  def depthOf(id: ModuleId): Int =
+    module(id).flatMap(_.depth).getOrElse(defaultDepth(id))
+
+  def pkg(id: ModuleId): Option[PackageSpec] =
+    module(id).flatMap(_.pkg)
 
   def doc: Option[DocSpec] = spec.doc
 
-  def main: ModuleSpec = spec.main
-
-  def test: Option[ModuleSpec] = spec.test
-
   def commands: Map[String, String] = spec.commands
 
-  def runtime: Option[String] = spec.pkg.flatMap(_.runtime)
+  def declaredPlatform(id: ModuleId): Platform =
+    module(id).flatMap(_.platform).getOrElse(Platform.Pure)
 
-  /** Root of this project's build output: `<dir>/.build/<name>/`. */
-  def buildDir: Path = dir.resolve(s".build/$name")
+  def platform(id: ModuleId): Platform =
+    platformByModule(id)
 
-  /** Versioned build output root: `<dir>/.build/<name>/jo-<major>.<minor>/`. */
-  def buildBaseDir: Path =
-    buildDir.resolve(s"jo-${joVersion.major}.${joVersion.minor}")
+  /** Root of this module's build output: `<dir>/.build/<module-id>/`. */
+  def buildDir(id: ModuleId): Path =
+    dir.resolve(s".build/${id.value}")
 
-  /** Main module sast output directory. */
-  def mainSastDir: Path =
-    buildBaseDir.resolve("sast")
+  /** Versioned module build output root: `<dir>/.build/<module-id>/jo-<major>.<minor>/`. */
+  def buildBaseDir(id: ModuleId): Path =
+    buildDir(id).resolve(s"jo-${joVersion.major}.${joVersion.minor}")
 
-  /** Test module sast output directory. */
-  def testSastDir: Path =
-    buildBaseDir.resolve("sast-test")
+  /** Module sast output directory. */
+  def sastDir(id: ModuleId): Path =
+    buildBaseDir(id).resolve("sast")
+
+  def appOutFile(id: ModuleId, target: Target): Path =
+    buildBaseDir(id).resolve(s"target/${id.value}${target.ext}")
+
+  def relativeProjectPath(root: Project): String =
+    Project.relativeProjectPath(root.dir, dir)
+
+  def moduleLabel(root: Project, module: ModuleId): String =
+    Project.moduleLabel(root.dir, dir, module)
 
 object Project:
+  def moduleLabelFromSpec(rootSpecPath: Path, specPath: Path, module: ModuleId): String =
+    moduleLabel(rootSpecPath.getParent, specPath.getParent, module)
+
+  private[tool] def moduleLabel(rootDir: Path, projectDir: Path, module: ModuleId): String =
+    val projectPath = relativeProjectPath(rootDir, projectDir)
+    if projectPath == "." then s"[${module.value}]"
+    else s"$projectPath [${module.value}]"
+
+  private[tool] def relativeProjectPath(rootDir: Path, projectDir: Path): String =
+    val root = rootDir.toAbsolutePath.normalize()
+    val project = projectDir.toAbsolutePath.normalize()
+    if root == project then "."
+    else
+      try root.relativize(project).toString
+      catch case _: IllegalArgumentException => project.toString
+
+  private[tool] def validateModuleAcyclic(root: Project, roots: List[ModuleId]): Result[Unit] =
+    val visited = mutable.Set.empty[(Path, ModuleId)]
+    val stack = mutable.ArrayBuffer.empty[(Project, ModuleId)]
+
+    def walk(project: Project, module: ModuleId): Result[Unit] =
+      val key = project.specPath -> module
+      val cycleStart = stack.indexWhere(sameModule(_, project, module))
+      if cycleStart >= 0 then
+        return Result.Err(formatModuleCycle(root, stack.drop(cycleStart).toList :+ ((project, module))))
+
+      if visited.contains(key) then
+        Result.unit
+      else
+        stack += ((project, module))
+        val result = project.moduleDepsOf(module).foldLeft(Result.unit): (acc, dep) =>
+          acc.flatMap: _ =>
+            walk(dep.project.getOrElse(project), dep.module)
+        stack.remove(stack.length - 1)
+        result.map: _ =>
+          visited += key
+          ()
+
+    roots.foldLeft(Result.unit): (acc, module) =>
+      acc.flatMap(_ => walk(root, module))
+
+  private[tool] def formatModuleCycle(root: Project, cycle: List[(Project, ModuleId)]): String =
+    val path = cycle.map((project, module) => project.moduleLabel(root, module)).mkString(" -> ")
+    s"circular module dependency detected: $path"
+
+  private def sameModule(entry: (Project, ModuleId), project: Project, module: ModuleId): Boolean =
+    entry._1.specPath == project.specPath && entry._2 == module
+
   def load(specPath: Path): Result[Project] =
     load(specPath, JoResolver.resolve, JoResolver.resolveExact)
 
@@ -76,12 +161,62 @@ object Project:
     resolveJo: VersionSpec => Result[(Version, Path)],
     resolveExactJo: Version => Result[Path],
   ): Result[Project] =
-    val absolutePath = specPath.toAbsolutePath
-    val canonicalSpecPath = absolutePath.toRealPath()
-    val specDir = canonicalSpecPath.getParent
-    loadSpec(specDir, canonicalSpecPath.getFileName.toString).flatMap: spec =>
-      resolveCompiler(canonicalSpecPath, spec.jo, resolveJo, resolveExactJo).flatMap: (joVersion, joBin) =>
-        resolve(spec, canonicalSpecPath, joVersion, joBin)
+    val resolved = mutable.Map.empty[Path, Project]
+    val inProgress = mutable.Set.empty[Path]
+    val stack = mutable.ArrayBuffer.empty[Path]
+
+    def loadAt(path: Path, inheritedCompiler: Option[(Version, Path)] = None): Result[Project] =
+      val specPath = path.toAbsolutePath.normalize()
+      if !Files.exists(specPath) then
+        return Result.Err(s"spec file not found: ${LogFormat.path(specPath)}")
+
+      val canonicalSpecPath =
+        try specPath.toRealPath()
+        catch case e: IOException =>
+          return Result.Err(s"spec file not found: ${LogFormat.path(specPath)}: ${e.getMessage}")
+      val specDir = canonicalSpecPath.getParent
+
+      resolved.get(canonicalSpecPath) match
+        case Some(project) => return Result.Ok(project)
+        case None =>
+
+      if inProgress.contains(canonicalSpecPath) then
+        val cycle = (stack.dropWhile(_ != canonicalSpecPath) :+ canonicalSpecPath)
+          .map(p => LogFormat.path(p))
+          .mkString(" -> ")
+        return Result.Err(s"circular project dependency detected: $cycle")
+
+      inProgress += canonicalSpecPath
+      stack += canonicalSpecPath
+
+      val result =
+        loadSpec(specDir, canonicalSpecPath.getFileName.toString).flatMap: spec =>
+          val compiler =
+            inheritedCompiler match
+              case Some((version, joBin)) =>
+                if spec.jo.contains(version) then
+                  Result.Ok(version -> joBin)
+                else
+                  Result.Err(
+                    s"source project ${LogFormat.path(canonicalSpecPath)} requires Jo ${spec.jo.show}, but the root project selected Jo $version"
+                  )
+
+              case None =>
+                resolveCompiler(canonicalSpecPath, spec.jo, resolveJo, resolveExactJo)
+
+          compiler.flatMap: (joVersion, joBin) =>
+            resolveModuleDeps(specDir, canonicalSpecPath, spec, depPath => loadAt(depPath, Some(joVersion -> joBin))).flatMap: deps =>
+              val project = Project(specDir, canonicalSpecPath, spec, deps, joVersion, joBin)
+              populatePlatformCache(project).map: _ =>
+                resolved(canonicalSpecPath) = project
+                project
+
+      inProgress -= canonicalSpecPath
+      if stack.nonEmpty then stack.remove(stack.length - 1)
+
+      result
+
+    loadAt(specPath)
 
   private def resolveCompiler(
     specPath: Path,
@@ -104,168 +239,117 @@ object Project:
       case None =>
         resolveJo(constraint)
 
-  /** Resolve all path dependencies starting from rootSpec at rootDir.
-   *  Registry deps are ignored at this stage.
-   *  All path deps share the same joVersion/joBin as the root.
-   */
-  def resolve(rootSpec: BuildSpec, rootSpecPath: Path, joVersion: Version, joBin: Path): Result[Project] =
-    val resolved = collection.mutable.Map.empty[Path, Project]
-    val heights = collection.mutable.Map.empty[Path, Int]
-    val inProgress = collection.mutable.Set.empty[Path]
-    val inProgressNames = collection.mutable.ArrayBuffer.empty[String]
+  private def resolveModuleDeps(
+    specDir: Path,
+    specPath: Path,
+    spec: BuildSpec,
+    loadAt: Path => Result[Project],
+  ): Result[Map[ModuleId, List[ModuleDep]]] =
+    spec.modules.foldLeft(Result.Ok(Map.empty[ModuleId, List[ModuleDep]]): Result[Map[ModuleId, List[ModuleDep]]]): (acc, moduleDef) =>
+      acc.flatMap: byModule =>
+        val deps = mutable.ListBuffer.empty[ModuleDep]
+        val module = moduleDef.id
 
-    def resolveDeps(specDir: Path, depEntries: List[(String, DepSpec)]): Result[List[ProjectDep]] =
-      val ordered = collection.mutable.ListBuffer.empty[ProjectDep]
-      val seen = collection.mutable.LinkedHashSet.empty[Path]
+        def addModuleDep(dep: ModuleDep): Result[Unit] =
+          val duplicate = deps.exists: existing =>
+            existing.module == dep.module && existing.projectSpecPath == dep.projectSpecPath
+          if duplicate then
+            val label = dep.projectSpecPath match
+              case Some(specPath) => s"${LogFormat.path(specPath)} [${dep.module.value}]"
+              case None           => dep.module.value
+            Result.Err(s"duplicate module dependency '$label' in module.${module.value}.modules")
+          else
+            deps += dep
+            Result.unit
 
-      depEntries.foldLeft(Result.Ok(()): Result[Unit]): (acc, entry) =>
-        acc.flatMap: _ =>
-          val (depName, depSpec) = entry
-          depSpec.source match
-            case DepSource.Path(relPath, specFile) =>
-              val depDir = specDir.resolve(relPath).normalize().toRealPath()
-              val depToml = specFile.getOrElse("jo.toml")
-              val depSpecPath = depDir.resolve(depToml).toRealPath()
-              loadSpec(depDir, depToml).flatMap: depBuildSpec =>
-                if !depBuildSpec.jo.contains(joVersion) then
-                  Result.Err(
-                    s"path dependency '$depName' requires Jo ${depBuildSpec.jo.show}, but the selected compiler is $joVersion"
-                  )
+        val result = moduleDef.spec.moduleDeps.foldLeft(Result.unit): (depAcc, depSpec) =>
+          depAcc.flatMap: _ =>
+            depSpec.path match
+              case None =>
+                if spec.module(depSpec.id).isEmpty then
+                  Result.Err(s"in ${LogFormat.path(specPath)}: module '${module.value}' depends on undefined module '${depSpec.id.value}'")
                 else
-                  visit(depName, depBuildSpec, depSpecPath).map: dep =>
-                    if seen.add(dep.dir) then
-                      ordered += ProjectDep(depName, depSpec.link, dep)
+                  addModuleDep(ModuleDep(depSpec.id, depSpec.link, None, None))
 
-            case DepSource.Registry(_) =>
-              Result.unit
-      .map(_ => ordered.toList)
+              case Some(relPath) =>
+                canonicalDependencySpecPath(specDir, relPath).flatMap: depSpecPath =>
+                  loadAt(depSpecPath).flatMap: depProject =>
+                    depProject.module(depSpec.id) match
+                      case Some(_) =>
+                        addModuleDep(ModuleDep(depSpec.id, depSpec.link, Some(depProject), Some(depProject.specPath)))
+                      case None =>
+                        Result.Err(
+                          s"in ${LogFormat.path(specPath)}: module '${module.value}' depends on undefined module '${depSpec.id.value}' from ${LogFormat.path(depProject.specPath)}"
+                        )
 
-    def visit(name: String, spec: BuildSpec, specPath: Path): Result[Project] =
-      val canonicalSpecPath = specPath.toRealPath()
-      val canonicalDir = canonicalSpecPath.getParent
+        result.map(_ => byModule + (module -> deps.toList))
 
-      resolved.get(canonicalDir) match
-        case Some(project) => return Result.Ok(project)
-        case None =>
-
-      if inProgress.contains(canonicalDir) then
-        val cycle = (inProgressNames.dropWhile(_ != name) :+ name).mkString(" -> ")
-        return Result.Err(s"circular dependency detected: $cycle")
-
-      inProgress += canonicalDir
-      inProgressNames += name
-
-      val result =
-        resolveDeps(canonicalDir, spec.main.dependencies.toList).flatMap: deps =>
-          val mainSet = deps.iterator.map(_.project.dir).toSet
-          spec.test match
-            case Some(test) =>
-              resolveDeps(canonicalDir, test.dependencies.toList).map: testDeps0 =>
-                val testDeps = testDeps0.filterNot(dep => mainSet.contains(dep.project.dir))
-                val depHeights = deps.map(dep => heights(dep.project.dir))
-                val height = depHeights.maxOption.map(_ + 1).getOrElse(0)
-                val project = Project(canonicalDir, canonicalSpecPath, spec, deps, testDeps, joVersion, joBin)
-                resolved(canonicalDir) = project
-                heights(canonicalDir) = height
-                project
-            case None =>
-              val depHeights = deps.map(dep => heights(dep.project.dir))
-              val height = depHeights.maxOption.map(_ + 1).getOrElse(0)
-              val project = Project(canonicalDir, canonicalSpecPath, spec, deps, Nil, joVersion, joBin)
-              resolved(canonicalDir) = project
-              heights(canonicalDir) = height
-              Result.Ok(project)
-
-      result match
-        case ok @ Result.Ok(_) =>
-          inProgress -= canonicalDir
-          inProgressNames -= name
-          ok
-        case err @ Result.Err(_) =>
-          inProgress -= canonicalDir
-          inProgressNames -= name
-          err
-
-    visit(rootSpec.name, rootSpec, rootSpecPath.toRealPath()).flatMap: root =>
-      validateRuntime(root.spec, allDeps(root)).map(_ => root)
-
-  def allDeps(root: Project): List[Project] =
-    val ordered = collection.mutable.ListBuffer.empty[Project]
-    val seen = collection.mutable.LinkedHashSet.empty[Path]
-
-    def collect(edges: List[ProjectDep]): Unit =
-      for dep <- edges do
-        collect(dep.project.deps)
-        collect(dep.project.testDeps)
-
-        if seen.add(dep.project.dir) then
-          ordered += dep.project
-
-    collect(root.deps)
-    collect(root.testDeps)
-    ordered.toList
-
-  def mainDepsTopological(root: Project): List[Project] =
-    val ordered = collection.mutable.ListBuffer.empty[Project]
-    val seen = collection.mutable.LinkedHashSet.empty[Path]
-
-    def collect(edges: List[ProjectDep]): Unit =
-      for dep <- edges do
-        collect(dep.project.deps)
-
-        if seen.add(dep.project.dir) then
-          ordered += dep.project
-
-    collect(root.deps)
-    ordered.toList
-
-  def testDepsTopological(root: Project): List[Project] =
-    val ordered = collection.mutable.ListBuffer.empty[Project]
-    val seen = collection.mutable.LinkedHashSet.empty[Path]
-    val mainSet = mainDepsTopological(root).iterator.map(_.dir).toSet
-
-    def collect(edges: List[ProjectDep]): Unit =
-      for dep <- edges do
-        collect(dep.project.deps)
-        collect(dep.project.testDeps)
-
-        if !mainSet.contains(dep.project.dir) && seen.add(dep.project.dir) then
-          ordered += dep.project
-
-    collect(root.testDeps)
-    ordered.toList
+  private[tool] def canonicalDependencySpecPath(specDir: Path, relPath: String): Result[Path] =
+    val depSpecPath = specDir.resolve(relPath).normalize().resolve("jo.toml")
+    if !Files.exists(depSpecPath) then
+      Result.Err(s"module dependency not found: $depSpecPath")
+    else
+      try Result.Ok(depSpecPath.toAbsolutePath.toRealPath())
+      catch case e: IOException => Result.Err(s"module dependency not found: $depSpecPath: ${e.getMessage}")
 
   def loadSpec(dir: Path, tomlFile: String = "jo.toml"): Result[BuildSpec] =
     val file = dir.resolve(tomlFile)
 
     if !Files.exists(file) then
-      return Result.Err(s"spec file not found: $file")
+      return Result.Err(s"spec file not found: ${LogFormat.path(file)}")
 
     val src = Files.readString(file)
 
     try Result.Ok(BuildSpec.decode(TomlParser.parse(src)))
     catch case e: TomlError =>
-      Result.Err(s"in $file: ${e.getMessage}")
+      Result.Err(s"in ${LogFormat.path(file)}: ${e.getMessage}")
 
-  private def validateRuntime(root: BuildSpec, deps: List[Project]): Result[Unit] =
-    val constrainedDeps = deps.flatMap(dep => dep.runtime.filter(_ != "pure").map(dep.name -> _))
-    val distinctRuntime = constrainedDeps.map(_._2).distinct
+  private def populatePlatformCache(project: Project): Result[Unit] =
+    val memo = project.platformByModule
+    val stack = mutable.ArrayBuffer.empty[(Project, ModuleId)]
 
-    if distinctRuntime.length > 1 then
-      val summary = constrainedDeps.map((n, r) => s"'$n' ($r)").mkString(", ")
-      return Result.Err(s"runtime conflict: path dependencies require different runtimes: $summary")
+    def compute(module: ModuleId): Result[Platform] =
+      memo.get(module) match
+        case Some(platform) =>
+          Result.Ok(platform)
 
-    val rootRuntime = root.pkg.flatMap(_.runtime)
+        case None =>
+          val cycleStart = stack.indexWhere(sameModule(_, project, module))
+          if cycleStart >= 0 then
+            Result.Err(formatModuleCycle(project, stack.drop(cycleStart).toList :+ ((project, module))))
+          else
+            stack += ((project, module))
+            val contributors = mutable.LinkedHashMap.empty[String, Platform]
 
-    rootRuntime match
-      case Some("pure") =>
-        deps.find(dep => dep.runtime.exists(_ != "pure")) match
-          case Some(dep) =>
-            Result.Err(
-              s"runtime conflict: root asserts runtime=pure but dependency '${dep.name}' requires runtime=${dep.runtime.nn}"
-            )
-          case None =>
-            Result.unit
+            val own = project.declaredPlatform(module)
+            if own != Platform.Pure then
+              contributors(project.moduleLabel(project, module)) = own
 
-      case _ =>
-        Result.unit
+            val result = project.moduleDepsOf(module).foldLeft(Result.unit): (acc, dep) =>
+              acc.flatMap: _ =>
+                val depProject = dep.project.getOrElse(project)
+                val depPlatform =
+                  dep.project match
+                    case Some(externalProject) => Result.Ok(externalProject.platform(dep.module))
+                    case None                  => compute(dep.module)
+
+                depPlatform.map: platform =>
+                  if platform != Platform.Pure then
+                    contributors(depProject.moduleLabel(project, dep.module)) = platform
+
+            val platformResult = result.flatMap: _ =>
+              val distinct = contributors.values.toList.distinct
+              if distinct.length > 1 then
+                val summary = contributors.map((n, p) => s"'$n' (${p.value})").mkString(", ")
+                Result.Err(s"platform conflict in module '${module.value}': source dependencies require different platforms: $summary")
+              else
+                Result.Ok(distinct.headOption.getOrElse(Platform.Pure))
+
+            stack.remove(stack.length - 1)
+
+            platformResult.map: platform =>
+              memo(module) = platform
+              platform
+
+    project.moduleIds.foldLeft(Result.unit): (acc, module) =>
+      acc.flatMap(_ => compute(module).map(_ => ()))

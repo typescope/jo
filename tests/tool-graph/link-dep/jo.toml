@@ -1,10 +1,11 @@
 jo = "1.0"
-name = "my-agent"
-depth = 2
 
-[main]
+[module.app]
+kind = "app"
+platform = "python"
 src = ["src/"]
 
-[main.dependencies]
-agent-api     = { path = "./api" }
-agent-runtime = { path = "./runtime", link = true }
+modules = [
+  { id = "lib", path = "./api" },
+  { id = "lib", path = "./runtime", link = true },
+]

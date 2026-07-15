@@ -1,6 +1,11 @@
 jo = "1.0"
-name = "app"
 
-[main.dependencies]
-pkg-a = "1.0"
-pkg-b = "1.0"
+[module.app]
+kind = "app"
+platform = "python"
+src = ["src/"]
+
+packages = [
+  { name = "pkg-a", version = "1.0" },
+  { name = "pkg-b", version = "1.0" },
+]

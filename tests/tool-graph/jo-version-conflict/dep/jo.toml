@@ -1,2 +1,5 @@
 jo = "2.0"
-name = "dep"
+
+[module.lib]
+kind = "lib"
+src = ["src/"]

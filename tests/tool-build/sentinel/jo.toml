@@ -1,5 +1,6 @@
 jo = "1.0"
-name = "sentinel"
 
-[main]
+[module.app]
+kind = "app"
+platform = "python"
 src = ["src/"]

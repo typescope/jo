@@ -1,1 +1,1 @@
-error: runtime conflict: path dependencies require different runtimes: 'dep-python' (python), 'dep-ruby' (ruby)
+error: platform conflict in module 'app': source dependencies require different platforms: '[app]' (python), 'dep-python [lib]' (python), 'dep-ruby [lib]' (ruby)

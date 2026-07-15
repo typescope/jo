@@ -1,2 +1,4 @@
-[main]
+[module.app]
+kind = "app"
+platform = "python"
 src = ["src/"]

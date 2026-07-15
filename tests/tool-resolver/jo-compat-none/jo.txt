@@ -1,5 +1,5 @@
 error: no Jo-compatible version available for core-pkg
-  app -> core-pkg(1.0)
+  [app] -> core-pkg(1.0)
 
   The selected Jo compiler is 1.0.0.
   There are releases available for Jo 1.1, 1.2.

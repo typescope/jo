@@ -1,13 +1,15 @@
 jo = "1.0"
-name = "app"
-depth = 1
 
-[main]
+[module.app]
+kind = "app"
+platform = "python"
 src = ["src/"]
 
-[test]
+[module.test]
+kind = "app"
+platform = "python"
 src = ["tests/"]
 depth = 2
 
-[test.dependencies]
-pkg-a = "1.0"
+modules = ["app"]
+packages = [{ name = "pkg-a", version = "1.0" }]

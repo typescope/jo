@@ -1,0 +1,1 @@
+error: 'depth' is no longer supported at the top level; set depth under [module.<id>]

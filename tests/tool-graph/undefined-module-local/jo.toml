@@ -1,0 +1,7 @@
+jo = "1.0"
+
+[module.test]
+kind = "app"
+platform = "python"
+src = []
+modules = ["main"]

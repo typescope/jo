@@ -1,0 +1,6 @@
+jo deps
+: '
+[app]
+  [api]
+  ../deps-path-labels-api [api]
+'

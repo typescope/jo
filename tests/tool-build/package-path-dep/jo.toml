@@ -1,11 +1,11 @@
 jo = "1.0"
-name = "package-path-dep"
 
-[package]
-version = "1.0.0"
-
-[main]
+[module.lib]
+kind = "lib"
 src = ["src/"]
 
-[main.dependencies]
-helper = { path = "./helper" }
+modules = [{ id = "lib", path = "./helper" }]
+
+[module.lib.package]
+name = "package-path-dep"
+version = "1.0.0"

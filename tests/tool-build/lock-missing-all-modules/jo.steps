@@ -1,0 +1,32 @@
+rm -rf repo .build dep/.build dep2/.build
+
+rm -f jo.lock dep/jo.lock dep2/jo.lock
+
+jo package --spec dep/jo.toml
+
+jo package --spec dep2/jo.toml
+
+mkdir -p repo/greeter-pkg/1.0.0 repo/alpha-pkg/1.0.0
+
+cp dep/.build/lib/release/greeter-pkg-v1.0.0.joy repo/greeter-pkg/1.0.0/
+
+cp dep2/.build/lib/release/alpha-pkg-v1.0.0.joy repo/alpha-pkg/1.0.0/
+
+jo build app
+: ''
+
+sed -n -e 's/^\(alpha-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' -e 's/^\(greeter-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' jo.lock
+: '
+alpha-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
+greeter-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
+'
+
+test ! -d .build/tool
+: ''
+
+jo lock
+: '
+error: package dependency depth exceeded for module 'tool': actual 1, allowed 0
+
+  Path: [tool] -> alpha-pkg
+'

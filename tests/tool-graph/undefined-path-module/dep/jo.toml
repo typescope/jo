@@ -1,0 +1,5 @@
+jo = "1.0"
+
+[module.lib]
+kind = "lib"
+src = []

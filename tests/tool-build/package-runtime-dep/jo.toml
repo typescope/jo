@@ -1,11 +1,11 @@
 jo = "1.0"
-name = "package-runtime-dep"
 
-[package]
-version = "1.0.0"
-
-[main]
+[module.lib]
+kind = "lib"
 src = ["src/"]
 
-[main.dependencies]
-runtime-helper = "1.0"
+packages = [{ name = "runtime-helper", version = "1.0" }]
+
+[module.lib.package]
+name = "package-runtime-dep"
+version = "1.0.0"

@@ -1,0 +1,3 @@
+error: package dependency depth exceeded for module 'app': actual 2, allowed 1
+
+  Path: app -> api [api] -> pkg-a -> pkg-b

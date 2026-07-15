@@ -1,9 +1,10 @@
 jo = "1.0"
-name = "doc-demo"
-
-[main]
-src = ["src/"]
 
 [doc]
 title = "Doc Demo"
 readme = "README.md"
+
+[module.app]
+kind = "app"
+platform = "python"
+src = ["src/"]

@@ -1,0 +1,15 @@
+jo = "1.0"
+
+[module.app]
+kind = "app"
+platform = "python"
+src = []
+
+modules = [
+  "api",
+  { id = "api", path = "../deps-path-labels-api" },
+]
+
+[module.api]
+kind = "lib"
+src = []

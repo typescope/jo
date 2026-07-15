@@ -1,16 +1,22 @@
-main:
-  dependencies:
-    http = "^1.0.0"
-    utils:
+module:
+  app:
+    kind = "app"
+    links:
+      from = "MyApp.Iface.run"
+      to = "MyApp.Impl.run"
+    modules:
+      id = "utils"
       path = "../utils"
-  links:
-    MyApp.Iface.run = "MyApp.Impl.run"
-  src = ["src/", "vendor/"]
+    packages:
+      name = "http"
+      version = "1.0"
+    platform = "python"
+    src = ["src/", "vendor/"]
+  test:
+    kind = "app"
+    modules = ["app", {id = "testlib", path = "../testlib"}]
+    platform = "python"
+    src = ["tests/"]
 namespace = "MyApp"
-runtime = "pure"
-test:
-  dependencies:
-    testlib:
-      path = "../testlib"
-  src = ["tests/"]
+platform = "pure"
 version = "1.0.0"

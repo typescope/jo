@@ -1,25 +1,21 @@
 # jo doc
 
-Generate project API documentation from the main module sources.
+Generate API documentation from a module.
 
 ## Usage
 
 ```
-jo doc [--spec <file.toml>]
+jo doc [module]
 ```
 
-## Options
-
-| Option          | Description                            |
-|-----------------|----------------------------------------|
-| `--spec <file>` | Build spec to use. Default: `jo.toml`. |
+If `module` is omitted, Jo documents the project default module.
 
 ## Output
 
-Generated HTML files are written to `.build/<name>/doc/`.
+Generated HTML files are written to `.build/<module>/doc/`.
 On success, `jo doc` prints that output directory.
 
-`jo doc` uses the project's main sources and reads documentation settings from `jo.toml`:
+`jo doc` uses the selected module's sources and reads documentation settings from `jo.toml`:
 
 ```toml
 [doc]
@@ -42,7 +38,7 @@ The generated documentation is a self-contained directory that can be opened dir
 
 ```sh
 jo doc
-jo doc --spec agent-api.toml
+jo doc api
 ```
 
 The primitive source-file interface, [`jo compile --doc`](compile.md), is experimental.

@@ -40,11 +40,27 @@ object New:
 
     if isLib then
       Files.writeString(dir.resolve("jo.toml"),
-        s"""jo      = "$joConstraint"
-           |name    = "$name"
+        s"""jo = "$joConstraint"
            |
-           |[package]
+           |[module.lib]
+           |kind = "lib"
+           |src = ["src/"]
+           |
+           |[module.lib.package]
+           |name = "$name"
            |version = "0.1.0"
+           |
+           |[module.test]
+           |kind = "app"
+           |src = ["tests/"]
+           |platform = "${Target.Python.flag}"
+           |modules = ["lib"]
+           |""".stripMargin)
+
+      Files.writeString(dir.resolve("tests/Main.jo"),
+        s"""namespace Test
+           |
+           |def main = println "OK"
            |""".stripMargin)
 
       Result.Ok(
@@ -53,18 +69,31 @@ object New:
            |${Ansi.dim("You can now:")}
            |  ${Ansi.blue("cd")} $name
            |  ${Ansi.blue("jo")} build
+           |  ${Ansi.blue("jo")} run test
            |""".stripMargin)
     else
       Files.writeString(dir.resolve("jo.toml"),
-        s"""jo   = "$joConstraint"
-           |name = "$name"
+        s"""jo = "$joConstraint"
            |
-           |[main]
-           |target = "${Target.Python.flag}"
+           |[module.app]
+           |kind = "app"
+           |src = ["src/"]
+           |platform = "${Target.Python.flag}"
+           |
+           |[module.test]
+           |kind = "app"
+           |src = ["tests/"]
+           |platform = "${Target.Python.flag}"
+           |modules = ["app"]
            |""".stripMargin)
 
       Files.writeString(dir.resolve("src/Main.jo"),
         s"""def main = println "Hello, $name!"
+           |""".stripMargin)
+      Files.writeString(dir.resolve("tests/Main.jo"),
+        s"""namespace Test
+           |
+           |def main = println "OK"
            |""".stripMargin)
 
       Result.Ok(
@@ -73,4 +102,5 @@ object New:
            |${Ansi.dim("You can now:")}
            |  ${Ansi.blue("cd")} $name
            |  ${Ansi.blue("jo")} run
+           |  ${Ansi.blue("jo")} run test
            |""".stripMargin)

@@ -5,48 +5,94 @@ Create a new project with a standard scaffold.
 ## Usage
 
 ```
-jo new <name> [--lib | --app]
+jo new [--lib] <name>
 ```
 
 ## Options
 
-| Option  | Description                              |
-|---------|------------------------------------------|
-| `--lib` | Create a library project (default: app)  |
-| `--app` | Create an application project (explicit) |
+| Option  | Description                             |
+|---------|-----------------------------------------|
+| `--lib` | Create a library project. Default: app. |
 
-## Examples
+## App Scaffold
 
-Create an app project:
+`jo new my-agent` prints:
 
-```sh
-jo new my-agent
+```text
+Created 'my-agent'
+
+You can now:
+  cd my-agent
+  jo run
+  jo run test
 ```
 
-Create a library project:
+It creates:
 
-```sh
-jo new my-lib --lib
+```text
+my-agent/
+  jo.toml
+  src/
+  tests/
 ```
-
-## Output
 
 **App** (`my-agent/jo.toml`):
 
 ```toml
-jo   = "1.0"
-name = "my-agent"
+jo = "1.0"
 
-[main]
-target = "python"
+[module.app]
+kind = "app"
+src = ["src/"]
+platform = "python"
+
+[module.test]
+kind = "app"
+src = ["tests/"]
+platform = "python"
+
+modules = ["app"]
+```
+
+## Library Scaffold
+
+`jo new --lib my-lib` prints:
+
+```text
+Created 'my-lib'
+
+You can now:
+  cd my-lib
+  jo build
+  jo run test
+```
+
+It creates:
+
+```text
+my-lib/
+  jo.toml
+  src/
+  tests/
 ```
 
 **Library** (`my-lib/jo.toml`):
 
 ```toml
-jo      = "1.0"
-name    = "my-lib"
+jo = "1.0"
 
-[package]
+[module.lib]
+kind = "lib"
+src = ["src/"]
+
+[module.lib.package]
+name = "my-lib"
 version = "0.1.0"
+
+[module.test]
+kind = "app"
+src = ["tests/"]
+platform = "python"
+
+modules = ["lib"]
 ```

@@ -1,13 +1,18 @@
 jo = "1.0"
-name = "app"
+
+[module.app]
+kind = "app"
+platform = "python"
+src = ["src/"]
 depth = 3
 
-[main.dependencies]
-alpha-pkg = "1.0"
-z-local = { path = "z-local" }
+modules = [{ id = "lib", path = "z-local" }]
+packages = [{ name = "alpha-pkg", version = "1.0" }]
 
-[test]
-src = ["tests/*.jo"]
+[module.test]
+kind = "app"
+platform = "python"
+src = ["tests"]
 
-[test.dependencies]
-test-only-pkg = "1.0"
+modules = ["app"]
+packages = [{ name = "test-only-pkg", version = "1.0" }]

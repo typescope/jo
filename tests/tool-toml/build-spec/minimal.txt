@@ -1,6 +1,5 @@
 jo = "1.0"
-name = "my-app"
-build = app
-main:
+module.app:
+  kind = "app"
   src = ["src/"]
-test = none
+  platform = "python"

@@ -1,10 +1,15 @@
 jo = "1.0"
-name = "app"
 
 [pinning]
 alpha-pkg = "1.0.0"
 zeta-pkg = "1.0.0"
 
-[main.dependencies]
-alpha-pkg = "1.0"
-zeta-pkg = "1.0"
+[module.app]
+kind = "app"
+platform = "python"
+src = ["src/"]
+
+packages = [
+  { name = "alpha-pkg", version = "1.0" },
+  { name = "zeta-pkg", version = "1.0" },
+]

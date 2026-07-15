@@ -1,0 +1,13 @@
+jo = "1.0"
+
+[module.api]
+kind = "lib"
+src = []
+
+packages = [{ name = "pkg-a", version = "1.0" }]
+
+[module.worker]
+kind = "lib"
+src = []
+
+packages = [{ name = "pkg-b", version = "1.0" }]

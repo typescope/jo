@@ -1,8 +1,12 @@
 jo = "1.0"
-name = "with-tests"
 
-[main]
+[module.lib]
+kind = "lib"
 src = ["src/"]
 
-[test]
+[module.test]
+kind = "app"
+platform = "python"
 src = ["tests/"]
+
+modules = ["lib"]

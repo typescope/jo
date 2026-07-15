@@ -5,32 +5,18 @@
 ```sh
 jo new my-agent
 cd my-agent
-```
-
-This creates:
-
-```
-my-agent/
-  jo.toml
-  src/
-    main.jo
+jo run
 ```
 
 `jo.toml`:
 
 ```toml
-jo   = "1.0"
-name = "my-agent"
+jo = "1.0"
 
-[main]
-target = "python"
-```
-
-Build and run:
-
-```sh
-jo build
-jo run
+[module.app]
+kind = "app"
+src = ["src/"]
+platform = "python"
 ```
 
 ## New Library
@@ -38,42 +24,57 @@ jo run
 ```sh
 jo new my-lib --lib
 cd my-lib
+jo build
 ```
 
 `jo.toml`:
 
 ```toml
-jo      = "1.0"
-name    = "my-lib"
+jo = "1.0"
 
-[package]
+[module.lib]
+kind = "lib"
+src = ["src/"]
+
+[module.lib.package]
+name = "my-lib"
 version = "0.1.0"
-license = "MIT"
 ```
 
-Run tests:
+## Tests
 
-```sh
-jo test
+Tests are app modules that depend on the module they test. For the app project above:
+
+```toml
+[module.test]
+kind = "app"
+platform = "python"
+src = ["tests/"]
+modules = ["app"]
 ```
 
-## Targets
-
-Set the compilation backend in `[main].target`:
-
-| Value      | Output        |
-|------------|---------------|
-| `"python"` | Python script |
-| `"ruby"`   | Ruby script   |
-
-Default is `"python"` if not specified.
-
-## Multiple Projects in One Directory
-
-Use separate `.toml` files and pass `--spec` explicitly:
+For the library project, depend on `lib` instead. Either way, run them with:
 
 ```sh
-jo build --spec api.toml
-jo build --spec app.toml
-jo run   --spec app.toml
+jo run test
+```
+
+An app module can be depended on like a library. See [Testing](testing.md) for inherited links, link dependencies, and depth settings.
+
+## Multiple Modules
+
+Use one `jo.toml` with multiple `[module.<id>]` sections:
+
+```toml
+default = "app"
+
+[module.api]
+kind = "lib"
+src = ["api/src/"]
+
+[module.app]
+kind = "app"
+src = ["app/src/"]
+platform = "python"
+modules = ["api"]
 ```

@@ -1,8 +1,8 @@
 # Compiler Options Reference
 
 These are the low-level options accepted by `jo compile`. Project commands such as
-`jo build`, `jo check`, `jo test`, and `jo run` usually derive compiler flags from
-`jo.toml`, but `[main].compile-options` can pass extra flags through to `jo compile`.
+`jo build`, `jo check`, and `jo run` usually derive compiler flags from
+`jo.toml`, but `module.<id>.compile-options` can pass extra flags through to `jo compile`.
 
 For the command-level interface and examples, see [`jo compile`](../commands/compile.md).
 

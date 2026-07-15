@@ -1,0 +1,20 @@
+jo = "1.0"
+
+[module.app]
+kind = "app"
+platform = "python"
+src = ["src/"]
+
+modules = ["api"]
+
+[module.api]
+kind = "lib"
+src = ["api/"]
+
+modules = ["util"]
+
+[module.util]
+kind = "lib"
+src = ["util/"]
+
+modules = ["api"]

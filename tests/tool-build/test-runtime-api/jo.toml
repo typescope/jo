@@ -1,6 +1,13 @@
 jo = "1.0"
-name = "test-runtime-api"
 
-[test]
-compile-options = ["--use-runtime-api", "python"]
+[module.lib]
+kind = "lib"
+src = ["src/"]
+
+[module.test]
+kind = "app"
+platform = "python"
+enable-ffi = true
 src = ["tests/"]
+
+modules = ["lib"]

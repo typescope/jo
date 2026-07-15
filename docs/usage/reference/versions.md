@@ -13,7 +13,7 @@ When you run a project command, Jo checks the `jo` constraint in the build spec 
 
 - **Required version not installed** — fails and asks you to install one:
   ```
-  note: this project requires jo 1.0.0 (current: 0.9.0); not installed
+  note: this project requires jo 1.0.0 (current: 0.9.0). Not installed.
   install jo 1.0.0 under ~/.jo/compilers/1.0.0/
   ```
 

@@ -1,4 +1,14 @@
 jo package
+: ''
+
+unzip -p .build/lib/release/package-path-dep-v1.0.0.joy meta.toml
 : '
-error: 'jo package' does not support local path dependency 'helper'; replace it with a publishable package dependency
+namespace = "PackagePathDep"
+name = "package-path-dep"
+jo = "1.0"
+version = "1.0.0"
+runtime = "pure"
+
+[dependencies]
+helper = "1.0"
 '

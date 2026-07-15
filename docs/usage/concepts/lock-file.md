@@ -1,9 +1,8 @@
 # Lock File
 
-Jo records exact package resolution in a lock file beside the build spec:
+Jo records exact package resolution in a lock file beside the build spec. The name comes from the spec's name, so `jo.toml` uses `jo.lock`, and a spec selected with `--spec ../agent-api/jo.toml` uses `../agent-api/jo.lock`.
 
-- `jo.toml` -> `jo.lock`
-- `agent-api.toml` -> `agent-api.lock`
+One project has one lock file. It covers every module in the project.
 
 ## Role
 
@@ -23,12 +22,21 @@ When a lock file exists:
 - locked package versions must still satisfy the current dependency constraints
 - locked artifact digests must match the actual `.joy` files
 
-If the lock file is missing, the build tool resolves dependencies and writes it.
+If the lock file is missing, `jo build`, `jo check`, `jo run`, and `jo doc` resolve all modules in the project and write it.
 
-If the lock file is present, compatible locked entries are reused. Missing entries may be
-added automatically. Incompatible locked versions or digest mismatches still fail.
+If the lock file is present, compatible locked entries are reused. Missing entries,
+incompatible locked versions, and digest mismatches fail. Run `jo lock` to rewrite
+the lock file from a fresh all-module resolution.
 
 If you want to intentionally refresh exact versions, run `jo lock`.
+
+## Scope Is The Project, Not The Module
+
+Writing the lock always resolves every module in the project, whichever command triggers it. `jo build app` on a project with no lock file resolves `app`, `test`, and everything else, then writes one complete lock.
+
+This is why a package version conflict between two modules can surface from a command that only builds one of them. The alternative — locking just the selected module — would write a lock whose contents depend on which module you built first, and the next `jo build test` would fail on entries the first build never wrote.
+
+Package dependency depth is checked separately. `jo lock` checks every module. Build commands check the selected module closure, even when they create the missing lock.
 
 ## Format
 
@@ -57,9 +65,13 @@ The lock file records the selected Jo compiler version and all registry-resolved
 
 It does not record:
 
-- local `path` dependencies
+- source modules, in this project or reached through `path` — they are source, not artifacts
 - source files
 - foreign package managers such as `pip` or RubyGems
+
+It *does* record the registry packages those source modules require. A package needed by a module in another project reached through `path` gets an entry in your lock file, because it is part of your build.
+
+The other project's `jo.lock` is not consulted while it is consumed as a source dependency. That lock governs standalone builds of that project. So a package can resolve to one version in your build and to a different version when that project is built on its own. Your build is authoritative for your build.
 
 ## Source Control
 

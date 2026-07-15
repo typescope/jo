@@ -1,1 +1,1 @@
-error: circular dependency detected: a -> b -> a
+error: circular project dependency detected: tests/tool-graph/cyclic/a/jo.toml -> tests/tool-graph/cyclic/b/jo.toml -> tests/tool-graph/cyclic/a/jo.toml

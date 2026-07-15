@@ -1,6 +1,9 @@
 jo = "1.0"
-name = "z-local"
 
-[main.dependencies]
-beta-local = { path = "beta-local" }
-gamma-pkg = "1.0"
+[module.lib]
+kind = "lib"
+src = ["src/"]
+depth = 2
+
+modules = [{ id = "lib", path = "beta-local" }]
+packages = [{ name = "gamma-pkg", version = "1.0" }]

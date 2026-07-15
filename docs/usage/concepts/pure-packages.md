@@ -1,20 +1,28 @@
 # Pure Packages
 
-A pure package is a package with:
+A pure package is a package built from a module with:
 
 ```toml
-runtime = "pure"
+platform = "pure"
 ```
 
-Pure packages are runtime-independent. They can be reused from Python-targeted
-apps, Ruby-targeted apps, and other pure packages. In Jo, they are the default
-building block for reusable libraries.
+This is the default for lib modules, and it is what `meta.toml` records when a
+lib module names no platform.
+
+Pure packages are platform-independent. They can be reused from Python apps,
+Ruby apps, and other pure packages. In Jo, they are the default building block
+for reusable libraries.
 
 ## Security
 
 A pure package cannot on its own reach Python or Ruby code, foreign
-dependencies, or runtime-specific escape hatches. In that sense, a pure package
-may not do harm on its own.
+dependencies, or runtime-specific escape hatches. `platform = "pure"` leaves no
+FFI API to enable, so `enable-ffi = true` on a pure module is an error rather
+than a way in. In that sense, a pure package may not do harm on its own.
+
+Reaching a runtime is a capability a module has to ask for. Even a
+platform-bound module gets no FFI API unless it sets `enable-ffi = true`, so
+being built for Python is not by itself a way into Python.
 
 It can still contain wrong logic, but it does not by itself add runtime-native
 capabilities through the package boundary.

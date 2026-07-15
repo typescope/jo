@@ -1,0 +1,22 @@
+jo = "1.0"
+default = "test"
+
+[module.app]
+kind = "app"
+platform = "python"
+src = ["app/"]
+
+links = [
+  { from = "jo.main", to = "App.entry" },
+]
+
+[module.test]
+kind = "app"
+platform = "python"
+src = ["test/"]
+
+modules = ["app"]
+
+links = [
+  { from = "jo.main", to = "Test.entry" },
+]

@@ -1,0 +1,15 @@
+jo = "1.0"
+default = "app"
+
+[module.app]
+kind = "app"
+platform = "python"
+src = ["src/"]
+
+packages = [{ name = "greeter-pkg", version = "1.0" }]
+
+[module.tool]
+kind = "lib"
+src = ["tool/"]
+
+packages = [{ name = "alpha-pkg", version = "1.0" }]

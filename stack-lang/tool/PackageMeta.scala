@@ -5,16 +5,22 @@ import tool.toml.{TomlValue, TomlDoc, TomlError}
 
 case class PackageDependencyInfo(
   jo: VersionSpec,
-  runtime: String,
+  platform: Platform,
   dependencies: Map[String, VersionSpec],
 )
 
+/** Metadata for a published package.
+ *
+ *  `platform` is serialized as `runtime`, in `meta.toml` and in the registry's JSONL index.
+ *  The build spec renamed the field to `platform` because authors write it; published
+ *  artifacts and registry records are produced elsewhere and keep the original key.
+ */
 case class PackageMeta(
   namespace: String,
   name: String,
   jo: VersionSpec,
   version: String,
-  runtime: String,
+  platform: Platform,
   description: Option[String] = None,
   authors: List[String] = Nil,
   homepage: Option[String] = None,
@@ -27,7 +33,7 @@ object PackageMeta:
   def dependencyInfo(meta: PackageMeta): PackageDependencyInfo =
     PackageDependencyInfo(
       jo = meta.jo,
-      runtime = meta.runtime,
+      platform = meta.platform,
       dependencies = meta.dependencies,
     )
 
@@ -36,7 +42,10 @@ object PackageMeta:
     val name      = requireStr(doc, "name")
     val jo        = requireVersionSpec(doc, "jo")
     val version   = requireStr(doc, "version")
-    val runtime   = doc.get("runtime").map(asStr(_, "runtime")).getOrElse("pure")
+    val runtimeRaw = doc.get("runtime").map(asStr(_, "runtime")).getOrElse("pure")
+    val platform =
+      Platform.parse(runtimeRaw).getOrElse:
+        throw TomlError(s"invalid runtime value '$runtimeRaw'")
     val description = doc.get("description").map(asStr(_, "description"))
     val authors = doc.get("authors").map(asStrList(_, "authors")).getOrElse(Nil)
     val homepage = doc.get("homepage").map(asStr(_, "homepage"))
@@ -44,10 +53,7 @@ object PackageMeta:
     val keywords = doc.get("keywords").map(asStrList(_, "keywords")).getOrElse(Nil)
     val dependencies = doc.get("dependencies").map(asDependencies(_, "dependencies")).getOrElse(Map.empty)
 
-    if !BuildSpec.validRuntimes.contains(runtime) then
-      throw TomlError(s"invalid runtime value '$runtime'")
-
-    PackageMeta(namespace, name, jo, version, runtime, description, authors, homepage, license, keywords, dependencies)
+    PackageMeta(namespace, name, jo, version, platform, description, authors, homepage, license, keywords, dependencies)
 
   private def requireStr(doc: Map[String, TomlValue], key: String): String =
     doc.get(key) match

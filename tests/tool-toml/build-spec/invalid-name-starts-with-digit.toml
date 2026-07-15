@@ -1,2 +1,5 @@
 jo = "1.0"
-name = "123-app"
+
+[module."123-app"]
+kind = "app"
+platform = "python"

@@ -1,6 +1,6 @@
-jo   = "0.11"
-name = "runquiet"
+jo = "0.11"
 
-[main]
-target = "python"
-src    = ["src/"]
+[module.app]
+kind = "app"
+platform = "python"
+src = ["src/"]

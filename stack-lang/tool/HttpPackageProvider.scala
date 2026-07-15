@@ -6,13 +6,17 @@ import java.nio.file.{Files, Path}
 import java.util.zip.ZipFile
 import tool.toml.TomlParser
 
-/** A single parsed line from a package's JSONL release index. */
+/** A single parsed line from a package's JSONL release index.
+ *
+ *  The wire key for the platform is `runtime`: the registry daemon writes it, and the
+ *  build spec's `platform` rename does not reach data Jo does not produce.
+ */
 private case class ReleaseRecord(
   version: Version,
   url: String,
   sha512: String,
   jo: VersionSpec,
-  runtime: String,
+  platform: String,
   deps: Map[String, VersionSpec],
   yanked: Boolean,
 )
@@ -48,10 +52,11 @@ case class HttpPackageProvider(
 
   def dependencyInfo(name: String, version: Version): Result[PackageDependencyInfo] =
     recordFor(name, version).flatMap: rec =>
-      if !BuildSpec.validRuntimes.contains(rec.runtime) then
-        Result.Err(s"invalid runtime value '${rec.runtime}' in $name.jsonl")
-      else
-        Result.Ok(PackageDependencyInfo(rec.jo, rec.runtime, rec.deps))
+      Platform.parse(rec.platform) match
+        case Some(platform) =>
+          Result.Ok(PackageDependencyInfo(rec.jo, platform, rec.deps))
+        case None =>
+          Result.Err(s"invalid runtime value '${rec.platform}' in $name.jsonl")
 
   def meta(name: String, version: Version): Result[PackageMeta] =
     path(name, version).flatMap: archive =>
@@ -186,7 +191,7 @@ private object ReleaseJson:
         url        <- requireStr(obj, "url")
         sha512     <- requireStr(obj, "sha512")
         joStr      <- requireStr(obj, "jo")
-        runtime    <- requireStr(obj, "runtime")
+        platform   <- requireStr(obj, "runtime")
         version    <- Version.parse(versionStr).toRight(s"invalid version: $versionStr")
         jo         <- VersionSpec.parse(joStr).left.map(msg => s"invalid jo '$joStr': $msg")
       yield
@@ -199,7 +204,7 @@ private object ReleaseJson:
               VersionSpec.parse(v).toOption.map(k -> _)
           .flatten
           .toMap
-        ReleaseRecord(version, url, sha512, jo, runtime, deps, yanked)
+        ReleaseRecord(version, url, sha512, jo, platform, deps, yanked)
 
   private def requireStr(obj: Map[String, Any], key: String): Either[String, String] =
     obj.get(key) match

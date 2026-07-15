@@ -1,8 +1,8 @@
 jo = "1.0"
-name = "with-package"
 
-[main]
+[module.app]
+kind = "app"
+platform = "python"
 src = ["src/"]
 
-[main.dependencies]
-greeter-pkg = "1.0"
+packages = [{ name = "greeter-pkg", version = "1.0" }]

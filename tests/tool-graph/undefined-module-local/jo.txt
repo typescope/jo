@@ -1,0 +1,1 @@
+error: in tests/tool-graph/undefined-module-local/jo.toml: module 'test' depends on undefined module 'main'

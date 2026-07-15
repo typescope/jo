@@ -1,13 +1,12 @@
 jo = "1.0"
-name = "agent-runtime"
-depth = 1
 
-[package]
-version = "1.0.0"
-runtime = "python"
-
-[main]
+[module.lib]
+kind = "lib"
 src = ["src/"]
+platform = "python"
 
-[main.dependencies]
-agent-api = { path = "../api" }
+modules = [{ id = "lib", path = "../api" }]
+
+[module.lib.package]
+name = "agent-runtime"
+version = "1.0.0"

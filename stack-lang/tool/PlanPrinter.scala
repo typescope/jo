@@ -20,8 +20,8 @@ object PlanPrinter:
         case app: CompileTask.AppTask => sb.append(appCmd(app, baseDir))
       sb.append("\n\n")
 
-    def traverse(plan: ModulePlan, isRoot: Boolean, inTest: Boolean): Unit =
-      for dep <- plan.deps do traverse(dep, isRoot = false, inTest)
+    def traverse(plan: ModulePlan, isRoot: Boolean): Unit =
+      for dep <- plan.deps do traverse(dep, isRoot = false)
       val key = outKey(plan.task)
       if !visited.contains(key) then
         visited += key
@@ -31,15 +31,13 @@ object PlanPrinter:
         val label =
           if isRoot then
             plan.task match
-              case _: CompileTask.LibTask => if inTest then "test (lib)" else "root (lib)"
-              case _: CompileTask.AppTask => if inTest then "test (app)" else "root (app)"
+              case _: CompileTask.LibTask => s"root ${plan.moduleLabel} (lib)"
+              case _: CompileTask.AppTask => s"root ${plan.moduleLabel} (app)"
           else
-            if inTest then s"test lib: ${plan.projectName}"
-            else s"lib: ${plan.projectName}"
+            s"lib: ${plan.moduleLabel}"
         appendCmd(label, plan.task)
 
-    traverse(plans.main, isRoot = true, inTest = false)
-    plans.test.foreach(tp => traverse(tp, isRoot = true, inTest = true))
+    plans.modules.foreach(plan => traverse(plan, isRoot = true))
     sb.toString.stripTrailing()
 
   private def libCmd(lib: CompileTask.LibTask, base: Path): String =

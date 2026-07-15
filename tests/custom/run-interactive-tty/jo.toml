@@ -1,7 +1,7 @@
-jo   = "0.11"
-name = "ttytest"
+jo = "0.11"
 
-[main]
-target          = "python"
-src             = ["src/"]
-compile-options = ["--use-runtime-api", "python"]
+[module.app]
+kind = "app"
+platform = "python"
+enable-ffi = true
+src = ["src/"]

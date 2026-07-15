@@ -9,64 +9,91 @@ case class ResolvedPackage(
   meta: PackageDependencyInfo,
 )
 
+case class DepthInfo(depth: Int, deepestPath: List[String])
+
 case class ResolutionResult(
   packages: List[ResolvedPackage],
   unusedPins: List[(String, Version)],
-  mainPackageDepth: Int,
-  mainDeepestPath: List[String],
-  testPackageDepth: Int,
-  testDeepestPath: List[String],
+  packageDepthByModule: Map[ModuleId, DepthInfo],
 )
 
 case class PackageConstraint(name: String, spec: VersionSpec)
 
 object DependencyResolver:
   private enum Node:
-    case Root(name: String, module: ModuleKind)
-    case Project(dir: Path, name: String)
+    case Root(module: ModuleId)
+    case Module(specPath: Path, module: ModuleId)
     case Package(name: String)
 
   private type DependencyGraph = mutable.LinkedHashMap[Node, mutable.ArrayBuffer[Node]]
 
-  /** Resolve registry/package dependencies for a resolved local project.
+  /** Resolve registry/package dependencies for a resolved project.
    *
    *  Algorithm:
    *
-   *  1. Build the local project/module part of the dependency graph.
-   *  2. Seed a work queue with the graph edges from local project/module nodes to direct package constraints.
-   *  3. For each package name, accumulate all version constraints seen so far.
-   *  4. The first time a package is processed, ask the PackageProvider for all available versions.
-   *  5. Select the highest available version satisfying every collected constraint known at that moment.
+   *  1. Validate that every requested root module exists and that the source
+   *     module graph reachable from those roots is acyclic.
+   *  2. Build the source-module part of the dependency graph for the requested
+   *     module roots. Same-project and external source module dependencies are
+   *     walked into the same resolution universe.
+   *  3. Seed a work queue with every registry package constraint reached from
+   *     that source-module graph.
+   *  4. For each package name, accumulate all version constraints seen so far,
+   *     keeping the parent node so diagnostics can print paths back to roots.
+   *  5. The first time a package is processed, select its version:
+   *     - if a lock entry exists, it must satisfy the collected constraints,
+   *       the root pin if any, and the selected Jo compiler;
+   *     - otherwise ask the PackageProvider for available versions, honor an
+   *       exact pin if present, skip prereleases unless pinned, and choose the
+   *       highest Jo-compatible version satisfying all collected constraints.
    *  6. That version choice is fixed for the rest of resolution.
-   *  7. Load that version's meta.toml and record both metadata and artifact path.
-   *  8. Add reversed edges from each dependency package to its dependent package in the graph.
-   *  9. If a later-discovered constraint does not match the already selected version,
-   *     fail explicitly with a conflict error instead of revising the earlier choice.
-   *  10. When the queue is exhausted, compute the final depth/path summaries from the graph.
+   *  7. Load that version's dependency metadata, validate the locked digest when
+   *     the choice came from jo.lock, and record the selected package.
+   *  8. Add reversed graph edges from each dependency package to its dependent
+   *     package/module node, then enqueue the selected package's transitive
+   *     package constraints.
+   *  9. If a later-discovered constraint does not match the already selected
+   *     version, fail explicitly with a conflict error instead of revising the
+   *     earlier choice.
+   *  10. When the queue is exhausted, return selected packages, unused pins, and
+   *      final depth/path summaries for each requested root module.
    *
-   *  Error behavior is explicit: failures are returned as Result.Err rather than
-   *  being used for control flow via exceptions.
+   *  Error behavior is explicit: failures are returned as Result.Err rather
+   *  than being used for control flow via exceptions.
    */
-  def resolveProject(project: Project)(using provider: PackageProvider): Result[ResolutionResult] =
-    resolve(project, Map.empty)
+  def resolveProject(project: Project, modules: List[ModuleId])(using provider: PackageProvider): Result[ResolutionResult] =
+    resolve(project, modules, Map.empty)
 
-  def resolveProject(project: Project, lock: LockFile)(using provider: PackageProvider): Result[ResolutionResult] =
-    resolve(project, lock.packages.map(pkg => pkg.name -> pkg).toMap)
+  def resolveProject(project: Project, modules: List[ModuleId], lock: LockFile)(using provider: PackageProvider): Result[ResolutionResult] =
+    resolve(project, modules, lock.packages.map(pkg => pkg.name -> pkg).toMap)
 
   private def resolve(
     project: Project,
+    modules: List[ModuleId],
     locked: Map[String, LockedPackage],
   )(using provider: PackageProvider): Result[ResolutionResult] =
-    val (pendingSeeds, graph) = seedGraph(project)
+    val selectedModules = modules.distinct
+    val missingModule = selectedModules.iterator
+      .map(project.requireModule)
+      .collectFirst:
+        case Result.Err(msg) => msg
+
+    missingModule match
+      case Some(msg) => return Result.Err(msg)
+      case None =>
+
+    Project.validateModuleAcyclic(project, selectedModules) match
+      case Result.Err(msg) => return Result.Err(msg)
+      case Result.Ok(_) =>
+
+    val (pendingSeeds, graph) = seedGraph(project, selectedModules)
     val packageConstraints = mutable.LinkedHashMap.empty[String, mutable.ArrayBuffer[(PackageConstraint, Node)]]
     val selectedPackages = mutable.LinkedHashMap.empty[String, ResolvedPackage]
     val queue = mutable.Queue.empty[(PackageConstraint, Node)]
 
     def addEdge(from: Node, to: Node): Unit =
       val parents = graph.getOrElseUpdate(from, mutable.ArrayBuffer.empty)
-
-      if !parents.contains(to) then
-        parents += to
+      if !parents.contains(to) then parents += to
 
     def addConstraint(
       name: String,
@@ -77,10 +104,7 @@ object DependencyResolver:
       val alreadySeen = current.exists((existing, existingParent) =>
         existing.spec == constraint.spec && existingParent == parent
       )
-
-      if !alreadySeen then
-        current += ((constraint, parent))
-
+      if !alreadySeen then current += ((constraint, parent))
       current
 
     def enqueueDeps(meta: PackageDependencyInfo, parent: Node): Unit =
@@ -99,54 +123,28 @@ object DependencyResolver:
       selectedPackages.get(name) match
         case Some(selectedPackage) =>
           val version = selectedPackage.version
-
           if !current.spec.contains(version) then
-            return Result.Err(
-              pinned match
-                case Some(pin) => formatPinnedConstraintConflict(name, pin, allConstraints.toList, graph)
-                case None      => formatMonotonicConflict(name, version, allConstraints.toList, graph)
-            )
+            return Result.Err(formatConstraintConflict(name, allConstraints.toList, graph, Some(version), pinned, project.specPath))
 
         case None =>
-          selectVersion(name, project.joVersion, allConstraints.toList, locked.get(name), pinned, graph).flatMap:
+          selectVersion(name, project.joVersion, allConstraints.toList, locked.get(name), pinned, graph, project.specPath).flatMap:
             (version, meta) =>
-              val digestCheck = locked.get(name) match
-                case Some(pkg) if pkg.version == version.toString =>
-                  validateLockedDigest(name, version, pkg)
-
-                case _ =>
-                  Result.unit
-
-              digestCheck.map: _ =>
+              validateLockedDigest(name, version, locked.get(name)).map: _ =>
                 selectedPackages(name) = ResolvedPackage(name, version, meta)
                 enqueueDeps(meta, Node.Package(name))
           match
             case Result.Ok(_) =>
-
             case Result.Err(msg) => return Result.Err(msg)
 
     val packageNames = selectedPackages.keys.toList.sorted
     val packages = packageNames.map(selectedPackages)
     val unusedPins = project.pinning.toList.filterNot((name, _) => selectedPackages.contains(name)).sortBy(_._1)
+    val depthByModule = selectedModules.map: module =>
+      module -> deepestPath(graph, packageNames, module, project.specPath)
+    .toMap
 
-    val (mainPackageDepth, mainDeepestPath) =
-      deepestPath(graph, packageNames, ModuleKind.Main)
+    Result.Ok(ResolutionResult(packages, unusedPins, depthByModule))
 
-    val (testPackageDepth, testDeepestPath) =
-      deepestPath(graph, packageNames, ModuleKind.Test)
-
-    Result.Ok(
-      ResolutionResult(
-        packages,
-        unusedPins,
-        mainPackageDepth,
-        mainDeepestPath,
-        testPackageDepth,
-        testDeepestPath,
-      )
-    )
-
-  /** Pick the highest available version of `name` satisfying all collected constraints. */
   private def selectVersion(
     name: String,
     joVersion: Version,
@@ -154,95 +152,91 @@ object DependencyResolver:
     locked: Option[LockedPackage],
     pinned: Option[Version],
     graph: DependencyGraph,
+    rootSpecPath: Path,
   )(using provider: PackageProvider): Result[(Version, PackageDependencyInfo)] =
     locked match
       case Some(pkg) =>
-        parseLockedVersion(name, pkg) match
-          case Result.Err(msg) =>
-            return Result.Err(msg)
-
-          case Result.Ok(version)
-              if pinned.forall(_ == version) &&
-                 constraints.forall((constraint, _) => constraint.spec.contains(version)) =>
-            provider.dependencyInfo(name, version) match
-              case Result.Ok(meta) if meta.jo.contains(joVersion) =>
-                return Result.Ok(version -> meta)
-
-              case Result.Ok(meta) =>
-                return Result.Err(formatLockedJoMismatch(name, version, joVersion, meta.jo, constraints, graph))
-
-              case Result.Err(msg) =>
-                return Result.Err(msg)
-
-          case Result.Ok(version) =>
-            return Result.Err(
-              pinned match
-                case Some(pin) if pin != version =>
-                  formatLockedPinnedMismatch(name, version, pin)
-                case Some(pin) =>
-                  formatLockedPinnedConstraintMismatch(name, pin, constraints, graph)
-                case None =>
-                  formatLockedConstraintMismatch(name, version, constraints, graph)
-            )
+        selectLockedVersion(name, joVersion, constraints, pkg, pinned, graph, rootSpecPath)
 
       case None =>
+        provider.versions(name) match
+          case Result.Err(msg) if msg == s"package not found: $name" =>
+            Result.Err(formatMissingPackage(name, constraints, graph, rootSpecPath))
 
-    provider.versions(name) match
-      case Result.Ok(versions) =>
-        val sorted = versions.sorted.reverse
-        pinned match
-          case Some(pin) =>
-            if !constraints.forall((constraint, _) => constraint.spec.contains(pin)) then
-              return Result.Err(formatPinnedConstraintConflict(name, pin, constraints, graph))
+          case Result.Err(msg) =>
+            Result.Err(msg)
 
-            if !versions.contains(pin) then
-              return Result.Err(formatPinnedVersionNotFound(name, pin, constraints, graph))
+          case Result.Ok(versions) =>
+            val pinError = pinned match
+              case Some(pin) if !constraints.forall((constraint, _) => constraint.spec.contains(pin)) =>
+                Some(formatPinnedVersionConflict(name, constraints, graph, pin, rootSpecPath))
+              case Some(pin) if !versions.contains(pin) =>
+                Some(formatPinnedVersionNotFound(name, constraints, graph, pin, rootSpecPath))
+              case _ =>
+                None
 
-          case None =>
-        val compatibleByConstraint = sorted.filter(v =>
-          (pinned.exists(_ == v) || !v.isPreRelease) &&
-          pinned.forall(_ == v) && constraints.forall((constraint, _) => constraint.spec.contains(v))
-        )
-        var firstMetaError: Option[String] = None
-        var selected: Option[(Version, PackageDependencyInfo)] = None
-        val incompatibleJo = mutable.LinkedHashSet.empty[VersionSpec]
-        val it = compatibleByConstraint.iterator
-
-        while it.hasNext && selected.isEmpty do
-          val version = it.next()
-          provider.dependencyInfo(name, version) match
-            case Result.Ok(meta) if meta.jo.contains(joVersion) =>
-              selected = Some(version -> meta)
-
-            case Result.Ok(meta) =>
-              incompatibleJo += meta.jo
-
-            case Result.Err(msg) if firstMetaError.isEmpty =>
-              firstMetaError = Some(msg)
-
-            case Result.Err(_) =>
-              ()
-
-        selected match
-          case Some(result) =>
-            Result.Ok(result)
-
-          case None =>
-            firstMetaError match
+            pinError match
               case Some(msg) =>
                 Result.Err(msg)
 
-              case None if compatibleByConstraint.nonEmpty =>
-                Result.Err(formatNoCompatibleJoVersion(name, joVersion, incompatibleJo.toList, constraints, pinned, graph))
-
               case None =>
-                Result.Err(formatNoSatisfiableVersion(name, constraints, graph))
+                val candidates = versions.sorted.reverse.filter: version =>
+                  pinned.forall(_ == version) &&
+                  (pinned.isDefined || !version.isPreRelease) &&
+                  constraints.forall((constraint, _) => constraint.spec.contains(version))
 
-      case Result.Err(msg) if msg == s"package not found: $name" =>
-        Result.Err(formatMissingPackage(name, constraints, graph))
+                var incompatibleJo = List.empty[VersionSpec]
+                val it = candidates.iterator
+                while it.hasNext do
+                  val version = it.next()
+                  provider.dependencyInfo(name, version) match
+                    case Result.Ok(meta) if meta.jo.contains(joVersion) =>
+                      return Result.Ok(version -> meta)
+                    case Result.Ok(meta) =>
+                      incompatibleJo ::= meta.jo
+                    case Result.Err(msg) =>
+                      return Result.Err(msg)
 
-      case Result.Err(msg) =>
-        Result.Err(msg)
+                if candidates.nonEmpty then
+                  val required = incompatibleJo.map(_.show).distinct.sorted.mkString(", ")
+                  Result.Err(formatNoJoCompatibleVersion(name, constraints, graph, pinned, joVersion, required, rootSpecPath))
+                else
+                  Result.Err(formatNoSatisfiableVersion(name, constraints, graph, rootSpecPath))
+
+  private def selectLockedVersion(
+    name: String,
+    joVersion: Version,
+    constraints: List[(PackageConstraint, Node)],
+    locked: LockedPackage,
+    pinned: Option[Version],
+    graph: DependencyGraph,
+    rootSpecPath: Path,
+  )(using provider: PackageProvider): Result[(Version, PackageDependencyInfo)] =
+    parseLockedVersion(name, locked).flatMap: lockedVersion =>
+      validateLockedVersion(name, lockedVersion, constraints, pinned, graph, rootSpecPath).flatMap: _ =>
+        loadLockedDependencyInfo(name, lockedVersion, joVersion)
+
+  private def validateLockedVersion(
+    name: String,
+    lockedVersion: Version,
+    constraints: List[(PackageConstraint, Node)],
+    pinned: Option[Version],
+    graph: DependencyGraph,
+    rootSpecPath: Path,
+  ): Result[Unit] =
+    val satisfiesPin = pinned.forall(_ == lockedVersion)
+    val satisfiesConstraints = constraints.forall((constraint, _) => constraint.spec.contains(lockedVersion))
+    if satisfiesPin && satisfiesConstraints then Result.unit
+    else Result.Err(formatLockVersionMismatch(name, constraints, graph, lockedVersion, rootSpecPath))
+
+  private def loadLockedDependencyInfo(
+    name: String,
+    lockedVersion: Version,
+    joVersion: Version,
+  )(using provider: PackageProvider): Result[(Version, PackageDependencyInfo)] =
+    provider.dependencyInfo(name, lockedVersion).flatMap: meta =>
+      if meta.jo.contains(joVersion) then Result.Ok(lockedVersion -> meta)
+      else Result.Err(formatLockedJoMismatch(name, lockedVersion, meta.jo, joVersion))
 
   private def parseLockedVersion(name: String, pkg: LockedPackage): Result[Version] =
     Version.parse(pkg.version) match
@@ -252,189 +246,227 @@ object DependencyResolver:
   private def validateLockedDigest(
     name: String,
     version: Version,
-    pkg: LockedPackage,
+    locked: Option[LockedPackage],
   )(using provider: PackageProvider): Result[Unit] =
-    provider.digest(name, version).flatMap: actual =>
-      if actual == pkg.sha512 then
+    locked match
+      case Some(pkg) if pkg.version == version.toString =>
+        provider.digest(name, version).flatMap: actual =>
+          if actual == pkg.sha512 then Result.unit
+          else Result.Err(s"lock file digest mismatch for $name ${pkg.version}: expected ${pkg.sha512}, got $actual")
+
+      case _ =>
         Result.unit
-      else
-        Result.Err(
-          s"lock file digest mismatch for $name ${pkg.version}: expected ${pkg.sha512}, got $actual"
-        )
 
-  private def formatLockedConstraintMismatch(
-    name: String,
-    version: Version,
-    constraints: List[(PackageConstraint, Node)],
+  private def seedGraph(project: Project, roots: List[ModuleId]): (List[(PackageConstraint, Node)], DependencyGraph) =
+    val graph = mutable.LinkedHashMap.empty[Node, mutable.ArrayBuffer[Node]]
+    val pending = mutable.ListBuffer.empty[(PackageConstraint, Node)]
+
+    def addEdge(from: Node, to: Node): Unit =
+      val parents = graph.getOrElseUpdate(from, mutable.ArrayBuffer.empty)
+      if !parents.contains(to) then parents += to
+
+    def walkModule(currentProject: Project, module: ModuleId, parent: Node, seen: mutable.Set[(Path, ModuleId)]): Unit =
+      val key = currentProject.specPath -> module
+      if seen.add(key) then
+        currentProject.module(module).foreach: spec =>
+          spec.packageDeps.foreach: dep =>
+            pending += (PackageConstraint(dep.name, dep.constraint) -> parent)
+
+          spec.moduleDeps.foreach: dep =>
+            val depProject = currentProject.moduleDepOf(module, dep.id, dep.path)
+              .flatMap(_.project)
+              .getOrElse(currentProject)
+            val child = Node.Module(depProject.specPath, dep.id)
+            addEdge(child, parent)
+            walkModule(depProject, dep.id, child, seen)
+
+    roots.foreach: root =>
+      val rootNode = Node.Root(root)
+      walkModule(project, root, rootNode, mutable.Set.empty)
+
+    (pending.toList, graph)
+
+  private def deepestPath(
     graph: DependencyGraph,
-  ): String =
-    val lines = renderConstraintLines(name, constraints, graph)
-    val note = List(
-      s"The lock file had already fixed $name to $version.",
-      "Run `jo lock` to refresh the lock file.",
-    )
+    selectedPackages: List[String],
+    root: ModuleId,
+    rootSpecPath: Path,
+  ): DepthInfo =
+    val memo = mutable.Map.empty[Node, Option[(Int, List[Node])]]
 
-    (s"lock file version mismatch for $name" :: lines ::: "" :: note.map("  " + _)).mkString("\n")
+    def longest(node: Node): Option[(Int, List[Node])] =
+      memo.getOrElseUpdate(node, computeLongest(node))
 
-  private def formatLockedPinnedMismatch(
-    name: String,
-    locked: Version,
-    pinned: Version,
-  ): String =
-    List(
-      s"lock file version mismatch for $name",
-      "",
-      s"  The lock file had already fixed $name to $locked.",
-      s"  The build spec pins $name to $pinned.",
-      "  Run `jo lock` to refresh the lock file.",
-    ).mkString("\n")
+    def computeLongest(node: Node): Option[(Int, List[Node])] =
+      node match
+        case Node.Root(module) =>
+          if module == root then Some(0 -> List(node))
+          else None
 
-  private def formatLockedPinnedConstraintMismatch(
-    name: String,
-    pinned: Version,
-    constraints: List[(PackageConstraint, Node)],
-    graph: DependencyGraph,
-  ): String =
-    val lines = renderConstraintLines(name, constraints, graph)
-    val note = List(
-      s"The build spec pins $name to $pinned.",
-      "That pinned version does not satisfy all dependency requirements.",
-    )
-    (s"pinned version conflict for $name" :: lines ::: "" :: note.map("  " + _)).mkString("\n")
+        case _ =>
+          val parents = graph.getOrElse(node, mutable.ArrayBuffer.empty)
+          parents.flatMap: parent =>
+            longest(parent).map: (depth, path) =>
+              val nextDepth = node match
+                case Node.Package(_) => depth + 1
+                case _               => depth
+              (nextDepth, path :+ node)
+          .maxByOption(_._1)
 
-  private def formatLockedJoMismatch(
-    name: String,
-    version: Version,
-    joVersion: Version,
-    requiredJo: VersionSpec,
-    constraints: List[(PackageConstraint, Node)],
-    graph: DependencyGraph,
-  ): String =
-    val lines = renderConstraintLines(name, constraints, graph)
-    val note = List(
-      s"The lock file had already fixed $name to $version.",
-      s"That package requires Jo ${requiredJo.show}, but the selected compiler is $joVersion.",
-      "Run `jo lock` after selecting a compatible Jo compiler.",
-    )
+    val deepest = selectedPackages
+      .flatMap(name => longest(Node.Package(name)))
+      .maxByOption(_._1)
 
-    (s"lock file Jo compiler mismatch for $name" :: lines ::: "" :: note.map("  " + _)).mkString("\n")
+    deepest match
+      case Some(depth, path) =>
+        DepthInfo(depth, path.map(labelOf(_, rootSpecPath)).drop(1))
+      case None =>
+        DepthInfo(0, Nil)
 
   private def formatMissingPackage(
     name: String,
     constraints: List[(PackageConstraint, Node)],
     graph: DependencyGraph,
+    rootSpecPath: Path,
   ): String =
-    val lines = renderConstraintLines(name, constraints, graph)
-
-    (s"package not found: $name" :: lines) match
-      case header :: details if details.nonEmpty => (header :: details).mkString("\n")
-
-      case _ => s"package not found: $name"
+    val lines = renderConstraintLines(name, constraints, graph, rootSpecPath)
+    (s"package not found: $name" :: lines).mkString("\n")
 
   private def formatNoSatisfiableVersion(
     name: String,
     constraints: List[(PackageConstraint, Node)],
     graph: DependencyGraph,
+    rootSpecPath: Path,
   ): String =
-    val lines = renderConstraintLines(name, constraints, graph)
+    val lines = renderConstraintLines(name, constraints, graph, rootSpecPath)
+    (s"no satisfiable version available for $name" :: lines).mkString("\n")
 
-    (s"no satisfiable version available for $name" :: lines) match
-      case header :: details if details.nonEmpty => (header :: details).mkString("\n")
-
-      case _ => s"no satisfiable version available for $name"
-
-  private def formatNoCompatibleJoVersion(
+  private def formatNoJoCompatibleVersion(
     name: String,
-    joVersion: Version,
-    requiredJo: List[VersionSpec],
     constraints: List[(PackageConstraint, Node)],
-    pinned: Option[Version],
     graph: DependencyGraph,
+    pinned: Option[Version],
+    joVersion: Version,
+    required: String,
+    rootSpecPath: Path,
   ): String =
-    val lines = renderConstraintLines(name, constraints, graph)
-    val requiredText = requiredJo.map(_.show).distinct.sorted match
-      case Nil  => "a different Jo version"
-      case many => many.mkString(", ")
-    val note =
-      pinned.map(v => s"The build spec pins $name to $v.").toList :::
+    val lines = renderConstraintLines(name, constraints, graph, rootSpecPath)
+    val pinLine = pinned.map(v => s"  The build spec pins $name to $v.").toList
+    (
+      s"no Jo-compatible version available for $name" ::
+      lines :::
       List(
-        s"The selected Jo compiler is $joVersion.",
-        s"There are releases available for Jo $requiredText.",
-        "Updating the project's jo version may allow resolution.",
+        "",
+      ) :::
+      pinLine :::
+      List(
+        s"  The selected Jo compiler is $joVersion.",
+        s"  There are releases available for Jo $required.",
+        "  Updating the project's jo version may allow resolution.",
       )
+    ).mkString("\n")
 
-    (s"no Jo-compatible version available for $name" :: lines ::: "" :: note.map("  " + _)).mkString("\n")
+  private def formatPinnedVersionConflict(
+    name: String,
+    constraints: List[(PackageConstraint, Node)],
+    graph: DependencyGraph,
+    pinnedVersion: Version,
+    rootSpecPath: Path,
+  ): String =
+    val lines = renderConstraintLines(name, constraints, graph, rootSpecPath)
+    (
+      s"pinned version conflict for $name" ::
+      lines :::
+      List(
+        "",
+        s"  The build spec pins $name to $pinnedVersion.",
+        "  That pinned version does not satisfy all dependency requirements.",
+      )
+    ).mkString("\n")
 
   private def formatPinnedVersionNotFound(
     name: String,
-    pinned: Version,
     constraints: List[(PackageConstraint, Node)],
     graph: DependencyGraph,
+    pinnedVersion: Version,
+    rootSpecPath: Path,
   ): String =
-    val lines = renderConstraintLines(name, constraints, graph)
-    val note = List(
-      s"The build spec pins $name to $pinned.",
-      "That exact release is not available.",
-    )
-    (s"pinned version not found for $name" :: lines ::: "" :: note.map("  " + _)).mkString("\n")
+    val lines = renderConstraintLines(name, constraints, graph, rootSpecPath)
+    (
+      s"pinned version not found for $name" ::
+      lines :::
+      List(
+        "",
+        s"  The build spec pins $name to $pinnedVersion.",
+        "  That exact release is not available.",
+      )
+    ).mkString("\n")
 
-  private def formatPinnedConstraintConflict(
+  private def formatLockVersionMismatch(
     name: String,
-    pinned: Version,
     constraints: List[(PackageConstraint, Node)],
     graph: DependencyGraph,
+    lockedVersion: Version,
+    rootSpecPath: Path,
   ): String =
-    val lines = renderConstraintLines(name, constraints, graph)
-    val note = List(
-      s"The build spec pins $name to $pinned.",
-      "That pinned version does not satisfy all dependency requirements.",
-    )
-    (s"pinned version conflict for $name" :: lines ::: "" :: note.map("  " + _)).mkString("\n")
+    val lines = renderConstraintLines(name, constraints, graph, rootSpecPath)
+    (
+      s"lock file version mismatch for $name" ::
+      lines :::
+      List(
+        "",
+        s"  The lock file had already fixed $name to $lockedVersion.",
+        "  Run `jo lock` to refresh the lock file.",
+      )
+    ).mkString("\n")
 
-  private def formatMonotonicConflict(
+  private def formatLockedJoMismatch(
     name: String,
-    selected: Version,
+    lockedVersion: Version,
+    requiredJo: VersionSpec,
+    joVersion: Version,
+  ): String =
+    s"lock file Jo compiler mismatch for $name\n\n  The lock file fixed $name to $lockedVersion.\n  That package requires Jo ${requiredJo.show}, but the selected compiler is $joVersion."
+
+  private def formatConstraintConflict(
+    name: String,
     constraints: List[(PackageConstraint, Node)],
     graph: DependencyGraph,
+    selected: Option[Version],
+    pinned: Option[Version],
+    rootSpecPath: Path,
   ): String =
-    val lines = renderConstraintLines(name, constraints, graph)
-    val note = List(
-      s"Jo had already fixed $name to $selected when it was first selected.",
-      "Jo resolves dependencies level by level and does not later switch to a larger version.",
-    )
-
-    (s"conflicting requirements for $name" :: lines) match
-      case header :: details if details.nonEmpty => (header :: details ::: "" :: note.map("  " + _)).mkString("\n")
-
-      case _ => s"conflicting requirements for $name"
+    val lines = renderConstraintLines(name, constraints, graph, rootSpecPath)
+    val notes =
+      pinned.map(v => s"The build spec pins $name to $v.").toList :::
+      selected.map: v =>
+        s"Jo had already fixed $name to $v.\n  Jo resolves dependencies level by level and does not later switch to a larger version."
+      .toList
+    (s"conflicting requirements for $name" :: lines ::: notes.map("  " + _)).mkString("\n")
 
   private def renderConstraintLines(
     name: String,
     constraints: List[(PackageConstraint, Node)],
     graph: DependencyGraph,
+    rootSpecPath: Path,
   ): List[String] =
-    val distinct = constraints
+    constraints
       .flatMap: (constraint, parent) =>
-        renderConstraintPaths(name, parent, graph).map(path => (constraint.spec.show, path))
+        renderConstraintPaths(name, parent, graph, rootSpecPath).map(path => (constraint.spec.show, path))
       .distinct
-      .groupBy(identity)
-      .keys
-      .toList
-      .map(identity)
-      .sortBy((show, spec) => (show, spec))
+      .sortBy((spec, path) => (path, spec))
+      .take(4)
+      .map: (spec, path) =>
+        s"  $path($spec)"
 
-    distinct.take(2).map: (spec, show) =>
-      s"  $show($spec)"
-
-  private def renderConstraintPaths(name: String, parent: Node, graph: DependencyGraph): List[String] =
+  private def renderConstraintPaths(
+    name: String,
+    parent: Node,
+    graph: DependencyGraph,
+    rootSpecPath: Path,
+  ): List[String] =
     pathsToRoots(parent, graph).map: path =>
-      val labels = (path.map:
-        case Node.Root(rootName, ModuleKind.Main) => rootName
-        case Node.Root(rootName, ModuleKind.Test) => s"$rootName [test]"
-        case Node.Project(_, projectName)         => projectName
-        case Node.Package(packageName)            => packageName
-      ) :+ name
-      labels.mkString(" -> ")
+      (path.map(labelOf(_, rootSpecPath)) :+ name).mkString(" -> ")
 
   private def pathsToRoots(node: Node, graph: DependencyGraph): List[List[Node]] =
     val memo = mutable.Map.empty[Node, List[List[Node]]]
@@ -443,8 +475,8 @@ object DependencyResolver:
       memo.getOrElseUpdate(
         current,
         current match
-          case root: Node.Root =>
-            List(List(root))
+          case _: Node.Root =>
+            List(List(current))
 
           case _ =>
             graph.get(current).toList.flatMap: parents =>
@@ -453,91 +485,9 @@ object DependencyResolver:
 
     find(node)
 
-  private def seedGraph(project: Project): (List[(PackageConstraint, Node)], DependencyGraph) =
-    val graph = mutable.LinkedHashMap.empty[Node, mutable.ArrayBuffer[Node]]
-    val pending = mutable.ListBuffer.empty[(PackageConstraint, Node)]
-
-    def addEdge(from: Node, to: Node): Unit =
-      val parents = graph.getOrElseUpdate(from, mutable.ArrayBuffer.empty)
-
-      if !parents.contains(to) then
-        parents += to
-
-    def walkMain(current: Project, parent: Node, seen: mutable.Set[Path]): Unit =
-      if seen.add(current.dir) then
-        current.main.dependencies.foreach:
-          case (name, DepSpec(DepSource.Registry(constraint), _)) =>
-            pending += (PackageConstraint(name, constraint) -> parent)
-
-          case _ =>
-            ()
-
-        current.deps.foreach: dep =>
-          val child = Node.Project(dep.project.dir, dep.project.name)
-          addEdge(child, parent)
-          walkMain(dep.project, child, seen)
-
-    val mainRoot: Node.Root = Node.Root(project.name, ModuleKind.Main)
-    walkMain(project, mainRoot, mutable.Set.empty)
-
-    project.test.foreach: test =>
-      val testRoot: Node.Root = Node.Root(project.name, ModuleKind.Test)
-
-      test.dependencies.foreach:
-        case (name, DepSpec(DepSource.Registry(constraint), _)) =>
-          pending += (PackageConstraint(name, constraint) -> testRoot)
-
-        case _ =>
-          ()
-
-      project.testDeps.foreach: dep =>
-        val child = Node.Project(dep.project.dir, dep.project.name)
-        addEdge(child, testRoot)
-        walkMain(dep.project, child, mutable.Set.empty)
-
-    (pending.toList, graph)
-
-  private def deepestPath(graph: DependencyGraph, selectedPackages: List[String], kind: ModuleKind): (Int, List[String]) =
-    val memo = mutable.Map.empty[Node, (Int, List[Node])]
-
-    def longest(node: Node): (Int, List[Node]) =
-      memo.getOrElseUpdate(node, computeLongest(node))
-
-    def computeLongest(node: Node): (Int, List[Node]) =
-      node match
-        case Node.Root(_, k) =>
-          if k == kind then
-            0 -> List(node)
-
-          else
-            // ignore path that has a different root
-            -10000 -> List(node)
-
-        case _ =>
-          val parents = graph.getOrElse(node, mutable.ArrayBuffer.empty)
-          parents.map: parent =>
-            val (depth, path) = longest(parent)
-            val nextDepth = node match
-              case Node.Package(_) => depth + 1
-              case _               => depth
-            (nextDepth, path :+ node)
-          .maxBy(_._1)
-
-    end computeLongest
-
-    val deepest = selectedPackages
-      .map(name => longest(Node.Package(name)))
-      .maxByOption(_._1)
-
-    deepest match
-      case Some(depth, path) =>
-        val labels = path.map:
-          case Node.Root(name, _)     => name
-          case Node.Project(_, name)  => name
-          case Node.Package(name)  => name
-        .drop(1)
-
-        (depth, labels)
-
-      case _ =>
-        (0, Nil)
+  private def labelOf(node: Node, rootSpecPath: Path): String = node match
+    case Node.Root(module) =>
+      Project.moduleLabelFromSpec(rootSpecPath, rootSpecPath, module)
+    case Node.Module(specPath, module) =>
+      Project.moduleLabelFromSpec(rootSpecPath, specPath, module)
+    case Node.Package(name) => name

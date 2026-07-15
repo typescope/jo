@@ -1,0 +1,19 @@
+mkdir -p .build/api .build/app
+: ''
+
+printf api > .build/api/marker
+printf app > .build/app/marker
+: ''
+
+jo clean api
+: ''
+
+test ! -e .build/api
+test -e .build/app/marker
+: ''
+
+jo clean
+: ''
+
+test ! -e .build
+: ''

@@ -1,5 +1,8 @@
 jo = "1.0"
-name = "app"
 
-[main.dependencies]
-jo-missing = "1.0"
+[module.app]
+kind = "app"
+platform = "python"
+src = ["src/"]
+
+packages = [{ name = "jo-missing", version = "1.0" }]

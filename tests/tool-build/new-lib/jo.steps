@@ -6,16 +6,37 @@ Created 'mylib'
 You can now:
   cd mylib
   jo build
+  jo run test
 '
 cat mylib/jo.toml
 : '
-jo      = "{{JO_VERSION}}"
-name    = "mylib"
+jo = "{{JO_VERSION}}"
 
-[package]
+[module.lib]
+kind = "lib"
+src = ["src/"]
+
+[module.lib.package]
+name = "mylib"
 version = "0.1.0"
+
+[module.test]
+kind = "app"
+src = ["tests/"]
+platform = "python"
+modules = ["lib"]
+'
+cat mylib/tests/Main.jo
+: '
+namespace Test
+
+def main = println "OK"
 '
 cat mylib/.gitignore
 : '
 .build/
+'
+jo run --spec mylib/jo.toml test
+: '
+OK
 '

@@ -137,6 +137,7 @@ export default defineConfig({
           items: [
             { text: 'Creating a Project', link: '/usage/guides/creating-a-project' },
             { text: 'Managing Dependencies', link: '/usage/guides/dependencies' },
+            { text: 'Testing', link: '/usage/guides/testing' },
             { text: 'Publishing a Package', link: '/usage/guides/publishing' },
             { text: 'Writing FFI Packages', link: '/usage/guides/ffi' },
           ]
@@ -158,7 +159,6 @@ export default defineConfig({
             { text: 'jo new', link: '/usage/commands/new' },
             { text: 'jo build', link: '/usage/commands/build' },
             { text: 'jo run', link: '/usage/commands/run' },
-            { text: 'jo test', link: '/usage/commands/test' },
             { text: 'jo check', link: '/usage/commands/check' },
             { text: 'jo doc', link: '/usage/commands/doc' },
             { text: 'jo package', link: '/usage/commands/package' },

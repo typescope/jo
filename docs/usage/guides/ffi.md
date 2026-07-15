@@ -1,71 +1,80 @@
 # Writing FFI Packages
 
-An FFI package bridges Jo code to a specific platform (Python or Ruby) by calling platform-native functions.
+An FFI package bridges Jo code to a specific platform, such as Python or Ruby.
 
-## Declaring an FFI Package
+## Declaring a Platform
 
-Set `runtime` in `[package]` to declare the required runtime:
+An FFI module sets two fields:
 
 ```toml
-jo      = "1.0"
-name    = "agent-runtime-python"
+[module.runtime]
+kind = "lib"
+src = ["src/"]
+platform = "python"
+enable-ffi = true
 
-[package]
+[module.runtime.package]
+name = "agent-runtime-python"
 version = "1.0.0"
-runtime = "python"
 ```
 
-For a library build, this makes the Python runtime available as a check library during compilation, so your Jo source can call `python(...)`.
+`platform = "python"` says the module's output requires Python. It is what the
+generated `meta.toml` records, so consumers know the package needs Python, and
+it is what spreads to dependents through contagion.
 
-For raw compiler use, the equivalent primitive is `jo compile --use-runtime-api python ...`.
+`enable-ffi = true` says this module's own code may call `py.*`. It adds the
+matching FFI API while compiling the module, the same thing
+`jo compile --use-runtime-api python` does.
 
-App builds are different: if the app targets Python or Ruby, the matching runtime API is already available through that backend, without deriving `--use-runtime-api` from `runtime`.
+Both live on the module, not on the package table. A module does not have to be
+publishable to use FFI — an internal lib module or a test app module declares
+them the same way.
 
-## Writing FFI Source
+## FFI Is Off By Default
 
-Use the platform escape function to inline native code:
+Naming a platform does not open the FFI surface. `enable-ffi` is `false` unless
+you ask, so this module requires Python but cannot call `py.*`:
 
-The argument to `python(...)` or `ruby(...)` must be a string literal.
-
-```jo
-namespace AgentRuntime
-
-def pythonVersion(): String =
-  python("platform.python_version()")
+```toml
+[module.core]
+kind = "lib"
+platform = "python"
+modules = ["runtime"]
 ```
 
-The platform functions (`python`, `ruby`) are provided by the compiler's bundled runtime — no import needed.
+`core` requires Python because the `runtime` module does, and its `meta.toml`
+records that. Its own source still cannot reach the runtime. That is the point of
+an FFI package: the escape hatch stays in the thin adapter at the edge, and the
+code above it is ordinary Jo.
+
+Reaching a runtime is a capability, so Jo makes you grant it rather than
+inherit it. `enable-ffi = true` on a `platform = "pure"` module is an error —
+there is no FFI API to enable.
 
 ## Implementing Deferred Definitions
 
 An FFI package commonly implements `defer def`s from an API package:
 
 ```toml
-[main.dependencies]
-agent-api = "1.0"    # provides the defer defs to implement
+packages = [{ name = "agent-api", version = "1.0" }]
 ```
 
-```jo
-namespace AgentRuntime
-
-// implements AgentAPI.runTask
-def runTask(_input: String): String =
-  python("sandbox.run_task()")
-```
-
-The app then wires them in `[main.links]`:
+The app wires implementations through module links:
 
 ```toml
-[main.links]
-"agentapi.runTask" = "agentruntime.runTask"
+links = [
+  { from = "agentapi.runTask", to = "agentruntime.runTask" },
+]
 ```
 
-## Runtime Contagion
+## Platform Contagion
 
-`runtime` is contagious — any package that depends on an FFI package inherits its `runtime` value. An app depending on `agent-runtime-python` computes `runtime = "python"` and will be built for the Python target.
+`platform` is contagious through source module dependencies. Any module that
+depends on an FFI module inherits its platform requirement. An app depending on
+a source module with `platform = "python"` must itself be a Python app.
 
-Two dependencies with conflicting `runtime` values (e.g., one requires `"python"`, another `"ruby"`) is a build error.
+Two source dependencies with conflicting platforms, one requiring `"python"` and
+another requiring `"ruby"`, are a build error.
 
-For published packages, `jo package` is stricter: published dependencies must still be `pure`.
-Local subproject packages may depend on runtime packages during development, but that runtime
-dependency must not be carried into a published package.
+Published package dependencies must be `pure`. Platform-bound packages are meant
+to stay at the edge of the graph, usually as thin FFI adapters.

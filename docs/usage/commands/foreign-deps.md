@@ -4,7 +4,7 @@ Foreign package dependencies (Python or Ruby packages required by FFI-based libr
 
 ## Python
 
-If a `.venv/` directory exists in the project root, `jo run` and `jo test` use `.venv/bin/python` automatically; otherwise they fall back to the system `python`.
+If a `.venv/` directory exists in the project root, `jo run` uses `.venv/bin/python` automatically. Otherwise, it falls back to the system `python`.
 
 Create a virtual environment and install the required packages:
 
@@ -15,7 +15,7 @@ python -m venv .venv
 
 ## Ruby
 
-If a `Gemfile` exists in the project root, `jo run` and `jo test` use `bundle exec ruby` automatically so that gems managed by Bundler are visible; otherwise they fall back to the system `ruby`.
+If a `Gemfile` exists in the project root, `jo run` uses `bundle exec ruby` automatically so that gems managed by Bundler are visible. Otherwise, it falls back to the system `ruby`.
 
 Add required gems to a `Gemfile` and install them:
 

@@ -1,5 +1,8 @@
 jo = "1.0"
-name = "strict-mismatch"
 
-[main.dependencies]
-greeter-pkg = "1.1"
+[module.app]
+kind = "app"
+platform = "python"
+src = ["src/"]
+
+packages = [{ name = "greeter-pkg", version = "1.1" }]

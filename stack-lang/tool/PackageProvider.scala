@@ -17,7 +17,7 @@ trait PackageProvider:
    *  fetch than a `.joy` artifact.
    *
    *  Only fields that affect dependency selection should live here:
-   *  the required Jo compiler range, runtime, and transitive package
+   *  the required Jo compiler range, platform, and transitive package
    *  dependencies.
    */
   def dependencyInfo(name: String, version: Version): Result[PackageDependencyInfo]

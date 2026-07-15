@@ -1,2 +1,2 @@
 error: package not found: jo-missing
-  app -> jo-missing(1.0)
+  [app] -> jo-missing(1.0)

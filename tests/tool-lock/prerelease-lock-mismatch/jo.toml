@@ -1,5 +1,8 @@
 jo = "1.0"
-name = "app"
 
-[main.dependencies]
-mustache = "1.3"
+[module.app]
+kind = "app"
+platform = "python"
+src = ["src/"]
+
+packages = [{ name = "mustache", version = "1.3" }]

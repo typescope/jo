@@ -1,6 +1,11 @@
 jo = "1.0"
-name = "myapp"
 
-[main.dependencies]
-dep-python = { path = "./dep-python" }
-dep-ruby = { path = "./dep-ruby" }
+[module.app]
+kind = "app"
+platform = "python"
+src = ["src/"]
+
+modules = [
+  { id = "lib", path = "./dep-python" },
+  { id = "lib", path = "./dep-ruby" },
+]

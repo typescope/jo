@@ -1,5 +1,8 @@
 jo = "1.0"
-name = "root"
 
-[main.dependencies]
-a = { path = "./a" }
+[module.app]
+kind = "app"
+platform = "python"
+src = ["src/"]
+
+modules = [{ id = "lib", path = "./a" }]

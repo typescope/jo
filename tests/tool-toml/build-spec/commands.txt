@@ -1,10 +1,8 @@
 jo = "1.0"
-name = "cmd-app"
-build = app
-main:
-  src = (default)
-  target = "python"
-test = none
+module.app:
+  kind = "app"
+  src = []
+  platform = "python"
 commands:
   dev = "jo build --spec sandbox/guest/jo.toml && jo run"
   fmt = "echo formatting"

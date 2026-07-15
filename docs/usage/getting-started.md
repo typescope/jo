@@ -1,6 +1,6 @@
 # Getting Started
 
-The `jo` command is Jo's unified project tool. It handles compilation, testing, dependency management, packaging, and documentation from a single `jo.toml` build spec.
+The `jo` command is Jo's project tool. It handles compilation, dependency management, packaging, documentation, and running app modules from a `jo.toml` build spec.
 
 ## Hello World
 
@@ -23,11 +23,12 @@ hello/
 `jo.toml`:
 
 ```toml
-jo   = "1.0"
-name = "hello"
+jo = "1.0"
 
-[main]
-target = "python"
+[module.app]
+kind = "app"
+src = ["src/"]
+platform = "python"
 ```
 
 Edit `src/main.jo`:
@@ -49,27 +50,31 @@ Hello, world!
 
 ## Adding a Dependency
 
-Add `mustache` to `jo.toml`:
+Add `mustache` to the app module:
 
 ```toml
-jo   = "1.0"
-name = "hello"
+jo = "1.0"
 
-[main]
-target = "python"
-
-[main.dependencies]
-mustache = "1.0"
+[module.app]
+kind = "app"
+src = ["src/"]
+platform = "python"
+packages = [{ name = "mustache", version = "1.0" }]
 ```
 
-Use it in `src/main.jo`:
+Use it in `src/main.jo`. Give the module a namespace so other modules can import it:
 
 ```jo
+namespace Hello
+
 import Template
 
-def main() =
+def greet(name: String): String =
   val tmpl = Template.parse("Hello, {{name}}!")
-  println tmpl.render({ "name": "world"})
+  tmpl.render({ "name": name })
+
+def main() =
+  println: greet "world"
 ```
 
 Run it:
@@ -82,41 +87,46 @@ jo run
 Hello, world!
 ```
 
-`jo run` fetches `mustache` automatically and writes a `jo.lock` to pin the resolved compiler and package versions. Later runs reuse compatible locked entries automatically.
+`jo run` fetches packages automatically. If `jo.lock` is missing, Jo creates it. After that, run `jo lock` when you change package dependencies.
 
 ## Testing
 
-Add a test framework to `jo.toml`:
+Tests are ordinary app modules. Add a `test` module that depends on the `app` module it tests:
 
 ```toml
-jo   = "1.0"
-name = "hello"
+jo = "1.0"
+default = "app"
 
-[main]
-target = "python"
+[module.app]
+kind = "app"
+src = ["src/"]
+platform = "python"
+packages = [{ name = "mustache", version = "1.0" }]
 
-[main.dependencies]
-mustache = "1.0"
-
-[test.dependencies]
-jo-test = "0.1"
+[module.test]
+kind = "app"
+src = ["tests/"]
+platform = "python"
+modules = ["app"]
+packages = [{ name = "jo-test", version = "0.1" }]
 ```
 
-Write a test in `tests/Main.jo`:
+`modules = ["app"]` gives the tests access to everything in `src/`. Both modules are apps, and `jo run test` runs the test's `main` — an app module's own `main` is only used when you build that module.
+
+Write a test in `tests/Main.jo`. It imports the app's namespace and tests the app's own function:
 
 ```jo
 import Test.*
-import Template
+import Hello
 
 def main() =
   run do () =>
-    suiteTemplate()
+    suiteGreet()
 
-def suiteTemplate() =
-  suite "template" do
-    test "render" do
-      val tmpl = Template.parse("Hello, {{name}}!")
-      assertEqual tmpl.render({"name": "world"}) "Hello, world!"
+def suiteGreet() =
+  suite "greet" do
+    test "renders the name" do
+      assertEqual (Hello.greet "world") "Hello, world!"
     end
   end
 ```
@@ -124,19 +134,20 @@ def suiteTemplate() =
 Run the tests:
 
 ```sh
-jo test
+jo run test
 ```
 
 ```
-template
-  ✓ render
+greet
+  ✓ renders the name
 1 passed
 ```
 
-`jo test` fetches `jo-test` automatically and writes a `jo.lock` to pin the resolved compiler and package versions. Later test runs reuse compatible locked entries automatically.
+See [Testing](guides/testing.md) for test dependencies, link dependencies, and depth settings.
 
 ## Next Steps
 
-- [Concepts](concepts/projects.md) — understand how projects and packages work
-- [Managing Dependencies](guides/dependencies.md) — add packages from the registry
+- [Concepts](concepts/projects.md) — understand projects and modules
+- [Managing Dependencies](guides/dependencies.md) — add packages and source modules
+- [Testing](guides/testing.md) — define and run test modules
 - [Build Spec Reference](reference/build-spec.md) — all `jo.toml` fields

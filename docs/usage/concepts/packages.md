@@ -1,6 +1,6 @@
 # Packages
 
-A Jo package is a `.joy` file — a tar archive containing compiled `.sast` files and a `meta.toml` describing the package.
+A Jo package is a `.joy` archive containing compiled `.sast` files and a `meta.toml` file.
 
 ## The `.joy` Format
 
@@ -12,23 +12,33 @@ agent-api-v1.2.0.joy
     QueryDSL.sast
 ```
 
-`.sast` files are target-independent in format — the same `.joy` serves all backends (Python and Ruby).
+`.sast` files are target-independent in format, so the same `.joy` can serve
+multiple backends.
 
-## Check Libraries and Link Libraries
+## Check And Link Dependencies
 
-When a package appears in `[main.dependencies]`, it can play one of two roles:
+When a module lists a dependency, it can play one of two roles:
 
-**Check library** (default) — available for type checking. User code can import its namespaces, use its types, and call its functions.
-
-**Link library** (`link = true`) — used only at link time to resolve `defer def`s. Hidden from user code; its namespaces cannot be imported.
+**Check library** (default) — available for type checking. User code can import
+its namespaces, use its types, and call its functions.
 
 ```toml
-[main.dependencies]
-agent-api            = "1.0"                        # check library
-agent-runtime-python = { version = "1.0", link = true }  # link library
+packages = [{ name = "agent-api", version = "1.0" }]
 ```
 
-This separation prevents user code from accidentally depending on platform-specific implementation details.
+**Link library** (`link = true`) — used only at link time to resolve
+`defer def`s. It is hidden from user code. Its namespaces cannot be imported.
+
+```toml
+packages = [{ name = "agent-runtime-python", version = "1.0", link = true }]
+```
+
+This separation prevents user code from accidentally depending on
+platform-specific implementation details.
+
+Link libraries are valid only on app modules, since only an app module produces
+an executable to link. A module that depends on an app module inherits that
+module's link libraries, and cannot override them.
 
 ## Deferred Definitions
 
@@ -40,42 +50,58 @@ namespace agentapi
 defer def runTask(input: String): String
 ```
 
-The app wires implementations at link time via `[main.links]`:
+An app wires implementations explicitly:
 
 ```toml
-[main.links]
-"agentapi.runTask" = "usertask.runTask"
+links = [
+  { from = "agentapi.runTask", to = "usertask.runTask" },
+]
 ```
 
-All wiring is explicit — there is no auto-inference. If any `defer def` is unresolved at link time, the build fails with a clear error.
+If any `defer def` is unresolved at link time, the build fails.
 
-For tests, `[test.links]` is merged with `[main.links]`, allowing specific `defer def`s to be overridden with mock implementations:
+`links` belongs to app modules only. A module that depends on an app module
+inherits its links and may override any of them by declaring a link with the
+same `from`. See [Build Spec](../reference/build-spec.md).
+
+## Platform-Bound Packages
+
+A package's `meta.toml` records whether it is pure Jo or tied to a platform. The
+field is called `runtime` there, because `meta.toml` is generated rather than
+written — see [Library Metadata](../reference/library-metadata.md):
+
+| Value      | Meaning                     |
+|------------|-----------------------------|
+| `"pure"`   | Pure Jo                     |
+| `"python"` | Requires the Python runtime |
+| `"ruby"`   | Requires the Ruby runtime   |
+
+A package author declares it on the module, not on the package table:
 
 ```toml
-[test.links]
-"agentapi.runTask" = "mocks.fakeRunTask"
+[module.runtime]
+kind = "lib"
+platform = "python"
+enable-ffi = true
+
+[module.runtime.package]
+name = "agent-runtime-python"
+version = "1.0.0"
 ```
 
-## Runtime-Constrained Packages
+`platform` states what the package requires. `enable-ffi` is separate and off by
+default — it grants *this* module's code access to `py.*`, which a thin FFI
+adapter needs and its dependents do not.
 
-The `runtime` field in `meta.toml` indicates whether a package is pure-Jo or tied to a specific runtime:
+Lib modules default to `"pure"`. App modules always name a platform, so a
+published app module records the one it is built for. `jo package` derives the
+`meta.toml` `runtime` from the module's `platform`, so it cannot disagree with
+what was compiled.
 
-| Value      | Meaning                                      |
-|------------|----------------------------------------------|
-| `"pure"`   | Pure Jo                          |
-| `"python"` | Requires the Python runtime                  |
-| `"ruby"`   | Requires the Ruby runtime                    |
+`platform` is **contagious** through the dependency graph. If a source module
+dependency is not `"pure"`, the dependent module is bound to that platform too.
+Two dependencies with conflicting platforms are a build error.
 
-`runtime` is **contagious**: if any dependency has `runtime != "pure"`, the package inherits that value. Two dependencies with conflicting `runtime` values is a build error.
-
-A library author can assert platform-independence in `jo.toml`:
-
-```toml
-[package]
-runtime = "pure"    # build error if any dep introduces a runtime constraint
-```
-
-If omitted, `runtime` is computed automatically from source and dependencies.
-
-Published packages may depend only on `pure` packages. Runtime-constrained packages are
-meant to be thin adapter packages at the edge of the graph, not deep transitive layers.
+Published package dependencies must be `pure`. Platform-bound packages are
+meant to be thin adapter packages at the edge of the graph, not deep transitive
+layers.

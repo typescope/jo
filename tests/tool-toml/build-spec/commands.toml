@@ -1,8 +1,9 @@
 jo = "1.0"
-name = "cmd-app"
 
-[main]
-target = "python"
+[module.app]
+kind = "app"
+platform = "python"
+src = []
 
 [commands]
 dev = "jo build --spec sandbox/guest/jo.toml && jo run"

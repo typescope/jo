@@ -1,0 +1,7 @@
+jo = "1.0"
+
+[module.lib]
+kind = "lib"
+src = ["src/"]
+
+packages = [{ name = "runtime", version = "1.0", link = true }]

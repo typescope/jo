@@ -38,45 +38,50 @@ object Main:
         tool.New.run(args.drop(1))
 
       case "clean" =>
-        val specFile = tool.Build.parseProjectArgs(args.drop(1)).map(_.specFile).orExit
-        val project = loadProject(specFile).orExit
-        tool.Build.clean(project).orExit
+        val parsed = tool.Build.parseProjectArgs(args.drop(1)).orExit
+        val project = loadProject(parsed.specFile).orExit
+        tool.Build.clean(project, parsed.module).orExit
 
       case "build" =>
-        val specFile = tool.Build.parseProjectArgs(args.drop(1)).map(_.specFile).orExit
-        val project = loadProject(specFile).orExit
-        tool.Build.build(project).orExit
+        val parsed = tool.Build.parseProjectArgs(args.drop(1)).orExit
+        val project = loadProject(parsed.specFile).orExit
+        val module = tool.Build.selectedModule(project, parsed)
+        tool.Build.build(project, module).orExit
 
       case "check" =>
-        val specFile = tool.Build.parseProjectArgs(args.drop(1)).map(_.specFile).orExit
-        val project = loadProject(specFile).orExit
-        tool.Build.check(project).orExit
+        val parsed = tool.Build.parseProjectArgs(args.drop(1)).orExit
+        val project = loadProject(parsed.specFile).orExit
+        val module = tool.Build.selectedModule(project, parsed)
+        tool.Build.check(project, module).orExit
 
       case "test" =>
-        val specFile = tool.Build.parseProjectArgs(args.drop(1)).map(_.specFile).orExit
-        val project = loadProject(specFile).orExit
-        tool.Build.test(project).orExit
+        System.err.println("Error: 'jo test' was removed; define a test app module and run it with 'jo run <module>'")
+        System.exit(1)
 
       case "run" =>
         val parsed = tool.Build.parseRunArgs(args.drop(1)).orExit
-        val specFile = parsed.specFile
-        val appArgs = parsed.appArgs
-        val project = loadProject(specFile).orExit
-        tool.Build.run(project, appArgs).orExit
+        val project = loadProject(parsed.specFile).orExit
+        val module = tool.Build.selectedModule(project, parsed)
+        tool.Build.run(project, module, parsed.appArgs).orExit
 
       case "package" =>
-        val specFile = tool.Build.parseProjectArgs(args.drop(1)).map(_.specFile).orExit
-        val project = loadProject(specFile).orExit
-        tool.Release.buildPackage(project).orExit
+        val parsed = tool.Build.parseProjectArgs(args.drop(1)).orExit
+        val project = loadProject(parsed.specFile).orExit
+        val module = tool.Build.selectedModule(project, parsed)
+        tool.Release.buildPackage(project, module).orExit
 
       case "deps" =>
-        val specFile = tool.Build.parseProjectArgs(args.drop(1)).map(_.specFile).orExit
-        val project = loadProject(specFile).orExit
-        tool.Build.deps(project).orExit
+        val parsed = tool.Build.parseProjectArgs(args.drop(1)).orExit
+        val project = loadProject(parsed.specFile).orExit
+        val module = tool.Build.selectedModule(project, parsed)
+        tool.Build.deps(project, module).orExit
 
       case "lock" =>
-        val specFile = tool.Build.parseProjectArgs(args.drop(1)).map(_.specFile).orExit
-        val project = loadProject(specFile).orExit
+        val parsed = tool.Build.parseProjectArgs(args.drop(1)).orExit
+        if parsed.module.isDefined then
+          System.err.println("Error: 'jo lock' resolves all modules and does not take a module argument")
+          System.exit(1)
+        val project = loadProject(parsed.specFile).orExit
         tool.Build.lock(project).orExit
 
       case "info" =>
@@ -122,9 +127,10 @@ object Main:
               case Backend.LinuxX86Reg    => native.register.RegisterMachine.main(flags.args)
 
       case "doc" =>
-        val specFile = tool.Build.parseProjectArgs(args.drop(1)).map(_.specFile).orExit
-        val project = loadProject(specFile).orExit
-        tool.Build.buildDoc(project).orExit
+        val parsed = tool.Build.parseProjectArgs(args.drop(1)).orExit
+        val project = loadProject(parsed.specFile).orExit
+        val module = tool.Build.selectedModule(project, parsed)
+        tool.Build.buildDoc(project, module).orExit
 
       case "versions" =>
         tool.Versions.run(args.drop(1), tool.HttpInstaller.default()) match
@@ -250,14 +256,15 @@ object Main:
     println("""Usage:
       |  jo <source.jo>                         Run program (defaults to 'eval')
       |  jo new <name>                           Create a new project
-      |  jo clean [--spec <file.toml>]           Remove this project's build artifacts (not path dependencies)
-      |  jo build [--spec <file.toml>]          Build the project
-      |  jo check [--spec <file.toml>]          Type-check and compile to sast, skip executable
-      |  jo test  [--spec <file.toml>]          Build and run tests
-      |  jo run   [--spec <file.toml>] [-- ...]  Build and run the application
-      |  jo package [--spec <file.toml>]        Build a distributable package for a library
-      |  jo deps [--spec <file.toml>]           Print the resolved dependency tree
-      |  jo lock [--spec <file.toml>]           Resolve dependencies and rewrite the lock file
+      |  jo clean [module]                       Remove build artifacts (default: all modules)
+      |  jo build [module]                       Build a module (default module if omitted)
+      |  jo check [module]                       Type-check and compile to sast, skip executable
+      |  jo run   [module] [-- ...]
+      |                                           Build and run an app module
+      |  jo package [module]
+      |                                           Build a distributable package for a module
+      |  jo deps [module]                       Print the resolved dependency tree
+      |  jo lock                                Resolve dependencies and rewrite the lock file
       |  jo info <pkg>[@<version>]              Show package metadata and available versions
       |  jo eval <source.jo>                    Run program with interpreter
       |  jo <name> [args...]                    Run a project command from [commands] (builtins win)
@@ -268,8 +275,11 @@ object Main:
       |  jo versions remove <version>           Remove an installed compiler version
       |  jo compile [options] <source.jo>       Compile application or library
       |  jo compile --doc [options] <files...>  Generate documentation from source files
-      |  jo doc [--spec <file.toml>]            Generate project documentation
+      |  jo doc [module]                        Generate module documentation
       |  jo help                                Show this help message
+      |
+      |Project options:
+      |  --spec <file.toml>  Use a build spec other than jo.toml
       |
       |Compile options (application — default backend is Ruby):
       |  --ruby          Compile Ruby application (default)

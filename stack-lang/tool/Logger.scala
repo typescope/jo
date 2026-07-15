@@ -45,13 +45,13 @@ object Logger:
       line
 
   private def colorForLabel(label: String, level: LogLevel): String => String = label match
-    case "[build]" | "[check]" | "[doc]" | "[run]" | "[test]" | "[package]" => Ansi.blue
+    case "[build]" | "[check]" | "[doc]" | "[run]" | "[package]" => Ansi.blue
     case "[output]" | "[artifact]" | "[clean]" => Ansi.green
     case "[cmd]" => Ansi.dim
     case _ => colorForLevel(level)
 
   private def colorForRest(label: String): String => String = label match
-    case "[build]" | "[check]" | "[doc]" | "[run]" | "[test]" | "[package]" => Ansi.dim
+    case "[build]" | "[check]" | "[doc]" | "[run]" | "[package]" => Ansi.dim
     case "[output]" | "[artifact]" | "[clean]" => Ansi.dim
     case "[cmd]" => Ansi.dim
     case _ => identity

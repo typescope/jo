@@ -4,17 +4,11 @@ Run the application — first build if needed.
 
 ## Usage
 
-``` 
-jo run [--spec <file.toml>] [-- <app-args...>]
+```
+jo run [module] [-- <app-args...>]
 ```
 
-Only valid for app builds. Running on a library spec is an error.
-
-## Options
-
-| Option          | Description                            |
-|-----------------|----------------------------------------|
-| `--spec <file>` | Build spec to use. Default: `jo.toml`. |
+Only valid for app modules. If `module` is omitted, Jo runs the project default module.
 
 Arguments after `--` are passed to the compiled application.
 
@@ -22,12 +16,12 @@ Arguments after `--` are passed to the compiled application.
 
 `jo run` rebuilds the app if sources or dependencies have changed, then runs the generated script using the target runtime.
 
-`jo run` reuses compatible lock entries and may refresh missing ones automatically. It fails
-when an existing locked entry is incompatible with the current build.
+If `jo.lock` is missing, `jo run` resolves all modules in the project and creates it. If it exists, Jo uses it as-is.
+
 ## Examples
 
 ```sh
 jo run
-jo run --spec my-agent.toml
+jo run test
 jo run -- --port 8080
 ```

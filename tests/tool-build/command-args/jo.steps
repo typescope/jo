@@ -4,10 +4,10 @@ error: unknown option '--wat'
 '
 jo build extra
 : '
-error: unexpected argument 'extra'
+error: module 'extra' is not defined in tests/tool-build/command-args/jo.toml
 '
 jo run extra
 : '
-error: unexpected argument 'extra' (use '--' to pass app arguments)
+error: module 'extra' is not defined in tests/tool-build/command-args/jo.toml
 '
 jo build --spec=jo-alt.toml

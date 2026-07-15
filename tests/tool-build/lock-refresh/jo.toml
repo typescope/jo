@@ -1,9 +1,8 @@
 jo = "1.0"
-name = "lock-refresh"
 
-[main]
+[module.app]
+kind = "app"
+platform = "python"
 src = ["src/"]
 
-[main.dependencies]
-greeter-pkg = "1.0"
-alpha-pkg = "1.0"
+packages = [{ name = "greeter-pkg", version = "1.0" }]

@@ -6,22 +6,22 @@ jo package --spec dep/jo.toml
 
 mkdir -p repo/jo-core/1.0.0
 
-cp dep/.build/jo-core/release/jo-core-v1.0.0.joy repo/jo-core/1.0.0/
+cp dep/.build/lib/release/jo-core-v1.0.0.joy repo/jo-core/1.0.0/
 
 jo package
 
-unzip -Z1 .build/release-lib/release/release-lib-v1.0.0.joy | sort
+unzip -Z1 .build/lib/release/release-lib-v1.0.0.joy | sort
 : '
 Greeter/Greeter.sast
 meta.toml
 '
 
-unzip -Z1 .build/release-lib/release/release-lib-v1.0.0-sources.zip | sort
+unzip -Z1 .build/lib/release/release-lib-v1.0.0-sources.zip | sort
 : '
 src/Greeter.jo
 '
 
-unzip -p .build/release-lib/release/release-lib-v1.0.0.joy meta.toml
+unzip -p .build/lib/release/release-lib-v1.0.0.joy meta.toml
 : '
 namespace = "Greeter"
 name = "release-lib"
@@ -38,12 +38,12 @@ keywords = ["release", "test"]
 jo-core = "1.0"
 '
 
-(cd .build/release-lib/release && sha512sum -c release-lib-v1.0.0.joy.sha512)
+(cd .build/lib/release && sha512sum -c release-lib-v1.0.0.joy.sha512)
 : '
 release-lib-v1.0.0.joy: OK
 '
 
-(cd .build/release-lib/release && sha512sum -c release-lib-v1.0.0-sources.zip.sha512)
+(cd .build/lib/release && sha512sum -c release-lib-v1.0.0-sources.zip.sha512)
 : '
 release-lib-v1.0.0-sources.zip: OK
 '

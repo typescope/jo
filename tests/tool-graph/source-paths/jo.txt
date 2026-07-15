@@ -1,0 +1,2 @@
+# root [app] (app)
+jo compile --python extras/Nested.jo src/Main.jo -o .build/app/jo-1.0/target/app.py

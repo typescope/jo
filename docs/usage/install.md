@@ -57,4 +57,4 @@ alias jo='command jo'
 ```
 :::
 
-**`env: python: No such file or directory`** — also from autojump; resolved by the fix above.
+**`env: python: No such file or directory`** — also from autojump. Resolved by the fix above.

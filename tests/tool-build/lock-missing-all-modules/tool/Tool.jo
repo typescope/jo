@@ -1,0 +1,3 @@
+import Alpha
+
+def value: String = Alpha.value

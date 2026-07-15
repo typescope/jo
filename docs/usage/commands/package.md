@@ -5,22 +5,16 @@ Build a distributable package for publishing.
 ## Usage
 
 ```
-jo package [--spec <file.toml>]
+jo package [module]
 ```
 
-Only valid for library builds.
-
-## Options
-
-| Option          | Description                            |
-|-----------------|----------------------------------------|
-| `--spec <file>` | Build spec to use. Default: `jo.toml`. |
+The selected module must define `[module.<id>.package]`. If `module` is omitted, Jo packages the project default module.
 
 ## What It Does
 
 1. Validates the build spec
-2. Compiles and generate `.sast` files to `.build/<name>/jo-<version>/sast/`
-3. Generates `meta.toml` and packages `.sast` files into a `.joy` archive under `.build/<name>/release/`
+2. Compiles and generate `.sast` files to `.build/<module>/jo-<version>/sast/`
+3. Generates `meta.toml` and packages `.sast` files into a `.joy` archive under `.build/<module>/release/`
 4. Generates a companion source archive containing the original `.jo` sources
 
 Nothing is uploaded. Inspect the artifacts before publishing.
@@ -45,32 +39,27 @@ For Jo, the packaging rules are:
 
 1. Registry/package dependencies are recorded as dependency metadata in `meta.toml`.
 2. Dependency `.joy` files or dependency `.sast` trees are not copied into the archive.
-3. Local `path` dependencies are for development only and must not appear in a published package.
-4. Therefore, `jo package` should fail if the library still has unresolved local `path` dependencies.
-5. Published packages may depend only on `pure` packages. A runtime package may be published, but its published dependencies must still be `pure`.
+3. Direct source module dependencies are recorded as package dependencies, using the dependency module's `[module.<id>.package]` metadata.
+4. `link = true` dependencies are omitted from `meta.toml`.
+5. Published packages may depend only on `pure` registry packages. A runtime package may be published, but its published registry dependencies must still be `pure`.
 
-In other words, a packaged library must be publishable on its own, with all direct
-dependencies expressed as publishable package dependencies rather than local filesystem paths,
-and without depending on published runtime packages.
-
-Current behavior is strict: if any direct dependency in `[main.dependencies]` uses
-`path = ...`, `jo package` errors rather than silently producing incomplete metadata.
+In other words, source module dependencies must also be publishable modules unless they are link-only dependencies.
 
 ## Output
 
 ```
-.build/agent-api/release/
+.build/api/release/
   agent-api-v1.0.0.joy
   agent-api-v1.0.0.joy.sha512
   agent-api-v1.0.0-sources.zip
   agent-api-v1.0.0-sources.zip.sha512
 ```
 
-The version is taken from `[package].version` in the build spec.
+The version is taken from `[module.<id>.package].version` in the build spec.
 
 ## Examples
 
 ```sh
 jo package
-jo package --spec agent-api.toml
+jo package api
 ```

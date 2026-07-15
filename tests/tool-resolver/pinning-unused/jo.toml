@@ -1,8 +1,11 @@
 jo = "1.0"
-name = "app"
 
 [pinning]
 unused-pkg = "1.2.3"
 
-[main.dependencies]
-jo-core = "1.0"
+[module.app]
+kind = "app"
+platform = "python"
+src = ["src/"]
+
+packages = [{ name = "jo-core", version = "1.0" }]

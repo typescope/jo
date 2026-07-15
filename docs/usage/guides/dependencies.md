@@ -1,63 +1,84 @@
 # Managing Dependencies
 
-## Adding a Dependency
-
-Add a version range to `[main.dependencies]`:
+A module declares two kinds of dependency in two arrays. `modules` are built from source. `packages` are resolved from the registry.
 
 ```toml
-[main.dependencies]
-mustache = "1.0"
+[module.app]
+kind = "app"
+platform = "python"
+src = ["src/"]
+modules = ["api"]
+packages = [{ name = "mustache", version = "1.0" }]
 ```
 
-Then run `jo build` — the resolver fetches the dependency and writes `jo.lock`.
+## Registry Packages
 
-## Link Libraries
-
-A link library resolves `defer def`s at link time but is hidden from user code:
+Every package needs a name and a compatibility line:
 
 ```toml
-[main.dependencies]
-agent-api            = "1.0"
-agent-runtime-python = { version = "1.0", link = true }
+packages = [{ name = "mustache", version = "1.0" }]
 ```
 
-## Path Dependencies
+## Source Module Dependencies
 
-Reference a local project instead of a registry package:
+A module in the same project is just its id:
 
 ```toml
-[main.dependencies]
-# Directory with a single jo.toml
-agent-api = { path = "../agent-api" }
-
-# Directory with multiple specs — pick one explicitly
-agent-api = { path = "../agent-api", spec = "api.toml" }
-
-# Same directory, different spec
-agent-api = { path = ".", spec = "api.toml" }
+modules = ["api", "core"]
 ```
 
-Path dependencies bypass the registry and lock file entirely.
+Source modules never carry a version. They are built from source, so there is nothing to resolve.
+
+A module from another project adds a `path`:
+
+```toml
+modules = [
+  "api",
+  { id = "helpers", path = "../agent-api" },
+]
+```
+
+An external source project is part of your build, not a boundary around it. Jo reads its `jo.toml` to find the module's sources and dependencies. It then resolves those together with yours. Its registry packages land in *your* `jo.lock`. Everything builds with one compiler.
+
+Its own `jo.lock` is ignored while you consume it as source. That lock is for building that project on its own. If you and it need incompatible versions of the same package, `jo lock` reports a conflict. This is the same conflict you would get from two modules in your own spec.
+
+## Link Dependencies
+
+Add `link = true` for a dependency that resolves `defer def`s at link time but is hidden from user code. It works on either array:
+
+```toml
+modules = [{ id = "runtime", link = true }]
+packages = [{ name = "agent-runtime-python", version = "1.0", link = true }]
+```
+
+Link dependencies are ignored when generating package metadata.
 
 ## Test Dependencies
 
-Dependencies used only during `jo test` go in `[test.dependencies]`:
+Tests are app modules:
 
 ```toml
-[test.dependencies]
-jo-test = "0.1"
+[module.test]
+kind = "app"
+platform = "python"
+src = ["tests/"]
+modules = ["api"]
+packages = [{ name = "jo-test", version = "0.1" }]
 ```
+
+Run them with:
+
+```sh
+jo run test
+```
+
+See [Testing](testing.md) for a complete test module setup.
 
 ## The Lock File
 
-`jo build` writes a `jo.lock` (named after the spec: `agent-api.toml` → `agent-api.lock`) recording the exact resolved versions and sha512 digests.
+`jo lock` resolves all modules in the project and writes one lock file next to the spec. `jo build`, `jo check`, `jo run`, and `jo doc` also resolve all modules when they need to create a missing lock file. If it exists, they use it as-is.
 
-Once that lock file exists, later `jo build`, `jo run`, and `jo test` reuse compatible locked
-entries. They may add missing compatible entries automatically. A stale locked compiler pin is
-refreshed automatically when `jo.toml` changes. If an existing locked package version or digest is
-incompatible, the build fails and you must run `jo lock`.
-
-Commit `jo.lock` to source control so the source tree records the exact package artifacts it was resolved against.
+Commit `jo.lock` to source control.
 
 ## Updating Dependencies
 
@@ -77,11 +98,12 @@ project needs an explicit override, add `[pinning]` to `jo.toml`:
 mustache = "1.2.3"
 ```
 
-This is a hard exact requirement for the root build. If it conflicts with the dependency
-graph, Jo fails with an explicit pinned-version error.
+This is a hard exact requirement for the root project. If it conflicts with the
+dependency graph, Jo fails with an explicit pinned-version error.
 
 ## Viewing Dependencies
 
 ```sh
-jo deps    # show resolved Jo dependency tree
+jo deps       # show the default module dependency tree
+jo deps app   # show one module dependency tree
 ```

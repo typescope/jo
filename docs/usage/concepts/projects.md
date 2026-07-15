@@ -1,94 +1,74 @@
 # Projects
 
-A Jo project is a directory containing a build spec (`jo.toml`) and source files. The build spec declares the compiler version required, dependencies, and — for libraries — publishing metadata.
+A Jo project is a directory containing a build spec (`jo.toml`) and one or more ordered modules under `[module.<id>]`.
 
-## App vs Library
+## Modules
 
-Build kind is implicit:
-
-- **Library** — `[package]` section present. Produces a `.joy` package for distribution.
-- **App** — `[package]` section absent. Produces an executable or script.
-
-**Minimal library** (`agent-api.toml`):
+Modules are either libraries or apps:
 
 ```toml
-jo      = "1.0"
-name    = "agent-api"
+jo = "1.0"
+default = "app"
 
-[package]
+[module.api]
+kind = "lib"
+src = ["api/src/"]
+
+[module.app]
+kind = "app"
+src = ["app/src/"]
+platform = "python"
+modules = ["api"]
+```
+
+Every app module declares its own `platform` — the backend it emits. Lib modules compile to `.sast`, which is backend-independent, so they default to `platform = "pure"` and only name a platform when their output requires one.
+
+## Depending On An App Module
+
+An app module is a lib module plus a platform, link wiring, and an entry point. Other modules can depend on one, which is what makes a test module possible:
+
+```toml
+[module.test]
+kind = "app"
+platform = "python"
+src = ["tests/"]
+modules = ["app"]
+```
+
+The test sees the app's code. It does not inherit the app's entry point, because Jo takes the entry point from the sources of the module being built. It does inherit the app's links, which it may override, and its link libraries, which it may not. See [Testing](../guides/testing.md).
+
+If `default` is omitted, the first module in the file is the default for commands such as `jo build`, `jo run`, `jo doc`, `jo deps`, and `jo package`.
+
+## Build Output Layout
+
+Build artifacts are keyed by module id:
+
+```
+.build/<module>/
+  jo-<version>/
+    sast/
+    target/    # app modules only
+  release/     # jo package
+  doc/         # jo doc
+```
+
+## Publishable Modules
+
+Any module can be publishable by defining `[module.<id>.package]`:
+
+```toml
+[module.api.package]
+name = "agent-api"
 version = "1.0.0"
 license = "MIT"
 ```
 
-**Minimal app** (`jo.toml`):
+## External Source Projects
+
+A module can depend on a module from another project:
 
 ```toml
-jo = "1.0"
-
-[main]
-target = "python"
+modules = [{ id = "api", path = "../agent-api" }]
 ```
 
-## Build Output Directory
-
-The build output directory is named after the `name` field in the spec:
-
-| Spec `name` field | Output directory       |
-|-------------------|------------------------|
-| `hello`           | `.build/hello/`        |
-| `my-agent`        | `.build/my-agent/`     |
-| `agent-api`       | `.build/agent-api/`    |
-
-This allows multiple projects to coexist in the same directory, each with its own spec file, output directory, and lock file.
-
-## Build Output Layout
-
-```
-.build/<name>/
-  jo-<version>/
-    sast/      # compiled .sast files — always produced
-    target/    # executable or script — app builds only
-  release/     # publishable .joy artifact — jo package only
-  doc/         # generated API docs
-```
-
-Compiler outputs (`sast/`, `target/`) are nested under a `jo-<version>/` subdirectory so that switching compiler versions does not mix artifacts. `sast/` is always produced — even for apps — because `jo test` compiles the main source as a library before building the test suite.
-
-## Project Layout
-
-```
-my-project/
-  jo.toml          # build spec (tracked)
-  jo.lock          # lock file (tracked)
-  src/             # main source files (default: src/**/*.jo)
-  tests/           # test source files (default: tests/**/*.jo)
-  docs/
-  .build/          # build artifacts (gitignored)
-```
-
-## Multiple Projects in One Directory
-
-Multiple specs in the same directory reference each other via `path = "."`:
-
-```
-my-project/
-  api.toml
-  runtime.toml
-  app.toml
-  src/
-    API.jo
-    Runtime.jo
-    App.jo
-```
-
-```toml
-# app.toml
-jo = "1.0"
-
-[main]
-target = "python"
-
-[main.dependencies]
-agent-api      = { path = ".", spec = "api.toml" }
-agent-runtime  = { path = ".", spec = "runtime.toml", link = true }
-```
+Jo reads the external project's `jo.toml` to find that module's sources and dependencies, then builds it as part of this build: one resolution, one `jo.lock`, one compiler. The external project's own `jo.lock` applies only when that project is built on its own.
