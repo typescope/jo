@@ -46,7 +46,9 @@ git rebase --signoff HEAD~3
 - [ ] Standard Library compatibility:
   - [ ] forward compatibility: new code can work with old stdlib
   - [ ] backward comopatibility: old code work with the new stdlib
-- [ ] Build tool compatibility: old projects continue to build
+- [ ] Build tool
+  - [ ] Build spec compatibility: old projects continue to build
+  - [ ] Joy package compatibility: old .joy can be consumed by new build tool
 
 ---
 
