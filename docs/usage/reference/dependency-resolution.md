@@ -164,10 +164,11 @@ This means resolution always covers the whole build, even though module selectio
   missing, and write a complete lock file.
 - once a valid `jo.lock` exists, build commands read it and do not re-resolve.
 
-So a version conflict between two modules is reported whenever the lock is written — including
-by a `jo build app` that has to create a missing lock, even if `app`'s own closure is clean. The
+So a version conflict between two modules is reported whenever the lock is written, including by a
+`jo build app` that has to create a missing lock, even if `app`'s own closure is clean. The
 alternative would be a lock file whose contents depend on which module was built first, which is
-not reproducible.
+not reproducible. Dependency depth is still checked for the selected module closure only. Use
+`jo lock` to check depth across every module.
 
 Source modules themselves are not part of this universe. They are source inputs and need no lock
 entries. The registry packages they require do need entries. This holds however the module is

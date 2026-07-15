@@ -13,7 +13,6 @@ dependencies = [
 [module.tool]
 kind = "lib"
 src = ["tool/"]
-depth = 1
 
 dependencies = [
   { package = "alpha-pkg", version = "1.0" },

@@ -23,3 +23,10 @@ greeter-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
 
 test ! -d .build/tool
 : ''
+
+jo lock
+: '
+error: package dependency depth exceeded for module 'tool': actual 1, allowed 0
+
+  Path: [tool] -> alpha-pkg
+'

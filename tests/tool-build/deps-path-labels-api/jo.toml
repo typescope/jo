@@ -1,0 +1,4 @@
+jo = "1.0"
+
+[module.api]
+kind = "lib"

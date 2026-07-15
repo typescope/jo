@@ -140,7 +140,7 @@ object Build:
 
       case None =>
         DependencyResolver.resolveProject(project, project.moduleIds).flatMap: resolved =>
-          validatePackageDepths(project, resolved, project.moduleIds).flatMap: _ =>
+          validatePackageDepths(project, resolved, modules).flatMap: _ =>
             writeLock(lockPath, project.joVersion, resolved.packages).map(_ => resolved)
 
   private def resolvePackages(

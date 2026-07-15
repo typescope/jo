@@ -36,6 +36,8 @@ Writing the lock always resolves every module in the project, whichever command 
 
 This is why a package version conflict between two modules can surface from a command that only builds one of them. The alternative — locking just the selected module — would write a lock whose contents depend on which module you built first, and the next `jo build test` would fail on entries the first build never wrote.
 
+Package dependency depth is checked separately. `jo lock` checks every module. Build commands check the selected module closure, even when they create the missing lock.
+
 ## Format
 
 The file is TOML with a top-level `jo` entry plus one key per resolved registry package:
