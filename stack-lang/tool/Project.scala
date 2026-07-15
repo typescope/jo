@@ -205,7 +205,7 @@ object Project:
                 resolveCompiler(canonicalSpecPath, spec.jo, resolveJo, resolveExactJo)
 
           compiler.flatMap: (joVersion, joBin) =>
-            resolveModuleDeps(specDir, spec, depPath => loadAt(depPath, Some(joVersion -> joBin))).flatMap: deps =>
+            resolveModuleDeps(specDir, canonicalSpecPath, spec, depPath => loadAt(depPath, Some(joVersion -> joBin))).flatMap: deps =>
               val project = Project(specDir, canonicalSpecPath, spec, deps, joVersion, joBin)
               populatePlatformCache(project).map: _ =>
                 resolved(canonicalSpecPath) = project
@@ -241,6 +241,7 @@ object Project:
 
   private def resolveModuleDeps(
     specDir: Path,
+    specPath: Path,
     spec: BuildSpec,
     loadAt: Path => Result[Project],
   ): Result[Map[ModuleId, List[ModuleDep]]] =
@@ -266,7 +267,7 @@ object Project:
             depSpec.path match
               case None =>
                 if spec.module(depSpec.id).isEmpty then
-                  Result.Err(s"module '${module.value}' depends on undefined module '${depSpec.id.value}'")
+                  Result.Err(s"in ${LogFormat.path(specPath)}: module '${module.value}' depends on undefined module '${depSpec.id.value}'")
                 else
                   addModuleDep(ModuleDep(depSpec.id, depSpec.link, None, None))
 
@@ -277,7 +278,9 @@ object Project:
                       case Some(_) =>
                         addModuleDep(ModuleDep(depSpec.id, depSpec.link, Some(depProject), Some(depProject.specPath)))
                       case None =>
-                        Result.Err(s"module dependency '${depSpec.id.value}' is not defined in ${LogFormat.path(depProject.specPath)}")
+                        Result.Err(
+                          s"in ${LogFormat.path(specPath)}: module '${module.value}' depends on undefined module '${depSpec.id.value}' from ${LogFormat.path(depProject.specPath)}"
+                        )
 
         result.map(_ => byModule + (module -> deps.toList))
 
