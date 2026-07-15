@@ -4,12 +4,12 @@ printf 'namespace SourceRemoval\n\ndef value: Age = 1\n' > src/Old.jo
 
 printf 'namespace SourceRemoval\n\ntype Age = Int\n' > src/Lib.jo
 
-jo test
+jo run test
 : '
 1
 '
 
-test -f .build/source-removal/jo-1.0/sast/SourceRemoval/Old.sast
+test -f .build/app/jo-1.0/sast/SourceRemoval/Old.sast
 : ''
 
 rm src/Old.jo
@@ -17,15 +17,15 @@ rm src/Lib.jo
 
 printf 'namespace SourceRemoval\n\ndef value: Int = 2\n' > src/New.jo
 
-jo test
+jo run test
 : '
 2
 '
 
-test ! -f .build/source-removal/jo-1.0/sast/SourceRemoval/Old.sast
+test ! -f .build/app/jo-1.0/sast/SourceRemoval/Old.sast
 : ''
 
-test -f .build/source-removal/jo-1.0/sast/SourceRemoval/New.sast
+test -f .build/app/jo-1.0/sast/SourceRemoval/New.sast
 : ''
 
 rm -f src/New.jo

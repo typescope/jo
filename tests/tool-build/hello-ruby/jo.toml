@@ -1,5 +1,6 @@
 jo   = "1.0"
-name = "hello-ruby"
 
-[main]
+[module.app]
+kind = "app"
+src = ["src/"]
 target = "ruby"

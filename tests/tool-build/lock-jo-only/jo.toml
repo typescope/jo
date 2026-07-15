@@ -1,5 +1,5 @@
 jo = "1.0"
-name = "lock-jo-only"
 
-[main]
+[module.app]
+kind = "app"
 src = ["src/"]

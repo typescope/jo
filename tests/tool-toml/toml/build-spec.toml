@@ -2,18 +2,24 @@ namespace = "MyApp"
 version = "1.0.0"
 runtime = "pure"
 
-[main]
+[module.app]
+kind = "app"
 src = ["src/", "vendor/"]
 
-[main.dependencies]
-utils = { path = "../utils" }
-http = "^1.0.0"
+dependencies = [
+  { path = "../utils", module = "utils" },
+  { package = "http", version = "1.0" },
+]
 
-[main.links]
-"MyApp.Iface.run" = "MyApp.Impl.run"
+links = [
+  { from = "MyApp.Iface.run", to = "MyApp.Impl.run" },
+]
 
-[test]
+[module.test]
+kind = "app"
 src = ["tests/"]
 
-[test.dependencies]
-testlib = { path = "../testlib" }
+dependencies = [
+  { module = "app" },
+  { path = "../testlib", module = "testlib" },
+]

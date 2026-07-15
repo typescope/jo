@@ -1,5 +1,9 @@
 jo = "1.0"
-name = "app"
 
-[main.dependencies]
-jo-util = "1.0"
+[module.app]
+kind = "app"
+src = ["src/"]
+
+dependencies = [
+  { package = "jo-util", version = "1.0" },
+]

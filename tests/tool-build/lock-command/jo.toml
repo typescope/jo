@@ -1,7 +1,9 @@
 jo = "1.0"
-name = "lock-command"
 
-[main]
+[module.app]
+kind = "app"
+src = ["src/"]
 
-[main.dependencies]
-greeter-pkg = "1.0"
+dependencies = [
+  { package = "greeter-pkg", version = "1.0" },
+]

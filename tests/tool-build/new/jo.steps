@@ -9,10 +9,11 @@ You can now:
 '
 cat myapp/jo.toml
 : '
-jo   = "{{JO_VERSION}}"
-name = "myapp"
+jo = "{{JO_VERSION}}"
 
-[main]
+[module.app]
+kind = "app"
+src = ["src/"]
 target = "python"
 '
 cat myapp/src/Main.jo

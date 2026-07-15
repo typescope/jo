@@ -1,5 +1,5 @@
 jo   = "0.10"
-name = "build-error-exit"
 
-[main]
-target = "python"
+[module.app]
+kind = "app"
+src = ["src/"]

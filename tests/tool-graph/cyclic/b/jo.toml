@@ -1,8 +1,13 @@
 jo = "1.0"
+
+[module.lib]
+kind = "lib"
+src = ["src/"]
+
+dependencies = [
+  { path = "../a", module = "lib" },
+]
+
+[module.lib.package]
 name = "b"
-
-[package]
 version = "1.0.0"
-
-[main.dependencies]
-a = { path = "../a" }

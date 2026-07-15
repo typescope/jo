@@ -1,5 +1,9 @@
 jo = "1.0"
-name = "app"
 
-[main.dependencies]
-dep = { path = "dep" }
+[module.app]
+kind = "app"
+src = ["src/"]
+
+dependencies = [
+  { path = "dep", module = "lib" },
+]

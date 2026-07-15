@@ -1,6 +1,9 @@
 jo = "1.0"
-name = "app"
-depth = 1
 
-[main.dependencies]
-pkg-a = "1.0"
+[module.app]
+kind = "app"
+src = ["src/"]
+
+dependencies = [
+  { package = "pkg-a", version = "1.0" },
+]

@@ -1,6 +1,4 @@
 jo = "1.0"
-name = "http2-client"
-build = app
-main:
+module.http2-client:
+  kind = "app"
   src = (default)
-test = none

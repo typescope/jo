@@ -1,14 +1,22 @@
 jo = "1.0"
-name = "agent-api"
-depth = 2
 
-[package]
+[module.api]
+kind = "lib"
+
+dependencies = [
+  { package = "jo-core", version = "1.0" },
+]
+
+[module.api.package]
+name = "agent-api"
 version = "1.0.0"
 description = "Sandbox agent framework API"
 runtime = "pure"
 
-[main.dependencies]
-jo-core = "1.0"
+[module.test]
+kind = "app"
 
-[test.dependencies]
-jo-test = "0.1"
+dependencies = [
+  { module = "api" },
+  { package = "jo-test", version = "0.1" },
+]

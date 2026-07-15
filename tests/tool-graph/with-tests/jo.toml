@@ -1,14 +1,18 @@
 jo = "1.0"
-name = "myapp"
 
-[main]
+[module.app]
+kind = "app"
 src = ["src/"]
 
-[main.dependencies]
-mylib = { path = "./lib" }
+dependencies = [
+  { path = "./lib", module = "lib" },
+]
 
-[test]
+[module.test]
+kind = "app"
 src = ["tests/"]
 
-[test.dependencies]
-test-fw = { path = "./test-fw" }
+dependencies = [
+  { module = "app" },
+  { path = "./test-fw", module = "lib" },
+]

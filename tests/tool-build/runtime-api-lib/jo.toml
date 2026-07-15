@@ -1,9 +1,10 @@
 jo = "1.0"
-name = "runtime-api-lib"
 
-[package]
+[module.lib]
+kind = "lib"
+src = ["src/"]
+
+[module.lib.package]
+name = "runtime-api-lib"
 version = "1.0.0"
 runtime = "python"
-
-[main]
-src = ["src/"]

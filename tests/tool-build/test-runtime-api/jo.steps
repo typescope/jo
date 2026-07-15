@@ -1,7 +1,7 @@
-# `jo test` must compile the test module with the package runtime API so the
+# `jo run test` must compile the test module with the package runtime API so the
 # test sources can use `py.*`. If Planner stops propagating the runtime API to
 # the test task, this fails to compile.
-jo test
+jo run test
 : '
 v
 lib-ok

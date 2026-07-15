@@ -1,5 +1,7 @@
 jo = "1.0"
-name = "my-app"
 
-[main.dependencies]
-mylib = "^1.0.0"
+[module.app]
+kind = "app"
+dependencies = [
+  { package = "mylib", version = "^1.0.0" },
+]

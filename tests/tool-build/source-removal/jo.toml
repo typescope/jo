@@ -1,8 +1,13 @@
 jo = "1.0"
-name = "source-removal"
 
-[main]
-target = "python"
+[module.app]
+kind = "app"
+src = ["src/"]
 
-[test]
+[module.test]
+kind = "app"
 src = ["tests/"]
+
+dependencies = [
+  { module = "app" },
+]

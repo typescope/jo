@@ -1,5 +1,5 @@
 jo = "1.0"
-name = "my_app"
 
-[main]
+[module.my_app]
+kind = "app"
 src = ["src/"]

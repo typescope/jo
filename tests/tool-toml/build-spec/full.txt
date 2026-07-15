@@ -1,24 +1,25 @@
 jo = "1.0"
-name = "my-app"
-depth = 1
+default = "app"
 pinning:
   mustache = "1.2.3"
-build = app
 doc.title = "My App API"
 doc.include-private = true
 doc.include-source = true
-main:
+module.app:
+  kind = "app"
   src = ["src/", "vendor/"]
   target = "python"
   depth = 2
   dependencies:
-    agent-runtime = path "../runtime" [link]
-    http = registry "1.0"
-    utils = path "../utils"
+    - path "../utils" module "utils"
+    - package "http" "1.0"
+    - path "../runtime" module "agent-runtime" [link]
   links:
-    "MyApp.Iface.run" = "MyApp.Impl.run"
-test:
+    - "MyApp.Iface.run" -> "MyApp.Impl.run"
+module.test:
+  kind = "app"
   src = ["tests/"]
   depth = 3
   dependencies:
-    testlib = path "../testlib"
+    - module "app"
+    - path "../testlib" module "testlib"

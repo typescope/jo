@@ -1,2 +1,2 @@
-# root (app)
-jo compile --python --use-runtime-api python src/Main.jo -o .build/app-runtime-api/jo-1.0/target/app-runtime-api.py
+# root app-runtime-api.app (app)
+jo compile --python --use-runtime-api python src/Main.jo -o .build/app/jo-1.0/target/app.py

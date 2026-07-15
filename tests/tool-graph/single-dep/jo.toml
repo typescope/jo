@@ -1,8 +1,9 @@
 jo = "1.0"
-name = "myapp"
 
-[main]
+[module.app]
+kind = "app"
 src = ["src/"]
 
-[main.dependencies]
-mylib = { path = "./lib" }
+dependencies = [
+  { path = "./lib", module = "lib" },
+]

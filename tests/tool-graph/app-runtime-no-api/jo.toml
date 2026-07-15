@@ -1,6 +1,6 @@
 jo = "1.0"
-name = "app-runtime-no-api"
 
-[main]
+[module.app]
+kind = "app"
 src = ["src/"]
 target = "python"

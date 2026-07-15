@@ -1,11 +1,5 @@
-# lib: mylib
-jo compile --sast lib/.build/mylib/jo-1.0/sast lib/src/Main.jo
+# lib: lib.lib
+jo compile --sast lib/.build/lib/jo-1.0/sast lib/src/Main.jo
 
-# root (app)
-jo compile --python src/Main.jo --lib lib/.build/mylib/jo-1.0/sast -o .build/myapp/jo-1.0/target/myapp.py
-
-# test lib: test-fw
-jo compile --sast test-fw/.build/test-fw/jo-1.0/sast test-fw/src/Main.jo
-
-# test (app)
-jo compile --python tests/Tests.jo --lib .build/myapp/jo-1.0/sast --lib lib/.build/mylib/jo-1.0/sast --lib test-fw/.build/test-fw/jo-1.0/sast -o .build/myapp/jo-1.0/target/myapp-test.py
+# root with-tests.app (app)
+jo compile --python src/Main.jo --lib lib/.build/lib/jo-1.0/sast -o .build/app/jo-1.0/target/app.py

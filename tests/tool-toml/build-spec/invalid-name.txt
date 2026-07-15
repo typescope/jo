@@ -1,1 +1,1 @@
-error: invalid name 'my_app', must start with a letter and contain only letters, digits, and hyphens
+error: invalid module.my_app 'my_app', must start with a letter and contain only letters, digits, and hyphens

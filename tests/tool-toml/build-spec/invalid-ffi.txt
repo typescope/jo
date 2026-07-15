@@ -1,1 +1,1 @@
-error: invalid [package].runtime value 'node', must be one of: pure, python, ruby
+error: invalid [module.lib.package].runtime value 'node', must be one of: pure, python, ruby

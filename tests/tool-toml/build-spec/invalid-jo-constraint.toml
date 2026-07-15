@@ -1,4 +1,5 @@
 jo = ">=1.0.0"
 
-[main]
+[module.app]
+kind = "app"
 src = ["src/"]

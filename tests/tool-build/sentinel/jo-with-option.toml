@@ -1,6 +1,6 @@
 jo = "1.0"
-name = "sentinel"
 
-[main]
+[module.app]
+kind = "app"
 src = ["src/"]
 compile-options = ["--fatal-warnings"]

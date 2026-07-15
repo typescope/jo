@@ -1,5 +1,9 @@
 jo = "1.0"
-name = "reuse"
 
-[main.dependencies]
-greeter-pkg = "1.0"
+[module.app]
+kind = "app"
+src = ["src/"]
+
+dependencies = [
+  { package = "greeter-pkg", version = "1.0" },
+]

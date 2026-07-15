@@ -1,5 +1,7 @@
 jo = "1.0"
-name = "app"
 
 [pinning]
 mustache = "1.2.0-rc-1"
+
+[module.app]
+kind = "app"

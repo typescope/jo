@@ -1,6 +1,10 @@
 jo = "1.0"
-name = "dep-python"
 
-[package]
+[module.lib]
+kind = "lib"
+src = ["src/"]
+
+[module.lib.package]
+name = "dep-python"
 version = "1.0.0"
 runtime = "python"

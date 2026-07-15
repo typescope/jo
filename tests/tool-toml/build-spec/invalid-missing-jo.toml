@@ -1,2 +1,3 @@
-[main]
+[module.app]
+kind = "app"
 src = ["src/"]

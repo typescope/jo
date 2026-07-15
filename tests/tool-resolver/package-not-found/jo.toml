@@ -1,5 +1,9 @@
 jo = "1.0"
-name = "app"
 
-[main.dependencies]
-jo-missing = "1.0"
+[module.app]
+kind = "app"
+src = ["src/"]
+
+dependencies = [
+  { package = "jo-missing", version = "1.0" },
+]

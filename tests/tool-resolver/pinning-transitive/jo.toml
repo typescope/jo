@@ -1,8 +1,12 @@
 jo = "1.0"
-name = "app"
 
 [pinning]
 jo-core = "1.0.0"
 
-[main.dependencies]
-pkg-a = "1.0"
+[module.app]
+kind = "app"
+src = ["src/"]
+
+dependencies = [
+  { package = "pkg-a", version = "1.0" },
+]

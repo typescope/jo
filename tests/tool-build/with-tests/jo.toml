@@ -1,8 +1,13 @@
 jo = "1.0"
-name = "with-tests"
 
-[main]
+[module.lib]
+kind = "lib"
 src = ["src/"]
 
-[test]
+[module.test]
+kind = "app"
 src = ["tests/"]
+
+dependencies = [
+  { module = "lib" },
+]

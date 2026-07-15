@@ -6,7 +6,7 @@ jo package --spec dep/jo.toml
 
 mkdir -p repo/greeter-pkg/1.0.0
 
-cp dep/.build/greeter-pkg/release/greeter-pkg-v1.0.0.joy repo/greeter-pkg/1.0.0/
+cp dep/.build/lib/release/greeter-pkg-v1.0.0.joy repo/greeter-pkg/1.0.0/
 
 jo run
 : '

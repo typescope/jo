@@ -1,5 +1,7 @@
 jo = "1.0"
-name = "app"
 
 [pinning]
 jo-core = "1.0"
+
+[module.app]
+kind = "app"

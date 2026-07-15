@@ -1,6 +1,5 @@
 jo = "1.0"
-name = "my-app"
-depth = 1
+default = "app"
 
 [pinning]
 mustache = "1.2.3"
@@ -10,22 +9,28 @@ title = "My App API"
 include-private = true
 include-source = true
 
-[main]
+[module.app]
+kind = "app"
 src = ["src/", "vendor/"]
 target = "python"
 depth = 2
 
-[main.dependencies]
-utils = { path = "../utils" }
-http = "1.0"
-agent-runtime = { path = "../runtime", link = true }
+dependencies = [
+  { path = "../utils", module = "utils" },
+  { package = "http", version = "1.0" },
+  { path = "../runtime", module = "agent-runtime", link = true },
+]
 
-[main.links]
-"MyApp.Iface.run" = "MyApp.Impl.run"
+links = [
+  { from = "MyApp.Iface.run", to = "MyApp.Impl.run" },
+]
 
-[test]
+[module.test]
+kind = "app"
 src = ["tests/"]
 depth = 3
 
-[test.dependencies]
-testlib = { path = "../testlib" }
+dependencies = [
+  { module = "app" },
+  { path = "../testlib", module = "testlib" },
+]

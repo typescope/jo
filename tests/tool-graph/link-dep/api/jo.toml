@@ -1,9 +1,10 @@
 jo = "1.0"
-name = "agent-api"
 
-[package]
+[module.lib]
+kind = "lib"
+src = ["src/"]
+
+[module.lib.package]
+name = "agent-api"
 version = "1.0.0"
 runtime = "pure"
-
-[main]
-src = ["src/"]

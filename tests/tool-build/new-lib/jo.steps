@@ -9,10 +9,14 @@ You can now:
 '
 cat mylib/jo.toml
 : '
-jo      = "{{JO_VERSION}}"
-name    = "mylib"
+jo = "{{JO_VERSION}}"
 
-[package]
+[module.lib]
+kind = "lib"
+src = ["src/"]
+
+[module.lib.package]
+name = "mylib"
 version = "0.1.0"
 '
 cat mylib/.gitignore

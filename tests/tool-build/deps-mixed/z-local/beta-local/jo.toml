@@ -1,5 +1,10 @@
 jo = "1.0"
-name = "beta-local"
 
-[main.dependencies]
-core-pkg = "1.0"
+[module.lib]
+kind = "lib"
+src = ["src/"]
+depth = 1
+
+dependencies = [
+  { package = "core-pkg", version = "1.0" },
+]

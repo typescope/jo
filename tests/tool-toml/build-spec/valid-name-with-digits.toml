@@ -1,2 +1,4 @@
 jo = "1.0"
-name = "http2-client"
+
+[module.http2-client]
+kind = "app"

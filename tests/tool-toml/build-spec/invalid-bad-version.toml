@@ -1,5 +1,8 @@
 jo = "1.0"
-name = "mylib"
 
-[package]
+[module.lib]
+kind = "lib"
+
+[module.lib.package]
+name = "mylib"
 version = "1.0"

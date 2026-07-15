@@ -1,13 +1,20 @@
 jo = "1.0"
-name = "app"
+
+[module.app]
+kind = "app"
+src = ["src/"]
 depth = 2
 
-[main.dependencies]
-helpers = { path = "helpers" }
-greeter-pkg = "1.0"
+dependencies = [
+  { path = "helpers", module = "lib" },
+  { package = "greeter-pkg", version = "1.0" },
+]
 
-[test]
+[module.test]
+kind = "app"
 src = ["tests/*.jo"]
 
-[test.dependencies]
-test-pkg = "1.0"
+dependencies = [
+  { module = "app" },
+  { package = "test-pkg", version = "1.0" },
+]
