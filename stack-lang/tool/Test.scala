@@ -63,6 +63,10 @@ import tool.toml.{TomlError, TomlParser}
   failed :::= runResolverTests()
   println()
 
+  println("=== ReleaseJson ===")
+  failed :::= runReleaseJsonTests()
+  println()
+
   if failed.isEmpty then println("All tool tests passed.")
   else
     println(s"FAILED: ${failed.reverse.mkString(" ")}")
@@ -159,6 +163,55 @@ private def runResolverTests(): List[Path] =
     JoResolver.resolveExact(other)
 
   if failed then List(Paths.get("JoResolver")) else Nil
+
+// ---- ReleaseJson suite -------------------------------------------------------
+
+/** Guards the registry JSONL wire format against the shape the registry daemon actually
+ *  writes. See sync.py in typescope/packages: it emits `runtime`, not `platform`.
+ */
+private def runReleaseJsonTests(): List[Path] =
+  var failed = false
+
+  def check(label: String)(body: => Boolean): Unit =
+    val ok =
+      try body
+      catch
+        case e: Exception =>
+          println(s"  threw: ${e.getMessage}")
+          false
+
+    if ok then println(s"  ok: $label")
+    else
+      println(s"FAIL: $label")
+      failed = true
+
+  // A line in the exact shape sync.py writes.
+  val daemonLine =
+    """{"version":"1.2.0","url":"https://x/p-v1.2.0.joy","sha512":"abc","runtime":"python","jo":"1.0","deps":{"core":"1.1"}}"""
+
+  check("parses a record written by the registry daemon"):
+    ReleaseJson.parse(daemonLine).isRight
+
+  check("reads the platform from the 'runtime' key"):
+    ReleaseJson.parse(daemonLine) match
+      case Right(rec) => rec.platform == "python"
+      case Left(_)    => false
+
+  check("'platform' is not accepted in place of 'runtime'"):
+    val renamed = daemonLine.replace("\"runtime\"", "\"platform\"")
+    ReleaseJson.parse(renamed).isLeft
+
+  check("runtime is required"):
+    val missing = """{"version":"1.2.0","url":"u","sha512":"s","jo":"1.0"}"""
+    ReleaseJson.parse(missing).isLeft
+
+  check("deps and yanked are optional"):
+    val minimal = """{"version":"1.0.0","url":"u","sha512":"s","runtime":"pure","jo":"1.0"}"""
+    ReleaseJson.parse(minimal) match
+      case Right(rec) => rec.deps.isEmpty && !rec.yanked
+      case Left(_)    => false
+
+  if failed then List(Paths.get("ReleaseJson")) else Nil
 
 private def matchesFilter(path: Path, filters: List[String]): Boolean =
   if filters.isEmpty then true
