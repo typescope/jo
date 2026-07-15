@@ -2,6 +2,68 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.12.0] - 2026-07-16
+
+### Added
+
+- Multi-module project support in `jo.toml`, including ordered
+  `[module.<id>]` sections, per-module source roots, source-module
+  dependencies, module-aware build outputs, and module-aware
+  `build`/`clean`/`deps`/`doc`/`lock`/`package`/`run`/`test` commands. ([#67])
+- App-module dependencies can inherit and override link wiring, enabling test
+  modules and app-as-library workflows. ([#67])
+- `Bytes`, an immutable byte sequence, with `fill`, `size`, `get`, `slice`,
+  and `toBase64` support across the interpreter, JavaScript, native, Python,
+  and Ruby backends. ([#65])
+- JIP-0001, documenting the regularized expression syntax. ([#62])
+
+### Changed
+
+- `jo.toml` now separates source dependencies (`modules`) from registry
+  dependencies (`packages`), uses per-module `platform`, and requires explicit
+  per-module `src` entries. ([#67])
+- Expression syntax is more regular: `match`, dot chains, indented colon calls,
+  `rescue`, `allow`, and `with` may be used in more expression positions, while
+  inline colon calls are rejected directly inside comma-delimited contexts.
+  ([#62])
+- Package metadata now records the module platform from the build spec. ([#67])
+
+### Fixed
+
+- Class-parameter factory functions and patterns are synthesized for all
+  parameterized classes unless overridden by user definitions. ([#61])
+- Documentation comments are preserved when annotations appear before the
+  documented definition or member. ([#63])
+- Rebuilds clean stale SAST output when source files are removed or changed.
+  ([#64])
+- Dependency diagnostics cover missing `jo.toml`, missing `src`, module cycles,
+  undefined modules, and clearer module labels. ([#67])
+
+### Security
+
+- No new ambient capabilities are introduced. FFI access remains explicit per
+  module through `enable-ffi`, and `Bytes` exposes an opaque Jo API rather than
+  backend-native byte-buffer representations. ([#65], [#67])
+
+### Compatibility
+
+- Existing single-module `jo.toml` files must be migrated to the
+  `[module.<id>]` shape with explicit `src`; top-level source and dependency
+  fields are no longer the current build-spec form. ([#67])
+- Registry dependencies that were previously listed as source dependencies must
+  move to `packages`, while source dependencies move to `modules`. ([#67])
+- New code using `Bytes` requires the 0.12 compiler, standard library, and
+  runtime backend support. ([#65])
+- Inline colon calls that previously parsed in comma-delimited positions now
+  require parentheses or indentation. ([#62])
+
+[#61]: https://github.com/typescope/jo/pull/61
+[#62]: https://github.com/typescope/jo/pull/62
+[#63]: https://github.com/typescope/jo/pull/63
+[#64]: https://github.com/typescope/jo/pull/64
+[#65]: https://github.com/typescope/jo/pull/65
+[#67]: https://github.com/typescope/jo/pull/67
+
 ## [0.11.5] - 2026-07-10
 
 ### Fixed
