@@ -3,17 +3,17 @@ packages:
     1.0.0:
       namespace: pkg.alpha
       jo: "1.0"
-      platform: pure
+      runtime: pure
     1.1.0:
       namespace: pkg.alpha
       jo: "1.0"
-      platform: pure
+      runtime: pure
   zeta-pkg:
     1.0.0:
       namespace: pkg.zeta
       jo: "1.0"
-      platform: pure
+      runtime: pure
     1.1.0:
       namespace: pkg.zeta
       jo: "1.0"
-      platform: pure
+      runtime: pure
