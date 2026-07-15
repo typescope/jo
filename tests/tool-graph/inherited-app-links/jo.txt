@@ -1,11 +1,11 @@
-# lib: inherited-app-links.runtime
+# lib: [runtime]
 jo compile --sast .build/runtime/jo-1.0/sast runtime/Runtime.jo
 
-# lib: inherited-app-links.app
+# lib: [app]
 jo compile --python app/App.jo --link-lib .build/runtime/jo-1.0/sast --link App.Service.run=App.Real.run --link jo.main=App.entry -o .build/app/jo-1.0/target/app.py
 
-# lib: inherited-app-links.test-runtime
+# lib: [test-runtime]
 jo compile --sast .build/test-runtime/jo-1.0/sast test-runtime/TestRuntime.jo
 
-# root inherited-app-links.test (app)
+# root [test] (app)
 jo compile --python test/Test.jo --lib .build/app/jo-1.0/sast --link-lib .build/runtime/jo-1.0/sast --link-lib .build/test-runtime/jo-1.0/sast --link App.Service.run=Test.Fake.run --link jo.main=Test.entry -o .build/test/jo-1.0/target/test.py

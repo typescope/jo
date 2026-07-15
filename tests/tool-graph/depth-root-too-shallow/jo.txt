@@ -1,8 +1,8 @@
-# lib: a.lib
+# lib: a [lib]
 jo compile --sast a/.build/lib/jo-1.0/sast a/src/Main.jo
 
-# lib: b.lib
+# lib: b [lib]
 jo compile --sast b/.build/lib/jo-1.0/sast b/src/Main.jo --lib a/.build/lib/jo-1.0/sast
 
-# root depth-root-too-shallow.app (app)
+# root [app] (app)
 jo compile --python src/Main.jo --lib b/.build/lib/jo-1.0/sast --lib a/.build/lib/jo-1.0/sast -o .build/app/jo-1.0/target/app.py

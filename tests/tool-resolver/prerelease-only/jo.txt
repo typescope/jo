@@ -1,2 +1,2 @@
 error: no satisfiable version available for mustache
-  app -> mustache(1.2)
+  [app] -> mustache(1.2)

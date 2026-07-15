@@ -1,6 +1,6 @@
-error: conflicting inherited links for module 'inherited-link-conflict.test'
+error: conflicting inherited links for module '[test]'
 
-  Service.run -> AppA.run from inherited-link-conflict.app-a
-  Service.run -> AppB.run from inherited-link-conflict.app-b
+  Service.run -> AppA.run from [app-a]
+  Service.run -> AppB.run from [app-b]
 
 Declare an explicit module.test.links entry for 'Service.run' to override.

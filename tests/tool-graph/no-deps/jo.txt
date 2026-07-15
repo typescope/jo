@@ -1,2 +1,2 @@
-# root no-deps.app (app)
+# root [app] (app)
 jo compile --python src/Main.jo -o .build/app/jo-1.0/target/app.py

@@ -1,1 +1,1 @@
-error: platform conflict in module 'app': source dependencies require different platforms: 'ffi-conflict.app' (python), 'dep-python.lib' (python), 'dep-ruby.lib' (ruby)
+error: platform conflict in module 'app': source dependencies require different platforms: '[app]' (python), 'dep-python [lib]' (python), 'dep-ruby [lib]' (ruby)

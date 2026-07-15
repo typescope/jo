@@ -1,6 +1,6 @@
 jo deps
 : '
-deps [app]
+[app]
   greeter-pkg 1.0.0
     jo-core 1.0.0
   helpers [lib]

@@ -1,5 +1,5 @@
 error: lock file version mismatch for mustache
-  app -> mustache(1.3)
+  [app] -> mustache(1.3)
 
   The lock file had already fixed mustache to 1.2.0-rc1.
   Run `jo lock` to refresh the lock file.

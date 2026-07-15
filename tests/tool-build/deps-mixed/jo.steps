@@ -1,11 +1,11 @@
 jo deps
 : '
-deps-mixed [app]
+[app]
   alpha-pkg 1.0.0
     core-pkg 1.0.0
   z-local [lib]
     gamma-pkg 1.0.0
       delta-pkg 1.0.0
-    beta-local [lib]
+    z-local/beta-local [lib]
       core-pkg 1.0.0
 '

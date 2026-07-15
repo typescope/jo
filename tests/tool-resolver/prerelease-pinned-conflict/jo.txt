@@ -1,5 +1,5 @@
 error: pinned version conflict for mustache
-  app -> mustache(1.3)
+  [app] -> mustache(1.3)
 
   The build spec pins mustache to 1.2.0-rc1.
   That pinned version does not satisfy all dependency requirements.
