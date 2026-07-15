@@ -18,7 +18,7 @@ purposes: the build spec is instructions for *producing* an artifact.
 | `jo`           | string          | Required Jo compatibility line from top-level `jo`. |
 | `version`      | string          | Package version from `[module.<id>.package].version`. |
 | `namespace`    | string          | Namespace declared by the packaged sources. |
-| `runtime`      | string          | Required runtime: `"pure"`, `"python"`, or `"ruby"`. |
+| `platform`     | string          | Required platform: `"pure"`, `"python"`, or `"ruby"`. Derived from the module's `platform`. |
 | `description`  | string          | Optional package description. |
 | `authors`      | array of string | Optional authors. |
 | `license`      | string          | Optional license. |
@@ -26,14 +26,30 @@ purposes: the build spec is instructions for *producing* an artifact.
 | `keywords`     | array of string | Optional keywords. |
 | `dependencies` | table           | Direct registry dependencies plus direct publishable source module dependencies. Link dependencies are omitted. |
 
-## The `runtime` Field
+## The `platform` Field
 
-`runtime` is always present in generated `meta.toml`. It is one of `"pure"`,
+`platform` is always present in generated `meta.toml`. It is one of `"pure"`,
 `"python"`, or `"ruby"`.
 
-The author declares it in `[module.<id>.package].runtime`. If omitted, Jo records
-`"pure"`. A runtime package may be published, but published package dependencies
+It is derived from `[module.<id>].platform`, not declared in the package table.
+A lib module that omits `platform` is `"pure"`. An app module always names a
+platform, so a published app module records the platform it is built for.
+
+There is one place to state a platform and it is the module, so what consumers
+read can never disagree with what was compiled.
+
+A platform-bound package may be published, but published package dependencies
 must still be pure registry packages.
+
+### Packages published before the rename
+
+This field used to be called `runtime`. Jo still reads `runtime` from a
+`meta.toml` that has no `platform`, and treats it the same way, so packages
+published before the rename keep resolving. If both keys are present, `platform`
+is used.
+
+`jo package` only ever writes `platform`. You never need to write either by hand
+— both are derived from the module.
 
 ## Namespace-to-Directory Mapping
 
@@ -57,7 +73,7 @@ namespace = "agentapi"
 name = "agent-api"
 jo = "1.0"
 version = "1.0.0"
-runtime = "pure"
+platform = "pure"
 description = "Sandbox agent framework API"
 authors = ["Alice <alice@example.com>"]
 license = "MIT"

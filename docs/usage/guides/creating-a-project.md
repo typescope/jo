@@ -16,7 +16,7 @@ jo = "1.0"
 [module.app]
 kind = "app"
 src = ["src/"]
-target = "python"
+platform = "python"
 ```
 
 ## New Library
@@ -48,7 +48,7 @@ Tests are app modules that depend on the module they test. For the app project a
 ```toml
 [module.test]
 kind = "app"
-target = "python"
+platform = "python"
 src = ["tests/"]
 dependencies = [
   { module = "app" },
@@ -77,7 +77,7 @@ src = ["api/src/"]
 [module.app]
 kind = "app"
 src = ["app/src/"]
-target = "python"
+platform = "python"
 dependencies = [
   { module = "api" },
 ]

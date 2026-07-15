@@ -108,4 +108,4 @@ jo compile --doc lib/Core.jo lib/List.jo \
 
 `jo compile` is a low-level escape hatch for scripts, CI pipelines, or experiments that don't fit the standard project layout. For normal project workflows, prefer the higher-level commands such as `jo build`, `jo run <module>`, and [`jo doc`](doc.md).
 
-If a module declares `[module.<id>.package].runtime = "python"` or `"ruby"`, `jo build` derives the corresponding `--use-runtime-api` behavior automatically for library compilation.
+If a module declares `enable-ffi = true`, `jo build` passes the `--use-runtime-api` value matching that module's `platform` automatically.

@@ -7,7 +7,7 @@ Add registry packages to a module's `dependencies` array:
 ```toml
 [module.app]
 kind = "app"
-target = "python"
+platform = "python"
 dependencies = [
   { package = "mustache", version = "1.0" },
 ]
@@ -54,7 +54,7 @@ Tests are app modules:
 ```toml
 [module.test]
 kind = "app"
-target = "python"
+platform = "python"
 src = ["tests/"]
 dependencies = [
   { module = "api" },

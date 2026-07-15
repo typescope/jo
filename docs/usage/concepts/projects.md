@@ -17,22 +17,22 @@ src = ["api/src/"]
 [module.app]
 kind = "app"
 src = ["app/src/"]
-target = "python"
+platform = "python"
 dependencies = [
   { module = "api" },
 ]
 ```
 
-Every app module declares its own `target`. Lib modules have no target — they compile to `.sast`, which is backend-independent.
+Every app module declares its own `platform` — the backend it emits. Lib modules compile to `.sast`, which is backend-independent, so they default to `platform = "pure"` and only name a platform when their output requires one.
 
 ## Depending On An App Module
 
-An app module is a lib module plus a target, link wiring, and an entry point. Other modules can depend on one, which is what makes a test module possible:
+An app module is a lib module plus a platform, link wiring, and an entry point. Other modules can depend on one, which is what makes a test module possible:
 
 ```toml
 [module.test]
 kind = "app"
-target = "python"
+platform = "python"
 src = ["tests/"]
 dependencies = [
   { module = "app" },

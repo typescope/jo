@@ -118,7 +118,7 @@ jo = "1.0"
 
 [module.app]
 kind = "app"
-target = "python"
+platform = "python"
 depth = 2
 dependencies = [
   { package = "agent-api", version = "1.0" },
@@ -136,14 +136,14 @@ kind = "lib"
 
 [module.app]
 kind = "app"
-target = "python"
+platform = "python"
 dependencies = [
   { module = "core" },
 ]
 
 [module.test]
 kind = "app"
-target = "python"
+platform = "python"
 src = ["tests/**/*.jo"]
 depth = 2
 dependencies = [
@@ -179,7 +179,7 @@ The library defines the *shape* of its dependencies without taking a dependency 
 ```toml
 [module.app]
 kind = "app"
-target = "python"
+platform = "python"
 dependencies = [
   { module = "agent-api" },
 ]

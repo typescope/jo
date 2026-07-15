@@ -12,12 +12,12 @@ default = "app"
 
 [module.app]
 kind = "app"
-target = "python"
+platform = "python"
 src = ["src/"]
 
 [module.test]
 kind = "app"
-target = "python"
+platform = "python"
 src = ["tests/"]
 dependencies = [
   { module = "app" },
@@ -27,9 +27,9 @@ dependencies = [
 
 The test module now sees everything the app defines. You do not need to split the app into a library to test it.
 
-An app module is a library plus a target, link wiring, and an entry point. Depending on one gives you the code and the wiring, not the entry point. Jo takes the entry point from the sources of the module it is building, so `jo run test` runs the test's `main`. The app's `main` comes in as an ordinary function and is never mistaken for the entry point.
+An app module is a library plus a platform, link wiring, and an entry point. Depending on one gives you the code and the wiring, not the entry point. Jo takes the entry point from the sources of the module it is building, so `jo run test` runs the test's `main`. The app's `main` comes in as an ordinary function and is never mistaken for the entry point.
 
-A test module is an app module, so it declares its own `target`, and it must match the target of the app module it depends on.
+A test module is an app module, so it declares its own `platform`, and it must match the platform of the app module it depends on.
 
 ## Testing A Library
 
@@ -38,7 +38,7 @@ Depend on the lib module. This is the same shape:
 ```toml
 [module.test]
 kind = "app"
-target = "python"
+platform = "python"
 src = ["tests/"]
 dependencies = [
   { module = "lib" },
@@ -64,14 +64,14 @@ Depending on an app module copies its links. Declare a link with the same `from`
 ```toml
 [module.app]
 kind = "app"
-target = "python"
+platform = "python"
 links = [
   { from = "agentapi.runTask", to = "app.runTask" },
 ]
 
 [module.test]
 kind = "app"
-target = "python"
+platform = "python"
 src = ["tests/"]
 dependencies = [
   { module = "app" },
@@ -97,7 +97,7 @@ src = ["src/"]
 
 [module.app]
 kind = "app"
-target = "python"
+platform = "python"
 src = ["app/"]
 dependencies = [
   { module = "core" },
@@ -106,7 +106,7 @@ dependencies = [
 
 [module.test]
 kind = "app"
-target = "python"
+platform = "python"
 src = ["tests/"]
 dependencies = [
   { module = "core" },
@@ -125,7 +125,7 @@ Tests are app modules, so normal app defaults apply. Set `depth` on the test mod
 ```toml
 [module.test]
 kind = "app"
-target = "python"
+platform = "python"
 src = ["tests/"]
 depth = 2
 dependencies = [

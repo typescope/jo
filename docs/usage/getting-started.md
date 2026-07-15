@@ -28,7 +28,7 @@ jo = "1.0"
 [module.app]
 kind = "app"
 src = ["src/"]
-target = "python"
+platform = "python"
 ```
 
 Edit `src/main.jo`:
@@ -58,7 +58,7 @@ jo = "1.0"
 [module.app]
 kind = "app"
 src = ["src/"]
-target = "python"
+platform = "python"
 dependencies = [
   { package = "mustache", version = "1.0" },
 ]
@@ -102,7 +102,7 @@ default = "app"
 [module.app]
 kind = "app"
 src = ["src/"]
-target = "python"
+platform = "python"
 dependencies = [
   { package = "mustache", version = "1.0" },
 ]
@@ -110,7 +110,7 @@ dependencies = [
 [module.test]
 kind = "app"
 src = ["tests/"]
-target = "python"
+platform = "python"
 dependencies = [
   { module = "app" },
   { package = "jo-test", version = "0.1" },

@@ -68,9 +68,10 @@ If any `defer def` is unresolved at link time, the build fails.
 inherits its links and may override any of them by declaring a link with the
 same `from`. See [Build Spec](../reference/build-spec.md).
 
-## Runtime-Constrained Packages
+## Platform-Bound Packages
 
-The `runtime` field in `meta.toml` indicates whether a package is pure Jo or tied to a runtime:
+The `platform` field in `meta.toml` indicates whether a package is pure Jo or
+tied to a platform:
 
 | Value      | Meaning                     |
 |------------|-----------------------------|
@@ -78,22 +79,31 @@ The `runtime` field in `meta.toml` indicates whether a package is pure Jo or tie
 | `"python"` | Requires the Python runtime |
 | `"ruby"`   | Requires the Ruby runtime   |
 
-A package author can assert runtime in `[module.<id>.package]`:
+A package author declares it on the module, not on the package table:
 
 ```toml
+[module.runtime]
+kind = "lib"
+platform = "python"
+enable-ffi = true
+
 [module.runtime.package]
 name = "agent-runtime-python"
 version = "1.0.0"
-runtime = "python"
 ```
 
-If omitted, `runtime` defaults to `"pure"`.
+`platform` states what the package requires. `enable-ffi` is separate and off by
+default — it grants *this* module's code access to `py.*`, which a thin FFI
+adapter needs and its dependents do not.
 
-`runtime` is **contagious** through the dependency graph: if a source module
-dependency has `runtime != "pure"`, the dependent module is treated as requiring
-that runtime too. Two dependencies with conflicting non-`pure` runtime values
-are a build error.
+Lib modules default to `"pure"`. App modules always name a platform, so a
+published app module records the one it is built for. `jo package` derives the
+`meta.toml` value from the module, so it cannot disagree with what was compiled.
 
-Published package dependencies must be `pure`. Runtime-constrained packages are
+`platform` is **contagious** through the dependency graph. If a source module
+dependency is not `"pure"`, the dependent module is bound to that platform too.
+Two dependencies with conflicting platforms are a build error.
+
+Published package dependencies must be `pure`. Platform-bound packages are
 meant to be thin adapter packages at the edge of the graph, not deep transitive
 layers.

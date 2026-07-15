@@ -44,12 +44,12 @@ jo = "1.0"
 [module.app]
 kind = "app"
 src = ["src/"]
-target = "python"
+platform = "python"
 
 [module.test]
 kind = "app"
 src = ["tests/"]
-target = "python"
+platform = "python"
 
 dependencies = [
   { module = "app" },
@@ -94,7 +94,7 @@ version = "0.1.0"
 [module.test]
 kind = "app"
 src = ["tests/"]
-target = "python"
+platform = "python"
 
 dependencies = [
   { module = "lib" },
