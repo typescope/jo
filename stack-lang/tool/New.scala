@@ -54,10 +54,7 @@ object New:
            |kind = "app"
            |src = ["tests/"]
            |platform = "${Target.Python.flag}"
-           |
-           |dependencies = [
-           |  { module = "lib" },
-           |]
+           |modules = ["lib"]
            |""".stripMargin)
 
       Files.writeString(dir.resolve("tests/Main.jo"),
@@ -87,10 +84,7 @@ object New:
            |kind = "app"
            |src = ["tests/"]
            |platform = "${Target.Python.flag}"
-           |
-           |dependencies = [
-           |  { module = "app" },
-           |]
+           |modules = ["app"]
            |""".stripMargin)
 
       Files.writeString(dir.resolve("src/Main.jo"),

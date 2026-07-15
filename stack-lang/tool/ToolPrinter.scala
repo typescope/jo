@@ -79,18 +79,20 @@ object ToolPrinter:
       p.license.foreach(l => sb.append(s"${pad}  license = ${str(l)}\n"))
       if p.keywords.nonEmpty then sb.append(s"${pad}  keywords = ${strList(p.keywords)}\n")
 
-    if s.dependencies.nonEmpty then
-      sb.append(s"${pad}dependencies:\n")
+    def linkTag(link: DepLink): String = if link == DepLink.Link then " [link]" else ""
 
-      for d <- s.dependencies do
-        val linkTag = if d.link == DepLink.Link then " [link]" else ""
+    if s.moduleDeps.nonEmpty then
+      sb.append(s"${pad}modules:\n")
 
-        val sourceStr = d.source match
-          case DepSource.Module(module, None)       => s"module ${str(module.value)}"
-          case DepSource.Module(module, Some(path)) => s"path ${str(path)} module ${str(module.value)}"
-          case DepSource.Registry(name, c)          => s"package ${str(name)} ${str(c.show)}"
+      for d <- s.moduleDeps do
+        val path = d.path.map(p => s" path ${str(p)}").getOrElse("")
+        sb.append(s"$pad  - ${str(d.id.value)}$path${linkTag(d.link)}\n")
 
-        sb.append(s"$pad  - $sourceStr$linkTag\n")
+    if s.packageDeps.nonEmpty then
+      sb.append(s"${pad}packages:\n")
+
+      for d <- s.packageDeps do
+        sb.append(s"$pad  - ${str(d.name)} ${str(d.constraint.show)}${linkTag(d.link)}\n")
 
     if s.links.nonEmpty then
       sb.append(s"${pad}links:\n")

@@ -37,11 +37,8 @@ object DepsPrinter:
       (dep.module.value, depProject.relativeProjectPath(root)) -> Child.Module(depProject, dep.module)
 
     val packageDeps = project.module(module).toList.flatMap: spec =>
-      spec.dependencies.flatMap:
-        case DepSpec(DepSource.Registry(name, _), _) =>
-          packages.get(name).map(pkg => (name, name) -> Child.Package(name, pkg))
-        case _ =>
-          None
+      spec.packageDeps.flatMap: dep =>
+        packages.get(dep.name).map(pkg => (dep.name, dep.name) -> Child.Package(dep.name, pkg))
 
     (moduleDeps ++ packageDeps).sortBy(_._1).foreach:
       case (_, Child.Module(depProject, depModule)) =>

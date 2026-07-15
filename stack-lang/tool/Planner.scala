@@ -84,9 +84,7 @@ object Planner:
       project0.moduleLabel(root, id)
 
     private def registryCheckLibs(module: ModuleSpec): List[Path] =
-      module.dependencies.flatMap:
-        case DepSpec(DepSource.Registry(name, _), DepLink.Check) => registrySastDirs.get(name)
-        case _ => Nil
+      module.packageDeps.filter(_.link == DepLink.Check).flatMap(dep => registrySastDirs.get(dep.name))
 
     private def sourceClosure(project0: Project, id: ModuleId): List[(Project, ModuleId, DepLink)] =
       val out = collection.mutable.ListBuffer.empty[(Project, ModuleId, DepLink)]
@@ -136,46 +134,40 @@ object Planner:
       val linkLibs = collection.mutable.ListBuffer.empty[Path]
       val inheritedLinks = collection.mutable.LinkedHashMap.empty[String, EffectiveLink]
 
-      spec.dependencies.foldLeft(Result.unit): (acc, depSpec) =>
-        acc.flatMap(_ => addDependencyLinks(project, id, depSpec, linkLibs, inheritedLinks, ownOverrides, owner))
+      spec.packageDeps.filter(_.link == DepLink.Link).foreach: dep =>
+        registrySastDirs.get(dep.name).foreach(linkLibs += _)
+
+      spec.moduleDeps.foldLeft(Result.unit): (acc, depSpec) =>
+        acc.flatMap(_ => addModuleLinks(project, id, depSpec, linkLibs, inheritedLinks, ownOverrides, owner))
       .map: _ =>
         spec.links.foreach: link =>
           inheritedLinks(link.from) = EffectiveLink(link.to, owner)
 
         EffectiveAppLinks(linkLibs.toList.distinct, inheritedLinks.toMap)
 
-    private def addDependencyLinks(
+    private def addModuleLinks(
       project: Project,
       id: ModuleId,
-      depSpec: DepSpec,
+      depSpec: ModuleDepSpec,
       linkLibs: collection.mutable.ListBuffer[Path],
       inheritedLinks: collection.mutable.LinkedHashMap[String, EffectiveLink],
       ownOverrides: Set[String],
       owner: String,
     ): Result[Unit] =
-      depSpec match
-        case DepSpec(DepSource.Registry(name, _), DepLink.Link) =>
-          registrySastDirs.get(name).foreach(linkLibs += _)
-          Result.unit
+      project.moduleDepOf(id, depSpec.id, depSpec.path) match
+        case None =>
+          Result.Err(s"module '${id.value}' depends on unresolved module '${depSpec.id.value}'")
 
-        case DepSpec(DepSource.Registry(_, _), DepLink.Check) =>
-          Result.unit
+        case Some(dep) =>
+          val depProject = dep.project.getOrElse(project)
+          if depSpec.link == DepLink.Link then
+            linkLibs += depProject.sastDir(depSpec.id)
 
-        case DepSpec(DepSource.Module(depModule, sourcePath), linkMode) =>
-          project.moduleDepOf(id, depModule, sourcePath) match
-            case None =>
-              Result.Err(s"module '${id.value}' depends on unresolved module '${depModule.value}'")
-
-            case Some(dep) =>
-              val depProject = dep.project.getOrElse(project)
-              if linkMode == DepLink.Link then
-                linkLibs += depProject.sastDir(depModule)
-
-              projectLinks(depProject, depModule).flatMap: inherited =>
-                linkLibs ++= inherited.linkLibs
-                inherited.links.foldLeft(Result.unit): (mergeAcc, entry) =>
-                  val (from, link) = entry
-                  mergeAcc.flatMap(_ => mergeInherited(id, owner, ownOverrides, inheritedLinks, from, link))
+          projectLinks(depProject, depSpec.id).flatMap: inherited =>
+            linkLibs ++= inherited.linkLibs
+            inherited.links.foldLeft(Result.unit): (mergeAcc, entry) =>
+              val (from, link) = entry
+              mergeAcc.flatMap(_ => mergeInherited(id, owner, ownOverrides, inheritedLinks, from, link))
 
     private def projectLinks(project: Project, id: ModuleId): Result[EffectiveAppLinks] =
       project.requireModule(id).flatMap: spec =>

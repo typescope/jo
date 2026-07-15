@@ -256,31 +256,28 @@ object Project:
             val label = dep.projectSpecPath match
               case Some(specPath) => s"${LogFormat.path(specPath)} [${dep.module.value}]"
               case None           => dep.module.value
-            Result.Err(s"duplicate module dependency '$label' in module.${module.value}.dependencies")
+            Result.Err(s"duplicate module dependency '$label' in module.${module.value}.modules")
           else
             deps += dep
             Result.unit
 
-        val result = moduleDef.spec.dependencies.foldLeft(Result.unit): (depAcc, depSpec) =>
+        val result = moduleDef.spec.moduleDeps.foldLeft(Result.unit): (depAcc, depSpec) =>
           depAcc.flatMap: _ =>
-            depSpec.source match
-              case DepSource.Module(depModule, None) =>
-                if spec.module(depModule).isEmpty then
-                  Result.Err(s"module '${module.value}' depends on undefined module '${depModule.value}'")
+            depSpec.path match
+              case None =>
+                if spec.module(depSpec.id).isEmpty then
+                  Result.Err(s"module '${module.value}' depends on undefined module '${depSpec.id.value}'")
                 else
-                  addModuleDep(ModuleDep(depModule, depSpec.link, None, None))
+                  addModuleDep(ModuleDep(depSpec.id, depSpec.link, None, None))
 
-              case DepSource.Module(depModule, Some(relPath)) =>
+              case Some(relPath) =>
                 canonicalDependencySpecPath(specDir, relPath).flatMap: depSpecPath =>
                   loadAt(depSpecPath).flatMap: depProject =>
-                    depProject.module(depModule) match
+                    depProject.module(depSpec.id) match
                       case Some(_) =>
-                        addModuleDep(ModuleDep(depModule, depSpec.link, Some(depProject), Some(depProject.specPath)))
+                        addModuleDep(ModuleDep(depSpec.id, depSpec.link, Some(depProject), Some(depProject.specPath)))
                       case None =>
-                        Result.Err(s"module dependency '${depModule.value}' is not defined in ${LogFormat.path(depProject.specPath)}")
-
-              case DepSource.Registry(_, _) =>
-                Result.unit
+                        Result.Err(s"module dependency '${depSpec.id.value}' is not defined in ${LogFormat.path(depProject.specPath)}")
 
         result.map(_ => byModule + (module -> deps.toList))
 

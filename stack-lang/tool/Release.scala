@@ -69,30 +69,25 @@ object Release:
             dependencies(name) = constraint
             Result.unit
 
-      spec.dependencies.foldLeft(Result.unit): (acc, depSpec) =>
-        acc.flatMap: _ =>
-          if depSpec.link == DepLink.Link then
-            Result.unit
-          else
-            depSpec.source match
-              case DepSource.Registry(name, constraint) =>
-                addDependency(name, constraint)
+      spec.packageDeps.filter(_.link == DepLink.Check).foldLeft(Result.unit): (acc, dep) =>
+        acc.flatMap(_ => addDependency(dep.name, dep.constraint))
+      .flatMap: _ =>
+        spec.moduleDeps.filter(_.link == DepLink.Check).foldLeft(Result.unit): (acc, depSpec) =>
+          acc.flatMap: _ =>
+            project.moduleDepOf(module, depSpec.id, depSpec.path) match
+              case None =>
+                Result.Err(s"module dependency '${depSpec.id.value}' was not resolved for module '${module.value}'")
 
-              case DepSource.Module(depModule, sourcePath) =>
-                project.moduleDepOf(module, depModule, sourcePath) match
+              case Some(dep) =>
+                val depProject = dep.project.getOrElse(project)
+                depProject.pkg(depSpec.id) match
                   case None =>
-                    Result.Err(s"module dependency '${depModule.value}' was not resolved for module '${module.value}'")
-
-                  case Some(dep) =>
-                    val depProject = dep.project.getOrElse(project)
-                    depProject.pkg(depModule) match
-                      case None =>
-                        Result.Err(
-                          s"module '${module.value}' depends on source module '${depModule.value}', but that module has no [module.${depModule.value}.package]"
-                        )
-                      case Some(pkg) =>
-                        versionConstraint(pkg.version, depModule).flatMap: constraint =>
-                          addDependency(pkg.name, constraint)
+                    Result.Err(
+                      s"module '${module.value}' depends on source module '${depSpec.id.value}', but that module has no [module.${depSpec.id.value}.package]"
+                    )
+                  case Some(pkg) =>
+                    versionConstraint(pkg.version, depSpec.id).flatMap: constraint =>
+                      addDependency(pkg.name, constraint)
       .map(_ => dependencies.toMap)
 
   private def versionConstraint(version: String, module: ModuleId): Result[VersionSpec] =

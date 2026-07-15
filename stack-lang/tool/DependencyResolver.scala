@@ -269,17 +269,16 @@ object DependencyResolver:
       val key = currentProject.specPath -> module
       if seen.add(key) then
         currentProject.module(module).foreach: spec =>
-          spec.dependencies.foreach:
-            case DepSpec(DepSource.Registry(name, constraint), _) =>
-              pending += (PackageConstraint(name, constraint) -> parent)
+          spec.packageDeps.foreach: dep =>
+            pending += (PackageConstraint(dep.name, dep.constraint) -> parent)
 
-            case DepSpec(DepSource.Module(depModule, depPath), _) =>
-              val depProject = currentProject.moduleDepOf(module, depModule, depPath)
-                .flatMap(_.project)
-                .getOrElse(currentProject)
-              val child = Node.Module(depProject.specPath, depModule)
-              addEdge(child, parent)
-              walkModule(depProject, depModule, child, seen)
+          spec.moduleDeps.foreach: dep =>
+            val depProject = currentProject.moduleDepOf(module, dep.id, dep.path)
+              .flatMap(_.project)
+              .getOrElse(currentProject)
+            val child = Node.Module(depProject.specPath, dep.id)
+            addEdge(child, parent)
+            walkModule(depProject, dep.id, child, seen)
 
     roots.foreach: root =>
       val rootNode = Node.Root(root)

@@ -15,12 +15,13 @@ enum DepLink:
   case Check   // visible to user code (type-check library)
   case Link    // hidden; resolves defer defs at link time
 
-/** Where the dep comes from. */
-enum DepSource:
-  case Module(module: ModuleId, path: Option[String] = None)
-  case Registry(packageName: String, constraint: VersionSpec)
+/** A source module dependency: built from source, never versioned.
+ *  `path` names the directory holding the `jo.toml` that defines it; None means this project.
+ */
+case class ModuleDepSpec(id: ModuleId, path: Option[String] = None, link: DepLink = DepLink.Check)
 
-case class DepSpec(source: DepSource, link: DepLink = DepLink.Check)
+/** A registry package dependency: resolved and locked by version. */
+case class PackageDepSpec(name: String, constraint: VersionSpec, link: DepLink = DepLink.Check)
 
 case class LinkSpec(from: String, to: String)
 
@@ -30,7 +31,8 @@ case class ModuleSpec(
   platform: Option[Platform],   // app backend or lib platform binding
   enableFfi: Boolean,           // whether this module may call py.*/rb.*
   depth: Option[Int],           // optional package-depth override for this module
-  dependencies: List[DepSpec],
+  moduleDeps: List[ModuleDepSpec],
+  packageDeps: List[PackageDepSpec],
   links: List[LinkSpec],        // defer-sym -> target-sym
   compileOptions: List[String] = Nil,  // extra flags passed to `jo compile`
   pkg: Option[PackageSpec] = None,
@@ -128,7 +130,8 @@ object BuildSpec:
         throw TomlError(s"invalid module.${id.value}.platform '$s', must be one of: ${Platform.all.map(_.value).mkString(", ")}")
     val enableFfi = tbl.get("enable-ffi").map(asBool(_, s"module.${id.value}.enable-ffi")).getOrElse(false)
     val depth = tbl.get("depth").map(asInt(_, s"module.${id.value}.depth"))
-    val dependencies = tbl.get("dependencies").map(v => decodeDependencies(v, id)).getOrElse(Nil)
+    val moduleDeps = tbl.get("modules").map(v => decodeModuleDeps(v, id)).getOrElse(Nil)
+    val packageDeps = tbl.get("packages").map(v => decodePackageDeps(v, id)).getOrElse(Nil)
     val links = tbl.get("links").map(v => decodeLinks(v, id)).getOrElse(Nil)
     val compileOptions = tbl.get("compile-options").map(asStrList(_, s"module.${id.value}.compile-options")).getOrElse(Nil)
     val pkg = tbl.get("package").map(v => decodePackage(asTbl(v, s"module.${id.value}.package"), id))
@@ -142,65 +145,79 @@ object BuildSpec:
         case _ =>
     if kind == ModuleKind.Lib && links.nonEmpty then
       throw TomlError(s"module.${id.value}.links is valid only for kind = \"app\"")
-    if kind == ModuleKind.Lib && dependencies.exists(_.link == DepLink.Link) then
-      throw TomlError(s"module.${id.value}.dependencies cannot use link = true when kind = \"lib\"")
+    if kind == ModuleKind.Lib && moduleDeps.exists(_.link == DepLink.Link) then
+      throw TomlError(s"module.${id.value}.modules cannot use link = true when kind = \"lib\"")
+    if kind == ModuleKind.Lib && packageDeps.exists(_.link == DepLink.Link) then
+      throw TomlError(s"module.${id.value}.packages cannot use link = true when kind = \"lib\"")
     if enableFfi && platform.getOrElse(Platform.Pure) == Platform.Pure then
       throw TomlError(s"module.${id.value}.enable-ffi requires platform = \"python\" or platform = \"ruby\"")
 
-    ModuleSpec(kind, src, platform, enableFfi, depth, dependencies, links, compileOptions, pkg)
+    ModuleSpec(kind, src, platform, enableFfi, depth, moduleDeps, packageDeps, links, compileOptions, pkg)
 
-  private def decodeDependencies(value: TomlValue, owner: ModuleId): List[DepSpec] =
-    val items = value match
-      case Arr(items) => items
-      case _          => throw TomlError(s"'module.${owner.value}.dependencies' must be an array")
+  /** `modules = ["api", { id = "helpers", path = "../lib" }]`
+   *  A bare string is shorthand for `{ id = "<string>" }`.
+   */
+  private def decodeModuleDeps(value: TomlValue, owner: ModuleId): List[ModuleDepSpec] =
+    val deps = decodeDepArray(value, owner, "modules"): (item, ctx) =>
+      item match
+        case Str(id) =>
+          ModuleDepSpec(ModuleId(validateModuleId(id, ctx)))
 
-    val deps = items.zipWithIndex.map: (item, idx) =>
-      val ctx = s"module.${owner.value}.dependencies[$idx]"
-      val tbl = asTbl(item, ctx)
-      decodeDependency(tbl, ctx)
+        case Tbl(fields) =>
+          val id = fields.get("id") match
+            case Some(v) => ModuleId(validateModuleId(asStr(v, s"$ctx.id"), s"$ctx.id"))
+            case None    => throw TomlError(s"missing required field '$ctx.id'")
+          ModuleDepSpec(id, fields.get("path").map(asStr(_, s"$ctx.path")), decodeDepLink(fields, ctx))
 
-    val seen = collection.mutable.Set.empty[String]
-    deps.foreach: dep =>
-      val key = dep.source match
-        case DepSource.Module(module, path) => s"module:${path.getOrElse(".")}:${module.value}"
-        case DepSource.Registry(name, _)    => s"package:$name"
-      if seen.contains(key) then
-        throw TomlError(s"duplicate dependency '$key' in module.${owner.value}.dependencies")
-      seen += key
+        case _ =>
+          throw TomlError(s"$ctx must be a string or an inline table")
 
+    // Identity is (path, id): the same id in two different projects is two dependencies.
+    requireDistinct(deps, owner, "modules")(dep => s"${dep.path.getOrElse(".")}:${dep.id.value}")
     deps
 
-  private def decodeDependency(tbl: Map[String, TomlValue], ctx: String): DepSpec =
-    val hasModule = tbl.contains("module")
-    val hasPackage = tbl.contains("package")
+  /** `packages = [{ name = "mustache", version = "1.0" }]` */
+  private def decodePackageDeps(value: TomlValue, owner: ModuleId): List[PackageDepSpec] =
+    val deps = decodeDepArray(value, owner, "packages"): (item, ctx) =>
+      val fields = asTbl(item, ctx)
+      val name = fields.get("name") match
+        case Some(v) =>
+          val n = asStr(v, s"$ctx.name")
+          validatePackageName(n, s"$ctx.name")
+          n
+        case None => throw TomlError(s"missing required field '$ctx.name'")
+      val constraint = fields.get("version") match
+        case Some(v) => parseVersionSpec(asStr(v, s"$ctx.version"), s"$ctx.version")
+        case None    => throw TomlError(s"missing required field '$ctx.version'")
+      PackageDepSpec(name, constraint, decodeDepLink(fields, ctx))
 
-    if hasModule == hasPackage then
-      throw TomlError(s"$ctx must contain exactly one of 'module' or 'package'")
+    requireDistinct(deps, owner, "packages")(_.name)
+    deps
 
-    val link = tbl.get("link") match
+  private def decodeDepArray[T](value: TomlValue, owner: ModuleId, field: String)(
+    decode: (TomlValue, String) => T
+  ): List[T] =
+    value match
+      case Arr(items) =>
+        items.zipWithIndex.map: (item, idx) =>
+          decode(item, s"module.${owner.value}.$field[$idx]")
+
+      case _ =>
+        throw TomlError(s"'module.${owner.value}.$field' must be an array")
+
+  private def requireDistinct[T](deps: List[T], owner: ModuleId, field: String)(key: T => String): Unit =
+    val seen = collection.mutable.Set.empty[String]
+    deps.foreach: dep =>
+      val k = key(dep)
+      if !seen.add(k) then
+        throw TomlError(s"duplicate dependency '$k' in module.${owner.value}.$field")
+
+  private def decodeDepLink(fields: Map[String, TomlValue], ctx: String): DepLink =
+    fields.get("link") match
       case Some(Bool(true))  => DepLink.Link
       case Some(Bool(false)) => DepLink.Check
       case Some(_)           => throw TomlError(s"$ctx.link must be a boolean")
       case None              => DepLink.Check
-
-    if hasModule then
-      if tbl.contains("version") then
-        throw TomlError(s"$ctx.version is invalid for module dependencies")
-
-      val module = ModuleId(validateModuleId(asStr(tbl("module"), s"$ctx.module"), s"$ctx.module"))
-      val path = tbl.get("path").map(asStr(_, s"$ctx.path"))
-      DepSpec(DepSource.Module(module, path), link)
-    else
-      if tbl.contains("path") then
-        throw TomlError(s"$ctx.path is invalid for package dependencies")
-
-      val name = asStr(tbl("package"), s"$ctx.package")
-      validatePackageName(name, s"$ctx.package")
-      val rawVersion =
-        tbl.get("version") match
-          case Some(v) => asStr(v, s"$ctx.version")
-          case None    => throw TomlError(s"missing required field '$ctx.version'")
-      DepSpec(DepSource.Registry(name, parseVersionSpec(rawVersion, s"$ctx.version")), link)
 
   private def decodeLinks(value: TomlValue, owner: ModuleId): List[LinkSpec] =
     val items = value match
