@@ -138,7 +138,7 @@ modules = ["core"]
 [module.test]
 kind = "app"
 platform = "python"
-src = ["tests/**/*.jo"]
+src = ["tests"]
 depth = 2
 modules = ["core"]
 packages = [{ name = "jo-test", version = "1.0" }]

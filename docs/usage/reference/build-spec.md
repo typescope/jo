@@ -41,7 +41,7 @@ Module ids must start with a letter and may contain letters, digits, and hyphens
 | Field             | Type             | Required | Description |
 |-------------------|------------------|----------|-------------|
 | `kind`            | string           | yes      | `"lib"` or `"app"`. |
-| `src`             | array of globs   | yes      | Source files for this module. |
+| `src`             | array of paths   | yes      | Source directories or `.jo` files for this module. Directories are searched recursively. |
 | `platform`        | string           | app only | Platform this module is bound to. Apps: `"python"` or `"ruby"`, required. Libs: `"pure"`, `"python"`, or `"ruby"`, default `"pure"`. |
 | `enable-ffi`      | boolean          | no       | May this module's own code call the platform's FFI API (`py.*`, `rb.*`). Default: `false`. |
 | `depth`           | integer          | no       | Maximum registry package dependency depth for this module. Default: `0` for `lib`, `1` for `app`. |
@@ -91,11 +91,11 @@ default = "app"
 
 [module.api]
 kind = "lib"
-src = ["api/src/"]
+src = ["api/src"]
 
 [module.app]
 kind = "app"
-src = ["app/src/"]
+src = ["app/src", "generated/AppConfig.jo"]
 platform = "python"
 modules = ["api"]
 packages = [{ name = "mustache", version = "1.0" }]
@@ -103,6 +103,10 @@ links = [
   { from = "agentapi.runTask", to = "app.runTask" },
 ]
 ```
+
+`src` entries are project-relative paths. A directory entry includes every `.jo`
+file under that directory recursively. A file entry includes that file only and
+must end with `.jo`. Glob syntax is not supported.
 
 ## Dependencies
 
