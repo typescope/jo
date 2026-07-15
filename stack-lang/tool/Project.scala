@@ -1,6 +1,7 @@
 package tool
 
 import java.nio.file.{Files, Path}
+import scala.collection.mutable
 import tool.toml.{TomlError, TomlParser}
 
 /** A source module dependency. `project = None` means same project. */
@@ -19,6 +20,8 @@ final class Project private (
   val joVersion: Version,
   val joBin: Path,
 ):
+  private val platformByModule: mutable.Map[ModuleId, Platform] = mutable.LinkedHashMap.empty
+
   def joVersionSpec: VersionSpec = spec.jo
 
   def pinning: Map[String, Version] = spec.pinning
@@ -65,12 +68,7 @@ final class Project private (
     module(id).flatMap(_.platform).getOrElse(Platform.Pure)
 
   def platform(id: ModuleId): Platform =
-    effectivePlatform(id) match
-      case Result.Ok(value) => value
-      case Result.Err(msg)  => throw IllegalStateException(msg)
-
-  private[tool] def effectivePlatform(id: ModuleId): Result[Platform] =
-    Project.effectivePlatform(this, this, id, Nil)
+    platformByModule(id)
 
   /** Root of this module's build output: `<dir>/.build/<module-id>/`. */
   def buildDir(id: ModuleId): Path =
@@ -111,8 +109,8 @@ object Project:
       catch case _: IllegalArgumentException => project.toString
 
   private[tool] def validateModuleAcyclic(root: Project, roots: List[ModuleId]): Result[Unit] =
-    val visited = collection.mutable.Set.empty[(Path, ModuleId)]
-    val stack = collection.mutable.ArrayBuffer.empty[(Project, ModuleId)]
+    val visited = mutable.Set.empty[(Path, ModuleId)]
+    val stack = mutable.ArrayBuffer.empty[(Project, ModuleId)]
 
     def walk(project: Project, module: ModuleId): Result[Unit] =
       val key = project.specPath -> module
@@ -153,9 +151,9 @@ object Project:
     resolveJo: VersionSpec => Result[(Version, Path)],
     resolveExactJo: Version => Result[Path],
   ): Result[Project] =
-    val resolved = collection.mutable.Map.empty[Path, Project]
-    val inProgress = collection.mutable.Set.empty[Path]
-    val stack = collection.mutable.ArrayBuffer.empty[Path]
+    val resolved = mutable.Map.empty[Path, Project]
+    val inProgress = mutable.Set.empty[Path]
+    val stack = mutable.ArrayBuffer.empty[Path]
 
     def loadAt(path: Path, inheritedCompiler: Option[(Version, Path)] = None): Result[Project] =
       val canonicalSpecPath = path.toAbsolutePath.toRealPath()
@@ -190,16 +188,16 @@ object Project:
                 resolveCompiler(canonicalSpecPath, spec.jo, resolveJo, resolveExactJo)
 
           compiler.flatMap: (joVersion, joBin) =>
-            resolveModuleDeps(specDir, spec, depPath => loadAt(depPath, Some(joVersion -> joBin))).map: deps =>
+            resolveModuleDeps(specDir, spec, depPath => loadAt(depPath, Some(joVersion -> joBin))).flatMap: deps =>
               val project = Project(specDir, canonicalSpecPath, spec, deps, joVersion, joBin)
-              resolved(canonicalSpecPath) = project
-              project
+              populatePlatformCache(project).map: _ =>
+                resolved(canonicalSpecPath) = project
+                project
 
       inProgress -= canonicalSpecPath
       if stack.nonEmpty then stack.remove(stack.length - 1)
 
-      result.flatMap: project =>
-        validatePlatform(project).map(_ => project)
+      result
 
     loadAt(specPath)
 
@@ -231,7 +229,7 @@ object Project:
   ): Result[Map[ModuleId, List[ModuleDep]]] =
     spec.modules.foldLeft(Result.Ok(Map.empty[ModuleId, List[ModuleDep]]): Result[Map[ModuleId, List[ModuleDep]]]): (acc, moduleDef) =>
       acc.flatMap: byModule =>
-        val deps = collection.mutable.ListBuffer.empty[ModuleDep]
+        val deps = mutable.ListBuffer.empty[ModuleDep]
         val module = moduleDef.id
         val result = moduleDef.spec.dependencies.foldLeft(Result.unit): (depAcc, depSpec) =>
           depAcc.flatMap: _ =>
@@ -274,37 +272,52 @@ object Project:
     catch case e: TomlError =>
       Result.Err(s"in $file: ${e.getMessage}")
 
-  private[tool] def effectivePlatform(
-    root: Project,
-    project: Project,
-    module: ModuleId,
-    stack: List[(Project, ModuleId)],
-  ): Result[Platform] =
-    val cycleStart = stack.indexWhere(sameModule(_, project, module))
-    if cycleStart >= 0 then
-      return Result.Err(formatModuleCycle(root, stack.drop(cycleStart) :+ ((project, module))))
+  private def populatePlatformCache(project: Project): Result[Unit] =
+    val memo = project.platformByModule
+    val stack = mutable.ArrayBuffer.empty[(Project, ModuleId)]
 
-    val contributors = collection.mutable.LinkedHashMap.empty[String, Platform]
-    val nextStack = stack :+ ((project, module))
+    def compute(module: ModuleId): Result[Platform] =
+      memo.get(module) match
+        case Some(platform) =>
+          Result.Ok(platform)
 
-    val own = project.declaredPlatform(module)
-    if own != Platform.Pure then
-      contributors(project.moduleLabel(root, module)) = own
+        case None =>
+          val cycleStart = stack.indexWhere(sameModule(_, project, module))
+          if cycleStart >= 0 then
+            Result.Err(formatModuleCycle(project, stack.drop(cycleStart).toList :+ ((project, module))))
+          else
+            stack += ((project, module))
+            val contributors = mutable.LinkedHashMap.empty[String, Platform]
 
-    project.moduleDepsOf(module).foldLeft(Result.unit): (acc, dep) =>
-      acc.flatMap: _ =>
-        val depProject = dep.project.getOrElse(project)
-        effectivePlatform(root, depProject, dep.module, nextStack).map: depPlatform =>
-          if depPlatform != Platform.Pure then
-            contributors(depProject.moduleLabel(root, dep.module)) = depPlatform
-    .flatMap: _ =>
-      val distinct = contributors.values.toList.distinct
-      if distinct.length > 1 then
-        val summary = contributors.map((n, p) => s"'$n' (${p.value})").mkString(", ")
-        Result.Err(s"platform conflict in module '${module.value}': source dependencies require different platforms: $summary")
-      else
-        Result.Ok(distinct.headOption.getOrElse(Platform.Pure))
+            val own = project.declaredPlatform(module)
+            if own != Platform.Pure then
+              contributors(project.moduleLabel(project, module)) = own
 
-  private def validatePlatform(project: Project): Result[Unit] =
+            val result = project.moduleDepsOf(module).foldLeft(Result.unit): (acc, dep) =>
+              acc.flatMap: _ =>
+                val depProject = dep.project.getOrElse(project)
+                val depPlatform =
+                  dep.project match
+                    case Some(externalProject) => Result.Ok(externalProject.platform(dep.module))
+                    case None                  => compute(dep.module)
+
+                depPlatform.map: platform =>
+                  if platform != Platform.Pure then
+                    contributors(depProject.moduleLabel(project, dep.module)) = platform
+
+            val platformResult = result.flatMap: _ =>
+              val distinct = contributors.values.toList.distinct
+              if distinct.length > 1 then
+                val summary = contributors.map((n, p) => s"'$n' (${p.value})").mkString(", ")
+                Result.Err(s"platform conflict in module '${module.value}': source dependencies require different platforms: $summary")
+              else
+                Result.Ok(distinct.headOption.getOrElse(Platform.Pure))
+
+            stack.remove(stack.length - 1)
+
+            platformResult.map: platform =>
+              memo(module) = platform
+              platform
+
     project.moduleIds.foldLeft(Result.unit): (acc, module) =>
-      acc.flatMap(_ => project.effectivePlatform(module).map(_ => ()))
+      acc.flatMap(_ => compute(module).map(_ => ()))
