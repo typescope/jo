@@ -44,36 +44,36 @@ object Planner:
                 val sourceCheckLibs = sourceDeps.collect:
                   case (depProject, depModule, DepLink.Check) => depProject.sastDir(depModule)
 
-                val sources = SourceGlob.expand(spec.src, project0.dir)
-                val compileOptions = ffiCompileOptions(spec) ++ spec.compileOptions
-                val task =
-                  spec.kind match
-                    case ModuleKind.Lib =>
-                      Result.Ok(
-                        CompileTask.LibTask(
-                          sources,
-                          sourceCheckLibs ++ registryCheckLibs(spec),
-                          project0.sastDir(id),
-                          compileOptions,
-                        )
-                      )
-
-                    case ModuleKind.App =>
-                      resolveTarget(project0, id).flatMap: target =>
-                        linkResolver.resolve(project0, id).map: effectiveLinks =>
-                          CompileTask.AppTask(
+                SourcePaths.expand(spec.src, project0.dir).flatMap: sources =>
+                  val compileOptions = ffiCompileOptions(spec) ++ spec.compileOptions
+                  val task =
+                    spec.kind match
+                      case ModuleKind.Lib =>
+                        Result.Ok(
+                          CompileTask.LibTask(
                             sources,
                             sourceCheckLibs ++ registryCheckLibs(spec),
-                            effectiveLinks.linkLibs,
-                            effectiveLinks.links.view.mapValues(_.to).toMap,
-                            target,
-                            project0.appOutFile(id, target),
                             project0.sastDir(id),
                             compileOptions,
                           )
+                        )
 
-                task.map: task =>
-                  ModulePlan(moduleLabel(project0, id), id, project0.joBin, task, depPlans)
+                      case ModuleKind.App =>
+                        resolveTarget(project0, id).flatMap: target =>
+                          linkResolver.resolve(project0, id).map: effectiveLinks =>
+                            CompileTask.AppTask(
+                              sources,
+                              sourceCheckLibs ++ registryCheckLibs(spec),
+                              effectiveLinks.linkLibs,
+                              effectiveLinks.links.view.mapValues(_.to).toMap,
+                              target,
+                              project0.appOutFile(id, target),
+                              project0.sastDir(id),
+                              compileOptions,
+                            )
+
+                  task.map: task =>
+                    ModulePlan(moduleLabel(project0, id), id, project0.joBin, task, depPlans)
 
             stack.remove(stack.length - 1)
             result.map: plan =>

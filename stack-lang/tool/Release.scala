@@ -150,17 +150,16 @@ object Release:
     Result.unit
 
   private def stageSources(project: Project, spec: ModuleSpec, stageDir: Path): Result[Unit] =
-    val sources = SourceGlob.expand(spec.src, project.dir)
-
-    if sources.isEmpty then
-      return Result.Err(s"no source files found for package '${spec.pkg.get.name}'")
-
-    for file <- sources do
-      val rel = project.dir.relativize(file)
-      val target = stageDir.resolve(rel.toString)
-      Files.createDirectories(target.getParent)
-      Files.copy(file, target)
-    Result.unit
+    SourcePaths.expand(spec.src, project.dir).flatMap: sources =>
+      if sources.isEmpty then
+        Result.Err(s"no source files found for package '${spec.pkg.get.name}'")
+      else
+        for file <- sources do
+          val rel = project.dir.relativize(file)
+          val target = stageDir.resolve(rel.toString)
+          Files.createDirectories(target.getParent)
+          Files.copy(file, target)
+        Result.unit
 
   private def renderMeta(meta: PackageMeta): String =
     val sb = new StringBuilder

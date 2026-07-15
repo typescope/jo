@@ -27,7 +27,7 @@ case class LinkSpec(from: String, to: String)
 
 case class ModuleSpec(
   kind: ModuleKind,
-  src: List[String],            // globs; required in jo.toml
+  src: List[String],            // source paths; required in jo.toml
   platform: Option[Platform],   // app backend or lib platform binding
   enableFfi: Boolean,           // whether this module may call py.*/rb.*
   depth: Option[Int],           // optional package-depth override for this module
