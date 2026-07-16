@@ -1,0 +1,19 @@
+jo = "1.0"
+default = "app"
+
+[module.c]
+kind = "lib"
+src = ["c/"]
+
+[module.b]
+kind = "lib"
+src = ["b/"]
+
+modules = ["c"]
+
+[module.app]
+kind = "app"
+platform = "python"
+src = ["app/"]
+
+modules = [{ id = "b", link = true }]

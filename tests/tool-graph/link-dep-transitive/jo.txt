@@ -1,0 +1,8 @@
+# lib: [c]
+jo compile --sast .build/c/jo-1.0/sast c/C.jo
+
+# lib: [b]
+jo compile --sast .build/b/jo-1.0/sast b/B.jo --lib .build/c/jo-1.0/sast
+
+# root [app] (app)
+jo compile --python app/App.jo --link-lib .build/b/jo-1.0/sast --link-lib .build/c/jo-1.0/sast -o .build/app/jo-1.0/target/app.py
