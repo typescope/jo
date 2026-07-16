@@ -43,6 +43,7 @@ object Planner:
                 val sourceDeps = sourceClosure(project0, id)
                 val sourceCheckLibs = sourceDeps.collect:
                   case (depProject, depModule, DepLink.Check) => depProject.sastDir(depModule)
+                val checkLibs = sourceCheckLibs ++ registryCheckLibs(spec)
 
                 SourcePaths.expand(spec.src, project0.dir).flatMap: sources =>
                   val compileOptions = ffiCompileOptions(spec) ++ spec.compileOptions
@@ -52,7 +53,7 @@ object Planner:
                         Result.Ok(
                           CompileTask.LibTask(
                             sources,
-                            sourceCheckLibs ++ registryCheckLibs(spec),
+                            checkLibs,
                             project0.sastDir(id),
                             compileOptions,
                           )
@@ -61,10 +62,11 @@ object Planner:
                       case ModuleKind.App =>
                         resolveTarget(project0, id).flatMap: target =>
                           linkResolver.resolve(project0, id).map: effectiveLinks =>
+                            val visibleLibs = checkLibs.toSet
                             CompileTask.AppTask(
                               sources,
-                              sourceCheckLibs ++ registryCheckLibs(spec),
-                              effectiveLinks.linkLibs,
+                              checkLibs,
+                              effectiveLinks.linkLibs.filterNot(visibleLibs),
                               effectiveLinks.links.view.mapValues(_.to).toMap,
                               target,
                               project0.appOutFile(id, target),
@@ -94,7 +96,7 @@ object Planner:
         for dep <- currentProject.moduleDepsOf(current) do
           val depProject = dep.project.getOrElse(currentProject)
           val key = depProject.specPath -> dep.module
-          if seen.add(key) then
+          if dep.link == DepLink.Check && seen.add(key) then
             out += ((depProject, dep.module, dep.link))
             walk(depProject, dep.module)
 
@@ -162,6 +164,7 @@ object Planner:
           val depProject = dep.project.getOrElse(project)
           if depSpec.link == DepLink.Link then
             linkLibs += depProject.sastDir(depSpec.id)
+            linkLibs ++= hiddenCheckLibs(depProject, depSpec.id)
 
           projectLinks(depProject, depSpec.id).flatMap: inherited =>
             linkLibs ++= inherited.linkLibs
@@ -173,6 +176,25 @@ object Planner:
       project.requireModule(id).flatMap: spec =>
         if spec.kind == ModuleKind.App then resolve(project, id)
         else Result.Ok(EffectiveAppLinks(Nil, Map.empty))
+
+    private def hiddenCheckLibs(project: Project, id: ModuleId): List[Path] =
+      val out = collection.mutable.ListBuffer.empty[Path]
+      val seen = collection.mutable.Set.empty[(Path, ModuleId)]
+
+      def walk(currentProject: Project, current: ModuleId): Unit =
+        currentProject.module(current).foreach: spec =>
+          spec.packageDeps.filter(_.link == DepLink.Check).foreach: dep =>
+            registrySastDirs.get(dep.name).foreach(out += _)
+
+        for dep <- currentProject.moduleDepsOf(current) do
+          val depProject = dep.project.getOrElse(currentProject)
+          val key = depProject.specPath -> dep.module
+          if dep.link == DepLink.Check && seen.add(key) then
+            out += depProject.sastDir(dep.module)
+            walk(depProject, dep.module)
+
+      walk(project, id)
+      out.toList
 
     private def mergeInherited(
       id: ModuleId,
