@@ -1,6 +1,7 @@
 package tool
 
 import java.nio.file.Path
+import scala.collection.mutable
 
 object Planner:
   type RegistrySastDirs = Map[String, Path]
@@ -89,8 +90,8 @@ object Planner:
       module.packageDeps.filter(_.link == DepLink.Check).flatMap(dep => registrySastDirs.get(dep.name))
 
     private def sourceClosure(project0: Project, id: ModuleId): List[(Project, ModuleId, DepLink)] =
-      val out = collection.mutable.ListBuffer.empty[(Project, ModuleId, DepLink)]
-      val seen = collection.mutable.Set.empty[(Path, ModuleId)]
+      val out = new mutable.ArrayBuffer[(Project, ModuleId, DepLink)]
+      val seen = mutable.Set.empty[(Path, ModuleId)]
 
       def walk(currentProject: Project, current: ModuleId): Unit =
         for dep <- currentProject.moduleDepsOf(current) do
