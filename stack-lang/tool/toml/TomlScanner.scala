@@ -1,5 +1,7 @@
 package tool.toml
 
+import scala.collection.mutable
+
 enum Token:
   case TKey(value: String)
   case TStr(value: String)
@@ -22,7 +24,7 @@ class TomlScanner(input: String):
   private var line = 1
 
   def scanAll(): List[ScannedToken] =
-    val buf = collection.mutable.ListBuffer.empty[ScannedToken]
+    val buf = new mutable.ListBuffer[ScannedToken]
     var tok = next()
 
     while tok.token != Token.TEOF do

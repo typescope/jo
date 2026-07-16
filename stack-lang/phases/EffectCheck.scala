@@ -6,6 +6,8 @@ import sast.Trees.*
 import sast.Symbols.Symbol
 import reporting.Reporter
 
+import scala.collection.mutable
+
 /** This phase checks effect usage and normalizes default/allow handling.
   *
   * It should run immediately after type checking, while code provider and
@@ -36,7 +38,7 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase:
         // depend on any optional context parameters.
         val allowDefault = !symbol.is(Flags.Default)
 
-        val rejected = scala.collection.mutable.ListBuffer.empty[Symbol]
+        val rejected = new mutable.ArrayBuffer[Symbol]
         for
           (eff, trace) <- effs
           if !allowed.contains(eff)
@@ -71,7 +73,7 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase:
 
     val unprovided = effsInner.filter((k, _) => !allowed.contains(k))
 
-    val rejectedDefaults = scala.collection.mutable.ListBuffer.empty[Symbol]
+    val rejectedDefaults = new mutable.ArrayBuffer[Symbol]
     for
       (eff, trace) <- unprovided if !eff.is(Flags.Default)
     do

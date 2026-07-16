@@ -3,6 +3,7 @@ package tool
 import java.io.IOException
 import java.nio.file.Path
 import scala.collection.mutable
+
 import tool.toml.TomlError
 
 /** Helpers for the `jo build`, `jo check`, `jo run`, and related project commands. */
@@ -210,7 +211,7 @@ object Build:
 
   private def docOptions(project: Project, module: ModuleId): List[String] =
     val docSpec = project.doc.getOrElse(DocSpec())
-    val options = collection.mutable.ListBuffer[String](
+    val options = mutable.ArrayBuffer[String](
       "--doc",
       "--out",
       project.buildDir(module).resolve("doc").toString,

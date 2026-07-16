@@ -134,7 +134,7 @@ object Planner:
     private def computeAppLinks(project: Project, id: ModuleId, spec: ModuleSpec): Result[EffectiveAppLinks] =
       val owner = moduleLabel(project, id)
       val ownOverrides = spec.links.map(_.from).toSet
-      val linkLibs = collection.mutable.ListBuffer.empty[Path]
+      val linkLibs = new mutable.ArrayBuffer[Path]
       val inheritedLinks = collection.mutable.LinkedHashMap.empty[String, EffectiveLink]
 
       spec.packageDeps.filter(_.link == DepLink.Link).foreach: dep =>
@@ -152,7 +152,7 @@ object Planner:
       project: Project,
       id: ModuleId,
       depSpec: ModuleDepSpec,
-      linkLibs: collection.mutable.ListBuffer[Path],
+      linkLibs: mutable.ArrayBuffer[Path],
       inheritedLinks: collection.mutable.LinkedHashMap[String, EffectiveLink],
       ownOverrides: Set[String],
       owner: String,
@@ -179,8 +179,8 @@ object Planner:
         else Result.Ok(EffectiveAppLinks(Nil, Map.empty))
 
     private def hiddenCheckLibs(project: Project, id: ModuleId): List[Path] =
-      val out = collection.mutable.ListBuffer.empty[Path]
-      val seen = collection.mutable.Set.empty[(Path, ModuleId)]
+      val out = new mutable.ArrayBuffer[Path]
+      val seen = mutable.Set.empty[(Path, ModuleId)]
 
       def walk(currentProject: Project, current: ModuleId): Unit =
         currentProject.module(current).foreach: spec =>
