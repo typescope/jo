@@ -1,0 +1,5 @@
+namespace Ok
+
+defer def getValue(): String
+
+def main(): Unit = println(getValue())
