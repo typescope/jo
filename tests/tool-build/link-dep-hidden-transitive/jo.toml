@@ -1,0 +1,30 @@
+jo = "1.0"
+default = "ok"
+
+[module.c]
+kind = "lib"
+src = ["c/"]
+
+[module.b]
+kind = "lib"
+src = ["b/"]
+
+modules = ["c"]
+
+[module.ok]
+kind = "app"
+platform = "python"
+src = ["ok/"]
+
+modules = [{ id = "b", link = true }]
+
+links = [
+  { from = "Ok.getValue", to = "B.getValue" },
+]
+
+[module.direct]
+kind = "app"
+platform = "python"
+src = ["direct/"]
+
+modules = [{ id = "b", link = true }]

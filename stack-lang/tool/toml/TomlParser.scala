@@ -1,7 +1,10 @@
 package tool.toml
 
 import Token.*
+
+import scala.collection.mutable
 import scala.collection.immutable.ListMap
+
 
 /** Recursive descent TOML parser for the jo build tool subset. */
 class TomlParser(tokens: List[ScannedToken]):
@@ -38,8 +41,8 @@ class TomlParser(tokens: List[ScannedToken]):
   def parse(): TomlDoc =
     // Accumulate as flat list of (path, value) pairs; path is a List[String]
     // so quoted keys with dots are never re-split.
-    val flat = collection.mutable.ListBuffer.empty[(List[String], TomlValue)]
-    val usedPaths = collection.mutable.Set.empty[List[String]]
+    val flat = new mutable.ArrayBuffer[(List[String], TomlValue)]
+    val usedPaths = mutable.Set.empty[List[String]]
 
     // Current table path prefix (empty = root)
     var tablePrefix: List[String] = Nil
@@ -70,8 +73,8 @@ class TomlParser(tokens: List[ScannedToken]):
           skipNewlines()
           tablePrefix = path
 
-          val entryFlat = collection.mutable.ListBuffer.empty[(List[String], TomlValue)]
-          val entryPaths = collection.mutable.Set.empty[List[String]]
+          val entryFlat = new mutable.ArrayBuffer[(List[String], TomlValue)]
+          val entryPaths = mutable.Set.empty[List[String]]
 
           while curTok != TEOF && curTok != TLBracket do
             if curTok == TNewline then skipNewlines()
@@ -161,7 +164,7 @@ class TomlParser(tokens: List[ScannedToken]):
   // ---- Key and value parsers -----------------------------------------------
 
   private def parseKey(): List[String] =
-    val parts = collection.mutable.ListBuffer.empty[String]
+    val parts = new mutable.ArrayBuffer[String]
     parts += expectKey()
 
     while curTok == TDot do
@@ -212,7 +215,7 @@ class TomlParser(tokens: List[ScannedToken]):
   private def parseArray(): TomlValue =
     expect(TLBracket)
     skipNewlines()
-    val items = collection.mutable.ListBuffer.empty[TomlValue]
+    val items = new mutable.ArrayBuffer[TomlValue]
 
     while curTok != TRBracket do
       items += parseValue()

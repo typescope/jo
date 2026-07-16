@@ -1,6 +1,8 @@
 package tool
 
 import java.nio.file.{Files, Path}
+import scala.collection.mutable
+
 import tool.toml.TomlValue.*
 import tool.toml.{TomlValue, TomlDoc, TomlError}
 import tool.toml.TomlParser
@@ -53,7 +55,7 @@ object LockFile:
     if lock.jo.isEmpty && lock.packages.isEmpty then
       ""
     else
-      val lines = collection.mutable.ListBuffer.empty[String]
+      val lines = new mutable.ArrayBuffer[String]
       lock.jo.foreach(v => lines += s"""jo = "$v"""")
       lines ++= lock.packages.map: pkg =>
         s"""${renderKey(pkg.name)} = { version = "${pkg.version}", sha512 = "${pkg.sha512}" }"""

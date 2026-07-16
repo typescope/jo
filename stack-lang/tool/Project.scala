@@ -247,7 +247,7 @@ object Project:
   ): Result[Map[ModuleId, List[ModuleDep]]] =
     spec.modules.foldLeft(Result.Ok(Map.empty[ModuleId, List[ModuleDep]]): Result[Map[ModuleId, List[ModuleDep]]]): (acc, moduleDef) =>
       acc.flatMap: byModule =>
-        val deps = mutable.ListBuffer.empty[ModuleDep]
+        val deps = new mutable.ArrayBuffer[ModuleDep]
         val module = moduleDef.id
 
         def addModuleDep(dep: ModuleDep): Result[Unit] =

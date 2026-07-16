@@ -3,6 +3,8 @@ package tool
 import java.net.URI
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
 import java.nio.file.{Files, Path}
+
+import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 
 /** One line from `versions.jsonl` — describes a released compiler version. */
@@ -330,8 +332,8 @@ object MockInstaller:
     */
   def fromYaml(versionsFile: Path): MockInstaller =
     val content  = Files.readString(versionsFile)
-    val versions = scala.collection.mutable.ListBuffer.empty[Version]
-    val fails    = scala.collection.mutable.Map.empty[String, String]
+    val versions = new mutable.ArrayBuffer[Version]
+    val fails    = mutable.Map.empty[String, String]
     var section  = ""
 
     for line <- content.linesIterator do

@@ -1,0 +1,5 @@
+namespace Guest
+
+defer def missing(): Unit
+
+def main(): Unit = missing()

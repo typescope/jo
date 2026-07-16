@@ -2,7 +2,11 @@ package tool
 
 import java.nio.file.{Files, FileSystems, Path, Paths}
 import java.io.{ByteArrayOutputStream, PrintStream}
+
+import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
+
+
 import tool.toml.{TomlError, TomlParser}
 
 /** Runs all file-based regression tests for the build tool.
@@ -244,7 +248,7 @@ private case class Step(cmds: List[String], expected: Option[String])
  */
 private def parseSteps(content: String): List[Step] =
   val lines  = content.linesIterator.toList
-  val steps  = collection.mutable.ListBuffer.empty[Step]
+  val steps  = new mutable.ArrayBuffer[Step]
   var cmds   = List.empty[String]
   var i      = 0
 
@@ -256,7 +260,7 @@ private def parseSteps(content: String): List[Step] =
       i += 1
     else if line == ": '" then
       i += 1
-      val buf = collection.mutable.ListBuffer.empty[String]
+      val buf = new mutable.ArrayBuffer[String]
       while i < lines.length && lines(i) != "'" do
         buf += lines(i)
         i += 1
@@ -527,7 +531,7 @@ private def lockCheck(specFile: String): String =
 
   val result = resolved.flatMap: (project, resolved) =>
     validateLockPackageDepths(project, resolved).flatMap: _ =>
-      val locked = collection.mutable.ListBuffer.empty[LockedPackage]
+      val locked = new mutable.ArrayBuffer[LockedPackage]
       val sorted = resolved.packages.sortBy(_.name)
       val it = sorted.iterator
       var digestErr: String | Null = null
@@ -635,7 +639,7 @@ private def diff(expected: String, actual: String): List[String] =
       j -= 1
     i -= 1
 
-  val out = collection.mutable.ListBuffer.empty[String]
+  val out = new mutable.ArrayBuffer[String]
   i = 0
   var j = 0
   while i < exp.length || j < act.length do

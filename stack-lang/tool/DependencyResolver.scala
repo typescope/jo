@@ -259,7 +259,7 @@ object DependencyResolver:
 
   private def seedGraph(project: Project, roots: List[ModuleId]): (List[(PackageConstraint, Node)], DependencyGraph) =
     val graph = mutable.LinkedHashMap.empty[Node, mutable.ArrayBuffer[Node]]
-    val pending = mutable.ListBuffer.empty[(PackageConstraint, Node)]
+    val pending = new mutable.ArrayBuffer[(PackageConstraint, Node)]
 
     def addEdge(from: Node, to: Node): Unit =
       val parents = graph.getOrElseUpdate(from, mutable.ArrayBuffer.empty)

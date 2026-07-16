@@ -4,6 +4,8 @@ import java.net.URI
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
 import java.nio.file.{Files, Path}
 import java.util.zip.ZipFile
+import scala.collection.mutable
+
 import tool.toml.TomlParser
 
 /** A single parsed line from a package's JSONL release index.
@@ -289,7 +291,7 @@ private object JsonParser:
 
   private def parseArray(s: String, i0: Int): Either[String, (List[Any], Int)] =
     var i = ws(s, i0 + 1)
-    val items = collection.mutable.ListBuffer.empty[Any]
+    val items = new mutable.ArrayBuffer[Any]
     var first = true
     while i < s.length && s(i) != ']' do
       if !first then

@@ -1,0 +1,14 @@
+jo run ok
+: '
+from c
+'
+
+jo build direct
+: '
+---------- Error at tests/tool-build/link-dep-hidden-transitive/direct/Direct.jo:3:28 ---------------
+| def main(): Unit = println(C.value())
+|                            ^
+|                            Undefined term name C
+
+1 error(s), 0 warning(s)
+'

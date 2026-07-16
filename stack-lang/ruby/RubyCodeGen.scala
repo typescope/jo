@@ -453,8 +453,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     */
   private def compileCallArgListWithTypes(args: List[Word], params: List[NamedInfo[Type]])
       (using scope: UniqueName, ctx: Context): List[R.Tree] =
-    val positional = scala.collection.mutable.ListBuffer[R.Tree]()
-    val keyword    = scala.collection.mutable.ListBuffer[R.Tree]()
+    val positional = new mutable.ArrayBuffer[R.Tree]()
+    val keyword    = new mutable.ArrayBuffer[R.Tree]()
     for (word, param) <- args.zip(params) do
       val compiled = compileCallArgWithType(word, param.name, param.info)
       compiled match
