@@ -1,0 +1,6 @@
+jo = "0.12"
+
+[module.guest]
+kind = "app"
+platform = "python"
+src = ["guest/"]
