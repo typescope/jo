@@ -2,6 +2,27 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.12.1] - 2026-07-16
+
+### Fixed
+
+- `link = true` source dependencies no longer expose their transitive checking
+  dependencies to the depending module. Those transitive dependencies are still
+  passed as link-time inputs, so linked implementations can use their own
+  dependencies without leaking those names to user code.
+
+### Security
+
+- No new ambient capabilities are introduced. The build tool now preserves the
+  checking boundary for linked dependencies by keeping their implementation
+  dependencies out of the dependent module's check scope.
+
+### Compatibility
+
+- No build-spec changes. Projects that relied on accidentally accessing a
+  transitive dependency through a `link = true` dependency must declare that
+  dependency directly if it is intended to be visible to source code.
+
 ## [0.12.0] - 2026-07-16
 
 ### Added
