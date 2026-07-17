@@ -14,6 +14,11 @@ grep -qF '"title": "Doc Demo"' .build/app/doc/data.js
 grep -qF 'home page for the doc demo' .build/app/doc/data.js
 : ''
 
+grep -qF '"doc": "One-line doc comment ends inline."' .build/app/doc/data.js
+: ''
+
+grep -qF '"doc": "Multiline doc comment has a closing delimiter on its final text line.\nMiddle line keeps // inside the text.\nFinal line ends inline."' .build/app/doc/data.js
+: ''
 
 grep -qF 'Annotated top-level function doc' .build/app/doc/data.js
 : ''
