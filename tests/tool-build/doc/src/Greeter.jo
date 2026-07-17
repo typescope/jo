@@ -4,6 +4,14 @@ import jo.compile.intrinsic
 
 def greet(name: String): String = "Hello, " + name
 
+//[ One-line doc comment ends inline. //]
+def inlineDocComment: String = "inline"
+
+//[ Multiline doc comment has a closing delimiter on its final text line.
+  ! Middle line keeps // inside the text.
+  ! Final line ends inline. //]
+def multilineSlashDocComment: String = "multiline"
+
 //[ Annotated top-level function doc
   ! Kept when an annotation sits before the definition.
 //]

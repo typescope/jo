@@ -127,12 +127,12 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     processed.dropWhile(_.isEmpty).reverse.dropWhile(_.isEmpty).reverse
 
   private def processBlockComment(content: String, columnOffset: Int, span: Span): List[String] =
-    val lines = content.linesIterator.toList
+    val slashCount = content.takeWhile(_ == '/').size
+    val lines = stripBlockCommentClosingDelimiter(content, slashCount).linesIterator.toList
     if lines.isEmpty then return Nil
 
 
     val headLine = lines.head
-    val slashCount = headLine.trim.takeWhile(_ == '/').size
     val paddingCount = slashCount + 2
     val stripColumn = columnOffset + paddingCount
 
@@ -161,6 +161,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     // end map
 
     headLine.drop(paddingCount) :: restLines
+
+  private def stripBlockCommentClosingDelimiter(content: String, slashCount: Int): String =
+    val closingDelimiter = "/" * slashCount + "]"
+    if content.endsWith(closingDelimiter) then
+      content.dropRight(closingDelimiter.length).trim
+    else
+      content
 
 
   /** Parse a string starting with StringStart(n)
