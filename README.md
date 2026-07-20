@@ -120,6 +120,11 @@ See the [security documentation](https://jo-lang.org/security/security-problem) 
 curl -sSf https://jo-lang.org/install.sh | sh
 ```
 
+To install a specific version
+```bash
+curl -sSf https://jo-lang.org/install.sh | JO_VERSION=0.12.0 sh
+```
+
 The installer downloads the compiler to `~/.jo/compilers/<version>/` and creates a launcher at `~/.local/bin/jo`. Add `~/.local/bin` to `PATH` if it is not already there.
 
 Full installation instructions and a getting-started guide are at **[jo-lang.org](https://jo-lang.org)**.
