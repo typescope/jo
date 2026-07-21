@@ -1,0 +1,6 @@
+// Default parameter value must be a literal or a qualified identifier
+// in class and union branch parameters.
+
+class BadClassExpr(x: Int = (1 + 2))
+
+union BadUnionExpr = BadBranchExpr(x: Int = (1 + 2)) | GoodBranchExpr

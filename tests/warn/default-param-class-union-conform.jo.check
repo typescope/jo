@@ -1,0 +1,21 @@
+---------- Error at tests/warn/default-param-class-union-conform.jo:5:29 ---------------
+| class BadClassType(x: Int = "oops")
+|                             ^^^^^^
+|                             Default value type String does not conform to parameter type Int
+
+---------- Error at tests/warn/default-param-class-union-conform.jo:7:45 ---------------
+| union BadUnionType = BadBranchType(x: Int = textDefault) | GoodBranchType
+|                                             ^^^^^^^^^^^
+|                                             Default value type String does not conform to parameter type Int
+
+---------- Error at tests/warn/default-param-class-union-conform.jo:5:29 ---------------
+| class BadClassType(x: Int = "oops")
+|                             ^^^^^^
+|                             Default value type String does not conform to parameter type Int
+
+---------- Error at tests/warn/default-param-class-union-conform.jo:7:45 ---------------
+| union BadUnionType = BadBranchType(x: Int = textDefault) | GoodBranchType
+|                                             ^^^^^^^^^^^
+|                                             Default value type String does not conform to parameter type Int
+
+4 error(s), 0 warning(s)

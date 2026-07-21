@@ -1,0 +1,7 @@
+// Default value types must conform to class and union branch parameter types.
+
+def textDefault = "text"
+
+class BadClassType(x: Int = "oops")
+
+union BadUnionType = BadBranchType(x: Int = textDefault) | GoodBranchType

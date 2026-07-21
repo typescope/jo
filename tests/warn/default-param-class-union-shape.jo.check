@@ -1,0 +1,21 @@
+---------- Error at tests/warn/default-param-class-union-shape.jo:4:33 ---------------
+| class BadClassShape(x: Int = 1, y: Int)
+|                                 ^^^^^^
+|                                 Parameter 'y' must have a default value because a preceding parameter has one
+
+---------- Error at tests/warn/default-param-class-union-shape.jo:4:33 ---------------
+| class BadClassShape(x: Int = 1, y: Int)
+|                                 ^^^^^^
+|                                 Parameter 'y' must have a default value because a preceding parameter has one
+
+---------- Error at tests/warn/default-param-class-union-shape.jo:6:50 ---------------
+| union BadUnionShape = BadBranchShape(x: Int = 1, y: Int) | GoodBranchShape
+|                                                  ^^^^^^
+|                                                  Parameter 'y' must have a default value because a preceding parameter has one
+
+---------- Error at tests/warn/default-param-class-union-shape.jo:6:50 ---------------
+| union BadUnionShape = BadBranchShape(x: Int = 1, y: Int) | GoodBranchShape
+|                                                  ^^^^^^
+|                                                  Parameter 'y' must have a default value because a preceding parameter has one
+
+4 error(s), 0 warning(s)
