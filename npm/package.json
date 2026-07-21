@@ -1,0 +1,41 @@
+{
+  "name": "@typescope/jo",
+  "version": "0.12.1",
+  "description": "Installer and npm launcher for the Jo compiler",
+  "license": "Apache-2.0",
+  "homepage": "https://jo-lang.org",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/typescope/jo.git",
+    "directory": "npm"
+  },
+  "bugs": {
+    "url": "https://github.com/typescope/jo/issues"
+  },
+  "keywords": [
+    "jo",
+    "compiler",
+    "language"
+  ],
+  "bin": {
+    "jo": "bin/jo.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/install.js"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "README.md"
+  ],
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

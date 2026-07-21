@@ -15,6 +15,11 @@ Bundle all repository changes for the release into a single PR and merge it to
 
       Both the badge image URL and the release tag link.
 
+- [ ] Update the npm package version in `npm/package.json` to `X.Y.Z`
+
+      The npm package version must match the Jo compiler version because
+      `@typescope/jo@X.Y.Z` installs `~/.jo/compilers/X.Y.Z/`.
+
 - [ ] Update `CHANGELOG.md` with notable changes under the new version heading
 
       In particular, there should be a section for security and a section for
@@ -87,13 +92,27 @@ gh workflow run docs.yml --repo typescope/jo
 
 - [ ] Docs deployed and `https://jo-lang.org` shows the new version
 
-## 6. Verify
+## 6. Publish npm Package
+
+Publish the npm installer after the docs are deployed, because the package
+postinstall resolves the matching tarball through
+`https://jo-lang.org/versions.jsonl`.
+
+```sh
+npm pack ./npm --dry-run
+npm publish ./npm --access public
+```
+
+- [ ] `@typescope/jo@X.Y.Z` published to npm
+
+## 7. Verify
 
 - [ ] `curl -sSf https://jo-lang.org/install.sh | sh` installs X.Y.Z
+- [ ] `npm install -g @typescope/jo@X.Y.Z` installs X.Y.Z
 - [ ] `jo --version` prints X.Y.Z after install
 - [ ] `https://jo-lang.org/versions.jsonl` contains the new entry
 
-## 7. Clean Up
+## 8. Clean Up
 
 - [ ] Remove local `jo-X.Y.Z.tar.gz`, `jo-X.Y.Z.tar.gz.sha256`, and
       `RELEASE_NOTES.md`
