@@ -108,7 +108,8 @@ npm publish ./npm --access public
 ## 7. Verify
 
 - [ ] `curl -sSf https://jo-lang.org/install.sh | sh` installs X.Y.Z
-- [ ] `npm install -g @typescope/jo@X.Y.Z` installs X.Y.Z
+- [ ] `npm install --prefix "$TMP" @typescope/jo@X.Y.Z` installs X.Y.Z,
+      and `"$TMP/node_modules/.bin/jo" --version` prints X.Y.Z
 - [ ] `jo --version` prints X.Y.Z after install
 - [ ] `https://jo-lang.org/versions.jsonl` contains the new entry
 

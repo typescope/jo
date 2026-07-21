@@ -21,6 +21,7 @@
     "jo": "bin/jo.js"
   },
   "scripts": {
+    "preinstall": "node scripts/install.js --check-install-context",
     "postinstall": "node scripts/install.js"
   },
   "files": [
