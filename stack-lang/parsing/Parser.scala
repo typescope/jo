@@ -860,7 +860,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     // Parse constructor parameters if present (simplified syntax)
     val classParams =
-      if peek() == Token.LPAREN then params()
+      if peek() == Token.LPAREN then params(acceptDefault = true)
       else Nil
 
     // Parse view declarations and members
@@ -1006,7 +1006,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     // Objects cannot have constructor parameters
     if peek() == Token.LPAREN then
       error("Objects cannot have constructor parameters", peekItem().span.toPos)
-      params() // consume them anyway
+      params(acceptDefault = true) // consume them anyway
 
     // Parse view declarations and methods (no vals allowed)
     val views = mutable.ArrayBuffer[ViewDecl]()
@@ -1128,7 +1128,9 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     def branch(): ClassDef =
       val id = ident()
-      val paramList = simpleParamSection()
+      val paramList =
+        if peek() == Token.LPAREN then params(acceptDefault = true)
+        else Nil
       val endSpan = if paramList.isEmpty then id.span else paramList.last.span
       ClassDef(id, Nil, paramList, Nil, Nil, Nil)(id.span | endSpan)
 
