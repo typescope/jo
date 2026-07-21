@@ -1,0 +1,56 @@
+namespace jo.resource
+
+import jo.*
+
+//[ Metadata for one packaged resource file or directory.
+  !
+  ! `sizeBytes` is meaningful for files. Directories report `0`.
+//]
+class FileInfo(isFile: Bool, sizeBytes: Int)
+
+//[ One directory entry under a package resource directory.
+  !
+  ! `path` is relative to the same resource owner and can be passed back to
+  ! `stat`, `readText`, or `readBytes`.
+//]
+class DirEntry(path: String, isDirectory: Bool)
+
+//[ The ambient packaged-resource store.
+  !
+  ! Resource access is an effect: implementations resolve paths relative to the
+  ! generated program, then confine reads under
+  ! `dirname(program) / "resources" / owner`.
+//]
+param resources: Resources
+
+//[ Read-only access to resources bundled with the built program.
+  !
+  ! `owner` is the package or module resource identity. For registry packages it
+  ! is the package name. `rel` is a `/`-separated path inside that owner's
+  ! resource root. Implementations reject absolute paths and escaping segments.
+//]
+interface Resources
+  //[ The concrete filesystem path for a bundled resource. //]
+  def path(owner: String, rel: String): Result[String, String]
+
+  //[ Whether a file or directory exists at `rel` under `owner`. //]
+  def exists(owner: String, rel: String): Bool
+
+  //[ Whether `rel` under `owner` is an existing file. //]
+  def isFile(owner: String, rel: String): Bool
+
+  //[ The metadata record for `rel`; `None` when nothing exists there. //]
+  def stat(owner: String, rel: String): Option[FileInfo]
+
+  //[ The entries directly under `dir`, sorted by name.
+    !
+    ! `Err` when `dir` is not a directory.
+  //]
+  def list(owner: String, dir: String): Result[List[DirEntry], String]
+
+  //[ Read a UTF-8 text resource. //]
+  def readText(owner: String, rel: String): Result[String, String]
+
+  //[ Read a binary resource. //]
+  def readBytes(owner: String, rel: String): Result[Bytes, String]
+end
