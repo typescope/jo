@@ -1,0 +1,42 @@
+// Default parameter values in union branch definitions flow to each
+// synthesized branch factory function and constructor method.
+
+def open = true
+def fallbackTitle = "untitled"
+
+union WorkItem =
+  Issue(name: String, state: Bool = open) |
+  Ticket(id: Int, title: String = fallbackTitle, priority: Int = 5) |
+  Closed(reason: String = "done")
+
+def main(): Unit =
+  val issueFromFactory: WorkItem = Issue("factory")
+  val issueFromConstructor: WorkItem = new Issue("constructor")
+  val ticketFromFactory: WorkItem = Ticket(1)
+  val ticketFromConstructor: WorkItem = new Ticket(2, "typed")
+  val closedFromFactory: WorkItem = Closed()
+  val closedFromConstructor: WorkItem = new Closed()
+
+  match issueFromFactory
+    case Issue name state => println(name + ": " + state.toString)
+    case _ => pass
+
+  match issueFromConstructor
+    case Issue name state => println(name + ": " + state.toString)
+    case _ => pass
+
+  match ticketFromFactory
+    case Ticket id title priority => println(id.toString + ": " + title + " #" + priority.toString)
+    case _ => pass
+
+  match ticketFromConstructor
+    case Ticket id title priority => println(id.toString + ": " + title + " #" + priority.toString)
+    case _ => pass
+
+  match closedFromFactory
+    case Closed reason => println(reason)
+    case _ => pass
+
+  match closedFromConstructor
+    case Closed reason => println(reason)
+    case _ => pass

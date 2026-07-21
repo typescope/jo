@@ -1,0 +1,6 @@
+// Non-default parameters after default parameters are errors in class and
+// union branch parameters.
+
+class BadClassShape(x: Int = 1, y: Int)
+
+union BadUnionShape = BadBranchShape(x: Int = 1, y: Int) | GoodBranchShape

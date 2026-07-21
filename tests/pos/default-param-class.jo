@@ -1,0 +1,25 @@
+// Default parameter values in class parameters flow to the synthesized
+// factory function and constructor method.
+
+def open = true
+
+class Issue(name: String, state: Bool = open)
+
+class Ticket(id: Int, title: String = "untitled", priority: Int = 5)
+
+def main(): Unit =
+  val issueFromFactory = Issue("factory")
+  val issueFromConstructor = new Issue("constructor")
+  val closedIssue = Issue("closed", false)
+
+  println(issueFromFactory.name + ": " + issueFromFactory.state.toString)
+  println(issueFromConstructor.name + ": " + issueFromConstructor.state.toString)
+  println(closedIssue.name + ": " + closedIssue.state.toString)
+
+  val ticket1 = Ticket(1)
+  val ticket2 = new Ticket(2, "typed")
+  val ticket3 = Ticket(3, "urgent", 1)
+
+  println(ticket1.id.toString + ": " + ticket1.title + " #" + ticket1.priority.toString)
+  println(ticket2.id.toString + ": " + ticket2.title + " #" + ticket2.priority.toString)
+  println(ticket3.id.toString + ": " + ticket3.title + " #" + ticket3.priority.toString)

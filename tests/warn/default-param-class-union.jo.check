@@ -1,0 +1,11 @@
+---------- Error at tests/warn/default-param-class-union.jo:4:29 ---------------
+| class BadClassExpr(x: Int = (1 + 2))
+|                             ^
+|                             Default value must be a literal or a qualified identifier
+
+---------- Error at tests/warn/default-param-class-union.jo:6:45 ---------------
+| union BadUnionExpr = BadBranchExpr(x: Int = (1 + 2)) | GoodBranchExpr
+|                                             ^
+|                                             Default value must be a literal or a qualified identifier
+
+2 error(s), 0 warning(s)
