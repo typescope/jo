@@ -175,7 +175,7 @@ def outer(): Int =
 
 **No vararg default** — a vararg parameter (`..`) cannot have a default value.
 
-**Scope** — Class parameters, pattern parameters, and union branch parameters do not support defaults.
+**Scope** — Defaults are supported on function post parameters, class parameters, and union branch parameters. Pattern parameters do not support defaults.
 
 ## Return Type Inference
 

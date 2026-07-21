@@ -284,7 +284,7 @@ private_modifier = "private" ["[" name "]"]
 fun_def = "def" [pre_param_section] ident [tparams] [post_param_section]
           [auto_section] [":" type] [receive_params] ["=" block] ["end"]
 
-class_def = "class" name [tparams] [param_section] {class_member} ["end"]
+class_def = "class" name [tparams] [default_param_section] {class_member} ["end"]
 class_member = qualifier class_member_body | view_decl
 class_member_body = def_def | val_decl
 
@@ -305,7 +305,7 @@ view_decl = "view" type ["=" block]
 val_decl = ("val" | "var") name ":" type ["=" block]
 
 union_def = "union" name [tparams] "=" branch {"|" branch} {qualifier def_def} ["end"]
-branch = name [param_section]
+branch = name [default_param_section]
 
 extension_def = "extension" name [tparams] "for" type {qualifier def_def} ["end"]
 
@@ -316,9 +316,10 @@ type_def = "type" [tparams] ident [tparams] ["=" type]
 tparams = "[" tparam {"," tparam} "]"
 tparam = name
 
-pre_param_section  = "(" [simple_params] ")"
-post_param_section = "(" [post_params] ")"
-param_section      = "(" [simple_params] ")"
+pre_param_section     = "(" [simple_params] ")"
+post_param_section    = "(" [post_params] ")"
+param_section         = "(" [simple_params] ")"
+default_param_section = "(" [post_params] ")"
 
 simple_params = simple_param {"," simple_param}
 simple_param  = name ":" type
@@ -330,6 +331,7 @@ lambda_param  = name [":" type]
 post_params = post_param {"," post_param}
 post_param  = name ":" type ["=" default_value]
 
+(* Defaults are accepted in post parameters, class parameters, and union branch parameters. *)
 default_value = integer | boolean | char | float | string | qualid
 
 auto_section = "(" "auto" auto_params ")"
