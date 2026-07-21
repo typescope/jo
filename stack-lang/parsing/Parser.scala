@@ -752,7 +752,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val preParamList = preParamSection()
     val id = ident()
     val tparams = typeParams()
-    val postParamList = simpleParamSection()
+    val postParamList =
+      if peek() == Token.LPAREN && peek(1) != Token.AUTO then params() else Nil
 
     eat(Token.COLON)
     val resType = typ()
@@ -801,10 +802,6 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     val paramList = preParamList ++ postParamList
     PatDef(id, tparams, paramList, resType, cases, preParamList.size)(pat.span | bodySpan).withMods(mods)
-
-  def simpleParamSection(): List[Param] =
-    if peek() == Token.LPAREN && peek(1) != Token.AUTO then params() else Nil
-
 
   def postParamSection(): List[Param] =
     if peek() == Token.LPAREN && peek(1) != Token.AUTO then params(acceptDefault = true) else Nil
