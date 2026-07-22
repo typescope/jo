@@ -51,6 +51,106 @@ object ResourcePaths:
         ResourceFile(file.inputFile, Path.of(group.owner).resolve(file.resourcePath.toString), file.sourceArchivePath)
     copyFiles(files, targetRoot)
 
+  def syncGroups(groups: List[ResourceGroup], targetRoot: Path): Result[Unit] =
+    val files = groups.flatMap: group =>
+      group.files.map: file =>
+        ResourceFile(file.inputFile, Path.of(group.owner).resolve(file.resourcePath.toString), file.sourceArchivePath)
+    syncFiles(files, targetRoot)
+
+  private def syncFiles(files: List[ResourceFile], targetRoot: Path): Result[Unit] =
+    val root = targetRoot.toAbsolutePath.normalize()
+    try
+      if files.isEmpty then
+        if Files.exists(root, LinkOption.NOFOLLOW_LINKS) then deletePath(root)
+        Result.unit
+      else
+        prepareResourceRoot(root)
+        requireDistinctTargets(files).flatMap: _ =>
+          desiredTargets(files, root).flatMap: desired =>
+            deleteStaleTargets(root, desired).flatMap: _ =>
+              syncDesiredFiles(files, root)
+    catch
+      case e: IOException => Result.Err(s"could not sync resource: ${e.getMessage}")
+
+  private def desiredTargets(files: List[ResourceFile], root: Path): Result[Set[Path]] =
+    files.foldLeft(Result.Ok(Set.empty[Path]): Result[Set[Path]]): (acc, file) =>
+      acc.flatMap: targets =>
+        targetPath(file, root).map(targets + _)
+
+  private def syncDesiredFiles(files: List[ResourceFile], root: Path): Result[Unit] =
+    files.foldLeft(Result.unit): (acc, file) =>
+      acc.flatMap: _ =>
+        targetPath(file, root).flatMap: target =>
+          if !needsCopy(file.inputFile, target) then Result.unit
+          else
+            ensureParentDirs(root, target)
+            if Files.exists(target, LinkOption.NOFOLLOW_LINKS) then deletePath(target)
+            Files.copy(file.inputFile, target)
+            Result.unit
+
+  private def targetPath(file: ResourceFile, root: Path): Result[Path] =
+    val target = root.resolve(file.resourcePath.toString).normalize()
+    if !target.startsWith(root) then
+      Result.Err(s"resource target escapes output directory: ${file.resourcePath}")
+    else Result.Ok(target)
+
+  private def needsCopy(source: Path, target: Path): Boolean =
+    if !Files.exists(target, LinkOption.NOFOLLOW_LINKS) then true
+    else if !Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS) then true
+    else
+      Files.size(target) != Files.size(source) ||
+      Files.getLastModifiedTime(target).compareTo(Files.getLastModifiedTime(source)) < 0
+
+  private def prepareResourceRoot(root: Path): Unit =
+    if Files.exists(root, LinkOption.NOFOLLOW_LINKS) && !Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS) then
+      deletePath(root)
+    Files.createDirectories(root)
+
+  private def ensureParentDirs(root: Path, target: Path): Unit =
+    val parent = target.getParent
+    if parent != null then
+      var current = root
+      val iter = root.relativize(parent).iterator.asScala
+      while iter.hasNext do
+        current = current.resolve(iter.next())
+        if Files.exists(current, LinkOption.NOFOLLOW_LINKS) && !Files.isDirectory(current, LinkOption.NOFOLLOW_LINKS) then
+          deletePath(current)
+      Files.createDirectories(parent)
+
+  private def deleteStaleTargets(root: Path, desired: Set[Path]): Result[Unit] =
+    val dirs = ArrayBuffer.empty[Path]
+    val stale = ArrayBuffer.empty[Path]
+    try
+      val stream = Files.walk(root)
+      try
+        val iter = stream.iterator.asScala
+        while iter.hasNext do
+          val path = iter.next().toAbsolutePath.normalize()
+          if path != root then
+            if Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS) then
+              dirs += path
+            else if !desired.contains(path) then
+              stale += path
+      finally stream.close()
+
+      stale.foreach(Files.deleteIfExists)
+      dirs.sortBy(_.getNameCount).reverse.foreach: dir =>
+        try Files.delete(dir)
+        catch case _: java.nio.file.DirectoryNotEmptyException => ()
+
+      Result.unit
+    catch
+      case e: IOException => Result.Err(s"could not delete stale resource: ${e.getMessage}")
+
+  private def deletePath(path: Path): Unit =
+    if Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS) then
+      val stream = Files.walk(path)
+      try
+        stream.iterator.asScala.toList.sortBy(_.getNameCount).reverse.foreach(Files.delete)
+      finally stream.close()
+    else
+      Files.deleteIfExists(path)
+
   private def expandEntry(mapping: ResourceMapping, base: Path, files: ArrayBuffer[ResourceFile]): Result[Unit] =
     val raw = Path.of(mapping.source)
     if raw.isAbsolute then

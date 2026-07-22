@@ -135,11 +135,7 @@ object Runner:
   private def syncResources(app: CompileTask.AppTask): Result[Unit] =
     val resourceDir = app.outFile.getParent.resolve("resources")
     try
-      if Files.exists(resourceDir) then deleteDir(resourceDir)
-      if app.resources.isEmpty then Result.unit
-      else
-        Files.createDirectories(resourceDir)
-        ResourcePaths.copyGroups(app.resources, resourceDir)
+      ResourcePaths.syncGroups(app.resources, resourceDir)
     catch
       case e: java.io.IOException => Result.Err(s"could not sync resources: ${e.getMessage}")
 
