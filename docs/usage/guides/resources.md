@@ -121,6 +121,10 @@ dependency closure beside the generated program:
 
 The `<owner>` directory is described in [Owner Names](#owner-names).
 
+Link-only dependencies are included in the resource closure. `link = true`
+means hidden from user imports and package metadata; it does not make the
+dependency's resources private or omit them from the app artifact.
+
 This is an app-global resource directory. Any code running in the app that has
 the `resources` capability can read any copied owner path if it knows the owner
 and resource path. Resource owners prevent file-name collisions; they are not a
@@ -202,7 +206,7 @@ resources = ["assets/"]
 
 `ResourceBundle` validates owner and resource paths before reading:
 
-- owners cannot be empty, `.`, `..`, or contain `/` or `\`
+- owners must start with a letter and then contain only letters, digits, or `-`
 - resource paths must be relative
 - resource paths use `/` only
 - `.` and `..` segments are rejected

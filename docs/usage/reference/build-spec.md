@@ -42,7 +42,7 @@ Module ids must start with a letter and may contain letters, digits, and hyphens
 |-------------------|------------------|----------|-------------|
 | `kind`            | string           | yes      | `"lib"` or `"app"`. |
 | `src`             | array of paths   | yes      | Source directories or `.jo` files for this module. Directories are searched recursively. |
-| `resources`       | array of paths   | no       | Resource directories or files for this module. Directories include regular files recursively. Default: `[]`. |
+| `resources`       | array of mappings | no       | Resource source/destination mappings for this module. The short form `source` means `source:source`. Default: `[]`. |
 | `platform`        | string           | app only | Platform this module is bound to. Apps: `"python"` or `"ruby"`, required. Libs: `"pure"`, `"python"`, or `"ruby"`, default `"pure"`. |
 | `enable-ffi`      | boolean          | no       | May this module's own code call the platform's FFI API (`py.*`, `rb.*`). Default: `false`. |
 | `depth`           | integer          | no       | Maximum registry package dependency depth for this module. Default: `0` for `lib`, `1` for `app`. |
@@ -266,6 +266,11 @@ There is no short form for packages, because a package dependency always needs b
 ### Link dependencies
 
 `link = true` works on either array. Link dependencies are hidden from user code and are omitted from generated package metadata. Like `links`, they are valid only on app modules — a link library resolves deferred definitions when an executable is produced, and only app modules produce one.
+
+Hidden from user code does not mean hidden from the runnable app artifact. App
+builds still copy resources from link-only dependencies in the selected closure,
+because linked runtime code may need its own bundled assets. Resource access is
+app-global for any code that receives the `resources` capability.
 
 ## Links
 
