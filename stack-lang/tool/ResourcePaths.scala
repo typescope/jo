@@ -2,18 +2,18 @@ package tool
 
 import java.io.IOException
 import java.nio.file.{Files, LinkOption, Path}
+import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.*
 
 object ResourcePaths:
   /** Expand resource paths relative to baseDir. Directories include regular files recursively. */
   def expand(entries: List[ResourceMapping], baseDir: Path): Result[List[ResourceFile]] =
     val base = baseDir.toAbsolutePath.normalize()
+    val files = ArrayBuffer.empty[ResourceFile]
 
-    entries.foldLeft(Result.Ok(List.empty[ResourceFile]): Result[List[ResourceFile]]): (acc, mapping) =>
-      acc.flatMap: files =>
-        expandEntry(mapping, base).map(files ++ _)
-    .flatMap(requireDistinctTargets)
-    .map(_.sortBy(_.resourcePath.toString))
+    entries.foldLeft(Result.unit): (acc, mapping) =>
+      acc.flatMap(_ => expandEntry(mapping, base, files))
+    .flatMap(_ => finishExpansion(files))
 
   def fromModule(owner: String, entries: List[ResourceMapping], baseDir: Path): Result[Option[ResourceGroup]] =
     expand(entries, baseDir).map: files =>
@@ -25,8 +25,9 @@ object ResourcePaths:
     else if !Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS) then
       Result.Err(s"package resource root is not a directory: ${LogFormat.path(root)}")
     else
-      expandDir(root, root, Path.of("")).flatMap(requireDistinctTargets).map: files =>
-        if files.isEmpty then None else Some(ResourceGroup(owner, files))
+      val files = ArrayBuffer.empty[ResourceFile]
+      expandDir(root, root, Path.of(""), files).flatMap(_ => finishExpansion(files)).map: expandedFiles =>
+        if expandedFiles.isEmpty then None else Some(ResourceGroup(owner, expandedFiles))
 
   def copyFiles(files: List[ResourceFile], targetRoot: Path): Result[Unit] =
     try
@@ -50,7 +51,7 @@ object ResourcePaths:
         ResourceFile(file.inputFile, Path.of(group.owner).resolve(file.resourcePath.toString), file.sourceArchivePath)
     copyFiles(files, targetRoot)
 
-  private def expandEntry(mapping: ResourceMapping, base: Path): Result[List[ResourceFile]] =
+  private def expandEntry(mapping: ResourceMapping, base: Path, files: ArrayBuffer[ResourceFile]): Result[Unit] =
     val raw = Path.of(mapping.source)
     if raw.isAbsolute then
       return Result.Err(s"resource path must be relative: ${mapping.source}")
@@ -64,30 +65,41 @@ object ResourcePaths:
     else if Files.isSymbolicLink(path) then
       Result.Err(s"resource path must not be a symlink: ${LogFormat.path(path)}")
     else if Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS) then
-      expandDir(path, base, Path.of(mapping.dest))
+      expandDir(path, base, Path.of(mapping.dest), files)
     else if Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS) then
-      makeResourceFile(path, base, Path.of(mapping.dest)).map(List(_))
+      makeResourceFile(path, base, Path.of(mapping.dest)).map: file =>
+        files += file
+        ()
     else
       Result.Err(s"resource path is not a file or directory: ${LogFormat.path(path)}")
 
-  private def expandDir(path: Path, base: Path, targetBase: Path): Result[List[ResourceFile]] =
+  private def expandDir(
+    path: Path,
+    base: Path,
+    targetBase: Path,
+    files: ArrayBuffer[ResourceFile],
+  ): Result[Unit] =
     val root = path.toAbsolutePath.normalize()
     val relBase = base.toAbsolutePath.normalize()
     try
       val stream = Files.walk(root)
       try
-        val allFiles = stream.iterator.asScala.toList
-        val badSymlink = allFiles.find(file => Files.isSymbolicLink(file))
-        badSymlink match
-          case Some(link) =>
-            Result.Err(s"resource path must not be a symlink: ${LogFormat.path(link)}")
-          case None =>
-            allFiles
-              .filter(file => Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS))
-              .foldLeft(Result.Ok(List.empty[ResourceFile]): Result[List[ResourceFile]]): (acc, file) =>
-                acc.flatMap: files =>
-                  val nested = root.relativize(file)
-                  makeResourceFile(file, relBase, targetBase.resolve(nested.toString)).map(files :+ _)
+        val iter = stream.iterator.asScala
+        var error: Option[String] = None
+        while error.isEmpty && iter.hasNext do
+          val file = iter.next()
+          if Files.isSymbolicLink(file) then
+            error = Some(s"resource path must not be a symlink: ${LogFormat.path(file)}")
+          else if Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS) then
+            val nested = root.relativize(file)
+            makeResourceFile(file, relBase, targetBase.resolve(nested.toString)) match
+              case Result.Ok(resource) =>
+                files += resource
+              case Result.Err(msg) =>
+                error = Some(msg)
+        error match
+          case Some(msg) => Result.Err(msg)
+          case None      => Result.unit
       finally stream.close()
     catch case e: IOException =>
       Result.Err(s"could not read resource directory ${LogFormat.path(path)}: ${e.getMessage}")
@@ -98,7 +110,11 @@ object ResourcePaths:
       validatePathObject(resourcePath.normalize(), "resource target").map: _ =>
         ResourceFile(inputFile, resourcePath.normalize(), sourceArchivePath)
 
-  private def requireDistinctTargets(files: List[ResourceFile]): Result[List[ResourceFile]] =
+  private def finishExpansion(files: ArrayBuffer[ResourceFile]): Result[List[ResourceFile]] =
+    requireDistinctTargets(files).map: _ =>
+      files.toList.sortBy(_.resourcePath.toString)
+
+  private def requireDistinctTargets(files: Iterable[ResourceFile]): Result[Unit] =
     val seen = collection.mutable.Set.empty[String]
     var duplicate: Option[String] = None
     for file <- files do
@@ -107,7 +123,7 @@ object ResourcePaths:
         duplicate = Some(key)
     duplicate match
       case Some(key) => Result.Err(s"duplicate resource target: $key")
-      case None      => Result.Ok(files)
+      case None      => Result.unit
 
   private def normalizeRel(path: Path): String =
     logicalRel(path.normalize())
