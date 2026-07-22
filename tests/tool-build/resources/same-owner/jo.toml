@@ -1,0 +1,10 @@
+jo = "1.0"
+
+[module.lib]
+kind = "lib"
+src = ["src/"]
+resources = ["assets/"]
+
+[module.lib.package]
+name = "resource-lib"
+version = "1.0.0"

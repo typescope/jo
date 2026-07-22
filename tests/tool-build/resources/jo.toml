@@ -26,9 +26,24 @@ depth = 2
 modules = [{ id = "external", path = "external" }]
 packages = [{ name = "resource-lib", version = "1.0" }]
 
+[module.linkresources]
+kind = "app"
+platform = "python"
+src = ["link/"]
+depth = 2
+packages = [{ name = "resource-lib", version = "1.0", link = true }]
+
 [module.collision]
 kind = "app"
 platform = "python"
 src = ["collision-app/"]
 resources = ["collision-app-assets/"]
 modules = [{ id = "collision", path = "collision-ext" }]
+
+[module.pkgcollision]
+kind = "app"
+platform = "python"
+src = ["collision-app/"]
+depth = 2
+modules = [{ id = "lib", path = "same-owner" }]
+packages = [{ name = "resource-lib", version = "1.0" }]

@@ -1,0 +1,7 @@
+jo = "1.0"
+
+[module.app]
+kind = "app"
+platform = "python"
+src = ["src/"]
+packages = [{ name = "corrupt-resources", version = "1.0" }]
