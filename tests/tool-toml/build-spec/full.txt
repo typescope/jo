@@ -8,6 +8,7 @@ doc.include-source = true
 module.app:
   kind = "app"
   src = ["src/", "vendor/"]
+  resources = ["assets", "public/logo.svg:logo.svg"]
   platform = "python"
   depth = 2
   modules:
