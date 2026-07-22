@@ -1,0 +1,15 @@
+namespace ResourceLib
+
+import ResourceCore
+import jo.resource.*
+
+def name: String = "lib"
+
+def printResources(label: String): Unit receives IO.stdout, resources =
+  match resources.readText("resource-lib", "runtime/dep-assets/dep.txt")
+  case Ok(text) => println(label + " direct resource = " + text.trim)
+  case Err(err) => println(label + " direct resource err = " + err)
+  match resources.readText("resource-lib", "metadata/notice.txt")
+  case Ok(text) => println(label + " mapped file resource = " + text.trim)
+  case Err(err) => println(label + " mapped file resource err = " + err)
+  ResourceCore.printResource(label)

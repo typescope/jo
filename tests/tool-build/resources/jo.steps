@@ -1,0 +1,103 @@
+rm -rf repo .build core/.build dep/.build invalid/.build duplicate/.build external/.build collision-ext/.build
+
+rm -f jo.lock core/jo.lock dep/jo.lock invalid/jo.lock duplicate/jo.lock external/jo.lock collision-ext/jo.lock
+
+jo build --spec invalid/jo.toml backslash
+: '
+error: in tests/tool-build/resources/invalid/jo.toml: module.backslash.resources[0]: resource path 'bad\path.txt' uses backslash; use '/' separators
+'
+
+jo package --spec duplicate/jo.toml
+: '
+error: duplicate resource target: out.txt
+'
+
+jo package --spec core/jo.toml
+
+mkdir -p repo/resource-core/1.0.0
+
+cp core/.build/lib/release/resource-core-v1.0.0.joy repo/resource-core/1.0.0/
+
+jo package --spec dep/jo.toml
+
+unzip -Z1 dep/.build/lib/release/resource-lib-v1.0.0.joy | sort
+: '
+ResourceLib/Dep.sast
+meta.toml
+resources/metadata/notice.txt
+resources/runtime/dep-assets/dep.txt
+resources/runtime/dep-assets/nested/info.json
+'
+
+unzip -p dep/.build/lib/release/resource-lib-v1.0.0.joy resources/runtime/dep-assets/dep.txt
+: '
+library resource cafe
+'
+
+unzip -p dep/.build/lib/release/resource-lib-v1.0.0.joy resources/metadata/notice.txt
+: '
+mapped notice
+'
+
+unzip -Z1 dep/.build/lib/release/resource-lib-v1.0.0-sources.zip | sort
+: '
+dep-assets/dep.txt
+dep-assets/nested/info.json
+notice.txt
+src/Dep.jo
+'
+
+mkdir -p repo/resource-lib/1.0.0
+
+cp dep/.build/lib/release/resource-lib-v1.0.0.joy repo/resource-lib/1.0.0/
+
+jo build collision
+: '
+error: duplicate resource owner 'collision' in app resource closure
+'
+
+jo build sourcelib
+
+test ! -e .build/sourcelib/jo-1.0/target/resources
+: ''
+
+test ! -e .build/sourcelib/jo-1.0/resources
+: ''
+
+jo run pyapp
+: '
+python direct resource = library resource cafe
+python mapped file resource = mapped notice
+python indirect resource = core resource
+python external source resource = external source resource
+'
+
+find .build/pyapp/jo-1.0/target/resources -type f | sed 's#^.build/pyapp/jo-1.0/target/resources/##' | sort
+: '
+external/ext-assets/ext.txt
+pyapp/runtime-app/app.txt
+resource-core/core-assets/bin.dat
+resource-core/core-assets/core.txt
+resource-lib/metadata/notice.txt
+resource-lib/runtime/dep-assets/dep.txt
+resource-lib/runtime/dep-assets/nested/info.json
+'
+
+jo run rbapp
+: '
+ruby direct resource = library resource cafe
+ruby mapped file resource = mapped notice
+ruby indirect resource = core resource
+ruby external source resource = external source resource
+'
+
+find .build/rbapp/jo-1.0/target/resources -type f | sed 's#^.build/rbapp/jo-1.0/target/resources/##' | sort
+: '
+external/ext-assets/ext.txt
+rbapp/runtime-app/app.txt
+resource-core/core-assets/bin.dat
+resource-core/core-assets/core.txt
+resource-lib/metadata/notice.txt
+resource-lib/runtime/dep-assets/dep.txt
+resource-lib/runtime/dep-assets/nested/info.json
+'

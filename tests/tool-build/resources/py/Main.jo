@@ -1,0 +1,9 @@
+import ResourceLib
+import ExternalResources
+import jo.resource.*
+import jo.py.resource.*
+
+def main: Unit receives IO.stdout =
+  with resources = new py.resource.ResourceBundle() in
+    ResourceLib.printResources("python")
+    ExternalResources.printResource("python")
