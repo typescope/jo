@@ -1,0 +1,210 @@
+namespace jo.rb.resource
+
+import jo.resource.*
+
+//------------------------------------------------------------------------------
+//
+// Packaged resources
+//
+
+@rb.interop
+private interface ResourceFile
+  @rb.targetName("exist?")
+  def exists(path: String): Bool
+
+  @rb.targetName("file?")
+  def isFile(path: String): Bool
+
+  @rb.targetName("directory?")
+  def isDirectory(path: String): Bool
+
+  def binread(path: String): rb.Dynamic
+  def dirname(path: String): String
+  def expand_path(path: String): String
+  def join(parts: ..Any): String
+  def realpath(path: String): String
+  def size(path: String): Int
+
+  @rb.targetName("read")
+  def readText(path: String, mode: String @rb.keyword = "r:utf-8"): String
+end
+
+@rb.interop
+private interface ResourceDir
+  def entries(path: String): rb.Array
+end
+
+private def resourceFile: ResourceFile =
+  rb.const("File").cast[ResourceFile]
+
+private def resourceDir: ResourceDir =
+  rb.const("Dir").cast[ResourceDir]
+
+private def resourceSeparator: String =
+  rb.const("File::SEPARATOR").asString
+
+private def defaultResourceRoot(): String =
+  val file = resourceFile
+  file.join(file.dirname(file.realpath(rb.const("__FILE__").asString)), "resources")
+
+private def validResourceOwner(owner: String): Bool =
+  if owner.isEmpty then
+    false
+  else if !validOwnerStart(owner[0]) then
+    false
+  else
+    var ok = true
+    var i = 1
+    while ok && i < owner.size do
+      if !validOwnerTail(owner[i]) then
+        ok = false
+      end
+      i = i + 1
+    end
+    ok
+
+private def validOwnerStart(ch: Char): Bool =
+  ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z')
+
+private def validOwnerTail(ch: Char): Bool =
+  validOwnerStart(ch) || ('0' <= ch && ch <= '9') || ch == '-'
+
+private def validResourceRel(rel: String): Bool =
+  if rel == "" then
+    true
+  else if rel.startsWith("/") || rel.contains("\\") then
+    false
+  else
+    var ok = true
+    for part in rel.split("/") do
+      if part == "" || part == "." || part == ".." then
+        ok = false
+      end
+    ok
+
+private def appendResourceRel(base: String, rel: String): String =
+  if base == "" then rel else base + "/" + rel
+
+private def resourcePathContains(root: String, path: String): Bool =
+  val sep = resourceSeparator
+  path == root || path.startsWith(root + sep)
+
+//[ Read-only access to resources copied beside the generated Ruby program.
+  !
+  ! The default constructor resolves resources from
+  ! `dirname(File.realpath(__FILE__)) / "resources"`.
+//]
+class ResourceBundle
+  private val root: String
+
+  def ResourceBundle() =
+    this.root = defaultResourceRoot()
+
+  def ResourceBundle(root: String) =
+    this.root = resourceFile.expand_path(root)
+
+  view Resources
+
+  def path(owner: String, rel: String): Result[String, String] =
+    match resolveExisting(owner, rel)
+    case Ok(path) => Ok(path)
+    case Err(err) => Err(err)
+
+  def exists(owner: String, rel: String): Bool =
+    match resolveExisting(owner, rel)
+    case Ok(_) => true
+    case Err(_) => false
+
+  def isFile(owner: String, rel: String): Bool =
+    match resolveExisting(owner, rel)
+    case Ok(path) => resourceFile.isFile(path)
+    case Err(_) => false
+
+  def stat(owner: String, rel: String): Option[FileInfo] =
+    match resolveExisting(owner, rel)
+    case Err(_) => None
+    case Ok(path) =>
+      val file = resourceFile.isFile(path)
+      val size = if file then resourceFile.size(path) else 0
+      Some(new FileInfo(file, size))
+
+  def list(owner: String, dir: String): Result[jo.List[DirEntry], String] =
+    match resolveExisting(owner, dir)
+    case Err(err) => Err(err)
+    case Ok(path) =>
+      if !resourceFile.isDirectory(path) then
+        Err("resource is not a directory: " + owner + "/" + dir)
+      else
+        match rb.try(rb.dynamic(resourceDir.entries(path)).sort.cast[rb.Array])
+        case Err(e) => Err(e.message)
+        case Ok(names) =>
+          var entries: jo.List[DirEntry] = []
+          for item in names do
+            val name = item.asString
+            if name != "." && name != ".." then
+              val rel = appendResourceRel(dir, name)
+              val child = resourceFile.join(path, name)
+              entries = entries + new DirEntry(rel, resourceFile.isDirectory(child))
+            end
+          Ok(entries)
+
+  def readText(owner: String, rel: String): Result[String, String] =
+    match resolveFile(owner, rel)
+    case Err(err) => Err(err)
+    case Ok(path) =>
+      match rb.try(resourceFile.readText(path))
+      case Ok(text) => Ok(text)
+      case Err(e) => Err(e.message)
+
+  def readBytes(owner: String, rel: String): Result[Bytes, String] =
+    match resolveFile(owner, rel)
+    case Err(err) => Err(err)
+    case Ok(path) =>
+      match rb.try(resourceFile.binread(path).cast[Bytes])
+      case Ok(bytes) => Ok(bytes)
+      case Err(e) => Err(e.message)
+
+  private def resolveFile(owner: String, rel: String): Result[String, String] =
+    match resolveExisting(owner, rel)
+    case Err(err) => Err(err)
+    case Ok(path) =>
+      if resourceFile.isFile(path) then Ok(path)
+      else Err("resource is not a file: " + owner + "/" + rel)
+
+  private def resolveExisting(owner: String, rel: String): Result[String, String] =
+    match resolve(owner, rel)
+    case Err(err) => Err(err)
+    case Ok(logicalPath ~ ownerRoot) =>
+      if !resourceFile.exists(logicalPath) then
+        Err("resource not found: " + owner + "/" + rel)
+      else
+        match rb.try(resourceFile.realpath(logicalPath))
+        case Err(e) => Err(e.message)
+        case Ok(realPath) =>
+          match rb.try(resourceFile.realpath(root))
+          case Err(e) => Err(e.message)
+          case Ok(rootReal) =>
+            match rb.try(resourceFile.realpath(ownerRoot))
+            case Err(e) => Err(e.message)
+            case Ok(ownerRootReal) =>
+              if !resourcePathContains(rootReal, ownerRootReal) then
+                Err("resource owner escapes resource root: " + owner)
+              else if resourcePathContains(ownerRootReal, realPath) then
+                Ok(realPath)
+              else
+                Err("resource path escapes owner root: " + owner + "/" + rel)
+
+  private def resolve(owner: String, rel: String): Result[String ~ String, String] =
+    if !validResourceOwner(owner) then
+      Err("invalid resource owner: " + owner)
+    else if !validResourceRel(rel) then
+      Err("invalid resource path: " + rel)
+    else
+      val file = resourceFile
+      val ownerRoot = file.expand_path(file.join(root, owner))
+      val path = if rel == "" then ownerRoot else file.expand_path(file.join(ownerRoot, rel))
+      if resourcePathContains(ownerRoot, path) then
+        Ok(path ~ ownerRoot)
+      else
+        Err("resource path escapes owner root: " + owner + "/" + rel)
+end
