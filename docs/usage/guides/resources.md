@@ -147,6 +147,9 @@ resources:
 - source module with `[module.<id>.package]`: package name
 - source module without package metadata: module id
 
+Owner names are ASCII-only: they start with an ASCII letter and then contain
+only ASCII letters, digits, or `-`.
+
 If two modules or packages in one app resource closure derive the same owner and
 both declare resources, the app build fails. This matters most for external
 unpublished source modules because module ids are scoped to their own project.
@@ -206,7 +209,8 @@ resources = ["assets/"]
 
 `ResourceBundle` validates owner and resource paths before reading:
 
-- owners must start with a letter and then contain only letters, digits, or `-`
+- owners must start with an ASCII letter and then contain only ASCII letters,
+  digits, or `-`
 - resource paths must be relative
 - resource paths use `/` only
 - `.` and `..` segments are rejected
