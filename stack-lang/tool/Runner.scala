@@ -30,8 +30,9 @@ object Runner:
         ) match
           case err @ Result.Err(_) => err
           case _ =>
-            runApp(app, jo).map: _ =>
-              info(s"[output] ${LogFormat.path(app.outFile)}\n")
+            runApp(app, jo).flatMap: _ =>
+              syncResources(app).map: _ =>
+                info(s"[output] ${LogFormat.path(app.outFile)}\n")
 
   /** Type-check only: compile everything as libs (--sast), skip app link step. */
   def check(plan: ModulePlan, action: String)(using Logger): Result[Unit] =
@@ -130,6 +131,17 @@ object Runner:
         Files.writeString(sentinel, fingerprint(args))
         ok
       case err => err
+
+  private def syncResources(app: CompileTask.AppTask): Result[Unit] =
+    val resourceDir = app.outFile.getParent.resolve("resources")
+    try
+      if Files.exists(resourceDir) then deleteDir(resourceDir)
+      if app.resources.isEmpty then Result.unit
+      else
+        Files.createDirectories(resourceDir)
+        ResourcePaths.copyGroups(app.resources, resourceDir)
+    catch
+      case e: java.io.IOException => Result.Err(s"could not sync resources: ${e.getMessage}")
 
   private def appSentinel(app: CompileTask.AppTask): Path =
     app.outFile.resolveSibling(app.outFile.getFileName.toString + ".done")

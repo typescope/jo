@@ -138,9 +138,11 @@ object Build:
           requireLockCoverage(lock, resolved).map(_ => resolved)
 
       case None =>
-        DependencyResolver.resolveProject(project, project.moduleIds).flatMap: resolved =>
-          validatePackageDepths(project, resolved, modules).flatMap: _ =>
-            writeLock(lockPath, project.joVersion, resolved.packages).map(_ => resolved)
+        DependencyResolver.resolveProject(project, project.moduleIds).flatMap: resolvedAll =>
+          validatePackageDepths(project, resolvedAll, modules).flatMap: _ =>
+            makeLock(project.joVersion, resolvedAll.packages).flatMap: lock =>
+              LockFile.write(lockPath, lock).flatMap: _ =>
+                DependencyResolver.resolveProject(project, modules, lock)
 
   private def resolvePackages(
     project: Project,
@@ -189,7 +191,7 @@ object Build:
     else
       Result.Err(s"lock file is missing package entries for: ${missing.mkString(", ")}; run 'jo lock'")
 
-  private def writeLock(path: Path, joVersion: Version, pkgs: List[ResolvedPackage])(using provider: PackageProvider): Result[Unit] =
+  private def makeLock(joVersion: Version, pkgs: List[ResolvedPackage])(using provider: PackageProvider): Result[LockFile] =
     val locked = new mutable.ArrayBuffer[LockedPackage]
     val sorted = pkgs.sortBy(_.name)
     val it = sorted.iterator
@@ -207,7 +209,10 @@ object Build:
     if error != null then
       Result.Err(error)
     else
-      LockFile.write(path, LockFile(Some(joVersion), locked.toList))
+      Result.Ok(LockFile(Some(joVersion), locked.toList))
+
+  private def writeLock(path: Path, joVersion: Version, pkgs: List[ResolvedPackage])(using provider: PackageProvider): Result[Unit] =
+    makeLock(joVersion, pkgs).flatMap(LockFile.write(path, _))
 
   private def docOptions(project: Project, module: ModuleId): List[String] =
     val docSpec = project.doc.getOrElse(DocSpec())

@@ -147,19 +147,25 @@ object Release:
       val target = stageDir.resolve(rel.toString)
       Files.createDirectories(target.getParent)
       Files.copy(file, target)
-    Result.unit
+
+    ResourcePaths.expand(spec.resources, project.dir).flatMap: resources =>
+      ResourcePaths.copyFiles(resources, stageDir.resolve("resources"))
 
   private def stageSources(project: Project, spec: ModuleSpec, stageDir: Path): Result[Unit] =
     SourcePaths.expand(spec.src, project.dir).flatMap: sources =>
       if sources.isEmpty then
         Result.Err(s"no source files found for package '${spec.pkg.get.name}'")
       else
-        for file <- sources do
-          val rel = project.dir.relativize(file)
-          val target = stageDir.resolve(rel.toString)
-          Files.createDirectories(target.getParent)
-          Files.copy(file, target)
-        Result.unit
+        ResourcePaths.expand(spec.resources, project.dir).map: resources =>
+          val files = mutable.LinkedHashMap.empty[String, Path]
+          for file <- sources do
+            files(project.dir.relativize(file).toString) = file
+          for resource <- resources do
+            files(resource.sourceArchivePath.toString) = resource.inputFile
+          for (rel, file) <- files do
+            val target = stageDir.resolve(rel)
+            Files.createDirectories(target.getParent)
+            Files.copy(file, target)
 
   private def renderMeta(meta: PackageMeta): String =
     val sb = new StringBuilder
