@@ -1,6 +1,6 @@
-rm -rf repo .build core/.build dep/.build invalid/.build duplicate/.build duplicate-dir/.build external/.build collision-ext/.build same-owner/.build symlink-file/.build symlink-dir/.build missing-package/.build missing-app/.build rebuild/.build rebuild/live corrupt-app/.build
+rm -rf repo .build core/.build dep/.build invalid/.build duplicate/.build duplicate-dir/.build external/.build collision-ext/.build same-owner/.build symlink-file/.build symlink-dir/.build missing-package/.build missing-app/.build rebuild/.build rebuild/live rebuild/gen corrupt-app/.build
 
-rm -f jo.lock core/jo.lock dep/jo.lock invalid/jo.lock duplicate/jo.lock duplicate-dir/jo.lock external/jo.lock collision-ext/jo.lock same-owner/jo.lock symlink-file/jo.lock symlink-dir/jo.lock missing-package/jo.lock missing-app/jo.lock rebuild/jo.toml rebuild/jo.lock corrupt-app/jo.lock symlink-file/link.txt symlink-dir/assets/link.txt
+rm -f jo.lock core/jo.lock dep/jo.lock invalid/jo.lock duplicate/jo.lock duplicate-dir/jo.lock external/jo.lock collision-ext/jo.lock same-owner/jo.lock symlink-file/jo.lock symlink-dir/jo.lock missing-package/jo.lock missing-app/jo.lock rebuild/jo.toml rebuild/jo.lock rebuild/mtime-before.txt rebuild/mtime-after.txt corrupt-app/jo.lock symlink-file/link.txt symlink-dir/assets/link.txt
 
 jo build --spec invalid/jo.toml backslash
 : '
@@ -117,7 +117,8 @@ test ! -e .build/sourcelib/jo-1.0/target/resources
 test ! -e .build/sourcelib/jo-1.0/resources
 : ''
 
-mkdir -p rebuild/live
+mkdir -p rebuild/live rebuild/gen
+printf 'def main: Unit = pass\n' > rebuild/gen/Main.jo
 printf 'one\n' > rebuild/live/msg.txt
 printf 'stale\n' > rebuild/live/stale.txt
 cp rebuild/with-resources.toml rebuild/jo.toml
@@ -129,6 +130,15 @@ cat rebuild/.build/app/jo-1.0/target/resources/app/live/msg.txt
 one
 '
 
+python3 -c 'import os; print(os.stat("rebuild/.build/app/jo-1.0/target/resources/app/live/msg.txt").st_mtime_ns)' > rebuild/mtime-before.txt
+sleep 1
+
+jo build --spec rebuild/jo.toml app
+
+python3 -c 'import os; print(os.stat("rebuild/.build/app/jo-1.0/target/resources/app/live/msg.txt").st_mtime_ns)' > rebuild/mtime-after.txt
+cmp rebuild/mtime-before.txt rebuild/mtime-after.txt
+: ''
+
 printf 'two\n' > rebuild/live/msg.txt
 rm -f rebuild/live/stale.txt
 
@@ -138,6 +148,14 @@ cat rebuild/.build/app/jo-1.0/target/resources/app/live/msg.txt
 test ! -e rebuild/.build/app/jo-1.0/target/resources/app/live/stale.txt
 : '
 two
+'
+
+sleep 1
+printf 'def main: Unit = println "source changed"\n' > rebuild/gen/Main.jo
+
+jo run --spec rebuild/jo.toml app
+: '
+source changed
 '
 
 cp rebuild/empty-resources.toml rebuild/jo.toml
