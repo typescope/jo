@@ -1,6 +1,8 @@
 namespace jo.py.resource
 
-import jo.resource.*
+import jo.resource.DirEntry
+import jo.resource.FileInfo
+import jo.resource.Resources
 
 //------------------------------------------------------------------------------
 //
