@@ -1,15 +1,44 @@
-rm -rf repo .build core/.build dep/.build invalid/.build duplicate/.build external/.build collision-ext/.build
+rm -rf repo .build core/.build dep/.build invalid/.build duplicate/.build duplicate-dir/.build external/.build collision-ext/.build same-owner/.build symlink-file/.build symlink-dir/.build missing-package/.build missing-app/.build rebuild/.build rebuild/live corrupt-app/.build
 
-rm -f jo.lock core/jo.lock dep/jo.lock invalid/jo.lock duplicate/jo.lock external/jo.lock collision-ext/jo.lock
+rm -f jo.lock core/jo.lock dep/jo.lock invalid/jo.lock duplicate/jo.lock duplicate-dir/jo.lock external/jo.lock collision-ext/jo.lock same-owner/jo.lock symlink-file/jo.lock symlink-dir/jo.lock missing-package/jo.lock missing-app/jo.lock rebuild/jo.toml rebuild/jo.lock corrupt-app/jo.lock symlink-file/link.txt symlink-dir/assets/link.txt
 
 jo build --spec invalid/jo.toml backslash
 : '
 error: in tests/tool-build/resources/invalid/jo.toml: module.backslash.resources[0]: resource path 'bad\path.txt' uses backslash; use '/' separators
 '
 
+ln -s target.txt symlink-file/link.txt
+
+jo package --spec symlink-file/jo.toml
+: '
+error: resource path must not be a symlink: tests/tool-build/resources/symlink-file/link.txt
+'
+
+ln -s nested-target.txt symlink-dir/assets/link.txt
+
+jo package --spec symlink-dir/jo.toml
+: '
+error: resource path must not be a symlink: tests/tool-build/resources/symlink-dir/assets/link.txt
+'
+
+jo package --spec missing-package/jo.toml
+: '
+error: resource path not found: tests/tool-build/resources/missing-package/missing.txt
+'
+
+jo build --spec missing-app/jo.toml
+: '
+error: resource path not found: tests/tool-build/resources/missing-app/missing.txt
+'
+
 jo package --spec duplicate/jo.toml
 : '
 error: duplicate resource target: out.txt
+'
+
+jo package --spec duplicate-dir/jo.toml
+: '
+error: duplicate resource target: out/a.txt
 '
 
 jo package --spec core/jo.toml
@@ -56,6 +85,22 @@ jo build collision
 error: duplicate resource owner 'collision' in app resource closure
 '
 
+jo build pkgcollision
+: '
+error: duplicate resource owner 'resource-lib' in app resource closure
+'
+
+jo build linkresources
+
+find .build/linkresources/jo-1.0/target/resources -type f | sed 's#^.build/linkresources/jo-1.0/target/resources/##' | sort
+: '
+resource-core/core-assets/bin.dat
+resource-core/core-assets/core.txt
+resource-lib/metadata/notice.txt
+resource-lib/runtime/dep-assets/dep.txt
+resource-lib/runtime/dep-assets/nested/info.json
+'
+
 jo build sourcelib
 
 test ! -e .build/sourcelib/jo-1.0/target/resources
@@ -63,6 +108,43 @@ test ! -e .build/sourcelib/jo-1.0/target/resources
 
 test ! -e .build/sourcelib/jo-1.0/resources
 : ''
+
+mkdir -p rebuild/live
+printf 'one\n' > rebuild/live/msg.txt
+printf 'stale\n' > rebuild/live/stale.txt
+cp rebuild/with-resources.toml rebuild/jo.toml
+
+jo build --spec rebuild/jo.toml app
+
+cat rebuild/.build/app/jo-1.0/target/resources/app/live/msg.txt
+: '
+one
+'
+
+printf 'two\n' > rebuild/live/msg.txt
+rm -f rebuild/live/stale.txt
+
+jo build --spec rebuild/jo.toml app
+
+cat rebuild/.build/app/jo-1.0/target/resources/app/live/msg.txt
+test ! -e rebuild/.build/app/jo-1.0/target/resources/app/live/stale.txt
+: '
+two
+'
+
+cp rebuild/empty-resources.toml rebuild/jo.toml
+
+jo build --spec rebuild/jo.toml app
+
+test ! -e rebuild/.build/app/jo-1.0/target/resources
+: ''
+
+python3 -c 'import pathlib, zipfile; p = pathlib.Path("repo/corrupt-resources/1.0.0"); p.mkdir(parents=True, exist_ok=True); z = zipfile.ZipFile(p / "corrupt-resources-v1.0.0.joy", "w"); z.writestr("meta.toml", "namespace = \"Corrupt\"\nname = \"corrupt-resources\"\njo = \"1.0\"\nversion = \"1.0.0\"\nruntime = \"pure\"\n"); z.writestr("resources", "not a directory\n"); z.close()'
+
+jo build --spec corrupt-app/jo.toml app
+: '
+error: package resource root is not a directory: tests/tool-build/resources/.cache/packages/corrupt-resources/1.0.0/unpacked/resources
+'
 
 jo run pyapp
 : '

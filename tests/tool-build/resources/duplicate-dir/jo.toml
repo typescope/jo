@@ -1,0 +1,10 @@
+jo = "1.0"
+
+[module.lib]
+kind = "lib"
+src = ["src/"]
+resources = ["assets/:out/", "assets/a.txt:out/a.txt"]
+
+[module.lib.package]
+name = "resource-duplicate-dir"
+version = "1.0.0"
