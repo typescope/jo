@@ -196,8 +196,18 @@ App compilation copies resources beside the generated app output:
 ```
 
 Only app builds copy resources recursively from the app module and its selected
-source/package dependency closure. For published packages, `<owner>` is the
-package name. For a root source module, `<owner>` is the module id.
+source/package dependency closure.
+
+The `<owner>` directory is derived as follows:
+
+- registry package dependency: package name
+- source module with `[module.<id>.package]`: package name
+- source module without package metadata: module id
+
+If two modules or packages in the selected app closure derive the same owner and
+both declare resources, the app build fails with a duplicate resource owner
+error. Use package metadata when an external source module needs a stable owner
+that will not collide with another module id.
 
 Resource access is app-global at runtime. Owner directories keep copied files
 separate and deterministic, but they do not make resources private to the owning

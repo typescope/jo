@@ -20,6 +20,10 @@ resources = [
   "templates/index.html:views/index.html",
 ]
 
+[module.web.package]
+name = "my-web"
+version = "1.0.0"
+
 [module.app]
 kind = "app"
 platform = "python"
@@ -115,8 +119,7 @@ dependency closure beside the generated program:
 .build/app/jo-1.0/target/resources/<owner>/<resource-path>
 ```
 
-For published packages, `<owner>` is the package name. For a source module in
-the root project, `<owner>` is the module id.
+The `<owner>` directory is described in [Owner Names](#owner-names).
 
 This is an app-global resource directory. Any code running in the app that has
 the `resources` capability can read any copied owner path if it knows the owner
@@ -124,6 +127,27 @@ and resource path. Resource owners prevent file-name collisions; they are not a
 least-privilege access control boundary.
 
 Plain lib builds do not copy resources. Only app builds do.
+
+## Owner Names
+
+Resource reads name an owner explicitly:
+
+```jo
+resources.readText("my-web", "views/index.html")
+```
+
+The owner name is derived from the module or package that declared the
+resources:
+
+- registry package dependency: package name
+- source module with `[module.<id>.package]`: package name
+- source module without package metadata: module id
+
+If two modules or packages in one app resource closure derive the same owner and
+both declare resources, the app build fails. This matters most for external
+unpublished source modules because module ids are scoped to their own project.
+Use package metadata when an external source module needs a stable owner that
+will not collide with another module id.
 
 ## Reading Resources
 
