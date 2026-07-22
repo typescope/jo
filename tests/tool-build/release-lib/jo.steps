@@ -10,13 +10,13 @@ cp dep/.build/lib/release/jo-core-v1.0.0.joy repo/jo-core/1.0.0/
 
 jo package
 
-unzip -Z1 .build/lib/release/release-lib-v1.0.0.joy | sort
+unzip -Z1 .build/lib/release/release-lib-v1.0.0.joy | LC_ALL=C sort
 : '
 Greeter/Greeter.sast
 meta.toml
 '
 
-unzip -Z1 .build/lib/release/release-lib-v1.0.0-sources.zip | sort
+unzip -Z1 .build/lib/release/release-lib-v1.0.0-sources.zip | LC_ALL=C sort
 : '
 src/Greeter.jo
 '
