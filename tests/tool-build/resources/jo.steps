@@ -7,6 +7,7 @@ jo build --spec invalid/jo.toml backslash
 error: in tests/tool-build/resources/invalid/jo.toml: module.backslash.resources[0]: resource path 'bad\path.txt' uses backslash; use '/' separators
 '
 
+rm -f symlink-file/link.txt
 ln -s target.txt symlink-file/link.txt
 
 jo package --spec symlink-file/jo.toml
@@ -14,6 +15,7 @@ jo package --spec symlink-file/jo.toml
 error: resource path must not be a symlink: tests/tool-build/resources/symlink-file/link.txt
 '
 
+rm -f symlink-dir/assets/link.txt
 ln -s nested-target.txt symlink-dir/assets/link.txt
 
 jo package --spec symlink-dir/jo.toml
@@ -41,15 +43,19 @@ jo package --spec duplicate-dir/jo.toml
 error: duplicate resource target: out/a.txt
 '
 
+rm -f core/jo.lock
+
 jo package --spec core/jo.toml
 
 mkdir -p repo/resource-core/1.0.0
 
 cp core/.build/lib/release/resource-core-v1.0.0.joy repo/resource-core/1.0.0/
 
+rm -f dep/jo.lock
+
 jo package --spec dep/jo.toml
 
-unzip -Z1 dep/.build/lib/release/resource-lib-v1.0.0.joy | sort
+unzip -Z1 dep/.build/lib/release/resource-lib-v1.0.0.joy | LC_ALL=C sort
 : '
 ResourceLib/Dep.sast
 meta.toml
@@ -68,7 +74,7 @@ unzip -p dep/.build/lib/release/resource-lib-v1.0.0.joy resources/metadata/notic
 mapped notice
 '
 
-unzip -Z1 dep/.build/lib/release/resource-lib-v1.0.0-sources.zip | sort
+unzip -Z1 dep/.build/lib/release/resource-lib-v1.0.0-sources.zip | LC_ALL=C sort
 : '
 dep-assets/dep.txt
 dep-assets/nested/info.json
@@ -79,6 +85,8 @@ src/Dep.jo
 mkdir -p repo/resource-lib/1.0.0
 
 cp dep/.build/lib/release/resource-lib-v1.0.0.joy repo/resource-lib/1.0.0/
+
+rm -f jo.lock
 
 jo build collision
 : '
@@ -92,7 +100,7 @@ error: duplicate resource owner 'resource-lib' in app resource closure
 
 jo build linkresources
 
-find .build/linkresources/jo-1.0/target/resources -type f | sed 's#^.build/linkresources/jo-1.0/target/resources/##' | sort
+find .build/linkresources/jo-1.0/target/resources -type f | sed 's#^.build/linkresources/jo-1.0/target/resources/##' | LC_ALL=C sort
 : '
 resource-core/core-assets/bin.dat
 resource-core/core-assets/core.txt
@@ -154,7 +162,7 @@ python indirect resource = core resource
 python external source resource = external source resource
 '
 
-find .build/pyapp/jo-1.0/target/resources -type f | sed 's#^.build/pyapp/jo-1.0/target/resources/##' | sort
+find .build/pyapp/jo-1.0/target/resources -type f | sed 's#^.build/pyapp/jo-1.0/target/resources/##' | LC_ALL=C sort
 : '
 external/ext-assets/ext.txt
 pyapp/runtime-app/app.txt
@@ -173,7 +181,7 @@ ruby indirect resource = core resource
 ruby external source resource = external source resource
 '
 
-find .build/rbapp/jo-1.0/target/resources -type f | sed 's#^.build/rbapp/jo-1.0/target/resources/##' | sort
+find .build/rbapp/jo-1.0/target/resources -type f | sed 's#^.build/rbapp/jo-1.0/target/resources/##' | LC_ALL=C sort
 : '
 external/ext-assets/ext.txt
 rbapp/runtime-app/app.txt
