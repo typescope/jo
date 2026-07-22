@@ -107,11 +107,15 @@ object Release:
     if !Files.isDirectory(sastDir) then
       return Result.Err(s"sast output not found: $sastDir")
 
-    val sastFiles = Files.walk(sastDir).iterator.asScala
-      .filter(Files.isRegularFile(_))
-      .filter(_.getFileName.toString.endsWith(".sast"))
-      .toList
-      .sortBy(_.toString)
+    val sastFiles =
+      val stream = Files.walk(sastDir)
+      try
+        stream.iterator.asScala
+          .filter(Files.isRegularFile(_))
+          .filter(_.getFileName.toString.endsWith(".sast"))
+          .toList
+          .sortBy(_.toString)
+      finally stream.close()
 
     if sastFiles.isEmpty then
       return Result.Err(s"no .sast files found in $sastDir")
