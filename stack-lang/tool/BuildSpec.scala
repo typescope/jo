@@ -303,13 +303,19 @@ object BuildSpec:
     DocSpec(title, readme, includePrivate, includeSource)
 
   private def validateModuleId(id: String, ctx: String): String =
-    if id.isEmpty || !id.head.isLetter || !id.tail.forall(c => c.isLetterOrDigit || c == '-') then
-      throw TomlError(s"invalid $ctx '$id', must start with a letter and contain only letters, digits, and hyphens")
+    if id.isEmpty || !isAsciiLetter(id.head) || !id.tail.forall(c => isAsciiLetterOrDigit(c) || c == '-') then
+      throw TomlError(s"invalid $ctx '$id', must start with an ASCII letter and contain only ASCII letters, digits, and hyphens")
     id
 
   private def validatePackageName(name: String, ctx: String): Unit =
-    if name.isEmpty || !name.head.isLetter || !name.tail.forall(c => c.isLetterOrDigit || c == '-') then
-      throw TomlError(s"invalid $ctx '$name', must start with a letter and contain only letters, digits, and hyphens")
+    if name.isEmpty || !isAsciiLetter(name.head) || !name.tail.forall(c => isAsciiLetterOrDigit(c) || c == '-') then
+      throw TomlError(s"invalid $ctx '$name', must start with an ASCII letter and contain only ASCII letters, digits, and hyphens")
+
+  private def isAsciiLetter(c: Char): Boolean =
+    ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
+
+  private def isAsciiLetterOrDigit(c: Char): Boolean =
+    isAsciiLetter(c) || ('0' <= c && c <= '9')
 
   private def validateVersion(v: String, ctx: String): Unit =
     val parts = v.split("\\.")

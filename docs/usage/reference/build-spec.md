@@ -36,7 +36,8 @@ to declare normal compatibility constraints only.
 
 ## `[module.<id>]`
 
-Module ids must start with a letter and may contain letters, digits, and hyphens.
+Module ids are ASCII resource owners. They must start with an ASCII letter and
+may contain only ASCII letters, digits, and hyphens.
 
 | Field             | Type             | Required | Description |
 |-------------------|------------------|----------|-------------|
@@ -204,6 +205,9 @@ The `<owner>` directory is derived as follows:
 - source module with `[module.<id>.package]`: package name
 - source module without package metadata: module id
 
+Owner names use the same ASCII grammar as module ids and package names: they
+start with an ASCII letter and contain only ASCII letters, digits, or hyphens.
+
 If two modules or packages in the selected app closure derive the same owner and
 both declare resources, the app build fails with a duplicate resource owner
 error. Use package metadata when an external source module needs a stable owner
@@ -257,7 +261,7 @@ packages = [
 
 | Field     | Required | Description |
 |-----------|----------|-------------|
-| `name`    | yes      | Registry package name. |
+| `name`    | yes      | Registry package name. Starts with an ASCII letter and contains only ASCII letters, digits, or hyphens. |
 | `version` | yes      | Compatibility line, e.g. `"1.0"`. |
 | `link`    | no       | Link-only dependency. Default `false`. |
 
@@ -324,7 +328,7 @@ Any module can be publishable by adding a nested package section.
 
 | Field         | Type            | Required | Description |
 |---------------|-----------------|----------|-------------|
-| `name`        | string          | yes      | Package name. Must start with a letter and may contain letters, digits, and hyphens. |
+| `name`        | string          | yes      | Package name. Starts with an ASCII letter and contains only ASCII letters, digits, or hyphens. |
 | `version`     | string          | yes      | Package version in `MAJOR.MINOR.PATCH` format. |
 | `description` | string          | no       | Package description. |
 | `authors`     | array of string | no       | Package authors. |
