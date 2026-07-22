@@ -27,10 +27,6 @@ object FrontEnd:
     locally:
       given Definitions = defnLazy.value
 
-      Config.sastDir.value.foreach: dir =>
-        common.IO.ensureExists(dir)
-        for unit <- nss do pickle.Encoder.store(unit, dir, testPickling = false, verbose = false)
-
       nss |> linkStep(nssDelayed, defaultRuntimePackages, defaultMappings) |> translateStep(arrayOpsSection)
 
   def linkStep
