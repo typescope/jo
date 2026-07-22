@@ -1,0 +1,57 @@
+import jo.resource.*
+import jo.rb.resource.*
+
+def main: Unit receives IO.stdout =
+  with resources = new rb.resource.ResourceBundle() in
+    run()
+
+def run(): Unit receives IO.stdout, resources =
+  println("exists text = " + resources.exists("fixture", "assets/text.txt"))
+  println("exists missing = " + resources.exists("fixture", "assets/missing.txt"))
+  println("is file text = " + resources.isFile("fixture", "assets/text.txt"))
+  println("is file dir = " + resources.isFile("fixture", "assets"))
+
+  printText("text", "fixture", "assets/text.txt")
+  printText("nested", "fixture", "assets/nested/info.txt")
+
+  match resources.stat("fixture", "assets/bin.dat")
+  case Some(info) =>
+    println("bin stat = " + info.isFile + ":" + info.sizeBytes)
+  case None =>
+    println("bin stat = none")
+
+  match resources.readBytes("fixture", "assets/bin.dat")
+  case Ok(bytes) =>
+    println("bin bytes = " + bytes.size + ":" + bytes.get(0).toInt + ":" + bytes.get(3).toInt + ":" + bytes.toBase64)
+  case Err(err) =>
+    println("bin err = " + err)
+
+  match resources.list("fixture", "assets")
+  case Ok(entries) =>
+    for entry in entries do
+      println("entry = " + entry.path + ":" + entry.isDirectory)
+  case Err(err) =>
+    println("list err = " + err)
+
+  printRejected("missing read", resources.readText("fixture", "assets/missing.txt"))
+  printRejected("dir read", resources.readText("fixture", "assets"))
+  printRejected("parent escape", resources.readText("fixture", "../outside.txt"))
+  printRejected("absolute escape", resources.readText("fixture", "/tmp/outside.txt"))
+  printRejected("backslash path", resources.readText("fixture", "assets\\text.txt"))
+  printRejected("bad owner", resources.readText("bad/owner", "assets/text.txt"))
+  printRejected("dotdot owner", resources.readText("..", "assets/text.txt"))
+  printRejected("absolute owner", resources.readText("/fixture", "assets/text.txt"))
+  printRejected("backslash owner", resources.readText("bad\\owner", "assets/text.txt"))
+  printRejected("colon owner", resources.readText("bad:owner", "assets/text.txt"))
+  printRejected("drive owner", resources.readText("C:fixture", "assets/text.txt"))
+  printRejected("symlink escape", resources.readText("fixture", "links/escape.txt"))
+
+private def printText(label: String, owner: String, rel: String): Unit receives IO.stdout, resources =
+  match resources.readText(owner, rel)
+  case Ok(text) => println(label + " = " + text.trim)
+  case Err(err) => println(label + " err = " + err)
+
+private def printRejected(label: String, result: Result[String, String]): Unit receives IO.stdout =
+  match result
+  case Ok(_) => println(label + " = accepted")
+  case Err(_) => println(label + " = rejected")
