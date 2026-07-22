@@ -25,14 +25,14 @@ param resources: Resources
 
 //[ Read-only access to resources bundled with the built program.
   !
-  ! `owner` is the package or module resource identity. For registry packages it
-  ! is the package name. `rel` is a `/`-separated path inside that owner's
-  ! resource root. Implementations reject absolute paths and escaping segments.
+  ! `owner` is the package or module resource identity: registry package name,
+  ! source module package name, or module id for a source module without package
+  ! metadata.
+  !
+  ! `rel` is a `/`-separated path inside that owner's resource root.
+  ! Implementations reject absolute paths and escaping segments.
 //]
 interface Resources
-  //[ The concrete filesystem path for a bundled resource. //]
-  def path(owner: String, rel: String): Result[String, String]
-
   //[ Whether a file or directory exists at `rel` under `owner`. //]
   def exists(owner: String, rel: String): Bool
 
