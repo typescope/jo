@@ -42,6 +42,7 @@ Module ids must start with a letter and may contain letters, digits, and hyphens
 |-------------------|------------------|----------|-------------|
 | `kind`            | string           | yes      | `"lib"` or `"app"`. |
 | `src`             | array of paths   | yes      | Source directories or `.jo` files for this module. Directories are searched recursively. |
+| `resources`       | array of paths   | no       | Resource directories or files for this module. Directories include regular files recursively. Default: `[]`. |
 | `platform`        | string           | app only | Platform this module is bound to. Apps: `"python"` or `"ruby"`, required. Libs: `"pure"`, `"python"`, or `"ruby"`, default `"pure"`. |
 | `enable-ffi`      | boolean          | no       | May this module's own code call the platform's FFI API (`py.*`, `rb.*`). Default: `false`. |
 | `depth`           | integer          | no       | Maximum registry package dependency depth for this module. Default: `0` for `lib`, `1` for `app`. |
@@ -107,6 +108,103 @@ links = [
 `src` entries are project-relative paths. A directory entry includes every `.jo`
 file under that directory recursively. A file entry includes that file only and
 must end with `.jo`. Glob syntax is not supported.
+
+### `resources`
+
+`resources` declares data files owned by a module:
+
+```toml
+[module.ui]
+kind = "lib"
+src = ["src/"]
+resources = ["assets/", "config/default.json"]
+```
+
+Each entry is a resource mapping. The short form `source` means
+`source:source`; use `source:destination` when the runtime resource path should
+not match the source tree layout:
+
+```toml
+resources = [
+  "assets/",                            # assets/:assets/
+  "web/:public/",                       # directory mapped to public/
+  "config/default.json:defaults.json",  # file mapped to defaults.json
+]
+```
+
+The source side is always resolved relative to the project root. The destination
+side is a logical path below the module's runtime resource owner directory:
+
+- a source file maps to exactly the destination file path
+- a source directory maps every regular file below it into the destination
+  directory, preserving paths relative to the source directory
+- a trailing `/` is accepted on either side and does not change the destination
+  semantics
+
+The example above packages:
+
+```text
+resources/assets/index.html
+resources/assets/app.js
+resources/public/index.html
+resources/public/app.js
+resources/defaults.json
+```
+
+There is no overlay behavior. If two entries produce the same destination, the
+build fails:
+
+```toml
+resources = ["assets/", "assets/index.html"] # duplicate destination
+```
+
+Resource declaration paths are portable logical paths, not host OS path strings.
+Rules:
+
+- entries contain either zero or one `:` separator
+- `:` is reserved for `source:destination` mappings and cannot appear inside a
+  path
+- both `source` and `destination` must be non-empty when `:` is used
+- source and destination paths are relative
+- `/` is the only separator
+- a trailing `/` is allowed
+- absolute paths are rejected, including `/tmp/x` and `C:/x`
+- `..` segments are rejected
+- `.` segments are rejected
+- interior empty segments such as `assets//logo.svg` are rejected
+- backslash is rejected, not normalized as a Windows separator
+- glob syntax is not supported
+- symlinks are rejected
+- resource files may have any extension
+
+Source and destination syntax is validated when Jo reads `jo.toml`, so invalid
+declarations fail even in lib-only workflows. Filesystem checks, symlink checks,
+and duplicate expanded targets are validated when a command collects resources,
+such as `jo package` or an app build.
+
+Packaging a module copies its own resources into the `.joy` archive under
+`resources/` using the destination side of each mapping. The companion source
+archive includes the original source-side resource files, so mapped resources
+can still be audited from the source layout. Plain lib compilation does not copy
+resources.
+
+App compilation copies resources beside the generated app output:
+
+```text
+.build/app/jo-1.0/target/app.py
+.build/app/jo-1.0/target/resources/<owner>/<resource-path>
+```
+
+Only app builds copy resources recursively from the app module and its selected
+source/package dependency closure. For published packages, `<owner>` is the
+package name. For a root source module, `<owner>` is the module id.
+
+Resource access is app-global at runtime. Owner directories keep copied files
+separate and deterministic, but they do not make resources private to the owning
+dependency. Any code with the `resources` capability can read any copied
+owner/path.
+
+See [Resources](../guides/resources.md) for runtime access patterns.
 
 ## Dependencies
 
