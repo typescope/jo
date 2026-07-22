@@ -1,0 +1,23 @@
+exists text = true
+exists missing = false
+is file text = true
+is file dir = false
+text = resource text
+nested = nested text
+bin stat = true:4
+bin bytes = 4:65:10:QUJDCg==
+entry = assets/bin.dat:false
+entry = assets/nested:true
+entry = assets/text.txt:false
+missing read = rejected
+dir read = rejected
+parent escape = rejected
+absolute escape = rejected
+backslash path = rejected
+bad owner = rejected
+dotdot owner = rejected
+absolute owner = rejected
+backslash owner = rejected
+colon owner = rejected
+drive owner = rejected
+symlink escape = rejected
