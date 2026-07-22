@@ -18,7 +18,7 @@ ln -s "$DIR/outside.txt" "$DIR/resources/fixture/links/escape.txt"
 echo "  - Compiling with Ruby backend"
 "$PROJECT_ROOT/bin/jo" compile --ruby --use-runtime-api ruby "$DIR/app.jo" -o "$DIR/app.rb"
 
-(cd "$DIR" && ruby app.rb) > "$DIR/actual.out" 2>&1
+(cd /tmp && ruby "$DIR/app.rb") > "$DIR/actual.out" 2>&1
 
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] Ruby resource bundle test failed"

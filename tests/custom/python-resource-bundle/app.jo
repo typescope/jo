@@ -2,10 +2,11 @@ import jo.resource.*
 import jo.py.resource.*
 
 def main: Unit receives IO.stdout =
-  with resources = new py.resource.ResourceBundle() in
-    run()
+  val bundle = new py.resource.ResourceBundle()
+  with resources = bundle in
+    run(bundle)
 
-def run(): Unit receives IO.stdout, resources =
+def run(bundle: py.resource.ResourceBundle): Unit receives IO.stdout, resources =
   println("exists text = " + resources.exists("fixture", "assets/text.txt"))
   println("exists missing = " + resources.exists("fixture", "assets/missing.txt"))
   println("is file text = " + resources.isFile("fixture", "assets/text.txt"))
@@ -19,6 +20,10 @@ def run(): Unit receives IO.stdout, resources =
     println("bin stat = " + info.isFile + ":" + info.sizeBytes)
   case None =>
     println("bin stat = none")
+  printStat("missing", "fixture", "assets/missing.txt")
+  printStat("dir", "fixture", "assets")
+  printStat("invalid", "fixture", "../outside.txt")
+  printStat("symlink", "fixture", "links/escape.txt")
 
   match resources.readBytes("fixture", "assets/bin.dat")
   case Ok(bytes) =>
@@ -32,6 +37,16 @@ def run(): Unit receives IO.stdout, resources =
       println("entry = " + entry.path + ":" + entry.isDirectory)
   case Err(err) =>
     println("list err = " + err)
+  match resources.list("fixture", "")
+  case Ok(entries) =>
+    for entry in entries do
+      println("root entry = " + entry.path + ":" + entry.isDirectory)
+  case Err(err) =>
+    println("root list err = " + err)
+
+  printPath("path text", bundle.path("fixture", "assets/text.txt"))
+  printPath("path missing", bundle.path("fixture", "assets/missing.txt"))
+  printPath("path symlink escape", bundle.path("fixture", "links/escape.txt"))
 
   printRejected("missing read", resources.readText("fixture", "assets/missing.txt"))
   printRejected("dir read", resources.readText("fixture", "assets"))
@@ -50,6 +65,16 @@ private def printText(label: String, owner: String, rel: String): Unit receives 
   match resources.readText(owner, rel)
   case Ok(text) => println(label + " = " + text.trim)
   case Err(err) => println(label + " err = " + err)
+
+private def printStat(label: String, owner: String, rel: String): Unit receives IO.stdout, resources =
+  match resources.stat(owner, rel)
+  case Some(info) => println(label + " stat = " + info.isFile + ":" + info.sizeBytes)
+  case None => println(label + " stat = none")
+
+private def printPath(label: String, result: Result[String, String]): Unit receives IO.stdout =
+  match result
+  case Ok(_) => println(label + " = ok")
+  case Err(_) => println(label + " = rejected")
 
 private def printRejected(label: String, result: Result[String, String]): Unit receives IO.stdout =
   match result

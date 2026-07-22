@@ -18,7 +18,7 @@ ln -s "$DIR/outside.txt" "$DIR/resources/fixture/links/escape.txt"
 echo "  - Compiling with Python backend"
 "$PROJECT_ROOT/bin/jo" compile --python --use-runtime-api python "$DIR/app.jo" -o "$DIR/app.py"
 
-(cd "$DIR" && python3 app.py) > "$DIR/actual.out" 2>&1
+(cd /tmp && python3 "$DIR/app.py") > "$DIR/actual.out" 2>&1
 
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] Python resource bundle test failed"
