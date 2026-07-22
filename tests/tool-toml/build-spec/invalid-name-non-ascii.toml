@@ -1,0 +1,6 @@
+jo = "1.0"
+
+[module."mód"]
+kind = "app"
+platform = "python"
+src = ["src/"]
