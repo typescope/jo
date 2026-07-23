@@ -106,16 +106,6 @@ class ResourceBundle
       if resourceOs.path.exists(path) then Ok(path)
       else Err("resource not found: " + owner + "/" + rel)
 
-  def exists(rel: String): Bool =
-    match resolve(rel)
-    case Ok(path) => resourceOs.path.exists(path)
-    case Err(_) => false
-
-  def isFile(rel: String): Bool =
-    match resolve(rel)
-    case Ok(path) => resourceOs.path.isfile(path)
-    case Err(_) => false
-
   def stat(rel: String): Option[FileInfo] =
     match resolve(rel)
     case Err(_) => None
