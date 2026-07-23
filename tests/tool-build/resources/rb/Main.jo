@@ -4,6 +4,8 @@ import jo.resource.*
 import jo.rb.resource.*
 
 def main: Unit receives IO.stdout =
-  with resources = new rb.resource.ResourceBundle() in
-    ResourceLib.printResources("ruby")
-    ExternalResources.printResource("ruby")
+  with ResourceLib.resources = new rb.resource.ResourceBundle("resource-lib") in
+    with ResourceLib.coreResources = new rb.resource.ResourceBundle("resource-core") in
+      with ExternalResources.resources = new rb.resource.ResourceBundle("external") in
+        ResourceLib.printResources("ruby")
+        ExternalResources.printResource("ruby")

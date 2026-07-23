@@ -4,6 +4,8 @@ import jo.resource.*
 import jo.py.resource.*
 
 def main: Unit receives IO.stdout =
-  with resources = new py.resource.ResourceBundle() in
-    ResourceLib.printResources("python")
-    ExternalResources.printResource("python")
+  with ResourceLib.resources = new py.resource.ResourceBundle("resource-lib") in
+    with ResourceLib.coreResources = new py.resource.ResourceBundle("resource-core") in
+      with ExternalResources.resources = new py.resource.ResourceBundle("external") in
+        ResourceLib.printResources("python")
+        ExternalResources.printResource("python")

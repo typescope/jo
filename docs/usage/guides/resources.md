@@ -125,19 +125,20 @@ Link-only dependencies are included in the resource closure. `link = true`
 means hidden from user imports and package metadata; it does not make the
 dependency's resources private or omit them from the app artifact.
 
-This is an app-global resource directory. Any code running in the app that has
-the `resources` capability can read any copied owner path if it knows the owner
-and resource path. Resource owners prevent file-name collisions; they are not a
-least-privilege access control boundary.
+This is one app resource directory, split by owner to avoid file-name
+collisions. Runtime resource handles should be scoped to one owner, so code with
+a `Resources` value can read only that owner's paths. Code with FFI access can
+still instantiate additional owner-scoped handles, so resources are bundled
+application assets, not secrets.
 
 Plain lib builds do not copy resources. Only app builds do.
 
 ## Owner Names
 
-Resource reads name an owner explicitly:
+Runtime bundles are created for one owner:
 
 ```jo
-resources.readText("my-web", "views/index.html")
+new py.resource.ResourceBundle("my-web")
 ```
 
 The owner name is derived from the module or package that declared the
@@ -158,39 +159,53 @@ will not collide with another module id.
 
 ## Reading Resources
 
-Resource access uses the `resources` capability through `jo.resource.Resources`:
+Resource access uses an owner-scoped capability through `jo.resource.Resources`.
+The standard library defines the interface, but it does not define a global
+`resources` parameter. A module that reads resources declares its own parameter
+and documents which owner the app must bind it to:
 
 ```jo
-import jo.resource.*
+namespace MyWeb
+
+import jo.resource.Resources
+
+//[ Scoped to the `my-web` owner. //]
+param resources: Resources
 
 def loadTemplate(): Result[String, String] receives resources =
-  resources.readText("my-web", "views/index.html")
+  resources.readText("views/index.html")
 ```
 
-The runtime does not bind this context parameter by default. Code that has FFI
-access can opt in explicitly.
+The runtime does not bind resource parameters by default. Code that has FFI
+access can opt in explicitly by constructing a bundle for the owner and binding
+the module's parameter.
 
 Python:
 
 ```jo
-import jo.resource.*
+import MyWeb
 import jo.py.resource.*
 
 def main: Unit receives IO.stdout =
-  with resources = new py.resource.ResourceBundle() in
-    run()
+  with MyWeb.resources = new py.resource.ResourceBundle("my-web") in
+    match MyWeb.loadTemplate()
+    case Ok(text) => println(text)
+    case Err(err) => println(err)
 ```
 
 Ruby:
 
 ```jo
-import jo.resource.*
+import MyWeb
 import jo.rb.resource.*
 
 def main: Unit receives IO.stdout =
-  with resources = new rb.resource.ResourceBundle() in
-    run()
+  with MyWeb.resources = new rb.resource.ResourceBundle("my-web") in
+    match MyWeb.loadTemplate()
+    case Ok(text) => println(text)
+    case Err(err) => println(err)
 ```
+
 
 Enable the matching FFI API on the module that creates the bundle:
 
@@ -207,10 +222,10 @@ resources = ["assets/"]
 
 ## Runtime Safety
 
-`ResourceBundle` validates owner and resource paths before reading:
+`ResourceBundle` validates the owner and resource paths before reading:
 
-- owners must start with an ASCII letter and then contain only ASCII letters,
-  digits, or `-`
+- the owner passed to `ResourceBundle` must start with an ASCII letter and then
+  contain only ASCII letters, digits, or `-`
 - resource paths must be relative
 - resource paths use `/` only
 - `.` and `..` segments are rejected
@@ -221,6 +236,7 @@ process working directory. This lets apps start from another directory while
 still finding resources copied beside the app output.
 
 Do not put secrets in resources. They are bundled application assets copied with
-the app, and access is app-global once code receives the `resources` capability.
-Use a separate capability, configuration source, or secret store for data that
-must be private to one dependency or unavailable to other app code.
+the app. A scoped `Resources` value does not expose other owners, but code with
+FFI access can create other bundles. Use a separate capability, configuration
+source, or secret store for data that must be private to one dependency or
+unavailable to other app code.

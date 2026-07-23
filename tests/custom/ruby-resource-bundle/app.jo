@@ -1,73 +1,75 @@
 import jo.resource.*
 import jo.rb.resource.*
 
+param resources: Resources
+
 def main: Unit receives IO.stdout =
-  val bundle = new rb.resource.ResourceBundle()
+  val bundle = new rb.resource.ResourceBundle("fixture")
   with resources = bundle in
     run(bundle)
 
 def run(bundle: rb.resource.ResourceBundle): Unit receives IO.stdout, resources =
-  println("exists text = " + resources.exists("fixture", "assets/text.txt"))
-  println("exists missing = " + resources.exists("fixture", "assets/missing.txt"))
-  println("is file text = " + resources.isFile("fixture", "assets/text.txt"))
-  println("is file dir = " + resources.isFile("fixture", "assets"))
+  println("exists text = " + resources.exists("assets/text.txt"))
+  println("exists missing = " + resources.exists("assets/missing.txt"))
+  println("is file text = " + resources.isFile("assets/text.txt"))
+  println("is file dir = " + resources.isFile("assets"))
 
-  printText("text", "fixture", "assets/text.txt")
-  printText("nested", "fixture", "assets/nested/info.txt")
+  printText("text", "assets/text.txt")
+  printText("nested", "assets/nested/info.txt")
 
-  match resources.stat("fixture", "assets/bin.dat")
+  match resources.stat("assets/bin.dat")
   case Some(info) =>
     println("bin stat = " + info.isFile + ":" + info.sizeBytes)
   case None =>
     println("bin stat = none")
-  printStat("missing", "fixture", "assets/missing.txt")
-  printStat("dir", "fixture", "assets")
-  printStat("invalid", "fixture", "../outside.txt")
-  printStat("symlink", "fixture", "links/escape.txt")
+  printStat("missing", "assets/missing.txt")
+  printStat("dir", "assets")
+  printStat("invalid", "../outside.txt")
+  printStat("symlink", "links/escape.txt")
 
-  match resources.readBytes("fixture", "assets/bin.dat")
+  match resources.readBytes("assets/bin.dat")
   case Ok(bytes) =>
     println("bin bytes = " + bytes.size + ":" + bytes.get(0).toInt + ":" + bytes.get(3).toInt + ":" + bytes.toBase64)
   case Err(err) =>
     println("bin err = " + err)
 
-  match resources.list("fixture", "assets")
+  match resources.list("assets")
   case Ok(entries) =>
     for entry in entries do
       println("entry = " + entry.path + ":" + entry.isDirectory)
   case Err(err) =>
     println("list err = " + err)
-  match resources.list("fixture", "")
+  match resources.list("")
   case Ok(entries) =>
     for entry in entries do
       println("root entry = " + entry.path + ":" + entry.isDirectory)
   case Err(err) =>
     println("root list err = " + err)
 
-  printPath("path text", bundle.path("fixture", "assets/text.txt"))
-  printPath("path missing", bundle.path("fixture", "assets/missing.txt"))
-  printPath("path symlink escape", bundle.path("fixture", "links/escape.txt"))
+  printPath("path text", bundle.path("assets/text.txt"))
+  printPath("path missing", bundle.path("assets/missing.txt"))
+  printPath("path symlink escape", bundle.path("links/escape.txt"))
 
-  printRejected("missing read", resources.readText("fixture", "assets/missing.txt"))
-  printRejected("dir read", resources.readText("fixture", "assets"))
-  printRejected("parent escape", resources.readText("fixture", "../outside.txt"))
-  printRejected("absolute escape", resources.readText("fixture", "/tmp/outside.txt"))
-  printRejected("backslash path", resources.readText("fixture", "assets\\text.txt"))
-  printRejected("bad owner", resources.readText("bad/owner", "assets/text.txt"))
-  printRejected("dotdot owner", resources.readText("..", "assets/text.txt"))
-  printRejected("absolute owner", resources.readText("/fixture", "assets/text.txt"))
-  printRejected("backslash owner", resources.readText("bad\\owner", "assets/text.txt"))
-  printRejected("colon owner", resources.readText("bad:owner", "assets/text.txt"))
-  printRejected("drive owner", resources.readText("C:fixture", "assets/text.txt"))
-  printRejected("symlink escape", resources.readText("fixture", "links/escape.txt"))
+  printRejected("missing read", resources.readText("assets/missing.txt"))
+  printRejected("dir read", resources.readText("assets"))
+  printRejected("parent escape", resources.readText("../outside.txt"))
+  printRejected("absolute escape", resources.readText("/tmp/outside.txt"))
+  printRejected("backslash path", resources.readText("assets\\text.txt"))
+  printRejected("bad owner", new rb.resource.ResourceBundle("bad/owner").readText("assets/text.txt"))
+  printRejected("dotdot owner", new rb.resource.ResourceBundle("..").readText("assets/text.txt"))
+  printRejected("absolute owner", new rb.resource.ResourceBundle("/fixture").readText("assets/text.txt"))
+  printRejected("backslash owner", new rb.resource.ResourceBundle("bad\\owner").readText("assets/text.txt"))
+  printRejected("colon owner", new rb.resource.ResourceBundle("bad:owner").readText("assets/text.txt"))
+  printRejected("drive owner", new rb.resource.ResourceBundle("C:fixture").readText("assets/text.txt"))
+  printRejected("symlink escape", resources.readText("links/escape.txt"))
 
-private def printText(label: String, owner: String, rel: String): Unit receives IO.stdout, resources =
-  match resources.readText(owner, rel)
+private def printText(label: String, rel: String): Unit receives IO.stdout, resources =
+  match resources.readText(rel)
   case Ok(text) => println(label + " = " + text.trim)
   case Err(err) => println(label + " err = " + err)
 
-private def printStat(label: String, owner: String, rel: String): Unit receives IO.stdout, resources =
-  match resources.stat(owner, rel)
+private def printStat(label: String, rel: String): Unit receives IO.stdout, resources =
+  match resources.stat(rel)
   case Some(info) => println(label + " stat = " + info.isFile + ":" + info.sizeBytes)
   case None => println(label + " stat = none")
 

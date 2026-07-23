@@ -15,42 +15,35 @@ class FileInfo(isFile: Bool, sizeBytes: Int)
 //]
 class DirEntry(path: String, isDirectory: Bool)
 
-//[ The ambient packaged-resource store.
-  !
-  ! Resource access is an effect: implementations resolve paths relative to the
-  ! generated program, then confine reads under
-  ! `dirname(program) / "resources" / owner`.
-//]
-param resources: Resources
-
 //[ Read-only access to resources bundled with the built program.
   !
-  ! `owner` is the package or module resource identity: registry package name,
-  ! source module package name, or module id for a source module without package
-  ! metadata.
+  ! A `Resources` value is scoped to one package or module resource owner.
+  ! Modules that read resources should declare their own context parameter, for
+  ! example `param resources: Resources`, and document which owner the app must
+  ! bind it to.
   !
-  ! `rel` is a `/`-separated path inside that owner's resource root.
-  ! Implementations reject absolute paths and escaping segments.
+  ! `rel` is a `/`-separated path inside the scoped resource root. Implementations
+  ! reject absolute paths and escaping segments.
 //]
 interface Resources
-  //[ Whether a file or directory exists at `rel` under `owner`. //]
-  def exists(owner: String, rel: String): Bool
+  //[ Whether a file or directory exists at `rel`. //]
+  def exists(rel: String): Bool
 
-  //[ Whether `rel` under `owner` is an existing file. //]
-  def isFile(owner: String, rel: String): Bool
+  //[ Whether `rel` is an existing file. //]
+  def isFile(rel: String): Bool
 
   //[ The metadata record for `rel`; `None` when nothing exists there. //]
-  def stat(owner: String, rel: String): Option[FileInfo]
+  def stat(rel: String): Option[FileInfo]
 
   //[ The entries directly under `dir`, sorted by name.
     !
     ! `Err` when `dir` is not a directory.
   //]
-  def list(owner: String, dir: String): Result[List[DirEntry], String]
+  def list(dir: String): Result[List[DirEntry], String]
 
   //[ Read a UTF-8 text resource. //]
-  def readText(owner: String, rel: String): Result[String, String]
+  def readText(rel: String): Result[String, String]
 
   //[ Read a binary resource. //]
-  def readBytes(owner: String, rel: String): Result[Bytes, String]
+  def readBytes(rel: String): Result[Bytes, String]
 end
