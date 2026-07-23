@@ -33,19 +33,6 @@ def run(bundle: py.resource.ResourceBundle): Unit receives IO.stdout, resources 
   case Err(err) =>
     println("bin err = " + err)
 
-  match resources.list("assets")
-  case Ok(entries) =>
-    for entry in entries do
-      println("entry = " + entry.path + ":" + entry.isDirectory)
-  case Err(err) =>
-    println("list err = " + err)
-  match resources.list("")
-  case Ok(entries) =>
-    for entry in entries do
-      println("root entry = " + entry.path + ":" + entry.isDirectory)
-  case Err(err) =>
-    println("root list err = " + err)
-
   printPath("path text", bundle.path("assets/text.txt"))
   printPath("path missing", bundle.path("assets/missing.txt"))
   printPath("path symlink escape", bundle.path("links/escape.txt"))
@@ -55,6 +42,7 @@ def run(bundle: py.resource.ResourceBundle): Unit receives IO.stdout, resources 
   printRejected("parent escape", resources.readText("../outside.txt"))
   printRejected("absolute escape", resources.readText("/tmp/outside.txt"))
   printRejected("backslash path", resources.readText("assets\\text.txt"))
+  printRejected("empty path", resources.readText(""))
   printRejected("bad owner", new py.resource.ResourceBundle("bad/owner").readText("assets/text.txt"))
   printRejected("dotdot owner", new py.resource.ResourceBundle("..").readText("assets/text.txt"))
   printRejected("absolute owner", new py.resource.ResourceBundle("/fixture").readText("assets/text.txt"))

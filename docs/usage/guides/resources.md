@@ -220,13 +220,17 @@ resources = ["assets/"]
 
 `readText` uses UTF-8. Use `readBytes` for binary files such as images.
 
+There is no directory listing API. If a module needs resource discovery, bundle
+an explicit manifest resource, such as `assets/manifest.json`, and read that
+file first.
+
 ## Runtime Safety
 
 `ResourceBundle` validates the owner and resource paths before reading:
 
 - the owner passed to `ResourceBundle` must start with an ASCII letter and then
   contain only ASCII letters, digits, or `-`
-- resource paths must be relative
+- resource paths must be non-empty and relative
 - resource paths use `/` only
 - `.` and `..` segments are rejected
 - symlinks escaping the owner root are rejected

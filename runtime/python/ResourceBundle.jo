@@ -1,6 +1,5 @@
 namespace jo.py.resource
 
-import jo.resource.DirEntry
 import jo.resource.FileInfo
 import jo.resource.Resources
 
@@ -15,7 +14,6 @@ private interface ResourceOsPath
   def dirname(path: String): String
   def exists(path: String): Bool
   def getsize(path: String): Int
-  def isdir(path: String): Bool
   def isfile(path: String): Bool
   def join(base: String, parts: ..Any): String
   def normpath(path: String): String
@@ -30,7 +28,6 @@ private interface ResourceOs
   @py.property
   def sep: String
 
-  def listdir(path: String): py.List
 end
 
 private def resourceOs: ResourceOs =
@@ -38,9 +35,6 @@ private def resourceOs: ResourceOs =
 
 private def resourcePathlib: py.Dynamic =
   py.module("pathlib")
-
-private def resourceBuiltins: py.Dynamic =
-  py.module("builtins")
 
 private def defaultResourceRoot(): String =
   val path = resourceOs.path
@@ -71,7 +65,7 @@ private def validOwnerTail(ch: Char): Bool =
 
 private def validResourceRel(rel: String): Bool =
   if rel == "" then
-    true
+    false
   else if rel.startsWith("/") || rel.contains("\\") then
     false
   else
@@ -81,9 +75,6 @@ private def validResourceRel(rel: String): Bool =
         ok = false
       end
     ok
-
-private def appendResourceRel(base: String, rel: String): String =
-  if base == "" then rel else base + "/" + rel
 
 private def resourcePathContains(root: String, path: String): Bool =
   val sep = resourceOs.sep
@@ -136,24 +127,6 @@ class ResourceBundle
         val size = if file then resourceOs.path.getsize(path) else 0
         Some(new FileInfo(file, size))
 
-  def list(dir: String): Result[jo.List[DirEntry], String] =
-    match resolve(dir)
-    case Err(err) => Err(err)
-    case Ok(path) =>
-      if !resourceOs.path.isdir(path) then
-        Err("resource is not a directory: " + owner + "/" + dir)
-      else
-        match py.try(resourceBuiltins.sorted(resourceOs.listdir(path)).cast[py.List])
-        case Err(e) => Err(e.message)
-        case Ok(names) =>
-          var entries: jo.List[DirEntry] = []
-          for item in names do
-            val name = item.asString
-            val rel = appendResourceRel(dir, name)
-            val child = resourceOs.path.join(path, name)
-            entries = entries + new DirEntry(rel, resourceOs.path.isdir(child))
-          Ok(entries)
-
   def readText(rel: String): Result[String, String] =
     match resolveFile(rel)
     case Err(err) => Err(err)
@@ -187,7 +160,7 @@ class ResourceBundle
       val ownerRoot = pathApi.realpath(pathApi.join(root, owner))
       if !resourcePathContains(root, ownerRoot) then
         return Err("resource owner escapes resource root: " + owner)
-      val joined = if rel == "" then ownerRoot else pathApi.join(ownerRoot, rel)
+      val joined = pathApi.join(ownerRoot, rel)
       val candidate = pathApi.realpath(joined)
       if resourcePathContains(ownerRoot, candidate) then
         Ok(candidate)
