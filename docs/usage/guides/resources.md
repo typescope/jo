@@ -224,6 +224,27 @@ There is no directory listing API. If a module needs resource discovery, bundle
 an explicit manifest resource, such as `assets/manifest.json`, and read that
 file first.
 
+## Advanced Usage
+
+`Resources` is intentionally a small portable capability. It is a good fit for
+templates, manifests, configuration, fixtures, and small binary assets. It is
+not a streaming or web-server abstraction.
+
+When a web server needs platform-specific behavior such as streaming large
+files, HTTP range handling, `sendfile`, or framework-specific cache headers,
+define a custom capability for that application or framework. The FFI code that
+creates the concrete resource bundle can wrap the platform-specific operations
+it wants to expose:
+
+```jo
+import jo.resource.FileInfo
+
+interface StaticAssets
+  def stat(rel: String): Option[FileInfo]
+  def path(rel: String): Result[String, String]
+end
+```
+
 ## Runtime Safety
 
 `ResourceBundle` validates the owner and resource paths before reading:
