@@ -1,0 +1,2 @@
+// options: --sast /tmp/jo-sast-typing-error
+def main(): Unit = println [1,2,3].sum()

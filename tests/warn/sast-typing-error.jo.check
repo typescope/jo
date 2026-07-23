@@ -1,0 +1,6 @@
+---------- Error at tests/warn/sast-typing-error.jo:2:28 ---------------
+| def main(): Unit = println [1,2,3].sum()
+|                            ^^^^^^^
+|                            The prefix does not contain the member sum
+
+1 error(s), 0 warning(s)
