@@ -213,10 +213,11 @@ both declare resources, the app build fails with a duplicate resource owner
 error. Use package metadata when an external source module needs a stable owner
 that will not collide with another module id.
 
-Resource access is app-global at runtime. Owner directories keep copied files
-separate and deterministic, but they do not make resources private to the owning
-dependency. Any code with the `resources` capability can read any copied
-owner/path.
+Owner directories keep copied files separate and deterministic. Runtime
+`Resources` values are normally scoped to one owner, for example
+`new py.resource.ResourceBundle("my-web")`, and modules declare their own
+resource context parameters. Resources are still bundled application assets, not
+secrets: code with FFI access can instantiate additional owner-scoped bundles.
 
 See [Resources](../guides/resources.md) for runtime access patterns.
 
@@ -273,8 +274,9 @@ There is no short form for packages, because a package dependency always needs b
 
 Hidden from user code does not mean hidden from the runnable app artifact. App
 builds still copy resources from link-only dependencies in the selected closure,
-because linked runtime code may need its own bundled assets. Resource access is
-app-global for any code that receives the `resources` capability.
+because linked runtime code may need its own bundled assets. Hidden resources
+can still be read by linked code when the app binds an owner-scoped resource
+capability for that code.
 
 ## Links
 

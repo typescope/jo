@@ -91,39 +91,42 @@ private def resourcePathContains(root: String, path: String): Bool =
 
 //[ Read-only access to resources copied beside the generated Python program.
   !
-  ! The default constructor resolves resources from
+  ! The one-argument constructor scopes reads to one owner under
   ! `dirname(realpath(__main__.__file__)) / "resources"`.
 //]
 class ResourceBundle
   private val root: String
+  private val owner: String
 
-  def ResourceBundle() =
+  def ResourceBundle(owner: String) =
     this.root = resourceOs.path.realpath(defaultResourceRoot())
+    this.owner = owner
 
-  def ResourceBundle(root: String) =
+  def ResourceBundle(owner: String, root: String) =
     this.root = resourceOs.path.realpath(root)
+    this.owner = owner
 
   view Resources
 
-  def path(owner: String, rel: String): Result[String, String] =
-    match resolve(owner, rel)
+  def path(rel: String): Result[String, String] =
+    match resolve(rel)
     case Err(err) => Err(err)
     case Ok(path) =>
       if resourceOs.path.exists(path) then Ok(path)
       else Err("resource not found: " + owner + "/" + rel)
 
-  def exists(owner: String, rel: String): Bool =
-    match resolve(owner, rel)
+  def exists(rel: String): Bool =
+    match resolve(rel)
     case Ok(path) => resourceOs.path.exists(path)
     case Err(_) => false
 
-  def isFile(owner: String, rel: String): Bool =
-    match resolve(owner, rel)
+  def isFile(rel: String): Bool =
+    match resolve(rel)
     case Ok(path) => resourceOs.path.isfile(path)
     case Err(_) => false
 
-  def stat(owner: String, rel: String): Option[FileInfo] =
-    match resolve(owner, rel)
+  def stat(rel: String): Option[FileInfo] =
+    match resolve(rel)
     case Err(_) => None
     case Ok(path) =>
       if !resourceOs.path.exists(path) then
@@ -133,8 +136,8 @@ class ResourceBundle
         val size = if file then resourceOs.path.getsize(path) else 0
         Some(new FileInfo(file, size))
 
-  def list(owner: String, dir: String): Result[jo.List[DirEntry], String] =
-    match resolve(owner, dir)
+  def list(dir: String): Result[jo.List[DirEntry], String] =
+    match resolve(dir)
     case Err(err) => Err(err)
     case Ok(path) =>
       if !resourceOs.path.isdir(path) then
@@ -151,30 +154,30 @@ class ResourceBundle
             entries = entries + new DirEntry(rel, resourceOs.path.isdir(child))
           Ok(entries)
 
-  def readText(owner: String, rel: String): Result[String, String] =
-    match resolveFile(owner, rel)
+  def readText(rel: String): Result[String, String] =
+    match resolveFile(rel)
     case Err(err) => Err(err)
     case Ok(path) =>
       match py.try(resourcePathlib.Path(path).read_text(encoding = "utf-8").asString)
       case Ok(text) => Ok(text)
       case Err(e) => Err(e.message)
 
-  def readBytes(owner: String, rel: String): Result[Bytes, String] =
-    match resolveFile(owner, rel)
+  def readBytes(rel: String): Result[Bytes, String] =
+    match resolveFile(rel)
     case Err(err) => Err(err)
     case Ok(path) =>
       match py.try(resourcePathlib.Path(path).read_bytes().cast[Bytes])
       case Ok(bytes) => Ok(bytes)
       case Err(e) => Err(e.message)
 
-  private def resolveFile(owner: String, rel: String): Result[String, String] =
-    match resolve(owner, rel)
+  private def resolveFile(rel: String): Result[String, String] =
+    match resolve(rel)
     case Err(err) => Err(err)
     case Ok(path) =>
       if resourceOs.path.isfile(path) then Ok(path)
       else Err("resource is not a file: " + owner + "/" + rel)
 
-  private def resolve(owner: String, rel: String): Result[String, String] =
+  private def resolve(rel: String): Result[String, String] =
     if !validResourceOwner(owner) then
       Err("invalid resource owner: " + owner)
     else if !validResourceRel(rel) then
