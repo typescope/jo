@@ -100,16 +100,6 @@ class ResourceBundle
     case Ok(path) => Ok(path)
     case Err(err) => Err(err)
 
-  def exists(rel: String): Bool =
-    match resolveExisting(rel)
-    case Ok(_) => true
-    case Err(_) => false
-
-  def isFile(rel: String): Bool =
-    match resolveExisting(rel)
-    case Ok(path) => resourceFile.isFile(path)
-    case Err(_) => false
-
   def stat(rel: String): Option[FileInfo] =
     match resolveExisting(rel)
     case Err(_) => None

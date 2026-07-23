@@ -1,7 +1,3 @@
-exists text = true
-exists missing = false
-is file text = true
-is file dir = false
 text = resource text
 nested = nested text
 bin stat = true:4

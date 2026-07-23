@@ -9,11 +9,6 @@ def main: Unit receives IO.stdout =
     run(bundle)
 
 def run(bundle: rb.resource.ResourceBundle): Unit receives IO.stdout, resources =
-  println("exists text = " + resources.exists("assets/text.txt"))
-  println("exists missing = " + resources.exists("assets/missing.txt"))
-  println("is file text = " + resources.isFile("assets/text.txt"))
-  println("is file dir = " + resources.isFile("assets"))
-
   printText("text", "assets/text.txt")
   printText("nested", "assets/nested/info.txt")
 

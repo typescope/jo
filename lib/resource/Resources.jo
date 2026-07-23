@@ -19,12 +19,6 @@ class FileInfo(isFile: Bool, sizeBytes: Int)
   ! Implementations reject absolute paths and escaping segments.
 //]
 interface Resources
-  //[ Whether a file or directory exists at `rel`. //]
-  def exists(rel: String): Bool
-
-  //[ Whether `rel` is an existing file. //]
-  def isFile(rel: String): Bool
-
   //[ The metadata record for `rel`; `None` when nothing exists there. //]
   def stat(rel: String): Option[FileInfo]
 
