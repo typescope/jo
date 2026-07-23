@@ -1,0 +1,7 @@
+def main(): Unit =
+  val a ~ b = Ok(3 ~ 4) as Result[Int ~ Int, String] rescue Err(e) =>
+    println e
+    return
+
+  println a
+  println b

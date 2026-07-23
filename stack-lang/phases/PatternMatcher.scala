@@ -313,16 +313,18 @@ class PatternMatcher(using defn: Definitions) extends Phase:
     simplify(If(test, Block(Nil)(patValDef.span), abortState)(VoidType, patValDef.span))
 
   private def transformPatternGeneric(scrutinee: Word, pattern: Pattern, span: Span)(using ctx: Context, source: Source): Word =
-    scrutinee match
+    val scrutinee2 = transform(scrutinee)
+
+    scrutinee2 match
       case scrut: Ident =>
         transformPattern(scrut, pattern)
 
       case _ =>
         val owner = Phase.owner.value
-        val scrutSym = TermSymbol.create("scrut", scrutinee.tpe.widen, Flags.Synthetic, Visibility.Default, owner, scrutinee.pos)
-        val scrutId = Ident(scrutSym)(scrutinee.span)
+        val scrutSym = TermSymbol.create("scrut", scrutinee2.tpe.widen, Flags.Synthetic, Visibility.Default, owner, scrutinee2.pos)
+        val scrutId = Ident(scrutSym)(scrutinee2.span)
         val cond = transformPattern(scrutId, pattern)
-        Block(Assign(scrutId, scrutinee) :: cond :: Nil)(span)
+        Block(Assign(scrutId, scrutinee2) :: cond :: Nil)(span)
 
   private def transformPattern(scrut: Ident, pat: Pattern)(using ctx: Context, source: Source): Word =
     pat match

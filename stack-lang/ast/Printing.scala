@@ -397,7 +397,7 @@ object Printing:
         scrutinee ~ " rescue " ~ showPattern(pattern) ~ " => " ~ handler
 
       case TypeAscribe(expr, tpt) =>
-        expr ~ "as" ~ tpt
+        expr ~ " as " ~ tpt
 
       case Lambda(params, body) =>
         // Always wrap the whole lambda in parens. A bare "(params) => body"
