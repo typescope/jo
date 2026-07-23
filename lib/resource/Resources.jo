@@ -8,13 +8,6 @@ import jo.*
 //]
 class FileInfo(isFile: Bool, sizeBytes: Int)
 
-//[ One directory entry under a package resource directory.
-  !
-  ! `path` is relative to the same resource owner and can be passed back to
-  ! `stat`, `readText`, or `readBytes`.
-//]
-class DirEntry(path: String, isDirectory: Bool)
-
 //[ Read-only access to resources bundled with the built program.
   !
   ! A `Resources` value is scoped to one package or module resource owner.
@@ -22,8 +15,8 @@ class DirEntry(path: String, isDirectory: Bool)
   ! example `param resources: Resources`, and document which owner the app must
   ! bind it to.
   !
-  ! `rel` is a `/`-separated path inside the scoped resource root. Implementations
-  ! reject absolute paths and escaping segments.
+  ! `rel` is a non-empty `/`-separated path inside the scoped resource root.
+  ! Implementations reject absolute paths and escaping segments.
 //]
 interface Resources
   //[ Whether a file or directory exists at `rel`. //]
@@ -34,12 +27,6 @@ interface Resources
 
   //[ The metadata record for `rel`; `None` when nothing exists there. //]
   def stat(rel: String): Option[FileInfo]
-
-  //[ The entries directly under `dir`, sorted by name.
-    !
-    ! `Err` when `dir` is not a directory.
-  //]
-  def list(dir: String): Result[List[DirEntry], String]
 
   //[ Read a UTF-8 text resource. //]
   def readText(rel: String): Result[String, String]

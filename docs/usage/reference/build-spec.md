@@ -218,6 +218,9 @@ Owner directories keep copied files separate and deterministic. Runtime
 `new py.resource.ResourceBundle("my-web")`, and modules declare their own
 resource context parameters. Resources are still bundled application assets, not
 secrets: code with FFI access can instantiate additional owner-scoped bundles.
+Runtime APIs address explicit, non-empty resource paths and do not provide
+directory listing. Bundle an explicit manifest resource when code needs to
+discover other resources.
 
 See [Resources](../guides/resources.md) for runtime access patterns.
 

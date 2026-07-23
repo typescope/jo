@@ -1,6 +1,5 @@
 namespace jo.rb.resource
 
-import jo.resource.DirEntry
 import jo.resource.FileInfo
 import jo.resource.Resources
 
@@ -17,9 +16,6 @@ private interface ResourceFile
   @rb.targetName("file?")
   def isFile(path: String): Bool
 
-  @rb.targetName("directory?")
-  def isDirectory(path: String): Bool
-
   def binread(path: String): rb.Dynamic
   def dirname(path: String): String
   def expand_path(path: String): String
@@ -31,16 +27,8 @@ private interface ResourceFile
   def readText(path: String, mode: String @rb.keyword = "r:utf-8"): String
 end
 
-@rb.interop
-private interface ResourceDir
-  def entries(path: String): rb.Array
-end
-
 private def resourceFile: ResourceFile =
   rb.const("File").cast[ResourceFile]
-
-private def resourceDir: ResourceDir =
-  rb.const("Dir").cast[ResourceDir]
 
 private def resourceSeparator: String =
   rb.const("File::SEPARATOR").asString
@@ -73,7 +61,7 @@ private def validOwnerTail(ch: Char): Bool =
 
 private def validResourceRel(rel: String): Bool =
   if rel == "" then
-    true
+    false
   else if rel.startsWith("/") || rel.contains("\\") then
     false
   else
@@ -83,9 +71,6 @@ private def validResourceRel(rel: String): Bool =
         ok = false
       end
     ok
-
-private def appendResourceRel(base: String, rel: String): String =
-  if base == "" then rel else base + "/" + rel
 
 private def resourcePathContains(root: String, path: String): Bool =
   val sep = resourceSeparator
@@ -132,26 +117,6 @@ class ResourceBundle
       val file = resourceFile.isFile(path)
       val size = if file then resourceFile.size(path) else 0
       Some(new FileInfo(file, size))
-
-  def list(dir: String): Result[jo.List[DirEntry], String] =
-    match resolveExisting(dir)
-    case Err(err) => Err(err)
-    case Ok(path) =>
-      if !resourceFile.isDirectory(path) then
-        Err("resource is not a directory: " + owner + "/" + dir)
-      else
-        match rb.try(rb.dynamic(resourceDir.entries(path)).sort.cast[rb.Array])
-        case Err(e) => Err(e.message)
-        case Ok(names) =>
-          var entries: jo.List[DirEntry] = []
-          for item in names do
-            val name = item.asString
-            if name != "." && name != ".." then
-              val rel = appendResourceRel(dir, name)
-              val child = resourceFile.join(path, name)
-              entries = entries + new DirEntry(rel, resourceFile.isDirectory(child))
-            end
-          Ok(entries)
 
   def readText(rel: String): Result[String, String] =
     match resolveFile(rel)
@@ -207,7 +172,7 @@ class ResourceBundle
     else
       val file = resourceFile
       val ownerRoot = file.expand_path(file.join(root, owner))
-      val path = if rel == "" then ownerRoot else file.expand_path(file.join(ownerRoot, rel))
+      val path = file.expand_path(file.join(ownerRoot, rel))
       if resourcePathContains(ownerRoot, path) then
         Ok(path ~ ownerRoot)
       else
