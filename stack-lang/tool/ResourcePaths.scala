@@ -265,7 +265,7 @@ object ResourcePaths:
     if entry.contains(":") then
       return Result.Err(s"$label '$entry' contains ':'; ':' is reserved for resource mappings")
     if hasGlobSyntax(entry) then
-      return Result.Err(s"$label '${entry}' uses glob syntax; use a directory or file path")
+      return Result.Err(s"$label '$entry' uses glob syntax; use a directory or file path")
     if entry.endsWith("//") then
       return Result.Err(s"$label contains empty segment: $entry")
 

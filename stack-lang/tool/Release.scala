@@ -3,6 +3,7 @@ package tool
 import java.nio.file.{Files, Path}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
+import scala.util.Using
 
 object Release:
   def buildPackage(project: Project, module: ModuleId)(using Logger, PackageProvider): Result[Unit] =
@@ -108,14 +109,12 @@ object Release:
       return Result.Err(s"sast output not found: $sastDir")
 
     val sastFiles =
-      val stream = Files.walk(sastDir)
-      try
+      Using.resource(Files.walk(sastDir)): stream =>
         stream.iterator.asScala
           .filter(Files.isRegularFile(_))
           .filter(_.getFileName.toString.endsWith(".sast"))
           .toList
           .sortBy(_.toString)
-      finally stream.close()
 
     if sastFiles.isEmpty then
       return Result.Err(s"no .sast files found in $sastDir")
