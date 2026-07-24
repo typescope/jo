@@ -49,3 +49,7 @@ jo build --spec jo.toml app
 
 test ! -e .build/app/jo-1.0/target/resources
 : ''
+
+rm -rf .build live gen
+
+rm -f jo.toml jo.lock mtime-before.txt mtime-after.txt
