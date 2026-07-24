@@ -113,7 +113,7 @@ end
 
 //[ Python's None value.   //]
 @intrinsic
-def none: Any = abort "none: intrinsified by the Python backend"
+def none: Bottom = abort "none: intrinsified by the Python backend"
 
 //[ An unstructured Python value used for dynamic interop.
   !
