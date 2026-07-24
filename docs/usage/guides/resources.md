@@ -1,7 +1,7 @@
 # Resources
 
 Resources are data files that travel with a Jo module: HTML, JavaScript, images,
-schemas, templates, fixtures, and other non-`.jo` files.
+schemas, templates, fixtures, and other files.
 
 ## Declaring Resources
 
@@ -176,9 +176,9 @@ def loadTemplate(): Result[String, String] receives resources =
   resources.readText("views/index.html")
 ```
 
-The runtime does not bind resource parameters by default. Code that has FFI
-access can opt in explicitly by constructing a bundle for the owner and binding
-the module's parameter.
+The runtime does not bind resource parameters by default. FFI-enabled code opts
+in explicitly by creating an owner-scoped `ResourceBundle` and binding the
+module's parameter.
 
 Python:
 
