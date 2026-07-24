@@ -36,8 +36,8 @@ to declare normal compatibility constraints only.
 
 ## `[module.<id>]`
 
-Module ids are ASCII resource owners. They must start with an ASCII letter and
-may contain only ASCII letters, digits, and hyphens.
+Module IDs double as resource-owner IDs. They must start with an ASCII letter
+and may contain only ASCII letters, digits, and hyphens.
 
 | Field             | Type             | Required | Description |
 |-------------------|------------------|----------|-------------|
@@ -123,106 +123,28 @@ resources = ["assets/", "config/default.json"]
 
 Each entry is a resource mapping. The short form `source` means
 `source:source`; use `source:destination` when the runtime resource path should
-not match the source tree layout:
+not match the source tree layout. Source and destination paths are
+project-relative logical paths that use `/` on every operating system.
 
-```toml
-resources = [
-  "assets/",                            # assets/:assets/
-  "web/:public/",                       # directory mapped to public/
-  "config/default.json:defaults.json",  # file mapped to defaults.json
-]
-```
-
-The source side is always resolved relative to the project root. The destination
-side is a logical path below the module's runtime resource owner directory:
-
-- a source file maps to exactly the destination file path
-- a source directory maps every regular file below it into the destination
-  directory, preserving paths relative to the source directory
-- a trailing `/` is accepted on either side and does not change the destination
-  semantics
-
-The example above packages:
-
-```text
-resources/assets/index.html
-resources/assets/app.js
-resources/public/index.html
-resources/public/app.js
-resources/defaults.json
-```
-
-There is no overlay behavior. If two entries produce the same destination, the
-build fails:
-
-```toml
-resources = ["assets/", "assets/index.html"] # duplicate destination
-```
-
-Resource declaration paths are portable logical paths, not host OS path strings.
-Rules:
-
-- entries contain either zero or one `:` separator
-- `:` is reserved for `source:destination` mappings and cannot appear inside a
-  path
-- both `source` and `destination` must be non-empty when `:` is used
-- source and destination paths are relative
-- `/` is the only separator
-- a trailing `/` is allowed
-- absolute paths are rejected, including `/tmp/x` and `C:/x`
-- `..` segments are rejected
-- `.` segments are rejected
-- interior empty segments such as `assets//logo.svg` are rejected
-- backslash is rejected, not normalized as a Windows separator
-- glob syntax is not supported
-- symlinks are rejected
-- resource files may have any extension
-
-Source and destination syntax is validated when Jo reads `jo.toml`, so invalid
-declarations fail even in lib-only workflows. Filesystem checks, symlink checks,
-and duplicate expanded targets are validated when a command collects resources,
-such as `jo package` or an app build.
+Source and destination syntax is validated when Jo reads `jo.toml`. Filesystem
+checks, symlink rejection, and duplicate expanded target checks happen when a
+command collects resources, such as `jo package` or an app build.
 
 Packaging a module copies its own resources into the `.joy` archive under
-`resources/` using the destination side of each mapping. The companion source
-archive includes the original source-side resource files, so mapped resources
-can still be audited from the source layout. Plain lib compilation does not copy
-resources.
-
-App compilation copies resources beside the generated app output:
+`resources/`. Plain lib compilation does not copy resources. App compilation
+copies resources from the app and selected dependency closure beside the
+generated app output under:
 
 ```text
-.build/app/jo-1.0/target/app.py
-.build/app/jo-1.0/target/resources/<owner>/<resource-path>
+.build/<module>/jo-1.0/target/resources/<owner>/<resource-path>
 ```
 
-Only app builds copy resources recursively from the app module and its selected
-source/package dependency closure.
+The `<owner>` directory is the package name for package-backed modules and the
+module id for unpackaged source modules. Duplicate owners with resources in one
+app closure are an error.
 
-The `<owner>` directory is derived as follows:
-
-- registry package dependency: package name
-- source module with `[module.<id>.package]`: package name
-- source module without package metadata: module id
-
-Owner names use the same ASCII grammar as module ids and package names: they
-start with an ASCII letter and contain only ASCII letters, digits, or hyphens.
-
-If two modules or packages in the selected app closure derive the same owner and
-both declare resources, the app build fails with a duplicate resource owner
-error. Use package metadata when an external source module needs a stable owner
-that will not collide with another module id.
-
-Owner directories keep copied files separate and deterministic. Runtime
-`Resources` values are normally scoped to one owner, for example
-`new py.resource.ResourceBundle("my-web")`, and modules declare their own
-resource context parameters. Resources are still bundled application assets, not
-secrets: code with FFI access can instantiate additional owner-scoped bundles.
-Runtime APIs address explicit, non-empty resource paths and do not provide
-directory listing. Bundle an explicit manifest resource when code needs to
-discover other resources.
-
-See [Resources](../guides/resources.md) for runtime access patterns.
+See [Resources](../guides/resources.md) for full path rules, resource-owner
+semantics, packaging details, and runtime access patterns.
 
 ## Dependencies
 
