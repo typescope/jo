@@ -1,4 +1,7 @@
 
+def pythonNoneDefault(value: String = py.none): Any =
+  value
+
 def main =
   // Test importModule + selectDynamic
   val math: py.Dynamic = py.module("math")
@@ -22,6 +25,11 @@ def main =
   // Test py.isNone: re.match returns a match object on success
   val yesMatch: Any = re.callDynamic("match", "abc", "abcdef")
   println("isNone(yesMatch) = " + py.isNone(yesMatch))
+
+  // Test py.none typing as Bottom for narrowed FFI positions
+  val noneString: String = py.none
+  println("none as String isNone = " + py.isNone(noneString))
+  println("none default isNone = " + py.isNone(pythonNoneDefault()))
 
   // Test py.try: success
   val sqrtResult: Result[Float, py.Error] = py.try(math.sqrt(4.0).asFloat)

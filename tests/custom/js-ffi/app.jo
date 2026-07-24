@@ -1,3 +1,9 @@
+def jsNullDefault(value: String = js.null): Any =
+  value
+
+def jsUndefinedDefault(value: String = js.undefined): Any =
+  value
+
 def main =
   testGlobal()
   testRequire()
@@ -98,6 +104,13 @@ def testNullHandling =
   println("top isUndefined = " + js.isUndefined(js.undefined))
   println("top isNull = " + js.isNull(js.null))
   println("top isNullish = " + js.isNullish(js.undefined))
+
+  val nullString: String = js.null
+  val undefinedString: String = js.undefined
+  println("null as String isNull = " + js.isNull(nullString))
+  println("undefined as String isUndefined = " + js.isUndefined(undefinedString))
+  println("null default isNull = " + js.isNull(jsNullDefault()))
+  println("undefined default isUndefined = " + js.isUndefined(jsUndefinedDefault()))
 
 //[ 7. typeof / isInstance / === //]
 def testTypeChecks =

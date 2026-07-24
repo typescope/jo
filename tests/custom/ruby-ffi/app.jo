@@ -1,3 +1,6 @@
+def rubyNilDefault(value: String = rb.nil): Any =
+  value
+
 def main: Unit =
   // Test rb.const + callDynamic: Math.sqrt(4.0)
   val math: rb.Dynamic = rb.const("Math")
@@ -20,6 +23,9 @@ def main: Unit =
   // Test rb.isNil
   println("isNil(nil) = " + rb.isNil(rb.nil))
   println("isNil(42) = " + rb.isNil(42))
+  val nilString: String = rb.nil
+  println("nil as String isNil = " + rb.isNil(nilString))
+  println("nil default isNil = " + rb.isNil(rubyNilDefault()))
 
   // Test rb.isIdentical: same vs different objects
   val obj1: rb.Dynamic = rb.const("Array").callDynamic("new")
