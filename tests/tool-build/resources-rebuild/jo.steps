@@ -1,0 +1,51 @@
+rm -rf .build live gen
+
+rm -f jo.toml jo.lock mtime-before.txt mtime-after.txt
+
+mkdir -p live gen
+printf 'def main: Unit = pass\n' > gen/Main.jo
+printf 'one\n' > live/msg.txt
+printf 'stale\n' > live/stale.txt
+cp with-resources.toml jo.toml
+
+jo build --spec jo.toml app
+
+cat .build/app/jo-1.0/target/resources/app/live/msg.txt
+: '
+one
+'
+
+python3 -c 'import os; print(os.stat(".build/app/jo-1.0/target/resources/app/live/msg.txt").st_mtime_ns)' > mtime-before.txt
+sleep 1
+
+jo build --spec jo.toml app
+
+python3 -c 'import os; print(os.stat(".build/app/jo-1.0/target/resources/app/live/msg.txt").st_mtime_ns)' > mtime-after.txt
+cmp mtime-before.txt mtime-after.txt
+: ''
+
+printf 'two\n' > live/msg.txt
+rm -f live/stale.txt
+
+jo build --spec jo.toml app
+
+cat .build/app/jo-1.0/target/resources/app/live/msg.txt
+test ! -e .build/app/jo-1.0/target/resources/app/live/stale.txt
+: '
+two
+'
+
+sleep 1
+printf 'def main: Unit = println "source changed"\n' > gen/Main.jo
+
+jo run --spec jo.toml app
+: '
+source changed
+'
+
+cp empty-resources.toml jo.toml
+
+jo build --spec jo.toml app
+
+test ! -e .build/app/jo-1.0/target/resources
+: ''

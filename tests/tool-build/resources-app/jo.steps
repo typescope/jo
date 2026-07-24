@@ -1,0 +1,82 @@
+rm -rf repo .cache .build core/.build dep/.build external/.build
+
+rm -f jo.lock core/jo.lock dep/jo.lock external/jo.lock
+
+jo package --spec core/jo.toml
+
+mkdir -p repo/resource-core/1.0.0
+
+cp core/.build/lib/release/resource-core-v1.0.0.joy repo/resource-core/1.0.0/
+
+jo package --spec dep/jo.toml
+
+mkdir -p repo/resource-lib/1.0.0
+
+cp dep/.build/lib/release/resource-lib-v1.0.0.joy repo/resource-lib/1.0.0/
+
+jo build collision
+: '
+error: duplicate resource owner 'collision' in app resource closure
+'
+
+jo build pkgcollision
+: '
+error: duplicate resource owner 'resource-lib' in app resource closure
+'
+
+jo build linkresources
+
+find .build/linkresources/jo-1.0/target/resources -type f | sed 's#^.build/linkresources/jo-1.0/target/resources/##' | LC_ALL=C sort
+: '
+resource-core/core-assets/bin.dat
+resource-core/core-assets/core.txt
+resource-lib/metadata/notice.txt
+resource-lib/runtime/dep-assets/dep.txt
+resource-lib/runtime/dep-assets/nested/info.json
+'
+
+jo build sourcelib
+
+test ! -e .build/sourcelib/jo-1.0/target/resources
+: ''
+
+test ! -e .build/sourcelib/jo-1.0/resources
+: ''
+
+jo run pyapp
+: '
+python direct resource = library resource cafe
+python mapped file resource = mapped notice
+python indirect resource = core resource
+python external source resource = external source resource
+'
+
+find .build/pyapp/jo-1.0/target/resources -type f | sed 's#^.build/pyapp/jo-1.0/target/resources/##' | LC_ALL=C sort
+: '
+external/ext-assets/ext.txt
+pyapp/runtime-app/app.txt
+resource-core/core-assets/bin.dat
+resource-core/core-assets/core.txt
+resource-lib/metadata/notice.txt
+resource-lib/runtime/dep-assets/dep.txt
+resource-lib/runtime/dep-assets/nested/info.json
+'
+
+jo run rbapp
+: '
+ruby direct resource = library resource cafe
+ruby mapped file resource = mapped notice
+ruby indirect resource = core resource
+ruby external source resource = external source resource
+'
+
+find .build/rbapp/jo-1.0/target/resources -type f | sed 's#^.build/rbapp/jo-1.0/target/resources/##' | LC_ALL=C sort
+: '
+external/ext-assets/ext.txt
+rbapp/runtime-app/app.txt
+resource-core/core-assets/bin.dat
+resource-core/core-assets/core.txt
+resource-lib/metadata/notice.txt
+resource-lib/runtime/dep-assets/dep.txt
+resource-lib/runtime/dep-assets/nested/info.json
+'
