@@ -44,24 +44,24 @@ private def defaultResourceRoot(): String =
 private def validResourceOwner(owner: String): Bool =
   if owner.isEmpty then
     false
-  else if !validOwnerStart(owner[0]) then
+  else if !validOwnerIdHead(owner[0]) then
     false
   else
     var ok = true
     var i = 1
     while ok && i < owner.size do
-      if !validOwnerTail(owner[i]) then
+      if !validOwnerIdTail(owner[i]) then
         ok = false
       end
       i = i + 1
     end
     ok
 
-private def validOwnerStart(ch: Char): Bool =
+private def validOwnerIdHead(ch: Char): Bool =
   ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z')
 
-private def validOwnerTail(ch: Char): Bool =
-  validOwnerStart(ch) || ('0' <= ch && ch <= '9') || ch == '-'
+private def validOwnerIdTail(ch: Char): Bool =
+  validOwnerIdHead(ch) || ('0' <= ch && ch <= '9') || ch == '-'
 
 private def validResourceRel(rel: String): Bool =
   if rel == "" then
