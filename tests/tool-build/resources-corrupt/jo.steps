@@ -1,0 +1,10 @@
+rm -rf repo .cache corrupt-app/.build
+
+rm -f corrupt-app/jo.lock
+
+python3 -c 'import pathlib, zipfile; p = pathlib.Path("repo/corrupt-resources/1.0.0"); p.mkdir(parents=True, exist_ok=True); z = zipfile.ZipFile(p / "corrupt-resources-v1.0.0.joy", "w"); z.writestr("meta.toml", "namespace = \"Corrupt\"\nname = \"corrupt-resources\"\njo = \"1.0\"\nversion = \"1.0.0\"\nruntime = \"pure\"\n"); z.writestr("resources", "not a directory\n"); z.close()'
+
+jo build --spec corrupt-app/jo.toml app
+: '
+error: package resource root is not a directory: tests/tool-build/resources-corrupt/.cache/packages/corrupt-resources/1.0.0/unpacked/resources
+'
