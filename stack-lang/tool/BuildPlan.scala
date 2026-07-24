@@ -2,6 +2,16 @@ package tool
 
 import java.nio.file.Path
 
+/** A resource file after expanding a module's resource mappings.
+ *
+ *  @param inputFile the concrete file on disk to copy from
+ *  @param resourcePath the slash-separated path used inside package/app resource output
+ *  @param sourceArchivePath the original source-relative path preserved in source archives
+ */
+case class ResourceFile(inputFile: Path, resourcePath: Path, sourceArchivePath: Path)
+
+case class ResourceGroup(owner: String, files: List[ResourceFile])
+
 enum CompileTask:
   /** Compile sources into .sast files (library build). */
   case LibTask(
@@ -20,6 +30,7 @@ enum CompileTask:
     target: Target,
     outFile: Path,
     sastDir: Path,
+    resources: List[ResourceGroup],
     compileOptions: List[String],
   )
 

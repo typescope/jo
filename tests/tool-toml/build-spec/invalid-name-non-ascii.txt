@@ -1,0 +1,1 @@
+error: invalid module.mód 'mód', must start with an ASCII letter and contain only ASCII letters, digits, and hyphens

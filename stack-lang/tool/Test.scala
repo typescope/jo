@@ -5,6 +5,7 @@ import java.io.{ByteArrayOutputStream, PrintStream}
 
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
+import scala.util.Using
 
 
 import tool.toml.{TomlError, TomlParser}
@@ -614,9 +615,10 @@ private def findFiles(pattern: String): List[Path] =
   val i       = pattern.indexWhere(c => c == '*' || c == '?')
   val baseDir = Paths.get(pattern.substring(0, pattern.lastIndexOf('/', i)))
   val matcher = FileSystems.getDefault.getPathMatcher(s"glob:$pattern")
-  Files.walk(baseDir).iterator.asScala
-    .filter(matcher.matches)
-    .toList.sortBy(_.toString)
+  Using.resource(Files.walk(baseDir)): stream =>
+    stream.iterator.asScala
+      .filter(matcher.matches)
+      .toList.sortBy(_.toString)
 
 private def capture(f: => Unit): String =
   val buf = ByteArrayOutputStream()

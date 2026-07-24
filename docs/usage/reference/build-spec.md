@@ -36,12 +36,14 @@ to declare normal compatibility constraints only.
 
 ## `[module.<id>]`
 
-Module ids must start with a letter and may contain letters, digits, and hyphens.
+Module IDs double as resource-owner IDs. They must start with an ASCII letter
+and may contain only ASCII letters, digits, and hyphens.
 
 | Field             | Type             | Required | Description |
 |-------------------|------------------|----------|-------------|
 | `kind`            | string           | yes      | `"lib"` or `"app"`. |
 | `src`             | array of paths   | yes      | Source directories or `.jo` files for this module. Directories are searched recursively. |
+| `resources`       | array of mappings | no       | Resource source/destination mappings for this module. The short form `source` means `source:source`. Default: `[]`. |
 | `platform`        | string           | app only | Platform this module is bound to. Apps: `"python"` or `"ruby"`, required. Libs: `"pure"`, `"python"`, or `"ruby"`, default `"pure"`. |
 | `enable-ffi`      | boolean          | no       | May this module's own code call the platform's FFI API (`py.*`, `rb.*`). Default: `false`. |
 | `depth`           | integer          | no       | Maximum registry package dependency depth for this module. Default: `0` for `lib`, `1` for `app`. |
@@ -108,6 +110,42 @@ links = [
 file under that directory recursively. A file entry includes that file only and
 must end with `.jo`. Glob syntax is not supported.
 
+### `resources`
+
+`resources` declares data files owned by a module:
+
+```toml
+[module.ui]
+kind = "lib"
+src = ["src/"]
+resources = ["assets/", "config/default.json"]
+```
+
+Each entry is a resource mapping. The short form `source` means
+`source:source`; use `source:destination` when the runtime resource path should
+not match the source tree layout. Source and destination paths are
+project-relative logical paths that use `/` on every operating system.
+
+Source and destination syntax is validated when Jo reads `jo.toml`. Filesystem
+checks, symlink rejection, and duplicate expanded target checks happen when a
+command collects resources, such as `jo package` or an app build.
+
+Packaging a module copies its own resources into the `.joy` archive under
+`resources/`. Plain lib compilation does not copy resources. App compilation
+copies resources from the app and selected dependency closure beside the
+generated app output under:
+
+```text
+.build/<module>/jo-1.0/target/resources/<owner>/<resource-path>
+```
+
+The `<owner>` directory is the package name for package-backed modules and the
+module id for unpackaged source modules. Duplicate owners with resources in one
+app closure are an error.
+
+See [Resources](../guides/resources.md) for full path rules, resource-owner
+semantics, packaging details, and runtime access patterns.
+
 ## Dependencies
 
 Source modules and registry packages are separate arrays.
@@ -149,7 +187,7 @@ packages = [
 
 | Field     | Required | Description |
 |-----------|----------|-------------|
-| `name`    | yes      | Registry package name. |
+| `name`    | yes      | Registry package name. Starts with an ASCII letter and contains only ASCII letters, digits, or hyphens. |
 | `version` | yes      | Compatibility line, e.g. `"1.0"`. |
 | `link`    | no       | Link-only dependency. Default `false`. |
 
@@ -158,6 +196,12 @@ There is no short form for packages, because a package dependency always needs b
 ### Link dependencies
 
 `link = true` works on either array. Link dependencies are hidden from user code and are omitted from generated package metadata. Like `links`, they are valid only on app modules — a link library resolves deferred definitions when an executable is produced, and only app modules produce one.
+
+Hidden from user code does not mean hidden from the runnable app artifact. App
+builds still copy resources from link-only dependencies in the selected closure,
+because linked runtime code may need its own bundled assets. Hidden resources
+can still be read by linked code when the app binds an owner-scoped resource
+capability for that code.
 
 ## Links
 
@@ -211,7 +255,7 @@ Any module can be publishable by adding a nested package section.
 
 | Field         | Type            | Required | Description |
 |---------------|-----------------|----------|-------------|
-| `name`        | string          | yes      | Package name. Must start with a letter and may contain letters, digits, and hyphens. |
+| `name`        | string          | yes      | Package name. Starts with an ASCII letter and contains only ASCII letters, digits, or hyphens. |
 | `version`     | string          | yes      | Package version in `MAJOR.MINOR.PATCH` format. |
 | `description` | string          | no       | Package description. |
 | `authors`     | array of string | no       | Package authors. |

@@ -137,6 +137,7 @@ export default defineConfig({
           items: [
             { text: 'Creating a Project', link: '/usage/guides/creating-a-project' },
             { text: 'Managing Dependencies', link: '/usage/guides/dependencies' },
+            { text: 'Resources', link: '/usage/guides/resources' },
             { text: 'Testing', link: '/usage/guides/testing' },
             { text: 'Publishing a Package', link: '/usage/guides/publishing' },
             { text: 'Writing FFI Packages', link: '/usage/guides/ffi' },

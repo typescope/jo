@@ -62,18 +62,21 @@ object Planner:
 
                       case ModuleKind.App =>
                         resolveTarget(project0, id).flatMap: target =>
-                          linkResolver.resolve(project0, id).map: effectiveLinks =>
-                            val visibleLibs = checkLibs.toSet
-                            CompileTask.AppTask(
-                              sources,
-                              checkLibs,
-                              effectiveLinks.linkLibs.filterNot(visibleLibs),
-                              effectiveLinks.links.view.mapValues(_.to).toMap,
-                              target,
-                              project0.appOutFile(id, target),
-                              project0.sastDir(id),
-                              compileOptions,
-                            )
+                          linkResolver.resolve(project0, id).flatMap: effectiveLinks =>
+                            collectResources(project0, id).map: resources =>
+                              val visibleLibs = checkLibs.toSet
+                              val hiddenPackageLibs = registryHiddenLibs(visibleLibs)
+                              CompileTask.AppTask(
+                                sources,
+                                checkLibs,
+                                (effectiveLinks.linkLibs ++ hiddenPackageLibs).distinct.filterNot(visibleLibs),
+                                effectiveLinks.links.view.mapValues(_.to).toMap,
+                                target,
+                                project0.appOutFile(id, target),
+                                project0.sastDir(id),
+                                resources,
+                                compileOptions,
+                              )
 
                   task.map: task =>
                     ModulePlan(moduleLabel(project0, id), id, project0.joBin, task, depPlans)
@@ -88,6 +91,46 @@ object Planner:
 
     private def registryCheckLibs(module: ModuleSpec): List[Path] =
       module.packageDeps.filter(_.link == DepLink.Check).flatMap(dep => registrySastDirs.get(dep.name))
+
+    private def registryHiddenLibs(visibleLibs: Set[Path]): List[Path] =
+      registrySastDirs.values.toList.sortBy(_.toString).filterNot(visibleLibs)
+
+    private def collectResources(project0: Project, id: ModuleId): Result[List[ResourceGroup]] =
+      val groups = new mutable.ArrayBuffer[ResourceGroup]
+      val owners = mutable.Set.empty[String]
+
+      def addGroup(result: Result[Option[ResourceGroup]]): Result[Unit] =
+        result.flatMap:
+          case None => Result.unit
+          case Some(group) =>
+            if !owners.add(group.owner) then
+              Result.Err(s"duplicate resource owner '${group.owner}' in app resource closure")
+            else
+              groups += group
+              Result.unit
+
+      registrySastDirs.toSeq.sortBy(_._1).foldLeft(Result.unit): (acc, entry) =>
+        val (name, unpacked) = entry
+        acc.flatMap(_ => addGroup(ResourcePaths.fromPackage(name, unpacked)))
+      .flatMap: _ =>
+        val seen = mutable.Set.empty[(Path, ModuleId)]
+
+        def walk(currentProject: Project, current: ModuleId): Result[Unit] =
+          val key = currentProject.specPath -> current
+          if !seen.add(key) then Result.unit
+          else
+            currentProject.requireModule(current).flatMap: spec =>
+              val owner = sourceResourceOwner(currentProject, current)
+              addGroup(ResourcePaths.fromModule(owner, spec.resources, currentProject.dir)).flatMap: _ =>
+                currentProject.moduleDepsOf(current).foldLeft(Result.unit): (acc, dep) =>
+                  acc.flatMap: _ =>
+                    walk(dep.project.getOrElse(currentProject), dep.module)
+
+        walk(project0, id)
+      .map(_ => groups.toList)
+
+    private def sourceResourceOwner(project0: Project, id: ModuleId): String =
+      project0.pkg(id).map(_.name).getOrElse(id.value)
 
     private def sourceClosure(project0: Project, id: ModuleId): List[(Project, ModuleId, DepLink)] =
       val out = new mutable.ArrayBuffer[(Project, ModuleId, DepLink)]

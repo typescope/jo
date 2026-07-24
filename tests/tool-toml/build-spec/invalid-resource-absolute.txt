@@ -1,0 +1,1 @@
+error: module.lib.resources[0]: resource path must be relative: /tmp/secret.txt

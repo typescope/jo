@@ -1,0 +1,11 @@
+jo = "1.0"
+default = "backslash"
+
+[module.backslash]
+kind = "lib"
+src = ["src/"]
+resources = ['bad\path.txt']
+
+[module.backslash.package]
+name = "resource-invalid-backslash"
+version = "1.0.0"

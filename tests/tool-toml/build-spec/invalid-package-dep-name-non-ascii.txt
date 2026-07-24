@@ -1,0 +1,1 @@
+error: invalid module.app.packages[0].name 'hárpe', must start with an ASCII letter and contain only ASCII letters, digits, and hyphens

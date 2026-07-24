@@ -1,0 +1,6 @@
+jo = "1.0"
+
+[module.external]
+kind = "lib"
+src = ["src/"]
+resources = ["ext-assets/"]
