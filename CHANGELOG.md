@@ -2,6 +2,53 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.12.2] - 2026-07-25
+
+### Added
+
+- Resource packaging support in `jo.toml`, including module-scoped resource
+  declarations, resource copying for app builds, resource inclusion in package
+  and release outputs, and `resource.Resources` APIs for reading bundled
+  resources from Jo code. ([#77])
+- JavaScript, Python, and Ruby resource-bundle runtime support. ([#77])
+- Default values for class and union parameters. ([#76])
+
+### Changed
+
+- Module and package names are validated as ASCII-only identifiers, giving
+  package and resource paths consistent cross-platform behavior. ([#77])
+- `py.none`, `rb.nil`, `js.null`, and `js.undefined` now have type `Bottom`, so
+  FFI sentinel values can be used in any expected result position. ([#82])
+
+### Fixed
+
+- Generated documentation no longer includes the closing `//]` marker from doc
+  comments. ([#72])
+- Resource syncing skips unchanged inputs. ([#77])
+- Pattern matching now preserves the transformed scrutinee in rescue
+  expressions. ([#80])
+- SAST output is no longer emitted twice when typing fails. ([#79])
+
+### Security
+
+- No new ambient capabilities are introduced. Resources must be declared in the
+  build spec, and resource source/destination paths are validated before they
+  are copied or bundled. ([#77])
+
+### Compatibility
+
+- Build specs using non-ASCII module names, package names, or package
+  dependency names are now rejected. ([#77])
+- Projects can opt into the new `resources` build-spec entries, but existing
+  projects without resource declarations do not need changes.
+
+[#72]: https://github.com/typescope/jo/pull/72
+[#76]: https://github.com/typescope/jo/pull/76
+[#77]: https://github.com/typescope/jo/pull/77
+[#79]: https://github.com/typescope/jo/pull/79
+[#80]: https://github.com/typescope/jo/pull/80
+[#82]: https://github.com/typescope/jo/pull/82
+
 ## [0.12.1] - 2026-07-16
 
 ### Fixed
