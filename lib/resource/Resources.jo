@@ -1,0 +1,30 @@
+namespace jo.resource
+
+import jo.*
+
+//[ Metadata for one packaged resource file or directory.
+  !
+  ! `sizeBytes` is meaningful for files. Directories report `0`.
+//]
+class FileInfo(isFile: Bool, sizeBytes: Int)
+
+//[ Read-only access to resources bundled with the built program.
+  !
+  ! A `Resources` value is scoped to one package or module resource owner.
+  ! Modules that read resources should declare their own context parameter, for
+  ! example `param resources: Resources`, and document which owner the app must
+  ! bind it to.
+  !
+  ! `rel` is a non-empty `/`-separated path inside the scoped resource root.
+  ! Implementations reject absolute paths and escaping segments.
+//]
+interface Resources
+  //[ The metadata record for `rel`; `None` when nothing exists there. //]
+  def stat(rel: String): Option[FileInfo]
+
+  //[ Read a UTF-8 text resource. //]
+  def readText(rel: String): Result[String, String]
+
+  //[ Read a binary resource. //]
+  def readBytes(rel: String): Result[Bytes, String]
+end

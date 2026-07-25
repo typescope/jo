@@ -1,0 +1,6 @@
+jo = "1.0"
+
+[module.app]
+kind = "app"
+platform = "python"
+src = ["gen/"]

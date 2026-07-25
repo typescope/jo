@@ -1,0 +1,1 @@
+error: module.lib.resources[0]: resource destination path 'public/*.txt' uses glob syntax; use a directory or file path

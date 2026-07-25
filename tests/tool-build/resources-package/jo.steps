@@ -1,0 +1,38 @@
+rm -rf repo .cache core/.build dep/.build
+
+rm -f core/jo.lock dep/jo.lock
+
+jo package --spec core/jo.toml
+
+mkdir -p repo/resource-core/1.0.0
+
+cp core/.build/lib/release/resource-core-v1.0.0.joy repo/resource-core/1.0.0/
+
+jo package --spec dep/jo.toml
+
+unzip -Z1 dep/.build/lib/release/resource-lib-v1.0.0.joy | LC_ALL=C sort
+: '
+ResourceLib/Dep.sast
+meta.toml
+resources/metadata/notice.txt
+resources/runtime/dep-assets/dep.txt
+resources/runtime/dep-assets/nested/info.json
+'
+
+unzip -p dep/.build/lib/release/resource-lib-v1.0.0.joy resources/runtime/dep-assets/dep.txt
+: '
+library resource cafe
+'
+
+unzip -p dep/.build/lib/release/resource-lib-v1.0.0.joy resources/metadata/notice.txt
+: '
+mapped notice
+'
+
+unzip -Z1 dep/.build/lib/release/resource-lib-v1.0.0-sources.zip | LC_ALL=C sort
+: '
+dep-assets/dep.txt
+dep-assets/nested/info.json
+notice.txt
+src/Dep.jo
+'

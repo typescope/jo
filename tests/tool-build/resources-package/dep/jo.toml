@@ -1,0 +1,12 @@
+jo = "1.0"
+
+[module.lib]
+kind = "lib"
+src = ["src/"]
+resources = ["dep-assets/:runtime/dep-assets/", "notice.txt:metadata/notice.txt"]
+depth = 1
+packages = [{ name = "resource-core", version = "1.0" }]
+
+[module.lib.package]
+name = "resource-lib"
+version = "1.0.0"

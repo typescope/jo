@@ -1,0 +1,156 @@
+namespace jo.js.resource
+
+import jo.resource.FileInfo
+import jo.resource.Resources
+
+//------------------------------------------------------------------------------
+//
+// Packaged resources
+//
+
+private def resourceFs: js.Dynamic =
+  js.require("fs")
+
+private def resourcePath: js.Dynamic =
+  js.require("path")
+
+private def defaultResourceRoot(): String =
+  val path = resourcePath
+  val program = js.global.process.argv[1].asString
+  path.join(path.dirname(resourceFs.realpathSync(program).asString), "resources").asString
+
+private def validResourceOwner(owner: String): Bool =
+  if owner.isEmpty then
+    false
+  else if !validOwnerIdHead(owner[0]) then
+    false
+  else
+    var ok = true
+    var i = 1
+    while ok && i < owner.size do
+      if !validOwnerIdTail(owner[i]) then
+        ok = false
+      end
+      i = i + 1
+    end
+    ok
+
+private def validOwnerIdHead(ch: Char): Bool =
+  ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z')
+
+private def validOwnerIdTail(ch: Char): Bool =
+  validOwnerIdHead(ch) || ('0' <= ch && ch <= '9') || ch == '-'
+
+private def validResourceRel(rel: String): Bool =
+  if rel == "" then
+    false
+  else if rel.startsWith("/") || rel.contains("\\") then
+    false
+  else
+    var ok = true
+    for part in rel.split("/") do
+      if part == "" || part == "." || part == ".." then
+        ok = false
+      end
+    ok
+
+private def resourcePathContains(root: String, path: String): Bool =
+  val sep = resourcePath.sep.asString
+  path == root || path.startsWith(root + sep)
+
+private def errorMessage(err: js.Dynamic): String =
+  err.toString
+
+//[ Read-only access to resources copied beside the generated Node.js program.
+  !
+  ! The one-argument constructor scopes reads to one owner under
+  ! `dirname(realpath(process.argv[1])) / "resources"`.
+//]
+class ResourceBundle
+  private val root: String
+  private val owner: String
+
+  def ResourceBundle(owner: String) =
+    this.root = resourcePath.resolve(defaultResourceRoot()).asString
+    this.owner = owner
+
+  def ResourceBundle(owner: String, root: String) =
+    this.root = resourcePath.resolve(root).asString
+    this.owner = owner
+
+  view Resources
+
+  def path(rel: String): Result[String, String] =
+    match resolveExisting(rel)
+    case Ok(path) => Ok(path)
+    case Err(err) => Err(err)
+
+  def stat(rel: String): Option[FileInfo] =
+    match resolveExisting(rel)
+    case Err(_) => None
+    case Ok(path) =>
+      val stat = resourceFs.statSync(path)
+      val file = stat.isFile().asBool
+      val size = if file then stat.size.asInt else 0
+      Some(new FileInfo(file, size))
+
+  def readText(rel: String): Result[String, String] =
+    match resolveFile(rel)
+    case Err(err) => Err(err)
+    case Ok(path) =>
+      match js.try(resourceFs.readFileSync(path, "utf8").asString)
+      case Ok(text) => Ok(text)
+      case Err(e) => Err(errorMessage(e))
+
+  def readBytes(rel: String): Result[Bytes, String] =
+    match resolveFile(rel)
+    case Err(err) => Err(err)
+    case Ok(path) =>
+      match js.try(resourceFs.readFileSync(path).cast[Bytes])
+      case Ok(bytes) => Ok(bytes)
+      case Err(e) => Err(errorMessage(e))
+
+  private def resolveFile(rel: String): Result[String, String] =
+    match resolveExisting(rel)
+    case Err(err) => Err(err)
+    case Ok(path) =>
+      if resourceFs.statSync(path).isFile().asBool then Ok(path)
+      else Err("resource is not a file: " + owner + "/" + rel)
+
+  private def resolveExisting(rel: String): Result[String, String] =
+    match resolve(rel)
+    case Err(err) => Err(err)
+    case Ok(logicalPath ~ ownerRoot) =>
+      if !resourceFs.existsSync(logicalPath).asBool then
+        Err("resource not found: " + owner + "/" + rel)
+      else
+        match js.try(resourceFs.realpathSync(logicalPath).asString)
+        case Err(e) => Err(errorMessage(e))
+        case Ok(realPath) =>
+          match js.try(resourceFs.realpathSync(root).asString)
+          case Err(e) => Err(errorMessage(e))
+          case Ok(rootReal) =>
+            match js.try(resourceFs.realpathSync(ownerRoot).asString)
+            case Err(e) => Err(errorMessage(e))
+            case Ok(ownerRootReal) =>
+              if !resourcePathContains(rootReal, ownerRootReal) then
+                Err("resource owner escapes resource root: " + owner)
+              else if resourcePathContains(ownerRootReal, realPath) then
+                Ok(realPath)
+              else
+                Err("resource path escapes owner root: " + owner + "/" + rel)
+
+  private def resolve(rel: String): Result[String ~ String, String] =
+    if !validResourceOwner(owner) then
+      Err("invalid resource owner: " + owner)
+    else if !validResourceRel(rel) then
+      Err("invalid resource path: " + rel)
+    else
+      val pathApi = resourcePath
+      val ownerRoot = pathApi.resolve(pathApi.join(root, owner)).asString
+      val path = pathApi.resolve(pathApi.join(ownerRoot, rel)).asString
+      if resourcePathContains(ownerRoot, path) then
+        Ok(path ~ ownerRoot)
+      else
+        Err("resource path escapes owner root: " + owner + "/" + rel)
+end

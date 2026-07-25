@@ -14,7 +14,7 @@ object SourcePaths:
 
   private def expandEntry(entry: String, baseDir: Path): Result[List[Path]] =
     if hasGlobSyntax(entry) then
-      return Result.Err(s"source path '${entry}' uses glob syntax; use a directory or .jo file path")
+      return Result.Err(s"source path '$entry' uses glob syntax; use a directory or .jo file path")
 
     val path = baseDir.resolve(entry).normalize()
     if !Files.exists(path) then

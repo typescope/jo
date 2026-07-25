@@ -25,9 +25,14 @@ case class PackageDepSpec(name: String, constraint: VersionSpec, link: DepLink =
 
 case class LinkSpec(from: String, to: String)
 
+case class ResourceMapping(source: String, dest: String):
+  def show: String =
+    if source == dest then source else s"$source:$dest"
+
 case class ModuleSpec(
   kind: ModuleKind,
   src: List[String],            // source paths; required in jo.toml
+  resources: List[ResourceMapping], // resource source/destination mappings
   platform: Option[Platform],   // app backend or lib platform binding
   enableFfi: Boolean,           // whether this module may call py.*/rb.*
   depth: Option[Int],           // optional package-depth override for this module
@@ -122,6 +127,7 @@ object BuildSpec:
     val src = tbl.get("src") match
       case Some(value) => asStrList(value, s"module.${id.value}.src")
       case None        => throw TomlError(s"missing required field 'module.${id.value}.src'")
+    val resources = tbl.get("resources").map(decodeResources(_, id)).getOrElse(Nil)
     if tbl.contains("target") then
       throw TomlError(s"module.${id.value}.target is no longer supported; use module.${id.value}.platform")
     val platform = tbl.get("platform").map: v =>
@@ -152,7 +158,7 @@ object BuildSpec:
     if enableFfi && platform.getOrElse(Platform.Pure) == Platform.Pure then
       throw TomlError(s"module.${id.value}.enable-ffi requires platform = \"python\" or platform = \"ruby\"")
 
-    ModuleSpec(kind, src, platform, enableFfi, depth, moduleDeps, packageDeps, links, compileOptions, pkg)
+    ModuleSpec(kind, src, resources, platform, enableFfi, depth, moduleDeps, packageDeps, links, compileOptions, pkg)
 
   /** `modules = ["api", { id = "helpers", path = "../lib" }]`
    *  A bare string is shorthand for `{ id = "<string>" }`.
@@ -247,6 +253,20 @@ object BuildSpec:
       name -> cmd
     .toMap
 
+  private def decodeResources(value: TomlValue, owner: ModuleId): List[ResourceMapping] =
+    val ctx = s"module.${owner.value}.resources"
+    value match
+      case Arr(items) =>
+        items.zipWithIndex.map:
+          case (Str(entry), idx) =>
+            ResourcePaths.parseMapping(entry) match
+              case Result.Ok(mapping) => mapping
+              case Result.Err(msg) => throw TomlError(s"$ctx[$idx]: $msg")
+          case (_, _) =>
+            throw TomlError(s"'$ctx' must be an array of strings")
+      case _ =>
+        throw TomlError(s"'$ctx' must be an array")
+
   private def decodePinning(tbl: Map[String, TomlValue]): Map[String, Version] =
     tbl.toSeq.sortBy(_._1).map: (name, value) =>
       val raw = asStr(value, s"[pinning].$name")
@@ -283,13 +303,19 @@ object BuildSpec:
     DocSpec(title, readme, includePrivate, includeSource)
 
   private def validateModuleId(id: String, ctx: String): String =
-    if id.isEmpty || !id.head.isLetter || !id.tail.forall(c => c.isLetterOrDigit || c == '-') then
-      throw TomlError(s"invalid $ctx '$id', must start with a letter and contain only letters, digits, and hyphens")
+    if id.isEmpty || !isAsciiLetter(id.head) || !id.tail.forall(c => isAsciiLetterOrDigit(c) || c == '-') then
+      throw TomlError(s"invalid $ctx '$id', must start with an ASCII letter and contain only ASCII letters, digits, and hyphens")
     id
 
   private def validatePackageName(name: String, ctx: String): Unit =
-    if name.isEmpty || !name.head.isLetter || !name.tail.forall(c => c.isLetterOrDigit || c == '-') then
-      throw TomlError(s"invalid $ctx '$name', must start with a letter and contain only letters, digits, and hyphens")
+    if name.isEmpty || !isAsciiLetter(name.head) || !name.tail.forall(c => isAsciiLetterOrDigit(c) || c == '-') then
+      throw TomlError(s"invalid $ctx '$name', must start with an ASCII letter and contain only ASCII letters, digits, and hyphens")
+
+  private def isAsciiLetter(c: Char): Boolean =
+    ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
+
+  private def isAsciiLetterOrDigit(c: Char): Boolean =
+    isAsciiLetter(c) || ('0' <= c && c <= '9')
 
   private def validateVersion(v: String, ctx: String): Unit =
     val parts = v.split("\\.")

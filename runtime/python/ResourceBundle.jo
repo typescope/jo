@@ -1,0 +1,159 @@
+namespace jo.py.resource
+
+import jo.resource.FileInfo
+import jo.resource.Resources
+
+//------------------------------------------------------------------------------
+//
+// Packaged resources
+//
+
+@py.interop
+private interface ResourceOsPath
+  def abspath(path: String): String
+  def dirname(path: String): String
+  def exists(path: String): Bool
+  def getsize(path: String): Int
+  def isfile(path: String): Bool
+  def join(base: String, parts: ..Any): String
+  def normpath(path: String): String
+  def realpath(path: String): String
+end
+
+@py.interop
+private interface ResourceOs
+  @py.property
+  def path: ResourceOsPath
+
+  @py.property
+  def sep: String
+
+end
+
+private def resourceOs: ResourceOs =
+  py.module("os").cast[ResourceOs]
+
+private def resourcePathlib: py.Dynamic =
+  py.module("pathlib")
+
+private def defaultResourceRoot(): String =
+  val path = resourceOs.path
+  val program = py.module("__main__").__file__.asString
+  path.join(path.dirname(path.realpath(program)), "resources")
+
+private def validResourceOwner(owner: String): Bool =
+  if owner.isEmpty then
+    false
+  else if !validOwnerIdHead(owner[0]) then
+    false
+  else
+    var ok = true
+    var i = 1
+    while ok && i < owner.size do
+      if !validOwnerIdTail(owner[i]) then
+        ok = false
+      end
+      i = i + 1
+    end
+    ok
+
+private def validOwnerIdHead(ch: Char): Bool =
+  ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z')
+
+private def validOwnerIdTail(ch: Char): Bool =
+  validOwnerIdHead(ch) || ('0' <= ch && ch <= '9') || ch == '-'
+
+private def validResourceRel(rel: String): Bool =
+  if rel == "" then
+    false
+  else if rel.startsWith("/") || rel.contains("\\") then
+    false
+  else
+    var ok = true
+    for part in rel.split("/") do
+      if part == "" || part == "." || part == ".." then
+        ok = false
+      end
+    ok
+
+private def resourcePathContains(root: String, path: String): Bool =
+  val sep = resourceOs.sep
+  path == root || path.startsWith(root + sep)
+
+//[ Read-only access to resources copied beside the generated Python program.
+  !
+  ! The one-argument constructor scopes reads to one owner under
+  ! `dirname(realpath(__main__.__file__)) / "resources"`.
+//]
+class ResourceBundle
+  private val root: String
+  private val owner: String
+
+  def ResourceBundle(owner: String) =
+    this.root = resourceOs.path.realpath(defaultResourceRoot())
+    this.owner = owner
+
+  def ResourceBundle(owner: String, root: String) =
+    this.root = resourceOs.path.realpath(root)
+    this.owner = owner
+
+  view Resources
+
+  def path(rel: String): Result[String, String] =
+    match resolve(rel)
+    case Err(err) => Err(err)
+    case Ok(path) =>
+      if resourceOs.path.exists(path) then Ok(path)
+      else Err("resource not found: " + owner + "/" + rel)
+
+  def stat(rel: String): Option[FileInfo] =
+    match resolve(rel)
+    case Err(_) => None
+    case Ok(path) =>
+      if !resourceOs.path.exists(path) then
+        None
+      else
+        val file = resourceOs.path.isfile(path)
+        val size = if file then resourceOs.path.getsize(path) else 0
+        Some(new FileInfo(file, size))
+
+  def readText(rel: String): Result[String, String] =
+    match resolveFile(rel)
+    case Err(err) => Err(err)
+    case Ok(path) =>
+      match py.try(resourcePathlib.Path(path).read_text(encoding = "utf-8").asString)
+      case Ok(text) => Ok(text)
+      case Err(e) => Err(e.message)
+
+  def readBytes(rel: String): Result[Bytes, String] =
+    match resolveFile(rel)
+    case Err(err) => Err(err)
+    case Ok(path) =>
+      match py.try(resourcePathlib.Path(path).read_bytes().cast[Bytes])
+      case Ok(bytes) => Ok(bytes)
+      case Err(e) => Err(e.message)
+
+  private def resolveFile(rel: String): Result[String, String] =
+    match resolve(rel)
+    case Err(err) => Err(err)
+    case Ok(path) =>
+      if resourceOs.path.isfile(path) then Ok(path)
+      else Err("resource is not a file: " + owner + "/" + rel)
+
+  private def resolve(rel: String): Result[String, String] =
+    if !validResourceOwner(owner) then
+      Err("invalid resource owner: " + owner)
+    else if !validResourceRel(rel) then
+      Err("invalid resource path: " + rel)
+    else
+      val pathApi = resourceOs.path
+      val ownerRoot = pathApi.realpath(pathApi.join(root, owner))
+      if !resourcePathContains(root, ownerRoot) then
+        return Err("resource owner escapes resource root: " + owner)
+      val joined = pathApi.join(ownerRoot, rel)
+      val candidate = pathApi.realpath(joined)
+      if resourcePathContains(ownerRoot, candidate) then
+        Ok(candidate)
+      else
+        Err("resource path escapes owner root: " + owner + "/" + rel)
+end

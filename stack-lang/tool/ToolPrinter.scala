@@ -64,6 +64,7 @@ object ToolPrinter:
   private def appendSection(sb: StringBuilder, s: ModuleSpec, pad: String): Unit =
     sb.append(s"${pad}kind = ${str(s.kind.toString.toLowerCase)}\n")
     sb.append(s"${pad}src = ${strList(s.src)}\n")
+    if s.resources.nonEmpty then sb.append(s"${pad}resources = ${strList(s.resources.map(_.show))}\n")
     s.platform.foreach(p => sb.append(s"${pad}platform = ${str(p.value)}\n"))
     if s.enableFfi then sb.append(s"${pad}enable-ffi = true\n")
     s.depth.foreach(d => sb.append(s"${pad}depth = $d\n"))
