@@ -68,11 +68,11 @@ annotation property
 
 //[ JavaScript's `undefined` value.   //]
 @intrinsic
-def undefined: Any = abort "undefined: intrinsified by the JavaScript backend"
+def undefined: Bottom = abort "undefined: intrinsified by the JavaScript backend"
 
 //[ JavaScript's `null` value.   //]
 @intrinsic
-def null: Any = abort "null: intrinsified by the JavaScript backend"
+def null: Bottom = abort "null: intrinsified by the JavaScript backend"
 
 //[ An unstructured JavaScript value used for dynamic interop.
   !

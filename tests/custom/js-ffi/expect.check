@@ -26,6 +26,10 @@ isUndefined pi = false
 top isUndefined = true
 top isNull = true
 top isNullish = true
+null as String isNull = true
+undefined as String isUndefined = true
+null default isNull = true
+undefined default isUndefined = true
 --- type checks ---
 typeof function = true
 typeof number = true

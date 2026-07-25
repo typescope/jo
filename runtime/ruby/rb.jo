@@ -75,7 +75,7 @@ end
 
 //[ Ruby's nil value.   //]
 @intrinsic
-def nil: Any = abort "nil: intrinsified by the Ruby backend"
+def nil: Bottom = abort "nil: intrinsified by the Ruby backend"
 
 //[ An unstructured Ruby value used for dynamic interop.
   !
