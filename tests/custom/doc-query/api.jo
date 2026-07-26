@@ -1,0 +1,28 @@
+namespace DocQueryAPI
+
+//[ File operations exposed to a Python-backed host. //]
+@py.interop
+interface FileLike
+  //[ Read a text file with an optional limit. //]
+  @py.targetName("read_text")
+  def readText(path: String, limit: Int = 10): String
+end
+
+//[ A small documented class. //]
+class Box
+  //[ Stored display name. //]
+  val name: String
+
+  //[ Create a box with a name. //]
+  def Box(name: String): Box =
+    this.name = name
+
+  //[ Render a label. //]
+  def label(prefix: String = "box"): String = prefix + ":" + name
+end
+
+//[ Public helper. //]
+def helper(value: Int): Int = value + 1
+
+//[ Hidden helper. //]
+private def hidden: Int = 42

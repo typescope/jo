@@ -1,0 +1,76 @@
+[
+  {
+    "name": "DocQueryAPI.FileLike",
+    "kind": "class",
+    "signature": "interface FileLike",
+    "source": { "file": "tests/custom/doc-query/api.jo", "line": 5 },
+    "visibility": "public",
+    "flags": ["interface"],
+    "annotations": [{ "name": "jo.py.interop", "args": [] }],
+    "doc": "File operations exposed to a Python-backed host.",
+    "members": [
+      {
+        "name": "DocQueryAPI.FileLike.readText",
+        "kind": "def",
+        "signature": "def readText(path: String, limit: Int = 10): String receives none",
+        "source": { "file": "tests/custom/doc-query/api.jo", "line": 8 },
+        "visibility": "public",
+        "flags": ["defer", "fun", "method"],
+        "annotations": [{ "name": "jo.py.targetName", "args": ["read_text"] }],
+        "doc": "Read a text file with an optional limit."
+      }
+    ]
+  },
+  {
+    "name": "DocQueryAPI.Box",
+    "kind": "class",
+    "signature": "class Box",
+    "source": { "file": "tests/custom/doc-query/api.jo", "line": 12 },
+    "visibility": "public",
+    "flags": ["class"],
+    "annotations": [],
+    "doc": "A small documented class.",
+    "members": [
+      {
+        "name": "DocQueryAPI.Box.name",
+        "kind": "field",
+        "signature": "val name: String",
+        "source": { "file": "tests/custom/doc-query/api.jo", "line": 14 },
+        "visibility": "public",
+        "flags": ["field"],
+        "annotations": [],
+        "doc": "Stored display name."
+      },
+      {
+        "name": "DocQueryAPI.Box.<init>",
+        "kind": "constructor",
+        "signature": "constructor(name: String): Box receives none",
+        "source": { "file": "tests/custom/doc-query/api.jo", "line": 17 },
+        "visibility": "public",
+        "flags": ["fun", "method", "constructor"],
+        "annotations": [],
+        "doc": "Create a box with a name."
+      },
+      {
+        "name": "DocQueryAPI.Box.label",
+        "kind": "def",
+        "signature": "def label(prefix: String = \"box\"): String receives none",
+        "source": { "file": "tests/custom/doc-query/api.jo", "line": 21 },
+        "visibility": "public",
+        "flags": ["fun", "method"],
+        "annotations": [],
+        "doc": "Render a label."
+      }
+    ]
+  },
+  {
+    "name": "DocQueryAPI.helper",
+    "kind": "def",
+    "signature": "def helper(value: Int): Int receives none",
+    "source": { "file": "tests/custom/doc-query/api.jo", "line": 25 },
+    "visibility": "public",
+    "flags": ["fun"],
+    "annotations": [],
+    "doc": "Public helper."
+  }
+]
