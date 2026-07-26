@@ -17,21 +17,37 @@ object Compiler:
   val readme: Config.StringSetting = Config.StringSetting("--readme", "", "markdown file to use as home page")
   val includePrivate: Config.BooleanSetting = Config.BooleanSetting("--include-private", false, "include private symbols")
   val includeSource: Config.BooleanSetting = Config.BooleanSetting("--include-source", false, "embed source code")
+  val format: Config.StringSetting = DocFormatSetting("--format", "html", "documentation output format: html or json")
+  val query: Config.StringSetting = Config.StringSetting("--query", "", "comma-separated documentation selectors for JSON output")
 
   val docOptions: List[cli.OptionParser.Setting[?]] =
-    outputDir :: title :: readme :: includePrivate :: includeSource :: Config.commonOptions
+    outputDir :: title :: readme :: includePrivate :: includeSource :: format :: query :: Config.commonOptions
+
+  class DocFormatSetting(flag: String, default: String, desc: String)
+  extends Config.StringSetting(flag, default, desc):
+    override def validate()(using cf: Config, rp: Reporter): Unit =
+      val fmt = value
+      if fmt != "html" && fmt != "json" then
+        rp.error(s"Option $flag must be one of: html, json")
 
   def main(args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
 
     val (config, sources) = cli.OptionParser.parseConfig(args, docOptions)
 
-    if sources.isEmpty then
+    given Config = config
+
+    val queryText = query.value.trim
+    val jsonOutput = format.value == "json" || queryText.nonEmpty
+
+    if sources.isEmpty && !jsonOutput then
       println("Usage: jo doc <sources...> [options]")
       println()
       println("Options:")
       println("  --out <dir>            Output directory (default: docs)")
       println("  --title <name>         Project title for documentation")
+      println("  --format <html|json>   Output format (default: html)")
+      println("  --query <selectors>    JSON selectors, e.g. jo.py.*,file:src/API.jo")
       println("  --include-private      Include private symbols")
       println("  --include-source       Embed source code in output")
       println()
@@ -40,8 +56,6 @@ object Compiler:
       println("  jo doc src/main.jo --out docs --title MyProject")
       return
 
-    given Config = config
-
     Reporter.monitor():
       compile(sources)
 
@@ -49,15 +63,31 @@ object Compiler:
   def compile(sources: List[String])(using rp: Reporter, config: Config): Unit =
     val rootNameTable = new NameTable
     given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
+    val queryText = query.value.trim
+    val jsonOutput = format.value == "json" || queryText.nonEmpty
 
     // Parse and type check
-    val (units, _) = sources |> Typer.parseStep |> Typer.typeStep
+    val (units, delayedUnits) = sources |> Typer.parseStep |> Typer.typeStep
 
-    if rp.hasErrors then
-      println("Errors occurred during type checking. Documentation not generated.")
-      return
+    if rp.hasErrors then return
 
     given Definitions = lazyDefn.value
+
+    if jsonOutput then
+      if outputDir.value != outputDir.default then
+        Reporter.error("--out is only supported with --format html")
+        return
+
+      val libraryUnits =
+        if queryText.nonEmpty then delayedUnits.forceAll()
+        else Nil
+      val index = DocModel.build(units, libraryUnits, includePrivate.value)
+      val selected = DocQuery.select(index, queryText)
+      if rp.hasErrors then return
+      val out = new PrintWriter(new OutputStreamWriter(System.out, StandardCharsets.UTF_8))
+      DocJsonEmitter.emit(selected, out)
+      out.flush()
+      return
 
     val outputPath = Paths.get(outputDir.value)
     val includePrivateVal = includePrivate.value
