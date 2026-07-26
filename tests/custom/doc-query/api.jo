@@ -1,5 +1,35 @@
 namespace DocQueryAPI
 
+//[ Default limit used by context-aware helpers. //]
+param defaultLimit: Int
+
+//[ File path alias used in host calls. //]
+type Path = String
+
+//[ Match positive integers. //]
+pattern Positive(value: Int): Partial[Int] =
+  case value if value > 0
+
+//[ Host-backed operations grouped in a section. //]
+section HostOps
+  //[ Return a remote file size. //]
+  defer def remoteSize(path: Path): Int receives defaultLimit
+
+  //[ Clamp a caller supplied limit. //]
+  def normalizeLimit(value: Int): Int receives defaultLimit =
+    if value > 0 then value else defaultLimit
+end
+
+//[ Render a value with auto formatting and context. //]
+def describe[T](value: T)(auto show: Show[T] with [[T].toString]): String receives defaultLimit =
+  show.show(value) + ":" + defaultLimit.toString()
+
+//[ Shared singleton helpers. //]
+object Singleton
+  //[ Return the singleton label. //]
+  def label: String = "singleton"
+end
+
 //[ File operations exposed to a Python-backed host. //]
 @py.interop
 interface FileLike
