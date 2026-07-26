@@ -1,0 +1,12 @@
+[
+  {
+    "name": "DocQueryAPI.hidden",
+    "kind": "def",
+    "signature": "def hidden(): Int receives none",
+    "source": { "file": "tests/custom/doc-query/api.jo", "line": 58 },
+    "visibility": "private",
+    "flags": ["fun"],
+    "annotations": [],
+    "doc": "Hidden helper."
+  }
+]

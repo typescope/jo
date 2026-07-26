@@ -1,0 +1,12 @@
+[
+  {
+    "name": "DocQueryAPI.describe",
+    "kind": "def",
+    "signature": "def describe[T](value: T)(auto show: Show[T] with [[T].toString]): String receives defaultLimit",
+    "source": { "file": "tests/custom/doc-query/api.jo", "line": 24 },
+    "visibility": "public",
+    "flags": ["fun"],
+    "annotations": [],
+    "doc": "Render a value with auto formatting and context."
+  }
+]
