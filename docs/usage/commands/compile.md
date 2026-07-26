@@ -13,8 +13,9 @@ jo compile --python|--ruby|--js [--sast <dir>] <file.jo>... \
            [--lib <dir>]... [--link-lib <dir>]... [--link <src>=<tgt>]... -o <output>
 
 # Generate documentation from source files (experimental)
-jo compile --doc [--out <dir>] [--title <name>] [--readme <file>] \
-           [--include-private] [--include-source] <file.jo>...
+jo compile --doc [--format html|json] [--query <selectors>] [--out <dir>] \
+           [--title <name>] [--readme <file>] [--include-private] \
+           [--include-source] <file.jo>...
 ```
 
 Without a backend flag, the compiler type-checks only. With a backend flag, it produces an executable or script. `--sast <dir>` is optional in both cases — if present, `.sast` files are written to `<dir>` alongside the primary output.
@@ -44,11 +45,21 @@ Experimental.
 | Flag | Description |
 |------|-------------|
 | `--doc` | Generate documentation instead of normal compile output |
+| `--format html|json` | Documentation output format. Default: `html` |
+| `--query <selectors>` | Comma-separated JSON selectors, such as `MyAPI.*` or `file:src/API.jo`; implies `--format json` |
 | `--out <dir>` | Documentation output directory |
 | `--title <name>` | Documentation title |
 | `--readme <file>` | Markdown file to use as the generated documentation home page |
 | `--include-private` | Include private symbols |
 | `--include-source` | Embed source code in output |
+
+`--format json` writes a JSON array to stdout. `--query` implies
+`--format json`. JSON output does not use `--out`.
+Without `--query`, JSON output contains the public API surface from the
+positional source files. With `--query`, selectors are comma-separated and may
+name symbols, wildcard descendants with `.*`, or source files with `file:<path>`.
+Symbol selectors are resolved from the language default scope; for example `~`
+is just an ordinary symbol query.
 
 ### App compilation
 
@@ -102,6 +113,18 @@ Generate docs directly from source files:
 jo compile --doc lib/Core.jo lib/List.jo \
   --out stdlib-doc \
   --title "Jo Standard Library"
+```
+
+Emit machine-readable docs for a source file:
+
+```sh
+jo compile --doc --format json src/API.jo
+```
+
+Emit machine-readable docs for selected symbols:
+
+```sh
+jo compile --doc --query 'MyAPI.*,jo.py.*' src/API.jo
 ```
 
 ## Notes

@@ -94,8 +94,23 @@ above plus these documentation-specific options.
 
 | Option | Form | Description |
 |--------|------|-------------|
+| `--format <html|json>` | single value | Documentation output format. Default: `html`. |
+| `--query <selectors>` | comma list | Select symbols or source files for JSON documentation output. Implies `--format json`. |
 | `--out <dir>` | single value | Documentation output directory. Default: `docs`. |
 | `--title <name>` | single value | Documentation title. Default: `API Documentation`. |
 | `--readme <file>` | single value | Markdown file to use as the generated documentation home page. |
 | `--include-private` | flag | Include private symbols. |
 | `--include-source` | flag | Embed source code in the generated documentation. |
+
+`--format json` writes a bare JSON array to stdout and rejects `--out`.
+`--query` implies `--format json`.
+Without `--query`, it emits the public API surface from the positional source
+files. `--query` accepts comma-separated selectors:
+
+| Selector | Meaning |
+|----------|---------|
+| `<symbol>` | Exact symbol resolved from the language default scope. |
+| `<symbol>.*` | The symbol and its recursive members, emitted structurally. |
+| `file:<path>` | Queryable symbols whose source file matches the path. |
+
+Kind-qualified selectors such as `def:<symbol>` are reserved for future use.
