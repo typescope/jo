@@ -65,6 +65,21 @@ object Compiler:
     val queryText = query.value.trim
     val jsonOutput = format.value == "json" || queryText.nonEmpty
 
+    def writeJson(entries: List[DocEntry]): Unit =
+      val out = new PrintWriter(new OutputStreamWriter(System.out, StandardCharsets.UTF_8))
+      DocJsonEmitter.emit(entries, out)
+      out.flush()
+
+    if jsonOutput && sources.isEmpty && Config.libPaths.value.isEmpty then
+      if outputDir.value != outputDir.default then
+        Reporter.error("--out is only supported with --format html")
+        return
+
+      val selected = DocQuery.select(DocIndex(Nil, Nil), queryText)
+      if rp.hasErrors then return
+      writeJson(selected)
+      return
+
     // Parse and type check
     val (units, delayedUnits) = sources |> Typer.parseStep |> Typer.typeStep
 
@@ -83,9 +98,7 @@ object Compiler:
       val index = DocModel.build(units, libraryUnits, includePrivate.value)
       val selected = DocQuery.select(index, queryText)
       if rp.hasErrors then return
-      val out = new PrintWriter(new OutputStreamWriter(System.out, StandardCharsets.UTF_8))
-      DocJsonEmitter.emit(selected, out)
-      out.flush()
+      writeJson(selected)
       return
 
     val outputPath = Paths.get(outputDir.value)

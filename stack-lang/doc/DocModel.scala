@@ -79,20 +79,79 @@ object DocModel:
         views = views,
       )
 
-    def procSignature(sym: Symbol): String =
-      sym.tpe.asProcType.show
+    def defaultValue(value: DefaultValue): String =
+      value match
+        case DefaultValue.Lit(const) => const match
+          case Constant.Bool(v)   => v.toString
+          case Constant.Int(v)    => v.toString
+          case Constant.Float(v)  => v.toString
+          case Constant.String(v) => JsonUtil.string(v)
+        case DefaultValue.Ref(sym) => sym.name
+
+    def paramSignature(sym: Symbol, default: Option[DefaultValue] = None): String =
+      val base = sym.name + ": " + sym.tpe.show
+      default match
+        case Some(value) => base + " = " + defaultValue(value)
+        case None => base
+
+    def autoCandidateSignature(candidate: AutoCandidate): String =
+      candidate.show
+
+    def autoSignature(sym: Symbol, candidates: List[AutoCandidate]): String =
+      val candidateText =
+        if candidates.isEmpty then ""
+        else " with [" + candidates.map(autoCandidateSignature).mkString(", ") + "]"
+      paramSignature(sym) + candidateText
+
+    def receivesSignature(procType: ProcType): String =
+      def showEffects(effects: List[Symbol]): String =
+        if effects.isEmpty then " receives none"
+        else " receives " + effects.map(_.name).mkString(", ")
+
+      procType.receivesInfo match
+        case sym: Symbol =>
+          summon[Definitions].index.effectEngine.getKnownEffects(sym) match
+            case Some(effects) => showEffects(effects)
+            case None => ""
+        case effects: List[Symbol] =>
+          showEffects(effects)
+
+    def procSignature(fd: FunDef): String =
+      val procType = fd.symbol.tpe.asProcType
+      val tparamText =
+        if fd.tparams.isEmpty then ""
+        else fd.tparams.map(_.name).mkString("[", ", ", "]")
+
+      val preParamText =
+        if procType.preParamCount == 0 then ""
+        else fd.params.take(procType.preParamCount).map(paramSignature(_)).mkString("(", ", ", ")")
+
+      val postParams = fd.params.drop(procType.preParamCount)
+      val defaultCount = procType.defaults.size
+      val postParamText =
+        val split = postParams.size - defaultCount
+        val withoutDefaults = postParams.take(split).map(paramSignature(_))
+        val withDefaults = postParams.drop(split).zip(procType.defaults).map:
+          case (param, default) => paramSignature(param, Some(default))
+        (withoutDefaults ++ withDefaults).mkString("(", ", ", ")")
+
+      val autoText =
+        if fd.autos.isEmpty then ""
+        else fd.autos.zip(fd.candidates).map(autoSignature).mkString("(auto ", ", ", ")")
+
+      tparamText + preParamText + postParamText + autoText + ": " + fd.resultType.tpe.show + receivesSignature(procType)
 
     def funSignature(fd: FunDef): String =
       val sym = fd.symbol
       if sym.is(Flags.Annotation) then
-        "annotation " + sym.name + procSignature(sym).stripSuffix(": void receives none").stripSuffix(": void")
+        "annotation " + sym.name + procSignature(fd).stripSuffix(": void receives none").stripSuffix(": void")
       else if sym.is(Flags.Constructor) then
-        "constructor" + procSignature(sym)
+        "constructor" + procSignature(fd)
       else
-        "def " + sym.name + procSignature(sym)
+        "def " + sym.name + procSignature(fd)
 
     def patternSignature(pd: PatDef): String =
-      "pattern " + pd.symbol.name + procSignature(pd.symbol)
+      "pattern " + pd.symbol.name + pd.symbol.tpe.asProcType.show
 
     def typeSignature(td: TypeDef): String =
       val sym = td.symbol
