@@ -113,4 +113,8 @@ files. `--query` accepts comma-separated selectors:
 | `<symbol>.*` | The symbol and its recursive members, emitted structurally. |
 | `file:<path>` | Queryable symbols whose source file matches the path. |
 
+When `--query` is present, positional source files are optional. With no source
+files, the query searches the loaded SAST libraries: stdlib by default, runtime
+API libraries selected by `--use-runtime-api`, and any `--lib` paths.
+
 Kind-qualified selectors such as `def:<symbol>` are reserved for future use.

@@ -15,7 +15,7 @@ jo compile --python|--ruby|--js [--sast <dir>] <file.jo>... \
 # Generate documentation from source files (experimental)
 jo compile --doc [--format html|json] [--query <selectors>] [--out <dir>] \
            [--title <name>] [--readme <file>] [--include-private] \
-           [--include-source] <file.jo>...
+           [--include-source] [<file.jo>...]
 ```
 
 Without a backend flag, the compiler type-checks only. With a backend flag, it produces an executable or script. `--sast <dir>` is optional in both cases — if present, `.sast` files are written to `<dir>` alongside the primary output.
@@ -59,7 +59,9 @@ Without `--query`, JSON output contains the public API surface from the
 positional source files. With `--query`, selectors are comma-separated and may
 name symbols, wildcard descendants with `.*`, or source files with `file:<path>`.
 Symbol selectors are resolved from the language default scope; for example `~`
-is just an ordinary symbol query.
+is just an ordinary symbol query. A query may omit positional source files; in
+that case it searches the loaded SAST libraries, including stdlib unless
+`--no-stdlib` is set and any `--lib` paths.
 
 ### App compilation
 
@@ -125,6 +127,12 @@ Emit machine-readable docs for selected symbols:
 
 ```sh
 jo compile --doc --query 'MyAPI.*,jo.py.*' src/API.jo
+```
+
+Query stdlib docs from SAST files only:
+
+```sh
+jo compile --doc --query jo.List
 ```
 
 ## Notes
