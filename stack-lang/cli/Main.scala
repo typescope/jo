@@ -274,7 +274,7 @@ object Main:
       |  jo versions use <version>              Switch the active compiler version
       |  jo versions remove <version>           Remove an installed compiler version
       |  jo compile [options] <source.jo>       Compile application or library
-      |  jo compile --doc [options] <files...>  Generate documentation from source files
+      |  jo compile --doc [options] [files...] Generate documentation from source files or queried SAST libraries
       |  jo doc [module]                        Generate module documentation
       |  jo help                                Show this help message
       |

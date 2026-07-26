@@ -38,9 +38,8 @@ object Compiler:
     given Config = config
 
     val queryText = query.value.trim
-    val jsonOutput = format.value == "json" || queryText.nonEmpty
 
-    if sources.isEmpty && !jsonOutput then
+    if sources.isEmpty && queryText.isEmpty then
       println("Usage: jo doc <sources...> [options]")
       println()
       println("Options:")
@@ -54,7 +53,7 @@ object Compiler:
       println("Examples:")
       println("  jo doc lib/Core.jo lib/List.jo --out site/api")
       println("  jo doc src/main.jo --out docs --title MyProject")
-      return
+      System.exit(1)
 
     Reporter.monitor():
       compile(sources)
