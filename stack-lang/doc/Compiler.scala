@@ -7,8 +7,6 @@ import typing.Typer
 import reporting.Reporter
 import reporting.Config
 
-import DocQuery.Selector
-
 import java.io.{FileOutputStream, OutputStreamWriter, PrintWriter}
 import java.nio.file.{Files, Path, Paths}
 import java.nio.charset.StandardCharsets
@@ -67,9 +65,9 @@ object Compiler:
     val selectors = DocQuery.parse(queryText)
     val jsonOutput = format.value == "json" || queryText.nonEmpty
 
-    def writeJson(entries: List[DocEntry]): Unit =
+    def writeJson(targets: List[DocQuery.DocTarget])(using Definitions): Unit =
       val out = new PrintWriter(new OutputStreamWriter(System.out, StandardCharsets.UTF_8))
-      DocJsonEmitter.emit(entries, out)
+      DocQuery.emitJson(targets, includePrivate.value, out)
       out.flush()
 
     if jsonOutput && sources.isEmpty && Config.libPaths.value.isEmpty then
@@ -77,9 +75,7 @@ object Compiler:
         Reporter.error("--out is only supported with --format html")
         return
 
-      val selected = DocQuery.select(DocIndex(Nil, Nil), selectors)
-      if rp.hasErrors then return
-      writeJson(selected)
+      DocQuery.reportNoMatches(selectors)
       return
 
     // Parse and type check
@@ -94,12 +90,8 @@ object Compiler:
         Reporter.error("--out is only supported with --format html")
         return
 
-      val querySymbols = selectors.flatMap:
-          case Selector.SymbolSelector(path) =>
-            DocQuery.resolveSymbol(defn.rootNameTable, path.split('.').filter(_.nonEmpty).toList)
-
-          case _: Selector.FileSelector =>
-            Nil
+      val resolvedSelectors = DocQuery.resolveSelectors(defn.rootNameTable, selectors)
+      val querySymbols = DocQuery.querySymbols(resolvedSelectors)
 
       val libraryUnits =
         if queryText.isEmpty then
@@ -111,8 +103,8 @@ object Compiler:
 
           delayedUnits.force()
 
-      val index = DocModel.build(units, libraryUnits, includePrivate.value)
-      val selected = DocQuery.select(index, selectors)
+      val filteredUnits = DocQuery.filterUnits(units, libraryUnits, resolvedSelectors)
+      val selected = DocQuery.select(filteredUnits, resolvedSelectors, includePrivate.value)
       if rp.hasErrors then return
       writeJson(selected)
 
