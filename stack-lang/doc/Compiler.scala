@@ -62,7 +62,6 @@ object Compiler:
     val rootNameTable = new NameTable
     given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
     val queryText = query.value.trim
-    val selectors = DocQuery.parse(queryText)
     val jsonOutput = format.value == "json" || queryText.nonEmpty
 
     def writeJson(targets: List[DocQuery.DocTarget])(using Definitions): Unit =
@@ -75,7 +74,7 @@ object Compiler:
         Reporter.error("--out is only supported with --format html")
         return
 
-      DocQuery.reportNoMatches(selectors)
+      DocQuery.reportNoMatches(queryText)
       return
 
     // Parse and type check
@@ -90,21 +89,21 @@ object Compiler:
         Reporter.error("--out is only supported with --format html")
         return
 
-      val resolvedSelectors = DocQuery.resolveSelectors(defn.rootNameTable, selectors)
-      val querySymbols = DocQuery.querySymbols(resolvedSelectors)
+      val filter = DocQuery.parse(queryText, defn.rootNameTable)
+      if rp.hasErrors then return
 
       val libraryUnits =
         if queryText.isEmpty then
           Nil
         else
           delayedUnits.forceIf: unit =>
-            querySymbols.exists: querySymbol =>
+            filter.symbols.exists: querySymbol =>
               unit.owner.containedIn(querySymbol) || querySymbol.containedIn(unit.owner)
 
           delayedUnits.force()
 
-      val filteredUnits = DocQuery.filterUnits(units, libraryUnits, resolvedSelectors)
-      val selected = DocQuery.select(filteredUnits, resolvedSelectors, includePrivate.value)
+      val filteredUnits = DocQuery.filterUnits(units, libraryUnits, filter)
+      val selected = DocQuery.select(filteredUnits, filter, includePrivate.value)
       if rp.hasErrors then return
       writeJson(selected)
 

@@ -13,13 +13,9 @@ import java.nio.file.Paths
 import scala.collection.mutable
 
 object DocQuery:
-  enum Selector:
-    case SymbolSelector(name: String)
-    case FileSelector(raw: String, file: String)
-
-  enum ResolvedSelector:
-    case SymbolSelector(name: String, symbols: List[Symbol])
-    case FileSelector(raw: String, file: String)
+  case class Filter(files: List[String], symbols: List[Symbol]):
+    def isEmpty: Boolean =
+      files.isEmpty && symbols.isEmpty
 
   enum DocTarget:
     case Namespace(sym: Symbol, units: List[FileUnit])
@@ -31,19 +27,6 @@ object DocQuery:
         case Namespace(sym, _) => sym
         case Definition(defn)  => defn.symbol
         case Field(field)      => field.symbol
-
-  def resolveSelectors(nameTable: NameTable, selectors: List[Selector])(using Definitions): List[ResolvedSelector] =
-    selectors.map:
-      case Selector.SymbolSelector(path) =>
-        ResolvedSelector.SymbolSelector(path, resolveSymbol(nameTable, path.split('.').filter(_.nonEmpty).toList))
-
-      case Selector.FileSelector(raw, file) =>
-        ResolvedSelector.FileSelector(raw, file)
-
-  def querySymbols(selectors: List[ResolvedSelector]): List[Symbol] =
-    selectors.flatMap:
-      case ResolvedSelector.SymbolSelector(_, symbols) => symbols
-      case ResolvedSelector.FileSelector(_, _) => Nil
 
   def resolveSymbol(nameTable: NameTable, parts: List[String])(using Definitions): List[Symbol] =
     parts match
@@ -68,64 +51,68 @@ object DocQuery:
 
               case _ => Nil
 
-  def filterUnits(sourceUnits: List[FileUnit], libraryUnits: List[FileUnit], selectors: List[ResolvedSelector])(using Reporter): List[FileUnit] =
-    if selectors.isEmpty then
+  def filterUnits(sourceUnits: List[FileUnit], libraryUnits: List[FileUnit], filter: Filter)(using Reporter): List[FileUnit] =
+    if filter.isEmpty then
       sourceUnits
     else
       val allUnits = sourceUnits ++ libraryUnits
-      val selected = selectors.flatMap:
-        case ResolvedSelector.FileSelector(raw, file) =>
-          val matches = allUnits.filter(unit => matchesFile(unit.source.file, file))
-          if matches.isEmpty then Reporter.error(s"No documentation entries match file selector `$raw`")
-          matches
+      val fileUnits = filter.files.flatMap: file =>
+        val matches = allUnits.filter(unit => matchesFile(unit.source.file, file))
+        if matches.isEmpty then Reporter.error(s"No documentation entries match file selector `file:$file`")
+        matches
 
-        case ResolvedSelector.SymbolSelector(_, symbols) =>
-          allUnits.filter: unit =>
-            symbols.exists: sym =>
-              unit.owner.containedIn(sym) || sym.containedIn(unit.owner)
+      val symbolUnits =
+        allUnits.filter: unit =>
+          filter.symbols.exists: sym =>
+            unit.owner.containedIn(sym) || sym.containedIn(unit.owner)
 
-      distinctUnits(selected)
+      distinctUnits(fileUnits ++ symbolUnits)
 
-  def select(units: List[FileUnit], selectors: List[ResolvedSelector], includePrivate: Boolean)(using Reporter, Definitions): List[DocTarget] =
+  def select(units: List[FileUnit], filter: Filter, includePrivate: Boolean)(using Reporter, Definitions): List[DocTarget] =
     val selected =
-      if selectors.isEmpty then
+      if filter.isEmpty then
         sourceTargets(units, includePrivate)
       else
-        selectors.flatMap(resolveSelector(units, _, includePrivate))
+        val fileTargets = filter.files.flatMap: file =>
+          val matches = units.filter(unit => matchesFile(unit.source.file, file))
+          val targets = namespaceTargets(matches)
+          if targets.isEmpty then Reporter.error(s"No documentation entries match file selector `file:$file`")
+          targets
+
+        val symbolTargets = filter.symbols.flatMap: sym =>
+          val targets = targetForSymbol(units, sym, includePrivate)
+          if targets.isEmpty then Reporter.error(s"No documentation entries match symbol selector `${sym.fullName}`")
+          targets
+
+        fileTargets ++ symbolTargets
 
     pruneDescendants(mergeTargets(selected))
 
-  def reportNoMatches(selectors: List[Selector])(using Reporter): Unit =
-    selectors.foreach:
-      case Selector.FileSelector(raw, _) =>
-        Reporter.error(s"No documentation entries match file selector `$raw`")
-
-      case Selector.SymbolSelector(name) =>
-        Reporter.error(s"No documentation entries match symbol selector `$name`")
-
-  private def resolveSelector(units: List[FileUnit], selector: ResolvedSelector, includePrivate: Boolean)(using Reporter, Definitions): List[DocTarget] =
-    selector match
-      case ResolvedSelector.FileSelector(raw, file) =>
-        val matches = units.filter(unit => matchesFile(unit.source.file, file))
-        val targets = namespaceTargets(matches)
-        if targets.isEmpty then Reporter.error(s"No documentation entries match file selector `$raw`")
-        targets
-
-      case ResolvedSelector.SymbolSelector(name, symbols) =>
-        val targets = symbols.flatMap(sym => targetForSymbol(units, sym, includePrivate))
-        if targets.isEmpty then Reporter.error(s"No documentation entries match symbol selector `$name`")
-        targets
-
-  def parse(rawQuery: String): List[Selector] =
-    rawQuery.split(",").map(_.trim).filter(_.nonEmpty).map { selector =>
+  def reportNoMatches(rawQuery: String)(using Reporter): Unit =
+    rawQuery.split(",").map(_.trim).filter(_.nonEmpty).foreach: selector =>
       if selector.startsWith("file:") then
-        Selector.FileSelector(selector, selector.stripPrefix("file:"))
+        Reporter.error(s"No documentation entries match file selector `$selector`")
       else
-        val name =
-          if selector.endsWith(".*") then selector.stripSuffix(".*")
-          else selector
-        Selector.SymbolSelector(name)
-    }.toList
+        Reporter.error(s"No documentation entries match symbol selector `${symbolName(selector)}`")
+
+  def parse(rawQuery: String, nameTable: NameTable)(using Reporter, Definitions): Filter =
+    val files = mutable.ArrayBuffer.empty[String]
+    val symbols = mutable.ArrayBuffer.empty[Symbol]
+
+    rawQuery.split(",").map(_.trim).filter(_.nonEmpty).foreach: selector =>
+      if selector.startsWith("file:") then
+        files += selector.stripPrefix("file:")
+      else
+        val name = symbolName(selector)
+        val resolved = resolveSymbol(nameTable, name.split('.').toList)
+        if resolved.isEmpty then Reporter.error(s"No documentation entries match symbol selector `$name`")
+        else symbols ++= resolved
+
+    Filter(files.toList, symbols.toList)
+
+  private def symbolName(selector: String): String =
+    if selector.endsWith(".*") then selector.stripSuffix(".*")
+    else selector
 
   private def matchesFile(sourceFile: String, rawFile: String): Boolean =
     val rawNormalized = normalize(rawFile)
