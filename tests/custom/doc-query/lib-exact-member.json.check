@@ -1,0 +1,12 @@
+[
+  {
+    "name": "DocQueryAPI.Box.label",
+    "kind": "def",
+    "signature": "def label(prefix: String = \"box\"): String receives none",
+    "source": { "file": "tests/custom/doc-query/api.jo", "line": 51 },
+    "visibility": "public",
+    "flags": ["loaded", "fun", "method"],
+    "annotations": [],
+    "doc": "Render a label."
+  }
+]
