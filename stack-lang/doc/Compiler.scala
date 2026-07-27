@@ -37,9 +37,7 @@ object Compiler:
 
     given Config = config
 
-    val queryText = query.value.trim
-
-    if sources.isEmpty && queryText.isEmpty then
+    if sources.isEmpty && query.value.trim.isEmpty then
       println("Usage: jo doc <sources...> [options]")
       println()
       println("Options:")
@@ -52,7 +50,7 @@ object Compiler:
       println()
       println("Examples:")
       println("  jo doc lib/Core.jo lib/List.jo --out site/api")
-      println("  jo doc src/main.jo --out docs --title MyProject")
+      println("  jo doc --query jo.List")
       System.exit(1)
 
     Reporter.monitor():
@@ -63,6 +61,7 @@ object Compiler:
     val rootNameTable = new NameTable
     given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
     val queryText = query.value.trim
+    val selectors = DocQuery.parse(queryText)
     val jsonOutput = format.value == "json" || queryText.nonEmpty
 
     def writeJson(entries: List[DocEntry]): Unit =
@@ -75,7 +74,7 @@ object Compiler:
         Reporter.error("--out is only supported with --format html")
         return
 
-      val selected = DocQuery.select(DocIndex(Nil, Nil), queryText)
+      val selected = DocQuery.select(DocIndex(Nil, Nil), selectors)
       if rp.hasErrors then return
       writeJson(selected)
       return
@@ -92,11 +91,12 @@ object Compiler:
         Reporter.error("--out is only supported with --format html")
         return
 
+      if queryText.nonEmpty then DocQuery.forceSymbols(selectors)
       val libraryUnits =
-        if queryText.nonEmpty then delayedUnits.forceAll()
+        if queryText.nonEmpty then delayedUnits.force()
         else Nil
       val index = DocModel.build(units, libraryUnits, includePrivate.value)
-      val selected = DocQuery.select(index, queryText)
+      val selected = DocQuery.select(index, selectors)
       if rp.hasErrors then return
       writeJson(selected)
       return
