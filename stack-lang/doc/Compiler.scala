@@ -64,9 +64,9 @@ object Compiler:
     val queryText = query.value.trim
     val jsonOutput = format.value == "json" || queryText.nonEmpty
 
-    def writeJson(targets: List[DocQuery.DocTarget])(using Definitions): Unit =
+    def writeJson(units: List[FileUnit], filter: DocQuery.Filter)(using Definitions): Unit =
       val out = new PrintWriter(new OutputStreamWriter(System.out, StandardCharsets.UTF_8))
-      DocQuery.emitJson(targets, includePrivate.value, out)
+      DocQuery.emitJson(units, filter, includePrivate.value, out)
       out.flush()
 
     if jsonOutput && sources.isEmpty && Config.libPaths.value.isEmpty then
@@ -103,9 +103,8 @@ object Compiler:
           delayedUnits.force()
 
       val filteredUnits = DocQuery.filterUnits(units, libraryUnits, filter)
-      val selected = DocQuery.select(filteredUnits, filter, includePrivate.value)
       if rp.hasErrors then return
-      writeJson(selected)
+      writeJson(filteredUnits, filter)
 
     else
       generateHtmlDoc(units)

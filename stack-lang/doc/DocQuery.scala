@@ -17,17 +17,6 @@ object DocQuery:
     def isEmpty: Boolean =
       files.isEmpty && symbols.isEmpty
 
-  enum DocTarget:
-    case Namespace(sym: Symbol, units: List[FileUnit])
-    case Definition(defn: Def)
-    case Field(field: FieldDecl)
-
-    def symbol: Symbol =
-      this match
-        case Namespace(sym, _) => sym
-        case Definition(defn)  => defn.symbol
-        case Field(field)      => field.symbol
-
   def resolveSymbol(nameTable: NameTable, parts: List[String])(using Definitions): List[Symbol] =
     parts match
       case Nil => Nil
@@ -68,26 +57,6 @@ object DocQuery:
 
       distinctUnits(fileUnits ++ symbolUnits)
 
-  def select(units: List[FileUnit], filter: Filter, includePrivate: Boolean)(using Reporter, Definitions): List[DocTarget] =
-    val selected =
-      if filter.isEmpty then
-        sourceTargets(units, includePrivate)
-      else
-        val fileTargets = filter.files.flatMap: file =>
-          val matches = units.filter(unit => matchesFile(unit.source.file, file))
-          val targets = namespaceTargets(matches)
-          if targets.isEmpty then Reporter.error(s"No documentation entries match file selector `file:$file`")
-          targets
-
-        val symbolTargets = filter.symbols.flatMap: sym =>
-          val targets = targetForSymbol(units, sym, includePrivate)
-          if targets.isEmpty then Reporter.error(s"No documentation entries match symbol selector `${sym.fullName}`")
-          targets
-
-        fileTargets ++ symbolTargets
-
-    pruneDescendants(mergeTargets(selected))
-
   def reportNoMatches(rawQuery: String)(using Reporter): Unit =
     rawQuery.split(",").map(_.trim).filter(_.nonEmpty).foreach: selector =>
       if selector.startsWith("file:") then
@@ -127,32 +96,6 @@ object DocQuery:
   private def absolute(path: String): String =
     Paths.get(path).toAbsolutePath.normalize().toString
 
-  private def mergeTargets(targets: List[DocTarget]): List[DocTarget] =
-    val namespaceUnits = mutable.LinkedHashMap.empty[Symbol, mutable.ArrayBuffer[FileUnit]]
-    val otherTargets = mutable.LinkedHashMap.empty[Symbol, DocTarget]
-
-    for target <- targets do
-      target match
-        case DocTarget.Namespace(sym, units) =>
-          val existing = namespaceUnits.getOrElseUpdate(sym, mutable.ArrayBuffer.empty)
-          for unit <- units do
-            if !existing.exists(_ eq unit) then existing += unit
-
-        case _ =>
-          otherTargets.getOrElseUpdate(target.symbol, target)
-
-    val namespaces = namespaceUnits.toList.map:
-      case (sym, units) => DocTarget.Namespace(sym, units.toList)
-
-    namespaces ++ otherTargets.values
-
-  private def pruneDescendants(targets: List[DocTarget]): List[DocTarget] =
-    val selected = mutable.HashSet.empty[Symbol]
-    selected ++= targets.map(_.symbol)
-
-    targets.filterNot: target =>
-      target.symbol.ownersIterator.exists(selected.contains)
-
   private def distinctUnits(units: List[FileUnit]): List[FileUnit] =
     val seen = mutable.HashSet.empty[FileUnit]
     units.filter: unit =>
@@ -161,28 +104,180 @@ object DocQuery:
         seen += unit
         true
 
-  def emitJson(targets: List[DocTarget], includePrivate: Boolean, out: PrintWriter)(using Definitions): Unit =
-    val sortedTargets = sortTargets(targets)
+  def emitJson(units: List[FileUnit], filter: Filter, includePrivate: Boolean, out: PrintWriter)(using Reporter, Definitions): Unit =
+    val trimmedUnits = trimUnits(units, filter, includePrivate)
+    val sortedTargets = sortRoots(jsonRoots(trimmedUnits, filter))
     out.println("[")
-    emitTargetList(sortedTargets, includePrivate, out, "  ")
+    emitRootList(sortedTargets, out, "  ")
     if sortedTargets.nonEmpty then out.println()
     out.println("]")
 
-  def sourceTargets(units: List[FileUnit], includePrivate: Boolean)(using Definitions): List[DocTarget] =
-    units.flatMap(unit => unit.defs.flatMap(targetForDef(_, includePrivate)))
+  private def trimUnits(units: List[FileUnit], filter: Filter, includePrivate: Boolean)(using Reporter, Definitions): List[FileUnit] =
+    if filter.isEmpty then
+      return units.flatMap: unit =>
+        val defs = visibleDefs(unit.defs, includePrivate)
+        if defs.isEmpty then None else Some(unit.copy(defs = defs))
 
-  def namespaceTargets(units: List[FileUnit]): List[DocTarget] =
-    units.groupBy(_.owner).toList.sortBy(_._1.fullName).map:
-      case (owner, ownerUnits) => DocTarget.Namespace(owner, ownerUnits.sortBy(_.source.file))
+    val requested = filter.symbols.toSet
+    val matched = mutable.HashSet.empty[Symbol]
+    val trimmed = units.flatMap: unit =>
+      if emitsNamespace(unit, filter) then
+        if requested.contains(unit.owner) then matched += unit.owner
+        val defs = visibleDefs(unit.defs, includePrivate)
+        markMatchesInDefs(defs, requested, includePrivate, matched)
+        Some(unit.copy(defs = defs))
+      else
+        val defs = trimDefs(unit.defs, requested, includePrivate, matched)
+        if defs.isEmpty then None else Some(unit.copy(defs = defs))
 
-  def targetForSymbol(units: List[FileUnit], sym: Symbol, includePrivate: Boolean)(using Definitions): List[DocTarget] =
-    val namespaceUnits = units.filter(_.owner == sym)
-    if namespaceUnits.nonEmpty then
-      List(DocTarget.Namespace(sym, namespaceUnits))
+    for sym <- filter.symbols do
+      val matchedByAncestor =
+        sym.ownersIterator.exists(matched.contains)
+      if !matched.contains(sym) && !matchedByAncestor then
+        Reporter.error(s"No documentation entries match symbol selector `${sym.fullName}`")
+
+    distinctUnits(trimmed)
+
+  private def trimDefs(
+    defs: List[Def],
+    requested: Set[Symbol],
+    includePrivate: Boolean,
+    matched: mutable.Set[Symbol],
+  )(using Definitions): List[Def] =
+    defs.flatMap: defn =>
+      docSymbolForDef(defn, includePrivate) match
+        case Some(sym) if requested.contains(sym) =>
+          matched += sym
+          visibleDef(defn, includePrivate).toList
+
+        case Some(_) =>
+          defn match
+            case cd: ClassDef =>
+              trimClass(cd, requested, includePrivate, matched)
+
+            case id: InterfaceDef =>
+              trimInterface(id, requested, includePrivate, matched)
+
+            case sec: Section =>
+              trimSection(sec, requested, includePrivate, matched)
+
+            case _ =>
+              Nil
+
+        case None =>
+          Nil
+
+  private def trimClass(
+    cd: ClassDef,
+    requested: Set[Symbol],
+    includePrivate: Boolean,
+    matched: mutable.Set[Symbol],
+  )(using Definitions): List[Def] =
+    val fields = cd.vals.filter: field =>
+      val keep = requested.contains(field.symbol) && visible(field.symbol, includePrivate)
+      if keep then matched += field.symbol
+      keep
+
+    val methods = cd.funs.filter: fun =>
+      docSymbolForDef(fun, includePrivate) match
+        case Some(sym) if requested.contains(sym) =>
+          matched += sym
+          true
+        case _ =>
+          false
+
+    if fields.isEmpty && methods.isEmpty then
+      Nil
+    else if fields.isEmpty && methods.size == 1 then
+      methods
     else
-      symbolTargets(units, includePrivate).get(sym).toList
+      List(ClassDef(cd.symbol, cd.self, cd.tparams, fields, methods, cd.views)(cd.annots, cd.span))
 
-  def targetForDef(defn: Def, includePrivate: Boolean)(using Definitions): Option[DocTarget] =
+  private def trimInterface(
+    id: InterfaceDef,
+    requested: Set[Symbol],
+    includePrivate: Boolean,
+    matched: mutable.Set[Symbol],
+  )(using Definitions): List[Def] =
+    val methods = id.methods.filter: fun =>
+      docSymbolForDef(fun, includePrivate) match
+        case Some(sym) if requested.contains(sym) =>
+          matched += sym
+          true
+        case _ =>
+          false
+
+    if methods.isEmpty then
+      Nil
+    else if methods.size == 1 then
+      methods
+    else
+      List(InterfaceDef(id.symbol, id.self, id.tparams, methods)(id.annots, id.span))
+
+  private def trimSection(
+    sec: Section,
+    requested: Set[Symbol],
+    includePrivate: Boolean,
+    matched: mutable.Set[Symbol],
+  )(using Definitions): List[Def] =
+    val defs = trimDefs(sec.defs, requested, includePrivate, matched)
+    if defs.isEmpty then
+      Nil
+    else if defs.size == 1 then
+      defs
+    else
+      List(Section(sec.symbol, defs)(sec.annots, sec.span))
+
+  private def visibleDefs(defs: List[Def], includePrivate: Boolean)(using Definitions): List[Def] =
+    defs.flatMap(visibleDef(_, includePrivate))
+
+  private def visibleDef(defn: Def, includePrivate: Boolean)(using Definitions): Option[Def] =
+    docSymbolForDef(defn, includePrivate).map: _ =>
+      defn match
+        case cd: ClassDef =>
+          val fields = cd.vals.filter(field => visible(field.symbol, includePrivate))
+          val methods = visibleFunDefs(cd.funs, includePrivate)
+          ClassDef(cd.symbol, cd.self, cd.tparams, fields, methods, cd.views)(cd.annots, cd.span)
+
+        case id: InterfaceDef =>
+          val methods = visibleFunDefs(id.methods, includePrivate)
+          InterfaceDef(id.symbol, id.self, id.tparams, methods)(id.annots, id.span)
+
+        case sec: Section =>
+          Section(sec.symbol, visibleDefs(sec.defs, includePrivate))(sec.annots, sec.span)
+
+        case _ =>
+          defn
+
+  private def visibleFunDefs(defs: List[FunDef], includePrivate: Boolean)(using Definitions): List[FunDef] =
+    defs.filter(fun => docSymbolForDef(fun, includePrivate).isDefined)
+
+  private def markMatchesInDefs(
+    defs: List[Def],
+    requested: Set[Symbol],
+    includePrivate: Boolean,
+    matched: mutable.Set[Symbol],
+  )(using Definitions): Unit =
+    defs.foreach: defn =>
+      docSymbolForDef(defn, includePrivate).foreach: sym =>
+        if requested.contains(sym) then matched += sym
+
+      defn match
+        case cd: ClassDef =>
+          cd.vals.foreach: field =>
+            if requested.contains(field.symbol) && visible(field.symbol, includePrivate) then
+              matched += field.symbol
+          markMatchesInDefs(cd.funs, requested, includePrivate, matched)
+
+        case id: InterfaceDef =>
+          markMatchesInDefs(id.methods, requested, includePrivate, matched)
+
+        case sec: Section =>
+          markMatchesInDefs(sec.defs, requested, includePrivate, matched)
+
+        case _ =>
+
+  private def docSymbolForDef(defn: Def, includePrivate: Boolean)(using Definitions): Option[Symbol] =
     if !visible(defn.symbol, includePrivate) then None
     else
       defn match
@@ -193,78 +288,99 @@ object DocQuery:
           None
 
         case _ =>
-          Some(DocTarget.Definition(defn))
-
-  def targetForField(field: FieldDecl, includePrivate: Boolean): Option[DocTarget] =
-    if visible(field.symbol, includePrivate) then Some(DocTarget.Field(field))
-    else None
+          Some(defn.symbol)
 
   def visible(sym: Symbol, includePrivate: Boolean): Boolean =
     includePrivate || !sym.isPrivate
 
-  def sortTargets(targets: List[DocTarget]): List[DocTarget] =
-    targets.map(sortTarget).sortBy(sortKey)
+  private def emitsNamespace(unit: FileUnit, filter: Filter): Boolean =
+    !filter.isEmpty && (
+      filter.symbols.contains(unit.owner) ||
+      filter.files.exists(file => matchesFile(unit.source.file, file))
+    )
 
-  private def symbolTargets(units: List[FileUnit], includePrivate: Boolean)(using Definitions): Map[Symbol, DocTarget] =
-    val targets = mutable.LinkedHashMap.empty[Symbol, DocTarget]
+  private def jsonRoots(units: List[FileUnit], filter: Filter): List[FileUnit | Def] =
+    if filter.isEmpty then
+      units.flatMap(_.defs)
+    else
+      val namespaces = mutable.LinkedHashMap.empty[Symbol, mutable.ArrayBuffer[FileUnit]]
+      val defs = mutable.ArrayBuffer.empty[Def]
 
-    def add(target: DocTarget): Unit =
-      targets.getOrElseUpdate(target.symbol, target)
+      for unit <- units do
+        if emitsNamespace(unit, filter) then
+          namespaces.getOrElseUpdate(unit.owner, mutable.ArrayBuffer.empty) += unit
+        else
+          defs ++= unit.defs
 
-    def addDef(defn: Def): Unit =
-      targetForDef(defn, includePrivate).foreach(add)
+      val namespaceRoots: List[FileUnit | Def] = namespaces.toList.map:
+        case (owner, ownerUnits) =>
+          val sorted = ownerUnits.toList.sortBy(_.source.file)
+          FileUnit(owner, sorted.flatMap(_.imports).distinct, sorted.flatMap(_.defs), sorted.head.source)
 
-      defn match
-        case cd: ClassDef =>
-          cd.vals.flatMap(targetForField(_, includePrivate)).foreach(add)
-          cd.funs.foreach(addDef)
+      namespaceRoots ++ defs.toList.map(defn => defn: FileUnit | Def)
 
-        case id: InterfaceDef =>
-          id.methods.foreach(addDef)
+  private def sortRoots(roots: List[FileUnit | Def]): List[FileUnit | Def] =
+    roots.sortBy:
+      case unit: FileUnit => sortKey(unit.owner, "namespace")
+      case defn: Def      => sortKey(defn.symbol, kind(defn))
 
-        case sec: Section =>
-          sec.defs.foreach(addDef)
+  private def sortMembers(members: List[Def | FieldDecl]): List[Def | FieldDecl] =
+    members.sortBy:
+      case defn: Def        => sortKey(defn.symbol, kind(defn))
+      case field: FieldDecl => sortKey(field.symbol, "field")
 
-        case _ =>
-
-    units.foreach: unit =>
-      unit.defs.foreach(addDef)
-
-    targets.toMap
-
-  private def sortTarget(target: DocTarget): DocTarget =
-    target match
-      case DocTarget.Namespace(sym, units) =>
-        DocTarget.Namespace(sym, units.sortBy(_.source.file))
-
-      case _ =>
-        target
-
-  private def sortKey(target: DocTarget): (String, Int, String, String) =
-    val source = sourceLoc(target.symbol)
+  private def sortKey(sym: Symbol, kind: String): (String, Int, String, String) =
+    val source = sourceLoc(sym)
     val file = source.map(_.file).getOrElse("")
     val line = source.map(_.line).getOrElse(0)
-    (file, line, kind(target), target.symbol.fullName)
+    (file, line, kind, sym.fullName)
 
-  private def emitTargetList(targets: List[DocTarget], includePrivate: Boolean, out: PrintWriter, indent: String)(using Definitions): Unit =
+  private def emitRootList(roots: List[FileUnit | Def], out: PrintWriter, indent: String)(using Definitions): Unit =
     var first = true
-    for target <- targets do
+    for root <- roots do
       if !first then out.println(",")
       first = false
-      emitTarget(target, includePrivate, out, indent)
+      root match
+        case unit: FileUnit => emitNamespace(unit, out, indent)
+        case defn: Def      => emitDef(defn, out, indent)
 
-  private def emitTarget(target: DocTarget, includePrivate: Boolean, out: PrintWriter, indent: String)(using Definitions): Unit =
-    val sym = target.symbol
-    val members = memberTargets(target, includePrivate)
-    val views = target match
-      case DocTarget.Definition(cd: ClassDef) => cd.views.map(_.tpe.show)
+  private def emitMemberList(members: List[Def | FieldDecl], out: PrintWriter, indent: String)(using Definitions): Unit =
+    var first = true
+    for member <- members do
+      if !first then out.println(",")
+      first = false
+      member match
+        case defn: Def        => emitDef(defn, out, indent)
+        case field: FieldDecl => emitFieldDecl(field, out, indent)
+
+  private def emitNamespace(unit: FileUnit, out: PrintWriter, indent: String)(using Definitions): Unit =
+    val members = sortMembers(unit.defs.map(defn => defn: Def | FieldDecl))
+    emitSymbol(unit.owner, "namespace", "namespace " + unit.owner.fullName, Nil, members, out, indent)
+
+  private def emitDef(defn: Def, out: PrintWriter, indent: String)(using Definitions): Unit =
+    val members = sortMembers(memberNodes(defn))
+    val views = defn match
+      case cd: ClassDef => cd.views.map(_.tpe.show)
       case _ => Nil
+    emitSymbol(defn.symbol, kind(defn), signature(defn), views, members, out, indent)
 
+  private def emitFieldDecl(field: FieldDecl, out: PrintWriter, indent: String)(using Definitions): Unit =
+    emitSymbol(field.symbol, "field", fieldSignature(field), Nil, Nil, out, indent)
+
+  private def emitSymbol(
+    sym: Symbol,
+    kind: String,
+    signature: String,
+    views: List[String],
+    members: List[Def | FieldDecl],
+    out: PrintWriter,
+    indent: String,
+  )(using Definitions): Unit =
     val next = indent + "  "
     out.println(indent + "{")
     emitField("name", JsonUtil.string(sym.fullName), out, next)
-    emitField("kind", JsonUtil.string(kind(target)), out, next)
-    emitField("signature", JsonUtil.string(signature(target)), out, next)
+    emitField("kind", JsonUtil.string(kind), out, next)
+    emitField("signature", JsonUtil.string(signature), out, next)
     emitField("source", sourceJson(sourceLoc(sym)), out, next)
     emitField("visibility", JsonUtil.string(visibility(sym)), out, next)
     emitField("flags", stringArray(Flags.flagStrings(sym.flags)), out, next)
@@ -276,86 +392,68 @@ object DocQuery:
 
     if members.nonEmpty then
       out.println(next + JsonUtil.string("members") + ": [")
-      emitTargetList(members, includePrivate, out, next + "  ")
+      emitMemberList(members, out, next + "  ")
       out.println()
       out.println(next + "]")
 
     out.print(indent + "}")
 
-  private def memberTargets(target: DocTarget, includePrivate: Boolean)(using Definitions): List[DocTarget] =
-    val members =
-      target match
-        case DocTarget.Namespace(_, units) =>
-          units.flatMap(unit => unit.defs.flatMap(targetForDef(_, includePrivate)))
+  private def memberNodes(defn: Def): List[Def | FieldDecl] =
+    defn match
+      case sec: Section =>
+        sec.defs.map(defn => defn: Def | FieldDecl)
 
-        case DocTarget.Definition(sec: Section) =>
-          sec.defs.flatMap(targetForDef(_, includePrivate))
+      case cd: ClassDef =>
+        cd.vals.map(field => field: Def | FieldDecl) ++
+          cd.funs.map(fun => fun: Def | FieldDecl)
 
-        case DocTarget.Definition(cd: ClassDef) =>
-          cd.vals.flatMap(targetForField(_, includePrivate)) ++
-            cd.funs.flatMap(targetForDef(_, includePrivate))
+      case id: InterfaceDef =>
+        id.methods.map(fun => fun: Def | FieldDecl)
 
-        case DocTarget.Definition(id: InterfaceDef) =>
-          id.methods.flatMap(targetForDef(_, includePrivate))
+      case _ =>
+        Nil
 
-        case _ =>
-          Nil
-
-    sortTargets(members)
-
-  private def kind(target: DocTarget): String =
-    target match
-      case DocTarget.Namespace(_, _) =>
-        "namespace"
-
-      case DocTarget.Field(_) =>
-        "field"
-
-      case DocTarget.Definition(_: ParamDef) =>
+  private def kind(defn: Def): String =
+    defn match
+      case _: ParamDef =>
         "param"
 
-      case DocTarget.Definition(_: TypeDef) =>
+      case _: TypeDef =>
         "type"
 
-      case DocTarget.Definition(fd: FunDef) =>
+      case fd: FunDef =>
         if fd.symbol.is(Flags.Constructor) then "constructor" else "def"
 
-      case DocTarget.Definition(_: PatDef) =>
+      case _: PatDef =>
         "pattern"
 
-      case DocTarget.Definition(_: ClassDef | _: InterfaceDef) =>
+      case _: ClassDef | _: InterfaceDef =>
         "class"
 
-      case DocTarget.Definition(_: Section) =>
+      case _: Section =>
         "section"
 
-  private def signature(target: DocTarget)(using Definitions): String =
-    target match
-      case DocTarget.Namespace(sym, _) =>
-        "namespace " + sym.fullName
-
-      case DocTarget.Field(field) =>
-        fieldSignature(field)
-
-      case DocTarget.Definition(pd: ParamDef) =>
+  private def signature(defn: Def)(using Definitions): String =
+    defn match
+      case pd: ParamDef =>
         "param " + pd.name + ": " + pd.tpt.tpe.show
 
-      case DocTarget.Definition(td: TypeDef) =>
+      case td: TypeDef =>
         typeSignature(td)
 
-      case DocTarget.Definition(fd: FunDef) =>
+      case fd: FunDef =>
         funSignature(fd)
 
-      case DocTarget.Definition(pd: PatDef) =>
+      case pd: PatDef =>
         patternSignature(pd)
 
-      case DocTarget.Definition(cd: ClassDef) =>
+      case cd: ClassDef =>
         classSignature(cd)
 
-      case DocTarget.Definition(id: InterfaceDef) =>
+      case id: InterfaceDef =>
         interfaceSignature(id)
 
-      case DocTarget.Definition(sec: Section) =>
+      case sec: Section =>
         "section " + sec.symbol.name
 
   private def sourceLoc(sym: Symbol): Option[SourceLoc] =
