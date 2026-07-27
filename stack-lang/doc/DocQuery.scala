@@ -1,6 +1,7 @@
 package doc
 
 import reporting.Reporter
+import sast.{ Definitions, NameTable, Flags }
 import sast.Symbols.*
 
 import java.nio.file.Paths
@@ -10,6 +11,30 @@ object DocQuery:
   enum Selector:
     case SymbolSelector(name: String)
     case FileSelector(raw: String, file: String)
+
+  def resolveSymbol(nameTable: NameTable, parts: List[String])(using Definitions): List[Symbol] =
+    parts match
+      case Nil => Nil
+
+      case name :: Nil =>
+        nameTable.resolve(name)
+
+      case name :: rest =>
+        nameTable.resolveContainer(name) match
+          case Some(sym) =>
+            val nameTable = sym.nameTable
+            resolveSymbol(nameTable, rest)
+
+          case None =>
+            rest match
+              case memberName :: Nil =>
+                nameTable.resolveType(name) match
+                  case Some(sym) if sym.isOneOf(Flags.Class | Flags.Interface) =>
+                    sym.classInfo.getMemberSymbol(memberName).toList
+
+                  case _ => Nil
+
+              case _ => Nil
 
   def select(index: DocIndex, rawQuery: String)(using Reporter): List[DocEntry] =
     select(index, parse(rawQuery))

@@ -95,8 +95,11 @@ object Compiler:
         return
 
       val querySymbols = selectors.flatMap:
-          case Selector.SymbolSelector(path) => defn.resolve(path)
-          case _: Selector.FileSelector => Nil
+          case Selector.SymbolSelector(path) =>
+            DocQuery.resolveSymbol(defn.rootNameTable, path.split('.').filter(_.nonEmpty).toList)
+
+          case _: Selector.FileSelector =>
+            Nil
 
       val libraryUnits =
         if queryText.isEmpty then
