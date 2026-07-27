@@ -63,8 +63,8 @@ run_json_doc --query "file:$PROJECT_ROOT/$API_FILE" "$API_FILE" > "$DIR/file-abs
 run_json_doc --query "DocQueryAPI.describe" "$API_FILE" > "$DIR/describe.json"
 run_json_doc --query "DocQueryAPI.Box.label" "$API_FILE" > "$DIR/exact-member.json"
 run_json_doc --include-private --query "DocQueryAPI.hidden" "$API_FILE" > "$DIR/private.json"
-run_doc --query "DocQueryAPI.*,DocQueryAPI.FileLike.readText" "$API_FILE" > "$DIR/query-implies-json.json"
-run_doc --lib "$SAST_DIR" --query "DocQueryAPI.*" > "$DIR/lib-query.json"
+run_doc --query "DocQueryAPI,DocQueryAPI.FileLike.readText" "$API_FILE" > "$DIR/query-implies-json.json"
+run_doc --lib "$SAST_DIR" --query "DocQueryAPI" > "$DIR/lib-query.json"
 run_doc --lib "$SAST_DIR" --query "DocQueryAPI.Box.label" > "$DIR/lib-exact-member.json"
 
 diff -u "$DIR/all.json.check" "$DIR/all.json"

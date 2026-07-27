@@ -47,7 +47,7 @@ object Compiler:
       println("  --out <dir>            Output directory (default: docs)")
       println("  --title <name>         Project title for documentation")
       println("  --format <html|json>   Output format (default: html)")
-      println("  --query <selectors>    JSON selectors, e.g. jo.py.*,file:src/API.jo")
+      println("  --query <selectors>    JSON selectors, e.g. jo.py,file:src/API.jo")
       println("  --include-private      Include private symbols")
       println("  --include-source       Embed source code in output")
       println()
@@ -95,7 +95,7 @@ object Compiler:
         return
 
       val querySymbols = selectors.flatMap:
-          case Selector.SymbolSelector(_, path) => defn.resolve(path)
+          case Selector.SymbolSelector(path) => defn.resolve(path)
           case _: Selector.FileSelector => Nil
 
       val libraryUnits =

@@ -46,7 +46,7 @@ Experimental.
 |------|-------------|
 | `--doc` | Generate documentation instead of normal compile output |
 | `--format html|json` | Documentation output format. Default: `html` |
-| `--query <selectors>` | Comma-separated JSON selectors, such as `MyAPI.*` or `file:src/API.jo`; implies `--format json` |
+| `--query <selectors>` | Comma-separated JSON selectors, such as `MyAPI` or `file:src/API.jo`; implies `--format json` |
 | `--out <dir>` | Documentation output directory |
 | `--title <name>` | Documentation title |
 | `--readme <file>` | Markdown file to use as the generated documentation home page |
@@ -57,7 +57,7 @@ Experimental.
 `--format json`. JSON output does not use `--out`.
 Without `--query`, JSON output contains the public API surface from the
 positional source files. With `--query`, selectors are comma-separated and may
-name symbols, wildcard descendants with `.*`, or source files with `file:<path>`.
+name symbols or source files with `file:<path>`.
 Symbol selectors are resolved from the language default scope; for example `~`
 is just an ordinary symbol query. A query may omit positional source files; in
 that case it searches the loaded SAST libraries, including stdlib unless
@@ -126,7 +126,7 @@ jo compile --doc --format json src/API.jo
 Emit machine-readable docs for selected symbols:
 
 ```sh
-jo compile --doc --query 'MyAPI.*,jo.py.*' src/API.jo
+jo compile --doc --query 'MyAPI,jo.py' src/API.jo
 ```
 
 Query stdlib docs from SAST files only:

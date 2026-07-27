@@ -8,7 +8,7 @@ import scala.collection.mutable
 
 object DocQuery:
   enum Selector:
-    case SymbolSelector(raw: String, name: String)
+    case SymbolSelector(name: String)
     case FileSelector(raw: String, file: String)
 
   def select(index: DocIndex, rawQuery: String)(using Reporter): List[DocEntry] =
@@ -28,9 +28,9 @@ object DocQuery:
         if matches.isEmpty then Reporter.error(s"No documentation entries match file selector `$raw`")
         matches
 
-      case Selector.SymbolSelector(raw, name) =>
+      case Selector.SymbolSelector(name) =>
         val matches = resolveSymbol(index, name)
-        if matches.isEmpty then Reporter.error(s"No documentation entries match symbol selector `$raw`")
+        if matches.isEmpty then Reporter.error(s"No documentation entries match symbol selector `$name`")
         matches
 
   private def resolveSymbol(index: DocIndex, selector: String): List[DocEntry] =
@@ -51,7 +51,7 @@ object DocQuery:
         val name =
           if selector.endsWith(".*") then selector.stripSuffix(".*")
           else selector
-        Selector.SymbolSelector(selector, name)
+        Selector.SymbolSelector(name)
     }.toList
 
   private def matchesFile(entry: DocEntry, rawFile: String): Boolean =

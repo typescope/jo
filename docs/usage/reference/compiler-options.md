@@ -109,8 +109,7 @@ files. `--query` accepts comma-separated selectors:
 
 | Selector | Meaning |
 |----------|---------|
-| `<symbol>` | Exact symbol resolved from the language default scope. |
-| `<symbol>.*` | The symbol and its recursive members, emitted structurally. |
+| `<symbol>` | Symbol resolved from the language default scope. Aggregate symbols are emitted structurally with their members. |
 | `file:<path>` | Queryable symbols whose source file matches the path. |
 
 When `--query` is present, positional source files are optional. With no source
