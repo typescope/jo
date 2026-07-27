@@ -1,8 +1,6 @@
 package doc
 
 import reporting.Reporter
-import sast.*
-import sast.Denotations.*
 import sast.Symbols.*
 
 import java.nio.file.Paths
@@ -21,28 +19,7 @@ object DocQuery:
       if selectors.isEmpty then index.sourceRoots
       else selectors.flatMap(resolveSelector(index, _))
 
-    DocModel.sortEntries(pruneDescendants(DocModel.distinctEntries(selected)))
-
-  def parse(rawQuery: String): List[Selector] =
-    rawQuery.split(",").map(_.trim).filter(_.nonEmpty).map { selector =>
-      if selector.startsWith("file:") then
-        Selector.FileSelector(selector, selector.stripPrefix("file:"))
-      else
-        val name =
-          if selector.endsWith(".*") then selector.stripSuffix(".*")
-          else selector
-        Selector.SymbolSelector(selector, name)
-    }.toList
-
-  def forceSymbols(selectors: List[Selector])(using Definitions): Unit =
-    val seen = mutable.HashSet.empty[Symbol]
-    for selector <- selectors do
-      selector match
-        case Selector.SymbolSelector(_, name) =>
-          resolveSastSymbols(name).foreach(forceSymbol(_, seen))
-
-        case Selector.FileSelector(_, _) =>
-          ()
+    DocModel.sortEntries(pruneDescendants(selected).distinct)
 
   private def resolveSelector(index: DocIndex, selector: Selector)(using Reporter): List[DocEntry] =
     selector match
@@ -66,60 +43,16 @@ object DocQuery:
     else if selector.contains(".") then Nil
     else index.entries.filter(_.symbol.name == selector)
 
-  private def resolveSastSymbols(selector: String)(using defn: Definitions): List[Symbol] =
-    val paths =
-      if selector.contains(".") then List(selector)
-      else List(selector, "jo." + selector)
-
-    distinctSymbols(paths.flatMap(path => resolvePath(path.split('.').filter(_.nonEmpty).toList)))
-
-  private def resolvePath(parts: List[String])(using defn: Definitions): List[Symbol] =
-    def resolveInNameTable(table: NameTable, name: String): List[Symbol] =
-      table.resolve(name) ++ table.resolveAnnotation(name)
-
-    def resolveFromSymbol(sym: Symbol, rest: List[String]): List[Symbol] =
-      rest match
-        case Nil => List(sym)
-        case name :: tail =>
-          val members =
-            if sym.isContainer then
-              resolveInNameTable(sym.nameTable, name)
-            else
-              sym.info match
-                case classInfo: ClassInfo => classInfo.getMemberSymbol(name).toList
-                case _ => Nil
-          members.flatMap(resolveFromSymbol(_, tail))
-
-    parts match
-      case Nil => Nil
-      case name :: tail =>
-        resolveInNameTable(defn.rootNameTable, name).flatMap(resolveFromSymbol(_, tail))
-
-  private def forceSymbol(sym: Symbol, seen: mutable.HashSet[Symbol])(using Definitions): Unit =
-    if !seen.contains(sym) then
-      seen += sym
-      if sym.isContainer then
-        sym.annotations
-        forceNameTable(sym.nameTable, seen)
+  def parse(rawQuery: String): List[Selector] =
+    rawQuery.split(",").map(_.trim).filter(_.nonEmpty).map { selector =>
+      if selector.startsWith("file:") then
+        Selector.FileSelector(selector, selector.stripPrefix("file:"))
       else
-        sym.info
-        sym.annotations
-        if sym.isClass || sym.isInterface then
-          val classInfo = sym.classInfo
-          classInfo.fields.foreach(forceSymbol(_, seen))
-          classInfo.methods.foreach(forceSymbol(_, seen))
-
-  private def forceNameTable(table: NameTable, seen: mutable.HashSet[Symbol])(using Definitions): Unit =
-    val symbols = table.terms ++ table.types ++ table.patterns ++ table.containers
-    symbols.foreach(forceSymbol(_, seen))
-
-  private def distinctSymbols(symbols: List[Symbol]): List[Symbol] =
-    val seen = mutable.HashSet.empty[Symbol]
-    symbols.filter: sym =>
-      if seen.contains(sym) then false
-      else
-        seen += sym
-        true
+        val name =
+          if selector.endsWith(".*") then selector.stripSuffix(".*")
+          else selector
+        Selector.SymbolSelector(selector, name)
+    }.toList
 
   private def matchesFile(entry: DocEntry, rawFile: String): Boolean =
     entry.source.exists: source =>

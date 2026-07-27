@@ -21,6 +21,8 @@ final class Definitions(private var _index: SymbolIndex) extends Definitions.Laz
   //----------------------------------------------------------------------------
   // Name lookup
 
+  def resolve(path: String): List[Symbol] = Definitions.resolveStatic(rootNameTable, path.split('.').toList)
+
   def resolveTerm(path: String): Symbol = resolveStatic(path.split('.').toList, SymbolKind.Term)
   def resolveType(path: String): Symbol = resolveStatic(path.split('.').toList, SymbolKind.Type)
   def resolveContainer(path: String): Symbol = resolveStatic(path.split('.').toList, SymbolKind.Container)
@@ -181,3 +183,17 @@ object Definitions:
 
           case None =>
             None
+
+  def resolveStatic(nameTable: NameTable, parts: List[String]): List[Symbol] =
+    (parts: @unchecked) match
+      case name :: Nil =>
+        nameTable.resolve(name)
+
+      case name :: rest =>
+        nameTable.resolveContainer(name) match
+          case Some(sym) =>
+            val nameTable = sym.nameTable
+            resolveStatic(nameTable, rest)
+
+          case None =>
+            Nil

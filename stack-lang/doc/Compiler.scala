@@ -1,10 +1,13 @@
 package doc
 
 import sast.*
+import sast.Trees.FileUnit
 
 import typing.Typer
 import reporting.Reporter
 import reporting.Config
+
+import DocQuery.Selector
 
 import java.io.{FileOutputStream, OutputStreamWriter, PrintWriter}
 import java.nio.file.{Files, Path, Paths}
@@ -84,23 +87,36 @@ object Compiler:
 
     if rp.hasErrors then return
 
-    given Definitions = lazyDefn.value
+    given defn: Definitions = lazyDefn.value
 
     if jsonOutput then
       if outputDir.value != outputDir.default then
         Reporter.error("--out is only supported with --format html")
         return
 
-      if queryText.nonEmpty then DocQuery.forceSymbols(selectors)
+      val querySymbols = selectors.flatMap:
+          case Selector.SymbolSelector(_, path) => defn.resolve(path)
+          case _: Selector.FileSelector => Nil
+
       val libraryUnits =
-        if queryText.nonEmpty then delayedUnits.force()
-        else Nil
+        if queryText.isEmpty then
+          Nil
+        else
+          delayedUnits.forceIf: unit =>
+            querySymbols.exists: querySymbol =>
+              unit.owner.containedIn(querySymbol) || querySymbol.containedIn(unit.owner)
+
+          delayedUnits.force()
+
       val index = DocModel.build(units, libraryUnits, includePrivate.value)
       val selected = DocQuery.select(index, selectors)
       if rp.hasErrors then return
       writeJson(selected)
-      return
 
+    else
+      generateHtmlDoc(units)
+
+  def generateHtmlDoc(units: List[FileUnit])(using Config, Definitions): Unit =
     val outputPath = Paths.get(outputDir.value)
     val includePrivateVal = includePrivate.value
 
