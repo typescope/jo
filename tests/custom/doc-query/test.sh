@@ -79,18 +79,18 @@ diff -u "$DIR/exact-member.json.check" "$DIR/exact-member.json"
 diff -u "$DIR/private.json.check" "$DIR/private.json"
 
 expect_fail "$FAIL_LOG" "$PROJECT_ROOT/bin/jo" compile --doc --format yaml "$API_FILE"
-rg -q "Option --format must be one of: html, json" "$FAIL_LOG"
+grep -q -- "Option --format must be one of: html, json" "$FAIL_LOG"
 
 expect_fail "$FAIL_LOG" run_json_doc --out "$SAST_DIR/out" "$API_FILE"
-rg -q -- "--out is only supported with --format html" "$FAIL_LOG"
+grep -q -- "--out is only supported with --format html" "$FAIL_LOG"
 
 expect_fail "$FAIL_LOG" run_plain_doc --query "NoSuchSymbol"
-rg -q "No documentation entries match symbol selector" "$FAIL_LOG"
+grep -q -- "No documentation entries match symbol selector" "$FAIL_LOG"
 
 expect_fail "$FAIL_LOG" run_plain_doc --no-stdlib --query "NoSuchSymbol"
-rg -q "No documentation entries match symbol selector" "$FAIL_LOG"
+grep -q -- "No documentation entries match symbol selector" "$FAIL_LOG"
 
 expect_fail "$FAIL_LOG" run_plain_doc --format json
-rg -q "Usage: jo doc" "$FAIL_LOG"
+grep -q -- "Usage: jo doc" "$FAIL_LOG"
 
 echo "  ✓ All tests passed for $TEST_NAME"
