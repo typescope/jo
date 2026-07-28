@@ -63,9 +63,26 @@ object New:
 
   private def requireName(positional: List[String]): Result[String] =
     positional match
-      case name :: Nil => Result.Ok(name)
+      case name :: Nil => validateName(name)
       case Nil          => Result.Err("error: 'jo new' requires a project name")
       case arg :: _     => Result.Err(s"error: unexpected argument '$arg'")
+
+  /** `name` becomes `baseDir.resolve(name)` with no other check beyond
+   *  "does it already exist" — `Path.resolve` on an absolute `name` ignores
+   *  `baseDir` entirely, and a relative `name` containing `..` escapes it.
+   *  Rejecting any path separator (and `.`/`..` themselves) keeps the
+   *  scaffold target always a direct child of `baseDir`, for both this
+   *  path and the built-in (non-template) scaffold.
+   */
+  private def validateName(name: String): Result[String] =
+    if name.isEmpty then
+      Result.Err("error: 'jo new' requires a project name")
+    else if name == "." || name == ".." then
+      Result.Err(s"error: invalid project name '$name'")
+    else if name.contains('/') || name.contains('\\') then
+      Result.Err(s"error: invalid project name '$name' (must not contain a path separator)")
+    else
+      Result.Ok(name)
 
   /** Scaffolds `name` from a third-party template.
    *

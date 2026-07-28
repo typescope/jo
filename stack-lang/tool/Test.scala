@@ -74,6 +74,10 @@ import tool.template.{GithubTemplateProvider, LocalTemplateProvider, TemplateArc
   failed :::= runReleaseJsonTests()
   println()
 
+  println("=== New (name validation) ===")
+  failed :::= runNewNameValidationTests()
+  println()
+
   println("=== TemplateRef ===")
   failed :::= runTemplateRefTests()
   println()
@@ -235,6 +239,55 @@ private def runReleaseJsonTests(): List[Path] =
       case Left(_)    => false
 
   if failed then List(Paths.get("ReleaseJson")) else Nil
+
+// ---- New name-validation suite ---------------------------------------------------
+
+/** `requireName` is the one place both `New.scaffold` (built-in) and
+ *  `New.scaffoldFromTemplate` get their target directory name from, so
+ *  testing it through `parseArgs` covers the containment fix for both.
+ */
+private def runNewNameValidationTests(): List[Path] =
+  var failed = false
+
+  def check(label: String)(body: => Boolean): Unit =
+    val ok =
+      try body
+      catch
+        case e: Exception =>
+          println(s"  threw: ${e.getMessage}")
+          false
+
+    if ok then println(s"  ok: $label")
+    else
+      println(s"FAIL: $label")
+      failed = true
+
+  def isErr(r: Result[?], contains: String): Boolean = r match
+    case Result.Err(msg) => msg.contains(contains)
+    case _                => false
+
+  check("a plain name is accepted"):
+    New.parseArgs(Array("myapp")) == Result.Ok(New.Args.Scaffold("myapp", false, None))
+
+  check("'..' escaping baseDir via a relative name is rejected"):
+    isErr(New.parseArgs(Array("../evil")), "invalid project name")
+
+  check("an absolute path as name is rejected (Path.resolve would otherwise ignore baseDir entirely)"):
+    isErr(New.parseArgs(Array("/etc/evil")), "invalid project name")
+
+  check("a bare '..' is rejected"):
+    isErr(New.parseArgs(Array("..")), "invalid project name")
+
+  check("a bare '.' is rejected"):
+    isErr(New.parseArgs(Array(".")), "invalid project name")
+
+  check("an empty name is rejected"):
+    isErr(New.parseArgs(Array("")), "requires a project name")
+
+  check("the same containment check applies on the --template path"):
+    isErr(New.parseArgs(Array("--template", "gh:acme/repo", "../evil")), "invalid project name")
+
+  if failed then List(Paths.get("New")) else Nil
 
 // ---- TemplateRef suite ---------------------------------------------------------
 
@@ -528,6 +581,12 @@ private def runGithubTemplateProviderTests(): List[Path] =
   server.createContext("/acme/repo/zip/HEAD", (ex: HttpExchange) => respond(ex, 200, zipBytes))
   server.createContext("/acme/missing/HEAD/jo-templates.jsonl", (ex: HttpExchange) => respond(ex, 404, Array.emptyByteArray))
   server.createContext("/acme/missing/zip/HEAD", (ex: HttpExchange) => respond(ex, 404, Array.emptyByteArray))
+  // A context path is matched against the *decoded* request path — if a gitref
+  // containing '/' or '#' were embedded in the request URL unencoded (or
+  // encoded incorrectly), these two would never be hit, and the requests
+  // would 404 or get truncated at the '#' instead.
+  server.createContext("/acme/slashref/release/1.0/jo-templates.jsonl", (ex: HttpExchange) => respond(ex, 200, manifestBytes))
+  server.createContext("/acme/hashref/v1#odd/jo-templates.jsonl", (ex: HttpExchange) => respond(ex, 200, manifestBytes))
   server.start()
 
   try
@@ -558,6 +617,17 @@ private def runGithubTemplateProviderTests(): List[Path] =
       val deadProvider = GithubTemplateProvider("http://127.0.0.1:1", "http://127.0.0.1:1")
       deadProvider.manifest("acme/repo", "HEAD") match
         case Result.Err(msg) => msg.contains("failed to fetch")
+        case _                => false
+
+    check("manifest: a '/' in gitref (a slash-containing branch name) reaches the right URL"):
+      provider.manifest("acme/slashref", "release/1.0") == Result.Ok(List(TemplateEntry("default", ".", None)))
+
+    check("manifest: a '#' in gitref is percent-encoded, not misread as a URL fragment"):
+      provider.manifest("acme/hashref", "v1#odd") == Result.Ok(List(TemplateEntry("default", ".", None)))
+
+    check("manifest: an identifier with characters outside the safe charset is rejected before any request"):
+      provider.manifest("ac me/repo", "HEAD") match
+        case Result.Err(msg) => msg.contains("invalid GitHub identifier")
         case _                => false
 
   finally
