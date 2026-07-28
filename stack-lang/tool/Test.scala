@@ -70,6 +70,10 @@ import tool.template.{GithubTemplateProvider, LocalTemplateProvider, TemplateArc
   failed :::= runResolverTests()
   println()
 
+  println("=== Json ===")
+  failed :::= runJsonTests()
+  println()
+
   println("=== ReleaseJson ===")
   failed :::= runReleaseJsonTests()
   println()
@@ -190,6 +194,72 @@ private def runResolverTests(): List[Path] =
     JoResolver.resolveExact(other)
 
   if failed then List(Paths.get("JoResolver")) else Nil
+
+// ---- Json suite ----------------------------------------------------------------
+
+/** Input is untrusted (a registry index, or a third-party
+ *  `jo-templates.jsonl`), so the parser is deliberately strict rather than
+ *  permissive — each check here corresponds to a specific leniency bug that
+ *  was found and fixed: trailing garbage, unknown escapes, undecoded
+ *  `\uXXXX`, unescaped control characters, invalid numbers like a bare `-`,
+ *  silently-merged duplicate keys, and numbers being indistinguishable from
+ *  strings in the result.
+ */
+private def runJsonTests(): List[Path] =
+  var failed = false
+
+  def check(label: String)(body: => Boolean): Unit =
+    val ok =
+      try body
+      catch
+        case e: Exception =>
+          println(s"  threw: ${e.getMessage}")
+          false
+
+    if ok then println(s"  ok: $label")
+    else
+      println(s"FAIL: $label")
+      failed = true
+
+  def isErr(r: Either[String, ?]): Boolean = r.isLeft
+
+  check("a well-formed object parses"):
+    Json.parseObj("""{"a": "x", "b": true, "c": null, "d": [1, 2.5]}""") ==
+      Right(Map("a" -> "x", "b" -> true, "c" -> null, "d" -> List(1.0, 2.5)))
+
+  check("insignificant trailing whitespace is accepted"):
+    Json.parseObj("{\"a\":\"x\"}  \n") == Right(Map("a" -> "x"))
+
+  check("trailing non-whitespace garbage is rejected, not silently ignored"):
+    isErr(Json.parseObj("""{"name":"x"} garbage"""))
+
+  check("an unknown escape sequence like '\\q' is rejected"):
+    isErr(Json.parseObj("""{"a":"\q"}"""))
+
+  check("'\\uXXXX' escapes are decoded, not left as literal characters"):
+    // Built via concatenation, not a literal "A" in source: Scala (like
+    // Java) pre-processes \uXXXX unicode escapes in raw source text before
+    // any tokenization runs, so a literal backslash-u sequence can't survive
+    // as text in a string literal written directly in this file.
+    val bs = "\\"
+    val encoded = bs + "u0041" + bs + "u0042" + bs + "u0043"
+    Json.parseObj(s"""{"a":"$encoded"}""") == Right(Map("a" -> "ABC"))
+
+  check("an unescaped control character inside a string is rejected"):
+    isErr(Json.parseObj("{\"a\":\"x\ty\"}"))
+
+  check("a bare '-' is rejected, not accepted as a truncated number"):
+    isErr(Json.parseObj("""{"a":-}"""))
+
+  check("a duplicate object key is rejected, not silently overwritten"):
+    isErr(Json.parseObj("""{"a":"x","a":"y"}"""))
+
+  check("numbers are returned as Double, not String, so a string-typed field check can reject them"):
+    Json.parseObj("""{"a":1}""") match
+      case Right(obj) => obj.get("a").exists(_.isInstanceOf[Double]) && !obj.get("a").exists(_.isInstanceOf[String])
+      case Left(_)     => false
+
+  if failed then List(Paths.get("Json")) else Nil
 
 // ---- ReleaseJson suite -------------------------------------------------------
 
