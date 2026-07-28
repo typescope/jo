@@ -87,6 +87,13 @@ class GithubTemplateProvider(
     case NotFound
     case Failure(message: String)
 
+  /** `Throwable.getMessage` is nullable when a exception was raised with no
+   *  message, and embedding a literal "null" in an error string reads like
+   *  a bug, not a message — fall back to the exception's class name.
+   */
+  private def describe(e: Exception): String =
+    Option(e.getMessage).getOrElse(e.getClass.getSimpleName)
+
   private def get(url: URI): FetchResult[String] =
     try
       val req = HttpRequest.newBuilder(url).build()
@@ -95,7 +102,12 @@ class GithubTemplateProvider(
       else if res.statusCode() == 404 then FetchResult.NotFound
       else FetchResult.Failure(s"error: HTTP ${res.statusCode()}: $url")
     catch
-      case e: Exception => FetchResult.Failure(s"error: failed to fetch $url: ${e.getMessage}")
+      case e: InterruptedException =>
+        Thread.currentThread().interrupt()
+        FetchResult.Failure(s"error: failed to fetch $url: ${describe(e)}")
+
+      case e: Exception =>
+        FetchResult.Failure(s"error: failed to fetch $url: ${describe(e)}")
 
   private def getToFile(url: URI, dest: Path): FetchResult[Unit] =
     try
@@ -107,9 +119,14 @@ class GithubTemplateProvider(
         if res.statusCode() == 404 then FetchResult.NotFound
         else FetchResult.Failure(s"error: HTTP ${res.statusCode()}: $url")
     catch
+      case e: InterruptedException =>
+        Thread.currentThread().interrupt()
+        Files.deleteIfExists(dest)
+        FetchResult.Failure(s"error: failed to fetch $url: ${describe(e)}")
+
       case e: Exception =>
         Files.deleteIfExists(dest)
-        FetchResult.Failure(s"error: failed to fetch $url: ${e.getMessage}")
+        FetchResult.Failure(s"error: failed to fetch $url: ${describe(e)}")
 
 object GithubTemplateProvider:
   val default: GithubTemplateProvider = GithubTemplateProvider()
