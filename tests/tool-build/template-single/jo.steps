@@ -18,3 +18,11 @@ jo new --template acme/starter myapp
 : '
 error: directory 'myapp' already exists
 '
+rm -rf myapp-pinned
+jo new --template acme/starter#v2 myapp-pinned
+: '
+Created 'myapp-pinned' from acme/starter#v2
+
+You can now:
+  cd myapp-pinned
+'

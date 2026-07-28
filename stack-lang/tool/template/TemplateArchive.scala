@@ -39,13 +39,13 @@ object TemplateArchive:
 
       topLevelDir(tempDir) match
         case None =>
-          Result.Err(s"error: unexpected archive structure for $label (expected exactly one top-level directory)")
+          Result.Err(s"unexpected archive structure for $label (expected exactly one top-level directory)")
 
         case Some(root) =>
           val manifestFile = root.resolve("jo-templates.jsonl")
 
           if !Files.exists(manifestFile) then
-            Result.Err(s"error: $label has no jo-templates.jsonl — not a valid Jo template repo")
+            Result.Err(s"$label has no jo-templates.jsonl — not a valid Jo template repo")
           else
             for
               entries <- TemplateManifest.parse(Files.readString(manifestFile))
@@ -54,16 +54,19 @@ object TemplateArchive:
             yield ()
 
     catch
-      case e: Exception => Result.Err(s"error: ${e.getMessage}")
+      case e: Exception => Result.Err(describe(e))
 
     finally
       deleteRecursively(tempDir)
+
+  private def describe(e: Exception): String =
+    Option(e.getMessage).getOrElse(e.getClass.getSimpleName)
 
   private def copyResolved(root: Path, path: String, destDir: Path, label: String): Result[Unit] =
     val source = if path == "." then root else root.resolve(path).normalize()
 
     if !source.startsWith(root) || !Files.isDirectory(source) then
-      Result.Err(s"error: template path '$path' not found in $label")
+      Result.Err(s"template path '$path' not found in $label")
     else
       copyTree(source, destDir)
 
@@ -108,7 +111,7 @@ object TemplateArchive:
     catch
       case e: Exception =>
         deleteRecursively(staging)
-        Result.Err(s"error: failed to write '$destDir': ${e.getMessage}")
+        Result.Err(s"failed to write '$destDir': ${describe(e)}")
 
   private def deleteRecursively(dir: Path): Unit =
     if Files.exists(dir) then

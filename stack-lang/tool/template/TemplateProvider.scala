@@ -44,4 +44,4 @@ object TemplateProvider:
   def forHost(host: String): Result[TemplateProvider] =
     byHost.get(host) match
       case Some(provider) => Result.Ok(provider)
-      case None            => Result.Err(s"error: unsupported template host '$host' (supported: ${supportedHosts.toList.sorted.mkString(", ")})")
+      case None            => Result.Err(s"unsupported template host '$host' (supported: ${supportedHosts.toList.sorted.mkString(", ")})")

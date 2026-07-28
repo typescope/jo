@@ -396,6 +396,15 @@ private def runTemplateRefTests(): List[Path] =
   check("explicit 'gh:' host prefix, '#gitref', and ':name' all together"):
     TemplateRef.parse("gh:acme/repo#v2:name") == Result.Ok(TemplateRef("gh", "acme/repo", Some("name"), "v2"))
 
+  check("canonical: unpinned, default host — no noise from either default"):
+    TemplateRef("gh", "acme/repo", None, "HEAD").canonical == "acme/repo"
+
+  check("canonical: a pinned gitref is never dropped, unlike the old success message"):
+    TemplateRef("gh", "acme/repo", None, "v2").canonical == "acme/repo#v2"
+
+  check("canonical: pinned gitref plus a name"):
+    TemplateRef("gh", "acme/repo", Some("web-app"), "v2").canonical == "acme/repo#v2:web-app"
+
   check("unsupported host is a hard error, not a hostname fallback"):
     isErr(TemplateRef.parse("gitlab:acme/repo"), "unsupported template host 'gitlab'")
 
@@ -859,13 +868,9 @@ private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String
         New.scaffoldFromTemplate(name, ref, specDir, testTemplateProvider(specDir))
       case New.Args.ListTemplates(ref) =>
         New.listTemplates(ref, testTemplateProvider(specDir))
-    // New's own Result.Err messages already carry an "error: " prefix (see
-    // New.scaffold) but, unlike Ok messages, no trailing newline — add one
-    // here so error assertions in jo.steps line up with the harness's
-    // uniformly newline-terminated expected blocks.
     return result match
       case ok @ Result.Ok(_) => ok
-      case Result.Err(msg)   => Result.Err(s"$msg\n")
+      case Result.Err(msg)   => Result.Err(s"error: $msg\n")
 
   if command == "package" then
     val parsed = Build.parseProjectArgs(cmdArgs) match

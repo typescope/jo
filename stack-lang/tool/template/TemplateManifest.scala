@@ -35,7 +35,7 @@ object TemplateManifest:
         else
           parseLine(line.trim) match
             case Left(err) =>
-              Result.Err(s"error: malformed line ${i + 1} in jo-templates.jsonl: $err")
+              Result.Err(s"malformed line ${i + 1} in jo-templates.jsonl: $err")
 
             case Right(entry) =>
               validate(entry, entries).map(_ => entries :+ entry)
@@ -51,13 +51,13 @@ object TemplateManifest:
         entries.find(_.name == name) match
           case Some(entry) => Result.Ok(entry)
           case None =>
-            Result.Err(s"error: no template '$name' in $repoLabel. Available: ${entries.map(_.name).mkString(", ")}")
+            Result.Err(s"no template '$name' in $repoLabel. Available: ${entries.map(_.name).mkString(", ")}")
 
       case None =>
         entries match
-          case Nil          => Result.Err(s"error: jo-templates.jsonl in $repoLabel declares no templates")
+          case Nil          => Result.Err(s"jo-templates.jsonl in $repoLabel declares no templates")
           case entry :: Nil => Result.Ok(entry)
-          case many         => Result.Err(s"error: $repoLabel declares multiple templates, pick one: ${many.map(_.name).mkString(", ")}")
+          case many         => Result.Err(s"$repoLabel declares multiple templates, pick one: ${many.map(_.name).mkString(", ")}")
 
   // ---- Internals ---------------------------------------------------------------
 
@@ -89,13 +89,13 @@ object TemplateManifest:
 
   private def validate(entry: TemplateEntry, existing: List[TemplateEntry]): Result[Unit] =
     if existing.exists(_.name == entry.name) then
-      Result.Err(s"error: duplicate template name '${entry.name}' in jo-templates.jsonl")
+      Result.Err(s"duplicate template name '${entry.name}' in jo-templates.jsonl")
 
     else if !nameRegex.matches(entry.name) then
-      Result.Err(s"error: invalid template name '${entry.name}' in jo-templates.jsonl (must match [a-zA-Z0-9][a-zA-Z0-9_-]*)")
+      Result.Err(s"invalid template name '${entry.name}' in jo-templates.jsonl (must match [a-zA-Z0-9][a-zA-Z0-9_-]*)")
 
     else if !validPath(entry.path) then
-      Result.Err(s"error: invalid path '${entry.path}' for template '${entry.name}' in jo-templates.jsonl " +
+      Result.Err(s"invalid path '${entry.path}' for template '${entry.name}' in jo-templates.jsonl " +
         "(must be relative, '.' for the repo root, no leading or doubled '/', no '..' segments)")
 
     else

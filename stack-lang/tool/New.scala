@@ -32,7 +32,7 @@ object New:
 
     result match
       case Result.Ok(msg)  => print(msg)
-      case Result.Err(msg) => System.err.println(msg); sys.exit(1)
+      case Result.Err(msg) => System.err.println(s"${Ansi.red("error:")} $msg"); sys.exit(1)
 
   def parseArgs(args: Array[String]): Result[Args] =
     CommandLine.parse(args, List(libOpt, templateOpt, listOpt, CommandLine.verboseOpt)).flatMap: parsed =>
@@ -42,10 +42,10 @@ object New:
 
       (templateRaw, isLib, list) match
         case (None, _, true) =>
-          Result.Err("error: '--list' requires '--template'")
+          Result.Err("'--list' requires '--template'")
 
         case (Some(_), true, _) =>
-          Result.Err("error: '--template' cannot be combined with '--lib'")
+          Result.Err("'--template' cannot be combined with '--lib'")
 
         case (None, _, false) =>
           requireName(parsed.positional).map(name => Args.Scaffold(name, isLib, None))
@@ -53,7 +53,7 @@ object New:
         case (Some(raw), false, true) =>
           TemplateRef.parse(raw).flatMap: ref =>
             if parsed.positional.nonEmpty then
-              Result.Err("error: '--list' does not take a project name")
+              Result.Err("'--list' does not take a project name")
             else
               Result.Ok(Args.ListTemplates(ref))
 
@@ -64,8 +64,8 @@ object New:
   private def requireName(positional: List[String]): Result[String] =
     positional match
       case name :: Nil => validateName(name)
-      case Nil          => Result.Err("error: 'jo new' requires a project name")
-      case arg :: _     => Result.Err(s"error: unexpected argument '$arg'")
+      case Nil          => Result.Err("'jo new' requires a project name")
+      case arg :: _     => Result.Err(s"unexpected argument '$arg'")
 
   /** `name` becomes `baseDir.resolve(name)` with no other check beyond
    *  "does it already exist" — `Path.resolve` on an absolute `name` ignores
@@ -76,11 +76,11 @@ object New:
    */
   private def validateName(name: String): Result[String] =
     if name.isEmpty then
-      Result.Err("error: 'jo new' requires a project name")
+      Result.Err("'jo new' requires a project name")
     else if name == "." || name == ".." then
-      Result.Err(s"error: invalid project name '$name'")
+      Result.Err(s"invalid project name '$name'")
     else if name.contains('/') || name.contains('\\') then
-      Result.Err(s"error: invalid project name '$name' (must not contain a path separator)")
+      Result.Err(s"invalid project name '$name' (must not contain a path separator)")
     else
       Result.Ok(name)
 
@@ -102,15 +102,13 @@ object New:
     val dir = baseDir.resolve(name)
 
     if Files.exists(dir) then
-      return Result.Err(s"error: directory '$name' already exists")
+      return Result.Err(s"directory '$name' already exists")
 
     for
       provider <- resolveProvider(ref.host)
       _        <- provider.fetch(ref.identifier, ref.gitref, ref.name, dir)
     yield
-      val source = ref.identifier + ref.name.map(n => s":$n").getOrElse("")
-
-      s"""${Ansi.green("Created")} ${Ansi.blue("'" + name + "'")} ${Ansi.dim(s"from $source")}
+      s"""${Ansi.green("Created")} ${Ansi.blue("'" + name + "'")} ${Ansi.dim(s"from ${ref.canonical}")}
          |
          |${Ansi.dim("You can now:")}
          |  ${Ansi.blue("cd")} $name
@@ -137,7 +135,7 @@ object New:
     val joConstraint = s"${v.major}.${v.minor}"
 
     if Files.exists(dir) then
-      return Result.Err(s"error: directory '$name' already exists")
+      return Result.Err(s"directory '$name' already exists")
 
     Files.createDirectories(dir.resolve("src"))
     Files.createDirectories(dir.resolve("tests"))

@@ -22,7 +22,7 @@ case class LocalTemplateProvider(root: Path) extends TemplateProvider:
     val manifestFile = root.resolve("jo-templates.jsonl")
 
     if !Files.exists(manifestFile) then
-      Result.Err(s"error: $identifier has no jo-templates.jsonl — not a valid Jo template repo")
+      Result.Err(s"$identifier has no jo-templates.jsonl — not a valid Jo template repo")
     else
       TemplateManifest.parse(Files.readString(manifestFile))
 
@@ -37,6 +37,6 @@ case class LocalTemplateProvider(root: Path) extends TemplateProvider:
     val source = if path == "." then root else root.resolve(path).normalize()
 
     if !source.startsWith(root) || !Files.isDirectory(source) then
-      Result.Err(s"error: template path '$path' not found in $identifier at $gitref")
+      Result.Err(s"template path '$path' not found in $identifier at $gitref")
     else
       TemplateArchive.copyTree(source, destDir)

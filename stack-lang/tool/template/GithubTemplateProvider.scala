@@ -30,7 +30,7 @@ class GithubTemplateProvider(
           TemplateManifest.parse(body)
 
         case FetchResult.NotFound =>
-          Result.Err(s"error: $identifier has no jo-templates.jsonl — not a valid Jo template repo")
+          Result.Err(s"$identifier has no jo-templates.jsonl — not a valid Jo template repo")
 
         case FetchResult.Failure(msg) =>
           Result.Err(msg)
@@ -46,7 +46,7 @@ class GithubTemplateProvider(
             TemplateArchive.extract(tempZip, name, destDir, s"$identifier at $gitref")
 
           case FetchResult.NotFound =>
-            Result.Err(s"error: $identifier has no ref '$gitref', or the repo does not exist")
+            Result.Err(s"$identifier has no ref '$gitref', or the repo does not exist")
 
           case FetchResult.Failure(msg) =>
             Result.Err(msg)
@@ -63,7 +63,7 @@ class GithubTemplateProvider(
       case Array(owner, repo) if ownerRepoChars.matches(owner) && ownerRepoChars.matches(repo) =>
         Result.Ok((owner, repo))
       case _ =>
-        Result.Err(s"error: invalid GitHub identifier '$identifier' (expected 'owner/repo', letters/digits/'.'/'_'/'-' only)")
+        Result.Err(s"invalid GitHub identifier '$identifier' (expected 'owner/repo', letters/digits/'.'/'_'/'-' only)")
 
   /** Builds a request URI from a trusted base (`rawBaseUrl`/`archiveBaseUrl`,
    *  either the real GitHub hosts or a test server) and a `path` built from
@@ -100,14 +100,14 @@ class GithubTemplateProvider(
       val res = http.send(req, HttpResponse.BodyHandlers.ofString())
       if res.statusCode() == 200 then FetchResult.Ok(res.body())
       else if res.statusCode() == 404 then FetchResult.NotFound
-      else FetchResult.Failure(s"error: HTTP ${res.statusCode()}: $url")
+      else FetchResult.Failure(s"HTTP ${res.statusCode()}: $url")
     catch
       case e: InterruptedException =>
         Thread.currentThread().interrupt()
-        FetchResult.Failure(s"error: failed to fetch $url: ${describe(e)}")
+        FetchResult.Failure(s"failed to fetch $url: ${describe(e)}")
 
       case e: Exception =>
-        FetchResult.Failure(s"error: failed to fetch $url: ${describe(e)}")
+        FetchResult.Failure(s"failed to fetch $url: ${describe(e)}")
 
   private def getToFile(url: URI, dest: Path): FetchResult[Unit] =
     try
@@ -117,16 +117,16 @@ class GithubTemplateProvider(
       else
         Files.deleteIfExists(dest)
         if res.statusCode() == 404 then FetchResult.NotFound
-        else FetchResult.Failure(s"error: HTTP ${res.statusCode()}: $url")
+        else FetchResult.Failure(s"HTTP ${res.statusCode()}: $url")
     catch
       case e: InterruptedException =>
         Thread.currentThread().interrupt()
         Files.deleteIfExists(dest)
-        FetchResult.Failure(s"error: failed to fetch $url: ${describe(e)}")
+        FetchResult.Failure(s"failed to fetch $url: ${describe(e)}")
 
       case e: Exception =>
         Files.deleteIfExists(dest)
-        FetchResult.Failure(s"error: failed to fetch $url: ${describe(e)}")
+        FetchResult.Failure(s"failed to fetch $url: ${describe(e)}")
 
 object GithubTemplateProvider:
   val default: GithubTemplateProvider = GithubTemplateProvider()
