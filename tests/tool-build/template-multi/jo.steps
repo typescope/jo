@@ -1,0 +1,38 @@
+rm -rf myapp myapp2
+jo new --template acme/multi myapp
+: '
+error: acme/multi declares multiple templates, pick one: web-app, cli
+'
+jo new --template acme/multi:web-app myapp
+: '
+Created 'myapp' from acme/multi:web-app
+
+You can now:
+  cd myapp
+'
+cat myapp/src/Main.jo
+: '
+def main = println "web-app"
+'
+jo new --template acme/multi:nope myapp2
+: '
+error: no template 'nope' in acme/multi. Available: web-app, cli
+'
+jo new --template acme/multi --list
+: '
+Templates in acme/multi:
+  web-app - Web app starter
+  cli
+'
+jo new --template acme/multi --list myapp
+: '
+error: '--list' does not take a project name
+'
+jo new --list myapp
+: '
+error: '--list' requires '--template'
+'
+jo new --template acme/multi --lib myapp
+: '
+error: '--template' cannot be combined with '--lib'
+'
