@@ -408,13 +408,30 @@ private def runTemplateArchiveTests(): List[Path] =
     "repo-main/templates/web-app/src/Main.jo" -> "def main = println \"web-app\"\n",
   ))
 
-  check("resolves ':name' against the manifest found inside the archive, and extracts only that subtree"):
-    val dest = Files.createTempDirectory("jo-template-test-dest-")
+  check("resolves ':name' against the manifest found inside the archive, extracts only that subtree, and leaves no staging directory behind"):
+    val destParent = Files.createTempDirectory("jo-template-test-dest-")
+    val dest = destParent.resolve("myapp")
     TemplateArchive.extract(repoZip, Some("web-app"), dest, "acme/repo at main") match
       case Result.Ok(_) =>
         Files.readString(dest.resolve("src/Main.jo")) == "def main = println \"web-app\"\n"
           && !Files.exists(dest.resolve("README.md"))
+          && Files.list(destParent).iterator.asScala.toList == List(dest)
       case Result.Err(_) => false
+
+  check("a failure writing the destination (e.g. it's non-empty and can't be replaced) leaves it untouched and no staging debris behind"):
+    val parent = Files.createTempDirectory("jo-template-test-parent-")
+    val dest = parent.resolve("existing")
+    Files.createDirectory(dest)
+    Files.writeString(dest.resolve("keep.txt"), "do not touch")
+
+    val source = Files.createTempDirectory("jo-template-test-source-")
+    Files.writeString(source.resolve("a.txt"), "hi")
+
+    TemplateArchive.copyTree(source, dest) match
+      case Result.Err(_) =>
+        Files.list(dest).iterator.asScala.toList.map(_.getFileName.toString) == List("keep.txt")
+          && Files.list(parent).iterator.asScala.toList == List(dest)
+      case Result.Ok(_) => false
 
   check("a manifest entry with 'path: .' copies the whole repo root, including jo-templates.jsonl itself"):
     val dest = Files.createTempDirectory("jo-template-test-dest-")

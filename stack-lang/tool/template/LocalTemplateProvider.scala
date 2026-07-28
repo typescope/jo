@@ -40,4 +40,3 @@ case class LocalTemplateProvider(root: Path) extends TemplateProvider:
       Result.Err(s"error: template path '$path' not found in $identifier at $gitref")
     else
       TemplateArchive.copyTree(source, destDir)
-      Result.unit

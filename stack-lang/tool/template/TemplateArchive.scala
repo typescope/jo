@@ -3,7 +3,7 @@ package tool.template
 import java.nio.file.{Files, Path, StandardCopyOption}
 import scala.jdk.CollectionConverters.*
 
-import tool.{ArchiveError, JoyArchive, Result}
+import tool.{JoyArchive, Result}
 
 /** Resolves and extracts a template out of a downloaded repo archive.
  *
@@ -53,7 +53,7 @@ object TemplateArchive:
             yield ()
 
     catch
-      case e: ArchiveError => Result.Err(s"error: ${e.message}")
+      case e: Exception => Result.Err(s"error: ${e.getMessage}")
 
     finally
       deleteRecursively(tempDir)
@@ -65,7 +65,6 @@ object TemplateArchive:
       Result.Err(s"error: template path '$path' not found in $label")
     else
       copyTree(source, destDir)
-      Result.unit
 
   private def topLevelDir(root: Path): Option[Path] =
     Files.list(root).iterator.asScala.toList match
@@ -76,20 +75,37 @@ object TemplateArchive:
    *  entries, so no traversal guard needed here) into `destDir`. Shared with
    *  `LocalTemplateProvider`, which copies straight from a fixture root
    *  rather than an extracted archive.
+   *
+   *  Stages into a temporary sibling of `destDir` and atomically renames it
+   *  into place only once every file has copied successfully. A disk, I/O,
+   *  or permission failure partway through then leaves no `destDir` at all,
+   *  rather than a half-populated one that would fail the collision check
+   *  on a retry. The staging directory sits next to `destDir` (not under
+   *  the system temp dir) specifically so the rename is same-filesystem,
+   *  and therefore atomic.
    */
-  def copyTree(source: Path, destDir: Path): Unit =
-    Files.createDirectories(destDir)
+  def copyTree(source: Path, destDir: Path): Result[Unit] =
+    val staging = Files.createTempDirectory(destDir.getParent, ".jo-new-staging-")
 
-    val entries = Files.walk(source).iterator.asScala.filterNot(_ == source).toList
+    try
+      val entries = Files.walk(source).iterator.asScala.filterNot(_ == source).toList
 
-    for entry <- entries do
-      val target = destDir.resolve(source.relativize(entry).toString)
+      for entry <- entries do
+        val target = staging.resolve(source.relativize(entry).toString)
 
-      if Files.isDirectory(entry) then
-        Files.createDirectories(target)
-      else
-        Files.createDirectories(target.getParent)
-        Files.copy(entry, target, StandardCopyOption.REPLACE_EXISTING)
+        if Files.isDirectory(entry) then
+          Files.createDirectories(target)
+        else
+          Files.createDirectories(target.getParent)
+          Files.copy(entry, target, StandardCopyOption.REPLACE_EXISTING)
+
+      Files.move(staging, destDir, StandardCopyOption.ATOMIC_MOVE)
+      Result.unit
+
+    catch
+      case e: Exception =>
+        deleteRecursively(staging)
+        Result.Err(s"error: failed to write '$destDir': ${e.getMessage}")
 
   private def deleteRecursively(dir: Path): Unit =
     if Files.exists(dir) then
