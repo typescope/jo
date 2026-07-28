@@ -15,7 +15,6 @@ import tool.Result
 case class TemplateRef(host: String, identifier: String, name: Option[String], gitref: String)
 
 object TemplateRef:
-  private val knownHosts    = Set("gh")
   private val defaultHost   = "gh"
   private val defaultGitref = "HEAD"
 
@@ -41,8 +40,8 @@ object TemplateRef:
     hostColonIdx match
       case Some(idx) =>
         val host = raw.substring(0, idx)
-        if knownHosts.contains(host) then parseRest(host, raw.substring(idx + 1))
-        else Result.Err(s"error: unsupported template host '$host' (supported: ${knownHosts.toList.sorted.mkString(", ")})")
+        if TemplateProvider.supportedHosts.contains(host) then parseRest(host, raw.substring(idx + 1))
+        else Result.Err(s"error: unsupported template host '$host' (supported: ${TemplateProvider.supportedHosts.toList.sorted.mkString(", ")})")
 
       case None =>
         parseRest(defaultHost, raw)

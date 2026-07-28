@@ -32,10 +32,16 @@ trait TemplateProvider:
 object TemplateProvider:
   private val byHost: Map[String, TemplateProvider] = Map("gh" -> GithubTemplateProvider.default)
 
+  /** The single source of truth for which host codes `TemplateRef.parse`
+   *  accepts — kept in sync with `byHost` by construction (it's this map's
+   *  key set) rather than as a second list maintained by hand.
+   */
+  val supportedHosts: Set[String] = byHost.keySet
+
   /** Adding a second host is one new implementation plus one entry here —
    *  `New.scala` never needs to change.
    */
   def forHost(host: String): Result[TemplateProvider] =
     byHost.get(host) match
       case Some(provider) => Result.Ok(provider)
-      case None            => Result.Err(s"error: unsupported template host '$host' (supported: ${byHost.keys.toList.sorted.mkString(", ")})")
+      case None            => Result.Err(s"error: unsupported template host '$host' (supported: ${supportedHosts.toList.sorted.mkString(", ")})")
