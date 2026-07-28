@@ -472,6 +472,27 @@ private def runTemplateManifestTests(): List[Path] =
   check("'..' segment in path is an error"):
     isErr(TemplateManifest.parse("""{"name": "web-app", "path": "a/../../b"}"""), "invalid path")
 
+  check("an empty path is an error ('.' is the only spelling for the repo root)"):
+    isErr(TemplateManifest.parse("""{"name": "web-app", "path": ""}"""), "invalid path")
+
+  check("'.' as a path is accepted (the repo root)"):
+    TemplateManifest.parse("""{"name": "web-app", "path": "."}""") ==
+      Result.Ok(List(TemplateEntry("web-app", ".", None)))
+
+  check("a trailing '/' in a path is accepted (harmless, common directory notation)"):
+    TemplateManifest.parse("""{"name": "web-app", "path": "templates/web-app/"}""") ==
+      Result.Ok(List(TemplateEntry("web-app", "templates/web-app/", None)))
+
+  check("a doubled '/' in a path is an error"):
+    isErr(TemplateManifest.parse("""{"name": "web-app", "path": "templates//web-app"}"""), "invalid path")
+
+  check("a present but wrong-typed description is an error, not silently treated as absent"):
+    isErr(TemplateManifest.parse("""{"name": "web-app", "path": ".", "description": 123}"""), "malformed line 1")
+
+  check("fields beyond name/path/description are allowed and ignored"):
+    TemplateManifest.parse("""{"name": "web-app", "path": ".", "minJoVersion": "1.5"}""") ==
+      Result.Ok(List(TemplateEntry("web-app", ".", None)))
+
   check("resolve: explicit name found"):
     TemplateManifest.resolve(parsedValid, Some("cli"), "acme/repo") == Result.Ok(parsedValid(1))
 
