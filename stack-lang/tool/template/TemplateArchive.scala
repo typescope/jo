@@ -2,6 +2,7 @@ package tool.template
 
 import java.nio.file.{Files, Path, StandardCopyOption}
 import scala.jdk.CollectionConverters.*
+import scala.util.Using
 
 import tool.{JoyArchive, Result}
 
@@ -67,9 +68,10 @@ object TemplateArchive:
       copyTree(source, destDir)
 
   private def topLevelDir(root: Path): Option[Path] =
-    Files.list(root).iterator.asScala.toList match
-      case single :: Nil if Files.isDirectory(single) => Some(single)
-      case _                                          => None
+    Using.resource(Files.list(root)): stream =>
+      stream.iterator.asScala.toList match
+        case single :: Nil if Files.isDirectory(single) => Some(single)
+        case _                                          => None
 
   /** Copies the contents of `source` (a trusted local directory — not zip
    *  entries, so no traversal guard needed here) into `destDir`. Shared with
@@ -88,7 +90,8 @@ object TemplateArchive:
     val staging = Files.createTempDirectory(destDir.getParent, ".jo-new-staging-")
 
     try
-      val entries = Files.walk(source).iterator.asScala.filterNot(_ == source).toList
+      val entries = Using.resource(Files.walk(source)): stream =>
+        stream.iterator.asScala.filterNot(_ == source).toList
 
       for entry <- entries do
         val target = staging.resolve(source.relativize(entry).toString)
@@ -109,6 +112,7 @@ object TemplateArchive:
 
   private def deleteRecursively(dir: Path): Unit =
     if Files.exists(dir) then
-      Files.walk(dir)
-        .sorted(java.util.Comparator.reverseOrder())
-        .forEach(Files.delete)
+      Using.resource(Files.walk(dir)): stream =>
+        stream
+          .sorted(java.util.Comparator.reverseOrder())
+          .forEach(Files.delete)
