@@ -12,11 +12,22 @@ import tool.Result
  *  scenarios be tested without a server.
  */
 trait TemplateProvider:
-  /** The manifest entries declared by `jo-templates.jsonl` at `identifier`/`gitref`. */
+  /** The manifest entries declared by `jo-templates.jsonl` at `identifier`/`gitref`.
+   *
+   *  Used only by `--list`, a standalone lookup with nothing to combine it
+   *  against — unlike `fetch` below, there's no risk in this being a fetch
+   *  of its own.
+   */
   def manifest(identifier: String, gitref: String): Result[List[TemplateEntry]]
 
-  /** Populates `destDir` with the contents of `path` (a manifest entry's `path`). */
-  def fetch(identifier: String, gitref: String, path: String, destDir: Path): Result[Unit]
+  /** Fetches `identifier`/`gitref` exactly once and populates `destDir` with
+   *  the template `name` resolves to.
+   *
+   *  `name` must be resolved against the manifest found in that same fetch,
+   *  never one obtained separately — see `TemplateArchive.extract` for why
+   *  that would be unsound when `gitref` is mutable.
+   */
+  def fetch(identifier: String, gitref: String, name: Option[String], destDir: Path): Result[Unit]
 
 object TemplateProvider:
   private val byHost: Map[String, TemplateProvider] = Map("gh" -> GithubTemplateProvider.default)

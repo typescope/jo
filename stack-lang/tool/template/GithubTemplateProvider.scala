@@ -35,7 +35,7 @@ class GithubTemplateProvider(
         case FetchResult.Failure(msg) =>
           Result.Err(msg)
 
-  def fetch(identifier: String, gitref: String, path: String, destDir: Path): Result[Unit] =
+  def fetch(identifier: String, gitref: String, name: Option[String], destDir: Path): Result[Unit] =
     parseIdentifier(identifier).flatMap: (owner, repo) =>
       val url = s"$archiveBaseUrl/$owner/$repo/zip/$gitref"
       val tempZip = Files.createTempFile("jo-template-", ".zip")
@@ -43,7 +43,7 @@ class GithubTemplateProvider(
       try
         getToFile(url, tempZip) match
           case FetchResult.Ok(_) =>
-            TemplateArchive.extract(tempZip, path, destDir, s"$identifier at $gitref")
+            TemplateArchive.extract(tempZip, name, destDir, s"$identifier at $gitref")
 
           case FetchResult.NotFound =>
             Result.Err(s"error: $identifier has no ref '$gitref', or the repo does not exist")

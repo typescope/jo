@@ -395,41 +395,68 @@ private def runTemplateArchiveTests(): List[Path] =
     finally out.close()
     zipFile
 
+  val manifest =
+    """{"name": "web-app", "path": "templates/web-app"}
+      |{"name": "root", "path": "."}
+      |{"name": "broken-path", "path": "does/not/exist"}
+      |{"name": "file-path", "path": "README.md"}
+      |""".stripMargin
+
   val repoZip = buildZip(Map(
-    "repo-main/README.md"                    -> "hello",
+    "repo-main/jo-templates.jsonl"            -> manifest,
+    "repo-main/README.md"                     -> "hello",
     "repo-main/templates/web-app/src/Main.jo" -> "def main = println \"web-app\"\n",
   ))
 
-  check("extracts the requested subtree, not the whole repo"):
+  check("resolves ':name' against the manifest found inside the archive, and extracts only that subtree"):
     val dest = Files.createTempDirectory("jo-template-test-dest-")
-    TemplateArchive.extract(repoZip, "templates/web-app", dest, "acme/repo at main") match
+    TemplateArchive.extract(repoZip, Some("web-app"), dest, "acme/repo at main") match
       case Result.Ok(_) =>
         Files.readString(dest.resolve("src/Main.jo")) == "def main = println \"web-app\"\n"
           && !Files.exists(dest.resolve("README.md"))
       case Result.Err(_) => false
 
-  check("'path: .' copies the whole repo root, including sibling files"):
+  check("a manifest entry with 'path: .' copies the whole repo root, including jo-templates.jsonl itself"):
     val dest = Files.createTempDirectory("jo-template-test-dest-")
-    TemplateArchive.extract(repoZip, ".", dest, "acme/repo at main") match
-      case Result.Ok(_)  => Files.exists(dest.resolve("README.md"))
+    TemplateArchive.extract(repoZip, Some("root"), dest, "acme/repo at main") match
+      case Result.Ok(_)  => Files.exists(dest.resolve("README.md")) && Files.exists(dest.resolve("jo-templates.jsonl"))
       case Result.Err(_) => false
 
-  check("a nonexistent path is a 'not found' error"):
+  check("no name given, multiple entries, is an ambiguity error, not a guess"):
     val dest = Files.createTempDirectory("jo-template-test-dest-")
-    TemplateArchive.extract(repoZip, "does/not/exist", dest, "acme/repo at main") match
+    TemplateArchive.extract(repoZip, None, dest, "acme/repo at main") match
+      case Result.Err(msg) => msg.contains("declares multiple templates")
+      case _                => false
+
+  check("a requested name absent from the manifest is an error"):
+    val dest = Files.createTempDirectory("jo-template-test-dest-")
+    TemplateArchive.extract(repoZip, Some("nope"), dest, "acme/repo at main") match
+      case Result.Err(msg) => msg.contains("no template 'nope'")
+      case _                => false
+
+  check("a manifest path absent from the archive is a 'not found' error"):
+    val dest = Files.createTempDirectory("jo-template-test-dest-")
+    TemplateArchive.extract(repoZip, Some("broken-path"), dest, "acme/repo at main") match
       case Result.Err(msg) => msg.contains("template path 'does/not/exist' not found")
       case _                => false
 
-  check("a path pointing at a file, not a directory, is a 'not found' error"):
+  check("a manifest path pointing at a file, not a directory, is a 'not found' error"):
     val dest = Files.createTempDirectory("jo-template-test-dest-")
-    TemplateArchive.extract(repoZip, "README.md", dest, "acme/repo at main") match
+    TemplateArchive.extract(repoZip, Some("file-path"), dest, "acme/repo at main") match
       case Result.Err(msg) => msg.contains("not found")
       case _                => false
 
-  check("zip-slip entries are rejected, extraction aborted"):
+  check("an archive with no jo-templates.jsonl is not a valid Jo template repo"):
+    val bareZip = buildZip(Map("repo-main/src/Main.jo" -> "def main = println \"hi\"\n"))
+    val dest = Files.createTempDirectory("jo-template-test-dest-")
+    TemplateArchive.extract(bareZip, None, dest, "acme/bare at main") match
+      case Result.Err(msg) => msg.contains("has no jo-templates.jsonl")
+      case _                => false
+
+  check("zip-slip entries are rejected before the manifest is even read"):
     val evilZip = buildZip(Map("repo-main/../../evil.txt" -> "pwned"))
     val dest = Files.createTempDirectory("jo-template-test-dest-")
-    TemplateArchive.extract(evilZip, ".", dest, "acme/evil at main") match
+    TemplateArchive.extract(evilZip, None, dest, "acme/evil at main") match
       case Result.Err(_) => true
       case Result.Ok(_)  => false
 
@@ -473,7 +500,10 @@ private def runGithubTemplateProviderTests(): List[Path] =
     finally out.close()
     buf.toByteArray
 
-  val zipBytes = buildZipBytes(Map("repo-main/src/Main.jo" -> "def main = println \"ok\"\n"))
+  val zipBytes = buildZipBytes(Map(
+    "repo-main/jo-templates.jsonl" -> """{"name": "default", "path": "."}""",
+    "repo-main/src/Main.jo"        -> "def main = println \"ok\"\n",
+  ))
   val manifestBytes = """{"name": "default", "path": "."}""".getBytes("UTF-8")
 
   val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
@@ -495,15 +525,15 @@ private def runGithubTemplateProviderTests(): List[Path] =
         case Result.Err(msg) => msg.contains("acme/missing has no jo-templates.jsonl")
         case _                => false
 
-    check("fetch: 200 response downloads and extracts the zip"):
+    check("fetch: 200 response downloads the zip once and resolves the manifest from inside it"):
       val dest = Files.createTempDirectory("jo-template-http-test-")
-      provider.fetch("acme/repo", "HEAD", ".", dest) match
+      provider.fetch("acme/repo", "HEAD", None, dest) match
         case Result.Ok(_)  => Files.exists(dest.resolve("src/Main.jo"))
         case Result.Err(_) => false
 
     check("fetch: 404 is reported with the identifier and ref"):
       val dest = Files.createTempDirectory("jo-template-http-test-")
-      provider.fetch("acme/missing", "HEAD", ".", dest) match
+      provider.fetch("acme/missing", "HEAD", None, dest) match
         case Result.Err(msg) => msg.contains("acme/missing") && msg.contains("HEAD")
         case _                => false
 

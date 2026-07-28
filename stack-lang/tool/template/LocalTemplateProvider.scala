@@ -12,7 +12,10 @@ import tool.Result
  *  without a server — mirrors how `LocalPackageProvider` stands in for
  *  `HttpPackageProvider` in the existing package-manager tests. `identifier`
  *  and `gitref` only appear in error messages; the fixture content always
- *  comes from `root`.
+ *  comes from `root`, so — unlike a network provider — there's no
+ *  independent-fetches-can-diverge risk here to begin with, but `fetch`
+ *  still resolves `name` against its own `manifest` call to keep the same
+ *  shape as `GithubTemplateProvider`.
  */
 case class LocalTemplateProvider(root: Path) extends TemplateProvider:
   def manifest(identifier: String, gitref: String): Result[List[TemplateEntry]] =
@@ -23,7 +26,14 @@ case class LocalTemplateProvider(root: Path) extends TemplateProvider:
     else
       TemplateManifest.parse(Files.readString(manifestFile))
 
-  def fetch(identifier: String, gitref: String, path: String, destDir: Path): Result[Unit] =
+  def fetch(identifier: String, gitref: String, name: Option[String], destDir: Path): Result[Unit] =
+    for
+      entries <- manifest(identifier, gitref)
+      entry   <- TemplateManifest.resolve(entries, name, identifier)
+      _       <- copyResolved(entry.path, destDir, identifier, gitref)
+    yield ()
+
+  private def copyResolved(path: String, destDir: Path, identifier: String, gitref: String): Result[Unit] =
     val source = if path == "." then root else root.resolve(path).normalize()
 
     if !source.startsWith(root) || !Files.isDirectory(source) then

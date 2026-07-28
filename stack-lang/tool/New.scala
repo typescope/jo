@@ -2,7 +2,7 @@ package tool
 
 import java.nio.file.{Files, Path, Paths}
 
-import tool.template.{TemplateManifest, TemplateProvider, TemplateRef}
+import tool.template.{TemplateProvider, TemplateRef}
 
 /** Scaffolds a new Jo project in a fresh directory, either from a built-in
  *  scaffold (app / `--lib`) or from a third-party template repo
@@ -71,7 +71,10 @@ object New:
    *
    *  `resolveProvider` is injectable (defaults to `TemplateProvider.forHost`
    *  in [[run]]) so tests can substitute a `LocalTemplateProvider` fixture
-   *  without going through host parsing or the network at all.
+   *  without going through host parsing or the network at all. Template-name
+   *  resolution happens inside `provider.fetch` itself, against the same
+   *  fetch that pulls the files — not here — so a manifest can never be
+   *  validated against a different revision than what actually gets copied.
    */
   def scaffoldFromTemplate(
     name: String,
@@ -86,9 +89,7 @@ object New:
 
     for
       provider <- resolveProvider(ref.host)
-      entries  <- provider.manifest(ref.identifier, ref.gitref)
-      entry    <- TemplateManifest.resolve(entries, ref.name, ref.identifier)
-      _        <- provider.fetch(ref.identifier, ref.gitref, entry.path, dir)
+      _        <- provider.fetch(ref.identifier, ref.gitref, ref.name, dir)
     yield
       val source = ref.identifier + ref.name.map(n => s":$n").getOrElse("")
 
