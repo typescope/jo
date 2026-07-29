@@ -464,14 +464,14 @@ object Query:
 
   private def sourceLoc(sym: Symbol): Option[SourceLoc] =
     if sym.sourcePos == null then None
-    else Some(SourceLoc(sym.source.file, sym.sourcePos.startLine + 1))
+    else Some(SourceLoc(sym.source.file, sym.sourcePos.startLine + 1, sym.sourcePos.endLine + 1))
 
-  private case class SourceLoc(file: String, line: Int)
+  private case class SourceLoc(file: String, line: Int, end: Int)
 
   private def sourceJson(source: Option[SourceLoc]): String =
     source match
-      case Some(SourceLoc(file, line)) =>
-        s"""{ "file": ${JsonUtil.string(file)}, "line": $line }"""
+      case Some(SourceLoc(file, line, end)) =>
+        s"""{ "file": ${JsonUtil.string(file)}, "line": $line, "end": $end }"""
       case None =>
         "null"
 
