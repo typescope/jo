@@ -25,20 +25,21 @@ object DocQuery:
         nameTable.resolve(name)
 
       case name :: rest =>
-        nameTable.resolveContainer(name) match
-          case Some(sym) =>
+        val containerMatches =
+          nameTable.resolveContainer(name).toList.flatMap: sym =>
             resolveSymbol(sym.nameTable, rest)
 
-          case None =>
-            rest match
-              case memberName :: Nil =>
-                nameTable.resolveType(name) match
-                  case Some(sym) if sym.isOneOf(Flags.Class | Flags.Interface) =>
-                    sym.classInfo.getMemberSymbol(memberName).toList
+        val memberMatches =
+          rest match
+            case memberName :: Nil =>
+              nameTable.resolveType(name).toList.flatMap: sym =>
+                if sym.isOneOf(Flags.Class | Flags.Interface) then
+                  sym.classInfo.getMemberSymbol(memberName).toList
+                else Nil
 
-                  case _ => Nil
+            case _ => Nil
 
-              case _ => Nil
+        (containerMatches ++ memberMatches).distinct
 
   def filterUnits(sourceUnits: List[FileUnit], libraryUnits: List[FileUnit], filter: Filter)(using Reporter): List[FileUnit] =
     if filter.isEmpty then
