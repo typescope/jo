@@ -226,12 +226,10 @@ object Main:
       backend match
         case None =>
           backend = Some(next)
-        case Some(Backend.Doc) if next == Backend.Query =>
-          backend = Some(Backend.Query)
-        case Some(Backend.Query) if next == Backend.Doc =>
-        case Some(current) if current == next =>
         case Some(current) =>
-          System.err.println(s"Error: conflicting compile backends: ${current.toString.toLowerCase} and ${next.toString.toLowerCase}")
+          System.err.println(
+            s"Error: compile backend already selected: ${current.toString.toLowerCase}; cannot select ${next.toString.toLowerCase}"
+          )
           System.exit(1)
 
     while i < args.length do
