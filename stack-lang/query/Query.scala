@@ -7,6 +7,7 @@ import sast.Trees.*
 import sast.Types.*
 import sast.Denotations.*
 import sast.Flags
+import ast.Positions.Span
 
 import java.io.PrintWriter
 import java.nio.file.Paths
@@ -361,17 +362,17 @@ object Query:
 
   private def emitNamespace(unit: FileUnit, out: PrintWriter, indent: String)(using Definitions): Unit =
     val members = sortMembers(unit.defs.map(defn => defn: Def | FieldDecl))
-    emitSymbol(unit.owner, "namespace", "namespace " + unit.owner.fullName, Nil, members, out, indent)
+    emitSymbol(unit.owner, "namespace", "namespace " + unit.owner.fullName, Nil, members, sourceLoc(unit.owner), out, indent)
 
   private def emitDef(defn: Def, out: PrintWriter, indent: String)(using Definitions): Unit =
     val members = sortMembers(memberNodes(defn))
     val views = defn match
       case cd: ClassDef => cd.views.map(_.tpe.show)
       case _ => Nil
-    emitSymbol(defn.symbol, kind(defn), signature(defn), views, members, out, indent)
+    emitSymbol(defn.symbol, kind(defn), signature(defn), views, members, sourceLoc(defn.symbol, defn.span), out, indent)
 
   private def emitFieldDecl(field: FieldDecl, out: PrintWriter, indent: String)(using Definitions): Unit =
-    emitSymbol(field.symbol, "field", fieldSignature(field), Nil, Nil, out, indent)
+    emitSymbol(field.symbol, "field", fieldSignature(field), Nil, Nil, sourceLoc(field.symbol, field.span), out, indent)
 
   private def emitSymbol(
     sym: Symbol,
@@ -379,6 +380,7 @@ object Query:
     signature: String,
     views: List[String],
     members: List[Def | FieldDecl],
+    source: Option[SourceLoc],
     out: PrintWriter,
     indent: String,
   )(using Definitions): Unit =
@@ -387,7 +389,7 @@ object Query:
     emitField("name", JsonUtil.string(sym.fullName), out, next)
     emitField("kind", JsonUtil.string(kind), out, next)
     emitField("signature", JsonUtil.string(signature), out, next)
-    emitField("source", sourceJson(sourceLoc(sym)), out, next)
+    emitField("source", sourceJson(source), out, next)
     emitField("visibility", JsonUtil.string(visibility(sym)), out, next)
     emitField("flags", stringArray(Flags.flagStrings(sym.flags)), out, next)
     emitField("annotations", annotationsJson(sym), out, next)
@@ -465,6 +467,12 @@ object Query:
   private def sourceLoc(sym: Symbol): Option[SourceLoc] =
     if sym.sourcePos == null then None
     else Some(SourceLoc(sym.source.file, sym.sourcePos.startLine + 1, sym.sourcePos.endLine + 1))
+
+  private def sourceLoc(sym: Symbol, span: Span): Option[SourceLoc] =
+    if sym.sourcePos == null then None
+    else
+      val pos = span.toPos(using sym.source)
+      Some(SourceLoc(sym.source.file, pos.startLine + 1, pos.endLine + 1))
 
   private case class SourceLoc(file: String, line: Int, end: Int)
 
