@@ -60,6 +60,7 @@ Experimental.
 | Flag | Description |
 |------|-------------|
 | `--query <selectors>` | Query comma-separated symbols or source files and write a JSON array to stdout |
+| `--fields <fields>` | Select comma-separated query output fields (default: `name,signature,doc`) |
 
 Selectors may name symbols or source files with `file:<path>`.
 Symbol selectors are dot-separated names resolved from the root namespace, such
@@ -139,6 +140,12 @@ Query stdlib API information from SAST files only:
 
 ```sh
 jo compile --query jo.List.map
+```
+
+Select output fields:
+
+```sh
+jo compile --query jo.List.map --fields name,signature,source,doc
 ```
 
 Query a standard-library source file by basename:
