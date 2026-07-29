@@ -11,3 +11,10 @@ section Value
   //[ Create a value. //]
   def create: Value = new Value()
 end
+
+interface Tagged
+end
+
+class TaggedValue
+  view Tagged
+end

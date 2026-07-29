@@ -1,22 +1,12 @@
 [
   {
     "name": "DocQueryAPI.Box",
-    "kind": "class",
     "signature": "class Box",
-    "source": { "file": "tests/custom/doc-query/api.jo", "line": 42, "end": 51 },
-    "visibility": "public",
-    "flags": ["class"],
-    "annotations": [],
     "doc": "A small documented class.",
     "members": [
       {
         "name": "DocQueryAPI.Box.name",
-        "kind": "field",
         "signature": "val name: String",
-        "source": { "file": "tests/custom/doc-query/api.jo", "line": 44, "end": 44 },
-        "visibility": "public",
-        "flags": ["field"],
-        "annotations": [],
         "doc": "Stored display name."
       }
     ]

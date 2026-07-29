@@ -1,190 +1,100 @@
 [
   {
     "name": "DocQueryAPI",
-    "kind": "namespace",
     "signature": "namespace DocQueryAPI",
-    "source": { "file": "tests/custom/doc-query/api.jo", "line": 1, "end": 1 },
-    "visibility": "public",
-    "flags": ["namespace"],
-    "annotations": [],
     "doc": null,
     "members": [
       {
         "name": "DocQueryAPI.defaultLimit",
-        "kind": "param",
         "signature": "param defaultLimit: Int",
-        "source": { "file": "tests/custom/doc-query/api.jo", "line": 4, "end": 4 },
-        "visibility": "public",
-        "flags": ["context"],
-        "annotations": [],
         "doc": "Default limit used by context-aware helpers."
       },
       {
         "name": "DocQueryAPI.Path",
-        "kind": "type",
         "signature": "type Path = String",
-        "source": { "file": "tests/custom/doc-query/api.jo", "line": 7, "end": 7 },
-        "visibility": "public",
-        "flags": [],
-        "annotations": [],
         "doc": "File path alias used in host calls."
       },
       {
         "name": "DocQueryAPI.Positive",
-        "kind": "pattern",
         "signature": "pattern Positive(value: Int): Partial[Int] receives none",
-        "source": { "file": "tests/custom/doc-query/api.jo", "line": 10, "end": 11 },
-        "visibility": "public",
-        "flags": ["fun"],
-        "annotations": [],
         "doc": "Match positive integers."
       },
       {
         "name": "DocQueryAPI.HostOps",
-        "kind": "section",
         "signature": "section HostOps",
-        "source": { "file": "tests/custom/doc-query/api.jo", "line": 14, "end": 20 },
-        "visibility": "public",
-        "flags": ["section"],
-        "annotations": [],
         "doc": "Host-backed operations grouped in a section.",
         "members": [
           {
             "name": "DocQueryAPI.HostOps.remoteSize",
-            "kind": "def",
             "signature": "def remoteSize(path: Path): Int receives defaultLimit",
-            "source": { "file": "tests/custom/doc-query/api.jo", "line": 16, "end": 16 },
-            "visibility": "public",
-            "flags": ["defer", "fun"],
-            "annotations": [],
             "doc": "Return a remote file size."
           },
           {
             "name": "DocQueryAPI.HostOps.normalizeLimit",
-            "kind": "def",
             "signature": "def normalizeLimit(value: Int): Int receives defaultLimit",
-            "source": { "file": "tests/custom/doc-query/api.jo", "line": 19, "end": 20 },
-            "visibility": "public",
-            "flags": ["fun"],
-            "annotations": [],
             "doc": "Clamp a caller supplied limit."
           }
         ]
       },
       {
         "name": "DocQueryAPI.describe",
-        "kind": "def",
         "signature": "def describe[T](value: T)(auto show: Show[T] with [[T].toString]): String receives defaultLimit",
-        "source": { "file": "tests/custom/doc-query/api.jo", "line": 24, "end": 25 },
-        "visibility": "public",
-        "flags": ["fun"],
-        "annotations": [],
         "doc": "Render a value with auto formatting and context."
       },
       {
         "name": "DocQueryAPI.Singleton",
-        "kind": "class",
         "signature": "object Singleton",
-        "source": { "file": "tests/custom/doc-query/api.jo", "line": 28, "end": 30 },
-        "visibility": "public",
-        "flags": ["object", "class"],
-        "annotations": [],
         "doc": "Shared singleton helpers.",
         "members": [
           {
             "name": "DocQueryAPI.Singleton.<init>",
-            "kind": "constructor",
             "signature": "constructor(): Singleton receives none",
-            "source": { "file": "tests/custom/doc-query/api.jo", "line": 28, "end": 30 },
-            "visibility": "public",
-            "flags": ["fun", "method", "constructor"],
-            "annotations": [],
             "doc": null
           },
           {
             "name": "DocQueryAPI.Singleton.label",
-            "kind": "def",
             "signature": "def label(): String receives none",
-            "source": { "file": "tests/custom/doc-query/api.jo", "line": 30, "end": 30 },
-            "visibility": "public",
-            "flags": ["fun", "method"],
-            "annotations": [],
             "doc": "Return the singleton label."
           }
         ]
       },
       {
         "name": "DocQueryAPI.FileLike",
-        "kind": "class",
         "signature": "interface FileLike",
-        "source": { "file": "tests/custom/doc-query/api.jo", "line": 35, "end": 38 },
-        "visibility": "public",
-        "flags": ["interface"],
-        "annotations": [{ "name": "jo.py.interop", "args": [] }],
         "doc": "File operations exposed to a Python-backed host.",
         "members": [
           {
             "name": "DocQueryAPI.FileLike.readText",
-            "kind": "def",
             "signature": "def readText(path: String, limit: Int = 10): String receives none",
-            "source": { "file": "tests/custom/doc-query/api.jo", "line": 38, "end": 38 },
-            "visibility": "public",
-            "flags": ["defer", "fun", "method"],
-            "annotations": [{ "name": "jo.py.targetName", "args": ["read_text"] }],
             "doc": "Read a text file with an optional limit."
           }
         ]
       },
       {
         "name": "DocQueryAPI.Box",
-        "kind": "class",
         "signature": "class Box",
-        "source": { "file": "tests/custom/doc-query/api.jo", "line": 42, "end": 51 },
-        "visibility": "public",
-        "flags": ["class"],
-        "annotations": [],
         "doc": "A small documented class.",
         "members": [
           {
             "name": "DocQueryAPI.Box.name",
-            "kind": "field",
             "signature": "val name: String",
-            "source": { "file": "tests/custom/doc-query/api.jo", "line": 44, "end": 44 },
-            "visibility": "public",
-            "flags": ["field"],
-            "annotations": [],
             "doc": "Stored display name."
           },
           {
             "name": "DocQueryAPI.Box.<init>",
-            "kind": "constructor",
             "signature": "constructor(name: String): Box receives none",
-            "source": { "file": "tests/custom/doc-query/api.jo", "line": 47, "end": 48 },
-            "visibility": "public",
-            "flags": ["fun", "method", "constructor"],
-            "annotations": [],
             "doc": "Create a box with a name."
           },
           {
             "name": "DocQueryAPI.Box.label",
-            "kind": "def",
             "signature": "def label(prefix: String = \"box\"): String receives none",
-            "source": { "file": "tests/custom/doc-query/api.jo", "line": 51, "end": 51 },
-            "visibility": "public",
-            "flags": ["fun", "method"],
-            "annotations": [],
             "doc": "Render a label."
           }
         ]
       },
       {
         "name": "DocQueryAPI.helper",
-        "kind": "def",
         "signature": "def helper(value: Int): Int receives none",
-        "source": { "file": "tests/custom/doc-query/api.jo", "line": 55, "end": 55 },
-        "visibility": "public",
-        "flags": ["fun"],
-        "annotations": [],
         "doc": "Public helper."
       }
     ]
