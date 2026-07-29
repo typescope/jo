@@ -97,6 +97,7 @@ object Compiler:
           Nil
         else
           delayedUnits.forceIf: unit =>
+            filter.selectsFile(unit.sourceFile) ||
             filter.symbols.exists: querySymbol =>
               unit.owner.containedIn(querySymbol) || querySymbol.containedIn(unit.owner)
 

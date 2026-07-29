@@ -17,6 +17,9 @@ object DocQuery:
     def isEmpty: Boolean =
       files.isEmpty && symbols.isEmpty
 
+    def selectsFile(sourceFile: String): Boolean =
+      files.exists(file => matchesFile(sourceFile, file))
+
   def resolveSymbol(nameTable: NameTable, parts: List[String])(using Definitions): List[Symbol] =
     parts match
       case Nil => Nil
@@ -89,6 +92,8 @@ object DocQuery:
     val sourceNormalized = normalize(sourceFile)
     rawFile == sourceFile ||
     rawNormalized == sourceNormalized ||
+    (Paths.get(rawFile).getParent == null &&
+      Paths.get(sourceFile).getFileName == Paths.get(rawFile).getFileName) ||
     absolute(rawFile) == absolute(sourceFile)
 
   private def normalize(path: String): String =

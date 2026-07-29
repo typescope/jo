@@ -2,7 +2,7 @@
   {
     "name": "DocQueryCompanion.Value.label",
     "kind": "def",
-    "signature": "def label: String receives none",
+    "signature": "def label(): String receives none",
     "source": { "file": "tests/custom/doc-query/companion.jo", "line": 6 },
     "visibility": "public",
     "flags": ["fun", "method"],
