@@ -145,7 +145,7 @@ jo compile --query jo.List.map
 Select output fields:
 
 ```sh
-jo compile --query jo.List.map --fields name,signature,source,doc
+jo compile --query jo.List.map --fields name,signature,loc,doc
 ```
 
 Query a standard-library source file by basename:

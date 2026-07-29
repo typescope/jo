@@ -15,7 +15,7 @@ import scala.collection.mutable
 
 object Query:
   private val outputFields =
-    List("name", "kind", "signature", "source", "visibility", "flags", "annotations", "doc")
+    List("name", "kind", "signature", "loc", "visibility", "flags", "annotations", "doc")
 
   private val availableFields = outputFields.mkString(",")
 
@@ -413,7 +413,7 @@ object Query:
     if ctx.fields.contains("name") then entries += "name" -> JsonUtil.string(sym.fullName)
     if ctx.fields.contains("kind") then entries += "kind" -> JsonUtil.string(kind)
     if ctx.fields.contains("signature") then entries += "signature" -> JsonUtil.string(signature)
-    if ctx.fields.contains("source") then entries += "source" -> sourceJson(source)
+    if ctx.fields.contains("loc") then entries += "loc" -> sourceJson(source)
     if ctx.fields.contains("visibility") then entries += "visibility" -> JsonUtil.string(visibility(sym))
     if ctx.fields.contains("flags") then entries += "flags" -> stringArray(Flags.flagStrings(sym.flags))
     if ctx.fields.contains("annotations") then entries += "annotations" -> annotationsJson(sym)

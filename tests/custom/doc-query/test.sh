@@ -58,7 +58,7 @@ run_query --query "DocQueryAPI.*,DocQueryAPI.FileLike.readText" "$API_FILE" > "$
 run_query --query "file:$API_FILE" "$API_FILE" "$EXTRA_FILE" > "$DIR/file.json"
 run_query --query "file:$PROJECT_ROOT/$API_FILE" "$API_FILE" "$EXTRA_FILE" > "$DIR/file-absolute.json"
 run_query --query "DocQueryAPI.describe" "$API_FILE" > "$DIR/describe.json"
-run_query --query "DocQueryAPI.describe" --fields source,name "$API_FILE" > "$DIR/fields.json"
+run_query --query "DocQueryAPI.describe" --fields loc,name "$API_FILE" > "$DIR/fields.json"
 run_query --query "DocQueryAPI.Box.label" "$API_FILE" > "$DIR/exact-member.json"
 run_query --query "DocQueryAPI.FileLike.readText" "$API_FILE" > "$DIR/interface-member.json"
 run_query --query "DocQueryAPI.Box.name" "$API_FILE" > "$DIR/exact-field.json"
@@ -92,13 +92,13 @@ grep -q -- "No documentation entries match symbol selector" "$FAIL_LOG"
 
 expect_fail "$FAIL_LOG" run_query --query "DocQueryAPI.describe" --fields unknown "$API_FILE"
 grep -q -- "Unknown query field: unknown" "$FAIL_LOG"
-grep -q -- "Available fields: name,kind,signature,source,visibility,flags,annotations,doc" "$FAIL_LOG"
+grep -q -- "Available fields: name,kind,signature,loc,visibility,flags,annotations,doc" "$FAIL_LOG"
 
 expect_fail "$FAIL_LOG" run_query --query "DocQueryAPI.describe" --fields views "$API_FILE"
 grep -q -- "Unknown query field: views" "$FAIL_LOG"
 
 expect_fail "$FAIL_LOG" run_query --query "DocQueryAPI.describe" --fields , "$API_FILE"
 grep -q -- "Option --fields requires at least one field" "$FAIL_LOG"
-grep -q -- "Available fields: name,kind,signature,source,visibility,flags,annotations,doc" "$FAIL_LOG"
+grep -q -- "Available fields: name,kind,signature,loc,visibility,flags,annotations,doc" "$FAIL_LOG"
 
 echo "  ✓ All tests passed for $TEST_NAME"

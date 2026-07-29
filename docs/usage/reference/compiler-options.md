@@ -121,7 +121,7 @@ API libraries selected by `--use-runtime-api`, and any `--lib` paths.
 
 Query output includes public symbols only.
 Each symbol includes `name`, `signature`, and `doc` by default. Use
-`--fields` to select any combination of `name`, `kind`, `signature`, `source`,
+`--fields` to select any combination of `name`, `kind`, `signature`, `loc`,
 `visibility`, `flags`, `annotations`, and `doc`. Field order in the option does
 not affect JSON output order. Classes with views include `views` automatically.
 
