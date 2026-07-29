@@ -14,6 +14,21 @@ import java.nio.file.Paths
 import scala.collection.mutable
 
 object Query:
+  private val outputFields =
+    List("name", "kind", "signature", "source", "visibility", "flags", "annotations", "doc")
+
+  private val availableFields = outputFields.mkString(",")
+
+  def parseFields(rawFields: String)(using Reporter): Set[String] =
+    val fields = rawFields.split(",").map(_.trim).filter(_.nonEmpty).toSet
+    if fields.isEmpty then
+      Reporter.error(s"Option --fields requires at least one field. Available fields: $availableFields")
+
+    for field <- fields.diff(outputFields.toSet).toList.sorted do
+      Reporter.error(s"Unknown query field: $field. Available fields: $availableFields")
+
+    fields
+
   case class Filter(files: List[String], symbols: List[Symbol]):
     def isEmpty: Boolean =
       files.isEmpty && symbols.isEmpty
@@ -111,11 +126,17 @@ object Query:
         seen += unit
         true
 
-  def emitJson(units: List[FileUnit], filter: Filter, includePrivate: Boolean, out: PrintWriter)(using Reporter, Definitions): Unit =
+  def emitJson(
+    units: List[FileUnit],
+    filter: Filter,
+    fields: Set[String],
+    includePrivate: Boolean,
+    out: PrintWriter,
+  )(using Reporter, Definitions): Unit =
     val trimmedUnits = trimUnits(units, filter, includePrivate)
     val sortedTargets = sortRoots(jsonRoots(trimmedUnits, filter))
     out.println("[")
-    emitRootList(sortedTargets, out, "  ")
+    emitRootList(sortedTargets, fields, out, "  ")
     if sortedTargets.nonEmpty then out.println()
     out.println("]")
 
@@ -342,37 +363,47 @@ object Query:
     val line = source.map(_.line).getOrElse(0)
     (file, line, kind, sym.fullName)
 
-  private def emitRootList(roots: List[FileUnit | Def], out: PrintWriter, indent: String)(using Definitions): Unit =
+  private def emitRootList(
+    roots: List[FileUnit | Def],
+    fields: Set[String],
+    out: PrintWriter,
+    indent: String,
+  )(using Definitions): Unit =
     var first = true
     for root <- roots do
       if !first then out.println(",")
       first = false
       root match
-        case unit: FileUnit => emitNamespace(unit, out, indent)
-        case defn: Def      => emitDef(defn, out, indent)
+        case unit: FileUnit => emitNamespace(unit, fields, out, indent)
+        case defn: Def      => emitDef(defn, fields, out, indent)
 
-  private def emitMemberList(members: List[Def | FieldDecl], out: PrintWriter, indent: String)(using Definitions): Unit =
+  private def emitMemberList(
+    members: List[Def | FieldDecl],
+    fields: Set[String],
+    out: PrintWriter,
+    indent: String,
+  )(using Definitions): Unit =
     var first = true
     for member <- members do
       if !first then out.println(",")
       first = false
       member match
-        case defn: Def        => emitDef(defn, out, indent)
-        case field: FieldDecl => emitFieldDecl(field, out, indent)
+        case defn: Def        => emitDef(defn, fields, out, indent)
+        case field: FieldDecl => emitFieldDecl(field, fields, out, indent)
 
-  private def emitNamespace(unit: FileUnit, out: PrintWriter, indent: String)(using Definitions): Unit =
+  private def emitNamespace(unit: FileUnit, fields: Set[String], out: PrintWriter, indent: String)(using Definitions): Unit =
     val members = sortMembers(unit.defs.map(defn => defn: Def | FieldDecl))
-    emitSymbol(unit.owner, "namespace", "namespace " + unit.owner.fullName, Nil, members, sourceLoc(unit.owner), out, indent)
+    emitSymbol(unit.owner, "namespace", "namespace " + unit.owner.fullName, Nil, members, sourceLoc(unit.owner), fields, out, indent)
 
-  private def emitDef(defn: Def, out: PrintWriter, indent: String)(using Definitions): Unit =
+  private def emitDef(defn: Def, fields: Set[String], out: PrintWriter, indent: String)(using Definitions): Unit =
     val members = sortMembers(memberNodes(defn))
     val views = defn match
       case cd: ClassDef => cd.views.map(_.tpe.show)
       case _ => Nil
-    emitSymbol(defn.symbol, kind(defn), signature(defn), views, members, sourceLoc(defn.symbol, defn.span), out, indent)
+    emitSymbol(defn.symbol, kind(defn), signature(defn), views, members, sourceLoc(defn.symbol, defn.span), fields, out, indent)
 
-  private def emitFieldDecl(field: FieldDecl, out: PrintWriter, indent: String)(using Definitions): Unit =
-    emitSymbol(field.symbol, "field", fieldSignature(field), Nil, Nil, sourceLoc(field.symbol, field.span), out, indent)
+  private def emitFieldDecl(field: FieldDecl, fields: Set[String], out: PrintWriter, indent: String)(using Definitions): Unit =
+    emitSymbol(field.symbol, "field", fieldSignature(field), Nil, Nil, sourceLoc(field.symbol, field.span), fields, out, indent)
 
   private def emitSymbol(
     sym: Symbol,
@@ -381,26 +412,29 @@ object Query:
     views: List[String],
     members: List[Def | FieldDecl],
     source: Option[SourceLoc],
+    fields: Set[String],
     out: PrintWriter,
     indent: String,
   )(using Definitions): Unit =
     val next = indent + "  "
     out.println(indent + "{")
-    emitField("name", JsonUtil.string(sym.fullName), out, next)
-    emitField("kind", JsonUtil.string(kind), out, next)
-    emitField("signature", JsonUtil.string(signature), out, next)
-    emitField("source", sourceJson(source), out, next)
-    emitField("visibility", JsonUtil.string(visibility(sym)), out, next)
-    emitField("flags", stringArray(Flags.flagStrings(sym.flags)), out, next)
-    emitField("annotations", annotationsJson(sym), out, next)
-    emitField("doc", docs(sym).map(JsonUtil.string).getOrElse("null"), out, next, comma = views.nonEmpty || members.nonEmpty)
+    val entries = mutable.ArrayBuffer.empty[(String, String)]
+    if fields.contains("name") then entries += "name" -> JsonUtil.string(sym.fullName)
+    if fields.contains("kind") then entries += "kind" -> JsonUtil.string(kind)
+    if fields.contains("signature") then entries += "signature" -> JsonUtil.string(signature)
+    if fields.contains("source") then entries += "source" -> sourceJson(source)
+    if fields.contains("visibility") then entries += "visibility" -> JsonUtil.string(visibility(sym))
+    if fields.contains("flags") then entries += "flags" -> stringArray(Flags.flagStrings(sym.flags))
+    if fields.contains("annotations") then entries += "annotations" -> annotationsJson(sym)
+    if fields.contains("doc") then entries += "doc" -> docs(sym).map(JsonUtil.string).getOrElse("null")
+    if views.nonEmpty then entries += "views" -> stringArray(views)
 
-    if views.nonEmpty then
-      emitField("views", stringArray(views), out, next, comma = members.nonEmpty)
+    for ((name, value), index) <- entries.zipWithIndex do
+      emitField(name, value, out, next, comma = index < entries.size - 1 || members.nonEmpty)
 
     if members.nonEmpty then
       out.println(next + JsonUtil.string("members") + ": [")
-      emitMemberList(members, out, next + "  ")
+      emitMemberList(members, fields, out, next + "  ")
       out.println()
       out.println(next + "]")
 
@@ -512,7 +546,7 @@ object Query:
   private def stringArray(values: List[String]): String =
     values.map(JsonUtil.string).mkString("[", ", ", "]")
 
-  private def emitField(name: String, value: String, out: PrintWriter, indent: String, comma: Boolean = true): Unit =
+  private def emitField(name: String, value: String, out: PrintWriter, indent: String, comma: Boolean): Unit =
     out.print(indent)
     out.print(JsonUtil.string(name))
     out.print(": ")

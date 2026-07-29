@@ -13,8 +13,11 @@ object Compiler:
   val selectors: Config.StringSetting =
     Config.StringSetting("--query", "", "comma-separated documentation selectors")
 
+  val fields: Config.StringSetting =
+    Config.StringSetting("--fields", "name,signature,doc", "comma-separated query output fields")
+
   val queryOptions: List[cli.OptionParser.Setting[?]] =
-    selectors :: Config.commonOptions
+    selectors :: fields :: Config.commonOptions
 
   def main(args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
@@ -28,12 +31,14 @@ object Compiler:
       println()
       println("Options:")
       println("  --query <selectors>    Select symbols or source files, e.g. jo.List.map,file:Byte.jo")
+      println("  --fields <fields>      Select output fields (default: name,signature,doc)")
       System.exit(1)
 
     Reporter.monitor():
-      compile(queryText, sources)
+      val selectedFields = Query.parseFields(fields.value)
+      if !summon[Reporter].hasErrors then compile(queryText, selectedFields, sources)
 
-  def compile(queryText: String, sources: List[String])(using rp: Reporter, config: Config): Unit =
+  def compile(queryText: String, fields: Set[String], sources: List[String])(using rp: Reporter, config: Config): Unit =
     val rootNameTable = new NameTable
     given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
@@ -57,9 +62,9 @@ object Compiler:
     val filteredUnits = Query.filterUnits(units, libraryUnits, filter)
     if rp.hasErrors then return
 
-    writeJson(filteredUnits, filter)
+    writeJson(filteredUnits, filter, fields)
 
-  private def writeJson(units: List[FileUnit], filter: Query.Filter)(using Reporter, Definitions): Unit =
+  private def writeJson(units: List[FileUnit], filter: Query.Filter, fields: Set[String])(using Reporter, Definitions): Unit =
     val out = new PrintWriter(new OutputStreamWriter(System.out, StandardCharsets.UTF_8))
-    Query.emitJson(units, filter, false, out)
+    Query.emitJson(units, filter, fields, false, out)
     out.flush()
