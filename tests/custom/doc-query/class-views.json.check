@@ -7,7 +7,7 @@
     "members": [
       {
         "name": "DocQueryCompanion.TaggedValue.<init>",
-        "signature": "constructor(): TaggedValue receives none",
+        "signature": "def TaggedValue(): TaggedValue receives none",
         "doc": null
       }
     ]

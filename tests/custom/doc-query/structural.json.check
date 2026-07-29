@@ -48,7 +48,7 @@
         "members": [
           {
             "name": "DocQueryAPI.Singleton.<init>",
-            "signature": "constructor(): Singleton receives none",
+            "signature": "def Singleton(): Singleton receives none",
             "doc": null
           },
           {
@@ -82,7 +82,7 @@
           },
           {
             "name": "DocQueryAPI.Box.<init>",
-            "signature": "constructor(name: String): Box receives none",
+            "signature": "def Box(name: String): Box receives none",
             "doc": "Create a box with a name."
           },
           {

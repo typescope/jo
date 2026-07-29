@@ -615,7 +615,7 @@ object Query:
     if sym.is(Flags.Annotation) then
       "annotation " + sym.name + procSignature(fd).stripSuffix(": void receives none").stripSuffix(": void")
     else if sym.is(Flags.Constructor) then
-      "constructor" + procSignature(fd)
+      "def " + sym.owner.name + procSignature(fd)
     else
       "def " + sym.name + procSignature(fd)
 
