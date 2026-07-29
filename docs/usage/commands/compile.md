@@ -12,10 +12,12 @@ jo compile [--sast <dir>] <file.jo>... [--lib <dir>]...
 jo compile --python|--ruby|--js [--sast <dir>] <file.jo>... \
            [--lib <dir>]... [--link-lib <dir>]... [--link <src>=<tgt>]... -o <output>
 
-# Generate documentation from source files (experimental)
-jo compile --doc [--format html|json] [--query <selectors>] [--out <dir>] \
-           [--title <name>] [--readme <file>] [--include-private] \
-           [--include-source] [<file.jo>...]
+# Generate HTML documentation from source files (experimental)
+jo compile --doc [--out <dir>] [--title <name>] [--readme <file>] \
+           [--include-private] [--include-source] <file.jo>...
+
+# Query API information as JSON (experimental)
+jo compile --query <selectors> [<file.jo>...] [--lib <dir>]...
 ```
 
 Without a backend flag, the compiler type-checks only. With a backend flag, it produces an executable or script. `--sast <dir>` is optional in both cases — if present, `.sast` files are written to `<dir>` alongside the primary output.
@@ -44,24 +46,34 @@ Experimental.
 
 | Flag | Description |
 |------|-------------|
-| `--doc` | Generate documentation instead of normal compile output |
-| `--format html|json` | Documentation output format. Default: `html` |
-| `--query <selectors>` | Comma-separated JSON selectors, such as `MyAPI` or `file:src/API.jo`; implies `--format json` |
+| `--doc` | Generate HTML documentation instead of normal compile output |
 | `--out <dir>` | Documentation output directory |
 | `--title <name>` | Documentation title |
 | `--readme <file>` | Markdown file to use as the generated documentation home page |
 | `--include-private` | Include private symbols |
 | `--include-source` | Embed source code in output |
 
-`--format json` writes a JSON array to stdout. `--query` implies
-`--format json`. JSON output does not use `--out`.
-Without `--query`, JSON output contains the public API surface from the
-positional source files. With `--query`, selectors are comma-separated and may
-name symbols or source files with `file:<path>`.
-Symbol selectors are resolved from the language default scope; for example `~`
-is just an ordinary symbol query. A query may omit positional source files; in
-that case it searches the loaded SAST libraries, including stdlib unless
-`--no-stdlib` is set and any `--lib` paths.
+### Query
+
+Experimental.
+
+| Flag | Description |
+|------|-------------|
+| `--query <selectors>` | Query comma-separated symbols or source files and write a JSON array to stdout |
+
+Selectors may name symbols or source files with `file:<path>`.
+Symbol selectors are dot-separated names resolved from the root namespace, such
+as `jo.List.map`. Positional source files are optional. With no source files,
+the query searches the loaded SAST libraries, including stdlib, any `--lib`
+paths, and the runtime API selected by `--use-runtime-api`.
+
+A file selector may use the recorded source path, an absolute path, or a basename:
+
+```sh
+jo compile --query file:Byte.jo
+```
+
+Query output includes public symbols only.
 
 ### App compilation
 
@@ -117,22 +129,22 @@ jo compile --doc lib/Core.jo lib/List.jo \
   --title "Jo Standard Library"
 ```
 
-Emit machine-readable docs for a source file:
+Query selected symbols from source:
 
 ```sh
-jo compile --doc --format json src/API.jo
+jo compile --query 'MyAPI,jo.py' src/API.jo
 ```
 
-Emit machine-readable docs for selected symbols:
+Query stdlib API information from SAST files only:
 
 ```sh
-jo compile --doc --query 'MyAPI,jo.py' src/API.jo
+jo compile --query jo.List.map
 ```
 
-Query stdlib docs from SAST files only:
+Query a standard-library source file by basename:
 
 ```sh
-jo compile --doc --query jo.List
+jo compile --query file:Byte.jo
 ```
 
 ## Notes

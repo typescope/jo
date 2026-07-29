@@ -28,11 +28,13 @@ Backend selectors are handled before the shared compiler options are parsed.
 | `--ruby` | Compile a Ruby application. |
 | `--python` | Compile a Python application. |
 | `--js` | Compile a JavaScript application. Experimental. |
+| `--doc` | Generate HTML documentation from source files. Experimental. |
+| `--query <selectors>` | Query API information and write JSON to stdout. Experimental. |
 
 ## Common Options
 
 Common options are accepted by type-check-only compilation, app backend compilation,
-and experimental documentation generation.
+documentation generation, and API queries.
 
 | Option | Form | Description |
 |--------|------|-------------|
@@ -94,26 +96,29 @@ above plus these documentation-specific options.
 
 | Option | Form | Description |
 |--------|------|-------------|
-| `--format <html|json>` | single value | Documentation output format. Default: `html`. |
-| `--query <selectors>` | comma list | Select symbols or source files for JSON documentation output. Implies `--format json`. |
 | `--out <dir>` | single value | Documentation output directory. Default: `docs`. |
 | `--title <name>` | single value | Documentation title. Default: `API Documentation`. |
 | `--readme <file>` | single value | Markdown file to use as the generated documentation home page. |
 | `--include-private` | flag | Include private symbols. |
 | `--include-source` | flag | Embed source code in the generated documentation. |
 
-`--format json` writes a bare JSON array to stdout and rejects `--out`.
-`--query` implies `--format json`.
-Without `--query`, it emits the public API surface from the positional source
-files. `--query` accepts comma-separated selectors:
+Documentation output is always HTML.
+
+## Query Options
+
+`jo compile --query <selectors>` is an experimental API-query backend. It
+accepts common compiler options and optional positional source files, and writes
+a bare JSON array to stdout. Selectors are comma-separated:
 
 | Selector | Meaning |
 |----------|---------|
-| `<symbol>` | Symbol resolved from the language default scope. Aggregate symbols are emitted structurally with their members. |
-| `file:<path>` | Queryable symbols whose source file matches the path. |
+| `<symbol>` | Dot-separated symbol name resolved from the root namespace, such as `jo.List.map`. Aggregate symbols are emitted structurally with their members. |
+| `file:<path>` | Public symbols whose recorded source file matches the normalized path, absolute path, or basename. |
 
-When `--query` is present, positional source files are optional. With no source
-files, the query searches the loaded SAST libraries: stdlib by default, runtime
+Positional source files are optional. With no source files, the query searches
+the loaded SAST libraries: stdlib by default, runtime
 API libraries selected by `--use-runtime-api`, and any `--lib` paths.
+
+Query output includes public symbols only.
 
 Kind-qualified selectors such as `def:<symbol>` are reserved for future use.
