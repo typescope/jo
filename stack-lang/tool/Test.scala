@@ -632,12 +632,17 @@ private def runTemplateArchiveTests(): List[Path] =
 
   if failed then List(Paths.get("TemplateArchive")) else Nil
 
-// ---- GithubTemplateProvider suite (thin HTTP layer only — resolution and -----
-// ---- extraction logic are already covered above with no network involved) ----
+// ---- GithubTemplateProvider suite -------------------------------------------
+// Covers the thin HTTP/zip-fallback layer (resolution and extraction logic
+// are already covered above with no network involved) and the git-clone
+// path — the latter against a real local git repo fixture, since that's
+// what actually proves executable bits and symlinks survive.
 
 private def runGithubTemplateProviderTests(): List[Path] =
   import com.sun.net.httpserver.{HttpExchange, HttpServer}
   import java.net.InetSocketAddress
+  import java.nio.file.Paths
+  import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 
   var failed = false
 
@@ -691,7 +696,11 @@ private def runGithubTemplateProviderTests(): List[Path] =
 
   try
     val baseUrl = s"http://127.0.0.1:${server.getAddress.getPort}"
-    val provider = GithubTemplateProvider(baseUrl, baseUrl)
+    // gitAvailable = false so these checks deterministically exercise the
+    // zip fallback regardless of whether git happens to be on PATH in the
+    // environment running these tests (it is, in this repo's own dev/CI —
+    // that's exactly why the git path below needs its own forced-true case).
+    val provider = GithubTemplateProvider(baseUrl, baseUrl, gitAvailable = false)
 
     check("manifest: 200 response parses correctly"):
       provider.manifest("acme/repo", "HEAD") == Result.Ok(List(TemplateEntry("default", ".", None)))
@@ -714,7 +723,7 @@ private def runGithubTemplateProviderTests(): List[Path] =
         case _                => false
 
     check("manifest: connection failure is a fetch error, not a crash"):
-      val deadProvider = GithubTemplateProvider("http://127.0.0.1:1", "http://127.0.0.1:1")
+      val deadProvider = GithubTemplateProvider("http://127.0.0.1:1", "http://127.0.0.1:1", gitAvailable = false)
       deadProvider.manifest("acme/repo", "HEAD") match
         case Result.Err(msg) => msg.contains("failed to fetch")
         case _                => false
@@ -729,6 +738,54 @@ private def runGithubTemplateProviderTests(): List[Path] =
       provider.manifest("ac me/repo", "HEAD") match
         case Result.Err(msg) => msg.contains("invalid GitHub identifier")
         case _                => false
+
+    if !GithubTemplateProvider.detectGit() then
+      println("  skipped: git not on PATH (git-clone path checks)")
+    else
+      // A real local git repo, not a mock — only an actual `git checkout`
+      // proves executable bits and symlinks survive. cloneBaseUrl + owner/repo
+      // must line up with GithubTemplateProvider's "$cloneBaseUrl/$owner/$repo.git"
+      // URL construction, so the fixture path has to end in ".git" too.
+      val gitReposParent = Files.createTempDirectory("jo-template-git-test-")
+      val gitRepoDir = gitReposParent.resolve("acme").resolve("repo.git")
+      Files.createDirectories(gitRepoDir.resolve("bin"))
+      Files.writeString(gitRepoDir.resolve("bin/run"), "#!/bin/sh\necho hi\n")
+      Files.setPosixFilePermissions(gitRepoDir.resolve("bin/run"), PosixFilePermissions.fromString("rwxr-xr-x"))
+      Files.createSymbolicLink(gitRepoDir.resolve("run-link"), Paths.get("bin/run"))
+      Files.writeString(gitRepoDir.resolve("jo-templates.jsonl"), """{"name": "default", "path": "."}""" + "\n")
+
+      val gitSetup = runShellCmd(
+        "git init -q && git config user.email t@example.com && git config user.name Test " +
+          "&& git add -A && git commit -q -m init",
+        gitRepoDir,
+      )
+
+      val gitProvider = GithubTemplateProvider(
+        rawBaseUrl = baseUrl,
+        archiveBaseUrl = baseUrl,
+        cloneBaseUrl = gitReposParent.toString,
+        gitAvailable = true,
+      )
+
+      check("fetch (git): fixture repo committed cleanly"):
+        gitSetup.isInstanceOf[Result.Ok[?]]
+
+      check("fetch (git): clones, preserves the executable bit and the symlink, and strips .git"):
+        val dest = Files.createTempDirectory("jo-template-git-http-test-")
+        gitProvider.fetch("acme/repo", "HEAD", None, dest) match
+          case Result.Ok(_) =>
+            val executable = Files.getPosixFilePermissions(dest.resolve("bin/run")).contains(PosixFilePermission.OWNER_EXECUTE)
+            val link = dest.resolve("run-link")
+            val linkOk = Files.isSymbolicLink(link) && Files.readSymbolicLink(link) == Paths.get("bin/run")
+            val noGitMetadata = !Files.exists(dest.resolve(".git"))
+            executable && linkOk && noGitMetadata
+          case Result.Err(_) => false
+
+      check("fetch (git): a nonexistent repo is a clean error, not a crash"):
+        val dest = Files.createTempDirectory("jo-template-git-http-test-")
+        gitProvider.fetch("acme/does-not-exist", "HEAD", None, dest) match
+          case Result.Err(_) => true
+          case Result.Ok(_)  => false
 
   finally
     server.stop(0)

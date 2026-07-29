@@ -67,6 +67,11 @@ itself — gets copied into the scaffolded project, so keep any repo-only
 files (CI config, contributor docs) in a subdirectory instead if you don't
 want them showing up in generated projects.
 
+A template is fetched via `git` when it's available on `PATH` (executable
+bits and symlinks are preserved), falling back to a plain zip download
+otherwise (neither is preserved — `chmod +x` a script after scaffolding if
+you hit this).
+
 ## App Scaffold
 
 `jo new my-agent` prints:
