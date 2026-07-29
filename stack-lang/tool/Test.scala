@@ -739,53 +739,57 @@ private def runGithubTemplateProviderTests(): List[Path] =
         case Result.Err(msg) => msg.contains("invalid GitHub identifier")
         case _                => false
 
-    if !GithubTemplateProvider.detectGit() then
-      println("  skipped: git not on PATH (git-clone path checks)")
-    else
-      // A real local git repo, not a mock — only an actual `git checkout`
-      // proves executable bits and symlinks survive. cloneBaseUrl + owner/repo
-      // must line up with GithubTemplateProvider's "$cloneBaseUrl/$owner/$repo.git"
-      // URL construction, so the fixture path has to end in ".git" too.
-      val gitReposParent = Files.createTempDirectory("jo-template-git-test-")
-      val gitRepoDir = gitReposParent.resolve("acme").resolve("repo.git")
-      Files.createDirectories(gitRepoDir.resolve("bin"))
-      Files.writeString(gitRepoDir.resolve("bin/run"), "#!/bin/sh\necho hi\n")
-      Files.setPosixFilePermissions(gitRepoDir.resolve("bin/run"), PosixFilePermissions.fromString("rwxr-xr-x"))
-      Files.createSymbolicLink(gitRepoDir.resolve("run-link"), Paths.get("bin/run"))
-      Files.writeString(gitRepoDir.resolve("jo-templates.jsonl"), """{"name": "default", "path": "."}""" + "\n")
+    // `git` is assumed available, not merely probed for — this repo can't be
+    // built, tested, or even checked out without it, so any environment
+    // capable of running this suite already has it. If that assumption is
+    // ever wrong, these checks should fail loudly, not silently skip.
+    //
+    // A real local git repo, not a mock — only an actual `git checkout`
+    // proves executable bits and symlinks survive. cloneBaseUrl + owner/repo
+    // must line up with GithubTemplateProvider's "$cloneBaseUrl/$owner/$repo.git"
+    // URL construction, so the fixture path has to end in ".git" too.
+    val gitReposParent = Files.createTempDirectory("jo-template-git-test-")
+    val gitRepoDir = gitReposParent.resolve("acme").resolve("repo.git")
+    Files.createDirectories(gitRepoDir.resolve("bin"))
+    Files.writeString(gitRepoDir.resolve("bin/run"), "#!/bin/sh\necho hi\n")
+    Files.setPosixFilePermissions(gitRepoDir.resolve("bin/run"), PosixFilePermissions.fromString("rwxr-xr-x"))
+    Files.createSymbolicLink(gitRepoDir.resolve("run-link"), Paths.get("bin/run"))
+    Files.writeString(gitRepoDir.resolve("jo-templates.jsonl"), """{"name": "default", "path": "."}""" + "\n")
 
-      val gitSetup = runShellCmd(
-        "git init -q && git config user.email t@example.com && git config user.name Test " +
-          "&& git add -A && git commit -q -m init",
-        gitRepoDir,
-      )
+    val gitSetup = runShellCmd(
+      "git init -q && git config user.email t@example.com && git config user.name Test " +
+        "&& git add -A && git commit -q -m init",
+      gitRepoDir,
+    )
 
-      val gitProvider = GithubTemplateProvider(
-        rawBaseUrl = baseUrl,
-        archiveBaseUrl = baseUrl,
-        cloneBaseUrl = gitReposParent.toString,
-        gitAvailable = true,
-      )
+    val gitProvider = GithubTemplateProvider(
+      rawBaseUrl = baseUrl,
+      archiveBaseUrl = baseUrl,
+      cloneBaseUrl = gitReposParent.toString,
+      gitAvailable = true,
+    )
 
-      check("fetch (git): fixture repo committed cleanly"):
-        gitSetup.isInstanceOf[Result.Ok[?]]
+    check("fetch (git): fixture repo committed cleanly, with the executable bit and symlink actually set"):
+      gitSetup.isInstanceOf[Result.Ok[?]]
+        && Files.getPosixFilePermissions(gitRepoDir.resolve("bin/run")).contains(PosixFilePermission.OWNER_EXECUTE)
+        && Files.isSymbolicLink(gitRepoDir.resolve("run-link"))
 
-      check("fetch (git): clones, preserves the executable bit and the symlink, and strips .git"):
-        val dest = Files.createTempDirectory("jo-template-git-http-test-")
-        gitProvider.fetch("acme/repo", "HEAD", None, dest) match
-          case Result.Ok(_) =>
-            val executable = Files.getPosixFilePermissions(dest.resolve("bin/run")).contains(PosixFilePermission.OWNER_EXECUTE)
-            val link = dest.resolve("run-link")
-            val linkOk = Files.isSymbolicLink(link) && Files.readSymbolicLink(link) == Paths.get("bin/run")
-            val noGitMetadata = !Files.exists(dest.resolve(".git"))
-            executable && linkOk && noGitMetadata
-          case Result.Err(_) => false
+    check("fetch (git): clones, preserves the executable bit and the symlink, and strips .git"):
+      val dest = Files.createTempDirectory("jo-template-git-http-test-")
+      gitProvider.fetch("acme/repo", "HEAD", None, dest) match
+        case Result.Ok(_) =>
+          val executable = Files.getPosixFilePermissions(dest.resolve("bin/run")).contains(PosixFilePermission.OWNER_EXECUTE)
+          val link = dest.resolve("run-link")
+          val linkOk = Files.isSymbolicLink(link) && Files.readSymbolicLink(link) == Paths.get("bin/run")
+          val noGitMetadata = !Files.exists(dest.resolve(".git"))
+          executable && linkOk && noGitMetadata
+        case Result.Err(_) => false
 
-      check("fetch (git): a nonexistent repo is a clean error, not a crash"):
-        val dest = Files.createTempDirectory("jo-template-git-http-test-")
-        gitProvider.fetch("acme/does-not-exist", "HEAD", None, dest) match
-          case Result.Err(_) => true
-          case Result.Ok(_)  => false
+    check("fetch (git): a nonexistent repo is a clean error, not a crash"):
+      val dest = Files.createTempDirectory("jo-template-git-http-test-")
+      gitProvider.fetch("acme/does-not-exist", "HEAD", None, dest) match
+        case Result.Err(_) => true
+        case Result.Ok(_)  => false
 
   finally
     server.stop(0)
