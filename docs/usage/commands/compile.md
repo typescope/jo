@@ -132,7 +132,7 @@ jo compile --doc lib/Core.jo lib/List.jo \
 Query selected symbols from source:
 
 ```sh
-jo compile --query 'MyAPI,jo.py' src/API.jo
+jo compile --query 'MyAPI,jo.List' src/API.jo
 ```
 
 Query stdlib API information from SAST files only:
