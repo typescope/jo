@@ -1,0 +1,102 @@
+[
+  {
+    "name": "DocQueryAPI",
+    "signature": "namespace DocQueryAPI",
+    "doc": null,
+    "members": [
+      {
+        "name": "DocQueryAPI.defaultLimit",
+        "signature": "param defaultLimit: Int",
+        "doc": "Default limit used by context-aware helpers."
+      },
+      {
+        "name": "DocQueryAPI.Path",
+        "signature": "type Path = String",
+        "doc": "File path alias used in host calls."
+      },
+      {
+        "name": "DocQueryAPI.Positive",
+        "signature": "pattern Positive(value: Int): Partial[Int] receives none",
+        "doc": "Match positive integers."
+      },
+      {
+        "name": "DocQueryAPI.HostOps",
+        "signature": "section HostOps",
+        "doc": "Host-backed operations grouped in a section.",
+        "members": [
+          {
+            "name": "DocQueryAPI.HostOps.remoteSize",
+            "signature": "def remoteSize(path: Path): Int receives defaultLimit",
+            "doc": "Return a remote file size."
+          },
+          {
+            "name": "DocQueryAPI.HostOps.normalizeLimit",
+            "signature": "def normalizeLimit(value: Int): Int receives defaultLimit",
+            "doc": "Clamp a caller supplied limit."
+          }
+        ]
+      },
+      {
+        "name": "DocQueryAPI.describe",
+        "signature": "def describe[T](value: T)(auto show: Show[T] with [[T].toString]): String receives defaultLimit",
+        "doc": "Render a value with auto formatting and context."
+      },
+      {
+        "name": "DocQueryAPI.Singleton",
+        "signature": "object Singleton",
+        "doc": "Shared singleton helpers.",
+        "members": [
+          {
+            "name": "DocQueryAPI.Singleton.<init>",
+            "signature": "def Singleton(): Singleton receives none",
+            "doc": null
+          },
+          {
+            "name": "DocQueryAPI.Singleton.label",
+            "signature": "def label(): String receives none",
+            "doc": "Return the singleton label."
+          }
+        ]
+      },
+      {
+        "name": "DocQueryAPI.FileLike",
+        "signature": "interface FileLike",
+        "doc": "File operations exposed to a Python-backed host.",
+        "members": [
+          {
+            "name": "DocQueryAPI.FileLike.readText",
+            "signature": "def readText(path: String, limit: Int = 10): String receives none",
+            "doc": "Read a text file with an optional limit."
+          }
+        ]
+      },
+      {
+        "name": "DocQueryAPI.Box",
+        "signature": "class Box",
+        "doc": "A small documented class.",
+        "members": [
+          {
+            "name": "DocQueryAPI.Box.name",
+            "signature": "val name: String",
+            "doc": "Stored display name."
+          },
+          {
+            "name": "DocQueryAPI.Box.<init>",
+            "signature": "def Box(name: String): Box receives none",
+            "doc": "Create a box with a name."
+          },
+          {
+            "name": "DocQueryAPI.Box.label",
+            "signature": "def label(prefix: String = \"box\"): String receives none",
+            "doc": "Render a label."
+          }
+        ]
+      },
+      {
+        "name": "DocQueryAPI.helper",
+        "signature": "def helper(value: Int): Int receives none",
+        "doc": "Public helper."
+      }
+    ]
+  }
+]

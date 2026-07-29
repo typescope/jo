@@ -1,0 +1,15 @@
+[
+  {
+    "name": "DocQueryCompanion.TaggedValue",
+    "signature": "class TaggedValue",
+    "doc": null,
+    "views": ["Tagged"],
+    "members": [
+      {
+        "name": "DocQueryCompanion.TaggedValue.<init>",
+        "signature": "def TaggedValue(): TaggedValue receives none",
+        "doc": null
+      }
+    ]
+  }
+]

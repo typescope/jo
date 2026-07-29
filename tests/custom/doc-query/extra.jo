@@ -1,0 +1,4 @@
+namespace DocQueryExtra
+
+//[ Extra documented value used to exercise file selector filtering. //]
+def extraValue: Int = 7

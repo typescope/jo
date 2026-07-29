@@ -1,0 +1,7 @@
+[
+  {
+    "name": "DocQueryAPI.describe",
+    "signature": "def describe[T](value: T)(auto show: Show[T] with [[T].toString]): String receives defaultLimit",
+    "doc": "Render a value with auto formatting and context."
+  }
+]

@@ -1,7 +1,7 @@
 package doc
 
 import sast.*
-
+import sast.Trees.FileUnit
 import typing.Typer
 import reporting.Reporter
 import reporting.Config
@@ -26,6 +26,8 @@ object Compiler:
 
     val (config, sources) = cli.OptionParser.parseConfig(args, docOptions)
 
+    given Config = config
+
     if sources.isEmpty then
       println("Usage: jo doc <sources...> [options]")
       println()
@@ -37,10 +39,7 @@ object Compiler:
       println()
       println("Examples:")
       println("  jo doc lib/Core.jo lib/List.jo --out site/api")
-      println("  jo doc src/main.jo --out docs --title MyProject")
-      return
-
-    given Config = config
+      System.exit(1)
 
     Reporter.monitor():
       compile(sources)
@@ -53,12 +52,12 @@ object Compiler:
     // Parse and type check
     val (units, _) = sources |> Typer.parseStep |> Typer.typeStep
 
-    if rp.hasErrors then
-      println("Errors occurred during type checking. Documentation not generated.")
-      return
+    if rp.hasErrors then return
 
-    given Definitions = lazyDefn.value
+    given defn: Definitions = lazyDefn.value
+    generateHtmlDoc(units)
 
+  def generateHtmlDoc(units: List[FileUnit])(using Config, Definitions): Unit =
     val outputPath = Paths.get(outputDir.value)
     val includePrivateVal = includePrivate.value
 

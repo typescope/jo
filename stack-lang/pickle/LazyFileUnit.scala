@@ -17,6 +17,7 @@ import scala.collection.mutable
  */
 class LazyFileUnit(
   val owner: Symbol,
+  val sourceFile: String,
   private val accessed: java.util.concurrent.atomic.AtomicBoolean,
   private val delayed: () => FileUnit
 ):

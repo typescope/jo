@@ -28,11 +28,13 @@ Backend selectors are handled before the shared compiler options are parsed.
 | `--ruby` | Compile a Ruby application. |
 | `--python` | Compile a Python application. |
 | `--js` | Compile a JavaScript application. Experimental. |
+| `--doc` | Generate HTML documentation from source files. Experimental. |
+| `--query <selectors>` | Query API information and write JSON to stdout. Experimental. |
 
 ## Common Options
 
 Common options are accepted by type-check-only compilation, app backend compilation,
-and experimental documentation generation.
+documentation generation, and API queries.
 
 | Option | Form | Description |
 |--------|------|-------------|
@@ -99,3 +101,28 @@ above plus these documentation-specific options.
 | `--readme <file>` | single value | Markdown file to use as the generated documentation home page. |
 | `--include-private` | flag | Include private symbols. |
 | `--include-source` | flag | Embed source code in the generated documentation. |
+
+Documentation output is always HTML.
+
+## Query Options
+
+`jo compile --query <selectors>` is an experimental API-query backend. It
+accepts common compiler options and optional positional source files, and writes
+a bare JSON array to stdout. Selectors are comma-separated:
+
+| Selector | Meaning |
+|----------|---------|
+| `<symbol>` | Dot-separated symbol name resolved from the root namespace, such as `jo.List.map`. Aggregate symbols are emitted structurally with their members. |
+| `file:<path>` | Public symbols whose recorded source file matches the normalized path, absolute path, or basename. |
+
+Positional source files are optional. With no source files, the query searches
+the loaded SAST libraries: stdlib by default, runtime
+API libraries selected by `--use-runtime-api`, and any `--lib` paths.
+
+Query output includes public symbols only.
+Each symbol includes `name`, `signature`, and `doc` by default. Use
+`--fields` to select any combination of `name`, `kind`, `signature`, `loc`,
+`visibility`, `flags`, `annotations`, and `doc`. Field order in the option does
+not affect JSON output order. Classes with views include `views` automatically.
+
+Kind-qualified selectors such as `def:<symbol>` are reserved for future use.

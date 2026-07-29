@@ -1,0 +1,7 @@
+[
+  {
+    "name": "DocQueryCompanion.Value.label",
+    "signature": "def label(): String receives none",
+    "doc": "Return the value label."
+  }
+]

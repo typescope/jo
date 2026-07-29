@@ -1,0 +1,7 @@
+[
+  {
+    "name": "DocQueryAPI.Box.label",
+    "signature": "def label(prefix: String = \"box\"): String receives none",
+    "doc": "Render a label."
+  }
+]

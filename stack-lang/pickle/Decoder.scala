@@ -185,7 +185,7 @@ object Decoder:
 
       FileUnit(owner, imports, members, source)
 
-    LazyFileUnit(owner, state.accessed, delayed)
+    LazyFileUnit(owner, source.file, state.accessed, delayed)
 
   /** Decode all imports for a file unit */
   private def decodeImports

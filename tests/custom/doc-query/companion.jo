@@ -1,0 +1,20 @@
+namespace DocQueryCompanion
+
+//[ A value with instance operations. //]
+class Value
+  //[ Return the value label. //]
+  def label: String = "value"
+end
+
+//[ Companion operations for values. //]
+section Value
+  //[ Create a value. //]
+  def create: Value = new Value()
+end
+
+interface Tagged
+end
+
+class TaggedValue
+  view Tagged
+end

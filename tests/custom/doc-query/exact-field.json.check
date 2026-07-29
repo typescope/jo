@@ -1,0 +1,14 @@
+[
+  {
+    "name": "DocQueryAPI.Box",
+    "signature": "class Box",
+    "doc": "A small documented class.",
+    "members": [
+      {
+        "name": "DocQueryAPI.Box.name",
+        "signature": "val name: String",
+        "doc": "Stored display name."
+      }
+    ]
+  }
+]

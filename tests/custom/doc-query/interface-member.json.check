@@ -1,0 +1,7 @@
+[
+  {
+    "name": "DocQueryAPI.FileLike.readText",
+    "signature": "def readText(path: String, limit: Int = 10): String receives none",
+    "doc": "Read a text file with an optional limit."
+  }
+]
