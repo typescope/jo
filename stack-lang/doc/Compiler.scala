@@ -2,7 +2,6 @@ package doc
 
 import sast.*
 import sast.Trees.FileUnit
-
 import typing.Typer
 import reporting.Reporter
 import reporting.Config
@@ -18,18 +17,9 @@ object Compiler:
   val readme: Config.StringSetting = Config.StringSetting("--readme", "", "markdown file to use as home page")
   val includePrivate: Config.BooleanSetting = Config.BooleanSetting("--include-private", false, "include private symbols")
   val includeSource: Config.BooleanSetting = Config.BooleanSetting("--include-source", false, "embed source code")
-  val format: Config.StringSetting = DocFormatSetting("--format", "html", "documentation output format: html or json")
-  val query: Config.StringSetting = Config.StringSetting("--query", "", "comma-separated documentation selectors for JSON output")
 
   val docOptions: List[cli.OptionParser.Setting[?]] =
-    outputDir :: title :: readme :: includePrivate :: includeSource :: format :: query :: Config.commonOptions
-
-  class DocFormatSetting(flag: String, default: String, desc: String)
-  extends Config.StringSetting(flag, default, desc):
-    override def validate()(using cf: Config, rp: Reporter): Unit =
-      val fmt = value
-      if fmt != "html" && fmt != "json" then
-        rp.error(s"Option $flag must be one of: html, json")
+    outputDir :: title :: readme :: includePrivate :: includeSource :: Config.commonOptions
 
   def main(args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
@@ -38,20 +28,17 @@ object Compiler:
 
     given Config = config
 
-    if sources.isEmpty && query.value.trim.isEmpty then
+    if sources.isEmpty then
       println("Usage: jo doc <sources...> [options]")
       println()
       println("Options:")
       println("  --out <dir>            Output directory (default: docs)")
       println("  --title <name>         Project title for documentation")
-      println("  --format <html|json>   Output format (default: html)")
-      println("  --query <selectors>    JSON selectors, e.g. jo.py,file:src/API.jo")
       println("  --include-private      Include private symbols")
       println("  --include-source       Embed source code in output")
       println()
       println("Examples:")
       println("  jo doc lib/Core.jo lib/List.jo --out site/api")
-      println("  jo doc --query jo.List")
       System.exit(1)
 
     Reporter.monitor():
@@ -61,54 +48,14 @@ object Compiler:
   def compile(sources: List[String])(using rp: Reporter, config: Config): Unit =
     val rootNameTable = new NameTable
     given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
-    val queryText = query.value.trim
-    val jsonOutput = format.value == "json" || queryText.nonEmpty
-
-    def writeJson(units: List[FileUnit], filter: DocQuery.Filter)(using Definitions): Unit =
-      val out = new PrintWriter(new OutputStreamWriter(System.out, StandardCharsets.UTF_8))
-      DocQuery.emitJson(units, filter, includePrivate.value, out)
-      out.flush()
-
-    if jsonOutput && sources.isEmpty && Config.libPaths.value.isEmpty then
-      if outputDir.value != outputDir.default then
-        Reporter.error("--out is only supported with --format html")
-        return
-
-      DocQuery.reportNoMatches(queryText)
-      return
 
     // Parse and type check
-    val (units, delayedUnits) = sources |> Typer.parseStep |> Typer.typeStep
+    val (units, _) = sources |> Typer.parseStep |> Typer.typeStep
 
     if rp.hasErrors then return
 
     given defn: Definitions = lazyDefn.value
-
-    if jsonOutput then
-      if outputDir.value != outputDir.default then
-        Reporter.error("--out is only supported with --format html")
-        return
-
-      val filter = DocQuery.parse(queryText, defn.rootNameTable)
-      if rp.hasErrors then return
-
-      val libraryUnits =
-        if queryText.isEmpty then
-          Nil
-        else
-          delayedUnits.forceIf: unit =>
-            filter.selectsFile(unit.sourceFile) ||
-            filter.symbols.exists: querySymbol =>
-              unit.owner.containedIn(querySymbol) || querySymbol.containedIn(unit.owner)
-
-          delayedUnits.force()
-
-      val filteredUnits = DocQuery.filterUnits(units, libraryUnits, filter)
-      if rp.hasErrors then return
-      writeJson(filteredUnits, filter)
-
-    else
-      generateHtmlDoc(units)
+    generateHtmlDoc(units)
 
   def generateHtmlDoc(units: List[FileUnit])(using Config, Definitions): Unit =
     val outputPath = Paths.get(outputDir.value)

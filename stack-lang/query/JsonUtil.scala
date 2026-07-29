@@ -1,4 +1,4 @@
-package doc
+package query
 
 import java.io.PrintWriter
 

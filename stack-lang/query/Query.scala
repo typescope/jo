@@ -1,4 +1,4 @@
-package doc
+package query
 
 import reporting.Reporter
 import sast.*
@@ -12,7 +12,7 @@ import java.io.PrintWriter
 import java.nio.file.Paths
 import scala.collection.mutable
 
-object DocQuery:
+object Query:
   case class Filter(files: List[String], symbols: List[Symbol]):
     def isEmpty: Boolean =
       files.isEmpty && symbols.isEmpty

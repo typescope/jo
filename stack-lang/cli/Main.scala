@@ -120,6 +120,7 @@ object Main:
           case Some(backend) =>
             backend match
               case Backend.Doc            => doc.Compiler.main(flags.args)
+              case Backend.Query          => query.Compiler.main(flags.args)
               case Backend.Ruby           => ruby.Compiler.main(flags.args)
               case Backend.Python         => python.Compiler.main(flags.args)
               case Backend.JS             => js.Compiler.main(flags.args)
@@ -203,6 +204,7 @@ object Main:
 
   enum Backend:
     case Doc
+    case Query
     case Ruby
     case Python
     case JS
@@ -220,30 +222,47 @@ object Main:
     var remaining = List.empty[String]
     var i = 0
 
+    def selectBackend(next: Backend): Unit =
+      backend match
+        case None =>
+          backend = Some(next)
+        case Some(Backend.Doc) if next == Backend.Query =>
+          backend = Some(Backend.Query)
+        case Some(Backend.Query) if next == Backend.Doc =>
+        case Some(current) if current == next =>
+        case Some(current) =>
+          System.err.println(s"Error: conflicting compile backends: ${current.toString.toLowerCase} and ${next.toString.toLowerCase}")
+          System.exit(1)
+
     while i < args.length do
       args(i) match
         case "--doc" =>
-          backend = Some(Backend.Doc)
+          selectBackend(Backend.Doc)
+          i += 1
+
+        case "--query" =>
+          selectBackend(Backend.Query)
+          remaining = remaining :+ args(i)
           i += 1
 
         case "--ruby" =>
-          backend = Some(Backend.Ruby)
+          selectBackend(Backend.Ruby)
           i += 1
 
         case "--python" =>
-          backend = Some(Backend.Python)
+          selectBackend(Backend.Python)
           i += 1
 
         case "--js" =>
-          backend = Some(Backend.JS)
+          selectBackend(Backend.JS)
           i += 1
 
         case "--stack" =>
-          backend = Some(Backend.LinuxX86Stack)
+          selectBackend(Backend.LinuxX86Stack)
           i += 1
 
         case "--reg" =>
-          backend = Some(Backend.LinuxX86Reg)
+          selectBackend(Backend.LinuxX86Reg)
           i += 1
 
         case other =>
@@ -274,7 +293,8 @@ object Main:
       |  jo versions use <version>              Switch the active compiler version
       |  jo versions remove <version>           Remove an installed compiler version
       |  jo compile [options] <source.jo>       Compile application or library
-      |  jo compile --doc [options] [files...] Generate documentation from source files or queried SAST libraries
+      |  jo compile --query <selectors> [files...] Query documentation from source files or SAST libraries
+      |  jo compile --doc [options] <files...>  Generate HTML documentation from source files
       |  jo doc [module]                        Generate module documentation
       |  jo help                                Show this help message
       |
