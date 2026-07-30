@@ -274,6 +274,16 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     def apply(sym: Symbol): Int = slot(sym)
     def contains(sym: Symbol): Boolean = slot.contains(sym)
 
+    /** Total local-variable slots handed out so far. `CodeWriter` computes
+      * `max_locals` from observed `iload`/`istore`/etc. references only, so
+      * a trailing parameter that's never read in the body (e.g. an
+      * intentionally unused one) would otherwise leave `max_locals` too
+      * small for the method descriptor — the JVM's own "arguments can't fit
+      * into locals" `ClassFormatError`. Callers touch this many slots
+      * explicitly right after binding parameters to rule that out.
+      */
+    def used: Int = next
+
   //----------------------------------------------------------------------------
   // Per-method compilation context
   //----------------------------------------------------------------------------
@@ -304,11 +314,13 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     val slots = new Slots
 
     for param <- fdef.allParams do slots.bind(param, jvmType(param.tpe))
-    for local <- fdef.locals do slots.bind(local, jvmType(local.tpe))
+    if slots.used > 0 then cw.touchLocal(slots.used - 1) // see Slots.used
+    val localTypes = for local <- fdef.locals yield local -> slots.bind(local, jvmType(local.tpe))
 
     val resType = jvmType(procType.resultType)
     given MethodCtx = new MethodCtx(cw, slots, resType, selfSym = None)
 
+    emitLocalDefaults(localTypes, cw)
     compile(fdef.body)
     // A `Bottom`-returning body ends in a genuine non-returning instruction
     // (currently always `athrow`, via `throwAny`); emitting a trailing
@@ -326,6 +338,27 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       case r if isIntCat(r) => ctx.cw.ireturn()
       case Ref(_) => ctx.cw.areturn()
       case J | F => throw new Exception("long/float return not supported in this prototype")
+
+  /** Zero-initialize every local at method entry.
+    *
+    * The JVM's legacy verifier (see the class-file-version note on
+    * `ClassFile`) requires every local slot to be definitely assigned along
+    * *every* path reaching a read of it — including a loop's back edge.
+    * `TailCallOpt`'s `_tco_result` accumulator, for one, is only assigned
+    * on some loop iterations' control paths (the "still recursing" path
+    * doesn't touch it), so without this the verifier sees it as possibly
+    * uninitialized at the loop header and rejects the method. Zero-filling
+    * every local up front — the same fix `javac`/`scalac` apply for `var x
+    * = _` locals — makes every incoming edge agree the slot holds *some*
+    * value of the right category before the body ever runs.
+    */
+  private def emitLocalDefaults(locals: List[(Symbol, Int)], cw: CodeWriter): Unit =
+    for (local, slot) <- locals do
+      jvmType(local.tpe) match
+        case V => ()
+        case t if isIntCat(t) => cw.iconst(0); storeLocal(t, slot, cw)
+        case t @ Ref(_) => cw.aconstNull(); storeLocal(t, slot, cw)
+        case J | F => throw new Exception("long/float locals not supported in this prototype")
 
   //----------------------------------------------------------------------------
   // Lambda-lifted class compilation (ElimCapture output)
@@ -364,6 +397,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
     val ctorParams = fdef.params // constructor's own explicit params are the field values
     for p <- ctorParams do slots.bind(p, jvmType(p.tpe))
+    if slots.used > 0 then cw.touchLocal(slots.used - 1) // see Slots.used
 
     cw.aload(0)
     cw.invokespecial(ObjectClass, Names.Constructor, "()V")
@@ -398,11 +432,13 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     val slots = new Slots
     slots.bind(cdef.self, Ref(ObjectDesc))
     for param <- fdef.allParams do slots.bind(param, jvmType(param.tpe))
-    for local <- fdef.locals do slots.bind(local, jvmType(local.tpe))
+    if slots.used > 0 then cw.touchLocal(slots.used - 1) // see Slots.used
+    val localTypes = for local <- fdef.locals yield local -> slots.bind(local, jvmType(local.tpe))
 
     val resType = jvmType(procType.resultType)
     given MethodCtx = new MethodCtx(cw, slots, resType, selfSym = Some(cdef.self))
 
+    emitLocalDefaults(localTypes, cw)
     compile(fdef.body)
     emitReturn(resType)
 
@@ -439,8 +475,9 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       adaptTo(Ref(ObjectDesc), pt, cw)
       storeLocal(pt, s, cw)
 
-    for local <- fdef.locals do slots.bind(local, jvmType(local.tpe))
+    val localTypes = for local <- fdef.locals yield local -> slots.bind(local, jvmType(local.tpe))
 
+    emitLocalDefaults(localTypes, cw)
     compile(fdef.body)
     // Box the natural result up to Object for the uniform `apply` signature.
     if resType == V then cw.aconstNull() else adaptTo(resType, Ref(ObjectDesc), cw)
@@ -470,7 +507,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
       case FieldAssign(Select(qual, name), rhs) =>
         compile(qual)
-        val owner = internalNameOf(jvmType(qual.tpe))
+        val owner = fieldOwnerName(qual)
         val fdesc = descOf(jvmType(rhs.tpe))
         compile(rhs)
         ctx.cw.putfield(owner, name, fdesc)
@@ -519,11 +556,25 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
         // A bare field read (not part of an Apply's function position), e.g.
         // a lifted lambda reading one of its captured fields.
         compile(qual)
-        val owner = internalNameOf(jvmType(qual.tpe))
+        val owner = fieldOwnerName(qual)
         ctx.cw.getfield(owner, name, descOf(jvmType(sel.tpe)))
 
       case other =>
         throw new Exception("JVM backend prototype: unsupported node " + other.getClass.getSimpleName + " -- " + other.show)
+
+  /** The JVM owner class for a field access. `jvmType`'s "erase everything
+    * non-primitive to Object" rule (right for method params/results, which
+    * this backend dispatches by symbol, not by the JVM's own type system)
+    * is wrong here: `getfield`/`putfield` need the *exact* declaring class.
+    * Fields are currently only reachable on `self` (a lambda reading/
+    * writing one of its own captured-variable fields) — general field
+    * access on an arbitrary object needs full class support (see "Known
+    * limitations" in docs/jips/jvm-backend.md) and isn't handled yet.
+    */
+  private def fieldOwnerName(qual: Word)(using ctx: MethodCtx): String =
+    qual match
+      case Ident(sym) if ctx.selfSym.contains(sym) => classSimpleName(sym.owner)
+      case _ => internalNameOf(jvmType(qual.tpe))
 
   /** Compile a sub-expression using an already-open CodeWriter/Slots without
     * needing a full MethodCtx (used by the constructor emitter, which has a
@@ -564,13 +615,21 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     ctx.cw.ifeq(if hasElse then elseL else endL)
     val afterCond = ctx.cw.currentStack
     compile(thenp)
-    adaptTo(jvmType(thenp.tpe), resultType, ctx.cw)
+    // A `Bottom`-typed branch (e.g. ending in `abort(...)`) never actually
+    // reaches `endL` — it always ends in its own terminal instruction
+    // (`athrow`/a function `return`) first. Adapting its value or jumping
+    // to the merge point anyway would be dead code that disagrees with the
+    // other branch about the stack depth/contents at `endL`, which the
+    // verifier rejects even though that disagreement can never be observed
+    // at runtime.
+    val thenTerminal = thenp.tpe.isBottomType
+    if !thenTerminal then adaptTo(jvmType(thenp.tpe), resultType, ctx.cw)
     if hasElse then
-      ctx.cw.gotoL(endL)
+      if !thenTerminal then ctx.cw.gotoL(endL)
       ctx.cw.mark(elseL)
       ctx.cw.setStack(afterCond)
       compile(elsep)
-      adaptTo(jvmType(elsep.tpe), resultType, ctx.cw)
+      if !elsep.tpe.isBottomType then adaptTo(jvmType(elsep.tpe), resultType, ctx.cw)
     ctx.cw.mark(endL)
 
   private def compileWhile(cond: Word, body: Word)(using ctx: MethodCtx): Unit =
@@ -650,6 +709,12 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       compile(args.head)
       ctx.cw.checkcast(ThrowableClass)
       ctx.cw.athrow()
+
+    else if sym == defn.jo_pass then
+      () // Unit's only value maps to V (nothing) in this backend, same as
+         // any other Unit-typed expression — nothing to push. `adaptTo`
+         // already knows how to widen a V into a real Object (aconst_null)
+         // wherever a caller needs the Unit value as data.
 
     else if runtime.nativeSpec(sym).isDefined then
       compileNativeCall(runtime.nativeSpec(sym).get, args)
@@ -812,7 +877,12 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
         cw.iconst(0xFF); cw.iand()
       case "toString" =>
         val (owner, desc) =
-          if qt == C then ("java/lang/Character", "(C)Ljava/lang/String;")
+          // Character.toString(char) truncates to 16 bits — wrong for Jo's
+          // Char, a full Unicode code point (up to 0x10FFFF, e.g. emoji).
+          // Character.toString(int codePoint) (Java 11+) handles the full
+          // range correctly, including encoding a supplementary character
+          // as a surrogate pair.
+          if qt == C then ("java/lang/Character", "(I)Ljava/lang/String;")
           else if qt == Z then ("java/lang/Boolean", "(Z)Ljava/lang/String;")
           else if qt == B then ("java/lang/Byte", "(B)Ljava/lang/String;")
           else ("java/lang/Integer", "(I)Ljava/lang/String;")

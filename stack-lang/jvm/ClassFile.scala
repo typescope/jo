@@ -129,10 +129,32 @@ object ClassFile:
       buf += (v & 0xff).toByte
     def u8(v: Long): Unit = { u4(((v >>> 32) & 0xffffffffL).toInt); u4((v & 0xffffffffL).toInt) }
 
+    /** Encode as JVM "modified UTF-8" (JVMS 4.4.7), not plain UTF-8: NUL is
+      * `0xC0 0x80` instead of a literal zero byte, and — the part plain
+      * `s.getBytes("UTF-8")` gets wrong — characters outside the Basic
+      * Multilingual Plane (e.g. emoji) are encoded as a *surrogate pair*,
+      * each UTF-16 half separately 3-byte-encoded (6 bytes total), not as
+      * a single 4-byte UTF-8 sequence. Encoding each `Char` (UTF-16 code
+      * unit) of the Scala/Java string independently, rather than decoding
+      * to Unicode code points first, produces exactly that.
+      */
     def utf8Bytes(s: String): Unit =
-      val bytes = s.getBytes("UTF-8")
-      u2(bytes.length)
-      buf ++= bytes
+      val encoded = new mutable.ArrayBuffer[Byte]()
+      for c <- s do
+        val cp = c.toInt
+        if cp == 0 then
+          encoded += 0xC0.toByte; encoded += 0x80.toByte
+        else if cp <= 0x7F then
+          encoded += cp.toByte
+        else if cp <= 0x7FF then
+          encoded += (0xC0 | (cp >> 6)).toByte
+          encoded += (0x80 | (cp & 0x3F)).toByte
+        else
+          encoded += (0xE0 | (cp >> 12)).toByte
+          encoded += (0x80 | ((cp >> 6) & 0x3F)).toByte
+          encoded += (0x80 | (cp & 0x3F)).toByte
+      u2(encoded.size)
+      buf ++= encoded
 
     /** Patch a previously-written u2 (big-endian) at an absolute position. */
     def patchU2(at: Int, v: Int): Unit =
