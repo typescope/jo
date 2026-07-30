@@ -70,7 +70,17 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     // is distinct from the SAST's internal `VoidType` marker (used for
     // statement-context/dropped-value typing), but both need zero bytecode
     // representation in this backend, so they're treated identically here.
-    if tp.isVoidType then V
+    //
+    // `BottomType` (e.g. a `Return`'s own `.tpe`) also maps to `V`: a
+    // Bottom-typed word never completes normally — it always ends in a
+    // terminal instruction (`ireturn`/`areturn`/`athrow`) — so nothing is
+    // ever actually produced for a caller to adapt or drop. Concretely,
+    // this matters for e.g. `Encoded(Return(...))(VoidType)`, which the
+    // frontend inserts to adapt a `Return` used as an if-branch statement:
+    // without this case, `adaptTo` would (wrongly) believe a real value
+    // needs popping after the `Return` already consumed the whole stack via
+    // its own return instruction, underflowing.
+    if tp.isVoidType || tp.isBottomType then V
     else
       // `.approx` dealiases and widens term references (e.g. an `Ident`'s
       // `.tpe` is a `StaticRef` to the *symbol*, not its value type).
@@ -271,11 +281,16 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
   /** `selfSym`, when set, is the ClassDef's `self` symbol and always lives in
     * local slot 0 (`this`). `argsArraySlot`, when set, is the local slot of
     * the incoming `Object[] args` array for a uniform-convention lambda
-    * `apply` method.
+    * `apply` method. `localLabels` maps a `Labeled` block's label symbol to
+    * (its end-of-block jump target, its declared result JType) — used to
+    * compile `TailCallOpt`'s `_tco_loop` labeled blocks and local
+    * `Return(label, ...)` "break out of this block" jumps, as opposed to a
+    * `Return` to the enclosing function itself.
     */
   private class MethodCtx(
     val cw: CodeWriter, val slots: Slots, val returnType: JType,
-    val selfSym: Option[Symbol], val argsArraySlot: Option[Int] = None
+    val selfSym: Option[Symbol], val argsArraySlot: Option[Int] = None,
+    val localLabels: mutable.Map[Symbol, (ClassFile.Label, JType)] = mutable.Map.empty
   )
 
   //----------------------------------------------------------------------------
@@ -471,10 +486,25 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
             init.foreach(compile)
             compile(last)
 
+      case Labeled(label, resultType, body) =>
+        val endL = ctx.cw.newLabel()
+        val rt = jvmType(resultType)
+        ctx.localLabels(label) = (endL, rt)
+        compile(body)
+        ctx.cw.mark(endL)
+
       case Return(label, value) =>
-        compile(value)
-        adaptTo(jvmType(value.tpe), ctx.returnType, ctx.cw)
-        emitReturn(ctx.returnType)
+        if label.is(Flags.Fun) then
+          compile(value)
+          adaptTo(jvmType(value.tpe), ctx.returnType, ctx.cw)
+          emitReturn(ctx.returnType)
+        else
+          // Local "break out of this Labeled block" jump (e.g. one iteration
+          // of a TailCallOpt `_tco_loop`), not a function return.
+          val (target, rt) = ctx.localLabels(label)
+          compile(value)
+          adaptTo(jvmType(value.tpe), rt, ctx.cw)
+          ctx.cw.gotoL(target)
 
       case Encoded(repr) =>
         val target = jvmType(word.tpe)
@@ -578,6 +608,9 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
         case Select(qual, name) if isPrimitiveOwner(qual.tpe) =>
           compilePrimitiveOp(qual, name, allArgs, jvmType(apply.tpe))
 
+        case Select(qual, name) if isStringOwner(qual.tpe) =>
+          compileStringOp(qual, name, allArgs, jvmType(apply.tpe))
+
         case Select(newExpr @ New(tpt), Names.Constructor) =>
           compileNew(tpt.tpe, allArgs)
 
@@ -589,6 +622,11 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       case StaticRef(sym) =>
         sym == defn.Int_type || sym == defn.Bool_type || sym == defn.Byte_type ||
         sym == defn.Char_type || sym == defn.Float_type || sym == defn.Long_type
+      case _ => false
+
+  private def isStringOwner(tp: Type): Boolean =
+    tp.approx match
+      case StaticRef(sym) => sym == defn.String_type
       case _ => false
 
   private def compileIdentApply(sym: Symbol, args: List[Word], resultType: Type)(using ctx: MethodCtx): Unit =
@@ -617,13 +655,18 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       compileNativeCall(runtime.nativeSpec(sym).get, args)
 
     else
-      // Ordinary top-level function call
-      val name = enqueueTopLevel(sym)
-      val procType = sym.tpe.asProcType
-      for (arg, pt) <- args.zip(procType.paramTypes ++ procType.autoTypes) do
-        compile(arg)
-        adaptTo(jvmType(arg.tpe), jvmType(pt), ctx.cw)
-      ctx.cw.invokestatic(MainClassName, name, methodDesc(procType.paramTypes ++ procType.autoTypes, procType.resultType))
+      compileStaticCall(sym, args)
+
+  /** Compile a call to an ordinary top-level Jo function (`invokestatic`
+    * against `Main`, enqueuing it for compilation if not already reached).
+    */
+  private def compileStaticCall(sym: Symbol, args: List[Word])(using ctx: MethodCtx): Unit =
+    val name = enqueueTopLevel(sym)
+    val procType = sym.tpe.asProcType
+    for (arg, pt) <- args.zip(procType.paramTypes ++ procType.autoTypes) do
+      compile(arg)
+      adaptTo(jvmType(arg.tpe), jvmType(pt), ctx.cw)
+    ctx.cw.invokestatic(MainClassName, name, methodDesc(procType.paramTypes ++ procType.autoTypes, procType.resultType))
 
   /** `paramKey(id)` where `id` is (a possibly-encoded) `Ident` to a context
     * parameter symbol: emit the interned fully-qualified name as a String
@@ -645,9 +688,11 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     val trueL = ctx.cw.newLabel()
     val endL = ctx.cw.newLabel()
     branchIfTrue(trueL)
+    val afterBranch = ctx.cw.currentStack // depth once both compared operands are popped
     ctx.cw.iconst(0)
     ctx.cw.gotoL(endL)
     ctx.cw.mark(trueL)
+    ctx.cw.setStack(afterBranch) // trueL is reached with the pre-`iconst(0)` depth, not the false arm's
     ctx.cw.iconst(1)
     ctx.cw.mark(endL)
 
@@ -716,7 +761,8 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     name match
       case "+" => binIntOp(cw.iadd)
       case "-" if args.nonEmpty => binIntOp(cw.isub)
-      case "-" => compile(qual); adaptTo(jvmType(qual.tpe), I, cw); cw.ineg()
+      case "-" | "~-" => compile(qual); adaptTo(jvmType(qual.tpe), I, cw); cw.ineg()
+      case "~~" => compile(qual); adaptTo(jvmType(qual.tpe), I, cw); cw.iconst(-1); cw.ixor()
       case "*" => binIntOp(cw.imul)
       case "/" => binIntOp(cw.idiv)
       case "%" => binIntOp(cw.irem)
@@ -751,8 +797,19 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
         cw.mark(elseL)
         compile(args.head); adaptTo(jvmType(args.head.tpe), Z, cw)
         cw.mark(endL)
-      case "toChar" | "toByte" | "toInt" =>
-        compile(qual); adaptTo(jvmType(qual.tpe), I, cw) // all int-category, no-op conversion
+      case "toChar" | "toInt" =>
+        // Char shares Int's full range in this backend (no truncation to
+        // 16 bits — Jo's Char is a full Unicode code point, not a UTF-16
+        // code unit), and Byte->Int/Char->Int are already the same
+        // representation, so both are genuine no-ops.
+        compile(qual); adaptTo(jvmType(qual.tpe), I, cw)
+      case "toByte" =>
+        // Jo's Byte is unsigned 8-bit ([0, 255], lib/Byte.jo) sharing Int's
+        // representation, so converting *to* Byte must mask to 8 bits
+        // (unlike JVM's own signed `i2b`, which would sign-extend and give
+        // the wrong answer for values >= 128).
+        compile(qual); adaptTo(jvmType(qual.tpe), I, cw)
+        cw.iconst(0xFF); cw.iand()
       case "toString" =>
         val (owner, desc) =
           if qt == C then ("java/lang/Character", "(C)Ljava/lang/String;")
@@ -766,6 +823,55 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
   private def boolNot()(using ctx: MethodCtx): Unit =
     boolFromBranch(l => ctx.cw.ifeq(l))
+
+  /** `String`'s `@intrinsic` methods.
+    *
+    * `+`/`==`/`toLower`/`toUpper` have a direct 1:1 `java.lang.String`
+    * counterpart (no semantic gap), so they're compiled the same way
+    * Int/Bool arithmetic is: a thin, direct translation, right here.
+    *
+    * `size`/`get`/`substring`/`indexOf` don't: Jo's contract is explicit
+    * that string indices and lengths are Unicode *code point* units, but
+    * `java.lang.String` is UTF-16 *code unit* indexed. Bridging that gap is
+    * API-level behavior, not language semantics, so it's pushed out to
+    * `jo.jvm.runtime.StringOps` (ordinary Jo code over thin `@extern`
+    * primitives, in runtime/jvm/Runtime.jo) — compiled here as nothing more
+    * than an ordinary static call with `qual` prepended as the first
+    * argument, the same as any other function call.
+    *
+    * `iterator` needs a real `Iterator[Char]`-implementing object and isn't
+    * implemented here (see "Known limitations" in docs/jips/jvm-backend.md).
+    */
+  private def compileStringOp(qual: Word, name: String, args: List[Word], resultType: JType)(using ctx: MethodCtx): Unit =
+    val cw = ctx.cw
+
+    def receiver(): Unit = { compile(qual); adaptTo(jvmType(qual.tpe), Ref(StringDesc), cw) }
+    def stringArg(w: Word): Unit = { compile(w); adaptTo(jvmType(w.tpe), Ref(StringDesc), cw) }
+
+    name match
+      case "size" => compileStaticCall(runtime.String_size, qual :: Nil)
+      case "get" => compileStaticCall(runtime.String_get, qual :: args)
+      case "substring" => compileStaticCall(runtime.String_substring, qual :: args)
+      case "indexOf" =>
+        val from = if args.size > 1 then args(1) else IntLit(0)(args.head.span)
+        compileStaticCall(runtime.String_indexOf, qual :: args.head :: from :: Nil)
+
+      case "+" =>
+        receiver(); stringArg(args.head)
+        cw.invokevirtual(StringClass, "concat", "(Ljava/lang/String;)Ljava/lang/String;")
+
+      case "==" =>
+        receiver(); stringArg(args.head)
+        cw.invokevirtual(StringClass, "equals", "(Ljava/lang/Object;)Z")
+
+      case "toLower" =>
+        receiver(); cw.invokevirtual(StringClass, "toLowerCase", "()Ljava/lang/String;")
+
+      case "toUpper" =>
+        receiver(); cw.invokevirtual(StringClass, "toUpperCase", "()Ljava/lang/String;")
+
+      case other =>
+        throw new Exception("JVM backend prototype: unsupported String operator " + other)
 
   //----------------------------------------------------------------------------
   // Object construction and lambda calls
