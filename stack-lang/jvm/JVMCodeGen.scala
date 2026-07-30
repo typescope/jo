@@ -66,26 +66,25 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     case _ => ObjectClass
 
   def jvmType(tp: Type): JType =
-    // Jo's user-visible `Unit` (a real nominal type with a value, `jo_pass`)
-    // is distinct from the SAST's internal `VoidType` marker (used for
-    // statement-context/dropped-value typing), but both need zero bytecode
-    // representation in this backend, so they're treated identically here.
-    //
-    // `BottomType` (e.g. a `Return`'s own `.tpe`) also maps to `V`: a
-    // Bottom-typed word never completes normally — it always ends in a
-    // terminal instruction (`ireturn`/`areturn`/`athrow`) — so nothing is
-    // ever actually produced for a caller to adapt or drop. Concretely,
-    // this matters for e.g. `Encoded(Return(...))(VoidType)`, which the
-    // frontend inserts to adapt a `Return` used as an if-branch statement:
-    // without this case, `adaptTo` would (wrongly) believe a real value
-    // needs popping after the `Return` already consumed the whole stack via
-    // its own return instruction, underflowing.
-    if tp.isVoidType || tp.isBottomType then V
+    // Only the SAST's *internal* `VoidType` marker (statement-context/
+    // dropped-value typing: `Assign`/`While`'s own `.tpe`, and what
+    // `dropValue` wraps a discarded statement's type as) means "truly zero
+    // bytecode representation, nothing is ever produced." Jo's user-visible
+    // `Unit` (a real nominal type with a value, `jo_pass`) and `Bottom` are
+    // both genuine *value* types (`Type.isValueType` holds for both) — they
+    // fall through to the catch-all `Ref(ObjectDesc)` below like any other
+    // non-primitive type, with `null` as their runtime representation.
+    // `jo_pass()` compiles to `aconst_null` accordingly, and a `Bottom`-typed
+    // subexpression (which never actually completes normally — always
+    // `athrow`/an enclosing `Return`) is specifically exempted from having
+    // its "result" adapted after compiling it, wherever that's compiled
+    // (`Encoded`, `Assign`, `compileIf`'s branches) — see the call sites
+    // that check `.tpe.isBottomType` before calling `adaptTo`.
+    if tp.isVoidType then V
     else
       // `.approx` dealiases and widens term references (e.g. an `Ident`'s
       // `.tpe` is a `StaticRef` to the *symbol*, not its value type).
       tp.approx match
-        case StaticRef(sym) if sym == defn.Unit_type   => V
         case StaticRef(sym) if sym == defn.Int_type    => I
         case StaticRef(sym) if sym == defn.Bool_type   => Z
         case StaticRef(sym) if sym == defn.Byte_type   => B
@@ -213,16 +212,24 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     val mainClassMethods = new mutable.ArrayBuffer[MethodOut]()
     val cp = new ConstantPool
 
-    while topLevelWork.nonEmpty do
-      val sym = topLevelWork.removeHead()
-      if !topLevelSeen(sym) then
-        topLevelSeen += sym
-        if !isNativeOrIntrinsic(sym) then
-          mainClassMethods += compileTopLevelFunDef(funDefOf(sym), cp)
+    // A single interleaved loop, not "drain topLevelWork, then drain
+    // classWork": compiling a class's methods (e.g. a lifted lambda's
+    // `apply`) can discover new top-level function calls — reaching a
+    // context parameter pulls in whatever function provides it, say — and
+    // compiling a top-level function can likewise discover new classes via
+    // `New`. Draining the two queues in sequence would silently drop
+    // whichever queue gained new work after its own pass already finished.
+    while topLevelWork.nonEmpty || classWork.nonEmpty do
+      while topLevelWork.nonEmpty do
+        val sym = topLevelWork.removeHead()
+        if !topLevelSeen(sym) then
+          topLevelSeen += sym
+          if !isNativeOrIntrinsic(sym) then
+            mainClassMethods += compileTopLevelFunDef(funDefOf(sym), cp)
 
-    while classWork.nonEmpty do
-      val sym = classWork.removeHead()
-      compileClass(classDefOf(sym), cp)
+      if classWork.nonEmpty then
+        val sym = classWork.removeHead()
+        compileClass(classDefOf(sym), cp)
 
     // Synthetic entry point: `public static void main(String[] args)`
     mainClassMethods += buildJavaMain(cp)
@@ -231,9 +238,16 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     (classFiles.toMap + (MainClassName -> mainBytes), MainClassName)
 
   private def buildJavaMain(cp: ConstantPool): MethodOut =
+    val startSym = resolve(runtime.start)
+    val startProcType = startSym.tpe.asProcType
+    val startDesc = methodDesc(startProcType.paramTypes ++ startProcType.autoTypes, startProcType.resultType)
     val cw = new CodeWriter(cp)
     cw.touchLocal(0) // String[] args
-    cw.invokestatic(MainClassName, topLevelName(resolve(runtime.start)), "()V")
+    cw.invokestatic(MainClassName, topLevelName(startSym), startDesc)
+    // `start`'s Jo-level return type is `Unit`, which — like any other Jo
+    // value type — now erases to `Ref(Object)` (see the `jvmType` doc
+    // comment), not `V`; the real Java `main` truly is `void`, so discard it.
+    if jvmType(startProcType.resultType) != V then cw.pop()
     cw.returnVoid()
     val (code, ms, ml) = cw.finish()
     MethodOut(AccessFlags.Public | AccessFlags.Static, "main", "([Ljava/lang/String;)V", Some((code, ms, ml)))
@@ -500,17 +514,24 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       case Ident(sym) => compileIdent(sym, jvmType(word.tpe))
 
       case Assign(Ident(sym), rhs, _) =>
+        // A `Bottom`-typed `rhs` (e.g. `x = abort(...)`) never actually
+        // completes — it always ends in its own terminal instruction
+        // (`athrow`/a function `return`) before reaching the store, so
+        // there both isn't a value to adapt and the assignment itself
+        // never executes. See the `jvmType` doc comment.
         val pt = jvmType(sym.tpe)
         compile(rhs)
-        adaptTo(jvmType(rhs.tpe), pt, ctx.cw)
-        storeLocal(pt, ctx.slots(sym), ctx.cw)
+        if !rhs.tpe.isBottomType then
+          adaptTo(jvmType(rhs.tpe), pt, ctx.cw)
+          storeLocal(pt, ctx.slots(sym), ctx.cw)
 
       case FieldAssign(Select(qual, name), rhs) =>
         compile(qual)
         val owner = fieldOwnerName(qual)
         val fdesc = descOf(jvmType(rhs.tpe))
         compile(rhs)
-        ctx.cw.putfield(owner, name, fdesc)
+        if rhs.tpe.isBottomType then ctx.cw.pop() // discard the now-orphaned `qual` receiver; see above
+        else ctx.cw.putfield(owner, name, fdesc)
 
       case If(cond, thenp, elsep) => compileIf(cond, thenp, elsep, jvmType(word.tpe))
 
@@ -546,7 +567,11 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       case Encoded(repr) =>
         val target = jvmType(word.tpe)
         compile(repr)
-        adaptTo(jvmType(repr.tpe), target, ctx.cw)
+        // See the `jvmType` doc comment: a `Bottom`-typed `repr` (typically
+        // a `Return`, e.g. this exact shape is how the frontend adapts a
+        // `Return` used as an if-branch statement, `Encoded(Return(...))
+        // (VoidType)`) never reaches here with a value to adapt.
+        if !repr.tpe.isBottomType then adaptTo(jvmType(repr.tpe), target, ctx.cw)
 
       case apply: Apply => compileApply(apply)
 
@@ -711,27 +736,36 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       ctx.cw.athrow()
 
     else if sym == defn.jo_pass then
-      () // Unit's only value maps to V (nothing) in this backend, same as
-         // any other Unit-typed expression — nothing to push. `adaptTo`
-         // already knows how to widen a V into a real Object (aconst_null)
-         // wherever a caller needs the Unit value as data.
+      ctx.cw.aconstNull() // the one value of Unit, materialized as null (Ref(ObjectDesc))
 
     else if runtime.nativeSpec(sym).isDefined then
-      compileNativeCall(runtime.nativeSpec(sym).get, args)
+      compileNativeCall(runtime.nativeSpec(sym).get, args, resultType)
 
     else
-      compileStaticCall(sym, args)
+      compileStaticCall(sym, args, jvmType(resultType))
 
   /** Compile a call to an ordinary top-level Jo function (`invokestatic`
     * against `Main`, enqueuing it for compilation if not already reached).
+    *
+    * The call is always compiled against `sym`'s own, possibly-generic
+    * `ProcType` — never a call site's `TypeApply` instantiation — so every
+    * call site agrees with the one compiled method on its descriptor (see
+    * the `jvmType` doc comment on why generic instantiation is irrelevant
+    * to a JVM descriptor). That means a call to e.g. `getParam[Int](...)`
+    * actually produces a generic `Ljava/lang/Object;`, even though *this*
+    * call site's own static type is concretely `Int` — `expected` (the
+    * caller's actual, possibly-instantiated JType) reconciles the two,
+    * the same way `compileNativeCall` reconciles a raw JDK call's actual
+    * stack effect against a Jo-declared type.
     */
-  private def compileStaticCall(sym: Symbol, args: List[Word])(using ctx: MethodCtx): Unit =
+  private def compileStaticCall(sym: Symbol, args: List[Word], expected: JType)(using ctx: MethodCtx): Unit =
     val name = enqueueTopLevel(sym)
     val procType = sym.tpe.asProcType
     for (arg, pt) <- args.zip(procType.paramTypes ++ procType.autoTypes) do
       compile(arg)
       adaptTo(jvmType(arg.tpe), jvmType(pt), ctx.cw)
     ctx.cw.invokestatic(MainClassName, name, methodDesc(procType.paramTypes ++ procType.autoTypes, procType.resultType))
+    adaptTo(jvmType(procType.resultType), expected, ctx.cw)
 
   /** `paramKey(id)` where `id` is (a possibly-encoded) `Ident` to a context
     * parameter symbol: emit the interned fully-qualified name as a String
@@ -761,13 +795,25 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     ctx.cw.iconst(1)
     ctx.cw.mark(endL)
 
-  private def compileNativeCall(spec: runtime.NativeSpec, args: List[Word])(using ctx: MethodCtx): Unit =
+  /** `declaredResultType` is the calling Jo symbol's own declared return
+    * type, e.g. `Unit` for `psPrint`/`setNodeValue`. It's frequently *not*
+    * the same JVM representation as what the raw JDK member actually
+    * produces — a `putfield`/`void`-`virtual` call produces nothing, but a
+    * `Unit`-declared Jo function now erases to `Ref(Object)` (see the
+    * `jvmType` doc comment), so a real `null` needs materializing to match.
+    * Every kind below is adapted uniformly at the end from what it actually
+    * left on the stack to `jvmType(declaredResultType)`, the same way any
+    * other call's result is reconciled, rather than relying on informal
+    * "close enough" reasoning about widening.
+    */
+  private def compileNativeCall(spec: runtime.NativeSpec, args: List[Word], declaredResultType: Type)(using ctx: MethodCtx): Unit =
     val cw = ctx.cw
-    spec.kind match
+    val actual: JType = spec.kind match
       case "static" =>
         val paramTs = parseMethodParams(spec.desc)
         for (a, pt) <- args.zip(paramTs) do { compile(a); adaptTo(jvmType(a.tpe), pt, cw) }
         cw.invokestatic(spec.owner, spec.member, spec.desc)
+        parseMethodReturn(spec.desc)
 
       case "virtual" | "interface" =>
         val recv :: rest = args: @unchecked
@@ -776,6 +822,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
         for (a, pt) <- rest.zip(paramTs) do { compile(a); adaptTo(jvmType(a.tpe), pt, cw) }
         if spec.kind == "virtual" then cw.invokevirtual(spec.owner, spec.member, spec.desc)
         else cw.invokeinterface(spec.owner, spec.member, spec.desc)
+        parseMethodReturn(spec.desc)
 
       case "special" =>
         cw.newObj(spec.owner)
@@ -783,27 +830,37 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
         val paramTs = parseMethodParams(spec.desc)
         for (a, pt) <- args.zip(paramTs) do { compile(a); adaptTo(jvmType(a.tpe), pt, cw) }
         cw.invokespecial(spec.owner, "<init>", spec.desc)
+        // Constructor descriptors are always declared `(...)V`, but `new`+
+        // `dup`+`invokespecial <init>` actually leaves the new instance —
+        // of the constructed class specifically, not `V` — on the stack.
+        Ref("L" + spec.owner + ";")
 
       case "getstatic" =>
         cw.getstatic(spec.owner, spec.member, spec.desc)
+        parseFieldDesc(spec.desc)
 
       case "putstatic" =>
         val t = parseFieldDesc(spec.desc)
         compile(args.head); adaptTo(jvmType(args.head.tpe), t, cw)
         cw.putstatic(spec.owner, spec.member, spec.desc)
+        V
 
       case "getfield" =>
         compile(args.head); adaptTo(jvmType(args.head.tpe), Ref(ObjectDesc), cw); cw.checkcast(spec.owner)
         cw.getfield(spec.owner, spec.member, spec.desc)
+        parseFieldDesc(spec.desc)
 
       case "putfield" =>
         compile(args.head); adaptTo(jvmType(args.head.tpe), Ref(ObjectDesc), cw); cw.checkcast(spec.owner)
         val t = parseFieldDesc(spec.desc)
         compile(args(1)); adaptTo(jvmType(args(1).tpe), t, cw)
         cw.putfield(spec.owner, spec.member, spec.desc)
+        V
 
       case other =>
         throw new Exception("Unknown @extern kind: " + other)
+
+    adaptTo(actual, jvmType(declaredResultType), cw)
 
   //----------------------------------------------------------------------------
   // Primitive numeric/boolean operators (Int/Bool/Byte/Char intrinsics)
@@ -919,12 +976,12 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     def stringArg(w: Word): Unit = { compile(w); adaptTo(jvmType(w.tpe), Ref(StringDesc), cw) }
 
     name match
-      case "size" => compileStaticCall(runtime.String_size, qual :: Nil)
-      case "get" => compileStaticCall(runtime.String_get, qual :: args)
-      case "substring" => compileStaticCall(runtime.String_substring, qual :: args)
+      case "size" => compileStaticCall(runtime.String_size, qual :: Nil, resultType)
+      case "get" => compileStaticCall(runtime.String_get, qual :: args, resultType)
+      case "substring" => compileStaticCall(runtime.String_substring, qual :: args, resultType)
       case "indexOf" =>
         val from = if args.size > 1 then args(1) else IntLit(0)(args.head.span)
-        compileStaticCall(runtime.String_indexOf, qual :: args.head :: from :: Nil)
+        compileStaticCall(runtime.String_indexOf, qual :: args.head :: from :: Nil, resultType)
 
       case "+" =>
         receiver(); stringArg(args.head)
