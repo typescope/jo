@@ -1,0 +1,216 @@
+namespace jo.jvm.runtime
+
+import jo.compile.intrinsic
+import jo.jvm.extern
+
+//------------------------------------------------------------------------------
+//
+// A single hand-written support class (Node, compiled directly by the JVM
+// backend into the output — see stack-lang/jvm/JVMRuntimeClasses.scala)
+// provides three Object fields (next/key/value) used below to build a small
+// association list, plus a static field whose value is always the real JVM
+// `null`. This is enough machinery to implement context-parameter support
+// and error signaling without needing general Array codegen for this
+// prototype.
+//
+//------------------------------------------------------------------------------
+
+@extern("Node", "<init>", "()V", "special")
+private def newNode(): Any = ...
+
+@extern("Node", "next", "Ljava/lang/Object;", "getfield")
+private def nodeNext(n: Any): Any = ...
+
+@extern("Node", "next", "Ljava/lang/Object;", "putfield")
+private def setNodeNext(n: Any, v: Any): Unit = ...
+
+@extern("Node", "key", "Ljava/lang/Object;", "getfield")
+private def nodeKey(n: Any): Any = ...
+
+@extern("Node", "key", "Ljava/lang/Object;", "putfield")
+private def setNodeKey(n: Any, v: Any): Unit = ...
+
+@extern("Node", "value", "Ljava/lang/Object;", "getfield")
+private def nodeValue(n: Any): Any = ...
+
+@extern("Node", "value", "Ljava/lang/Object;", "putfield")
+private def setNodeValue(n: Any, v: Any): Unit = ...
+
+@extern("Node", "NULL", "Ljava/lang/Object;", "getstatic")
+private def nullValue(): Any = ...
+
+//[ Reference identity, `a == b` for two `Any` values.
+  !
+  ! Intrinsified by the backend as `if_acmpeq`. Used instead of a user-level
+  ! `==` because `Key[T]` (below) is an abstract type with no `==` of its own.
+//]
+@intrinsic
+private def refEq(a: Any, b: Any): Bool =
+  abort "refEq should be intrinsified by the JVM backend"
+
+//[ Whether a value is the real JVM `null`. Intrinsified as `ifnull`. //]
+@intrinsic
+private def isNull(a: Any): Bool =
+  abort "isNull should be intrinsified by the JVM backend"
+
+//[ Narrow `Any` to `T` without a runtime check.
+  !
+  ! Every non-primitive Jo type erases to `java.lang.Object` in this backend
+  ! (see the design doc), so this is always a no-op at the bytecode level;
+  ! it exists purely so this file type-checks like an ordinary Jo program.
+//]
+@intrinsic
+def cast[T](a: Any): T =
+  abort "cast should be intrinsified by the JVM backend"
+
+//------------------------------------------------------------------------------
+//
+// Predef functions
+//
+//------------------------------------------------------------------------------
+
+@extern("java/lang/RuntimeException", "<init>", "(Ljava/lang/String;)V", "special")
+private def newRuntimeException(msg: String): Any = ...
+
+@intrinsic
+private def throwAny(e: Any): Bottom =
+  abort "throwAny should be intrinsified by the JVM backend"
+
+def abort(msg: String): Bottom = throwAny(newRuntimeException(msg))
+
+//------------------------------------------------------------------------------
+//
+// Console output (System.out / System.err)
+//
+//------------------------------------------------------------------------------
+
+@extern("java/lang/System", "out", "Ljava/io/PrintStream;", "getstatic")
+private def systemOut(): Any = ...
+
+@extern("java/lang/System", "err", "Ljava/io/PrintStream;", "getstatic")
+private def systemErr(): Any = ...
+
+@extern("java/io/PrintStream", "print", "(Ljava/lang/String;)V", "virtual")
+private def psPrint(ps: Any, s: String): Unit = ...
+
+//------------------------------------------------------------------------------
+//
+// Array support is out of scope for this prototype (see docs/jips/jvm-backend.md);
+// this section exists only because the shared frontend's LiftPrimitiveMethods
+// phase needs an "array ops" namespace to resolve, even when no array
+// operation is ever reached.
+//
+//------------------------------------------------------------------------------
+private section RefArray
+  def create[T](size: Int): Array[T] =
+    abort "Array is not yet implemented in the JVM backend prototype"
+
+  def get[T](arr: Array[T], i: Int): T =
+    abort "Array is not yet implemented in the JVM backend prototype"
+
+  def set[T](arr: Array[T], i: Int, v: T): Unit =
+    abort "Array is not yet implemented in the JVM backend prototype"
+
+  def size[T](arr: Array[T]): Int =
+    abort "Array is not yet implemented in the JVM backend prototype"
+
+  def clone[T](arr: Array[T]): Array[T] =
+    abort "Array is not yet implemented in the JVM backend prototype"
+end
+
+//------------------------------------------------------------------------------
+//
+// The standard library's regex support is loaded (and its `defer` functions
+// link-checked) whenever the stdlib is loaded, regardless of whether the
+// program actually uses regexes. Not implemented in this prototype.
+//
+//------------------------------------------------------------------------------
+private section RegexEngineStub
+  def compilePattern(source: String, flags: String): regex.Engine.Pattern =
+    abort "regex is not yet implemented in the JVM backend prototype"
+
+  def execPatternAt(pat: regex.Engine.Pattern, subject: String, pos: Int): regex.Match | None =
+    abort "regex is not yet implemented in the JVM backend prototype"
+end
+
+//------------------------------------------------------------------------------
+//
+// Context parameters
+//
+// Ctx is represented as a possibly-null chain of Node cells: `next` points to
+// the tail (or JVM null at the end), `key` is the value returned by paramKey
+// (a compiler-interned String, compared by reference identity), and `value`
+// is the bound value.
+//
+//------------------------------------------------------------------------------
+private section ParamSupport
+  type Ctx
+  type Key[T]
+  type Batch
+
+  //[ Stub function replaced by the backend
+    !
+    ! id must be an Ident pointing to the context parameter
+    !
+  //]
+  @intrinsic
+  def paramKey[T](id: T): Key[T] receives none =
+    abort "paramKey should be replaced by backend"
+
+  def emptyCtx(): Ctx receives none =
+    cast[Ctx](nullValue())
+
+  def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
+    var cur: Any = ctx
+    while !isNull(cur) do
+      if refEq(nodeKey(cur), key) then
+        return cast[T](nodeValue(cur))
+      end
+      cur = nodeNext(cur)
+    end
+    abort("Unbound parameter")
+
+  // A Batch reuses a fresh Node whose `value` field tracks the current head
+  // of the association list being built.
+  def startBatch(ctx: Ctx, count: Int): Batch receives none =
+    val b = newNode()
+    setNodeValue(b, ctx)
+    cast[Batch](b)
+
+  def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
+    val n = newNode()
+    setNodeNext(n, nodeValue(batch))
+    setNodeKey(n, key)
+    setNodeValue(n, value)
+    setNodeValue(batch, n)
+
+  def finish(batch: Batch): Ctx receives none =
+    cast[Ctx](nodeValue(batch))
+end
+
+//------------------------------------------------------------------------------
+//
+// Program entry point
+//
+//------------------------------------------------------------------------------
+
+private def start(): Unit =
+  val stdin: () => String =
+    () => ""
+
+  val stdout: String => Unit =
+    s => psPrint(systemOut(), s)
+
+  val stderr: String => Unit =
+    s => psPrint(systemErr(), s)
+
+  val argv: Array[String] = cast[Array[String]](nullValue())
+
+  with
+    IO.stdin = stdin,
+    IO.stdout = stdout,
+    IO.stderr = stderr,
+    IO.args = argv
+  in
+    jo.main()
+end
