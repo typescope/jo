@@ -95,6 +95,62 @@ private def psPrint(ps: Any, s: String): Unit = ...
 
 //------------------------------------------------------------------------------
 //
+// String.{size,get,substring,indexOf}
+//
+// Jo's contract is explicit that string indices and lengths are Unicode
+// *code point* units ("All indices and lengths use Unicode code point
+// units", lib/String.jo), but java.lang.String is UTF-16 *code unit*
+// indexed — the two coincide only for strings with no supplementary
+// (surrogate-pair) characters. The conversion is API-level behavior, not
+// backend/language semantics, so it's implemented here as ordinary Jo code
+// over thin @extern bindings to the raw JDK methods, rather than as
+// hand-written bytecode in the compiler (contrast with `+`/`==`/`toLower`/
+// `toUpper`, which have no such semantic gap and stay direct 1:1 FFI calls
+// in JVMCodeGen, same as Int/Bool arithmetic).
+//
+//------------------------------------------------------------------------------
+
+@extern("java/lang/String", "length", "()I", "virtual")
+private def rawLength(s: String): Int = ...
+
+@extern("java/lang/String", "codePointCount", "(II)I", "virtual")
+private def codePointCount(s: String, from: Int, to: Int): Int = ...
+
+@extern("java/lang/String", "offsetByCodePoints", "(II)I", "virtual")
+private def offsetByCodePoints(s: String, from: Int, codePointOffset: Int): Int = ...
+
+@extern("java/lang/String", "codePointAt", "(I)I", "virtual")
+private def codePointAt(s: String, charIndex: Int): Char = ...
+
+@extern("java/lang/String", "substring", "(II)Ljava/lang/String;", "virtual")
+private def rawSubstring(s: String, beginChar: Int, endChar: Int): String = ...
+
+@extern("java/lang/String", "indexOf", "(Ljava/lang/String;I)I", "virtual")
+private def rawIndexOf(s: String, other: String, fromChar: Int): Int = ...
+
+private section StringOps
+  def size(s: String): Int =
+    codePointCount(s, 0, rawLength(s))
+
+  def get(s: String, i: Int): Char =
+    codePointAt(s, offsetByCodePoints(s, 0, i))
+
+  def substring(s: String, from: Int, len: Int): String =
+    val b = offsetByCodePoints(s, 0, from)
+    val e = offsetByCodePoints(s, b, len)
+    rawSubstring(s, b, e)
+
+  // Java's indexOf returns a char index (or -1); Jo wants the code-point
+  // index of that same position (or -1, which has no code-point-count
+  // equivalent, so it's kept as-is).
+  def indexOf(s: String, other: String, from: Int): Int =
+    val charFrom = offsetByCodePoints(s, 0, from)
+    val r = rawIndexOf(s, other, charFrom)
+    if r == -1 then -1 else codePointCount(s, 0, r)
+end
+
+//------------------------------------------------------------------------------
+//
 // Array support is out of scope for this prototype (see docs/jips/jvm-backend.md);
 // this section exists only because the shared frontend's LiftPrimitiveMethods
 // phase needs an "array ops" namespace to resolve, even when no array
