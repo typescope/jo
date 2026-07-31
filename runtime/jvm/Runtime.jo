@@ -204,17 +204,128 @@ end
 
 //------------------------------------------------------------------------------
 //
-// The standard library's regex support is loaded (and its `defer` functions
-// link-checked) whenever the stdlib is loaded, regardless of whether the
-// program actually uses regexes. Not implemented in this prototype.
+// Regex engine, delegating to java.util.regex (Pattern/Matcher) rather than
+// a hand-rolled NFA like the native backend's — the JVM already ships one.
+//
+// Jo's regex subset is deliberately a conservative common subset of
+// standard regex syntax (see lib/regex/Regex.jo's doc comment), and the
+// normalized pattern text `compilePattern` receives (shorthand escapes like
+// `\d` already expanded) is already valid `java.util.regex` syntax, with
+// one gap: Jo allows `_` in a named group's name (`(?<my_name>...)`), which
+// `java.util.regex` rejects outright. Group *names* don't need to survive
+// into `java.util.regex` at all here — Jo's own `Validator.parseGroups`
+// already computes the name-to-index mapping independently of the engine
+// (see `Match.withGroupNames`) — so `stripGroupNames` rewrites every named
+// group to a plain capturing group before compiling; group *numbering* is
+// unaffected since both Jo and `java.util.regex` number groups
+// left-to-right, named or not.
 //
 //------------------------------------------------------------------------------
-private section RegexEngineStub
-  def compilePattern(source: String, flags: String): regex.Engine.Pattern =
-    abort "regex is not yet implemented in the JVM backend prototype"
 
+@extern("java/util/regex/Pattern", "compile", "(Ljava/lang/String;I)Ljava/util/regex/Pattern;", "static")
+private def patternCompile(source: String, flags: Int): Any = ...
+
+@extern("java/util/regex/Pattern", "matcher", "(Ljava/lang/CharSequence;)Ljava/util/regex/Matcher;", "virtual")
+private def patternMatcher(pat: Any, input: String): Any = ...
+
+@extern("java/util/regex/Matcher", "find", "(I)Z", "virtual")
+private def matcherFind(m: Any, from: Int): Bool = ...
+
+@extern("java/util/regex/Matcher", "start", "()I", "virtual")
+private def matcherStart(m: Any): Int = ...
+
+@extern("java/util/regex/Matcher", "end", "()I", "virtual")
+private def matcherEnd(m: Any): Int = ...
+
+@extern("java/util/regex/Matcher", "groupCount", "()I", "virtual")
+private def matcherGroupCount(m: Any): Int = ...
+
+// Declared `Any`, not `String`: a non-participating group returns Java
+// `null`, which `isNull`/`cast` below turn into `None`.
+@extern("java/util/regex/Matcher", "group", "(I)Ljava/lang/String;", "virtual")
+private def matcherGroup(m: Any, i: Int): Any = ...
+
+private section RegexEngine
+  private def stripGroupNames(pat: String): String =
+    var out = ""
+    var i = 0
+    val n = pat.size
+    var inClass = false
+    while i < n do
+      val c = pat[i]
+      if c == '\\' && i + 1 < n then
+        // An escaped char (incl. `\(`) is never a group start; copy both
+        // chars verbatim so it can't be misread as one.
+        out = out + pat.slice(i, 2)
+        i = i + 2
+      else if inClass then
+        if c == ']' then inClass = false
+        out = out + c.toString
+        i = i + 1
+      else if c == '[' then
+        inClass = true
+        out = out + c.toString
+        i = i + 1
+      else if c == '(' && i + 2 < n && pat[i + 1] == '?' && pat[i + 2] == '<' then
+        // Lookaround `(?<=` / `(?<!` isn't in Jo's supported syntax (see
+        // lib/regex/Regex.jo), so any validated `(?<` here is a named
+        // group — rewrite `(?<name>` down to a plain `(`.
+        out = out + "("
+        var j = i + 3
+        while j < n && pat[j] != '>' do
+          j = j + 1
+        end
+        i = j + 1
+      else
+        out = out + c.toString
+        i = i + 1
+    end
+    out
+
+  private def javaFlags(flags: String): Int =
+    var f = 0
+    var i = 0
+    while i < flags.size do
+      match flags[i]
+      case 'i' => f = f | 0x02   // java.util.regex.Pattern.CASE_INSENSITIVE
+
+      case 'm' => f = f | 0x08   // java.util.regex.Pattern.MULTILINE
+
+      case 's' => f = f | 0x20   // java.util.regex.Pattern.DOTALL
+
+      case other => abort("Unknown regex flag: " + other)
+      end
+      i = i + 1
+    end
+    f
+
+  def compilePattern(source: String, flags: String): regex.Engine.Pattern =
+    cast[regex.Engine.Pattern](patternCompile(stripGroupNames(source), javaFlags(flags)))
+
+  // Positions are Unicode code points at the Jo level (see
+  // lib/regex/Regex.jo) but UTF-16 code units in java.util.regex — bridge
+  // the two via StringOps' codePointCount/offsetByCodePoints, the same way
+  // String.size/get/substring/indexOf do.
   def execPatternAt(pat: regex.Engine.Pattern, subject: String, pos: Int): regex.Match | None =
-    abort "regex is not yet implemented in the JVM backend prototype"
+    val m = patternMatcher(cast[Any](pat), subject)
+    val charPos = offsetByCodePoints(subject, 0, pos)
+    if matcherFind(m, charPos) then
+      val charStart = matcherStart(m)
+      val charEnd = matcherEnd(m)
+      val cpStart = codePointCount(subject, 0, charStart)
+      val cpLen = codePointCount(subject, charStart, charEnd)
+      val gc = matcherGroupCount(m)
+      val groups = Array.create[String | None](gc + 1)
+      groups[0] = cast[String](matcherGroup(m, 0))
+      var i = 1
+      while i <= gc do
+        val g = matcherGroup(m, i)
+        groups[i] = if isNull(g) then None else cast[String](g)
+        i = i + 1
+      end
+      new regex.Match(cpStart, cpLen, groups)
+    else
+      None
 end
 
 //------------------------------------------------------------------------------

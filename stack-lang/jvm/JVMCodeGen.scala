@@ -395,7 +395,8 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       case V => cw.returnVoid()
       case r if isIntCat(r) => cw.ireturn()
       case Ref(_) => cw.areturn()
-      case J | F => throw new Exception("long/float return not supported in this prototype")
+      case J => cw.lreturn()
+      case F => throw new Exception("float return not supported in this prototype")
 
   /** Zero-initialize every local at method entry.
     *
@@ -416,7 +417,8 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
         case V => ()
         case t if isIntCat(t) => cw.iconst(0); storeLocal(t, slot, cw)
         case t @ Ref(_) => cw.aconstNull(); storeLocal(t, slot, cw)
-        case J | F => throw new Exception("long/float locals not supported in this prototype")
+        case J => cw.lconst(0L); storeLocal(J, slot, cw)
+        case F => throw new Exception("float locals not supported in this prototype")
 
   //----------------------------------------------------------------------------
   // Lambda-lifted class compilation (ElimCapture output)
@@ -838,7 +840,11 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
   private def compileLiteral(c: Constant, t: JType)(using ctx: MethodCtx): Unit =
     c match
       case Constant.Bool(b) => ctx.cw.iconst(if b then 1 else 0)
-      case Constant.Int(n)  => ctx.cw.iconst(n.toInt)
+      // `Constant.Int` holds a `BigInt` and represents every integer-typed
+      // literal, `Long` included (there's no separate `Constant.Long` — see
+      // sast.Constant) — `t` (the literal's target JVM type, e.g. `J` for a
+      // `val x: Long = 5`) is what actually picks the right representation.
+      case Constant.Int(n)  => if t == J then ctx.cw.lconst(n.toLong) else ctx.cw.iconst(n.toInt)
       case Constant.String(s) => ctx.cw.ldc(cpOf(ctx).stringConst(s))
       case Constant.Float(_) => throw new Exception("float literals not supported in this prototype")
 
@@ -852,10 +858,14 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       throw new Exception("Unsupported free identifier: " + sym.fullName)
 
   private def loadLocal(t: JType, slot: Int, cw: CodeWriter): Unit =
-    if isIntCat(t) then cw.iload(slot) else cw.aload(slot)
+    if isIntCat(t) then cw.iload(slot)
+    else if t == J then cw.lload(slot)
+    else cw.aload(slot)
 
   private def storeLocal(t: JType, slot: Int, cw: CodeWriter): Unit =
-    if isIntCat(t) then cw.istore(slot) else cw.astore(slot)
+    if isIntCat(t) then cw.istore(slot)
+    else if t == J then cw.lstore(slot)
+    else cw.astore(slot)
 
   private def compileIf(cond: Word, thenp: Word, elsep: Word, resultType: JType)(using ctx: MethodCtx): Unit =
     compile(cond)
@@ -1188,6 +1198,18 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
   //----------------------------------------------------------------------------
 
   private def compilePrimitiveOp(qual: Word, name: String, args: List[Word], resultType: JType)(using ctx: MethodCtx): Unit =
+    if jvmType(qual.tpe) == J then
+      compileLongOp(qual, name, args)
+    else
+      compileIntCatPrimitiveOp(qual, name, args)
+
+  /** `Int`/`Bool`/`Byte`/`Char`/`Float` intrinsics — every one of these
+    * (except `Float`, not supported in this prototype) shares the `I`
+    * representation, so they're compiled uniformly here. `Long` doesn't (a
+    * category-2 JVM value, distinct opcodes for everything), so it's
+    * dispatched to `compileLongOp` instead, from `compilePrimitiveOp`.
+    */
+  private def compileIntCatPrimitiveOp(qual: Word, name: String, args: List[Word])(using ctx: MethodCtx): Unit =
     val cw = ctx.cw
     val qt = jvmType(qual.tpe)
 
@@ -1253,6 +1275,8 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
         // the wrong answer for values >= 128).
         compile(qual); adaptTo(jvmType(qual.tpe), I, cw)
         cw.iconst(0xFF); cw.iand()
+      case "toLong" =>
+        compile(qual); adaptTo(jvmType(qual.tpe), I, cw); cw.i2l()
       case "toString" =>
         val (owner, desc) =
           // Character.toString(char) truncates to 16 bits — wrong for Jo's
@@ -1268,6 +1292,67 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
         cw.invokestatic(owner, "toString", desc)
       case other =>
         throw new Exception("JVM backend prototype: unsupported primitive operator " + other)
+
+  /** `Long`'s intrinsics — a genuine category-2 JVM value (2 operand-stack
+    * words, 2 local-variable slots), so unlike `Int`/`Bool`/`Byte`/`Char`
+    * (all sharing the `I` representation, see `compileIntCatPrimitiveOp`)
+    * it needs its own opcodes throughout, not just a wider range of `I`.
+    */
+  private def compileLongOp(qual: Word, name: String, args: List[Word])(using ctx: MethodCtx): Unit =
+    val cw = ctx.cw
+
+    def binLongOp(emit: () => Unit): Unit =
+      compile(qual); adaptTo(jvmType(qual.tpe), J, cw)
+      compile(args.head); adaptTo(jvmType(args.head.tpe), J, cw)
+      emit()
+
+    // `lshl`/`lshr`'s shift-*amount* operand must be a plain `int` (JVMS),
+    // but `Long.<<`/`Long.>>` declare their count parameter as `Long`
+    // (lib/Long.jo) — compile it as `Long` like any other argument, then
+    // narrow with `l2i` right before the shift opcode (only the low 6 bits
+    // matter for a 64-bit shift count anyway, so truncation is harmless).
+    def shiftLongOp(emit: () => Unit): Unit =
+      compile(qual); adaptTo(jvmType(qual.tpe), J, cw)
+      compile(args.head); adaptTo(jvmType(args.head.tpe), J, cw); cw.l2i()
+      emit()
+
+    // No `if_lcmp<cond>` branch family exists — `lcmp` reduces the
+    // comparison to a category-1 int (-1/0/1), then an ordinary
+    // int-vs-zero branch (`ifCond`) reads off the result.
+    def cmpOp(cond: String): Unit =
+      compile(qual); adaptTo(jvmType(qual.tpe), J, cw)
+      compile(args.head); adaptTo(jvmType(args.head.tpe), J, cw)
+      cw.lcmp()
+      boolFromBranch(l => cw.ifCond(cond, l))
+
+    name match
+      case "+" => binLongOp(cw.ladd)
+      case "-" if args.nonEmpty => binLongOp(cw.lsub)
+      case "-" | "~-" => compile(qual); adaptTo(jvmType(qual.tpe), J, cw); cw.lneg()
+      case "~~" => compile(qual); adaptTo(jvmType(qual.tpe), J, cw); cw.lconst(-1L); cw.lxor()
+      case "*" => binLongOp(cw.lmul)
+      case "/" => binLongOp(cw.ldiv)
+      case "%" => binLongOp(cw.lrem)
+      case "&" => binLongOp(cw.land)
+      case "|" => binLongOp(cw.lor)
+      case "^" => binLongOp(cw.lxor)
+      case "<<" => shiftLongOp(cw.lshl)
+      case ">>" => shiftLongOp(cw.lshr)
+      case "==" => cmpOp("eq")
+      case "!=" => cmpOp("ne")
+      case ">" => cmpOp("gt")
+      case "<" => cmpOp("lt")
+      case ">=" => cmpOp("ge")
+      case "<=" => cmpOp("le")
+      case "toInt" =>
+        compile(qual); adaptTo(jvmType(qual.tpe), J, cw); cw.l2i()
+      case "toLong" =>
+        compile(qual); adaptTo(jvmType(qual.tpe), J, cw)
+      case "toString" =>
+        compile(qual); adaptTo(jvmType(qual.tpe), J, cw)
+        cw.invokestatic("java/lang/Long", "toString", "(J)Ljava/lang/String;")
+      case other =>
+        throw new Exception("JVM backend prototype: unsupported Long operator " + other)
 
   private def boolNot()(using ctx: MethodCtx): Unit =
     boolFromBranch(l => ctx.cw.ifeq(l))
