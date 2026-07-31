@@ -26,9 +26,9 @@ object Compiler:
     "jo.abort" -> "jo.jvm.runtime.abort",
     "jo.Array.create" -> "jo.jvm.runtime.RefArray.create",
 
-    // Regex engine hooks (not implemented; see runtime/jvm/Runtime.jo)
-    "jo.regex.Engine.compilePattern" -> "jo.jvm.runtime.RegexEngineStub.compilePattern",
-    "jo.regex.Engine.execPatternAt"  -> "jo.jvm.runtime.RegexEngineStub.execPatternAt",
+    // Regex engine hooks, delegating to java.util.regex; see runtime/jvm/Runtime.jo
+    "jo.regex.Engine.compilePattern" -> "jo.jvm.runtime.RegexEngine.compilePattern",
+    "jo.regex.Engine.execPatternAt"  -> "jo.jvm.runtime.RegexEngine.execPatternAt",
   )
 
   def main(args: Array[String]): Unit =

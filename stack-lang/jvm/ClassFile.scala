@@ -224,21 +224,39 @@ object ClassFile:
       else { op(19); out.u2(cpIndex) }
       stackDelta(1)
 
+    // `long`/`double` constant-pool entries are category-2 (see
+    // `ConstantPoolEntry.width`); loading one always needs the wide
+    // `ldc2_w` form — there's no single-byte-index variant like `ldc` has.
+    def ldc2(cpIndex: Int): Unit = { op(20); out.u2(cpIndex); stackDelta(2) }
+
     def aconstNull(): Unit = { op(1); stackDelta(1) }
+
+    def lconst(n: Long): Unit =
+      if n == 0L then { op(9); stackDelta(2) }
+      else if n == 1L then { op(10); stackDelta(2) }
+      else ldc2(cp.longConst(n))
 
     // ---- locals ----
     def iload(slot: Int): Unit = { touchLocal(slot); loadOp(21, slot); stackDelta(1) }
+    def lload(slot: Int): Unit = { touchLocal(slot, widthTwo = true); loadOp(22, slot); stackDelta(2) }
     def aload(slot: Int): Unit = { touchLocal(slot); loadOp(25, slot); stackDelta(1) }
     def istore(slot: Int): Unit = { touchLocal(slot); storeOp(54, slot); stackDelta(-1) }
+    def lstore(slot: Int): Unit = { touchLocal(slot, widthTwo = true); storeOp(55, slot); stackDelta(-2) }
     def astore(slot: Int): Unit = { touchLocal(slot); storeOp(58, slot); stackDelta(-1) }
 
     private def loadOp(baseWide: Int, slot: Int): Unit =
-      val shortBase = if baseWide == 21 then 26 else 42 // iload_0/aload_0
+      val shortBase = baseWide match
+        case 21 => 26 // iload_0
+        case 22 => 30 // lload_0
+        case 25 => 42 // aload_0
       if slot <= 3 then op(shortBase + slot)
       else { op(baseWide); out.u1(slot) }
 
     private def storeOp(baseWide: Int, slot: Int): Unit =
-      val shortBase = if baseWide == 54 then 59 else 75 // istore_0/astore_0
+      val shortBase = baseWide match
+        case 54 => 59 // istore_0
+        case 55 => 63 // lstore_0
+        case 58 => 75 // astore_0
       if slot <= 3 then op(shortBase + slot)
       else { op(baseWide); out.u1(slot) }
 
@@ -259,6 +277,27 @@ object ClassFile:
     def ixor(): Unit = { op(130); stackDelta(-1) }
     def ishl(): Unit = { op(120); stackDelta(-1) }
     def ishr(): Unit = { op(122); stackDelta(-1) }
+
+    // ---- arithmetic (long) ----
+    // Every operand/result here is category-2 (2 operand-stack words), per
+    // JVMS §2.11.1, except the shifts, whose shift-amount operand is a
+    // plain (category-1) `int`, and `lcmp`, which produces a category-1
+    // `int` (-1/0/1) — `stackDelta` below reflects that word accounting,
+    // not "how many values".
+    def ladd(): Unit = { op(97); stackDelta(-2) }
+    def lsub(): Unit = { op(101); stackDelta(-2) }
+    def lmul(): Unit = { op(105); stackDelta(-2) }
+    def ldiv(): Unit = { op(109); stackDelta(-2) }
+    def lrem(): Unit = { op(113); stackDelta(-2) }
+    def lneg(): Unit = { op(117); stackDelta(0) }
+    def land(): Unit = { op(127); stackDelta(-2) }
+    def lor(): Unit  = { op(129); stackDelta(-2) }
+    def lxor(): Unit = { op(131); stackDelta(-2) }
+    def lshl(): Unit = { op(121); stackDelta(-1) }
+    def lshr(): Unit = { op(123); stackDelta(-1) }
+    def lcmp(): Unit = { op(148); stackDelta(-3) }
+    def l2i(): Unit  = { op(136); stackDelta(-1) }
+    def i2l(): Unit  = { op(133); stackDelta(1) }
 
     // ---- control flow ----
     private def branch(opcode: Int, target: Label, stackEffect: Int): Unit =
@@ -289,7 +328,21 @@ object ClassFile:
         case "ne" => 166
       branch(opcode, target, -2)
 
+    // Single-operand int-vs-zero branch — used directly for `Bool`
+    // truth-testing (`ifeq`/`ifne` above) and, after `lcmp` reduces a
+    // `Long` comparison to an int -1/0/1, for the other four conditions too.
+    def ifCond(cond: String, target: Label): Unit =
+      val opcode = cond match
+        case "eq" => 153
+        case "ne" => 154
+        case "lt" => 155
+        case "ge" => 156
+        case "gt" => 157
+        case "le" => 158
+      branch(opcode, target, -1)
+
     def ireturn(): Unit = { op(172); stackDelta(-1) }
+    def lreturn(): Unit = { op(173); stackDelta(-2) }
     def areturn(): Unit = { op(176); stackDelta(-1) }
     def returnVoid(): Unit = { op(177); stackDelta(0) }
     def athrow(): Unit = { op(191); stackDelta(0) }
