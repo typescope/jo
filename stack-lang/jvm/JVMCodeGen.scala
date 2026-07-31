@@ -84,6 +84,28 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     // its "result" adapted after compiling it, wherever that's compiled
     // (`Encoded`, `Assign`, `compileIf`'s branches) — see the call sites
     // that check `.tpe.isBottomType` before calling `adaptTo`.
+    //
+    // That check is deliberately the raw `Type.isBottomType` (`this ==
+    // BottomType`, no `.approx` normalization) everywhere in this file, not
+    // an accident to "fix": it's standing in for a narrower, bytecode-level
+    // question — "is this expression's *compiled form* guaranteed to leave
+    // nothing on the stack" — which only a `Return` node or an inlined
+    // `throwAny` call satisfy (both carry the literal `BottomType` singleton
+    // and end in `areturn`/`athrow`). An *ordinary call* to a user function
+    // declared to return `Bottom` (e.g. `abort(...)`, compiled as a plain
+    // `invokestatic`) is a different case entirely: its Jo-level type is
+    // `StaticRef` to `Bottom`'s type-alias symbol (`type Bottom = Bottom` in
+    // the standard library), not the raw singleton — so the naive check
+    // correctly does *not* match it — and that's load-bearing: the JVM
+    // verifier has no interprocedural knowledge that `abort` never returns,
+    // so it still expects that call's declared return value to be there.
+    // Widening the check with `.approx` (tried once, reverted) made both
+    // cases look identical and broke exactly this: `compileTopLevelFunDef`
+    // started skipping `emitReturn` after a bare `abort(...)` tail call,
+    // producing `VerifyError: Falling off the end of the code` for
+    // `jo.jvm.runtime.ParamSupport.getParam` (whose body ends in exactly
+    // that shape) — confirmed by direct regression, not just re-derived
+    // here from first principles.
     if tp.isVoidType then V
     else
       // `.approx` dealiases and widens term references (e.g. an `Ident`'s
@@ -342,15 +364,18 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     * local slot 0 (`this`). `argsArraySlot`, when set, is the local slot of
     * the incoming `Object[] args` array for a uniform-convention lambda
     * `apply` method. `localLabels` maps a `Labeled` block's label symbol to
-    * (its end-of-block jump target, its declared result JType) — used to
-    * compile `TailCallOpt`'s `_tco_loop` labeled blocks and local
-    * `Return(label, ...)` "break out of this block" jumps, as opposed to a
-    * `Return` to the enclosing function itself.
+    * its end-of-block jump target — used to compile `TailCallOpt`'s
+    * `_tco_loop` labeled blocks and local `Return(label, ...)` "break out
+    * of this block" jumps, as opposed to a `Return` to the enclosing
+    * function itself. (No declared result type is tracked alongside the
+    * label: `Erasure`'s own `Return`/`Labeled` handling already erases the
+    * jump's value against that block's own recorded type before this
+    * backend ever sees it — see the `Return` case's doc comment.)
     */
   private class MethodCtx(
     val cw: CodeWriter, val slots: Slots, val returnType: JType,
     val selfSym: Option[Symbol], val argsArraySlot: Option[Int] = None,
-    val localLabels: mutable.Map[Symbol, (ClassFile.Label, JType)] = mutable.Map.empty
+    val localLabels: mutable.Map[Symbol, ClassFile.Label] = mutable.Map.empty
   )
 
   //----------------------------------------------------------------------------
@@ -392,18 +417,12 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     // rejects. This checks the *body's* type, not the declared result
     // type — they can disagree exactly in this stubbed-function case.
     //
-    // The `adaptTo` below still earns its keep even with `Erasure` wired
-    // in: confirmed by direct regression (tests/pos/return.jo/
-    // return-tco.jo) when it was dropped on the assumption `Erasure`
-    // already covers a function body's declared-vs-actual result type
-    // uniformly. A TailCallOpt-rewritten body is `Block(..., whileLoop,
-    // lastStmt)`, and `Erasure`'s `Labeled` case (the loop's own wrapper,
-    // always typed `VoidType`, see TailCallOpt.scala) rebinds `returnType`
-    // for everything nested in it — the same misfire documented in detail
-    // on the `Return` case below, just reached through the body's own
-    // control-flow shape rather than directly. Not fully re-derived from
-    // first principles here every time; see `Return`'s comment for the
-    // mechanism.
+    // This is deliberately the raw `.isBottomType` check, not a normalized
+    // one — see `jvmType`'s doc comment for why that distinction matters
+    // (in short: an *ordinary call* to a user function declared `Bottom`,
+    // e.g. a bare `abort(...)` tail call, still needs the `adaptTo` +
+    // `emitReturn` below despite being semantically Bottom, because the
+    // verifier can't see that the call never returns).
     if !fdef.body.tpe.isBottomType then
       adaptTo(jvmType(fdef.body.tpe), resType, cw)
       emitReturn(resType, cw)
@@ -766,44 +785,31 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
             init.foreach(compile)
             compile(last)
 
-      case Labeled(label, resultType, body) =>
+      case Labeled(label, _, body) =>
         val endL = ctx.cw.newLabel()
-        val rt = jvmType(resultType)
-        ctx.localLabels(label) = (endL, rt)
+        ctx.localLabels(label) = endL
         compile(body)
         ctx.cw.mark(endL)
 
       case Return(label, value) =>
-        // Both `adaptTo` calls below are genuinely load-bearing, not just
-        // defensive — this isn't a case `Erasure` already covers. Its
-        // `Labeled` case unconditionally rebinds `returnType` to that
-        // block's own (erased) type while erasing its body — correct for a
-        // local jump targeting that same label, but silently *wrong* for a
-        // genuine `Flags.Fun` function `Return` lexically nested inside it,
-        // e.g. an early `return acc` living inside a TailCallOpt `_tco_loop`
-        // (always `Labeled(_, VoidType, ...)`, see TailCallOpt.scala). Once
-        // rebound to `VoidType`, `Erasure.adapt`'s very first check
-        // (`!expectedType.isValueType`, and `VoidType.isValueType` is
-        // false) makes it a no-op — the return value is never adapted to
-        // the function's real return type at all in that shape. Confirmed
-        // by direct regression (tests/pos/return.jo, return-tco.jo) when
-        // this was dropped on the assumption `Erasure` already handled it.
+        // No adaptation of `value` needed in either arm: `Erasure`'s own
+        // `Return` case now erases `value` against the right target type
+        // for each — `returnType` (the enclosing function's own return
+        // type, never rebound by an enclosing `Labeled`) for a real
+        // function return, or that specific label's own recorded type for
+        // a local block-jump (see `Erasure.labelResultTypes`) — after the
+        // `Erasure.scala` fix that separated the two (previously conflated
+        // into one `returnType` parameter, which broke a `Flags.Fun`
+        // return nested inside a `Labeled` block of a different type, e.g.
+        // TailCallOpt's `_tco_loop`).
         if label.is(Flags.Fun) then
           compile(value)
-          adaptTo(jvmType(value.tpe), ctx.returnType, ctx.cw)
           emitReturn(ctx.returnType, ctx.cw)
         else
           // Local "break out of this Labeled block" jump (e.g. one iteration
-          // of a TailCallOpt `_tco_loop`), not a function return — this arm
-          // *is* one `Erasure`'s own `Labeled`/`Return` handling covers
-          // correctly, since the jump target's label and the rebound
-          // `returnType` are the same block. Left unchanged for symmetry
-          // with the arm above and because a redundant no-op `adaptTo` here
-          // is free; the harder-won fact worth keeping is that the *other*
-          // arm can't be simplified the same way.
-          val (target, rt) = ctx.localLabels(label)
+          // of a TailCallOpt `_tco_loop`), not a function return.
+          val target = ctx.localLabels(label)
           compile(value)
-          adaptTo(jvmType(value.tpe), rt, ctx.cw)
           ctx.cw.gotoL(target)
 
       case Encoded(repr) =>
