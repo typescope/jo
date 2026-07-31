@@ -19,6 +19,7 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
 
   override def initContext()(using Context): Unit =
     Erasure.bridges.set(mutable.Map.empty)
+    Erasure.labelResultTypes.set(mutable.Map.empty)
 
     val prevDefinitions = defn.snapshot
     Erasure.prevDefinitions.set(prevDefinitions)
@@ -331,7 +332,18 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
 
       case Labeled(label, resultType, body) =>
         val resultType2 = eraseType(resultType)
-        val body2 = eraseWord(body, resultType2, resultType2)
+        // Record this label's own (erased) type for a same-labeled `Return`
+        // to look up (see the `Return` case) — but don't rebind
+        // `returnType` itself while erasing `body`. `returnType` means "the
+        // type a `Flags.Fun` function `Return` targets," which stays fixed
+        // to the enclosing *function's* return type regardless of how many
+        // `Labeled` blocks (e.g. TailCallOpt's `_tco_loop`, typically
+        // `VoidType`) a `return` happens to be lexically nested inside.
+        // Conflating the two used to mean a real function return nested in
+        // a `Labeled` block got erased against that block's type instead of
+        // the function's.
+        Erasure.labelResultTypes.value(label) = resultType2
+        val body2 = eraseWord(body, resultType2, returnType)
 
         val word2 =
           if body2.eq(body) && resultType2.eq(resultType) then
@@ -343,7 +355,12 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
 
       case ret @ Return(label, value) =>
         assert(returnType != null, "return type is null")
-        val value2 = eraseWord(ret.value, returnType, returnType)
+        // A `Flags.Fun` return targets the enclosing function's own return
+        // type (`returnType`, now never rebound by an enclosing `Labeled` —
+        // see that case); a local "break out of this block" jump targets
+        // that specific label's own type, recorded there.
+        val targetType = if label.is(Flags.Fun) then returnType else Erasure.labelResultTypes.value(label)
+        val value2 = eraseWord(ret.value, targetType, returnType)
         if value2.eq(value) then word
         else Return(label, value2)(word.span)
 
@@ -440,6 +457,13 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
 object Erasure:
   val bridges: Phase.PhaseKey[mutable.Map[Symbol, List[(Symbol, Symbol)]]] =
     new Phase.PhaseKey("bridges")
+
+  /** Each currently-erased `Labeled` block's own (erased) result type,
+    * keyed by its label symbol — see the `Labeled`/`Return` cases in
+    * `eraseWord`.
+    */
+  val labelResultTypes: Phase.PhaseKey[mutable.Map[Symbol, Type]] =
+    new Phase.PhaseKey("labelResultTypes")
 
   val prevDefinitions: Phase.PhaseKey[Definitions] = new Phase.PhaseKey("prevDefinitions")
 
