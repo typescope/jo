@@ -96,7 +96,27 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
         case StaticRef(sym) if sym == defn.Float_type  => F
         case StaticRef(sym) if sym == defn.Long_type   => J
         case StaticRef(sym) if sym == defn.String_type => Ref(StringDesc)
-        case _ => Ref(ObjectDesc)
+        // A concrete class/interface reference (including a generic class's
+        // own instantiation, e.g. `Pair[Bool, Int]`) keeps its own compiled
+        // identity through `Erasure` — see `Erasure.EraseTypeMap`'s
+        // `AppliedType(tctor, _) => StaticRef(tctor)` for a class/interface
+        // `tctor`, which only collapses a genuinely unresolved type
+        // parameter to `Any`. Mirror that here instead of collapsing every
+        // non-primitive type to `Object` uniformly: a field/method receiver
+        // whose declared type is a real class already carries the right
+        // owner without a defensive `checkcast` (see `compileFieldReceiver`/
+        // `compileMethodCall`), and `Erasure`'s own bridge-method synthesis
+        // (`compileClass`) only produces a distinct descriptor from the
+        // natural method's when this is precise — collapsing both to
+        // `Object` uniformly made them collide as duplicate methods.
+        //
+        // `Array[T]` is excluded: it's intrinsified directly as a real JVM
+        // `Object[]` (`RefArray`'s create/get/set/size/clone), with no
+        // `ClassDef` for `enqueueClass` to ever find and compile.
+        case _ =>
+          classOrInterfaceSymbol(tp) match
+            case Some(sym) if sym != defn.Array_class => Ref("L" + enqueueClass(sym) + ";")
+            case _ => Ref(ObjectDesc)
 
   def methodDesc(paramTypes: List[Type], resultType: Type): String =
     "(" + paramTypes.map(t => descOf(jvmType(t))).mkString + ")" + descOf(jvmType(resultType))
@@ -372,13 +392,18 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     // rejects. This checks the *body's* type, not the declared result
     // type — they can disagree exactly in this stubbed-function case.
     //
-    // Otherwise, `compile`'s postcondition only guarantees `jvmType(body's
-    // *own* type)` is on the stack (e.g. `Int` for a bare literal `3`) —
-    // not necessarily the function's *declared* result type (e.g. `Any`,
-    // for `def anyValue: Any = 3`), when the frontend leaves that widening
-    // implicit rather than wrapping the body in an explicit adapting node.
-    // Reconcile the two the same way every other declared-vs-actual
-    // boundary in this file does.
+    // The `adaptTo` below still earns its keep even with `Erasure` wired
+    // in: confirmed by direct regression (tests/pos/return.jo/
+    // return-tco.jo) when it was dropped on the assumption `Erasure`
+    // already covers a function body's declared-vs-actual result type
+    // uniformly. A TailCallOpt-rewritten body is `Block(..., whileLoop,
+    // lastStmt)`, and `Erasure`'s `Labeled` case (the loop's own wrapper,
+    // always typed `VoidType`, see TailCallOpt.scala) rebinds `returnType`
+    // for everything nested in it — the same misfire documented in detail
+    // on the `Return` case below, just reached through the body's own
+    // control-flow shape rather than directly. Not fully re-derived from
+    // first principles here every time; see `Return`'s comment for the
+    // mechanism.
     if !fdef.body.tpe.isBottomType then
       adaptTo(jvmType(fdef.body.tpe), resType, cw)
       emitReturn(resType, cw)
@@ -463,12 +488,28 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     // this generics-erasure mismatch is a synthetic bridge method with the
     // interface's own erased signature that adapts and forwards to the
     // natural-typed one.
-    val ifaceAbstractMethods = cdef.views.flatMap(v => classOrInterfaceSymbol(v.tpe))
-      .flatMap(_.classInfo.allMethods.filter(_.is(Flags.Defer)))
-    val bridgeMethods = cdef.funs.filter(_.symbol.name != Names.Constructor).flatMap { fdef =>
-      ifaceAbstractMethods.find(m => m.name == fdef.symbol.name && bridgeNeeded(fdef, m))
-        .map(compileSamBridgeMethod(fdef, cdef, _, cp))
-    }
+    //
+    // `Erasure` (see Compiler.scala) already synthesizes this bridge
+    // directly into `cdef.funs` for any *ordinary* user-declared class with
+    // `view`s — `Erasure.transformClassDef`/`createBridges` run against the
+    // class's `ClassInfo`, which exists before `ElimCapture` does anything.
+    // The one case `Erasure` can't see is a lambda literal lifted into a
+    // class *by* `ElimCapture`, which runs after `Erasure` — that class
+    // doesn't exist yet when bridges are synthesized. So this stays scoped
+    // to exactly that case (`Flags.Synthetic` + declared views); an ordinary
+    // class relies entirely on `Erasure`'s own bridge, already sitting in
+    // `cdef.funs` and compiled by `otherMethods` above like any other
+    // method — recomputing one here for it would risk emitting a second,
+    // colliding bridge with the same name and descriptor.
+    val bridgeMethods =
+      if cdef.symbol.is(Flags.Synthetic) && cdef.views.nonEmpty then
+        val ifaceAbstractMethods = cdef.views.flatMap(v => classOrInterfaceSymbol(v.tpe))
+          .flatMap(_.classInfo.allMethods.filter(_.is(Flags.Defer)))
+        cdef.funs.filter(_.symbol.name != Names.Constructor).flatMap { fdef =>
+          ifaceAbstractMethods.find(m => m.name == fdef.symbol.name && bridgeNeeded(fdef, m))
+            .map(compileSamBridgeMethod(fdef, cdef, _, cp))
+        }
+      else Nil
 
     val interfaces = (if isLambda then LambdaClass :: Nil else Nil) ++ declaredInterfaces
     val methods = ctorOut.toList ++ otherMethods ++ bridgeMethods
@@ -623,7 +664,17 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
     val (code, maxStack, maxLocals) = cw.finish()
     val desc = methodDesc(procType.paramTypes ++ procType.autoTypes, procType.resultType)
-    MethodOut(AccessFlags.Public, sym.name, desc, Some((code, maxStack, maxLocals)))
+    // `Erasure` names a synthesized bridge method `<name>$bridge` (see
+    // Names.BridgeSuffix) — that convention is native's own, which looks
+    // bridges up explicitly by that suffixed name in its own itable
+    // (native/runtime/InterfaceTable.scala), not a real JVM requirement.
+    // Real `invokeinterface` dispatch needs the bridge to carry the exact
+    // same name as the interface method it bridges — the JVM tells it apart
+    // from the natural-typed method purely by descriptor (return type is
+    // part of a JVM method's identity, even though Java source can't
+    // overload on it alone), so stripping the suffix here is enough.
+    val bytecodeName = sym.name.stripSuffix(Names.BridgeSuffix)
+    MethodOut(AccessFlags.Public, bytecodeName, desc, Some((code, maxStack, maxLocals)))
 
   /** Every lambda-lifted class implements the shared marker interface
     * `Lambda` with a single arity-erased method `Object apply(Object[])`,
@@ -723,13 +774,33 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
         ctx.cw.mark(endL)
 
       case Return(label, value) =>
+        // Both `adaptTo` calls below are genuinely load-bearing, not just
+        // defensive — this isn't a case `Erasure` already covers. Its
+        // `Labeled` case unconditionally rebinds `returnType` to that
+        // block's own (erased) type while erasing its body — correct for a
+        // local jump targeting that same label, but silently *wrong* for a
+        // genuine `Flags.Fun` function `Return` lexically nested inside it,
+        // e.g. an early `return acc` living inside a TailCallOpt `_tco_loop`
+        // (always `Labeled(_, VoidType, ...)`, see TailCallOpt.scala). Once
+        // rebound to `VoidType`, `Erasure.adapt`'s very first check
+        // (`!expectedType.isValueType`, and `VoidType.isValueType` is
+        // false) makes it a no-op — the return value is never adapted to
+        // the function's real return type at all in that shape. Confirmed
+        // by direct regression (tests/pos/return.jo, return-tco.jo) when
+        // this was dropped on the assumption `Erasure` already handled it.
         if label.is(Flags.Fun) then
           compile(value)
           adaptTo(jvmType(value.tpe), ctx.returnType, ctx.cw)
           emitReturn(ctx.returnType, ctx.cw)
         else
           // Local "break out of this Labeled block" jump (e.g. one iteration
-          // of a TailCallOpt `_tco_loop`), not a function return.
+          // of a TailCallOpt `_tco_loop`), not a function return — this arm
+          // *is* one `Erasure`'s own `Labeled`/`Return` handling covers
+          // correctly, since the jump target's label and the rebound
+          // `returnType` are the same block. Left unchanged for symmetry
+          // with the arm above and because a redundant no-op `adaptTo` here
+          // is free; the harder-won fact worth keeping is that the *other*
+          // arm can't be simplified the same way.
           val (target, rt) = ctx.localLabels(label)
           compile(value)
           adaptTo(jvmType(value.tpe), rt, ctx.cw)
@@ -822,11 +893,19 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       case Ident(sym) if ctx.selfSym.contains(sym) =>
         classSimpleName(sym.owner)
       case _ =>
-        adaptTo(jvmType(qual.tpe), Ref(ObjectDesc), ctx.cw)
         val owner = classOrInterfaceSymbol(qual.tpe) match
           case Some(sym) => enqueueClass(sym)
           case None => internalNameOf(jvmType(qual.tpe))
-        ctx.cw.checkcast(owner)
+        // `jvmType` now keeps a concrete class/interface's own identity
+        // through erasure (see its doc comment), so `qual`'s erased type is
+        // already `owner` in the common case — `Erasure`'s own `Select`
+        // handling (`eraseWord`) already adapts a receiver that needed
+        // narrowing from a generic position before this point is ever
+        // reached. `adaptTo`'s existing `(Ref(_), Ref(d))` case still
+        // covers the genuine mismatch (with an actual `checkcast`) when one
+        // remains, and is a no-op — not a redundant explicit `checkcast` —
+        // when it's already exactly `owner`.
+        adaptTo(jvmType(qual.tpe), Ref("L" + owner + ";"), ctx.cw)
         owner
 
   /** Compile a sub-expression using an already-open CodeWriter/Slots without
@@ -965,6 +1044,16 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     val procType = methodSym.tpe.asProcType
     val paramTypes = procType.paramTypes ++ procType.autoTypes
 
+    // No trailing result reconciliation here (contrast `compileStaticCall`,
+    // which still needs one — see its doc comment): `Erasure` (now wired
+    // into the JVM pipeline, see Compiler.scala) already made this call's
+    // result-type adaptation explicit in the tree, as an outer `Encoded`
+    // node around this whole `Apply` wherever the erased method result and
+    // this call site's expected type disagree — `compile(word)`'s `Encoded`
+    // case already consumes that. Unlike `compileStaticCall` (also used to
+    // redirect e.g. `String.size` to the backend-internal `StringOps.size`,
+    // a target `Erasure` never saw), every call reaching `compileMethodCall`
+    // is a genuine, `Erasure`-visible Jo-level method call.
     if isIface && !methodSym.is(Flags.Defer) then
       val fnName = enqueueTopLevel(methodSym)
       compile(qual); adaptTo(jvmType(qual.tpe), Ref(ObjectDesc), ctx.cw)
@@ -972,19 +1061,17 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
         compile(arg); adaptTo(jvmType(arg.tpe), jvmType(pt), ctx.cw)
       val desc = "(Ljava/lang/Object;" + paramTypes.map(t => descOf(jvmType(t))).mkString + ")" + descOf(jvmType(procType.resultType))
       ctx.cw.invokestatic(MainClassName, fnName, desc)
-      adaptTo(jvmType(procType.resultType), jvmType(apply.tpe), ctx.cw)
 
     else
       val ownerName = enqueueClass(classSym)
-      compile(qual); adaptTo(jvmType(qual.tpe), Ref(ObjectDesc), ctx.cw); ctx.cw.checkcast(ownerName)
+      // See `compileFieldReceiver`'s doc comment: `jvmType(qual.tpe)` is
+      // already `ownerName` in the common case now, so this is a no-op, not
+      // a redundant `checkcast`, whenever no real mismatch remains.
+      compile(qual); adaptTo(jvmType(qual.tpe), Ref("L" + ownerName + ";"), ctx.cw)
       for (arg, pt) <- args.zip(paramTypes) do
         compile(arg); adaptTo(jvmType(arg.tpe), jvmType(pt), ctx.cw)
       val desc = methodDesc(paramTypes, procType.resultType)
       if isIface then ctx.cw.invokeinterface(ownerName, name, desc) else ctx.cw.invokevirtual(ownerName, name, desc)
-      // Reconcile a generic method's own descriptor against this call
-      // site's (possibly further-instantiated) static type — same
-      // reasoning as `compileStaticCall`.
-      adaptTo(jvmType(procType.resultType), jvmType(apply.tpe), ctx.cw)
 
   private def isPrimitiveOwner(tp: Type): Boolean =
     tp.approx match
