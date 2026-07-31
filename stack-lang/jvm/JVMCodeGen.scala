@@ -78,34 +78,15 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     // both genuine *value* types (`Type.isValueType` holds for both) — they
     // fall through to the catch-all `Ref(ObjectDesc)` below like any other
     // non-primitive type, with `null` as their runtime representation.
-    // `jo_pass()` compiles to `aconst_null` accordingly, and a `Bottom`-typed
-    // subexpression (which never actually completes normally — always
-    // `athrow`/an enclosing `Return`) is specifically exempted from having
-    // its "result" adapted after compiling it, wherever that's compiled
-    // (`Encoded`, `Assign`, `compileIf`'s branches) — see the call sites
-    // that check `.tpe.isBottomType` before calling `adaptTo`.
-    //
-    // That check is deliberately the raw `Type.isBottomType` (`this ==
-    // BottomType`, no `.approx` normalization) everywhere in this file, not
-    // an accident to "fix": it's standing in for a narrower, bytecode-level
-    // question — "is this expression's *compiled form* guaranteed to leave
-    // nothing on the stack" — which only a `Return` node or an inlined
-    // `throwAny` call satisfy (both carry the literal `BottomType` singleton
-    // and end in `areturn`/`athrow`). An *ordinary call* to a user function
-    // declared to return `Bottom` (e.g. `abort(...)`, compiled as a plain
-    // `invokestatic`) is a different case entirely: its Jo-level type is
-    // `StaticRef` to `Bottom`'s type-alias symbol (`type Bottom = Bottom` in
-    // the standard library), not the raw singleton — so the naive check
-    // correctly does *not* match it — and that's load-bearing: the JVM
-    // verifier has no interprocedural knowledge that `abort` never returns,
-    // so it still expects that call's declared return value to be there.
-    // Widening the check with `.approx` (tried once, reverted) made both
-    // cases look identical and broke exactly this: `compileTopLevelFunDef`
-    // started skipping `emitReturn` after a bare `abort(...)` tail call,
-    // producing `VerifyError: Falling off the end of the code` for
-    // `jo.jvm.runtime.ParamSupport.getParam` (whose body ends in exactly
-    // that shape) — confirmed by direct regression, not just re-derived
-    // here from first principles.
+    // `jo_pass()` compiles to `aconst_null` accordingly. A `Bottom`-typed
+    // subexpression's "result" is skipped rather than adapted wherever its
+    // *compiled form* is already guaranteed to leave nothing behind — see
+    // `isTerminal`, which answers that as a code-generation fact instead of
+    // asking this erased type (a `Bottom`-typed value and a compiled form
+    // that's actually terminal are related but distinct: an ordinary call to
+    // a `Bottom`-declared function, e.g. `abort(...)`, is semantically
+    // non-returning but compiles to a plain `invokestatic` the verifier
+    // still expects a value from — see `isTerminal`'s doc comment).
     if tp.isVoidType then V
     else
       // `.approx` dealiases and widens term references (e.g. an `Ident`'s
@@ -409,21 +390,14 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
     emitLocalDefaults(localTypes, cw)
     compile(fdef.body)
-    // A `Bottom`-*bodied* function (e.g. `def size[T](...): Int =
-    // abort(...)` — an `abort`-stubbed function, always `Int`-*declared*,
-    // never actually returning one) ends in a genuine non-returning
-    // instruction (`athrow`, via `throwAny`); emitting a trailing return
-    // after it would operate on an empty stack, which the legacy verifier
-    // rejects. This checks the *body's* type, not the declared result
-    // type — they can disagree exactly in this stubbed-function case.
-    //
-    // This is deliberately the raw `.isBottomType` check, not a normalized
-    // one — see `jvmType`'s doc comment for why that distinction matters
-    // (in short: an *ordinary call* to a user function declared `Bottom`,
-    // e.g. a bare `abort(...)` tail call, still needs the `adaptTo` +
-    // `emitReturn` below despite being semantically Bottom, because the
-    // verifier can't see that the call never returns).
-    if !fdef.body.tpe.isBottomType then
+    // A function whose body already ends in a terminal instruction (e.g. an
+    // `abort`-stubbed function whose body is a direct `throwAny` call, or one
+    // ending in a real `Return`) needs no epilogue — emitting a trailing
+    // return after it would be dead code following an instruction (`athrow`
+    // or another return) that already left nothing on the stack. See
+    // `isTerminal`'s doc comment for why this is a structural, code-gen-level
+    // check rather than a test on `fdef.body`'s (erased) type.
+    if !isTerminal(fdef.body) then
       adaptTo(jvmType(fdef.body.tpe), resType, cw)
       emitReturn(resType, cw)
 
@@ -677,7 +651,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     emitLocalDefaults(localTypes, cw)
     compile(fdef.body)
     // See the matching check in `compileTopLevelFunDef`.
-    if !fdef.body.tpe.isBottomType then
+    if !isTerminal(fdef.body) then
       adaptTo(jvmType(fdef.body.tpe), resType, cw)
       emitReturn(resType, cw)
 
@@ -742,6 +716,64 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
   // operand stack (nothing, for VoidType).
   //----------------------------------------------------------------------------
 
+  /** Whether compiling `word` is guaranteed to already leave the current
+    * instruction stream ended in a genuine JVM control-transfer instruction
+    * (`xreturn`/`athrow` via `Return`, or the inlined `throwAny`'s
+    * `checkcast`+`athrow`) — i.e. nothing placed immediately after it, in
+    * this position, can ever execute.
+    *
+    * This used to be approximated by asking the *type checker* whether
+    * `word`'s type was `Bottom` (`Type.isBottomType`, `this ==
+    * BottomType`). That's the wrong question, answered by accident: the
+    * only tree node whose `.tpe` is ever the literal `BottomType` singleton
+    * is `Return` itself (a hardcoded override — see `Trees.scala`). Every
+    * other `Bottom`-declared expression, including an inlined `throwAny`
+    * call, carries `StaticRef` to the `Bottom` *alias* symbol instead, which
+    * the raw check never matches — so it was really testing "is this
+    * literally a `Return` node", not "is this provably terminal", and
+    * happened to stay safe only because always falling back to "emit the
+    * epilogue" is harmless here: this project targets a pre-StackMapTable
+    * classfile version (49, the legacy type-inferencing verifier), which
+    * never visits code with no incoming control-flow edge, so a redundant
+    * epilogue after a genuinely terminal instruction is inert (confirmed
+    * directly: `abort`'s own compiled body is `athrow` followed by a dead
+    * `areturn`, and it loads and runs fine even under `-Xverify:all`). An
+    * *ordinary call* to a `Bottom`-declared function (`abort(...)`, a plain
+    * `invokestatic`) needing the epilogue anyway is the case that actually
+    * matters: the verifier has no interprocedural knowledge that `abort`
+    * never returns, so it still expects the call's declared return value to
+    * be there — confirmed by regression (`ParamSupport.getParam` falling
+    * off the end of the code when this was once conflated with the
+    * `Return` case; `SetTree.insert`'s pattern-match exhaustiveness
+    * fallback landing in `Assign` via `TailCallOpt` needing the same thing).
+    *
+    * This instead mirrors `compile`'s own case dispatch directly for the
+    * handful of shapes that end in a real terminal instruction, and must be
+    * kept in sync with any case in `compile` that can end control flow
+    * outright. Under-reporting (`false` for something actually terminal)
+    * only costs a few bytes of dead code, per the paragraph above; a wrong
+    * `true` would be a real bug (skipping control flow that's actually
+    * needed), so this stays conservative and defaults to `false`.
+    */
+  private def isTerminal(word: Word): Boolean =
+    word match
+      case _: Return => true
+
+      case Apply(funRaw, _, _) =>
+        stripTypeApply(funRaw) match
+          case Ident(sym) => resolve(sym) == runtime.throwAny
+          case _ => false
+
+      case If(_, thenp, elsep) =>
+        !elsep.isEmpty && isTerminal(thenp) && isTerminal(elsep)
+
+      case Block(words) =>
+        words.nonEmpty && isTerminal(words.last)
+
+      case Encoded(repr) => isTerminal(repr)
+
+      case _ => false
+
   private def compile(word: Word)(using ctx: MethodCtx): Unit =
     word match
       case Literal(c) => compileLiteral(c, jvmType(word.tpe))
@@ -749,14 +781,26 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       case Ident(sym) => compileIdent(sym, jvmType(word.tpe))
 
       case Assign(Ident(sym), rhs, _) =>
-        // A `Bottom`-typed `rhs` (e.g. `x = abort(...)`) never actually
-        // completes — it always ends in its own terminal instruction
-        // (`athrow`/a function `return`) before reaching the store, so
-        // there both isn't a value to adapt and the assignment itself
-        // never executes. See the `jvmType` doc comment.
+        // A `rhs` whose compiled form is directly terminal (a `Return`, or
+        // an inlined `throwAny`) never actually completes, so there's no
+        // value to adapt and the store never executes.
+        //
+        // The `adaptTo` below still earns its keep for the *other*
+        // `Bottom`-typed case: an ordinary call to a user function declared
+        // `Bottom` (`abort(...)`, compiled as a plain `invokestatic`) is
+        // opaque to the verifier, which still expects its declared return
+        // value to be there. This isn't contrived — a pattern match the
+        // exhaustiveness checker can't fully prove (see `insert` in
+        // lib/Set.jo) gets a defensive `abort(...)` fallback branch, and
+        // when that fallback is TailCallOpt's tail-position catch-all, it
+        // becomes exactly `_tco_result = abort(...)` — confirmed by direct
+        // regression (tests/pos/type-expr.jo: `VerifyError: Expecting to
+        // find integer on stack` in `SetTree.insert`) when this was
+        // dropped on the assumption `Erasure` already covers `Assign`
+        // uniformly. See `isTerminal`'s doc comment for the full story.
         val pt = jvmType(sym.tpe)
         compile(rhs)
-        if !rhs.tpe.isBottomType then
+        if !isTerminal(rhs) then
           adaptTo(jvmType(rhs.tpe), pt, ctx.cw)
           storeLocal(pt, ctx.slots(sym), ctx.cw)
 
@@ -766,10 +810,12 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
         // generic `class Pair[S, T]`) — not `rhs.tpe`, the call site's own
         // (possibly further-instantiated, e.g. `Int`) type — is what the
         // class's own field descriptor was written with in `compileClass`;
-        // see `fieldDeclaredType`'s doc comment.
+        // see `fieldDeclaredType`'s doc comment. The `adaptTo` below is
+        // needed for the same reason as `Assign`'s local case above (see
+        // its comment) — not re-derived here every time.
         val declared = fieldDeclaredType(sel)
         compile(rhs)
-        if rhs.tpe.isBottomType then ctx.cw.pop() // discard the now-orphaned `qual` receiver; see above
+        if isTerminal(rhs) then ctx.cw.pop() // discard the now-orphaned `qual` receiver; see above
         else
           adaptTo(jvmType(rhs.tpe), declared, ctx.cw)
           ctx.cw.putfield(owner, name, descOf(declared))
@@ -815,11 +861,11 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       case Encoded(repr) =>
         val target = jvmType(word.tpe)
         compile(repr)
-        // See the `jvmType` doc comment: a `Bottom`-typed `repr` (typically
-        // a `Return`, e.g. this exact shape is how the frontend adapts a
-        // `Return` used as an if-branch statement, `Encoded(Return(...))
-        // (VoidType)`) never reaches here with a value to adapt.
-        if !repr.tpe.isBottomType then adaptTo(jvmType(repr.tpe), target, ctx.cw)
+        // A terminal `repr` (typically a `Return`, e.g. this exact shape is
+        // how the frontend adapts a `Return` used as an if-branch statement,
+        // `Encoded(Return(...))(VoidType)`) never reaches here with a value
+        // to adapt — see `isTerminal`'s doc comment.
+        if !isTerminal(repr) then adaptTo(jvmType(repr.tpe), target, ctx.cw)
 
       case apply: Apply => compileApply(apply)
 
@@ -961,21 +1007,26 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     ctx.cw.ifeq(if hasElse then elseL else endL)
     val afterCond = ctx.cw.currentStack
     compile(thenp)
-    // A `Bottom`-typed branch (e.g. ending in `abort(...)`) never actually
-    // reaches `endL` — it always ends in its own terminal instruction
-    // (`athrow`/a function `return`) first. Adapting its value or jumping
-    // to the merge point anyway would be dead code that disagrees with the
-    // other branch about the stack depth/contents at `endL`, which the
-    // verifier rejects even though that disagreement can never be observed
-    // at runtime.
-    val thenTerminal = thenp.tpe.isBottomType
+    // A branch that's already terminal (e.g. ending in `Return`, or an
+    // inlined `throwAny`) never actually reaches `endL` — see `isTerminal`'s
+    // doc comment. Adapting its value or jumping to the merge point anyway
+    // would be dead code that disagrees with the other branch about the
+    // stack depth/contents at `endL` — harmless as genuinely unreachable
+    // code under this project's legacy verifier target, but skipped here
+    // for clarity, and unlike the other `isTerminal` call sites, getting
+    // this specific one wrong in the *unsafe* direction (treating a branch
+    // that actually falls through as terminal) would be a real bug: `endL`
+    // is a live merge point with a real second incoming edge from `elsep`,
+    // so a wrongly-omitted `gotoL` here would fall straight into `elsep`'s
+    // code instead of jumping past it.
+    val thenTerminal = isTerminal(thenp)
     if !thenTerminal then adaptTo(jvmType(thenp.tpe), resultType, ctx.cw)
     if hasElse then
       if !thenTerminal then ctx.cw.gotoL(endL)
       ctx.cw.mark(elseL)
       ctx.cw.setStack(afterCond)
       compile(elsep)
-      if !elsep.tpe.isBottomType then adaptTo(jvmType(elsep.tpe), resultType, ctx.cw)
+      if !isTerminal(elsep) then adaptTo(jvmType(elsep.tpe), resultType, ctx.cw)
     ctx.cw.mark(endL)
 
   private def compileWhile(cond: Word, body: Word)(using ctx: MethodCtx): Unit =
