@@ -147,6 +147,22 @@ private section StringOps
     val charFrom = offsetByCodePoints(s, 0, from)
     val r = rawIndexOf(s, other, charFrom)
     if r == -1 then -1 else codePointCount(s, 0, r)
+
+  def iterator(s: String): Iterator[Char] =
+    new StringIterator(s)
+end
+
+private class StringIterator(source: String)
+  var pos: Int = 0
+
+  def hasNext: Bool = pos < StringOps.size(source)
+
+  def next: Char =
+    val c = StringOps.get(source, pos)
+    pos = pos + 1
+    c
+
+  view Iterator[Char]
 end
 
 //------------------------------------------------------------------------------
@@ -157,21 +173,33 @@ end
 // operation is ever reached.
 //
 //------------------------------------------------------------------------------
+// Array[T] is represented directly as a real JVM Object[] — genuinely
+// native, zero-overhead, unlike every other backend's array representation
+// (see docs/jips/jvm-backend.md). These five operations are the actual
+// JVM array bytecode instructions (anewarray/aaload/aastore/arraylength/
+// Object[].clone()), so — like Int/Bool arithmetic — they're intrinsified
+// directly in JVMCodeGen rather than expressed through the @extern FFI
+// mechanism, which models member calls, not dedicated opcodes.
 private section RefArray
+  @intrinsic
   def create[T](size: Int): Array[T] =
-    abort "Array is not yet implemented in the JVM backend prototype"
+    abort "create should be intrinsified by the JVM backend"
 
+  @intrinsic
   def get[T](arr: Array[T], i: Int): T =
-    abort "Array is not yet implemented in the JVM backend prototype"
+    abort "get should be intrinsified by the JVM backend"
 
+  @intrinsic
   def set[T](arr: Array[T], i: Int, v: T): Unit =
-    abort "Array is not yet implemented in the JVM backend prototype"
+    abort "set should be intrinsified by the JVM backend"
 
+  @intrinsic
   def size[T](arr: Array[T]): Int =
-    abort "Array is not yet implemented in the JVM backend prototype"
+    abort "size should be intrinsified by the JVM backend"
 
+  @intrinsic
   def clone[T](arr: Array[T]): Array[T] =
-    abort "Array is not yet implemented in the JVM backend prototype"
+    abort "clone should be intrinsified by the JVM backend"
 end
 
 //------------------------------------------------------------------------------

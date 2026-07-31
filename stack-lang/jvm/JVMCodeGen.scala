@@ -44,6 +44,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
   val StringDesc  = "Ljava/lang/String;"
   val ThrowableClass = "java/lang/Throwable"
   val LambdaClass = "Lambda" // hand-written marker interface, see JVMRuntimeClasses
+  val ObjectArrayDesc = "[Ljava/lang/Object;" // Array[T]'s real representation
 
   def isIntCat(t: JType): Boolean = t match
     case I | Z | B | C => true
@@ -63,6 +64,9 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
   def internalNameOf(t: JType): String = t match
     case Ref(d) if d.startsWith("L") && d.endsWith(";") => d.substring(1, d.length - 1)
+    // Array descriptors (e.g. "[Ljava/lang/Object;") are used as-is — the
+    // strip-L-and-semicolon convention above only applies to plain classes.
+    case Ref(d) if d.startsWith("[") => d
     case _ => ObjectClass
 
   def jvmType(tp: Type): JType =
@@ -141,11 +145,20 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
   private val funDefOf   = mutable.Map.empty[Symbol, FunDef]
   private val classDefOf = mutable.Map.empty[Symbol, ClassDef]
+  private val interfaceDefOf = mutable.Map.empty[Symbol, InterfaceDef]
 
   private val topLevelWork = new mutable.ArrayDeque[Symbol]()
   private val topLevelSeen = mutable.Set.empty[Symbol]
   private val topLevelName = mutable.Map.empty[Symbol, String]
-  private val usedNames    = mutable.Set.empty[String]
+
+  // Pre-reserved so a user class/function can never collide with the
+  // synthetic entry-point class or the hand-written runtime classes, which
+  // are merged into the output by Compiler.writeClassFiles without going
+  // through classSimpleName/enqueueTopLevel's own dedup (see
+  // JVMRuntimeClasses).
+  // (Literal "Main", not `MainClassName`: that val is declared later in this
+  // class body and would still be null at this field's initialization time.)
+  private val usedNames = mutable.Set[String]("Main", "Node", "Lambda")
 
   private val classWork = new mutable.ArrayDeque[Symbol]()
   private val classSeen = mutable.Set.empty[Symbol]
@@ -229,7 +242,9 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
       if classWork.nonEmpty then
         val sym = classWork.removeHead()
-        compileClass(classDefOf(sym), cp)
+        classDefOf.get(sym) match
+          case Some(cdef) => compileClass(cdef, cp)
+          case None => compileInterface(interfaceDefOf(sym), cp)
 
     // Synthetic entry point: `public static void main(String[] args)`
     mainClassMethods += buildJavaMain(cp)
@@ -264,6 +279,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
           classDefOf(cdef.symbol) = cdef
           collectDefs(cdef.funs)
         case idef: InterfaceDef =>
+          interfaceDefOf(idef.symbol) = idef
           collectDefs(idef.methods)
         case sec: Section =>
           collectDefs(sec.defs)
@@ -327,30 +343,58 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     val cw = new CodeWriter(cp)
     val slots = new Slots
 
+    // A concrete (default) method declared inside an `interface` body — see
+    // compileInterface — is compiled here as an ordinary static function
+    // with the receiver bound as an extra leading local, rather than as a
+    // genuine JVM interface default method: that would need class file
+    // version 52 (illegal below it — see ClassFile's version-49 design
+    // note) plus StackMapTable frames for any branch inside it, which this
+    // hand-rolled writer doesn't compute. Only the interface's own abstract
+    // members (`hasNext`, `next`, ...) get real `invokeinterface` dispatch —
+    // see compileMethodCall.
+    val selfOpt = if sym.owner.isInterface then Some(interfaceDefOf(sym.owner).self) else None
+    for self <- selfOpt do slots.bind(self, Ref(ObjectDesc))
+
     for param <- fdef.allParams do slots.bind(param, jvmType(param.tpe))
     if slots.used > 0 then cw.touchLocal(slots.used - 1) // see Slots.used
     val localTypes = for local <- fdef.locals yield local -> slots.bind(local, jvmType(local.tpe))
 
     val resType = jvmType(procType.resultType)
-    given MethodCtx = new MethodCtx(cw, slots, resType, selfSym = None)
+    given MethodCtx = new MethodCtx(cw, slots, resType, selfSym = selfOpt)
 
     emitLocalDefaults(localTypes, cw)
     compile(fdef.body)
-    // A `Bottom`-returning body ends in a genuine non-returning instruction
-    // (currently always `athrow`, via `throwAny`); emitting a trailing
-    // return after it would be unreachable bytecode operating on an empty
-    // stack, which the legacy verifier can reject.
-    if !procType.resultType.isBottomType then emitReturn(resType)
+    // A `Bottom`-*bodied* function (e.g. `def size[T](...): Int =
+    // abort(...)` — an `abort`-stubbed function, always `Int`-*declared*,
+    // never actually returning one) ends in a genuine non-returning
+    // instruction (`athrow`, via `throwAny`); emitting a trailing return
+    // after it would operate on an empty stack, which the legacy verifier
+    // rejects. This checks the *body's* type, not the declared result
+    // type — they can disagree exactly in this stubbed-function case.
+    //
+    // Otherwise, `compile`'s postcondition only guarantees `jvmType(body's
+    // *own* type)` is on the stack (e.g. `Int` for a bare literal `3`) —
+    // not necessarily the function's *declared* result type (e.g. `Any`,
+    // for `def anyValue: Any = 3`), when the frontend leaves that widening
+    // implicit rather than wrapping the body in an explicit adapting node.
+    // Reconcile the two the same way every other declared-vs-actual
+    // boundary in this file does.
+    if !fdef.body.tpe.isBottomType then
+      adaptTo(jvmType(fdef.body.tpe), resType, cw)
+      emitReturn(resType, cw)
 
     val (code, maxStack, maxLocals) = cw.finish()
-    val desc = methodDesc(procType.paramTypes ++ procType.autoTypes, procType.resultType)
+    val paramTypes = procType.paramTypes ++ procType.autoTypes
+    val desc =
+      val selfDesc = if selfOpt.isDefined then "Ljava/lang/Object;" else ""
+      "(" + selfDesc + paramTypes.map(t => descOf(jvmType(t))).mkString + ")" + descOf(jvmType(procType.resultType))
     MethodOut(AccessFlags.Public | AccessFlags.Static, topLevelName(sym), desc, Some((code, maxStack, maxLocals)))
 
-  private def emitReturn(t: JType)(using ctx: MethodCtx): Unit =
+  private def emitReturn(t: JType, cw: CodeWriter): Unit =
     t match
-      case V => ctx.cw.returnVoid()
-      case r if isIntCat(r) => ctx.cw.ireturn()
-      case Ref(_) => ctx.cw.areturn()
+      case V => cw.returnVoid()
+      case r if isIntCat(r) => cw.ireturn()
+      case Ref(_) => cw.areturn()
       case J | F => throw new Exception("long/float return not supported in this prototype")
 
   /** Zero-initialize every local at method entry.
@@ -380,7 +424,18 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
   private def compileClass(cdef: ClassDef, cp: ConstantPool): Unit =
     val className = classSimpleName(cdef.symbol)
-    val isLambda = cdef.funs.exists(f => f.symbol.name == "apply")
+    // ElimCapture.liftLambda always names the lifted class's single method
+    // "apply" when the lambda isn't converted to some user SAM interface
+    // (`lambdaInterfaceOpt = None`, so `directViewTypes = Nil`) — but a
+    // lambda *converted* to a user interface whose own abstract member also
+    // happens to be called "apply" (e.g. `interface Transform[T] def
+    // apply(x: T): T`, see tests/pos/erasure-lambda-wrap.jo) produces the
+    // exact same method name while needing the natural/bridge compilation
+    // path below, not the arity-erased `Object apply(Object[])` marker
+    // convention. `cdef.views.isEmpty` (only true for the marker case)
+    // disambiguates the two; `Flags.Synthetic` guards against an unrelated
+    // ordinary class that happens to define its own no-view `apply` method.
+    val isLambda = cdef.symbol.is(Flags.Synthetic) && cdef.views.isEmpty && cdef.funs.exists(f => f.symbol.name == "apply")
 
     val fieldOuts = cdef.vals.map(f => FieldOut(AccessFlags.Public, f.symbol.name, descOf(jvmType(f.tpt.tpe))))
 
@@ -389,13 +444,104 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
     val otherMethods = cdef.funs.filter(_.symbol.name != Names.Constructor).map { fdef =>
       if isLambda && fdef.symbol.name == "apply" then compileLambdaApply(fdef, cdef, cp)
-      else compileInstanceMethod(fdef, cdef, cp)
+      else compileInstanceMethod(fdef, cdef.self, cp)
     }
 
-    val interfaces = if isLambda then LambdaClass :: Nil else Nil
-    val methods = ctorOut.toList ++ otherMethods
+    // `view Foo` declares this class implements interface `Foo` — enqueue
+    // it so it actually gets compiled, same as any other reachable type.
+    val declaredInterfaces = cdef.views.flatMap(v => classOrInterfaceSymbol(v.tpe)).map(enqueueClass)
+
+    // A class method implementing an interface's abstract member may have
+    // narrower parameter/result types than the interface's own (generic,
+    // fully Object-erased) descriptor — e.g. a lambda literal converted to
+    // `Ord[String]` (see ElimCapture.liftLambda's `lambdaInterfaceOpt`)
+    // compiles its `compare` method with natural `(String, String)`
+    // parameters, but `invokeinterface Ord.compare` always resolves against
+    // the erased `(Object, Object)` descriptor. The standard JVM fix for
+    // this generics-erasure mismatch is a synthetic bridge method with the
+    // interface's own erased signature that adapts and forwards to the
+    // natural-typed one.
+    val ifaceAbstractMethods = cdef.views.flatMap(v => classOrInterfaceSymbol(v.tpe))
+      .flatMap(_.classInfo.allMethods.filter(_.is(Flags.Defer)))
+    val bridgeMethods = cdef.funs.filter(_.symbol.name != Names.Constructor).flatMap { fdef =>
+      ifaceAbstractMethods.find(m => m.name == fdef.symbol.name && bridgeNeeded(fdef, m))
+        .map(compileSamBridgeMethod(fdef, cdef, _, cp))
+    }
+
+    val interfaces = (if isLambda then LambdaClass :: Nil else Nil) ++ declaredInterfaces
+    val methods = ctorOut.toList ++ otherMethods ++ bridgeMethods
     val bytes = ClassFile.write(cp, className, ObjectClass, interfaces, fieldOuts, methods)
     classFiles(className) = bytes
+
+  private def bridgeNeeded(fdef: FunDef, ifaceMethodSym: Symbol): Boolean =
+    val ifaceProcType = ifaceMethodSym.tpe.asProcType
+    val naturalProcType = fdef.symbol.tpe.asProcType
+    (ifaceProcType.paramTypes ++ ifaceProcType.autoTypes).map(jvmType) != (naturalProcType.paramTypes ++ naturalProcType.autoTypes).map(jvmType) ||
+      jvmType(ifaceProcType.resultType) != jvmType(naturalProcType.resultType)
+
+  /** See `bridgeNeeded`'s doc comment. `ifaceMethodSym` is the interface's
+    * own (uninstantiated) abstract member, so its `ProcType` gives the
+    * exact erased descriptor `invokeinterface` will look for.
+    */
+  private def compileSamBridgeMethod(fdef: FunDef, cdef: ClassDef, ifaceMethodSym: Symbol, cp: ConstantPool): MethodOut =
+    val className = classSimpleName(cdef.symbol)
+    val cw = new CodeWriter(cp)
+    val ifaceProcType = ifaceMethodSym.tpe.asProcType
+    val erasedParamTypes = (ifaceProcType.paramTypes ++ ifaceProcType.autoTypes).map(jvmType)
+    val erasedResultType = jvmType(ifaceProcType.resultType)
+    val naturalProcType = fdef.symbol.tpe.asProcType
+    val naturalParamTypes = (naturalProcType.paramTypes ++ naturalProcType.autoTypes).map(jvmType)
+    val naturalResultType = jvmType(naturalProcType.resultType)
+
+    if (erasedResultType :: naturalResultType :: erasedParamTypes ++ naturalParamTypes).exists(t => t == J || t == F) then
+      throw new Exception("long/float bridge parameters not supported in this prototype")
+
+    cw.aload(0)
+    var slot = 1
+    for (et, nt) <- erasedParamTypes.zip(naturalParamTypes) do
+      loadLocal(et, slot, cw)
+      adaptTo(et, nt, cw)
+      slot += 1
+    cw.touchLocal(slot - 1)
+    val naturalDesc = methodDesc(naturalProcType.paramTypes ++ naturalProcType.autoTypes, naturalProcType.resultType)
+    cw.invokevirtual(className, fdef.symbol.name, naturalDesc)
+    adaptTo(naturalResultType, erasedResultType, cw)
+    emitReturn(erasedResultType, cw)
+
+    val (code, maxStack, maxLocals) = cw.finish()
+    val bridgeDesc = "(" + erasedParamTypes.map(descOf).mkString + ")" + descOf(erasedResultType)
+    MethodOut(AccessFlags.Public, ifaceMethodSym.name, bridgeDesc, Some((code, maxStack, maxLocals)))
+
+  /** A real JVM interface: only its `Flags.Defer` members (`hasNext`,
+    * `next`, ...) become actual interface methods (abstract, no `Code`
+    * attribute), dispatched via genuine `invokeinterface`.
+    *
+    * Jo interfaces can also carry concrete default-implemented methods
+    * (`map`, `fold`, ...); a real JVM interface *default method* would need
+    * class file version 52 (illegal below it) plus StackMapTable frames for
+    * any branch inside it, which this hand-rolled writer doesn't compute
+    * (see ClassFile's version-49 design note). So — like the native/Ruby/JS
+    * backends' `MaterializeView` lifting — these are instead compiled as
+    * ordinary top-level static functions taking the receiver as an extra
+    * argument; see `compileTopLevelFunDef`'s self-binding and
+    * `compileMethodCall`'s dispatch to them.
+    */
+  private def compileInterface(idef: InterfaceDef, cp: ConstantPool): Unit =
+    val ifaceName = classSimpleName(idef.symbol)
+    val methods = idef.methods.collect {
+      case fdef if fdef.symbol.is(Flags.Defer) =>
+        val procType = fdef.symbol.tpe.asProcType
+        val desc = methodDesc(procType.paramTypes ++ procType.autoTypes, procType.resultType)
+        MethodOut(AccessFlags.Public | AccessFlags.Abstract, fdef.symbol.name, desc, None)
+    }
+    val bytes = ClassFile.write(
+      cp, ifaceName, ObjectClass, Nil, Nil, methods,
+      accessFlags = AccessFlags.Public | AccessFlags.Interface | AccessFlags.Abstract
+    )
+    classFiles(ifaceName) = bytes
+
+  private def classOrInterfaceSymbol(tp: Type): Option[Symbol] =
+    tp.approx.typeSymbolOpt.filter(_.isOneOf(Flags.Class | Flags.Interface))
 
   /** Jo constructors are modeled as functions that return the constructed
     * `this` (see ElimCapture); a JVM `<init>` is void and operates on the
@@ -404,30 +550,44 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     * ctorParam) followed by a trailing `Ident(self)`.
     */
   private def compileConstructor(fdef: FunDef, cdef: ClassDef, cp: ConstantPool): MethodOut =
-    val className = classSimpleName(cdef.symbol)
     val cw = new CodeWriter(cp)
     val slots = new Slots
     slots.bind(cdef.self, Ref(ObjectDesc)) // reserve slot 0 for `this`
 
     val ctorParams = fdef.params // constructor's own explicit params are the field values
     for p <- ctorParams do slots.bind(p, jvmType(p.tpe))
+
+    // A field initializer can itself contain local `val`s (e.g. `val flags:
+    // String = val prefixLen = ...; if prefixLen > 0 then ... else ...`,
+    // see lib/regex/Validator.jo) — `fdef.locals` finds every such local
+    // anywhere in the constructor body via the same census the ordinary
+    // function/method compilers use, so they get slots before `emitInit`
+    // (via `compileInline`) compiles any code that references them.
+    val localTypes = for local <- fdef.locals yield local -> slots.bind(local, jvmType(local.tpe))
     if slots.used > 0 then cw.touchLocal(slots.used - 1) // see Slots.used
 
     cw.aload(0)
     cw.invokespecial(ObjectClass, Names.Constructor, "()V")
+    emitLocalDefaults(localTypes, cw)
 
+    // ElimCapture's usual shape is a `Block` of `FieldAssign`s (self.field =
+    // ctorParam) followed by a trailing `Ident(self)`, but an explicit
+    // user-written constructor can contain arbitrary statements too — a
+    // local `Assign`, a side-effecting call like `println`, and so on (see
+    // tests/pos/constructor-flexible-init.jo, constructor-init-order.jo).
+    // `FieldAssign` (self-qualified) and ordinary statements both already
+    // compile correctly through the general `compile` dispatcher — see
+    // `compileFieldReceiver`'s `ctx.selfSym`-aware fast path — so only the
+    // trailing bare `self` result (a JVM `<init>` has nothing to return)
+    // and `Block` flattening need special-casing here.
     def emitInit(word: Word): Unit =
       word match
         case Block(words) =>
           words.foreach(emitInit)
-        case FieldAssign(Select(_, fname), rhs) =>
-          cw.aload(0)
-          compileInline(rhs, slots, cw, cdef.self)
-          cw.putfield(className, fname, descOf(jvmType(rhs.tpe)))
         case _: Ident =>
           () // trailing `self` result — a JVM <init> has nothing to return
         case other =>
-          throw new Exception("Unexpected shape in synthesized constructor body: " + other)
+          compileInline(other, slots, cw, cdef.self)
 
     emitInit(fdef.body)
     cw.returnVoid()
@@ -439,22 +599,25 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
   /** Compile a class instance method with the natural signature implied by
     * its Jo parameter/result types (slot 0 = `this`).
     */
-  private def compileInstanceMethod(fdef: FunDef, cdef: ClassDef, cp: ConstantPool): MethodOut =
+  private def compileInstanceMethod(fdef: FunDef, self: Symbol, cp: ConstantPool): MethodOut =
     val sym = fdef.symbol
     val procType = sym.tpe.asProcType
     val cw = new CodeWriter(cp)
     val slots = new Slots
-    slots.bind(cdef.self, Ref(ObjectDesc))
+    slots.bind(self, Ref(ObjectDesc))
     for param <- fdef.allParams do slots.bind(param, jvmType(param.tpe))
     if slots.used > 0 then cw.touchLocal(slots.used - 1) // see Slots.used
     val localTypes = for local <- fdef.locals yield local -> slots.bind(local, jvmType(local.tpe))
 
     val resType = jvmType(procType.resultType)
-    given MethodCtx = new MethodCtx(cw, slots, resType, selfSym = Some(cdef.self))
+    given MethodCtx = new MethodCtx(cw, slots, resType, selfSym = Some(self))
 
     emitLocalDefaults(localTypes, cw)
     compile(fdef.body)
-    emitReturn(resType)
+    // See the matching check in `compileTopLevelFunDef`.
+    if !fdef.body.tpe.isBottomType then
+      adaptTo(jvmType(fdef.body.tpe), resType, cw)
+      emitReturn(resType, cw)
 
     val (code, maxStack, maxLocals) = cw.finish()
     val desc = methodDesc(procType.paramTypes ++ procType.autoTypes, procType.resultType)
@@ -525,13 +688,19 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
           adaptTo(jvmType(rhs.tpe), pt, ctx.cw)
           storeLocal(pt, ctx.slots(sym), ctx.cw)
 
-      case FieldAssign(Select(qual, name), rhs) =>
-        compile(qual)
-        val owner = fieldOwnerName(qual)
-        val fdesc = descOf(jvmType(rhs.tpe))
+      case FieldAssign(sel @ Select(qual, name), rhs) =>
+        val owner = compileFieldReceiver(qual)
+        // The field's *declared* type on the class (e.g. `b: T` in a
+        // generic `class Pair[S, T]`) — not `rhs.tpe`, the call site's own
+        // (possibly further-instantiated, e.g. `Int`) type — is what the
+        // class's own field descriptor was written with in `compileClass`;
+        // see `fieldDeclaredType`'s doc comment.
+        val declared = fieldDeclaredType(sel)
         compile(rhs)
         if rhs.tpe.isBottomType then ctx.cw.pop() // discard the now-orphaned `qual` receiver; see above
-        else ctx.cw.putfield(owner, name, fdesc)
+        else
+          adaptTo(jvmType(rhs.tpe), declared, ctx.cw)
+          ctx.cw.putfield(owner, name, descOf(declared))
 
       case If(cond, thenp, elsep) => compileIf(cond, thenp, elsep, jvmType(word.tpe))
 
@@ -555,7 +724,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
         if label.is(Flags.Fun) then
           compile(value)
           adaptTo(jvmType(value.tpe), ctx.returnType, ctx.cw)
-          emitReturn(ctx.returnType)
+          emitReturn(ctx.returnType, ctx.cw)
         else
           // Local "break out of this Labeled block" jump (e.g. one iteration
           // of a TailCallOpt `_tco_loop`), not a function return.
@@ -579,27 +748,84 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
       case sel @ Select(qual, name) =>
         // A bare field read (not part of an Apply's function position), e.g.
-        // a lifted lambda reading one of its captured fields.
-        compile(qual)
-        val owner = fieldOwnerName(qual)
-        ctx.cw.getfield(owner, name, descOf(jvmType(sel.tpe)))
+        // a lifted lambda reading one of its captured fields, or a pattern
+        // match's `$o.field` destructuring.
+        val owner = compileFieldReceiver(qual)
+        val declared = fieldDeclaredType(sel)
+        ctx.cw.getfield(owner, name, descOf(declared))
+        adaptTo(declared, jvmType(sel.tpe), ctx.cw)
+
+      case ClassTest(value, classSym) =>
+        compile(value); adaptTo(jvmType(value.tpe), Ref(ObjectDesc), ctx.cw)
+        ctx.cw.instanceOf(classTestOwnerName(classSym))
 
       case other =>
         throw new Exception("JVM backend prototype: unsupported node " + other.getClass.getSimpleName + " -- " + other.show)
 
-  /** The JVM owner class for a field access. `jvmType`'s "erase everything
-    * non-primitive to Object" rule (right for method params/results, which
-    * this backend dispatches by symbol, not by the JVM's own type system)
-    * is wrong here: `getfield`/`putfield` need the *exact* declaring class.
-    * Fields are currently only reachable on `self` (a lambda reading/
-    * writing one of its own captured-variable fields) — general field
-    * access on an arbitrary object needs full class support (see "Known
-    * limitations" in docs/jips/jvm-backend.md) and isn't handled yet.
+  /** `instanceof`'s target class for a `ClassTest`. A primitive/`String`
+    * type test checks against its real JDK box class — the same type any
+    * such value is boxed to when it flows into an `Any`/union-typed
+    * position (see `box`) — a user class/union-variant test checks against
+    * its own compiled class, enqueuing it like any other reachable type.
     */
-  private def fieldOwnerName(qual: Word)(using ctx: MethodCtx): String =
+  private def classTestOwnerName(classSym: Symbol): String =
+    if classSym == defn.String_type then StringClass
+    else if classSym == defn.Int_type then "java/lang/Integer"
+    else if classSym == defn.Bool_type then "java/lang/Boolean"
+    else if classSym == defn.Byte_type then "java/lang/Byte"
+    else if classSym == defn.Char_type then "java/lang/Character"
+    else if classSym == defn.Float_type then "java/lang/Float"
+    else if classSym == defn.Long_type then "java/lang/Long"
+    // `Array[T]` is represented as a genuine JVM `Object[]` (see the
+    // RefArray intrinsics), never as an instance of the library's own
+    // `class Array[T]` wrapper that `patternType.classSymbol` names here —
+    // testing against that compiled-but-never-instantiated class would
+    // always fail.
+    else if classSym == defn.Array_class then ObjectArrayDesc
+    else enqueueClass(classSym)
+
+  /** Compile a field access's receiver and return its JVM owner class name.
+    * `jvmType`'s "erase everything non-primitive to Object" rule (right for
+    * method params/results, which this backend dispatches by symbol, not
+    * by the JVM's own type system) is wrong for `getfield`/`putfield`,
+    * which need the receiver's verified type to actually match the
+    * declaring class — so unlike every other "compile then adapt" call
+    * site, this always narrows with an explicit `checkcast` before
+    * returning, *except* for `self`: an instance method's `this` already
+    * has the correct verified type without one.
+    */
+  /** The JVM type a field's `getfield`/`putfield` descriptor must use.
+    *
+    * `sel.tpe` (`qual.tpe.termMember(name)`, see `Select`) is the field's
+    * type *as seen at this call site* — for a generic class's field, that's
+    * whatever concrete type the receiver happens to be instantiated to
+    * there (e.g. `Int` for `pair.b` where `pair: Pair[Bool, Int]`). But
+    * `compileClass`'s `fieldOuts` always writes the field's descriptor from
+    * its *declared* type on the class itself (`b: T` in `class Pair[S, T]`,
+    * an unresolved type parameter — erasing, like any other non-primitive
+    * type, to `Object`) — exactly the same "one descriptor per declaration,
+    * reconciled with `adaptTo` at each call site" rule already applied to
+    * generic function/method calls. Using the call site's own (possibly
+    * narrower, e.g. `Int`) type instead would build a `Fieldref` the class
+    * doesn't actually have, `NoSuchFieldError` at runtime.
+    */
+  private def fieldDeclaredType(sel: Select): JType =
+    sel.tpe match
+      case MemberRef(_, sym) => jvmType(sym.tpe)
+      case _ => throw new Exception("Cannot resolve field symbol for ." + sel.name)
+
+  private def compileFieldReceiver(qual: Word)(using ctx: MethodCtx): String =
+    compile(qual)
     qual match
-      case Ident(sym) if ctx.selfSym.contains(sym) => classSimpleName(sym.owner)
-      case _ => internalNameOf(jvmType(qual.tpe))
+      case Ident(sym) if ctx.selfSym.contains(sym) =>
+        classSimpleName(sym.owner)
+      case _ =>
+        adaptTo(jvmType(qual.tpe), Ref(ObjectDesc), ctx.cw)
+        val owner = classOrInterfaceSymbol(qual.tpe) match
+          case Some(sym) => enqueueClass(sym)
+          case None => internalNameOf(jvmType(qual.tpe))
+        ctx.cw.checkcast(owner)
+        owner
 
   /** Compile a sub-expression using an already-open CodeWriter/Slots without
     * needing a full MethodCtx (used by the constructor emitter, which has a
@@ -698,8 +924,57 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
         case Select(newExpr @ New(tpt), Names.Constructor) =>
           compileNew(tpt.tpe, allArgs)
 
+        case Select(qual, name) if qual.tpe.isClassInfoType =>
+          compileMethodCall(apply, qual, name, allArgs)
+
         case other =>
           throw new Exception("JVM backend prototype: unsupported call target " + other)
+
+  /** A method call on a user class or interface instance (`p.sum`,
+    * `iter.hasNext`), the general counterpart to
+    * `compilePrimitiveOp`/`compileStringOp`. A class receiver, or an
+    * interface receiver calling one of the interface's own abstract
+    * members, uses real `invokevirtual`/`invokeinterface` — the JVM's own
+    * dispatch resolves overrides correctly from the static receiver type,
+    * exactly as for real Java, unlike native's hand-built itable (see
+    * docs/jips/jvm-backend.md). A default (concrete) interface method is
+    * instead a call to the static helper `compileTopLevelFunDef` compiles
+    * it as — see that method's doc comment for why.
+    */
+  private def compileMethodCall(apply: Apply, qual: Word, name: String, args: List[Word])(using ctx: MethodCtx): Unit =
+    // `.classSymbol` throws for anything but a plain class (in particular
+    // for an interface, or a generic instantiation like `Iterator[Int]` —
+    // an `AppliedType`, not a bare `StaticRef`); `classOrInterfaceSymbol`
+    // (built on `typeSymbolOpt`) handles both.
+    val classSym = classOrInterfaceSymbol(qual.tpe).getOrElse(
+      throw new Exception("Cannot resolve receiver class/interface for ." + name + " on " + qual.tpe.show))
+    val isIface = classSym.isInterface
+
+    val methodSym = apply.memberSymbol.getOrElse(
+      throw new Exception("Cannot resolve method symbol for ." + name))
+    val procType = methodSym.tpe.asProcType
+    val paramTypes = procType.paramTypes ++ procType.autoTypes
+
+    if isIface && !methodSym.is(Flags.Defer) then
+      val fnName = enqueueTopLevel(methodSym)
+      compile(qual); adaptTo(jvmType(qual.tpe), Ref(ObjectDesc), ctx.cw)
+      for (arg, pt) <- args.zip(paramTypes) do
+        compile(arg); adaptTo(jvmType(arg.tpe), jvmType(pt), ctx.cw)
+      val desc = "(Ljava/lang/Object;" + paramTypes.map(t => descOf(jvmType(t))).mkString + ")" + descOf(jvmType(procType.resultType))
+      ctx.cw.invokestatic(MainClassName, fnName, desc)
+      adaptTo(jvmType(procType.resultType), jvmType(apply.tpe), ctx.cw)
+
+    else
+      val ownerName = enqueueClass(classSym)
+      compile(qual); adaptTo(jvmType(qual.tpe), Ref(ObjectDesc), ctx.cw); ctx.cw.checkcast(ownerName)
+      for (arg, pt) <- args.zip(paramTypes) do
+        compile(arg); adaptTo(jvmType(arg.tpe), jvmType(pt), ctx.cw)
+      val desc = methodDesc(paramTypes, procType.resultType)
+      if isIface then ctx.cw.invokeinterface(ownerName, name, desc) else ctx.cw.invokevirtual(ownerName, name, desc)
+      // Reconcile a generic method's own descriptor against this call
+      // site's (possibly further-instantiated) static type — same
+      // reasoning as `compileStaticCall`.
+      adaptTo(jvmType(procType.resultType), jvmType(apply.tpe), ctx.cw)
 
   private def isPrimitiveOwner(tp: Type): Boolean =
     tp.approx match
@@ -717,6 +992,21 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     if sym == runtime.cast then
       compile(args.head)
       adaptTo(jvmType(args.head.tpe), jvmType(resultType), ctx.cw)
+
+    else if sym.is(Flags.Object) then
+      // Singleton-object accessor synthesized by `desugarObjectDef` as
+      // `def A: A = ...` (a stub body every backend must special-case, see
+      // Desugaring.scala). Union cases with no fields (e.g. `Empty`, `None`)
+      // desugar the same way. Pattern matching on these always compiles to
+      // `ClassTest`/`instanceof` (never reference equality), so — unlike
+      // the JS/Ruby backends' cached static-field singleton — a fresh
+      // instance per access is simplest and just as correct here.
+      val classSym = sym.tpe.asProcType.resultType.classSymbol
+      val className = enqueueClass(classSym)
+      ctx.cw.newObj(className)
+      ctx.cw.dup()
+      ctx.cw.invokespecial(className, Names.Constructor, "()V")
+      adaptTo(Ref(ObjectDesc), jvmType(resultType), ctx.cw)
 
     else if sym == runtime.paramKey then
       compileParamKey(args.head)
@@ -737,6 +1027,37 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
     else if sym == defn.jo_pass then
       ctx.cw.aconstNull() // the one value of Unit, materialized as null (Ref(ObjectDesc))
+
+    else if sym == runtime.Array_create then
+      compile(args.head); adaptTo(jvmType(args.head.tpe), I, ctx.cw)
+      ctx.cw.anewarray(ObjectClass)
+      adaptTo(Ref(ObjectArrayDesc), jvmType(resultType), ctx.cw)
+
+    else if sym == runtime.Array_get then
+      compile(args.head); adaptTo(jvmType(args.head.tpe), Ref(ObjectArrayDesc), ctx.cw)
+      compile(args(1)); adaptTo(jvmType(args(1).tpe), I, ctx.cw)
+      ctx.cw.aaload()
+      adaptTo(Ref(ObjectDesc), jvmType(resultType), ctx.cw)
+
+    else if sym == runtime.Array_set then
+      compile(args.head); adaptTo(jvmType(args.head.tpe), Ref(ObjectArrayDesc), ctx.cw)
+      compile(args(1)); adaptTo(jvmType(args(1).tpe), I, ctx.cw)
+      compile(args(2)); adaptTo(jvmType(args(2).tpe), Ref(ObjectDesc), ctx.cw)
+      ctx.cw.aastore()
+      // `aastore` itself leaves nothing (V); `set`'s declared Unit result
+      // needs a real null materialized to match (same reconciliation
+      // `compileNativeCall` does for e.g. `psPrint`).
+      adaptTo(V, jvmType(resultType), ctx.cw)
+
+    else if sym == runtime.Array_size then
+      compile(args.head); adaptTo(jvmType(args.head.tpe), Ref(ObjectArrayDesc), ctx.cw)
+      ctx.cw.arraylength()
+
+    else if sym == runtime.Array_clone then
+      compile(args.head); adaptTo(jvmType(args.head.tpe), Ref(ObjectArrayDesc), ctx.cw)
+      ctx.cw.invokevirtual(ObjectArrayDesc, "clone", "()Ljava/lang/Object;")
+      ctx.cw.checkcast(ObjectArrayDesc)
+      adaptTo(Ref(ObjectArrayDesc), jvmType(resultType), ctx.cw)
 
     else if runtime.nativeSpec(sym).isDefined then
       compileNativeCall(runtime.nativeSpec(sym).get, args, resultType)
@@ -966,8 +1287,9 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     * than an ordinary static call with `qual` prepended as the first
     * argument, the same as any other function call.
     *
-    * `iterator` needs a real `Iterator[Char]`-implementing object and isn't
-    * implemented here (see "Known limitations" in docs/jips/jvm-backend.md).
+    * `iterator` constructs a real `Iterator[Char]`-implementing object
+    * (`jo.jvm.runtime.StringOps.StringIterator`, an ordinary Jo class), so
+    * it's dispatched the same way as `size`/`get`/`substring`/`indexOf`.
     */
   private def compileStringOp(qual: Word, name: String, args: List[Word], resultType: JType)(using ctx: MethodCtx): Unit =
     val cw = ctx.cw
@@ -996,6 +1318,8 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
       case "toUpper" =>
         receiver(); cw.invokevirtual(StringClass, "toUpperCase", "()Ljava/lang/String;")
+
+      case "iterator" => compileStaticCall(runtime.String_iterator, qual :: Nil, resultType)
 
       case other =>
         throw new Exception("JVM backend prototype: unsupported String operator " + other)

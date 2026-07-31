@@ -302,6 +302,7 @@ object ClassFile:
     def anewarray(elemInternalClassName: String): Unit = { op(189); out.u2(cp.classRef(elemInternalClassName)); stackDelta(0) }
     def aaload(): Unit = { op(50); stackDelta(-1) }
     def aastore(): Unit = { op(83); stackDelta(-3) }
+    def arraylength(): Unit = { op(190); stackDelta(0) }
 
     def getstatic(owner: String, name: String, desc: String): Unit =
       op(178); out.u2(cp.fieldref(owner, name, desc)); stackDelta(descWords(desc))

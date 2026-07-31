@@ -38,6 +38,18 @@ class JVMRuntime(using defn: Definitions):
   val String_get      = StringOps.termMember("get")
   val String_substring = StringOps.termMember("substring")
   val String_indexOf  = StringOps.termMember("indexOf")
+  val String_iterator = StringOps.termMember("iterator")
+
+  // Array[T] is a real JVM Object[]; these are the actual array bytecode
+  // instructions, so — like Int/Bool arithmetic — they're intrinsified
+  // directly rather than routed through the @extern FFI mechanism (which
+  // models member calls, not dedicated opcodes).
+  val RefArray      = JvmRuntimeNs.containerMember("RefArray")
+  val Array_create  = RefArray.termMember("create")
+  val Array_get     = RefArray.termMember("get")
+  val Array_set     = RefArray.termMember("set")
+  val Array_size    = RefArray.termMember("size")
+  val Array_clone   = RefArray.termMember("clone")
 
   /** Extra symbols reachable once a given symbol is reached.
     *
