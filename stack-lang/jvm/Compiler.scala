@@ -54,10 +54,22 @@ object Compiler:
       val units = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, "jo.jvm.runtime.RefArray") <| "Frontend"
 
       locally {
-        given Definitions = lazyDefn.value
+        given defn: Definitions = lazyDefn.value
 
         val jvmRuntime = new JVMRuntime
         val contextParamsLower = new LowerContextParams(jvmRuntime.ParamSupport)
+
+        // Untagged (real JVM primitive/String-equivalent) representation —
+        // everything else, including generic type parameters and unresolved
+        // `Any`, erases to `Object` with explicit box/unbox `Encoded` nodes
+        // inserted wherever tagging actually differs (mirrors native's own
+        // `untaggedTypes`, plus `Long_type` since this backend gives Long a
+        // real primitive representation too).
+        val untaggedTypes = Set(
+          defn.Bool_type, defn.Byte_type, defn.Char_type,
+          defn.Int_type, defn.Float_type, defn.Long_type,
+        )
+        val erasure = new Erasure(Erasure.untaggedTypes(untaggedTypes))
         val closureConvert = new ElimCapture
         val rewire = FrontEnd.rewireMap.value
         val codeGen = new JVMCodeGen(jvmRuntime, rewire)
@@ -67,6 +79,7 @@ object Compiler:
 
         units               |>
         contextParamsLower  |>
+        erasure             |>
         closureConvert      |>
         backend
       } <| "Backend"

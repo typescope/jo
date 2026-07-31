@@ -339,9 +339,16 @@ end
 //
 //------------------------------------------------------------------------------
 private section ParamSupport
-  type Ctx
-  type Key[T]
-  type Batch
+  // Declared as aliases to `Any` (not bare abstract `type X`/`type X[T]`)
+  // so `Erasure` — now wired into the JVM pipeline — has a concrete target
+  // to dealias each to (matching the proven `Mixed[T] = T`/`Named[T] = T`
+  // pattern in lib/compile.jo); a bodyless abstract generic type like the
+  // old `type Key[T]` doesn't converge cleanly through `EraseTypeMap`'s
+  // erasure. At runtime this is unchanged: `Ctx`/`Key[T]`/`Batch` were
+  // always just erased-to-Object `Node` cells threaded through `cast`.
+  type Ctx = Any
+  type Key[T] = Any
+  type Batch = Any
 
   //[ Stub function replaced by the backend
     !
