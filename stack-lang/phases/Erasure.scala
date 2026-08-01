@@ -13,8 +13,23 @@ import scala.collection.mutable
   * Optional: Add bridge methods to classes for boxing mismatch of abstract interface methods.
   *
   * @param isTagged whether values of a type are tagged for the target platform
+  * @param bottomErasedTo what `Bottom` itself erases to. Defaults to `BottomType`
+  * (i.e. left alone, the historical behavior every non-JVM backend still
+  * relies on): `Subtyping.conforms(Bottom, _)` is unconditionally true, so
+  * `adapt` never sees a reason to wrap a `Bottom`-typed value in `Encoded`,
+  * regardless of `isTagged`. The JVM backend instead passes `AnyType` — the
+  * same target a genuinely unresolved type parameter erases to just above —
+  * which makes a `Bottom`-typed value participate in the ordinary
+  * cast/unbox-at-use-site scheme (`adapt`'s `Encoded(value)(expectedType)`
+  * fallback, "backend will decide whether the cast involves unboxing") that
+  * already exists for any other Any-erased value. That distinction matters
+  * because `Bottom`-typed *ordinary calls* (e.g. `abort(...)`, a plain
+  * `invokestatic`) are opaque to the JVM verifier, which still expects the
+  * call's declared return representation to be reconciled with wherever the
+  * value is used — see `jvm.JVMCodeGen.isTerminal`'s doc comment for the
+  * full story of why this backend, specifically, needs that.
   */
-class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
+class Erasure(isTagged: Type => Boolean, bottomErasedTo: Type = BottomType)(using defn: Definitions) extends Phase:
   private val allPrimitivesTagged = isTagged `eq` Erasure.allTagged
 
   override def initContext()(using Context): Unit =
@@ -23,7 +38,7 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
 
     val prevDefinitions = defn.snapshot
     Erasure.prevDefinitions.set(prevDefinitions)
-    Erasure.eraseTypeMap.set(new Erasure.EraseTypeMap(using prevDefinitions))
+    Erasure.eraseTypeMap.set(new Erasure.EraseTypeMap(bottomErasedTo)(using prevDefinitions))
 
     defn.index.installTransform: (_, denot) =>
       eraseDenotation(denot)
@@ -481,13 +496,19 @@ object Erasure:
     *
     * Type erasure should use the original type of symbols.
     */
-  class EraseTypeMap(using defn: Definitions) extends TypeMap:
+  class EraseTypeMap(bottomErasedTo: Type)(using defn: Definitions) extends TypeMap:
     type Context = Set[Symbol]
 
     def apply(tp: Type)(using ctx: Context): Type =
       tp match
         case StaticRef(sym) =>
-          if sym.isTypeParameter then AnyType else tp
+          if sym.isTypeParameter then AnyType
+          // `tp.dealias` is cheap for anything that isn't itself an alias
+          // chain (see `dealias`'s `isGroundType` short-circuit) — this only
+          // does real work for the one alias (`type Bottom = Bottom` in the
+          // `jo` namespace) that actually resolves to `BottomType`.
+          else if tp.dealias.isBottomType then bottomErasedTo
+          else tp
 
         case mref: MemberRef =>
           if mref.symbol.isField then this(mref.info)
