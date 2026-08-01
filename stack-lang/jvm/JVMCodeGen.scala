@@ -1142,10 +1142,17 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       case StaticRef(sym) => sym == defn.String_type
       case _ => false
 
+  // `cast`/`refEq`/`isNull` (`runtime/jvm/Runtime.jo`) are declared with
+  // plain `(a: Any, ...)` parameters — ordinary Jo functions, not `@extern`
+  // (contrast `compileNativeCall`, whose target representations come from
+  // raw descriptor strings `Erasure` never sees). `Erasure`'s `Apply` case
+  // already erases every argument against that declared `Any`, and (for
+  // `cast`'s generic `T` result) reconciles the call site's own concrete
+  // instantiation via an outer `Encoded` node — so `args.head`/`resultType`
+  // already arrive `Object`-erased here, same as any other call's args.
   private def compileIdentApply(sym: Symbol, args: List[Word], resultType: Type)(using ctx: MethodCtx): Unit =
     if sym == runtime.cast then
       compile(args.head)
-      adaptTo(jvmType(args.head.tpe), jvmType(resultType), ctx.cw)
 
     else if sym.is(Flags.Object) then
       // Singleton-object accessor synthesized by `desugarObjectDef` as
@@ -1166,12 +1173,12 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       compileParamKey(args.head)
 
     else if sym == runtime.refEq then
-      compile(args.head); adaptTo(jvmType(args.head.tpe), Ref(ObjectDesc), ctx.cw)
-      compile(args(1));   adaptTo(jvmType(args(1).tpe), Ref(ObjectDesc), ctx.cw)
+      compile(args.head)
+      compile(args(1))
       boolFromBranch(l => ctx.cw.ifAcmp("eq", l))
 
     else if sym == runtime.isNull then
-      compile(args.head); adaptTo(jvmType(args.head.tpe), Ref(ObjectDesc), ctx.cw)
+      compile(args.head)
       boolFromBranch(l => ctx.cw.ifnull(l))
 
     else if sym == runtime.throwAny then
@@ -1183,24 +1190,32 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       ctx.cw.aconstNull() // the one value of Unit, materialized as null (Ref(ObjectDesc))
 
     else if sym == runtime.Array_create then
-      compile(args.head); adaptTo(jvmType(args.head.tpe), I, ctx.cw)
+      // `size: Int` is an ordinary concrete param (Erasure-covered, no
+      // `adaptTo` needed). No result reconciliation either: `create[T]`'s
+      // generic `Array[T]` result erases (like `clone`'s, below) to
+      // `Ref(ObjectDesc)` via `jvmType`'s own `Array_class` exclusion (see
+      // its doc comment) — exactly `anewarray`'s actual `Ref(ObjectArrayDesc)`
+      // widened, which `adaptTo`'s `(Ref(_), Ref(ObjectDesc)) => ()` rule
+      // already treats as free.
+      compile(args.head)
       ctx.cw.anewarray(ObjectClass)
-      adaptTo(Ref(ObjectArrayDesc), jvmType(resultType), ctx.cw)
 
     else if sym == runtime.Array_get then
+      // See `Array_create`: the receiver conversion is the genuine,
+      // backend-specific exception; the `Int` index isn't.
       compile(args.head); adaptTo(jvmType(args.head.tpe), Ref(ObjectArrayDesc), ctx.cw)
-      compile(args(1)); adaptTo(jvmType(args(1).tpe), I, ctx.cw)
+      compile(args(1))
       ctx.cw.aaload()
-      adaptTo(Ref(ObjectDesc), jvmType(resultType), ctx.cw)
 
     else if sym == runtime.Array_set then
       compile(args.head); adaptTo(jvmType(args.head.tpe), Ref(ObjectArrayDesc), ctx.cw)
-      compile(args(1)); adaptTo(jvmType(args(1).tpe), I, ctx.cw)
-      compile(args(2)); adaptTo(jvmType(args(2).tpe), Ref(ObjectDesc), ctx.cw)
+      compile(args(1))
+      compile(args(2))
       ctx.cw.aastore()
       // `aastore` itself leaves nothing (V); `set`'s declared Unit result
       // needs a real null materialized to match (same reconciliation
-      // `compileNativeCall` does for e.g. `psPrint`).
+      // `compileNativeCall` does for e.g. `psPrint`) — a genuine opcode/Jo
+      // semantics gap, not anything `Erasure` could have closed.
       adaptTo(V, jvmType(resultType), ctx.cw)
 
     else if sym == runtime.Array_size then
@@ -1211,7 +1226,6 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       compile(args.head); adaptTo(jvmType(args.head.tpe), Ref(ObjectArrayDesc), ctx.cw)
       ctx.cw.invokevirtual(ObjectArrayDesc, "clone", "()Ljava/lang/Object;")
       ctx.cw.checkcast(ObjectArrayDesc)
-      adaptTo(Ref(ObjectArrayDesc), jvmType(resultType), ctx.cw)
 
     else if runtime.nativeSpec(sym).isDefined then
       compileNativeCall(runtime.nativeSpec(sym).get, args, resultType)
@@ -1545,8 +1559,13 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
   private def compileStringOp(qual: Word, name: String, args: List[Word], resultType: JType)(using ctx: MethodCtx): Unit =
     val cw = ctx.cw
 
-    def receiver(): Unit = { compile(qual); adaptTo(jvmType(qual.tpe), Ref(StringDesc), cw) }
-    def stringArg(w: Word): Unit = { compile(w); adaptTo(jvmType(w.tpe), Ref(StringDesc), cw) }
+    // No `adaptTo` needed in either helper, for the same reason as
+    // `compileIntCatPrimitiveOp`: `isStringOwner` already gates this whole
+    // function on `jvmType(qual.tpe) == Ref(StringDesc)`, and `+`/`==`'s
+    // declared parameter is concretely `String`, so `Erasure`'s `Apply`
+    // case already leaves the other operand erased to `String` too.
+    def receiver(): Unit = compile(qual)
+    def stringArg(w: Word): Unit = compile(w)
 
     name match
       case "size" => compileStaticCall(runtime.String_size, qual :: Nil, resultType)
@@ -1586,8 +1605,11 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     val ctorParamTypes = cdef.funs.find(_.symbol.name == Names.Constructor).map(_.params.map(_.tpe)).getOrElse(Nil)
     ctx.cw.newObj(className)
     ctx.cw.dup()
-    for (a, pt) <- args.zip(ctorParamTypes) do
-      compile(a); adaptTo(jvmType(a.tpe), jvmType(pt), ctx.cw)
+    // No `adaptTo` needed: a constructor call is an ordinary `Apply` as far
+    // as `Erasure` is concerned (`Select(New(tpt), Constructor)` applied to
+    // `args`), so each argument is already erased against `ctorParamTypes`
+    // — same reasoning as `compileMethodCall`'s argument loop.
+    args.foreach(compile)
     ctx.cw.invokespecial(className, Names.Constructor, "(" + ctorParamTypes.map(t => descOf(jvmType(t))).mkString + ")V")
 
   private def compileLambdaCall(fun: Word, args: List[Word], resultType: JType)(using ctx: MethodCtx): Unit =
