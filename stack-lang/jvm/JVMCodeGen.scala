@@ -996,8 +996,11 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     else cw.astore(slot)
 
   private def compileIf(cond: Word, thenp: Word, elsep: Word)(using ctx: MethodCtx): Unit =
+    // No `adaptTo` needed: `Erasure`'s `If` case always erases `cond`
+    // against `Bool` explicitly (`eraseWord(cond, expectedType = BoolType,
+    // ...)`), so it already arrives as a real `Z`, or wrapped in `Encoded`
+    // reconciled by `compile`'s own `Encoded` case.
     compile(cond)
-    adaptTo(jvmType(cond.tpe), Z, ctx.cw)
     val elseL = ctx.cw.newLabel()
     val endL = ctx.cw.newLabel()
     val hasElse = !elsep.isEmpty
@@ -1029,8 +1032,9 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     val beginL = ctx.cw.newLabel()
     val endL = ctx.cw.newLabel()
     ctx.cw.mark(beginL)
+    // See `compileIf`'s matching comment: `Erasure`'s `While` case also
+    // erases `cond` against `Bool` explicitly.
     compile(cond)
-    adaptTo(jvmType(cond.tpe), Z, ctx.cw)
     ctx.cw.ifeq(endL)
     compile(body)
     ctx.cw.gotoL(beginL)
@@ -1098,20 +1102,21 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     val paramTypes = procType.paramTypes ++ procType.autoTypes
 
     // No trailing result reconciliation here (contrast `compileStaticCall`,
-    // which still needs one — see its doc comment): `Erasure` (now wired
-    // into the JVM pipeline, see Compiler.scala) already made this call's
-    // result-type adaptation explicit in the tree, as an outer `Encoded`
-    // node around this whole `Apply` wherever the erased method result and
-    // this call site's expected type disagree — `compile(word)`'s `Encoded`
-    // case already consumes that. Unlike `compileStaticCall` (also used to
-    // redirect e.g. `String.size` to the backend-internal `StringOps.size`,
-    // a target `Erasure` never saw), every call reaching `compileMethodCall`
-    // is a genuine, `Erasure`-visible Jo-level method call.
+    // which still needs one — see its doc comment), and no per-argument
+    // reconciliation either: `Erasure` (now wired into the JVM pipeline,
+    // see Compiler.scala) already made both explicit in the tree — each
+    // argument gets erased against its own `paramType`, and the whole call
+    // against the call site's expected type — wherever the erased type and
+    // the target disagree, as an outer `Encoded` node `compile(word)`'s own
+    // `Encoded` case already consumes. Unlike `compileStaticCall` (also used
+    // to redirect e.g. `String.size` to the backend-internal
+    // `StringOps.size`, a target `Erasure` never saw), every call reaching
+    // `compileMethodCall` is a genuine, `Erasure`-visible Jo-level method
+    // call, args included.
     if isIface && !methodSym.is(Flags.Defer) then
       val fnName = enqueueTopLevel(methodSym)
       compile(qual); adaptTo(jvmType(qual.tpe), Ref(ObjectDesc), ctx.cw)
-      for (arg, pt) <- args.zip(paramTypes) do
-        compile(arg); adaptTo(jvmType(arg.tpe), jvmType(pt), ctx.cw)
+      args.foreach(compile)
       val desc = "(Ljava/lang/Object;" + paramTypes.map(t => descOf(jvmType(t))).mkString + ")" + descOf(jvmType(procType.resultType))
       ctx.cw.invokestatic(MainClassName, fnName, desc)
 
@@ -1121,8 +1126,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       // already `ownerName` in the common case now, so this is a no-op, not
       // a redundant `checkcast`, whenever no real mismatch remains.
       compile(qual); adaptTo(jvmType(qual.tpe), Ref("L" + ownerName + ";"), ctx.cw)
-      for (arg, pt) <- args.zip(paramTypes) do
-        compile(arg); adaptTo(jvmType(arg.tpe), jvmType(pt), ctx.cw)
+      args.foreach(compile)
       val desc = methodDesc(paramTypes, procType.resultType)
       if isIface then ctx.cw.invokeinterface(ownerName, name, desc) else ctx.cw.invokevirtual(ownerName, name, desc)
 
