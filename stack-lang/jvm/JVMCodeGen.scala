@@ -392,14 +392,16 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     compile(fdef.body)
     // A function whose body already ends in a terminal instruction (e.g. an
     // `abort`-stubbed function whose body is a direct `throwAny` call, or one
-    // ending in a real `Return`) needs no epilogue — emitting a trailing
-    // return after it would be dead code following an instruction (`athrow`
-    // or another return) that already left nothing on the stack. See
-    // `isTerminal`'s doc comment for why this is a structural, code-gen-level
-    // check rather than a test on `fdef.body`'s (erased) type.
-    if !isTerminal(fdef.body) then
-      adaptTo(jvmType(fdef.body.tpe), resType, cw)
-      emitReturn(resType, cw)
+    // ending in a real `Return`) needs no epilogue at all — emitting a
+    // trailing return after it would be dead code following an instruction
+    // (`athrow` or another return) that already left nothing on the stack.
+    // No `adaptTo` here either: `Erasure.transformFunDef` already erases
+    // `fdef.body` against the function's own result type (`resType`), so a
+    // genuine mismatch already arrives wrapped in `Encoded` — consumed by
+    // `compile`'s own `Encoded` case — and a non-wrapped body's erased type
+    // already *is* `resType`. See `isTerminal`'s doc comment for the
+    // terminal-instruction reasoning.
+    if !isTerminal(fdef.body) then emitReturn(resType, cw)
 
     val (code, maxStack, maxLocals) = cw.finish()
     val paramTypes = procType.paramTypes ++ procType.autoTypes
@@ -651,9 +653,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     emitLocalDefaults(localTypes, cw)
     compile(fdef.body)
     // See the matching check in `compileTopLevelFunDef`.
-    if !isTerminal(fdef.body) then
-      adaptTo(jvmType(fdef.body.tpe), resType, cw)
-      emitReturn(resType, cw)
+    if !isTerminal(fdef.body) then emitReturn(resType, cw)
 
     val (code, maxStack, maxLocals) = cw.finish()
     val desc = methodDesc(procType.paramTypes ++ procType.autoTypes, procType.resultType)
@@ -783,26 +783,24 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       case Assign(Ident(sym), rhs, _) =>
         // A `rhs` whose compiled form is directly terminal (a `Return`, or
         // an inlined `throwAny`) never actually completes, so there's no
-        // value to adapt and the store never executes.
+        // value to store and the store never executes.
         //
-        // The `adaptTo` below still earns its keep for the *other*
-        // `Bottom`-typed case: an ordinary call to a user function declared
-        // `Bottom` (`abort(...)`, compiled as a plain `invokestatic`) is
-        // opaque to the verifier, which still expects its declared return
-        // value to be there. This isn't contrived — a pattern match the
-        // exhaustiveness checker can't fully prove (see `insert` in
-        // lib/Set.jo) gets a defensive `abort(...)` fallback branch, and
-        // when that fallback is TailCallOpt's tail-position catch-all, it
-        // becomes exactly `_tco_result = abort(...)` — confirmed by direct
-        // regression (tests/pos/type-expr.jo: `VerifyError: Expecting to
-        // find integer on stack` in `SetTree.insert`) when this was
-        // dropped on the assumption `Erasure` already covers `Assign`
-        // uniformly. See `isTerminal`'s doc comment for the full story.
+        // No local `adaptTo` needed for the non-terminal case either:
+        // `Erasure`'s `Assign` case (`eraseWord(rhs, id.symbol.tpe, ...)`)
+        // already erases `rhs` against this exact assignment's target type
+        // (`sym.tpe`, i.e. `pt` below) — including for a `Bottom`-typed
+        // `rhs` now that `Erasure` erases `Bottom` to `AnyType` for this
+        // backend (see `Erasure`'s own doc comment). A genuine mismatch
+        // (an ordinary opaque call, like a pattern match's defensive
+        // `abort(...)` fallback landing in `Assign` via TailCallOpt's
+        // tail-position catch-all — see `insert` in lib/Set.jo) already
+        // arrives wrapped in `Encoded`, reconciled by `compile`'s own
+        // `Encoded` case; anything not wrapped already erased to exactly
+        // `pt`. See `isTerminal`'s doc comment for the terminal-instruction
+        // reasoning this case still relies on.
         val pt = jvmType(sym.tpe)
         compile(rhs)
-        if !isTerminal(rhs) then
-          adaptTo(jvmType(rhs.tpe), pt, ctx.cw)
-          storeLocal(pt, ctx.slots(sym), ctx.cw)
+        if !isTerminal(rhs) then storeLocal(pt, ctx.slots(sym), ctx.cw)
 
       case FieldAssign(sel @ Select(qual, name), rhs) =>
         val owner = compileFieldReceiver(qual)
@@ -810,17 +808,16 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
         // generic `class Pair[S, T]`) — not `rhs.tpe`, the call site's own
         // (possibly further-instantiated, e.g. `Int`) type — is what the
         // class's own field descriptor was written with in `compileClass`;
-        // see `fieldDeclaredType`'s doc comment. The `adaptTo` below is
-        // needed for the same reason as `Assign`'s local case above (see
-        // its comment) — not re-derived here every time.
+        // see `fieldDeclaredType`'s doc comment. No local `adaptTo` needed:
+        // `Erasure`'s `FieldAssign` case already erases `rhs` against this
+        // exact declared type — same reasoning as `Assign`'s local case
+        // above, not re-derived here every time.
         val declared = fieldDeclaredType(sel)
         compile(rhs)
         if isTerminal(rhs) then ctx.cw.pop() // discard the now-orphaned `qual` receiver; see above
-        else
-          adaptTo(jvmType(rhs.tpe), declared, ctx.cw)
-          ctx.cw.putfield(owner, name, descOf(declared))
+        else ctx.cw.putfield(owner, name, descOf(declared))
 
-      case If(cond, thenp, elsep) => compileIf(cond, thenp, elsep, jvmType(word.tpe))
+      case If(cond, thenp, elsep) => compileIf(cond, thenp, elsep)
 
       case While(cond, body) => compileWhile(cond, body)
 
@@ -998,7 +995,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     else if t == J then cw.lstore(slot)
     else cw.astore(slot)
 
-  private def compileIf(cond: Word, thenp: Word, elsep: Word, resultType: JType)(using ctx: MethodCtx): Unit =
+  private def compileIf(cond: Word, thenp: Word, elsep: Word)(using ctx: MethodCtx): Unit =
     compile(cond)
     adaptTo(jvmType(cond.tpe), Z, ctx.cw)
     val elseL = ctx.cw.newLabel()
@@ -1009,24 +1006,23 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     compile(thenp)
     // A branch that's already terminal (e.g. ending in `Return`, or an
     // inlined `throwAny`) never actually reaches `endL` — see `isTerminal`'s
-    // doc comment. Adapting its value or jumping to the merge point anyway
-    // would be dead code that disagrees with the other branch about the
-    // stack depth/contents at `endL` — harmless as genuinely unreachable
-    // code under this project's legacy verifier target, but skipped here
-    // for clarity, and unlike the other `isTerminal` call sites, getting
-    // this specific one wrong in the *unsafe* direction (treating a branch
-    // that actually falls through as terminal) would be a real bug: `endL`
-    // is a live merge point with a real second incoming edge from `elsep`,
-    // so a wrongly-omitted `gotoL` here would fall straight into `elsep`'s
-    // code instead of jumping past it.
+    // doc comment — so jumping to the merge point would be dead code, and no
+    // `adaptTo` is needed for a non-terminal branch either: `Erasure`'s `If`
+    // case erases both branches against this whole `If`'s own (erased)
+    // type, so each branch's compiled value already matches directly, or
+    // arrives wrapped in `Encoded` (reconciled by `compile`'s own `Encoded`
+    // case) wherever it doesn't. Unlike the other `isTerminal` call sites,
+    // getting `thenTerminal` wrong in the *unsafe* direction (treating a
+    // branch that actually falls through as terminal) would still be a real
+    // bug: `endL` is a live merge point with a real second incoming edge
+    // from `elsep`, so a wrongly-omitted `gotoL` here would fall straight
+    // into `elsep`'s code instead of jumping past it.
     val thenTerminal = isTerminal(thenp)
-    if !thenTerminal then adaptTo(jvmType(thenp.tpe), resultType, ctx.cw)
     if hasElse then
       if !thenTerminal then ctx.cw.gotoL(endL)
       ctx.cw.mark(elseL)
       ctx.cw.setStack(afterCond)
       compile(elsep)
-      if !isTerminal(elsep) then adaptTo(jvmType(elsep.tpe), resultType, ctx.cw)
     ctx.cw.mark(endL)
 
   private def compileWhile(cond: Word, body: Word)(using ctx: MethodCtx): Unit =
