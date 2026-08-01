@@ -3,6 +3,7 @@ package jvm
 import common.IO
 
 import sast.*
+import sast.Types.*
 import sast.Trees.FileUnit
 import phases.*
 
@@ -69,7 +70,12 @@ object Compiler:
           defn.Bool_type, defn.Byte_type, defn.Char_type,
           defn.Int_type, defn.Float_type, defn.Long_type,
         )
-        val erasure = new Erasure(Erasure.untaggedTypes(untaggedTypes))
+        // `Bottom` erases to `AnyType` here (unlike every other backend,
+        // which defaults to leaving it as `BottomType`) so a `Bottom`-typed
+        // value participates in the ordinary Any-erased cast/unbox-at-use
+        // scheme — see `Erasure`'s own doc comment for why this backend
+        // specifically needs that.
+        val erasure = new Erasure(Erasure.untaggedTypes(untaggedTypes), AnyType)
         val closureConvert = new ElimCapture
         val rewire = FrontEnd.rewireMap.value
         val codeGen = new JVMCodeGen(jvmRuntime, rewire)
