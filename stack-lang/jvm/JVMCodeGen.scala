@@ -1352,26 +1352,39 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     * representation, so they're compiled uniformly here. `Long` doesn't (a
     * category-2 JVM value, distinct opcodes for everything), so it's
     * dispatched to `compileLongOp` instead, from `compilePrimitiveOp`.
+    *
+    * No `adaptTo` needed anywhere below, unlike most other call/argument
+    * sites: `qual`'s type is already pinned by `compilePrimitiveOp`'s own
+    * dispatch (this function is only ever reached when `jvmType(qual.tpe)`
+    * is one of `I`/`Z`/`B`/`C`, per `isPrimitiveOwner`), and every operator
+    * here (`+`, `&&`, `toByte`, ...) has a concrete, non-generic primitive
+    * parameter type, so `Erasure`'s own `Apply` case (which erases each
+    * argument against that exact declared parameter type) already leaves
+    * `args.head` erased to the same bucket, or wrapped in `Encoded`
+    * (reconciled by `compile`'s own `Encoded` case). Source and target are
+    * therefore always both in `{I, Z, B, C}`, which `adaptTo` itself treats
+    * as a no-op (`isIntCat(a) && isIntCat(b) => ()`) — there is no case left
+    * for it to actually do anything.
     */
   private def compileIntCatPrimitiveOp(qual: Word, name: String, args: List[Word])(using ctx: MethodCtx): Unit =
     val cw = ctx.cw
     val qt = jvmType(qual.tpe)
 
     def binIntOp(emit: () => Unit): Unit =
-      compile(qual); adaptTo(jvmType(qual.tpe), I, cw)
-      compile(args.head); adaptTo(jvmType(args.head.tpe), I, cw)
+      compile(qual)
+      compile(args.head)
       emit()
 
     def cmpOp(cond: String): Unit =
-      compile(qual); adaptTo(jvmType(qual.tpe), I, cw)
-      compile(args.head); adaptTo(jvmType(args.head.tpe), I, cw)
+      compile(qual)
+      compile(args.head)
       boolFromBranch(l => cw.ifIcmp(cond, l))
 
     name match
       case "+" => binIntOp(cw.iadd)
       case "-" if args.nonEmpty => binIntOp(cw.isub)
-      case "-" | "~-" => compile(qual); adaptTo(jvmType(qual.tpe), I, cw); cw.ineg()
-      case "~~" => compile(qual); adaptTo(jvmType(qual.tpe), I, cw); cw.iconst(-1); cw.ixor()
+      case "-" | "~-" => compile(qual); cw.ineg()
+      case "~~" => compile(qual); cw.iconst(-1); cw.ixor()
       case "*" => binIntOp(cw.imul)
       case "/" => binIntOp(cw.idiv)
       case "%" => binIntOp(cw.irem)
@@ -1386,41 +1399,41 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       case "<" => cmpOp("lt")
       case ">=" => cmpOp("ge")
       case "<=" => cmpOp("le")
-      case "!" | "~!" => compile(qual); adaptTo(jvmType(qual.tpe), Z, cw); boolNot()
+      case "!" | "~!" => compile(qual); boolNot()
       case "&&" =>
         // short-circuiting and/or are already lowered to If by earlier phases
         // in practice, but handle directly in case they reach here.
-        compile(qual); adaptTo(jvmType(qual.tpe), Z, cw)
+        compile(qual)
         val elseL = cw.newLabel(); val endL = cw.newLabel()
         cw.ifeq(elseL)
-        compile(args.head); adaptTo(jvmType(args.head.tpe), Z, cw)
+        compile(args.head)
         cw.gotoL(endL)
         cw.mark(elseL); cw.iconst(0)
         cw.mark(endL)
       case "||" =>
-        compile(qual); adaptTo(jvmType(qual.tpe), Z, cw)
+        compile(qual)
         val elseL = cw.newLabel(); val endL = cw.newLabel()
         cw.ifeq(elseL)
         cw.iconst(1)
         cw.gotoL(endL)
         cw.mark(elseL)
-        compile(args.head); adaptTo(jvmType(args.head.tpe), Z, cw)
+        compile(args.head)
         cw.mark(endL)
       case "toChar" | "toInt" =>
         // Char shares Int's full range in this backend (no truncation to
         // 16 bits — Jo's Char is a full Unicode code point, not a UTF-16
         // code unit), and Byte->Int/Char->Int are already the same
         // representation, so both are genuine no-ops.
-        compile(qual); adaptTo(jvmType(qual.tpe), I, cw)
+        compile(qual)
       case "toByte" =>
         // Jo's Byte is unsigned 8-bit ([0, 255], lib/Byte.jo) sharing Int's
         // representation, so converting *to* Byte must mask to 8 bits
         // (unlike JVM's own signed `i2b`, which would sign-extend and give
         // the wrong answer for values >= 128).
-        compile(qual); adaptTo(jvmType(qual.tpe), I, cw)
+        compile(qual)
         cw.iconst(0xFF); cw.iand()
       case "toLong" =>
-        compile(qual); adaptTo(jvmType(qual.tpe), I, cw); cw.i2l()
+        compile(qual); cw.i2l()
       case "toString" =>
         val (owner, desc) =
           // Character.toString(char) truncates to 16 bits — wrong for Jo's
@@ -1432,7 +1445,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
           else if qt == Z then ("java/lang/Boolean", "(Z)Ljava/lang/String;")
           else if qt == B then ("java/lang/Byte", "(B)Ljava/lang/String;")
           else ("java/lang/Integer", "(I)Ljava/lang/String;")
-        compile(qual); adaptTo(jvmType(qual.tpe), I, cw)
+        compile(qual)
         cw.invokestatic(owner, "toString", desc)
       case other =>
         throw new Exception("JVM backend prototype: unsupported primitive operator " + other)
@@ -1441,13 +1454,22 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     * words, 2 local-variable slots), so unlike `Int`/`Bool`/`Byte`/`Char`
     * (all sharing the `I` representation, see `compileIntCatPrimitiveOp`)
     * it needs its own opcodes throughout, not just a wider range of `I`.
+    *
+    * No `adaptTo` needed here either, for the same reason as
+    * `compileIntCatPrimitiveOp` — `compilePrimitiveOp` only dispatches here
+    * when `jvmType(qual.tpe)` is already exactly `J`, and every operator's
+    * declared parameter type is `Long`, so `Erasure`'s `Apply` case already
+    * leaves `args.head` erased to `J` too (directly, or via `Encoded`
+    * consumed by `compile`'s own case). Source and target are always both
+    * `J`, and `adaptTo`'s very first check (`actual == expected`) already
+    * makes that a no-op.
     */
   private def compileLongOp(qual: Word, name: String, args: List[Word])(using ctx: MethodCtx): Unit =
     val cw = ctx.cw
 
     def binLongOp(emit: () => Unit): Unit =
-      compile(qual); adaptTo(jvmType(qual.tpe), J, cw)
-      compile(args.head); adaptTo(jvmType(args.head.tpe), J, cw)
+      compile(qual)
+      compile(args.head)
       emit()
 
     // `lshl`/`lshr`'s shift-*amount* operand must be a plain `int` (JVMS),
@@ -1456,24 +1478,24 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     // narrow with `l2i` right before the shift opcode (only the low 6 bits
     // matter for a 64-bit shift count anyway, so truncation is harmless).
     def shiftLongOp(emit: () => Unit): Unit =
-      compile(qual); adaptTo(jvmType(qual.tpe), J, cw)
-      compile(args.head); adaptTo(jvmType(args.head.tpe), J, cw); cw.l2i()
+      compile(qual)
+      compile(args.head); cw.l2i()
       emit()
 
     // No `if_lcmp<cond>` branch family exists — `lcmp` reduces the
     // comparison to a category-1 int (-1/0/1), then an ordinary
     // int-vs-zero branch (`ifCond`) reads off the result.
     def cmpOp(cond: String): Unit =
-      compile(qual); adaptTo(jvmType(qual.tpe), J, cw)
-      compile(args.head); adaptTo(jvmType(args.head.tpe), J, cw)
+      compile(qual)
+      compile(args.head)
       cw.lcmp()
       boolFromBranch(l => cw.ifCond(cond, l))
 
     name match
       case "+" => binLongOp(cw.ladd)
       case "-" if args.nonEmpty => binLongOp(cw.lsub)
-      case "-" | "~-" => compile(qual); adaptTo(jvmType(qual.tpe), J, cw); cw.lneg()
-      case "~~" => compile(qual); adaptTo(jvmType(qual.tpe), J, cw); cw.lconst(-1L); cw.lxor()
+      case "-" | "~-" => compile(qual); cw.lneg()
+      case "~~" => compile(qual); cw.lconst(-1L); cw.lxor()
       case "*" => binLongOp(cw.lmul)
       case "/" => binLongOp(cw.ldiv)
       case "%" => binLongOp(cw.lrem)
@@ -1489,11 +1511,11 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       case ">=" => cmpOp("ge")
       case "<=" => cmpOp("le")
       case "toInt" =>
-        compile(qual); adaptTo(jvmType(qual.tpe), J, cw); cw.l2i()
+        compile(qual); cw.l2i()
       case "toLong" =>
-        compile(qual); adaptTo(jvmType(qual.tpe), J, cw)
+        compile(qual)
       case "toString" =>
-        compile(qual); adaptTo(jvmType(qual.tpe), J, cw)
+        compile(qual)
         cw.invokestatic("java/lang/Long", "toString", "(J)Ljava/lang/String;")
       case other =>
         throw new Exception("JVM backend prototype: unsupported Long operator " + other)
