@@ -1,0 +1,9 @@
+rm -rf myapp
+jo new --template acme/empty myapp
+: '
+error: acme/empty has no jo-templates.jsonl — not a valid Jo template repo
+'
+jo new --template acme/empty --list
+: '
+error: acme/empty has no jo-templates.jsonl — not a valid Jo template repo
+'

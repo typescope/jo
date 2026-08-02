@@ -2,6 +2,7 @@ package tool
 
 import java.nio.file.{Files, FileSystems, Path, Paths}
 import java.io.{ByteArrayOutputStream, PrintStream}
+import java.util.zip.{ZipEntry, ZipOutputStream}
 
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
@@ -9,6 +10,7 @@ import scala.util.Using
 
 
 import tool.toml.{TomlError, TomlParser}
+import tool.template.{GithubTemplateProvider, LocalTemplateProvider, TemplateArchive, TemplateEntry, TemplateManifest, TemplateProvider, TemplateRef}
 
 /** Runs all file-based regression tests for the build tool.
  *
@@ -68,8 +70,32 @@ import tool.toml.{TomlError, TomlParser}
   failed :::= runResolverTests()
   println()
 
+  println("=== Json ===")
+  failed :::= runJsonTests()
+  println()
+
   println("=== ReleaseJson ===")
   failed :::= runReleaseJsonTests()
+  println()
+
+  println("=== New (name validation) ===")
+  failed :::= runNewNameValidationTests()
+  println()
+
+  println("=== TemplateRef ===")
+  failed :::= runTemplateRefTests()
+  println()
+
+  println("=== TemplateManifest ===")
+  failed :::= runTemplateManifestTests()
+  println()
+
+  println("=== TemplateArchive ===")
+  failed :::= runTemplateArchiveTests()
+  println()
+
+  println("=== GithubTemplateProvider (HTTP) ===")
+  failed :::= runGithubTemplateProviderTests()
   println()
 
   if failed.isEmpty then println("All tool tests passed.")
@@ -169,6 +195,72 @@ private def runResolverTests(): List[Path] =
 
   if failed then List(Paths.get("JoResolver")) else Nil
 
+// ---- Json suite ----------------------------------------------------------------
+
+/** Input is untrusted (a registry index, or a third-party
+ *  `jo-templates.jsonl`), so the parser is deliberately strict rather than
+ *  permissive — each check here corresponds to a specific leniency bug that
+ *  was found and fixed: trailing garbage, unknown escapes, undecoded
+ *  `\uXXXX`, unescaped control characters, invalid numbers like a bare `-`,
+ *  silently-merged duplicate keys, and numbers being indistinguishable from
+ *  strings in the result.
+ */
+private def runJsonTests(): List[Path] =
+  var failed = false
+
+  def check(label: String)(body: => Boolean): Unit =
+    val ok =
+      try body
+      catch
+        case e: Exception =>
+          println(s"  threw: ${e.getMessage}")
+          false
+
+    if ok then println(s"  ok: $label")
+    else
+      println(s"FAIL: $label")
+      failed = true
+
+  def isErr(r: Either[String, ?]): Boolean = r.isLeft
+
+  check("a well-formed object parses"):
+    Json.parseObj("""{"a": "x", "b": true, "c": null, "d": [1, 2.5]}""") ==
+      Right(Map("a" -> "x", "b" -> true, "c" -> null, "d" -> List(1.0, 2.5)))
+
+  check("insignificant trailing whitespace is accepted"):
+    Json.parseObj("{\"a\":\"x\"}  \n") == Right(Map("a" -> "x"))
+
+  check("trailing non-whitespace garbage is rejected, not silently ignored"):
+    isErr(Json.parseObj("""{"name":"x"} garbage"""))
+
+  check("an unknown escape sequence like '\\q' is rejected"):
+    isErr(Json.parseObj("""{"a":"\q"}"""))
+
+  check("'\\uXXXX' escapes are decoded, not left as literal characters"):
+    // Built via concatenation, not a literal "A" in source: Scala (like
+    // Java) pre-processes \uXXXX unicode escapes in raw source text before
+    // any tokenization runs, so a literal backslash-u sequence can't survive
+    // as text in a string literal written directly in this file.
+    val bs = "\\"
+    val encoded = bs + "u0041" + bs + "u0042" + bs + "u0043"
+    Json.parseObj(s"""{"a":"$encoded"}""") == Right(Map("a" -> "ABC"))
+
+  check("an unescaped control character inside a string is rejected"):
+    isErr(Json.parseObj("{\"a\":\"x\ty\"}"))
+
+  check("a bare '-' is rejected, not accepted as a truncated number"):
+    isErr(Json.parseObj("""{"a":-}"""))
+
+  check("a duplicate object key is rejected, not silently overwritten"):
+    isErr(Json.parseObj("""{"a":"x","a":"y"}"""))
+
+  check("numbers are returned as Double, not String, so a string-typed field check can reject them"):
+    Json.parseObj("""{"a":1}""") match
+      case Right(obj) => obj.get("a").exists(_.isInstanceOf[Double]) && !obj.get("a").exists(_.isInstanceOf[String])
+      case Left(_)     => false
+
+  if failed then List(Paths.get("Json")) else Nil
+
 // ---- ReleaseJson suite -------------------------------------------------------
 
 /** Guards the registry JSONL wire format against the shape the registry daemon actually
@@ -217,6 +309,492 @@ private def runReleaseJsonTests(): List[Path] =
       case Left(_)    => false
 
   if failed then List(Paths.get("ReleaseJson")) else Nil
+
+// ---- New name-validation suite ---------------------------------------------------
+
+/** `requireName` is the one place both `New.scaffold` (built-in) and
+ *  `New.scaffoldFromTemplate` get their target directory name from, so
+ *  testing it through `parseArgs` covers the containment fix for both.
+ */
+private def runNewNameValidationTests(): List[Path] =
+  var failed = false
+
+  def check(label: String)(body: => Boolean): Unit =
+    val ok =
+      try body
+      catch
+        case e: Exception =>
+          println(s"  threw: ${e.getMessage}")
+          false
+
+    if ok then println(s"  ok: $label")
+    else
+      println(s"FAIL: $label")
+      failed = true
+
+  def isErr(r: Result[?], contains: String): Boolean = r match
+    case Result.Err(msg) => msg.contains(contains)
+    case _                => false
+
+  check("a plain name is accepted"):
+    New.parseArgs(Array("myapp")) == Result.Ok(New.Args.Scaffold("myapp", false, None))
+
+  check("'..' escaping baseDir via a relative name is rejected"):
+    isErr(New.parseArgs(Array("../evil")), "invalid project name")
+
+  check("an absolute path as name is rejected (Path.resolve would otherwise ignore baseDir entirely)"):
+    isErr(New.parseArgs(Array("/etc/evil")), "invalid project name")
+
+  check("a bare '..' is rejected"):
+    isErr(New.parseArgs(Array("..")), "invalid project name")
+
+  check("a bare '.' is rejected"):
+    isErr(New.parseArgs(Array(".")), "invalid project name")
+
+  check("an empty name is rejected"):
+    isErr(New.parseArgs(Array("")), "requires a project name")
+
+  check("the same containment check applies on the --template path"):
+    isErr(New.parseArgs(Array("--template", "gh:acme/repo", "../evil")), "invalid project name")
+
+  if failed then List(Paths.get("New")) else Nil
+
+// ---- TemplateRef suite ---------------------------------------------------------
+
+private def runTemplateRefTests(): List[Path] =
+  var failed = false
+
+  def check(label: String)(body: => Boolean): Unit =
+    val ok =
+      try body
+      catch
+        case e: Exception =>
+          println(s"  threw: ${e.getMessage}")
+          false
+
+    if ok then println(s"  ok: $label")
+    else
+      println(s"FAIL: $label")
+      failed = true
+
+  def isErr(r: Result[?], contains: String): Boolean = r match
+    case Result.Err(msg) => msg.contains(contains)
+    case _                => false
+
+  check("bare identifier defaults to host 'gh', no name, gitref HEAD"):
+    TemplateRef.parse("acme/repo") == Result.Ok(TemplateRef("gh", "acme/repo", None, "HEAD"))
+
+  check("':name' selects a template"):
+    TemplateRef.parse("acme/repo:web-app") == Result.Ok(TemplateRef("gh", "acme/repo", Some("web-app"), "HEAD"))
+
+  check("'#gitref' sits between identifier and ':name'"):
+    TemplateRef.parse("acme/repo#v2:web-app") == Result.Ok(TemplateRef("gh", "acme/repo", Some("web-app"), "v2"))
+
+  check("'#gitref' alone, no name"):
+    TemplateRef.parse("acme/repo#v1") == Result.Ok(TemplateRef("gh", "acme/repo", None, "v1"))
+
+  check("explicit 'gh:' host prefix, '#gitref', and ':name' all together"):
+    TemplateRef.parse("gh:acme/repo#v2:name") == Result.Ok(TemplateRef("gh", "acme/repo", Some("name"), "v2"))
+
+  check("canonical: unpinned, default host — no noise from either default"):
+    TemplateRef("gh", "acme/repo", None, "HEAD").canonical == "acme/repo"
+
+  check("canonical: a pinned gitref is never dropped, unlike the old success message"):
+    TemplateRef("gh", "acme/repo", None, "v2").canonical == "acme/repo#v2"
+
+  check("canonical: pinned gitref plus a name"):
+    TemplateRef("gh", "acme/repo", Some("web-app"), "v2").canonical == "acme/repo#v2:web-app"
+
+  check("unsupported host is a hard error, not a hostname fallback"):
+    isErr(TemplateRef.parse("gitlab:acme/repo"), "unsupported template host 'gitlab'")
+
+  check("empty ref is an error"):
+    isErr(TemplateRef.parse(""), "empty template ref")
+
+  check("host prefix with nothing after it is an error"):
+    isErr(TemplateRef.parse("gh:"), "missing identifier")
+
+  check("empty name after ':' is an error"):
+    isErr(TemplateRef.parse("acme/repo:"), "empty template name")
+
+  check("empty gitref after '#' is an error"):
+    isErr(TemplateRef.parse("acme/repo#"), "empty git ref")
+
+  if failed then List(Paths.get("TemplateRef")) else Nil
+
+// ---- TemplateManifest suite -----------------------------------------------------
+
+private def runTemplateManifestTests(): List[Path] =
+  var failed = false
+
+  def check(label: String)(body: => Boolean): Unit =
+    val ok =
+      try body
+      catch
+        case e: Exception =>
+          println(s"  threw: ${e.getMessage}")
+          false
+
+    if ok then println(s"  ok: $label")
+    else
+      println(s"FAIL: $label")
+      failed = true
+
+  def isErr(r: Result[?], contains: String): Boolean = r match
+    case Result.Err(msg) => msg.contains(contains)
+    case _                => false
+
+  val valid =
+    """{"name": "web-app", "path": "templates/web-app", "description": "Web app"}
+      |{"name": "cli", "path": "templates/cli"}
+      |""".stripMargin
+
+  val parsedValid = List(
+    TemplateEntry("web-app", "templates/web-app", Some("Web app")),
+    TemplateEntry("cli", "templates/cli", None),
+  )
+
+  check("parses a valid manifest"):
+    TemplateManifest.parse(valid) == Result.Ok(parsedValid)
+
+  check("blank lines are skipped"):
+    TemplateManifest.parse("\n" + valid + "\n") == Result.Ok(parsedValid)
+
+  check("malformed JSON reports the 1-based line number"):
+    isErr(TemplateManifest.parse("not json"), "malformed line 1 in jo-templates.jsonl")
+
+  check("a missing required field is reported as malformed"):
+    isErr(TemplateManifest.parse("""{"name": "web-app"}"""), "malformed line 1")
+
+  check("duplicate name is an error"):
+    val dup =
+      """{"name": "web-app", "path": "a"}
+        |{"name": "web-app", "path": "b"}""".stripMargin
+    isErr(TemplateManifest.parse(dup), "duplicate template name 'web-app'")
+
+  check("invalid template name is an error"):
+    isErr(TemplateManifest.parse("""{"name": "-bad", "path": "a"}"""), "invalid template name")
+
+  check("absolute path is an error"):
+    isErr(TemplateManifest.parse("""{"name": "web-app", "path": "/etc/passwd"}"""), "invalid path")
+
+  check("'..' segment in path is an error"):
+    isErr(TemplateManifest.parse("""{"name": "web-app", "path": "a/../../b"}"""), "invalid path")
+
+  check("an empty path is an error ('.' is the only spelling for the repo root)"):
+    isErr(TemplateManifest.parse("""{"name": "web-app", "path": ""}"""), "invalid path")
+
+  check("'.' as a path is accepted (the repo root)"):
+    TemplateManifest.parse("""{"name": "web-app", "path": "."}""") ==
+      Result.Ok(List(TemplateEntry("web-app", ".", None)))
+
+  check("a trailing '/' in a path is accepted (harmless, common directory notation)"):
+    TemplateManifest.parse("""{"name": "web-app", "path": "templates/web-app/"}""") ==
+      Result.Ok(List(TemplateEntry("web-app", "templates/web-app/", None)))
+
+  check("a doubled '/' in a path is an error"):
+    isErr(TemplateManifest.parse("""{"name": "web-app", "path": "templates//web-app"}"""), "invalid path")
+
+  check("a present but wrong-typed description is an error, not silently treated as absent"):
+    isErr(TemplateManifest.parse("""{"name": "web-app", "path": ".", "description": 123}"""), "malformed line 1")
+
+  check("fields beyond name/path/description are allowed and ignored"):
+    TemplateManifest.parse("""{"name": "web-app", "path": ".", "minJoVersion": "1.5"}""") ==
+      Result.Ok(List(TemplateEntry("web-app", ".", None)))
+
+  check("resolve: explicit name found"):
+    TemplateManifest.resolve(parsedValid, Some("cli"), "acme/repo") == Result.Ok(parsedValid(1))
+
+  check("resolve: explicit name not found lists available names"):
+    isErr(TemplateManifest.resolve(parsedValid, Some("nope"), "acme/repo"), "Available: web-app, cli")
+
+  check("resolve: no name, zero entries is an error"):
+    isErr(TemplateManifest.resolve(Nil, None, "acme/repo"), "declares no templates")
+
+  check("resolve: no name, exactly one entry resolves to it"):
+    TemplateManifest.resolve(List(parsedValid.head), None, "acme/repo") == Result.Ok(parsedValid.head)
+
+  check("resolve: no name, multiple entries is an ambiguity error, not a guess"):
+    isErr(TemplateManifest.resolve(parsedValid, None, "acme/repo"), "declares multiple templates, pick one: web-app, cli")
+
+  if failed then List(Paths.get("TemplateManifest")) else Nil
+
+// ---- TemplateArchive suite -------------------------------------------------------
+
+private def runTemplateArchiveTests(): List[Path] =
+  var failed = false
+
+  def check(label: String)(body: => Boolean): Unit =
+    val ok =
+      try body
+      catch
+        case e: Exception =>
+          println(s"  threw: ${e.getMessage}")
+          false
+
+    if ok then println(s"  ok: $label")
+    else
+      println(s"FAIL: $label")
+      failed = true
+
+  def buildZip(entries: Map[String, String]): Path =
+    val zipFile = Files.createTempFile("jo-template-test-", ".zip")
+    val out = ZipOutputStream(Files.newOutputStream(zipFile))
+    try
+      for (name, content) <- entries do
+        out.putNextEntry(ZipEntry(name))
+        out.write(content.getBytes("UTF-8"))
+        out.closeEntry()
+    finally out.close()
+    zipFile
+
+  val manifest =
+    """{"name": "web-app", "path": "templates/web-app"}
+      |{"name": "root", "path": "."}
+      |{"name": "broken-path", "path": "does/not/exist"}
+      |{"name": "file-path", "path": "README.md"}
+      |""".stripMargin
+
+  val repoZip = buildZip(Map(
+    "repo-main/jo-templates.jsonl"            -> manifest,
+    "repo-main/README.md"                     -> "hello",
+    "repo-main/templates/web-app/src/Main.jo" -> "def main = println \"web-app\"\n",
+  ))
+
+  check("resolves ':name' against the manifest found inside the archive, extracts only that subtree, and leaves no staging directory behind"):
+    val destParent = Files.createTempDirectory("jo-template-test-dest-")
+    val dest = destParent.resolve("myapp")
+    TemplateArchive.extract(repoZip, Some("web-app"), dest, "acme/repo at main") match
+      case Result.Ok(_) =>
+        Files.readString(dest.resolve("src/Main.jo")) == "def main = println \"web-app\"\n"
+          && !Files.exists(dest.resolve("README.md"))
+          && Files.list(destParent).iterator.asScala.toList == List(dest)
+      case Result.Err(_) => false
+
+  check("a failure writing the destination (e.g. it's non-empty and can't be replaced) leaves it untouched and no staging debris behind"):
+    val parent = Files.createTempDirectory("jo-template-test-parent-")
+    val dest = parent.resolve("existing")
+    Files.createDirectory(dest)
+    Files.writeString(dest.resolve("keep.txt"), "do not touch")
+
+    val source = Files.createTempDirectory("jo-template-test-source-")
+    Files.writeString(source.resolve("a.txt"), "hi")
+
+    TemplateArchive.copyTree(source, dest) match
+      case Result.Err(_) =>
+        Files.list(dest).iterator.asScala.toList.map(_.getFileName.toString) == List("keep.txt")
+          && Files.list(parent).iterator.asScala.toList == List(dest)
+      case Result.Ok(_) => false
+
+  check("a manifest entry with 'path: .' copies the whole repo root, including jo-templates.jsonl itself"):
+    val dest = Files.createTempDirectory("jo-template-test-dest-")
+    TemplateArchive.extract(repoZip, Some("root"), dest, "acme/repo at main") match
+      case Result.Ok(_)  => Files.exists(dest.resolve("README.md")) && Files.exists(dest.resolve("jo-templates.jsonl"))
+      case Result.Err(_) => false
+
+  check("no name given, multiple entries, is an ambiguity error, not a guess"):
+    val dest = Files.createTempDirectory("jo-template-test-dest-")
+    TemplateArchive.extract(repoZip, None, dest, "acme/repo at main") match
+      case Result.Err(msg) => msg.contains("declares multiple templates")
+      case _                => false
+
+  check("a requested name absent from the manifest is an error"):
+    val dest = Files.createTempDirectory("jo-template-test-dest-")
+    TemplateArchive.extract(repoZip, Some("nope"), dest, "acme/repo at main") match
+      case Result.Err(msg) => msg.contains("no template 'nope'")
+      case _                => false
+
+  check("a manifest path absent from the archive is a 'not found' error"):
+    val dest = Files.createTempDirectory("jo-template-test-dest-")
+    TemplateArchive.extract(repoZip, Some("broken-path"), dest, "acme/repo at main") match
+      case Result.Err(msg) => msg.contains("template path 'does/not/exist' not found")
+      case _                => false
+
+  check("a manifest path pointing at a file, not a directory, is a 'not found' error"):
+    val dest = Files.createTempDirectory("jo-template-test-dest-")
+    TemplateArchive.extract(repoZip, Some("file-path"), dest, "acme/repo at main") match
+      case Result.Err(msg) => msg.contains("not found")
+      case _                => false
+
+  check("an archive with no jo-templates.jsonl is not a valid Jo template repo"):
+    val bareZip = buildZip(Map("repo-main/src/Main.jo" -> "def main = println \"hi\"\n"))
+    val dest = Files.createTempDirectory("jo-template-test-dest-")
+    TemplateArchive.extract(bareZip, None, dest, "acme/bare at main") match
+      case Result.Err(msg) => msg.contains("has no jo-templates.jsonl")
+      case _                => false
+
+  check("zip-slip entries are rejected before the manifest is even read"):
+    val evilZip = buildZip(Map("repo-main/../../evil.txt" -> "pwned"))
+    val dest = Files.createTempDirectory("jo-template-test-dest-")
+    TemplateArchive.extract(evilZip, None, dest, "acme/evil at main") match
+      case Result.Err(_) => true
+      case Result.Ok(_)  => false
+
+  if failed then List(Paths.get("TemplateArchive")) else Nil
+
+// ---- GithubTemplateProvider suite -------------------------------------------
+// Covers the thin HTTP/zip-fallback layer (resolution and extraction logic
+// are already covered above with no network involved) and the git-clone
+// path — the latter against a real local git repo fixture, since that's
+// what actually proves executable bits and symlinks survive.
+
+private def runGithubTemplateProviderTests(): List[Path] =
+  import com.sun.net.httpserver.{HttpExchange, HttpServer}
+  import java.net.InetSocketAddress
+  import java.nio.file.Paths
+  import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
+
+  var failed = false
+
+  def check(label: String)(body: => Boolean): Unit =
+    val ok =
+      try body
+      catch
+        case e: Exception =>
+          println(s"  threw: ${e.getMessage}")
+          false
+
+    if ok then println(s"  ok: $label")
+    else
+      println(s"FAIL: $label")
+      failed = true
+
+  def respond(exchange: HttpExchange, status: Int, bytes: Array[Byte]): Unit =
+    exchange.sendResponseHeaders(status, bytes.length)
+    val os = exchange.getResponseBody
+    try os.write(bytes) finally os.close()
+
+  def buildZipBytes(entries: Map[String, String]): Array[Byte] =
+    val buf = ByteArrayOutputStream()
+    val out = ZipOutputStream(buf)
+    try
+      for (name, content) <- entries do
+        out.putNextEntry(ZipEntry(name))
+        out.write(content.getBytes("UTF-8"))
+        out.closeEntry()
+    finally out.close()
+    buf.toByteArray
+
+  val zipBytes = buildZipBytes(Map(
+    "repo-main/jo-templates.jsonl" -> """{"name": "default", "path": "."}""",
+    "repo-main/src/Main.jo"        -> "def main = println \"ok\"\n",
+  ))
+  val manifestBytes = """{"name": "default", "path": "."}""".getBytes("UTF-8")
+
+  val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+  server.createContext("/acme/repo/HEAD/jo-templates.jsonl", (ex: HttpExchange) => respond(ex, 200, manifestBytes))
+  server.createContext("/acme/repo/zip/HEAD", (ex: HttpExchange) => respond(ex, 200, zipBytes))
+  server.createContext("/acme/missing/HEAD/jo-templates.jsonl", (ex: HttpExchange) => respond(ex, 404, Array.emptyByteArray))
+  server.createContext("/acme/missing/zip/HEAD", (ex: HttpExchange) => respond(ex, 404, Array.emptyByteArray))
+  // A context path is matched against the *decoded* request path — if a gitref
+  // containing '/' or '#' were embedded in the request URL unencoded (or
+  // encoded incorrectly), these two would never be hit, and the requests
+  // would 404 or get truncated at the '#' instead.
+  server.createContext("/acme/slashref/release/1.0/jo-templates.jsonl", (ex: HttpExchange) => respond(ex, 200, manifestBytes))
+  server.createContext("/acme/hashref/v1#odd/jo-templates.jsonl", (ex: HttpExchange) => respond(ex, 200, manifestBytes))
+  server.start()
+
+  try
+    val baseUrl = s"http://127.0.0.1:${server.getAddress.getPort}"
+    // gitAvailable = false so these checks deterministically exercise the
+    // zip fallback regardless of whether git happens to be on PATH in the
+    // environment running these tests (it is, in this repo's own dev/CI —
+    // that's exactly why the git path below needs its own forced-true case).
+    val provider = GithubTemplateProvider(baseUrl, baseUrl, gitAvailable = false)
+
+    check("manifest: 200 response parses correctly"):
+      provider.manifest("acme/repo", "HEAD") == Result.Ok(List(TemplateEntry("default", ".", None)))
+
+    check("manifest: 404 is reported as 'not a valid Jo template repo'"):
+      provider.manifest("acme/missing", "HEAD") match
+        case Result.Err(msg) => msg.contains("acme/missing has no jo-templates.jsonl")
+        case _                => false
+
+    check("fetch: 200 response downloads the zip once and resolves the manifest from inside it"):
+      val dest = Files.createTempDirectory("jo-template-http-test-")
+      provider.fetch("acme/repo", "HEAD", None, dest) match
+        case Result.Ok(_)  => Files.exists(dest.resolve("src/Main.jo"))
+        case Result.Err(_) => false
+
+    check("fetch: 404 is reported with the identifier and ref"):
+      val dest = Files.createTempDirectory("jo-template-http-test-")
+      provider.fetch("acme/missing", "HEAD", None, dest) match
+        case Result.Err(msg) => msg.contains("acme/missing") && msg.contains("HEAD")
+        case _                => false
+
+    check("manifest: connection failure is a fetch error, not a crash"):
+      val deadProvider = GithubTemplateProvider("http://127.0.0.1:1", "http://127.0.0.1:1", gitAvailable = false)
+      deadProvider.manifest("acme/repo", "HEAD") match
+        case Result.Err(msg) => msg.contains("failed to fetch")
+        case _                => false
+
+    check("manifest: a '/' in gitref (a slash-containing branch name) reaches the right URL"):
+      provider.manifest("acme/slashref", "release/1.0") == Result.Ok(List(TemplateEntry("default", ".", None)))
+
+    check("manifest: a '#' in gitref is percent-encoded, not misread as a URL fragment"):
+      provider.manifest("acme/hashref", "v1#odd") == Result.Ok(List(TemplateEntry("default", ".", None)))
+
+    check("manifest: an identifier with characters outside the safe charset is rejected before any request"):
+      provider.manifest("ac me/repo", "HEAD") match
+        case Result.Err(msg) => msg.contains("invalid GitHub identifier")
+        case _                => false
+
+    // `git` is assumed available, not merely probed for — this repo can't be
+    // built, tested, or even checked out without it, so any environment
+    // capable of running this suite already has it. If that assumption is
+    // ever wrong, these checks should fail loudly, not silently skip.
+    //
+    // A real local git repo, not a mock — only an actual `git checkout`
+    // proves executable bits and symlinks survive. cloneBaseUrl + owner/repo
+    // must line up with GithubTemplateProvider's "$cloneBaseUrl/$owner/$repo.git"
+    // URL construction, so the fixture path has to end in ".git" too.
+    val gitReposParent = Files.createTempDirectory("jo-template-git-test-")
+    val gitRepoDir = gitReposParent.resolve("acme").resolve("repo.git")
+    Files.createDirectories(gitRepoDir.resolve("bin"))
+    Files.writeString(gitRepoDir.resolve("bin/run"), "#!/bin/sh\necho hi\n")
+    Files.setPosixFilePermissions(gitRepoDir.resolve("bin/run"), PosixFilePermissions.fromString("rwxr-xr-x"))
+    Files.createSymbolicLink(gitRepoDir.resolve("run-link"), Paths.get("bin/run"))
+    Files.writeString(gitRepoDir.resolve("jo-templates.jsonl"), """{"name": "default", "path": "."}""" + "\n")
+
+    val gitSetup = runShellCmd(
+      "git init -q && git config user.email t@example.com && git config user.name Test " +
+        "&& git add -A && git commit -q -m init",
+      gitRepoDir,
+    )
+
+    val gitProvider = GithubTemplateProvider(
+      rawBaseUrl = baseUrl,
+      archiveBaseUrl = baseUrl,
+      cloneBaseUrl = gitReposParent.toString,
+      gitAvailable = true,
+    )
+
+    check("fetch (git): fixture repo committed cleanly, with the executable bit and symlink actually set"):
+      gitSetup.isInstanceOf[Result.Ok[?]]
+        && Files.getPosixFilePermissions(gitRepoDir.resolve("bin/run")).contains(PosixFilePermission.OWNER_EXECUTE)
+        && Files.isSymbolicLink(gitRepoDir.resolve("run-link"))
+
+    check("fetch (git): clones, preserves the executable bit and the symlink, and strips .git"):
+      val dest = Files.createTempDirectory("jo-template-git-http-test-")
+      gitProvider.fetch("acme/repo", "HEAD", None, dest) match
+        case Result.Ok(_) =>
+          val executable = Files.getPosixFilePermissions(dest.resolve("bin/run")).contains(PosixFilePermission.OWNER_EXECUTE)
+          val link = dest.resolve("run-link")
+          val linkOk = Files.isSymbolicLink(link) && Files.readSymbolicLink(link) == Paths.get("bin/run")
+          val noGitMetadata = !Files.exists(dest.resolve(".git"))
+          executable && linkOk && noGitMetadata
+        case Result.Err(_) => false
+
+    check("fetch (git): a nonexistent repo is a clean error, not a crash"):
+      val dest = Files.createTempDirectory("jo-template-git-http-test-")
+      gitProvider.fetch("acme/does-not-exist", "HEAD", None, dest) match
+        case Result.Err(_) => true
+        case Result.Ok(_)  => false
+
+  finally
+    server.stop(0)
+
+  if failed then List(Paths.get("GithubTemplateProvider")) else Nil
 
 private def matchesFilter(path: Path, filters: List[String]): Boolean =
   if filters.isEmpty then true
@@ -344,8 +922,16 @@ private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String
 
   // Commands that don't need a build plan
   if command == "new" then
-    return New.parseArgs(cmdArgs).flatMap: parsed =>
-      New.scaffold(parsed.name, parsed.isLib, specDir)
+    val result = New.parseArgs(cmdArgs).flatMap:
+      case New.Args.Scaffold(name, isLib, None) =>
+        New.scaffold(name, isLib, specDir)
+      case New.Args.Scaffold(name, isLib, Some(ref)) =>
+        New.scaffoldFromTemplate(name, ref, specDir, testTemplateProvider(specDir))
+      case New.Args.ListTemplates(ref) =>
+        New.listTemplates(ref, testTemplateProvider(specDir))
+    return result match
+      case ok @ Result.Ok(_) => ok
+      case Result.Err(msg)   => Result.Err(s"error: $msg\n")
 
   if command == "package" then
     val parsed = Build.parseProjectArgs(cmdArgs) match
@@ -456,6 +1042,12 @@ private def resolveSpecDir(specFile: String, specDir: Path): String =
   val specPath = Path.of(specFile)
   val resolved = if specPath.isAbsolute then specPath else specDir.resolve(specPath).normalize()
   resolved.toString
+
+/** Ignores the requested host — every `jo new --template` scenario test
+ *  fixture is a single local repo, so there's nothing to route between.
+ */
+private def testTemplateProvider(specDir: Path): String => Result[TemplateProvider] =
+  _ => Result.Ok(LocalTemplateProvider(specDir.resolve("template-src")))
 
 private def testPackageProvider(specDir: Path): PackageProvider =
   val repoSrc = specDir.resolve("repo-src")

@@ -273,6 +273,8 @@ object Main:
     println("""Usage:
       |  jo <source.jo>                         Run program (defaults to 'eval')
       |  jo new <name>                           Create a new project
+      |  jo new --template <ref> <name>         Create a new project from a template repo (e.g. 'gh:owner/repo')
+      |  jo new --template <ref> --list         List templates declared by a template repo
       |  jo clean [module]                       Remove build artifacts (default: all modules)
       |  jo build [module]                       Build a module (default module if omitted)
       |  jo check [module]                       Type-check and compile to sast, skip executable

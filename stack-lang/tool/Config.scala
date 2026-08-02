@@ -12,7 +12,7 @@ object Config:
   val packages: Path  = cache.resolve("packages")
   val index: Path     = cache.resolve("index")
   val versionsUrl     = "https://jo-lang.org/versions.jsonl"
-  val registryUrl     = "https://pkg.jo-lang.org"
+  val registryUrl     = sys.env.getOrElse("JO_REGISTRY_URL", "https://pkg.jo-lang.org")
 
   def packageDir(name: String, version: String): Path =
     packages.resolve(name).resolve(version)

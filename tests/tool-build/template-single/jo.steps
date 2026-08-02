@@ -1,0 +1,28 @@
+rm -rf myapp
+jo new --template acme/starter myapp
+: '
+Created 'myapp' from acme/starter
+
+You can now:
+  cd myapp
+'
+cat myapp/src/Main.jo
+: '
+def main = println "Hello from template!"
+'
+cat myapp/jo-templates.jsonl
+: '
+{"name": "default", "path": ".", "description": "Minimal starter"}
+'
+jo new --template acme/starter myapp
+: '
+error: directory 'myapp' already exists
+'
+rm -rf myapp-pinned
+jo new --template acme/starter#v2 myapp-pinned
+: '
+Created 'myapp-pinned' from acme/starter#v2
+
+You can now:
+  cd myapp-pinned
+'
