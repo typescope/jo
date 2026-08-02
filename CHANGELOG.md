@@ -2,6 +2,33 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.12.3] - 2026-08-03
+
+### Added
+
+- Experimental API symbol queries through `jo compile --query`, with symbol
+  and source-file selectors, JSON output, optional field selection, and support
+  for querying source files or loaded SAST libraries. ([#85])
+- Third-party GitHub template support for `jo new`, including template listing,
+  multi-template manifests, pinned Git refs, and preservation of executable
+  bits and symlinks when `git` is available. ([#86])
+
+### Security
+
+- Template manifests and archive paths are validated to prevent absolute paths,
+  parent traversal, duplicate output ownership, and writes outside the target
+  project. Scaffolding is atomic and templates cannot run setup hooks. ([#86])
+
+### Compatibility
+
+- Existing `jo new <name>` and `jo new --lib <name>` behavior is unchanged.
+  Template scaffolding is opt-in through `--template`. ([#86])
+- API queries are an additive, experimental compiler mode. Existing compilation
+  and documentation-generation commands are unchanged. ([#85])
+
+[#85]: https://github.com/typescope/jo/pull/85
+[#86]: https://github.com/typescope/jo/pull/86
+
 ## [0.12.2] - 2026-07-25
 
 ### Added
