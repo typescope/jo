@@ -68,9 +68,9 @@ files (CI config, contributor docs) in a subdirectory instead if you don't
 want them showing up in generated projects.
 
 A template is fetched via `git` when it's available on `PATH` (executable
-bits and symlinks are preserved), falling back to a plain zip download
-otherwise (neither is preserved — `chmod +x` a script after scaffolding if
-you hit this).
+bits and symlinks are preserved), falling back to a plain ZIP download
+otherwise. As ZIP does not preserve executable bits nor symlinks,
+`chmod +x` and symlink fixes might be necessary after scaffolding.
 
 ## App Scaffold
 
