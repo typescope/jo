@@ -72,6 +72,12 @@ bits and symlinks are preserved), falling back to a plain ZIP download
 otherwise. As ZIP does not preserve executable bits nor symlinks,
 `chmod +x` and symlink fixes might be necessary after scaffolding.
 
+Private repos work when `git` is on `PATH`, using whatever credentials
+your local `git` already has configured for them (SSH key, HTTPS
+credential helper, etc.) — there's no separate token or login step. This
+applies to `--list` as well as scaffolding. Without `git` on `PATH`, only
+public repos are reachable.
+
 ## App Scaffold
 
 `jo new my-agent` prints:

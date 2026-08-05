@@ -694,6 +694,16 @@ private def runGithubTemplateProviderTests(): List[Path] =
   server.createContext("/acme/hashref/v1#odd/jo-templates.jsonl", (ex: HttpExchange) => respond(ex, 200, manifestBytes))
   server.start()
 
+  // Any request gets a bare 401 with no body — enough to make git's HTTPS
+  // clone attempt bail out with "could not read Username ... terminal
+  // prompts disabled" (GIT_TERMINAL_PROMPT=0), the same failure a real
+  // private GitHub repo produces over HTTPS with no credential helper
+  // configured. Used below as a clone candidate that's guaranteed to fail,
+  // to exercise the fall-through-to-the-next-candidate logic.
+  val authServer = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+  authServer.createContext("/", (ex: HttpExchange) => respond(ex, 401, Array.emptyByteArray))
+  authServer.start()
+
   try
     val baseUrl = s"http://127.0.0.1:${server.getAddress.getPort}"
     // gitAvailable = false so these checks deterministically exercise the
@@ -765,7 +775,7 @@ private def runGithubTemplateProviderTests(): List[Path] =
     val gitProvider = GithubTemplateProvider(
       rawBaseUrl = baseUrl,
       archiveBaseUrl = baseUrl,
-      cloneBaseUrl = gitReposParent.toString,
+      cloneBaseUrls = List(s"$gitReposParent/"),
       gitAvailable = true,
     )
 
@@ -791,8 +801,45 @@ private def runGithubTemplateProviderTests(): List[Path] =
         case Result.Err(_) => true
         case Result.Ok(_)  => false
 
+    check("manifest (git): reads jo-templates.jsonl from a git checkout, not raw HTTP, when git is available"):
+      gitProvider.manifest("acme/repo", "HEAD") == Result.Ok(List(TemplateEntry("default", ".", None)))
+
+    val unauthedHttpsUrl = s"http://127.0.0.1:${authServer.getAddress.getPort}/"
+
+    // The second candidate here is a plain filesystem path, not a real
+    // ssh:// / git@host: URL — GIT_SSH_COMMAND has no effect on a
+    // local-path remote, so this doesn't exercise real SSH transport, only
+    // the candidate-list logic itself (first candidate fails, second one is
+    // tried and its result is what's returned).
+    val multiCandidateProvider = GithubTemplateProvider(
+      rawBaseUrl = baseUrl,
+      archiveBaseUrl = baseUrl,
+      cloneBaseUrls = List(unauthedHttpsUrl, s"$gitReposParent/"),
+      gitAvailable = true,
+    )
+
+    check("fetch (git): a first candidate URL needing credentials falls through to the next one, which succeeds"):
+      val dest = Files.createTempDirectory("jo-template-multi-candidate-test-")
+      multiCandidateProvider.fetch("acme/repo", "HEAD", None, dest) match
+        case Result.Ok(_)  => Files.exists(dest.resolve("jo-templates.jsonl"))
+        case Result.Err(_) => false
+
+    val allCandidatesFailProvider = GithubTemplateProvider(
+      rawBaseUrl = baseUrl,
+      archiveBaseUrl = baseUrl,
+      cloneBaseUrls = List(unauthedHttpsUrl, s"${gitReposParent.resolve("no-such-dir")}/"),
+      gitAvailable = true,
+    )
+
+    check("fetch (git): every candidate URL failing reports all of their failures, not just the last one"):
+      val dest = Files.createTempDirectory("jo-template-multi-candidate-fail-test-")
+      allCandidatesFailProvider.fetch("acme/repo", "HEAD", None, dest) match
+        case Result.Err(msg) => msg.contains("could not fetch acme/repo from any configured clone URL") && msg.lines.count() >= 3
+        case Result.Ok(_)    => false
+
   finally
     server.stop(0)
+    authServer.stop(0)
 
   if failed then List(Paths.get("GithubTemplateProvider")) else Nil
 

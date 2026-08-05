@@ -9,20 +9,30 @@ import tool.Result
 
 /** [[TemplateProvider]] for GitHub (`gh:owner/repo`).
  *
- *  `manifest` (used only by `--list`) always uses the raw-content HTTP
- *  endpoint — cheap, and safe as a standalone fetch since nothing else gets
- *  combined with it. `fetch` prefers a shallow `git` checkout when `git` is
- *  on `PATH`, since only a real checkout reproduces Unix executable bits
- *  and symlinks correctly (`java.util.zip` exposes neither — see
- *  `TemplateArchive`); it falls back to downloading and unzipping a
- *  codeload archive when `git` isn't available. Base URLs are constructor
- *  parameters, not hardcoded, so tests can point this at a local server or
- *  a local git repo instead of the real GitHub hosts.
+ *  `manifest` (used only by `--list`) and `fetch` both prefer a shallow
+ *  `git` checkout when `git` is on `PATH`: a real checkout is what lets
+ *  either operation reach a private repo using whatever credentials the
+ *  user's local `git` already has configured (SSH key, credential helper,
+ *  `.netrc`, `insteadOf` rewrites, ...) — this tool never manages
+ *  credentials itself. `git` doesn't care which transport a clone URL
+ *  names, so rather than hardcoding one URL, `cloneBaseUrls` is an ordered
+ *  list of candidates (HTTPS, then SSH, by default) tried in turn as
+ *  `origin` until one of them authenticates; if every candidate fails, all
+ *  of their failures are folded into the final error, not just the last
+ *  one. A real checkout also reproduces Unix executable bits and symlinks
+ *  correctly, which matters for `fetch` specifically (`java.util.zip`
+ *  exposes neither — see `TemplateArchive`). When `git` isn't available,
+ *  `manifest` falls back to an unauthenticated raw-content HTTP request and
+ *  `fetch` falls back to downloading and unzipping a codeload archive —
+ *  both public-repos-only, since there's no git credential store to draw
+ *  on. Base URLs are constructor parameters, not hardcoded, so tests can
+ *  point this at a local server or a local git repo instead of the real
+ *  GitHub hosts.
  */
 class GithubTemplateProvider(
   rawBaseUrl: String = GithubTemplateProvider.rawUrl,
   archiveBaseUrl: String = GithubTemplateProvider.archiveUrl,
-  cloneBaseUrl: String = GithubTemplateProvider.cloneUrl,
+  cloneBaseUrls: List[String] = GithubTemplateProvider.cloneUrls,
   gitAvailable: Boolean = GithubTemplateProvider.detectGit(),
 ) extends TemplateProvider:
   private val http = HttpClient.newBuilder()
@@ -30,6 +40,30 @@ class GithubTemplateProvider(
     .build()
 
   def manifest(identifier: String, gitref: String): Result[List[TemplateEntry]] =
+    if gitAvailable then manifestViaGit(identifier, gitref)
+    else manifestViaHttp(identifier, gitref)
+
+  def fetch(identifier: String, gitref: String, name: Option[String], destDir: Path): Result[Unit] =
+    if gitAvailable then fetchViaGit(identifier, gitref, name, destDir)
+    else fetchViaZip(identifier, gitref, name, destDir)
+
+  // ---- Internals ---------------------------------------------------------------
+
+  private def manifestViaGit(identifier: String, gitref: String): Result[List[TemplateEntry]] =
+    parseIdentifier(identifier).flatMap: (owner, repo) =>
+      checkoutViaGit(owner, repo, gitref).flatMap: checkoutDir =>
+        try
+          val manifestFile = checkoutDir.resolve("jo-templates.jsonl")
+
+          if !Files.exists(manifestFile) then
+            Result.Err(s"$identifier has no jo-templates.jsonl — not a valid Jo template repo")
+          else
+            TemplateManifest.parse(Files.readString(manifestFile))
+
+        finally
+          deleteRecursively(checkoutDir)
+
+  private def manifestViaHttp(identifier: String, gitref: String): Result[List[TemplateEntry]] =
     parseIdentifier(identifier).flatMap: (owner, repo) =>
       val url = uri(rawBaseUrl, s"/$owner/$repo/$gitref/jo-templates.jsonl")
 
@@ -43,35 +77,73 @@ class GithubTemplateProvider(
         case FetchResult.Failure(msg) =>
           Result.Err(msg)
 
-  def fetch(identifier: String, gitref: String, name: Option[String], destDir: Path): Result[Unit] =
-    if gitAvailable then fetchViaGit(identifier, gitref, name, destDir)
-    else fetchViaZip(identifier, gitref, name, destDir)
-
-  // ---- Internals ---------------------------------------------------------------
-
   private def fetchViaGit(identifier: String, gitref: String, name: Option[String], destDir: Path): Result[Unit] =
     parseIdentifier(identifier).flatMap: (owner, repo) =>
-      val url = s"$cloneBaseUrl/$owner/$repo.git"
-      val checkoutDir = Files.createTempDirectory("jo-template-")
-
-      try
-        val checkedOut =
-          for
-            _ <- runGit("init", "-q", checkoutDir.toString)
-            _ <- runGit("-C", checkoutDir.toString, "remote", "add", "origin", url)
-            _ <- runGit("-C", checkoutDir.toString, "fetch", "--depth", "1", "-q", "origin", gitref)
-            _ <- runGit("-C", checkoutDir.toString, "checkout", "-q", "FETCH_HEAD")
-          yield ()
-
-        checkedOut.flatMap: _ =>
-          // Never ship git's own metadata into the scaffolded project — the
-          // user-facing result is a plain directory either way, exactly
-          // like the zip path, regardless of how it was fetched internally.
-          deleteRecursively(checkoutDir.resolve(".git"))
+      checkoutViaGit(owner, repo, gitref).flatMap: checkoutDir =>
+        try
           TemplateArchive.resolveAndCopy(checkoutDir, name, destDir, s"$identifier at $gitref")
+        finally
+          deleteRecursively(checkoutDir)
 
-      finally
+  /** Shallow single-commit checkout of `owner/repo` at `gitref` into a fresh
+   *  temp directory, returned to the caller (who owns cleanup).
+   *
+   *  `.git` is deleted from a successful checkout immediately: the result
+   *  must be a plain directory either way, exactly like the zip path,
+   *  regardless of how it was fetched internally.
+   */
+  private def checkoutViaGit(owner: String, repo: String, gitref: String): Result[Path] =
+    val checkoutDir = Files.createTempDirectory("jo-template-")
+
+    val checkedOut =
+      for
+        _ <- runGit("init", "-q", checkoutDir.toString)
+        _ <- fetchFromFirstWorkingUrl(checkoutDir, owner, repo, gitref)
+        _ <- runGit("-C", checkoutDir.toString, "checkout", "-q", "FETCH_HEAD")
+      yield ()
+
+    checkedOut match
+      case Result.Ok(_) =>
+        deleteRecursively(checkoutDir.resolve(".git"))
+        Result.Ok(checkoutDir)
+
+      case Result.Err(msg) =>
         deleteRecursively(checkoutDir)
+        Result.Err(msg)
+
+  /** Tries each of `cloneBaseUrls` as `origin`, in order, until one fetches
+   *  successfully.
+   *
+   *  Each candidate is just a different transport for the same operation as
+   *  far as git is concerned — nothing here needs to know HTTPS from SSH
+   *  from a plain local path, or inspect a failure's error text to decide
+   *  whether to move on. If every candidate fails, their failures are all
+   *  reported together, not just the last one, since with only the last
+   *  error a genuinely private repo (every candidate needs credentials
+   *  nothing has) and a typo'd repo name (every candidate agrees it doesn't
+   *  exist) would otherwise look identical.
+   */
+  private def fetchFromFirstWorkingUrl(checkoutDir: Path, owner: String, repo: String, gitref: String): Result[Unit] =
+    def attempt(remaining: List[String], errors: List[String]): Result[Unit] =
+      remaining match
+        case Nil =>
+          Result.Err(s"could not fetch $owner/$repo from any configured clone URL:\n" + errors.reverse.map(e => s"  - $e").mkString("\n"))
+
+        case base :: rest =>
+          val url = s"$base$owner/$repo.git"
+          val remoteOp = if errors.isEmpty then "add" else "set-url"
+
+          val result =
+            for
+              _ <- runGit("-C", checkoutDir.toString, "remote", remoteOp, "origin", url)
+              _ <- runGit("-C", checkoutDir.toString, "fetch", "--depth", "1", "-q", "origin", gitref)
+            yield ()
+
+          result match
+            case Result.Ok(_)   => Result.Ok(())
+            case Result.Err(e)  => attempt(rest, e :: errors)
+
+    attempt(cloneBaseUrls, Nil)
 
   private def fetchViaZip(identifier: String, gitref: String, name: Option[String], destDir: Path): Result[Unit] =
     parseIdentifier(identifier).flatMap: (owner, repo) =>
@@ -92,14 +164,21 @@ class GithubTemplateProvider(
       finally
         Files.deleteIfExists(tempZip)
 
-  /** Runs `git` with `args`, capturing combined output. `GIT_TERMINAL_PROMPT=0`
-   *  ensures a private or nonexistent repo fails fast with an error instead
-   *  of hanging on a credential prompt with nothing to answer it.
+  /** Runs `git` with `args`, capturing combined output.
+   *
+   *  Fails fast rather than hanging on any prompt for credentials this
+   *  process has nothing to answer with: `GIT_TERMINAL_PROMPT=0` covers
+   *  git's own HTTPS credential prompt, and `GIT_SSH_COMMAND`'s
+   *  `BatchMode=yes` covers the `ssh` subprocess's own passphrase /
+   *  unknown-host-key prompts. The latter is simply inert whenever the URL
+   *  being operated on isn't an SSH one, so it's always set rather than
+   *  only for SSH-shaped candidates.
    */
   private def runGit(args: String*): Result[Unit] =
     try
       val pb = ProcessBuilder(("git" +: args)*).redirectErrorStream(true)
       pb.environment().put("GIT_TERMINAL_PROMPT", "0")
+      pb.environment().put("GIT_SSH_COMMAND", "ssh -o BatchMode=yes")
       val proc = pb.start()
       val output = String(proc.getInputStream.readAllBytes(), "UTF-8")
       val exit = proc.waitFor()
@@ -193,9 +272,21 @@ class GithubTemplateProvider(
         FetchResult.Failure(s"failed to fetch $url: ${describe(e)}")
 
 object GithubTemplateProvider:
-  val rawUrl     = "https://raw.githubusercontent.com"
-  val archiveUrl = "https://codeload.github.com"
-  val cloneUrl   = "https://github.com"
+  val rawUrl      = "https://raw.githubusercontent.com"
+  val archiveUrl  = "https://codeload.github.com"
+
+  /** Each entry is a prefix `owner/repo.git` is appended to directly (no
+   *  separator inserted), so every candidate must already end in whatever
+   *  its own transport needs: a trailing `/` for HTTPS, a trailing `:` for
+   *  SSH's `user@host:path` scp-like syntax.
+   *
+   *  Tried in this order — HTTPS first since it's the more common case
+   *  (public repos, or an HTTPS credential helper already configured), SSH
+   *  second as the fallback for repos only reachable that way.
+   */
+  val cloneUrl    = "https://github.com/"
+  val sshCloneUrl = "git@github.com:"
+  val cloneUrls   = List(cloneUrl, sshCloneUrl)
 
   /** Checked once, at construction — not on every `fetch` call. */
   def detectGit(): Boolean =
