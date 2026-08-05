@@ -1,0 +1,28 @@
+jo = "1.0"
+default = "m"
+
+# `m` reaches `shared-pkg` two ways: directly via its Check dep on `x`, and through a
+# two-hop Link chain (`m` links `n`, `n` links `y`, `y` Check-depends on `shared-pkg`).
+# `shared-pkg` must still land on the check path exactly once, never duplicated as a
+# hidden link lib even though the Link path to it is nested two app-links deep.
+[module.x]
+kind = "lib"
+src = ["x/"]
+packages = [{ name = "shared-pkg", version = "1.0" }]
+
+[module.y]
+kind = "lib"
+src = ["y/"]
+packages = [{ name = "shared-pkg", version = "1.0" }]
+
+[module.n]
+kind = "app"
+platform = "python"
+src = ["n/"]
+modules = [{ id = "y", link = true }]
+
+[module.m]
+kind = "app"
+platform = "python"
+src = ["m/"]
+modules = ["x", { id = "n", link = true }]

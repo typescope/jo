@@ -1,0 +1,2 @@
+# root [app] (app)
+jo compile --python app/App.jo --lib .cache/packages/outer-pkg/1.0.0/unpacked --lib .cache/packages/inner-pkg/1.0.0/unpacked -o .build/app/jo-1.0/target/app.py

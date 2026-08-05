@@ -86,8 +86,8 @@ object Build:
 
   def makePlanResult(project: Project, modules: List[ModuleId])(using Logger, PackageProvider): Result[ProjectPlan] =
     try
-      materializeRegistryLibs(project, modules).flatMap: registrySastDirs =>
-        Planner.plan(project, modules, registrySastDirs)
+      materializeRegistryLibs(project, modules).flatMap: registryPackages =>
+        Planner.plan(project, modules, registryPackages)
     catch
       case e: ArchiveError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
@@ -117,15 +117,16 @@ object Build:
   private def materializeRegistryLibs(
     project: Project,
     modules: List[ModuleId],
-  )(using logger: Logger, provider: PackageProvider): Result[Planner.RegistrySastDirs] =
+  )(using logger: Logger, provider: PackageProvider): Result[Planner.RegistryPackages] =
     val lockPath = LockFile.pathForSpec(project.specPath)
     resolvePackagesForBuild(project, modules, lockPath).flatMap: resolved =>
       warnUnusedPinning(resolved)
       validatePackageDepths(project, resolved, modules).flatMap: _ =>
-        resolved.packages.foldLeft(Result.Ok(Map.empty[String, Path]): Result[Planner.RegistrySastDirs]): (pkgAcc, pkg) =>
-          pkgAcc.flatMap: currentPaths =>
-            provider.materialize(pkg.name, pkg.version).map: unpacked =>
-              currentPaths + (pkg.name -> unpacked)
+        val empty: Result[Planner.RegistryPackages] = Result.Ok(Map.empty)
+        resolved.packages.foldLeft(empty): (pkgAcc, pkg) =>
+          pkgAcc.flatMap: current =>
+            provider.materialize(pkg.name, pkg.version).map: sastDir =>
+              current + (pkg.name -> Planner.RegistryPackage(sastDir, pkg.meta.dependencies.keySet))
 
   private def resolvePackagesForBuild(
     project: Project,

@@ -41,7 +41,15 @@ case class ModuleSpec(
   links: List[LinkSpec],        // defer-sym -> target-sym
   compileOptions: List[String] = Nil,  // extra flags passed to `jo compile`
   pkg: Option[PackageSpec] = None,
-)
+):
+  /** This module's own direct (not transitive) check-visible registry package deps. */
+  def checkPackageDeps: List[PackageDepSpec] = packageDeps.filter(_.link == DepLink.Check)
+
+  /** This module's own direct (not transitive) link-only (hidden) registry package deps. */
+  def linkPackageDeps: List[PackageDepSpec] = packageDeps.filter(_.link == DepLink.Link)
+
+  /** This module's own direct (not transitive) check-visible source module deps. */
+  def checkModuleDeps: List[ModuleDepSpec] = moduleDeps.filter(_.link == DepLink.Check)
 
 case class ModuleDef(id: ModuleId, spec: ModuleSpec)
 
