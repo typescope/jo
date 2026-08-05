@@ -2,6 +2,38 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.12.4] - 2026-08-05
+
+### Added
+
+- GitHub templates can be listed and scaffolded from private repositories by
+  using locally configured Git credentials, with SSH as a fallback when HTTPS
+  access fails. ([#89])
+
+### Fixed
+
+- Check-visible dependencies now propagate correctly through source modules and
+  registry packages, while dependencies behind a link-only boundary remain
+  hidden during checking and are still supplied at link time. ([#88])
+
+### Security
+
+- Private-template access reuses Git's existing credential configuration and
+  disables interactive Git and SSH prompts; Jo does not collect or store
+  credentials. ([#89])
+
+### Compatibility
+
+- No build-spec changes are required. Projects affected by missing transitive
+  check libraries now compile with their declared dependency graph, without
+  exposing dependencies across link-only boundaries. ([#88])
+- Public GitHub templates and the ZIP fallback continue to work as before;
+  private repositories require `git` on `PATH` and preconfigured credentials.
+  ([#89])
+
+[#88]: https://github.com/typescope/jo/pull/88
+[#89]: https://github.com/typescope/jo/pull/89
+
 ## [0.12.3] - 2026-08-03
 
 ### Added
