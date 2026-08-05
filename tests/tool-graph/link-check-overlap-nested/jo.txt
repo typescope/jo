@@ -1,0 +1,11 @@
+# lib: [x]
+jo compile --sast .build/x/jo-1.0/sast x/X.jo --lib .cache/packages/shared-pkg/1.0.0/unpacked
+
+# lib: [y]
+jo compile --sast .build/y/jo-1.0/sast y/Y.jo --lib .cache/packages/shared-pkg/1.0.0/unpacked
+
+# lib: [n]
+jo compile --python n/N.jo --link-lib .build/y/jo-1.0/sast --link-lib .cache/packages/shared-pkg/1.0.0/unpacked -o .build/n/jo-1.0/target/n.py
+
+# root [m] (app)
+jo compile --python m/M.jo --lib .build/x/jo-1.0/sast --lib .cache/packages/shared-pkg/1.0.0/unpacked --link-lib .build/n/jo-1.0/sast --link-lib .build/y/jo-1.0/sast -o .build/m/jo-1.0/target/m.py
