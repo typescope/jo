@@ -1,0 +1,10 @@
+jo = "1.0"
+default = "app"
+
+[module.app]
+kind = "app"
+platform = "python"
+src = ["app/"]
+depth = 2
+
+packages = [{ name = "outer-pkg", version = "1.0" }]
