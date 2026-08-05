@@ -1,0 +1,22 @@
+jo = "1.0"
+default = "app"
+
+# `app` reaches `a` two ways: directly as a Check dep, and indirectly through `b`'s own
+# Check dep on `a`, exposed to `app` only via `b`'s Link edge. `a` must end up on the check
+# path (--lib) exactly once, never also demoted to a hidden link lib (--link-lib) for `b`.
+[module.a]
+kind = "lib"
+src = ["a/"]
+
+[module.b]
+kind = "lib"
+src = ["b/"]
+
+modules = ["a"]
+
+[module.app]
+kind = "app"
+platform = "python"
+src = ["app/"]
+
+modules = ["a", { id = "b", link = true }]
