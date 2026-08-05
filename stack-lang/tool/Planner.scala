@@ -4,18 +4,36 @@ import java.nio.file.Path
 import scala.collection.mutable
 
 object Planner:
-  type RegistrySastDirs = Map[String, Path]
+  /** A resolved registry package, as materialized for this build.
+   *
+   *  `deps` is the dependency-name set from its published `meta.toml`. Every entry there was
+   *  check-visible to that package's own compilation, so it must be walked when computing a
+   *  consumer's check libs — see `PlanBuilder.registryPackageClosure`.
+   */
+  case class RegistryPackage(sastDir: Path, deps: Set[String])
+  type RegistryPackages = Map[String, RegistryPackage]
+
   private case class EffectiveLink(to: String, source: String)
   private case class EffectiveAppLinks(linkLibs: List[Path], links: Map[String, EffectiveLink])
 
-  def plan(project: Project, selected: List[ModuleId], registrySastDirs: RegistrySastDirs): Result[ProjectPlan] =
-    Project.validateModuleAcyclic(project, selected).flatMap: _ =>
-      PlanBuilder(project, registrySastDirs).plan(selected)
+  /** Identifies a module by its owning project's spec path rather than the `Project` value itself.
+   *
+   *  The same spec file can be loaded into more than one `Project` instance while walking
+   *  cross-project module deps, and those must still be treated as the same module.
+   */
+  private case class ModuleKey(specPath: Path, id: ModuleId)
+  private object ModuleKey:
+    def apply(project: Project, id: ModuleId): ModuleKey = ModuleKey(project.specPath, id)
 
-  private final class PlanBuilder(root: Project, registrySastDirs: RegistrySastDirs):
-    private val memo = collection.mutable.Map.empty[(Path, ModuleId), ModulePlan]
-    private val stack = collection.mutable.ArrayBuffer.empty[(Project, ModuleId)]
-    private val linkResolver = LinkResolver(root, registrySastDirs)
+  def plan(project: Project, selected: List[ModuleId], registryPackages: RegistryPackages): Result[ProjectPlan] =
+    Project.validateModuleAcyclic(project, selected).flatMap: _ =>
+      PlanBuilder(project, registryPackages).plan(selected)
+
+  private final class PlanBuilder(root: Project, registryPackages: RegistryPackages):
+    private val memo = mutable.Map.empty[ModuleKey, ModulePlan]
+    private val stack = mutable.ArrayBuffer.empty[(Project, ModuleId)]
+    private val checkLibsCache = mutable.Map.empty[ModuleKey, List[Path]]
+    private val linkResolver = LinkResolver(root, registryPackages, checkLibsOf)
 
     def plan(selected: List[ModuleId]): Result[ProjectPlan] =
       selected.foldRight(Result.Ok(List.empty[ModulePlan]): Result[List[ModulePlan]]): (id, acc) =>
@@ -24,7 +42,7 @@ object Planner:
       .map(ProjectPlan(_))
 
     private def makePlan(project0: Project, id: ModuleId): Result[ModulePlan] =
-      val key = project0.specPath -> id
+      val key = ModuleKey(project0, id)
       memo.get(key) match
         case Some(plan) =>
           Result.Ok(plan)
@@ -41,10 +59,7 @@ object Planner:
                   acc.map(plans => plan :: plans)
 
               depPlansResult.flatMap: depPlans =>
-                val sourceDeps = sourceClosure(project0, id)
-                val sourceCheckLibs = sourceDeps.collect:
-                  case (depProject, depModule, DepLink.Check) => depProject.sastDir(depModule)
-                val checkLibs = sourceCheckLibs ++ registryCheckLibs(spec)
+                val checkLibs = checkLibsOf(project0, id)
 
                 SourcePaths.expand(spec.src, project0.dir).flatMap: sources =>
                   val compileOptions = ffiCompileOptions(spec) ++ spec.compileOptions
@@ -89,11 +104,69 @@ object Planner:
     private def moduleLabel(project0: Project, id: ModuleId): String =
       project0.moduleLabel(root, id)
 
-    private def registryCheckLibs(module: ModuleSpec): List[Path] =
-      module.packageDeps.filter(_.link == DepLink.Check).flatMap(dep => registrySastDirs.get(dep.name))
+    /** The check libs a module compiles against.
+     *
+     *  This is its own package deps plus everything reachable via Check-linked module deps
+     *  (their sast dirs and their own package deps), with the registry side closed transitively
+     *  through each package's own declared dependencies. It is the single definition of
+     *  "check-visible" for a module — reused both to compile it directly and, when it is instead
+     *  consumed via a `link: true` module dependency, to determine what must still be linked in
+     *  on its behalf, invisibly. Memoized since the same module is often reached from multiple
+     *  paths in the dependency graph.
+     */
+    private def checkLibsOf(project0: Project, id: ModuleId): List[Path] =
+      checkLibsCache.getOrElseUpdate(ModuleKey(project0, id), computeCheckLibs(project0, id))
+
+    private def computeCheckLibs(project0: Project, id: ModuleId): List[Path] =
+      val moduleClosure = checkModuleClosure(project0, id)
+      val moduleCheckLibs = moduleClosure.map((depProject, depModule) => depProject.sastDir(depModule))
+
+      val ownPackageNames = project0.module(id).toList.flatMap(_.checkPackageDeps.map(_.name))
+      val depPackageNames = moduleClosure.flatMap((depProject, depModule) => depProject.module(depModule).toList.flatMap(_.checkPackageDeps.map(_.name)))
+
+      moduleCheckLibs ++ registryPackageClosure(ownPackageNames ++ depPackageNames)
+
+    /** Modules reachable from `id` by following only Check-linked module deps, transitively.
+     *
+     *  A Link-linked dependency's own dependencies never become check-visible past it — the
+     *  Link edge is exactly the boundary where a dependency's implementation goes opaque.
+     */
+    private def checkModuleClosure(project0: Project, id: ModuleId): List[(Project, ModuleId)] =
+      val out = new mutable.ArrayBuffer[(Project, ModuleId)]
+      val seen = mutable.Set.empty[ModuleKey]
+
+      def walk(currentProject: Project, current: ModuleId): Unit =
+        for dep <- currentProject.moduleDepsOf(current) do
+          val depProject = dep.project.getOrElse(currentProject)
+          val key = ModuleKey(depProject, dep.module)
+          if dep.link == DepLink.Check && seen.add(key) then
+            out += ((depProject, dep.module))
+            walk(depProject, dep.module)
+
+      walk(project0, id)
+      out.toList
+
+    /** The full registry-dependency closure reachable from `rootNames`.
+     *
+     *  Every declared dependency in a published package's `meta.toml` was check-visible during
+     *  that package's own compilation, so its types may leak into the package's public API.
+     *  Consumers need the whole chain on their check-lib path, not just the roots they name.
+     */
+    private def registryPackageClosure(rootNames: List[String]): List[Path] =
+      val out = new mutable.ArrayBuffer[Path]
+      val seen = mutable.Set.empty[String]
+
+      def walk(name: String): Unit =
+        if seen.add(name) then
+          registryPackages.get(name).foreach: pkg =>
+            out += pkg.sastDir
+            pkg.deps.foreach(walk)
+
+      rootNames.foreach(walk)
+      out.toList
 
     private def registryHiddenLibs(visibleLibs: Set[Path]): List[Path] =
-      registrySastDirs.values.toList.sortBy(_.toString).filterNot(visibleLibs)
+      registryPackages.values.map(_.sastDir).toList.sortBy(_.toString).filterNot(visibleLibs)
 
     private def collectResources(project0: Project, id: ModuleId): Result[List[ResourceGroup]] =
       val groups = new mutable.ArrayBuffer[ResourceGroup]
@@ -109,14 +182,14 @@ object Planner:
               groups += group
               Result.unit
 
-      registrySastDirs.toSeq.sortBy(_._1).foldLeft(Result.unit): (acc, entry) =>
-        val (name, unpacked) = entry
-        acc.flatMap(_ => addGroup(ResourcePaths.fromPackage(name, unpacked)))
+      registryPackages.toSeq.sortBy(_._1).foldLeft(Result.unit): (acc, entry) =>
+        val (name, pkg) = entry
+        acc.flatMap(_ => addGroup(ResourcePaths.fromPackage(name, pkg.sastDir)))
       .flatMap: _ =>
-        val seen = mutable.Set.empty[(Path, ModuleId)]
+        val seen = mutable.Set.empty[ModuleKey]
 
         def walk(currentProject: Project, current: ModuleId): Result[Unit] =
-          val key = currentProject.specPath -> current
+          val key = ModuleKey(currentProject, current)
           if !seen.add(key) then Result.unit
           else
             currentProject.requireModule(current).flatMap: spec =>
@@ -132,27 +205,12 @@ object Planner:
     private def sourceResourceOwner(project0: Project, id: ModuleId): String =
       project0.pkg(id).map(_.name).getOrElse(id.value)
 
-    private def sourceClosure(project0: Project, id: ModuleId): List[(Project, ModuleId, DepLink)] =
-      val out = new mutable.ArrayBuffer[(Project, ModuleId, DepLink)]
-      val seen = mutable.Set.empty[(Path, ModuleId)]
-
-      def walk(currentProject: Project, current: ModuleId): Unit =
-        for dep <- currentProject.moduleDepsOf(current) do
-          val depProject = dep.project.getOrElse(currentProject)
-          val key = depProject.specPath -> dep.module
-          if dep.link == DepLink.Check && seen.add(key) then
-            out += ((depProject, dep.module, dep.link))
-            walk(depProject, dep.module)
-
-      walk(project0, id)
-      out.toList
-
-  private final class LinkResolver(root: Project, registrySastDirs: RegistrySastDirs):
-    private val memo = collection.mutable.Map.empty[(Path, ModuleId), EffectiveAppLinks]
-    private val stack = collection.mutable.Set.empty[(Path, ModuleId)]
+  private final class LinkResolver(root: Project, registryPackages: RegistryPackages, checkLibsOf: (Project, ModuleId) => List[Path]):
+    private val memo = mutable.Map.empty[ModuleKey, EffectiveAppLinks]
+    private val stack = mutable.Set.empty[ModuleKey]
 
     def resolve(project: Project, id: ModuleId): Result[EffectiveAppLinks] =
-      val key = project.specPath -> id
+      val key = ModuleKey(project, id)
       memo.get(key) match
         case Some(value) =>
           Result.Ok(value)
@@ -178,10 +236,10 @@ object Planner:
       val owner = moduleLabel(project, id)
       val ownOverrides = spec.links.map(_.from).toSet
       val linkLibs = new mutable.ArrayBuffer[Path]
-      val inheritedLinks = collection.mutable.LinkedHashMap.empty[String, EffectiveLink]
+      val inheritedLinks = mutable.LinkedHashMap.empty[String, EffectiveLink]
 
-      spec.packageDeps.filter(_.link == DepLink.Link).foreach: dep =>
-        registrySastDirs.get(dep.name).foreach(linkLibs += _)
+      spec.linkPackageDeps.foreach: dep =>
+        registryPackages.get(dep.name).foreach(pkg => linkLibs += pkg.sastDir)
 
       spec.moduleDeps.foldLeft(Result.unit): (acc, depSpec) =>
         acc.flatMap(_ => addModuleLinks(project, id, depSpec, linkLibs, inheritedLinks, ownOverrides, owner))
@@ -196,7 +254,7 @@ object Planner:
       id: ModuleId,
       depSpec: ModuleDepSpec,
       linkLibs: mutable.ArrayBuffer[Path],
-      inheritedLinks: collection.mutable.LinkedHashMap[String, EffectiveLink],
+      inheritedLinks: mutable.LinkedHashMap[String, EffectiveLink],
       ownOverrides: Set[String],
       owner: String,
     ): Result[Unit] =
@@ -208,7 +266,7 @@ object Planner:
           val depProject = dep.project.getOrElse(project)
           if depSpec.link == DepLink.Link then
             linkLibs += depProject.sastDir(depSpec.id)
-            linkLibs ++= hiddenCheckLibs(depProject, depSpec.id)
+            linkLibs ++= checkLibsOf(depProject, depSpec.id)
 
           projectLinks(depProject, depSpec.id).flatMap: inherited =>
             linkLibs ++= inherited.linkLibs
@@ -221,30 +279,11 @@ object Planner:
         if spec.kind == ModuleKind.App then resolve(project, id)
         else Result.Ok(EffectiveAppLinks(Nil, Map.empty))
 
-    private def hiddenCheckLibs(project: Project, id: ModuleId): List[Path] =
-      val out = new mutable.ArrayBuffer[Path]
-      val seen = mutable.Set.empty[(Path, ModuleId)]
-
-      def walk(currentProject: Project, current: ModuleId): Unit =
-        currentProject.module(current).foreach: spec =>
-          spec.packageDeps.filter(_.link == DepLink.Check).foreach: dep =>
-            registrySastDirs.get(dep.name).foreach(out += _)
-
-        for dep <- currentProject.moduleDepsOf(current) do
-          val depProject = dep.project.getOrElse(currentProject)
-          val key = depProject.specPath -> dep.module
-          if dep.link == DepLink.Check && seen.add(key) then
-            out += depProject.sastDir(dep.module)
-            walk(depProject, dep.module)
-
-      walk(project, id)
-      out.toList
-
     private def mergeInherited(
       id: ModuleId,
       owner: String,
       ownOverrides: Set[String],
-      inheritedLinks: collection.mutable.LinkedHashMap[String, EffectiveLink],
+      inheritedLinks: mutable.LinkedHashMap[String, EffectiveLink],
       from: String,
       link: EffectiveLink,
     ): Result[Unit] =

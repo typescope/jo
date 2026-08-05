@@ -70,10 +70,10 @@ object Release:
             dependencies(name) = constraint
             Result.unit
 
-      spec.packageDeps.filter(_.link == DepLink.Check).foldLeft(Result.unit): (acc, dep) =>
+      spec.checkPackageDeps.foldLeft(Result.unit): (acc, dep) =>
         acc.flatMap(_ => addDependency(dep.name, dep.constraint))
       .flatMap: _ =>
-        spec.moduleDeps.filter(_.link == DepLink.Check).foldLeft(Result.unit): (acc, depSpec) =>
+        spec.checkModuleDeps.foldLeft(Result.unit): (acc, depSpec) =>
           acc.flatMap: _ =>
             project.moduleDepOf(module, depSpec.id, depSpec.path) match
               case None =>
