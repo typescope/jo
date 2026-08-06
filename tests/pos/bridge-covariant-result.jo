@@ -1,0 +1,28 @@
+// A covariant result is coercion-free but dispatch-incompatible.
+//
+// The interface's erased `get` returns `Any` (`()Ljava/lang/Object;`); the
+// implementation returns `String` (`()Ljava/lang/String;`). Returning a
+// `String` where an `Object` is expected is a widening reference conversion
+// and needs no instruction — so a *coercion*-based predicate would call these
+// compatible and synthesize nothing. But `invokeinterface` resolves by exact
+// descriptor, so without a bridge this is an `AbstractMethodError`.
+//
+// This is why `BackendTyping.callCompatible` must stay descriptor-equality
+// based and cannot be derived from `compatible`: the two questions genuinely
+// disagree here. On native both collapse to tagging (`String` and `Any` are
+// both tagged), so no bridge is wanted and none is needed.
+
+interface Box[T]
+  def get(): T
+end
+
+class SBox(v: String)
+  def get(): String = v
+  view Box[String]
+end
+
+def useBox(b: Box[String]): String =
+  b.get()
+
+def main: Unit =
+  println useBox(new SBox("hi"))

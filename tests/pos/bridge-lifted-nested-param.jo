@@ -1,0 +1,21 @@
+// Counterpart to bridge-lifted-nested-lambda.jo, with `T` in the nested
+// lambda's *parameter* position rather than its result.
+//
+// The lambda passed to `useWrap` has type `(Int => String) => String` while
+// the interface's erased `wrap` takes `(Any => String) => String`. The
+// disagreement is now the nested *parameter* (`Int` untagged vs `Any`
+// tagged) instead of the nested result.
+//
+// `taggingConforms` returns its parameter `forall` rather than discarding it,
+// so unlike the result case this one is detected: `adaptLambdaValue` reshapes
+// the lambda, and the lifted class matches the interface without a bridge.
+
+interface Wrap[T]
+  def wrap(g: T => String): String
+end
+
+def useWrap(w: Wrap[Int]): String =
+  w.wrap(n => "n")
+
+def main: Unit =
+  println useWrap(g => "v" + g(41))
