@@ -1,0 +1,22 @@
+// A lambda converted to an interface at a *reference* type needs a bridge.
+//
+// Contrast tests/pos/bridge-lifted-interface.jo, which uses `Ord[Int]`:
+// there `isTagged(Int)` differs from `isTagged(Any)`, so `Erasure`'s
+// `adaptLambdaValue` already wraps the lambda into interface shape and no
+// bridge is needed.
+//
+// `String` is tagged the same as `Any`, so `taggingConforms` holds and no
+// wrapping happens. The lifted class keeps its natural
+// `compare(String, String)Int`, while `invokeinterface Ord.compare` resolves
+// against `(Object, Object)Object`. Only a bridge closes that gap — and it
+// can only be synthesized after `ElimCapture` has created the class.
+
+interface Ord[T]
+  def compare(a: T, b: T): Int
+end
+
+def pick(a: String, b: String, o: Ord[String]): String =
+  if o.compare(a, b) <= 0 then a else b
+
+def main: Unit =
+  println pick("abc", "zz", (x, y) => if x == y then 0 else 1)

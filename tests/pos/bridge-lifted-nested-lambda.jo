@@ -1,0 +1,29 @@
+// A lifted interface class that needs a bridge on *native* too.
+//
+// `taggingConforms`'s lambda branches evaluate
+// `taggingConforms(lambda1.resultType, lambda2.resultType)` as a discarded
+// statement rather than conjoining it, so a *nested* lambda's result type is
+// ignored. `adaptLambdaValue` checks the top-level result properly, so the
+// mismatch has to be one level down — in a function-typed parameter.
+//
+// Here the lambda passed to `useWrap` has type `(String => Int) => String`
+// while the interface's erased `wrap` takes `(String => Any) => String`.
+// Top-level results agree (`String`/`String`) and the nested parameter agrees
+// (`String`/`String`), so the only disagreement is the nested *result*
+// (`Int` untagged vs `Any` tagged) — exactly what the discarded call drops.
+//
+// So `adaptLambdaValue` reports the two compatible and does not reshape the
+// lambda; the class `ElimCapture` lifts keeps `wrap(String => Int): String`.
+// `NativeProtocol` compares whole `TagRepr` trees, so it does see the
+// mismatch and asks for a bridge — but native runs `InterfaceBridge` before
+// `ElimCapture`, when this class does not exist yet.
+
+interface Wrap[T]
+  def wrap(g: String => T): String
+end
+
+def useWrap(w: Wrap[Int]): String =
+  w.wrap(s => 41)
+
+def main: Unit =
+  println useWrap(g => "v" + g("k"))

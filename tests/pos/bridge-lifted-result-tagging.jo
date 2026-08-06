@@ -1,0 +1,27 @@
+// A lifted interface class that needs a bridge on *native* too.
+//
+// The lambda's parameter agrees with the interface's erased one in tagging
+// (`String` and `Any` are both tagged), but its result does not: the lambda
+// returns an untagged `Int` where the interface's erased `make` returns a
+// tagged `Any`.
+//
+// `TypeAdapter.taggingConforms` misses this — its lambda branches evaluate
+// `taggingConforms(lambda1.resultType, lambda2.resultType)` as a discarded
+// statement instead of conjoining it, so lambda result types are ignored.
+// `adaptLambdaValue` therefore judges the two compatible and does not reshape
+// the lambda, and the class `ElimCapture` lifts keeps `make(String): Int`.
+//
+// `NativeProtocol` compares whole `TagRepr` signatures, so it does see the
+// mismatch and asks for a bridge — but native runs `InterfaceBridge` before
+// `ElimCapture`, when this class does not yet exist. So neither ordering is
+// correct on native either.
+
+interface Producer[T]
+  def make(key: String): T
+end
+
+def useProducer(p: Producer[Int]): Int =
+  p.make("k") + 1
+
+def main: Unit =
+  println useProducer(s => 41)
