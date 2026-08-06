@@ -253,7 +253,7 @@ private section ParamSupport
     !
   //]
   @intrinsic
-  def paramKey[T](id: T): Key[T] receives none =
+  def paramKey[T](id: Int): Key[T] receives none =
     abort "paramKey should be replaced by backend"
 
   def emptyCtx(): Ctx receives none =

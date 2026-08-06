@@ -1,6 +1,7 @@
 package js
 
 import sast.*
+import phases.ContextParamKeys
 import sast.Trees.*
 import sast.Symbols.Symbol
 import sast.Types
@@ -17,7 +18,7 @@ import scala.collection.mutable
 /** Code generator that translates Jo SAST to JavaScript AST
   *
   */
-class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Definitions):
+class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol], contextParamKeys: ContextParamKeys)(using defn: Definitions):
 
   //----------------------------------------------------------------------------
   // Name management
@@ -760,9 +761,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           (Nil, JS.RawCode(code))
 
         else if sym == runtime.paramKey then
-          val paramSym = args.head match
-            case Ident(paramSym) => paramSym
-            case word => throw new Exception("Unsupported argument to paramKey: " + word)
+          val paramSym = contextParamKeys.symbolOf(ContextParamKeys.intKeyOf(args.head))
 
           val keyId = runtime.getOrCreateParamId(paramSym)
           (Nil, JS.Ident(keyId))

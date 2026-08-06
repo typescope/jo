@@ -79,12 +79,13 @@ object Compiler:
         given Definitions = lazyDefn.value
 
         val rubyRuntime = new RubyRuntime
-        val contextParamsLower = new LowerContextParams(rubyRuntime.ParamSupport)
-        val erasure = new Erasure(Erasure.allTagged)
+        val contextParamKeys = new ContextParamKeys
+        val contextParamsLower = new LowerContextParams(rubyRuntime.ParamSupport, contextParamKeys)
+        val erasure = new Erasure(UniformTyping, Erasure.allTagged)
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView
         val rewire  = FrontEnd.rewireMap.value
-        val codeGen = new RubyCodeGen(rubyRuntime, rewire)
+        val codeGen = new RubyCodeGen(rubyRuntime, rewire, contextParamKeys)
 
         val backend: Step[List[FileUnit], Unit] =
           Step("Backend", (units: List[FileUnit]) =>

@@ -1,6 +1,7 @@
 package python
 
 import sast.*
+import phases.ContextParamKeys
 import sast.Trees.*
 import sast.Symbols.Symbol
 import sast.Types
@@ -17,7 +18,7 @@ import scala.collection.mutable
 /** Code generator that translates Jo SAST to Python AST
   *
   */
-class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using defn: Definitions):
+class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol], contextParamKeys: ContextParamKeys)(using defn: Definitions):
 
   //----------------------------------------------------------------------------
   // Name management
@@ -742,9 +743,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           (Nil, P.Ident(singletonVar))
 
         else if sym == runtime.paramKey then
-          val paramSym = args.head match
-            case Ident(paramSym) => paramSym
-            case word => throw new Exception("Unsupported argument to paramKey: " + word)
+          val paramSym = contextParamKeys.symbolOf(ContextParamKeys.intKeyOf(args.head))
 
           val keyId = runtime.getOrCreateParamId(paramSym)
           (Nil, P.Ident(keyId))

@@ -23,7 +23,7 @@ import scala.language.implicitConversions
  ***********************************************************************/
 object Compiler:
   trait BackendBuilder:
-    def createLinux86(rewire: Map[Symbol, Symbol])(using Reporter, Definitions): Backend
+    def createLinux86(rewire: Map[Symbol, Symbol], contextParamKeys: ContextParamKeys)(using Reporter, Definitions): Backend
 
   val layout: Config.StringSetting = Config.StringSetting("--layout", "c1", "memory layout, c1 or c2")
 
@@ -86,7 +86,8 @@ object Compiler:
       locally {
         given defn: Definitions = lazyDefn.value
 
-        val backend = backendBuilder.createLinux86(FrontEnd.rewireMap.value)
+        val contextParamKeys = new ContextParamKeys
+        val backend = backendBuilder.createLinux86(FrontEnd.rewireMap.value, contextParamKeys)
         val backendStep = Step("backend", backend.compile)
 
         val untaggedTypes =
@@ -97,9 +98,15 @@ object Compiler:
             defn.Int_type,
             defn.Float_type,
           )
-        val erasure = new Erasure(Erasure.untaggedTypes(untaggedTypes))
+        val isTagged = Erasure.untaggedTypes(untaggedTypes)
+        val typing = new NativeTyping(isTagged)
+        val erasure = new Erasure(typing, isTagged)
+        val interfaceBridge = new InterfaceBridge(
+          typing,
+          new TypeAdapter(typing, isTagged, allTagged = false, newSymbolDefn = defn)
+        )
         val closureConvert = new ElimCapture
-        val contextParamsLower = new phases.LowerContextParams(backend.runtime.ParamSupport)
+        val contextParamsLower = new phases.LowerContextParams(backend.runtime.ParamSupport, contextParamKeys)
         val encodeClass = new native.EncodeClass(backend.runtime)
         val boxing = new native.Boxing(backend.runtime)
         val explicitAlloc = new native.ExplicitAlloc(backend.runtime)
@@ -111,6 +118,7 @@ object Compiler:
         namespacesSAST     |>
         contextParamsLower |>
         erasure            |>
+        interfaceBridge    |>
         closureConvert     |>
         boxing             |>
         encodeClass        |>

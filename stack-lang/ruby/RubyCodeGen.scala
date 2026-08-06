@@ -1,6 +1,7 @@
 package ruby
 
 import sast.*
+import phases.ContextParamKeys
 import sast.Trees.*
 import sast.Symbols.*
 import sast.Types
@@ -19,7 +20,7 @@ import scala.collection.mutable
   * This replaces the CPS-based string generation with direct AST construction,
   * enabling better optimization and cleaner code generation.
   */
-class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn: Definitions):
+class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol], contextParamKeys: ContextParamKeys)(using defn: Definitions):
 
   //----------------------------------------------------------------------------
   // Name management
@@ -467,9 +468,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     fun match
       case Ident(sym) if sym.isFunction =>
         if sym == runtime.paramKey then
-          val paramSym = args.head match
-            case Ident(paramSym) => paramSym
-            case word => throw new Exception("Unsupported argument to paramKey: " + word)
+          val paramSym = contextParamKeys.symbolOf(ContextParamKeys.intKeyOf(args.head))
 
           val globalName = runtime.getOrCreateParamId(paramSym)
           R.Ident(globalName)

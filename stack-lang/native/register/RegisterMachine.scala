@@ -4,6 +4,7 @@ import common.Debug
 import reporting.Reporter
 
 import sast.*
+import phases.ContextParamKeys
 import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
@@ -30,7 +31,8 @@ class RegisterMachine(
   registerConfig: RegisterConfig,
   callConvention: CallConvention,
   runtime: NativeRuntime,
-  rules: GraphColoring.PlatformRules)
+  rules: GraphColoring.PlatformRules,
+  contextParamKeys: ContextParamKeys)
   (using defn: Definitions, rp: Reporter)
 extends Backend(runtime):
 
@@ -591,11 +593,7 @@ extends Backend(runtime):
 
   def callIntrinsic(sym: Symbol, app: Apply)(using ctx: Context): Unit =
     if sym == runtime.ParamSupport_paramKey then
-      val paramSym = app.args.head match
-        case Ident(paramSym) => paramSym
-        case Encoded(Ident(paramSym)) => paramSym
-        case Encoded(Apply(_, Ident(paramSym) :: Nil, Nil)) => paramSym
-        case arg => throw new Exception("Unsupported argument to paramKey: " + arg)
+      val paramSym = contextParamKeys.symbolOf(ContextParamKeys.intKeyOf(app.args.head))
 
       val label = addString(paramSym.fullName)
       val reg = freshVirtualReg()
@@ -791,7 +789,7 @@ object RegisterMachine extends native.Compiler.BackendBuilder:
   /**
     * Create a new x86 register machine
     */
-  def createLinux86(rewire: Map[Symbol, Symbol])(using Reporter, Definitions): Backend =
+  def createLinux86(rewire: Map[Symbol, Symbol], contextParamKeys: ContextParamKeys)(using Reporter, Definitions): Backend =
     val syscalls = Linux.createSyscallRegister()
     val linkers = List(syscalls)
     val runtime = new NativeRuntime(linkers, rewire)
@@ -809,7 +807,7 @@ object RegisterMachine extends native.Compiler.BackendBuilder:
         yield
           reg1 -> reg2
 
-    new RegisterMachine(Linux.x86RegConfig, callConv, runtime, x86rules)
+    new RegisterMachine(Linux.x86RegConfig, callConv, runtime, x86rules, contextParamKeys)
 
   def main(args: Array[String]): Unit =
     native.Compiler.compile(this, args)

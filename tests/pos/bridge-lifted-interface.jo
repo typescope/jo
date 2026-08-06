@@ -1,14 +1,14 @@
-// A lambda converted to an interface needs a bridge on the lifted class.
+// A lambda converted to an interface at a *primitive* type needs no bridge.
 //
-// `ElimCapture` lifts the lambda literal into a class implementing
-// `Ord[Int]`. That class's method carries the lambda's *natural* types,
-// because `getLambdaInterfaceType` builds the expected lambda type from
-// `MemberRef(this, sym).info` — the SAM instantiated at `Ord[Int]`, i.e.
-// `(Int, Int) => Int`, not the interface's own erased `(Any, Any) => Any`.
+// `isTagged(Int)` differs from `isTagged(Any)`, so when `Erasure` adapts the
+// lambda to the interface's erased SAM, `adaptLambdaValue` reshapes it into
+// interface form. The class `ElimCapture` then lifts already matches the
+// interface, and no bridge is required.
 //
-// So the lifted class needs a bridge just like a hand-written one would.
-// Any backend running `InterfaceBridge` *before* `ElimCapture` cannot
-// synthesize it: the class does not exist yet at that point.
+// This passes under either position of `InterfaceBridge` relative to
+// `ElimCapture`. Its counterpart bridge-lifted-interface-ref.jo uses
+// `Ord[String]`, where tagging matches and the reshaping does not happen —
+// that one does need a bridge, and shows the orderings apart.
 
 interface Ord[T]
   def compare(a: T, b: T): Int

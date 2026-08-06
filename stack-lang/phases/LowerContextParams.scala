@@ -40,7 +40,7 @@ import scala.collection.mutable
   *   def addBinding[T](batch: Batch, key: Key[T], value: T): Unit = ...
   *   def finish(batch: Batch): Ctx = ...
   */
-class LowerContextParams(ParamSupport: Symbol)(using defn: Definitions)
+class LowerContextParams(ParamSupport: Symbol, keys: ContextParamKeys)(using defn: Definitions)
 extends Phase:
   val emptyCtxSym = ParamSupport.termMember("emptyCtx")
   val getParamSym = ParamSupport.termMember("getParam")
@@ -103,14 +103,20 @@ extends Phase:
         case Block(words) => Block(stmts ++ words)(span)
         case _ => Block(stmts :+ body)(span)
 
-  /** Create a call to paramKey(paramIdent)
-    * where paramIdent is an Ident referring to the context parameter symbol.
+  /** Create a call to `paramKey(n)`, where `n` is the parameter's number in
+    * `keys` rather than a reference to the parameter itself.
+    *
+    * The key is used only for identity, so an `Int` says everything needed.
+    * Passing `Ident(paramSym)` instead gave the argument the parameter's own
+    * type, and later phases then coerced it — boxing it, or replacing it
+    * outright with an adaptation closure — leaving each backend to recover the
+    * symbol from whatever shape survived. See `ContextParamKeys`.
     */
   private def makeParamKey(paramSym: Symbol, span: Span): Word =
-    val paramIdent = Ident(paramSym)(span)
+    val key = IntLit(keys.keyOf(paramSym))(span)
     val tparam = TypeTree(paramSym.tpe)(span)
     val funParamKey = TypeApply(Ident(paramKeySym)(span), tparam :: Nil)(span)
-    Apply(funParamKey, paramIdent :: Nil, autos = Nil)(span)
+    Apply(funParamKey, key :: Nil, autos = Nil)(span)
 
   private def mergedLambdaCtx(
     capturedCtx: Symbol,

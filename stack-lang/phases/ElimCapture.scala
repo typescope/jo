@@ -15,6 +15,18 @@ import scala.collection.mutable
   * Eliminate capture of local values in objects and local functions
   *
   * Top-level functions are not transformed --- they do not capture locals.
+  *
+  * Postcondition: no `Lambda` node survives this phase — every lambda literal
+  * has been lifted into a class. No backend has a case for a bare `Lambda`,
+  * so a phase running afterwards must not introduce one.
+  *
+  * That is easy to violate by accident, because coercion can *synthesize* a
+  * lambda: `TypeAdapter.adaptLambdaValue` builds one whenever a lambda-typed
+  * position needs adapting. Any phase that adapts must therefore either run
+  * before this one, or re-establish the invariant itself by lifting what it
+  * creates. `InterfaceBridge`'s position in the pipeline is governed by
+  * exactly this; tests/pos/bridge-lambda-param.jo is the failure when it is
+  * violated.
   */
 class ElimCapture(using Definitions) extends Phase:
 

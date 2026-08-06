@@ -200,7 +200,10 @@ object TreeOps:
       tparams = Nil,
       paramSyms,
       autoSyms,
-      candidates = Nil,
+      // `FunDef` requires one candidate list per auto parameter. A generated
+      // function's autos are always passed explicitly by its own body, so
+      // there is nothing to resolve — but the lists must still be present.
+      candidates = autoSyms.map(_ => Nil),
       resultType = TypeTree(procType.resultType)(sym.span),
       effectPolicy = Effects.Policy.CheckBound(procType.receives),
       body

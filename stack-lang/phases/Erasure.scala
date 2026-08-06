@@ -10,8 +10,25 @@ import scala.collection.mutable
 
 /** Erase type parameters and make boxing/unboxing of primitive values explicit
   *
-  * Optional: Add bridge methods to classes for boxing mismatch of abstract interface methods.
+  * Bridge methods for interface-implementation signature mismatches are
+  * synthesized separately, by `InterfaceBridge`.
   *
+  * Postcondition: every value sits at a representation its position accepts.
+  * `adapt` has inserted whatever boxing, unboxing or cast the target requires,
+  * as decided by `BackendTyping.compatible`, so a later phase or backend may
+  * assume no further coercion is needed at a position it did not itself
+  * create.
+  *
+  * The guarantee is only as strong as `compatible` is accurate. Where that
+  * predicate understates what the target requires, the shortfall does not
+  * show up here — it surfaces downstream as a signature that dispatch cannot
+  * resolve, i.e. as a bridge `InterfaceBridge` must synthesize instead. The
+  * JVM's `compatible` is currently deliberately incomplete for an unrelated
+  * reason; see `jvm.JVMTyping`.
+  *
+  * @param typing the backend's coercion policy — see `BackendTyping`. What
+  * counts as needing a coercion is target-specific, so the adaptation this
+  * phase inserts cannot be decided from tagging alone.
   * @param isTagged whether values of a type are tagged for the target platform
   * @param bottomErasedTo what `Bottom` itself erases to. Defaults to `BottomType`
   * (i.e. left alone, the historical behavior every non-JVM backend still
@@ -29,16 +46,16 @@ import scala.collection.mutable
   * value is used — see `jvm.JVMCodeGen.isTerminal`'s doc comment for the
   * full story of why this backend, specifically, needs that.
   */
-class Erasure(isTagged: Type => Boolean, bottomErasedTo: Type = BottomType)(using defn: Definitions) extends Phase:
+class Erasure(typing: BackendTyping, isTagged: Type => Boolean, bottomErasedTo: Type = BottomType)(using defn: Definitions) extends Phase:
   private val allPrimitivesTagged = isTagged `eq` Erasure.allTagged
 
   override def initContext()(using Context): Unit =
-    Erasure.bridges.set(mutable.Map.empty)
     Erasure.labelResultTypes.set(mutable.Map.empty)
 
     val prevDefinitions = defn.snapshot
     Erasure.prevDefinitions.set(prevDefinitions)
     Erasure.eraseTypeMap.set(new Erasure.EraseTypeMap(bottomErasedTo)(using prevDefinitions))
+    Erasure.typeAdapter.set(new TypeAdapter(typing, isTagged, allPrimitivesTagged, prevDefinitions))
 
     defn.index.installTransform: (_, denot) =>
       eraseDenotation(denot)
@@ -46,35 +63,20 @@ class Erasure(isTagged: Type => Boolean, bottomErasedTo: Type = BottomType)(usin
   def eraseDenotation(denot: Denotation)(using Context): Denotation =
     denot match
       case info: ClassInfo =>
-        val bridges = new mutable.ArrayBuffer[(Symbol, Symbol)]
         var changed = false
         val erasedViews = info.views.map: tp =>
           val tp2 = eraseType(tp)
           changed = changed || tp2.ne(tp)
-
-          if !allPrimitivesTagged then
-            val interfaceInfo = tp2.classInfo
-            for method <- interfaceInfo.methods if method.is(Flags.Defer) do
-              val implMeth = info.memberSymbol(method.name)
-              makeBridge(method, implMeth) match
-                case Some(bridge) => bridges += bridge -> implMeth
-                case None =>
-            end for
-          end if
-
           tp2
 
-        val bridgeList = bridges.toList
-        Erasure.bridges.value(info.classSymbol) = bridgeList
-
-        if !changed && info.tparams.isEmpty && bridges.isEmpty then return denot
+        if !changed && info.tparams.isEmpty then return denot
 
         ClassInfo(
           info.classSymbol,
           Nil, // tparams
           info.self,
           info.fields,
-          info.methods ++ bridgeList.map(_._1),
+          info.methods,
           if changed then erasedViews else info.views
         )
 
@@ -88,142 +90,11 @@ class Erasure(isTagged: Type => Boolean, bottomErasedTo: Type = BottomType)(usin
   def eraseType(tp: Type)(using Context): Type =
     Erasure.eraseTypeMap.value.apply(tp)(using Set.empty)
 
-  def taggingConforms(tp1: Type, tp2: Type): Boolean =
-    isTagged(tp1) == isTagged(tp2) && {
-      if !tp1.isLambdaType && !tp2.isLambdaType then
-        true
-
-      else if tp1.isLambdaType && tp2.isLambdaType then
-        val lambda1 = tp1.asLambdaType
-        val lambda2 = tp2.asLambdaType
-        taggingConforms(lambda1.resultType, lambda2.resultType)
-        lambda1.paramTypes.zip(lambda2.paramTypes).forall((tp1, tp2) => taggingConforms(tp1, tp2))
-
-      else if tp1.isLambdaType then
-        assert(tp2.approx.isAnyType, "tp2 = " + tp2.show)
-        val lambda1 = tp1.asLambdaType
-        taggingConforms(lambda1.resultType, AnyType)
-        lambda1.paramTypes.forall(tp1 => taggingConforms(tp1, AnyType))
-
-      else
-        assert(tp2.isLambdaType, "tp2 = " + tp2.show)
-        assert(tp1.approx.isAnyType, "tp1 = " + tp1.show)
-        val lambda2 = tp2.asLambdaType
-        taggingConforms(lambda2.resultType, AnyType)
-        lambda2.paramTypes.forall(tp2 => taggingConforms(tp2, AnyType))
-
-    }
-
-  /** Create a bridge method symbol
-    *
+  /** Boxing/unboxing/cast insertion, shared with `InterfaceBridge` — see
+    * `TypeAdapter`.
     */
-  def makeBridge(methDefer: Symbol, methImpl: Symbol)(using Context): Option[Symbol] =
-    val procType1 = eraseType(methDefer.tpe).asProcType
-    val procType2 = eraseType(methImpl.tpe).asProcType
-
-    val taggingOK =
-      taggingConforms(procType1.resultType, procType2.resultType)
-      && procType1.paramTypes.zip(procType2.paramTypes).forall((tp1, tp2) => taggingConforms(tp2, tp1))
-
-    if taggingOK && Subtyping.conforms(procType2, procType1) then
-      None
-
-    else
-      val bridge = TermSymbol.create(
-        methDefer.name + Names.BridgeSuffix,
-        procType1,
-        Flags.Fun | Flags.Method | Flags.Synthetic,
-        Visibility.Default,
-        methImpl.owner,
-        methImpl.sourcePos
-      )(using Erasure.prevDefinitions.value)
-
-      Some(bridge)
-
-  /** Type adaptation for boxing/unboxing of primitive types and cast
-    *
-    * Only nodes that may have a type of type paramter or primitive type need
-    * adaptation.
-    */
-  def adapt(value: Word, expectedType: Type)(using Context): Word =
-    expectedType match
-      case ref: RefType => assert(ref.symbol.isType, "Unexpected type = " + expectedType.show)
-      case _ =>
-
-    if !expectedType.isValueType then
-      value
-    else
-      val valueType = value.tpe
-
-      val conforms = Subtyping.conforms(value.tpe, expectedType)
-
-      // println("value.tpe = " + value.tpe.show + ", expect = " + expectedType.show)
-
-      if allPrimitivesTagged then
-        // fast path for JS/Ruby/Python
-        // Lambdas do not matter because all values are tagged
-        if conforms then value else Encoded(value)(expectedType)
-
-      else
-        if !expectedType.isLambdaType && !valueType.isLambdaType then
-          if conforms then
-            if isTagged(valueType) || !isTagged(expectedType) then
-              value
-
-            else
-              Encoded(value)(expectedType)
-
-          else
-            assert(valueType.approx.isAnyType, "Expect Any, found = " + valueType.show + ", word = " + value.show)
-            // Backend will decide whether the cast involves unboxing
-            Encoded(value)(expectedType)
-
-        else if expectedType.isLambdaType && valueType.isLambdaType then
-          adaptLambdaValue(value, valueType.asLambdaType, expectedType.asLambdaType)
-
-        else if expectedType.isLambdaType then
-          if conforms then
-            value
-          else
-            assert(valueType.approx.isAnyType, "Expect Any, found = " + valueType.show + ", word = " + value.show)
-            val lambdaType2 = expectedType.asLambdaType
-            val lambdaType1 = LambdaType(lambdaType2.params.map(_ => AnyType), AnyType, lambdaType2.receives)
-            adaptLambdaValue(Encoded(value)(lambdaType1), lambdaType1, lambdaType2)
-
-        else
-          assert(valueType.isLambdaType, "Expect lambda type, found = " + valueType.show)
-          assert(expectedType.approx.isAnyType, "Expect Any, found = " + expectedType.show)
-          val lambdaType1 = valueType.asLambdaType
-          val lambdaType2 = LambdaType(lambdaType1.params.map(_ => AnyType), AnyType, lambdaType1.receives)
-          adaptLambdaValue(value, lambdaType1, lambdaType2)
-
-
-  def adaptLambdaValue(value: Word, valueType: LambdaType, expectedType: LambdaType)(using Context): Word =
-    val lambdaType1 @ LambdaType(paramTypes1, resType1, _) = valueType
-    val lambdaType2 @ LambdaType(paramTypes2, resType2, _)  = expectedType
-
-    // println("lambda1 = " + lambdaType1.show + ", lambda2 = " + lambdaType2.show)
-
-    assert(
-      paramTypes1.size == paramTypes2.size,
-      "lambda arity not equal. lambda1 = " + lambdaType1.show + ", lambda2 = " + lambdaType2.show
-    )
-
-    val taggingOK =
-      taggingConforms(resType1, resType2)
-      && paramTypes1.zip(paramTypes2).forall((tp1, tp2) => taggingConforms(tp2, tp1))
-
-    if taggingOK then
-      if Subtyping.conforms(valueType, expectedType) then value else Encoded(value)(expectedType)
-
-    else
-      // New symbols should go to old info, so they can be found during eraseType
-      TreeOps.createLambda(lambdaType2, Phase.owner.value, value.span)(paramRefs => {
-        val args = paramRefs.zip(paramTypes1).map: (paramRef, paramType) =>
-          adapt(paramRef, paramType)
-
-        adapt(Apply(value, args, autos = Nil)(value.span), resType2)
-      })(using Erasure.prevDefinitions.value)
+  private def adapt(value: Word, expectedType: Type)(using Context): Word =
+    Erasure.typeAdapter.value.adapt(value, expectedType)
 
   def eraseWord(word: Word, expectedType: Type, returnType: Type | Null)(using Context): Word = common.Debug.trace("erase " + word.show, (_: Word).show, enable = false):
     word match
@@ -369,12 +240,22 @@ class Erasure(isTagged: Type => Boolean, bottomErasedTo: Type = BottomType)(usin
         adapt(word2, expectedType)
 
       case ret @ Return(label, value) =>
-        assert(returnType != null, "return type is null")
         // A `Flags.Fun` return targets the enclosing function's own return
         // type (`returnType`, now never rebound by an enclosing `Labeled` —
         // see that case); a local "break out of this block" jump targets
         // that specific label's own type, recorded there.
-        val targetType = if label.is(Flags.Fun) then returnType else Erasure.labelResultTypes.value(label)
+        //
+        // Only the first reads `returnType`, so only the first may assert on
+        // it. A label jump is legal inside a lambda — where `returnType` is
+        // deliberately null, since a function return cannot cross a lambda
+        // boundary — and asserting there rejects e.g. a `while` loop with a
+        // `break` in a lambda body (`runtime/native`'s `createStdIn`).
+        val targetType =
+          if label.is(Flags.Fun) then
+            assert(returnType != null, "return type is null")
+            returnType
+          else
+            Erasure.labelResultTypes.value(label)
         val value2 = eraseWord(ret.value, targetType, returnType)
         if value2.eq(value) then word
         else Return(label, value2)(word.span)
@@ -427,32 +308,6 @@ class Erasure(isTagged: Type => Boolean, bottomErasedTo: Type = BottomType)(usin
 
         throw new Exception("Unexpected tree: " + word)
 
-  def createBridges(classSym: Symbol, bridgePairs: List[(Symbol, Symbol)])(using Context): List[FunDef] =
-    for (bridgeSym, targetSym) <- bridgePairs yield
-      val procType = bridgeSym.tpe.asProcType
-      TreeOps.createFunDef(bridgeSym)((paramRefs, autoRefs) => {
-        val targetRef = Ident(classSym.classInfo.self)(bridgeSym.span).select(targetSym.name)
-        val app = Apply(targetRef, paramRefs, autoRefs)(bridgeSym.span)
-        val resType = procType.resultType
-        eraseWord(app, expectedType = resType, returnType = resType)
-      })(using Erasure.prevDefinitions.value)
-    end for
-
-  override def transformClassDef(cdef: ClassDef)(using Context): ClassDef =
-    val classSym = cdef.symbol
-    Phase.owner.set(classSym)
-    val funs = cdef.funs.map(transformFunDef)
-
-    classSym.info
-    val bridgeSymbols = Erasure.bridges.value(classSym)
-
-    if bridgeSymbols.isEmpty then
-      cdef.copy(funs = funs)(cdef.annots, cdef.span)
-
-    else
-      val bridges = createBridges(classSym, bridgeSymbols)
-      cdef.copy(funs = funs ++ bridges)(cdef.annots, cdef.span)
-
   /** Leave the def tree in original info, which are harmless */
   override def transformFunDef(fdef: FunDef)(using Context): FunDef = try
     val sym = fdef.symbol
@@ -470,9 +325,6 @@ class Erasure(isTagged: Type => Boolean, bottomErasedTo: Type = BottomType)(usin
     throw ex
 
 object Erasure:
-  val bridges: Phase.PhaseKey[mutable.Map[Symbol, List[(Symbol, Symbol)]]] =
-    new Phase.PhaseKey("bridges")
-
   /** Each currently-erased `Labeled` block's own (erased) result type,
     * keyed by its label symbol — see the `Labeled`/`Return` cases in
     * `eraseWord`.
@@ -483,6 +335,8 @@ object Erasure:
   val prevDefinitions: Phase.PhaseKey[Definitions] = new Phase.PhaseKey("prevDefinitions")
 
   val eraseTypeMap: Phase.PhaseKey[EraseTypeMap] = new Phase.PhaseKey("eraseTypeMap")
+
+  val typeAdapter: Phase.PhaseKey[TypeAdapter] = new Phase.PhaseKey("typeAdapter")
 
   val allTagged: Type => Boolean = _ => true
 

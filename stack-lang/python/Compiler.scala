@@ -83,12 +83,13 @@ object Compiler:
         given Definitions = lazyDefn.value
 
         val pythonRuntime = new PythonRuntime
-        val contextParamsLower = new LowerContextParams(pythonRuntime.ParamSupport)
-        val erasure = new Erasure(Erasure.allTagged)
+        val contextParamKeys = new ContextParamKeys
+        val contextParamsLower = new LowerContextParams(pythonRuntime.ParamSupport, contextParamKeys)
+        val erasure = new Erasure(UniformTyping, Erasure.allTagged)
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView
         val rewire  = FrontEnd.rewireMap.value
-        val codeGen = new PythonCodeGen(pythonRuntime, rewire)
+        val codeGen = new PythonCodeGen(pythonRuntime, rewire, contextParamKeys)
 
         val backend: Step[List[FileUnit], Unit] =
           Step("Backend", (units: List[FileUnit]) =>

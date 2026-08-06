@@ -80,14 +80,15 @@ object Compiler:
         given Definitions = lazyDefn.value
 
         val jsRuntime = new JSRuntime
-        val contextParamsLower = new LowerContextParams(jsRuntime.ParamSupport)
-        val erasure = new Erasure(Erasure.allTagged)
+        val contextParamKeys = new ContextParamKeys
+        val contextParamsLower = new LowerContextParams(jsRuntime.ParamSupport, contextParamKeys)
+        val erasure = new Erasure(UniformTyping, Erasure.allTagged)
         val closureConvert = new ElimCapture
         val viewMaterializer = new phases.MaterializeView
         val backend: Step[List[FileUnit], Unit] =
           Step("Backend", (units: List[FileUnit]) => {
             val rewire  = FrontEnd.rewireMap.value
-            val codegen = new JSCodeGen(jsRuntime, rewire)
+            val codegen = new JSCodeGen(jsRuntime, rewire, contextParamKeys)
             codegen.generate(Universe.filter(units, jsRuntime.start, rewire, jsRuntime.intrinsicDeps), outFile)
           })
         units               |>
