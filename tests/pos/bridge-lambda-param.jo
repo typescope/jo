@@ -1,0 +1,27 @@
+// A bridge whose own body needs an adaptation lambda.
+//
+// `IntMapper.run` needs a bridge: the interface's erased `run` returns `Any`
+// while the implementation returns an untagged `Int`. Building that bridge
+// forces its `f` parameter from the interface's erased `Any => Any` to the
+// implementation's `Int => Int`, and those differ in tagging — so
+// `TypeAdapter.adaptLambdaValue` synthesizes a fresh `Lambda` inside the
+// bridge body.
+//
+// On the JVM backend `InterfaceBridge` runs *after* `ElimCapture`, so that
+// lambda is never lifted into a class and reaches `JVMCodeGen` as a bare
+// `Lambda` word, which it has no case for.
+
+interface Mapper[T]
+  def run(f: T => T, x: T): T
+end
+
+class IntMapper
+  def run(f: Int => Int, x: Int): Int = f(x)
+  view Mapper[Int]
+end
+
+def useMapper(m: Mapper[Int]): Int =
+  m.run(y => y + 1, 41)
+
+def main: Unit =
+  println useMapper(new IntMapper)

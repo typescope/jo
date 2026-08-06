@@ -1,0 +1,27 @@
+// Auto parameters must count in the bridge decision.
+//
+// `Counter.count`'s explicit parameters and result agree with the interface's
+// erased ones, so the two signatures differ *only* in the auto position: the
+// interface's `auto tag: T` erases to a tagged `Any`, while the
+// implementation's is an untagged `Int`. A bridge is required.
+//
+// The pre-refactoring check compared `procType1.paramTypes.zip(
+// procType2.paramTypes)` alone — it never looked at `autoTypes`, so it
+// reported these compatible and synthesized nothing.
+
+def sevenTag: Int = 7
+
+interface Tagger[T]
+  def count(auto tag: T with [sevenTag]): Int
+end
+
+class Counter
+  def count(auto tag: Int with [sevenTag]): Int = tag + 1
+  view Tagger[Int]
+end
+
+def useTagger(t: Tagger[Int]): Int =
+  t.count()
+
+def main: Unit =
+  println useTagger(new Counter)

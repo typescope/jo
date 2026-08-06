@@ -1,0 +1,21 @@
+// A lambda converted to an interface needs a bridge on the lifted class.
+//
+// `ElimCapture` lifts the lambda literal into a class implementing
+// `Ord[Int]`. That class's method carries the lambda's *natural* types,
+// because `getLambdaInterfaceType` builds the expected lambda type from
+// `MemberRef(this, sym).info` — the SAM instantiated at `Ord[Int]`, i.e.
+// `(Int, Int) => Int`, not the interface's own erased `(Any, Any) => Any`.
+//
+// So the lifted class needs a bridge just like a hand-written one would.
+// Any backend running `InterfaceBridge` *before* `ElimCapture` cannot
+// synthesize it: the class does not exist yet at that point.
+
+interface Ord[T]
+  def compare(a: T, b: T): Int
+end
+
+def minBy(a: Int, b: Int, o: Ord[Int]): Int =
+  if o.compare(a, b) < 0 then a else b
+
+def main: Unit =
+  println minBy(3, 7, (a, b) => a - b)
