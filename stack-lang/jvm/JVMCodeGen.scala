@@ -5,6 +5,8 @@ import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
 
+import phases.{ContextParamKeys}
+
 import jvm.ClassFile.*
 
 import scala.collection.mutable
@@ -25,7 +27,7 @@ import scala.collection.mutable
   * (or nothing, for `Unit`) — every call site relies on that postcondition
   * instead of threading an expected-type parameter through recursion.
   */
-class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: Definitions):
+class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol], contextParamKeys: ContextParamKeys)(using defn: Definitions):
   import JVMCodeGen.*
 
   //----------------------------------------------------------------------------
@@ -69,57 +71,37 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     case Ref(d) if d.startsWith("[") => d
     case _ => ObjectClass
 
+  /** The type classification itself lives in `JVMTypes.repr` (pure, keyed by
+    * `Symbol`); this only attaches the emission-time class name, enqueueing
+    * the class for compilation as a side effect. Keeping the two apart is
+    * what lets `JVMTyping` decide bridging from the same classification
+    * without touching this generator's work queue.
+    *
+    * Note what `JVMTypes.repr` does *not* single out: Jo's user-visible
+    * `Unit` (a real nominal type whose value is `jo_pass`) and `Bottom` are
+    * genuine value types, so they land on `Obj` like any other non-primitive
+    * and are represented by `null` — `jo_pass()` compiles to `aconst_null`
+    * accordingly. Only the SAST-internal `VoidType` marker means "nothing is
+    * ever produced". A `Bottom`-typed subexpression's result is skipped
+    * rather than adapted only where its *compiled form* is already
+    * guaranteed to leave nothing behind, which is a code-generation fact
+    * `isTerminal` answers — an ordinary call to a `Bottom`-declared function
+    * such as `abort(...)` is semantically non-returning yet compiles to a
+    * plain `invokestatic` the verifier still expects a value from. See
+    * `isTerminal`'s doc comment.
+    */
   def jvmType(tp: Type): JType =
-    // Only the SAST's *internal* `VoidType` marker (statement-context/
-    // dropped-value typing: `Assign`/`While`'s own `.tpe`, and what
-    // `dropValue` wraps a discarded statement's type as) means "truly zero
-    // bytecode representation, nothing is ever produced." Jo's user-visible
-    // `Unit` (a real nominal type with a value, `jo_pass`) and `Bottom` are
-    // both genuine *value* types (`Type.isValueType` holds for both) — they
-    // fall through to the catch-all `Ref(ObjectDesc)` below like any other
-    // non-primitive type, with `null` as their runtime representation.
-    // `jo_pass()` compiles to `aconst_null` accordingly. A `Bottom`-typed
-    // subexpression's "result" is skipped rather than adapted wherever its
-    // *compiled form* is already guaranteed to leave nothing behind — see
-    // `isTerminal`, which answers that as a code-generation fact instead of
-    // asking this erased type (a `Bottom`-typed value and a compiled form
-    // that's actually terminal are related but distinct: an ordinary call to
-    // a `Bottom`-declared function, e.g. `abort(...)`, is semantically
-    // non-returning but compiles to a plain `invokestatic` the verifier
-    // still expects a value from — see `isTerminal`'s doc comment).
-    if tp.isVoidType then V
-    else
-      // `.approx` dealiases and widens term references (e.g. an `Ident`'s
-      // `.tpe` is a `StaticRef` to the *symbol*, not its value type).
-      tp.approx match
-        case StaticRef(sym) if sym == defn.Int_type    => I
-        case StaticRef(sym) if sym == defn.Bool_type   => Z
-        case StaticRef(sym) if sym == defn.Byte_type   => B
-        case StaticRef(sym) if sym == defn.Char_type   => C
-        case StaticRef(sym) if sym == defn.Float_type  => F
-        case StaticRef(sym) if sym == defn.Long_type   => J
-        case StaticRef(sym) if sym == defn.String_type => Ref(StringDesc)
-        // A concrete class/interface reference (including a generic class's
-        // own instantiation, e.g. `Pair[Bool, Int]`) keeps its own compiled
-        // identity through `Erasure` — see `Erasure.EraseTypeMap`'s
-        // `AppliedType(tctor, _) => StaticRef(tctor)` for a class/interface
-        // `tctor`, which only collapses a genuinely unresolved type
-        // parameter to `Any`. Mirror that here instead of collapsing every
-        // non-primitive type to `Object` uniformly: a field/method receiver
-        // whose declared type is a real class already carries the right
-        // owner without a defensive `checkcast` (see `compileFieldReceiver`/
-        // `compileMethodCall`), and `Erasure`'s own bridge-method synthesis
-        // (`compileClass`) only produces a distinct descriptor from the
-        // natural method's when this is precise — collapsing both to
-        // `Object` uniformly made them collide as duplicate methods.
-        //
-        // `Array[T]` is excluded: it's intrinsified directly as a real JVM
-        // `Object[]` (`RefArray`'s create/get/set/size/clone), with no
-        // `ClassDef` for `enqueueClass` to ever find and compile.
-        case _ =>
-          classOrInterfaceSymbol(tp) match
-            case Some(sym) if sym != defn.Array_class => Ref("L" + enqueueClass(sym) + ";")
-            case _ => Ref(ObjectDesc)
+    JVMTypes.repr(tp) match
+      case JVMTypes.JRepr.I   => I
+      case JVMTypes.JRepr.Z   => Z
+      case JVMTypes.JRepr.B   => B
+      case JVMTypes.JRepr.C   => C
+      case JVMTypes.JRepr.F   => F
+      case JVMTypes.JRepr.J   => J
+      case JVMTypes.JRepr.V   => V
+      case JVMTypes.JRepr.Str => Ref(StringDesc)
+      case JVMTypes.JRepr.Obj => Ref(ObjectDesc)
+      case JVMTypes.JRepr.Cls(sym) => Ref("L" + enqueueClass(sym) + ";")
 
   def methodDesc(paramTypes: List[Type], resultType: Type): String =
     "(" + paramTypes.map(t => descOf(jvmType(t))).mkString + ")" + descOf(jvmType(resultType))
@@ -188,6 +170,14 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
   private val classFiles = mutable.LinkedHashMap.empty[String, Array[Byte]]
 
   private def resolve(sym: Symbol): Symbol = rewire.getOrElse(sym, sym)
+
+  /** A JVM field name. Jo permits identifiers the class-file format does
+    * not — `LowerContextParams` names a synthetic local `arg_<fullName>`,
+    * whose dots are illegal here — so every field name goes through this,
+    * both where a field is declared and where it is read or written, so the
+    * three always agree.
+    */
+  private def fieldName(name: String): String = sanitize(name)
 
   private def sanitize(s: String): String =
     val b = new StringBuilder
@@ -459,7 +449,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     // ordinary class that happens to define its own no-view `apply` method.
     val isLambda = cdef.symbol.is(Flags.Synthetic) && cdef.views.isEmpty && cdef.funs.exists(f => f.symbol.name == "apply")
 
-    val fieldOuts = cdef.vals.map(f => FieldOut(AccessFlags.Public, f.symbol.name, descOf(jvmType(f.tpt.tpe))))
+    val fieldOuts = cdef.vals.map(f => FieldOut(AccessFlags.Public, fieldName(f.symbol.name), descOf(jvmType(f.tpt.tpe))))
 
     val ctorFdefOpt = cdef.funs.find(_.symbol.name == Names.Constructor)
     val ctorOut = ctorFdefOpt.map(compileConstructor(_, cdef, cp))
@@ -479,76 +469,17 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     // `Ord[String]` (see ElimCapture.liftLambda's `lambdaInterfaceOpt`)
     // compiles its `compare` method with natural `(String, String)`
     // parameters, but `invokeinterface Ord.compare` always resolves against
-    // the erased `(Object, Object)` descriptor. The standard JVM fix for
-    // this generics-erasure mismatch is a synthetic bridge method with the
-    // interface's own erased signature that adapts and forwards to the
-    // natural-typed one.
-    //
-    // `Erasure` (see Compiler.scala) already synthesizes this bridge
-    // directly into `cdef.funs` for any *ordinary* user-declared class with
-    // `view`s — `Erasure.transformClassDef`/`createBridges` run against the
-    // class's `ClassInfo`, which exists before `ElimCapture` does anything.
-    // The one case `Erasure` can't see is a lambda literal lifted into a
-    // class *by* `ElimCapture`, which runs after `Erasure` — that class
-    // doesn't exist yet when bridges are synthesized. So this stays scoped
-    // to exactly that case (`Flags.Synthetic` + declared views); an ordinary
-    // class relies entirely on `Erasure`'s own bridge, already sitting in
-    // `cdef.funs` and compiled by `otherMethods` above like any other
-    // method — recomputing one here for it would risk emitting a second,
-    // colliding bridge with the same name and descriptor.
-    val bridgeMethods =
-      if cdef.symbol.is(Flags.Synthetic) && cdef.views.nonEmpty then
-        val ifaceAbstractMethods = cdef.views.flatMap(v => classOrInterfaceSymbol(v.tpe))
-          .flatMap(_.classInfo.allMethods.filter(_.is(Flags.Defer)))
-        cdef.funs.filter(_.symbol.name != Names.Constructor).flatMap { fdef =>
-          ifaceAbstractMethods.find(m => m.name == fdef.symbol.name && bridgeNeeded(fdef, m))
-            .map(compileSamBridgeMethod(fdef, cdef, _, cp))
-        }
-      else Nil
-
+    // the erased `(Object, Object)` descriptor. `InterfaceBridge` (see
+    // Compiler.scala) already synthesizes the JVM-standard fix — a bridge
+    // method with the interface's own erased signature that adapts and
+    // forwards to the natural-typed one — directly into `cdef.funs` for
+    // *every* class with `view`s, ordinary or `ElimCapture`-lifted alike,
+    // so it's already sitting there, compiled by `otherMethods` above like
+    // any other method. No special-casing needed here at all.
     val interfaces = (if isLambda then LambdaClass :: Nil else Nil) ++ declaredInterfaces
-    val methods = ctorOut.toList ++ otherMethods ++ bridgeMethods
+    val methods = ctorOut.toList ++ otherMethods
     val bytes = ClassFile.write(cp, className, ObjectClass, interfaces, fieldOuts, methods)
     classFiles(className) = bytes
-
-  private def bridgeNeeded(fdef: FunDef, ifaceMethodSym: Symbol): Boolean =
-    val ifaceProcType = ifaceMethodSym.tpe.asProcType
-    val naturalProcType = fdef.symbol.tpe.asProcType
-    (ifaceProcType.paramTypes ++ ifaceProcType.autoTypes).map(jvmType) != (naturalProcType.paramTypes ++ naturalProcType.autoTypes).map(jvmType) ||
-      jvmType(ifaceProcType.resultType) != jvmType(naturalProcType.resultType)
-
-  /** See `bridgeNeeded`'s doc comment. `ifaceMethodSym` is the interface's
-    * own (uninstantiated) abstract member, so its `ProcType` gives the
-    * exact erased descriptor `invokeinterface` will look for.
-    */
-  private def compileSamBridgeMethod(fdef: FunDef, cdef: ClassDef, ifaceMethodSym: Symbol, cp: ConstantPool): MethodOut =
-    val className = classSimpleName(cdef.symbol)
-    val cw = new CodeWriter(cp)
-    val ifaceProcType = ifaceMethodSym.tpe.asProcType
-    val erasedParamTypes = (ifaceProcType.paramTypes ++ ifaceProcType.autoTypes).map(jvmType)
-    val erasedResultType = jvmType(ifaceProcType.resultType)
-    val naturalProcType = fdef.symbol.tpe.asProcType
-    val naturalParamTypes = (naturalProcType.paramTypes ++ naturalProcType.autoTypes).map(jvmType)
-    val naturalResultType = jvmType(naturalProcType.resultType)
-
-    if (erasedResultType :: naturalResultType :: erasedParamTypes ++ naturalParamTypes).exists(t => t == J || t == F) then
-      throw new Exception("long/float bridge parameters not supported in this prototype")
-
-    cw.aload(0)
-    var slot = 1
-    for (et, nt) <- erasedParamTypes.zip(naturalParamTypes) do
-      loadLocal(et, slot, cw)
-      adaptTo(et, nt, cw)
-      slot += 1
-    cw.touchLocal(slot - 1)
-    val naturalDesc = methodDesc(naturalProcType.paramTypes ++ naturalProcType.autoTypes, naturalProcType.resultType)
-    cw.invokevirtual(className, fdef.symbol.name, naturalDesc)
-    adaptTo(naturalResultType, erasedResultType, cw)
-    emitReturn(erasedResultType, cw)
-
-    val (code, maxStack, maxLocals) = cw.finish()
-    val bridgeDesc = "(" + erasedParamTypes.map(descOf).mkString + ")" + descOf(erasedResultType)
-    MethodOut(AccessFlags.Public, ifaceMethodSym.name, bridgeDesc, Some((code, maxStack, maxLocals)))
 
   /** A real JVM interface: only its `Flags.Defer` members (`hasNext`,
     * `next`, ...) become actual interface methods (abstract, no `Code`
@@ -579,7 +510,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     classFiles(ifaceName) = bytes
 
   private def classOrInterfaceSymbol(tp: Type): Option[Symbol] =
-    tp.approx.typeSymbolOpt.filter(_.isOneOf(Flags.Class | Flags.Interface))
+    JVMTypes.classOrInterfaceSymbol(tp)
 
   /** Jo constructors are modeled as functions that return the constructed
     * `this` (see ElimCapture); a JVM `<init>` is void and operates on the
@@ -657,17 +588,11 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
     val (code, maxStack, maxLocals) = cw.finish()
     val desc = methodDesc(procType.paramTypes ++ procType.autoTypes, procType.resultType)
-    // `Erasure` names a synthesized bridge method `<name>$bridge` (see
-    // Names.BridgeSuffix) — that convention is native's own, which looks
-    // bridges up explicitly by that suffixed name in its own itable
-    // (native/runtime/InterfaceTable.scala), not a real JVM requirement.
-    // Real `invokeinterface` dispatch needs the bridge to carry the exact
-    // same name as the interface method it bridges — the JVM tells it apart
-    // from the natural-typed method purely by descriptor (return type is
-    // part of a JVM method's identity, even though Java source can't
-    // overload on it alone), so stripping the suffix here is enough.
-    val bytecodeName = sym.name.stripSuffix(Names.BridgeSuffix)
-    MethodOut(AccessFlags.Public, bytecodeName, desc, Some((code, maxStack, maxLocals)))
+    // No name rewriting here: `JVMTyping.bridgeName` already gives a bridge
+    // the interface method's own name, which is what `invokeinterface` needs
+    // to resolve. The `$bridge` suffix is native's itable convention and
+    // never reaches this backend.
+    MethodOut(AccessFlags.Public, sym.name, desc, Some((code, maxStack, maxLocals)))
 
   /** Every lambda-lifted class implements the shared marker interface
     * `Lambda` with a single arity-erased method `Object apply(Object[])`,
@@ -815,7 +740,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
         val declared = fieldDeclaredType(sel)
         compile(rhs)
         if isTerminal(rhs) then ctx.cw.pop() // discard the now-orphaned `qual` receiver; see above
-        else ctx.cw.putfield(owner, name, descOf(declared))
+        else ctx.cw.putfield(owner, fieldName(name), descOf(declared))
 
       case If(cond, thenp, elsep) => compileIf(cond, thenp, elsep)
 
@@ -874,7 +799,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
         // match's `$o.field` destructuring.
         val owner = compileFieldReceiver(qual)
         val declared = fieldDeclaredType(sel)
-        ctx.cw.getfield(owner, name, descOf(declared))
+        ctx.cw.getfield(owner, fieldName(name), descOf(declared))
         adaptTo(declared, jvmType(sel.tpe), ctx.cw)
 
       case ClassTest(value, classSym) =>
@@ -1263,12 +1188,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     * produce reference-equal keys, which is all `refEq`-based lookup needs.
     */
   private def compileParamKey(arg: Word)(using ctx: MethodCtx): Unit =
-    def paramSymOf(w: Word): Symbol = w match
-      case Ident(s) => s
-      case Encoded(inner) => paramSymOf(inner)
-      case Apply(inner, _, _) => paramSymOf(inner)
-      case _ => throw new Exception("Unsupported argument to paramKey: " + w.show)
-    val paramSym = paramSymOf(arg)
+    val paramSym = contextParamKeys.symbolOf(ContextParamKeys.intKeyOf(arg))
     ctx.cw.ldc(cpOf(ctx).stringConst(paramSym.fullName))
 
   /** Emit a 0/1 int by branching on a JVM conditional-jump instruction. */

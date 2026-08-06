@@ -58,7 +58,8 @@ object Compiler:
         given defn: Definitions = lazyDefn.value
 
         val jvmRuntime = new JVMRuntime
-        val contextParamsLower = new LowerContextParams(jvmRuntime.ParamSupport)
+        val contextParamKeys = new ContextParamKeys
+        val contextParamsLower = new LowerContextParams(jvmRuntime.ParamSupport, contextParamKeys)
 
         // Untagged (real JVM primitive/String-equivalent) representation —
         // everything else, including generic type parameters and unresolved
@@ -70,15 +71,23 @@ object Compiler:
           defn.Bool_type, defn.Byte_type, defn.Char_type,
           defn.Int_type, defn.Float_type, defn.Long_type,
         )
+        val isTagged = Erasure.untaggedTypes(untaggedTypes)
+
         // `Bottom` erases to `AnyType` here (unlike every other backend,
         // which defaults to leaving it as `BottomType`) so a `Bottom`-typed
         // value participates in the ordinary Any-erased cast/unbox-at-use
         // scheme — see `Erasure`'s own doc comment for why this backend
         // specifically needs that.
-        val erasure = new Erasure(Erasure.untaggedTypes(untaggedTypes), AnyType)
+        val typing = new JVMTyping
+        val erasure = new Erasure(typing, isTagged, AnyType)
         val closureConvert = new ElimCapture
+        val interfaceBridge = new InterfaceBridge(
+          typing,
+          new TypeAdapter(typing, isTagged, allTagged = false, newSymbolDefn = defn)
+        )
+
         val rewire = FrontEnd.rewireMap.value
-        val codeGen = new JVMCodeGen(jvmRuntime, rewire)
+        val codeGen = new JVMCodeGen(jvmRuntime, rewire, contextParamKeys)
 
         val backend: Step[List[FileUnit], Unit] =
           Step("Backend", (units: List[FileUnit]) => writeClassFiles(codeGen.generate(units), outDir))
@@ -86,6 +95,7 @@ object Compiler:
         units               |>
         contextParamsLower  |>
         erasure             |>
+        interfaceBridge     |>
         closureConvert      |>
         backend
       } <| "Backend"
