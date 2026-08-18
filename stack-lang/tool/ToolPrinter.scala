@@ -27,11 +27,9 @@ object ToolPrinter:
     sb.toString.stripTrailing()
 
   def print(lock: LockFile): String =
-    if lock.jo.isEmpty && lock.packages.isEmpty then return "packages = []"
+    if lock.packages.isEmpty then return "packages = []"
 
     val sb = new StringBuilder
-
-    lock.jo.foreach(v => sb.append(s"jo = ${str(v.toString)}\n"))
 
     for p <- lock.packages do
       sb.append(s"package:\n")

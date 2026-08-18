@@ -1,14 +1,13 @@
 package tool
 
 import java.nio.file.{Files, Path}
-import scala.collection.mutable
 
 import tool.toml.TomlValue.*
 import tool.toml.{TomlValue, TomlDoc, TomlError}
 import tool.toml.TomlParser
 
 case class LockedPackage(name: String, version: String, sha512: String)
-case class LockFile(jo: Option[Version], packages: List[LockedPackage])
+case class LockFile(packages: List[LockedPackage])
 
 object LockFile:
   def pathForSpec(specPath: Path): Path =
@@ -19,20 +18,14 @@ object LockFile:
     specPath.resolveSibling(s"$stem.lock")
 
   def decode(doc: TomlDoc): LockFile =
-    val jo = doc.get("jo") match
-      case Some(Str(s)) =>
-        Version.parse(s) match
-          case Some(version) => Some(version)
-          case None          => throw TomlError(s"'jo' must be a version in MAJOR.MINOR.PATCH format")
-      case Some(_)      => throw TomlError("'jo' must be a string")
-      case None         => None
-
+    // A legacy 'jo' entry pinning the compiler patch version is ignored:
+    // the compiler version is no longer locked, only package artifacts are.
     val packages = doc.toSeq.filter(_._1 != "jo").sortBy(_._1).map: (name, value) =>
       val fields  = asTbl(value, s"package '$name'")
       val version = requireStr(fields, "version", s"package '$name'")
       val sha512  = requireStr(fields, "sha512",  s"package '$name'")
       LockedPackage(name, version, sha512)
-    LockFile(jo, packages.toList)
+    LockFile(packages.toList)
 
   def load(path: Path): Result[Option[LockFile]] =
     if !Files.exists(path) then
@@ -52,14 +45,9 @@ object LockFile:
       case e: Exception => Result.Err(e.getMessage)
 
   def render(lock: LockFile): String =
-    if lock.jo.isEmpty && lock.packages.isEmpty then
-      ""
-    else
-      val lines = new mutable.ArrayBuffer[String]
-      lock.jo.foreach(v => lines += s"""jo = "$v"""")
-      lines ++= lock.packages.map: pkg =>
-        s"""${renderKey(pkg.name)} = { version = "${pkg.version}", sha512 = "${pkg.sha512}" }"""
-      lines.mkString("", "\n", "\n")
+    lock.packages
+      .map(pkg => s"""${renderKey(pkg.name)} = { version = "${pkg.version}", sha512 = "${pkg.sha512}" }\n""")
+      .mkString
 
   private def requireStr(fields: Map[String, TomlValue], key: String, ctx: String): String =
     fields.get(key) match

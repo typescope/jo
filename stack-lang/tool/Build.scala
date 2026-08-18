@@ -98,7 +98,7 @@ object Build:
       resolvePackages(project, project.moduleIds, lockPath, useExistingLock = false).flatMap: resolved =>
         warnUnusedPinning(resolved)
         validatePackageDepths(project, resolved, project.moduleIds).flatMap: _ =>
-          writeLock(lockPath, project.joVersion, resolved.packages)
+          writeLock(lockPath, resolved.packages)
     catch
       case e: ArchiveError => Result.Err(e.getMessage)
       case e: TomlError => Result.Err(e.getMessage)
@@ -141,7 +141,7 @@ object Build:
       case None =>
         DependencyResolver.resolveProject(project, project.moduleIds).flatMap: resolvedAll =>
           validatePackageDepths(project, resolvedAll, modules).flatMap: _ =>
-            makeLock(project.joVersion, resolvedAll.packages).flatMap: lock =>
+            makeLock(resolvedAll.packages).flatMap: lock =>
               LockFile.write(lockPath, lock).flatMap: _ =>
                 DependencyResolver.resolveProject(project, modules, lock)
 
@@ -192,7 +192,7 @@ object Build:
     else
       Result.Err(s"lock file is missing package entries for: ${missing.mkString(", ")}; run 'jo lock'")
 
-  private def makeLock(joVersion: Version, pkgs: List[ResolvedPackage])(using provider: PackageProvider): Result[LockFile] =
+  private def makeLock(pkgs: List[ResolvedPackage])(using provider: PackageProvider): Result[LockFile] =
     val locked = new mutable.ArrayBuffer[LockedPackage]
     val sorted = pkgs.sortBy(_.name)
     val it = sorted.iterator
@@ -210,10 +210,10 @@ object Build:
     if error != null then
       Result.Err(error)
     else
-      Result.Ok(LockFile(Some(joVersion), locked.toList))
+      Result.Ok(LockFile(locked.toList))
 
-  private def writeLock(path: Path, joVersion: Version, pkgs: List[ResolvedPackage])(using provider: PackageProvider): Result[Unit] =
-    makeLock(joVersion, pkgs).flatMap(LockFile.write(path, _))
+  private def writeLock(path: Path, pkgs: List[ResolvedPackage])(using provider: PackageProvider): Result[Unit] =
+    makeLock(pkgs).flatMap(LockFile.write(path, _))
 
   private def docOptions(project: Project, module: ModuleId): List[String] =
     val docSpec = project.doc.getOrElse(DocSpec())
