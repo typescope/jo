@@ -1,0 +1,4 @@
+error: lock file Jo compiler mismatch for mustache
+
+  The lock file fixed mustache to 1.1.0.
+  That package requires Jo 1.1, but the selected compiler is 1.0.0.
