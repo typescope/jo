@@ -1,0 +1,8 @@
+jo = "1.5"
+
+[module.app]
+kind = "app"
+platform = "python"
+src = ["src/"]
+
+modules = [{ id = "lib", path = "dep" }]

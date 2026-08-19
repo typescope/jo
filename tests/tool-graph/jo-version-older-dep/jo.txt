@@ -1,0 +1,5 @@
+# lib: dep [lib]
+jo compile --sast dep/.build/lib/jo-1.5/sast dep/src/Main.jo
+
+# root [app] (app)
+jo compile --python src/Main.jo --lib dep/.build/lib/jo-1.5/sast -o .build/app/jo-1.5/target/app.py
