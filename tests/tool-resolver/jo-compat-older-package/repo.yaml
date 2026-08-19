@@ -1,0 +1,6 @@
+packages:
+  core-pkg:
+    1.0.0:
+      namespace: core.pkg
+      jo: "1.0"
+      runtime: pure
