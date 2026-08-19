@@ -1,0 +1,1 @@
+error: source project tests/tool-graph/jo-version-newer-minor/dep/jo.toml requires Jo 1.2, but the root project selected Jo 1.0.0
