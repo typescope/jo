@@ -13,10 +13,10 @@ transitive graph is known.
 Jo also resolves the compiler version before package selection:
 
 - `jo.toml` declares a compatibility requirement such as `jo = "1.0"`
-- `jo.lock` may pin an exact compiler version such as `jo = "1.2.0"`
-- if `jo.lock` pins a version and it still satisfies `jo.toml`, Jo requires that exact version
-- if the pinned version no longer satisfies `jo.toml`, Jo falls back to the running compiler
-- the running compiler must satisfy `jo.toml` — if it does not, Jo errors and asks you to switch with `jo versions use`
+- the running compiler must satisfy it — if it does not, Jo errors and asks you to switch with `jo versions use`
+
+The compiler version is not recorded in `jo.lock`. Compatibility is a `MAJOR.MINOR`
+property, so any patch release within the required line is accepted.
 
 Once the compiler is selected, package resolution only considers package versions whose
 `meta.toml` `jo` requirement is satisfied by that compiler.

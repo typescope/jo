@@ -12,9 +12,9 @@ jo lock
 
 1. Reads the build spec.
 2. Resolves registry dependencies for **all** modules, from the current version constraints in `jo.toml`.
-3. Selects an exact Jo compiler version and exact package versions.
+3. Selects exact package versions.
 4. Verifies the selected `.joy` artifacts.
-5. Writes `<spec>.lock` with the compiler version plus one key per package containing the exact version and SHA-512 digest.
+5. Writes `<spec>.lock` with one key per package containing the exact version and SHA-512 digest.
 
 The lock file covers the whole project. At most one version of each registry package is selected, across every module. If two modules declare incompatible constraints on the same package, `jo lock` fails and reports the module paths on both sides of the conflict.
 

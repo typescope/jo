@@ -1,0 +1,19 @@
+# A lock file written by an older compiler carries a 'jo' entry pinning the
+# compiler patch version. It is ignored rather than enforced, and `jo lock`
+# drops it on the next rewrite.
+rm -rf .build
+cp jo-legacy.lock jo.lock
+
+jo build
+: ''
+
+cat jo.lock
+: '
+jo = "0.10.0"
+'
+
+jo lock
+: ''
+
+cat jo.lock
+: ''

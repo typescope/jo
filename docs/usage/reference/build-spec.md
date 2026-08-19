@@ -13,6 +13,36 @@ Module declaration order is part of the spec's meaning: it selects the default m
 
 There is no project-level `depth`. Depth is declared per module — see [Dependency Depth](../concepts/dependency-depth.md).
 
+### `jo`
+
+`jo` is the compiler compatibility line for the project, written as `MAJOR.MINOR`:
+
+```toml
+jo = "1.2"
+```
+
+It means *major line `1`, at version `1.2.0` or later* — not `1.2.x`. Compilers `1.2.0`,
+`1.2.7`, and `1.5.0` all satisfy `jo = "1.2"`; `1.1.9` is too old and `2.0.0` is a
+different major line. Patch releases are never distinguished, so no exact compiler
+version is recorded anywhere in the project, `jo.lock` included.
+
+There is only this one constraint syntax — no `^1.2`, `~1.2`, `>=1.2`, exact pins, or
+upper bounds. The same `MAJOR.MINOR` line governs package dependencies and a published
+package's own `jo` field in `meta.toml`. See [Versioning](../concepts/versioning.md) for
+the compatibility model behind it.
+
+Jo checks the constraint against the running compiler when you run a project command. If
+it is not satisfied, the command stops:
+
+```
+error: this project requires Jo 1.3 but the active version is 1.2.4
+  Run: jo versions use <version>
+```
+
+Jo does not switch compilers for you. Install a compatible version with
+`jo versions install <version>` if you do not have one, then activate it with
+[`jo versions use <version>`](../commands/versions.md).
+
 ## `[pinning]` — Root-Only Exact Overrides
 
 `[pinning]` lets the root project force an exact package version when normal

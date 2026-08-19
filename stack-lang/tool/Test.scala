@@ -185,14 +185,6 @@ private def runResolverTests(): List[Path] =
   checkMismatch("resolve: requires higher major → version mismatch"):
     JoResolver.resolve(wrongMajor)
 
-  checkNoMismatch("resolveExact: current version passes version check"):
-    JoResolver.resolveExact(current)
-
-  val other = current.copy(patch = current.patch + 1)
-
-  checkMismatch("resolveExact: wrong version → version mismatch"):
-    JoResolver.resolveExact(other)
-
   if failed then List(Paths.get("JoResolver")) else Nil
 
 // ---- Json suite ----------------------------------------------------------------
@@ -1187,7 +1179,7 @@ private def lockCheck(specFile: String): String =
       if digestErr != null then
         Result.Err(digestErr)
       else
-        val lock = LockFile(Some(project.joVersion), locked.toList)
+        val lock = LockFile(locked.toList)
         LockFile.write(lockPath, lock).map(_ => LockFile.render(lock))
 
   result match

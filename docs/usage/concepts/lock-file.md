@@ -8,7 +8,7 @@ One project has one lock file. It covers every module in the project.
 
 The lock file has two roles:
 
-1. It records the exact compiler and package artifacts selected for a build.
+1. It records the exact package artifacts selected for a build.
 2. It makes later builds reproducible by requiring those exact artifacts again.
 
 `jo.toml` says what versions are acceptable.
@@ -17,10 +17,11 @@ The lock file has two roles:
 
 When a lock file exists:
 
-- the locked compiler version is reused if it still satisfies the current `jo` constraint in `jo.toml`
-- if the locked compiler version no longer satisfies `jo.toml`, it is treated as stale and replaced by a fresh compatible compiler selection
 - locked package versions must still satisfy the current dependency constraints
 - locked artifact digests must match the actual `.joy` files
+
+The compiler version is not locked. `jo.toml` states the required `MAJOR.MINOR` line, and
+any patch release within it is accepted.
 
 If the lock file is missing, `jo build`, `jo check`, `jo run`, and `jo doc` resolve all modules in the project and write it.
 
@@ -40,17 +41,16 @@ Package dependency depth is checked separately. `jo lock` checks every module. B
 
 ## Format
 
-The file is TOML with a top-level `jo` entry plus one key per resolved registry package:
+The file is TOML with one key per resolved registry package:
 
 ```toml
-jo = "1.0.0"
 greeter-pkg = { version = "1.0.0", sha512 = "4b5f..." }
 mustache = { version = "2.3.1", sha512 = "8c12..." }
 ```
 
-## Fields
+A project with no registry dependencies gets an empty lock file.
 
-The `jo` entry records the exact selected compiler version.
+## Fields
 
 Each package key is the package name. Its inline table contains:
 
@@ -61,10 +61,11 @@ Each package key is the package name. Its inline table contains:
 
 ## Scope
 
-The lock file records the selected Jo compiler version and all registry-resolved Jo packages.
+The lock file records all registry-resolved Jo packages.
 
 It does not record:
 
+- the Jo compiler version — `jo.toml` states the compatible `MAJOR.MINOR` line, and patch releases within it are interchangeable
 - source modules, in this project or reached through `path` — they are source, not artifacts
 - source files
 - foreign package managers such as `pip` or RubyGems

@@ -21,17 +21,6 @@ object JoResolver:
       case Some(bin) => Result.Ok((current, bin))
       case None      => Result.Err(s"could not locate the running compiler binary (JO_HOME not set)")
 
-  def resolveExact(version: Version): Result[Path] =
-    val current = JoVersion.current
-    if current != version then
-      return Result.Err(
-        s"this project is locked to Jo $version but the active version is $current\n" +
-        s"  Run: jo versions use $version"
-      )
-    selfBinary() match
-      case Some(bin) => Result.Ok(bin)
-      case None      => Result.Err(s"could not locate the running compiler binary (JO_HOME not set)")
-
   private def selfBinary(): Option[Path] =
     // In production, JO_HOME is set by the bin/jo launcher script to the compiler directory.
     // When running from source via scala-cli, resolve through the active version instead.

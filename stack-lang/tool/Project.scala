@@ -151,16 +151,9 @@ object Project:
     entry._1.specPath == project.specPath && entry._2 == module
 
   def load(specPath: Path): Result[Project] =
-    load(specPath, JoResolver.resolve, JoResolver.resolveExact)
+    load(specPath, JoResolver.resolve)
 
   def load(specPath: Path, resolveJo: VersionSpec => Result[(Version, Path)]): Result[Project] =
-    load(specPath, resolveJo, version => resolveJo(VersionSpec(Version(version.major, version.minor, 0))).map(_._2))
-
-  def load(
-    specPath: Path,
-    resolveJo: VersionSpec => Result[(Version, Path)],
-    resolveExactJo: Version => Result[Path],
-  ): Result[Project] =
     val resolved = mutable.Map.empty[Path, Project]
     val inProgress = mutable.Set.empty[Path]
     val stack = mutable.ArrayBuffer.empty[Path]
@@ -202,7 +195,7 @@ object Project:
                   )
 
               case None =>
-                resolveCompiler(canonicalSpecPath, spec.jo, resolveJo, resolveExactJo)
+                resolveJo(spec.jo)
 
           compiler.flatMap: (joVersion, joBin) =>
             resolveModuleDeps(specDir, canonicalSpecPath, spec, depPath => loadAt(depPath, Some(joVersion -> joBin))).flatMap: deps =>
@@ -217,27 +210,6 @@ object Project:
       result
 
     loadAt(specPath)
-
-  private def resolveCompiler(
-    specPath: Path,
-    constraint: VersionSpec,
-    resolveJo: VersionSpec => Result[(Version, Path)],
-    resolveExactJo: Version => Result[Path],
-  ): Result[(Version, Path)] =
-    LockFile.load(LockFile.pathForSpec(specPath)).flatMap:
-      case Some(lock) =>
-        lock.jo match
-          case Some(version) =>
-            if constraint.contains(version) then
-              resolveExactJo(version).map(version -> _)
-            else
-              resolveJo(constraint)
-
-          case None =>
-            resolveJo(constraint)
-
-      case None =>
-        resolveJo(constraint)
 
   private def resolveModuleDeps(
     specDir: Path,
