@@ -64,7 +64,11 @@ The `jo` field in `jo.toml` uses the same `MAJOR.MINOR` syntax:
 jo = "1.2"
 ```
 
-The build tool selects the latest installed compatible compiler in that major line.
+The build tool checks the running compiler against that constraint: any release in the
+major line at or above it qualifies. It does not switch compilers for you — if the active
+version does not satisfy the constraint, the command stops and asks you to switch with
+`jo versions use`. See [Build Spec](../reference/build-spec.md) for the `jo` field and
+[`jo versions`](../commands/versions.md) for managing installed compilers.
 
 ## Compatibility Discipline
 
