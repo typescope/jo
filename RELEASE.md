@@ -60,6 +60,7 @@ made since the last release.
 bin/doc --no-stdlib $(find lib -name '*.jo') \
   --title "Jo Standard Library" \
   --project-version X.Y.Z \
+  --readme lib/README.md \
   --out stdlib-doc
 tar czf jo-stdlib-docs-X.Y.Z.tar.gz -C stdlib-doc .
 ```
