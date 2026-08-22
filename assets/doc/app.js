@@ -184,11 +184,35 @@ const app = {
       return;
     }
 
-    const queryLower = query.toLowerCase();
-    const results = this.search
-      .filter(item => item.name.toLowerCase().includes(queryLower) ||
-                      item.fullName.toLowerCase().includes(queryLower))
-      .slice(0, 10);
+    const normalizedQuery = query.trim();
+    const queryLower = normalizedQuery.toLowerCase();
+    const ranked = this.search
+      .map((item, index) => {
+        const nameLower = item.name.toLowerCase();
+        const fullNameLower = item.fullName.toLowerCase();
+        let rank;
+
+        if (item.name === normalizedQuery) rank = 0;
+        else if (nameLower === queryLower) rank = 1;
+        else if (item.name.startsWith(normalizedQuery)) rank = 2;
+        else if (nameLower.startsWith(queryLower)) rank = 3;
+        else if (item.fullName.includes(normalizedQuery)) rank = 4;
+        else if (fullNameLower.includes(queryLower)) rank = 5;
+        else return null;
+
+        return { item, rank, index };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.rank - b.rank || a.index - b.index);
+
+    const seen = new Set();
+    const results = [];
+    for (const { item } of ranked) {
+      if (seen.has(item.fullName)) continue;
+      seen.add(item.fullName);
+      results.push(item);
+      if (results.length === 10) break;
+    }
 
     this.renderSearchResults(results);
   },
