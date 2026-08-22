@@ -28,7 +28,6 @@ const app = {
 
     // Render navigation
     this.renderNav();
-    this.setupSidebarResize();
 
     // Setup search
     this.setupSearch();
@@ -56,12 +55,13 @@ const app = {
 
   renderPageIndex(data) {
     const container = document.getElementById('nav-page-index');
-    const sidebar = document.getElementById('sidebar');
     if (!data) {
       container.innerHTML = '';
-      sidebar.classList.remove('has-page-index');
       return;
     }
+
+    const namespaceName = data.fullName || data.name;
+    const heading = `<div class="nav-page-index-header">${namespaceName}</div>`;
 
     const kindOrder = ['section', 'class', 'interface', 'abstract', 'object', 'type', 'pattern', 'function', 'context', 'method'];
     const kindLabel = {
@@ -88,13 +88,12 @@ const app = {
 
     const keys = kindOrder.filter(k => byKind[k] && byKind[k].length > 0);
     if (keys.length === 0) {
-      container.innerHTML = '';
-      sidebar.classList.remove('has-page-index');
+      container.innerHTML = heading;
       return;
     }
 
     let groupId = 0;
-    let html = `<div class="nav-page-index-header">On this page</div>`;
+    let html = heading;
     for (const k of keys) {
       const members = byKind[k];
       const collapsed = members.length > 10;
@@ -113,42 +112,6 @@ const app = {
     }
 
     container.innerHTML = html;
-    sidebar.classList.add('has-page-index');
-  },
-
-  setupSidebarResize() {
-    const sidebar = document.getElementById('sidebar');
-    const header = document.getElementById('sidebar-header');
-    const namespaces = document.getElementById('nav-namespaces');
-    const resizer = document.getElementById('nav-resizer');
-
-    resizer.addEventListener('pointerdown', (event) => {
-      event.preventDefault();
-      resizer.setPointerCapture(event.pointerId);
-      resizer.classList.add('dragging');
-    });
-
-    resizer.addEventListener('pointermove', (event) => {
-      if (!resizer.hasPointerCapture(event.pointerId)) return;
-
-      const availableHeight = sidebar.clientHeight - header.offsetHeight - resizer.offsetHeight;
-      const minSectionHeight = Math.min(100, availableHeight / 3);
-      const namespaceHeight = event.clientY - header.getBoundingClientRect().bottom;
-      const clampedHeight = Math.max(
-        minSectionHeight,
-        Math.min(namespaceHeight, availableHeight - minSectionHeight)
-      );
-      namespaces.style.height = `${clampedHeight}px`;
-    });
-
-    const stopResize = (event) => {
-      if (!resizer.hasPointerCapture(event.pointerId)) return;
-      resizer.releasePointerCapture(event.pointerId);
-      resizer.classList.remove('dragging');
-    };
-
-    resizer.addEventListener('pointerup', stopResize);
-    resizer.addEventListener('pointercancel', stopResize);
   },
 
   toggleNavKind(id) {
