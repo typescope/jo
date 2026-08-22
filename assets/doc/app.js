@@ -22,8 +22,10 @@ const app = {
     this.nav = JO_DOC_DATA.nav;
     this.search = JO_DOC_DATA.search;
 
-    // Set title
+    // Set title. The version is optional — generators that don't pass one
+    // (`--project-version`) leave the field out entirely.
     document.getElementById('project-title').textContent = this.meta.title;
+    document.getElementById('project-version').textContent = this.meta.version || 'version unknown';
     document.title = this.meta.title;
 
     // Render navigation

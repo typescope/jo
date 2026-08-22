@@ -8,3 +8,7 @@ readme = "README.md"
 kind = "app"
 platform = "python"
 src = ["src/"]
+
+[module.app.package]
+name = "doc-demo"
+version = "0.3.1"

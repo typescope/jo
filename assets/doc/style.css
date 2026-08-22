@@ -93,6 +93,26 @@ body::before {
   transition: width var(--transition);
 }
 
+#project-identity {
+  grid-column: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+#project-version {
+  flex-shrink: 0;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
 #project-title {
   min-width: 0;
   display: flex;
@@ -692,7 +712,7 @@ pre {
     grid-template-columns: 1fr;
   }
 
-  #project-title { display: none; }
+  #project-identity { display: none; }
   #search-container { grid-column: 1; }
   #nav-page-index { display: none; }
 
