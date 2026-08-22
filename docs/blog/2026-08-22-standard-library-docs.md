@@ -92,12 +92,14 @@ in the URL takes you to the one you want.
 
 ## Feedback
 
-The standard library documentation is the first thing many people will read
-about Jo in any detail, and gaps in it are worth reporting. If a doc comment is
-missing, wrong, or explains the mechanism without explaining when you would want
-it, open an issue on [GitHub](https://github.com/typescope/jo). The same goes
-for the generator itself — if `jo doc` produces something confusing for your own
-project's shape, we would like to see it.
+Coverage is not complete. Some public APIs are not documented yet, and others
+describe what an operation does without saying when you would reach for it. Both
+are being filled in over coming releases.
+
+Gaps are worth reporting in the meantime. If a doc comment is missing, wrong, or
+unclear, open an issue on [GitHub](https://github.com/typescope/jo). The same
+goes for the generator itself — if `jo doc` produces something confusing for
+your own project's shape, we would like to see it.
 
 To try any of this, start with the [install guide](../usage/install.md), then
 run `jo doc` in a project of your own.
