@@ -2,6 +2,48 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.12.5] - 2026-08-22
+
+### Added
+
+- Released versions of the standard library API documentation are published at
+  `jo-lang.org/stdlib/<version>/`, linked from the site navigation. Each release
+  ships its documentation as a `jo-stdlib-docs-<version>.tar.gz` asset, so older
+  versions stay available at their own URL. ([#92])
+- `jo compile --doc` accepts `--project-version`, shown next to the title in the
+  documentation header. `jo doc` supplies it from `[module.<id>.package].version`;
+  modules that declare no package show `version unknown`. ([#92])
+
+### Changed
+
+- The generated API documentation has a new layout: a fixed header carrying the
+  project title, version and search; namespace navigation on the left; and a
+  per-namespace index on the right that highlights the symbol being viewed.
+  Definitions are grouped by category, and search ranks exact matches first.
+  ([#92])
+
+### Fixed
+
+- `jo.lock` no longer records the compiler patch version, so a project locked
+  with one compiler release builds with any compatible release. Unlike packages,
+  the build tool does not install compilers, so an exact pin blocked builds
+  without a way to satisfy it. ([#91])
+
+### Security
+
+- No security-relevant changes.
+
+### Compatibility
+
+- Existing lock files continue to work. The recorded exact `jo` patch version is
+  ignored, and new lock files no longer record one. ([#91])
+- No build-spec changes are required. `--project-version` is optional, and
+  documentation generated without it renders as before apart from the header
+  showing `version unknown`. ([#92])
+
+[#91]: https://github.com/typescope/jo/pull/91
+[#92]: https://github.com/typescope/jo/pull/92
+
 ## [0.12.4] - 2026-08-05
 
 ### Added
