@@ -14,12 +14,13 @@ object Compiler:
   // Doc-specific options
   val outputDir: Config.StringSetting = Config.StringSetting("--out", "docs", "output directory")
   val title: Config.StringSetting = Config.StringSetting("--title", "API Documentation", "project title")
+  val projectVersion: Config.StringSetting = Config.StringSetting("--project-version", "", "project version shown in the header")
   val readme: Config.StringSetting = Config.StringSetting("--readme", "", "markdown file to use as home page")
   val includePrivate: Config.BooleanSetting = Config.BooleanSetting("--include-private", false, "include private symbols")
   val includeSource: Config.BooleanSetting = Config.BooleanSetting("--include-source", false, "embed source code")
 
   val docOptions: List[cli.OptionParser.Setting[?]] =
-    outputDir :: title :: readme :: includePrivate :: includeSource :: Config.commonOptions
+    outputDir :: title :: projectVersion :: readme :: includePrivate :: includeSource :: Config.commonOptions
 
   def main(args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
@@ -34,6 +35,7 @@ object Compiler:
       println("Options:")
       println("  --out <dir>            Output directory (default: docs)")
       println("  --title <name>         Project title for documentation")
+      println("  --project-version <v>  Project version shown in the header")
       println("  --include-private      Include private symbols")
       println("  --include-source       Embed source code in output")
       println()
@@ -77,7 +79,7 @@ object Compiler:
 
     withWriter(outputPath.resolve("data.js")): out =>
       out.print("var JO_DOC_DATA={\"meta\":")
-      JsonEmitter.emitMeta(title.value, out)
+      JsonEmitter.emitMeta(title.value, projectVersion.value, out)
 
       homeMarkdown match
         case Some(md) =>

@@ -12,26 +12,31 @@
 </head>
 <body>
   <button id="sidebar-toggle" onclick="app.toggleSidebar()" title="Toggle sidebar">&#x2630;</button>
-  <div id="app">
-    <aside id="sidebar">
-      <div id="sidebar-header">
+  <div id="app" class="sidebar-collapsed">
+    <header id="content-header">
+      <div id="project-identity">
         <a href="#/" id="project-title">Documentation</a>
+        <span id="project-version"></span>
       </div>
+      <div id="search-container">
+        <svg id="search-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.5"></circle>
+          <path d="m16 16 4 4"></path>
+        </svg>
+        <input type="search" id="search-input" placeholder="Search all namespaces..." aria-label="Search all namespaces">
+        <div id="search-results"></div>
+      </div>
+    </header>
+    <aside id="sidebar">
       <nav id="nav-namespaces"></nav>
-      <nav id="nav-page-index"></nav>
     </aside>
     <main id="content">
-      <div id="content-header">
-        <div id="search-container">
-          <input type="text" id="search-input" placeholder="Search symbols...">
-          <div id="search-results"></div>
-        </div>
-      </div>
       <div id="breadcrumb"></div>
       <div id="main-content">
         <p>Loading...</p>
       </div>
     </main>
+    <nav id="nav-page-index"></nav>
   </div>
   <script src="data.js"></script>
   <script src="assets/app.js"></script>

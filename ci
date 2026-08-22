@@ -204,6 +204,7 @@ background_task() {
     bin/jo compile --reg --report-time tests/pos/fact.jo || error "jo compile --reg"
 
     # check doc
+    bin/doc --no-stdlib $(find lib -name '*.jo') --title "Jo Standard Library" --out libdocs || error "bin/doc"
     bin/jo compile --doc --no-stdlib $(find lib -name '*.jo') --title "Jo Standard Library" --out stdlib-doc || error "doc"
 
     ################################################################################

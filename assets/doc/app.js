@@ -22,8 +22,10 @@ const app = {
     this.nav = JO_DOC_DATA.nav;
     this.search = JO_DOC_DATA.search;
 
-    // Set title
+    // Set title. The version is optional — generators that don't pass one
+    // (`--project-version`) leave the field out entirely.
     document.getElementById('project-title').textContent = this.meta.title;
+    document.getElementById('project-version').textContent = this.meta.version || 'version unknown';
     document.title = this.meta.title;
 
     // Render navigation
@@ -55,7 +57,17 @@ const app = {
 
   renderPageIndex(data) {
     const container = document.getElementById('nav-page-index');
-    if (!data) { container.innerHTML = ''; return; }
+    const appEl = document.getElementById('app');
+    if (!data) {
+      container.innerHTML = '';
+      appEl.classList.add('no-page-index');
+      return;
+    }
+
+    appEl.classList.remove('no-page-index');
+
+    const namespaceName = data.fullName || data.name;
+    const heading = `<div class="nav-page-index-header">${namespaceName}</div>`;
 
     const kindOrder = ['section', 'class', 'interface', 'abstract', 'object', 'type', 'pattern', 'function', 'context', 'method'];
     const kindLabel = {
@@ -81,10 +93,13 @@ const app = {
     if (data.contexts)  data.contexts.forEach(c => addMember(c, 'context'));
 
     const keys = kindOrder.filter(k => byKind[k] && byKind[k].length > 0);
-    if (keys.length === 0) { container.innerHTML = ''; return; }
+    if (keys.length === 0) {
+      container.innerHTML = heading;
+      return;
+    }
 
     let groupId = 0;
-    let html = `<div class="nav-page-index-header">On this page</div>`;
+    let html = heading;
     for (const k of keys) {
       const members = byKind[k];
       const collapsed = members.length > 10;
@@ -103,6 +118,7 @@ const app = {
     }
 
     container.innerHTML = html;
+    this.markActiveLinks();
   },
 
   toggleNavKind(id) {
@@ -175,11 +191,35 @@ const app = {
       return;
     }
 
-    const queryLower = query.toLowerCase();
-    const results = this.search
-      .filter(item => item.name.toLowerCase().includes(queryLower) ||
-                      item.fullName.toLowerCase().includes(queryLower))
-      .slice(0, 10);
+    const normalizedQuery = query.trim();
+    const queryLower = normalizedQuery.toLowerCase();
+    const ranked = this.search
+      .map((item, index) => {
+        const nameLower = item.name.toLowerCase();
+        const fullNameLower = item.fullName.toLowerCase();
+        let rank;
+
+        if (item.name === normalizedQuery) rank = 0;
+        else if (nameLower === queryLower) rank = 1;
+        else if (item.name.startsWith(normalizedQuery)) rank = 2;
+        else if (nameLower.startsWith(queryLower)) rank = 3;
+        else if (item.fullName.includes(normalizedQuery)) rank = 4;
+        else if (fullNameLower.includes(queryLower)) rank = 5;
+        else return null;
+
+        return { item, rank, index };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.rank - b.rank || a.index - b.index);
+
+    const seen = new Set();
+    const results = [];
+    for (const { item } of ranked) {
+      if (seen.has(item.fullName)) continue;
+      seen.add(item.fullName);
+      results.push(item);
+      if (results.length === 10) break;
+    }
 
     this.renderSearchResults(results);
   },
@@ -238,10 +278,8 @@ const app = {
     const path    = sepIdx >= 0 ? raw.slice(0, sepIdx) : raw;
     const kindFilter = sepIdx >= 0 ? raw.slice(sepIdx + 2) : null;
 
-    // Update active nav link (match on fullName part only)
-    document.querySelectorAll('.nav-link').forEach(link => {
-      link.classList.toggle('active', link.getAttribute('href') === '#/' + path);
-    });
+    this.currentRoute = { raw, path, kindFilter };
+    this.markActiveLinks();
 
     if (!path) {
       this.renderPageIndex(null);
@@ -262,6 +300,23 @@ const app = {
         this.renderNotFound(path);
       }
     }
+  },
+
+  currentRoute: { raw: '', path: '', kindFilter: null },
+
+  // Highlight the nav entries for the current route. Namespace links in the
+  // left nav carry the bare path; page-index links carry a ::kind suffix, and
+  // a path visited without a suffix shows every kind, so all of them match.
+  markActiveLinks() {
+    const { raw, path, kindFilter } = this.currentRoute;
+
+    document.querySelectorAll('.nav-link').forEach(link => {
+      const href = link.getAttribute('href');
+      const active = href === '#/' + path ||
+                     href === '#/' + raw ||
+                     (!kindFilter && path !== '' && href.startsWith('#/' + path + '::'));
+      link.classList.toggle('active', active);
+    });
   },
 
   findNamespacePath(fullName) {
@@ -397,64 +452,60 @@ const app = {
   renderDefinitions(data) {
     let html = '';
 
-    // Group definitions by name
-    const groups = this.groupByName(data);
+    for (const category of this.groupByCategory(data)) {
+      html += `<section class="definition-category">`;
+      html += `<h2 class="definition-category-title">${category.label}</h2>`;
 
-    for (const [name, items] of groups) {
-      html += `<div class="definition-group">`;
-
-      for (const item of items) {
-        html += this.renderDefinition(item);
+      for (const items of category.groups.values()) {
+        html += `<div class="definition-group">`;
+        for (const item of items) {
+          html += this.renderDefinition(item);
+        }
+        html += `</div>`;
       }
 
-      html += `</div>`;
-    }
-
-    // Render sections with content folded by default
-    if (data.sections && data.sections.length > 0) {
-      for (const sec of data.sections) {
-        const sectionData = JO_DOC_DATA.symbols[sec.fullName] ?? sec;
-
-        const foldId = this.foldId++;
-        const expanded = this.tryUnfoldFirst();
-        const sectionContent = this.renderDefinitions(sectionData);
-
-        html += `
-          <div class="definition section-definition" id="${sec.fullName}">
-            <div class="definition-header foldable-header" onclick="app.toggleFold(${foldId})">
-              <span class="fold-toggle" id="fold-toggle-${foldId}">${expanded ? '▼' : '▶'}</span>
-              <span class="kind-badge kind-section">section</span>
-              <span class="definition-name">${sec.name}</span>
-              ${sectionData.source ? `<span class="source-link">${sectionData.source.file}:${sectionData.source.line}</span>` : ''}
-            </div>
-            <div class="fold-content" id="fold-content-${foldId}"${expanded ? '' : ' style="display: none;"'}>
-              ${sectionData.doc ? `<div class="doc">${this.renderDoc(sectionData.doc)}</div>` : ''}
-              ${sectionContent}
-            </div>
-          </div>
-        `;
-      }
+      html += `</section>`;
     }
 
     return html;
   },
 
-  groupByName(data) {
-    const groups = new Map();
+  groupByCategory(data) {
+    const categoryOrder = ['section', 'class', 'interface', 'abstract', 'object', 'type', 'pattern', 'function', 'context'];
+    const categoryLabels = {
+      section: 'Sections', class: 'Classes', interface: 'Interfaces', abstract: 'Abstract Types',
+      object: 'Objects', type: 'Types', pattern: 'Patterns', function: 'Functions', context: 'Context'
+    };
+    const categories = new Map();
 
     const addItem = (item, kind) => {
+      if (!categories.has(kind)) categories.set(kind, new Map());
+      const groups = categories.get(kind);
       const key = item.name;
       if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push({ ...item, _kind: kind });
+      const collapsedInList = kind === 'class' || kind === 'section';
+      groups.get(key).push({ ...item, _kind: kind, _collapsed: collapsedInList });
     };
 
+    if (data.sections) {
+      data.sections.forEach(section => {
+        const sectionData = JO_DOC_DATA.symbols[section.fullName] ?? section;
+        addItem(sectionData, 'section');
+      });
+    }
     if (data.types) data.types.forEach(t => addItem(t, t.kind));
     if (data.functions) data.functions.forEach(f => addItem(f, 'function'));
     if (data.patterns) data.patterns.forEach(p => addItem(p, 'pattern'));
     if (data.objects) data.objects.forEach(o => addItem(o, 'object'));
     if (data.contexts) data.contexts.forEach(c => addItem(c, 'context'));
 
-    return new Map([...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])));
+    return categoryOrder
+      .filter(kind => categories.has(kind))
+      .map(kind => ({
+        kind,
+        label: categoryLabels[kind],
+        groups: new Map([...categories.get(kind).entries()].sort((a, b) => a[0].localeCompare(b[0])))
+      }));
   },
 
   firstFoldable: false,
@@ -476,6 +527,7 @@ const app = {
       const isHidden = content.style.display === 'none';
       content.style.display = isHidden ? 'block' : 'none';
       toggle.textContent = isHidden ? '▼' : '▶';
+      content.closest('.definition')?.classList.toggle('expanded', isHidden);
     }
   },
 
@@ -487,7 +539,7 @@ const app = {
     if (kind === 'section' && item.source) {
       const foldId = this.foldId++;
       const expanded = collapsed ? false : this.tryUnfoldFirst();
-      let html = `<div class="definition section-definition kind-def-section" id="${item.fullName}">`;
+      let html = `<div class="definition section-definition kind-def-section${expanded ? ' expanded' : ''}" id="${item.fullName}">`;
       html += `<div class="definition-header foldable-header" onclick="app.toggleFold(${foldId})">`;
       html += `<span class="fold-toggle" id="fold-toggle-${foldId}">${expanded ? '▼' : '▶'}</span>`;
       html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
@@ -538,6 +590,7 @@ const app = {
     if (isFoldable) {
       const foldId = this.foldId++;
       const expanded = collapsed ? false : this.tryUnfoldFirst();
+      if (expanded) html = html.replace(' class="definition ', ' class="definition expanded ');
       html += `<div class="definition-header foldable-header" onclick="app.toggleFold(${foldId})">`;
       html += `<span class="fold-toggle" id="fold-toggle-${foldId}">${expanded ? '▼' : '▶'}</span>`;
       html += `<span class="kind-badge kind-${kind}">${kind}</span>`;

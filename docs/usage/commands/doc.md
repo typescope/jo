@@ -32,6 +32,10 @@ include-source = false
 | `include-private` | Include private symbols. Default: `false`.                   |
 | `include-source`  | Embed source locations. Default: `false`.                    |
 
+The documentation header shows the module's version, taken from
+`[module.<id>.package].version`. Modules that declare no package show
+`version unknown`.
+
 The generated documentation is a self-contained directory that can be opened directly in a browser — no web server required.
 
 ## Examples

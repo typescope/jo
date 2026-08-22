@@ -224,6 +224,7 @@ object Build:
       "--title",
       docSpec.title.getOrElse(module.value),
     )
+    project.pkg(module).foreach(p => options ++= List("--project-version", p.version))
     docSpec.readme.foreach(r => options ++= List("--readme", project.dir.resolve(r).toString))
     if docSpec.includePrivate then options += "--include-private"
     if docSpec.includeSource then options += "--include-source"

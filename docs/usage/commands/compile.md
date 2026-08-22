@@ -49,6 +49,7 @@ Experimental.
 | `--doc` | Generate HTML documentation instead of normal compile output |
 | `--out <dir>` | Documentation output directory |
 | `--title <name>` | Documentation title |
+| `--project-version <version>` | Version shown beside the title. Omitted: the header reads `version unknown` |
 | `--readme <file>` | Markdown file to use as the generated documentation home page |
 | `--include-private` | Include private symbols |
 | `--include-source` | Embed source code in output |

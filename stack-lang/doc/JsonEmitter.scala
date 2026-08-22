@@ -13,10 +13,15 @@ import java.io.PrintWriter
 object JsonEmitter:
 
   /** Emit meta.json - project metadata */
-  def emitMeta(title: String, out: PrintWriter): Unit =
+  def emitMeta(title: String, version: String, out: PrintWriter): Unit =
     val timestamp = java.time.Instant.now().toString
     out.println("{")
     out.println(s"""  "title": ${jsonString(title)},""")
+
+    // Omitted when unset — the viewer falls back to "version unknown"
+    if version.nonEmpty then
+      out.println(s"""  "version": ${jsonString(version)},""")
+
     out.println(s"""  "generatedAt": "$timestamp"""")
     out.println("}")
 

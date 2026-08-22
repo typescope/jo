@@ -27,6 +27,9 @@ demos/*/out
 .cache/
 docs/.vitepress/cache/
 docs/.vitepress/dist/
+docs/public/stdlib/
+stdlib-doc/
+jo-stdlib-docs-*.tar.gz
 node_modules/
 .venv/
 .build/

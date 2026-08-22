@@ -6,6 +6,26 @@ import { fileURLToPath } from 'url'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const joGrammar = JSON.parse(readFileSync(resolve(__dirname, '../../tools/vscode/syntaxes/jo.tmLanguage.json'), 'utf-8'))
 
+// Written by .github/scripts/fetch-stdlib-docs.sh, newest version first. Absent
+// on a local build and until a release ships a docs asset, in which case the
+// Standard Library entry is left out rather than linking somewhere that 404s.
+const stdlibVersions = (() => {
+  try {
+    return JSON.parse(readFileSync(resolve(__dirname, '../public/stdlib/versions.json'), 'utf-8'))
+  } catch {
+    return []
+  }
+})()
+
+// Only the newest version is linked — a list of every release would not scale.
+// Older bundles stay published and reachable at /stdlib/<version>/.
+const stdlibNav = stdlibVersions.length === 0 ? [] : [{
+  text: 'Standard Library',
+  // Not a VitePress page, so open it directly instead of via the SPA router.
+  link: `/stdlib/${stdlibVersions[0]}/`,
+  target: '_blank',
+}]
+
 export default defineConfig({
   title: 'Jo Secure Programming Language',
   description: 'Secure programming for the AI era',
@@ -33,6 +53,7 @@ export default defineConfig({
       { text: 'Security', link: '/security/security-problem' },
       { text: 'Build Tool', link: '/usage/install' },
       { text: 'Language Reference', link: '/language/design-principles' },
+      ...stdlibNav,
       { text: 'Blog', link: '/blog/' },
     ],
 
