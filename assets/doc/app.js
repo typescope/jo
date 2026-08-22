@@ -430,64 +430,60 @@ const app = {
   renderDefinitions(data) {
     let html = '';
 
-    // Group definitions by name
-    const groups = this.groupByName(data);
+    for (const category of this.groupByCategory(data)) {
+      html += `<section class="definition-category">`;
+      html += `<h2 class="definition-category-title">${category.label}</h2>`;
 
-    for (const [name, items] of groups) {
-      html += `<div class="definition-group">`;
-
-      for (const item of items) {
-        html += this.renderDefinition(item);
+      for (const items of category.groups.values()) {
+        html += `<div class="definition-group">`;
+        for (const item of items) {
+          html += this.renderDefinition(item);
+        }
+        html += `</div>`;
       }
 
-      html += `</div>`;
-    }
-
-    // Render sections with content folded by default
-    if (data.sections && data.sections.length > 0) {
-      for (const sec of data.sections) {
-        const sectionData = JO_DOC_DATA.symbols[sec.fullName] ?? sec;
-
-        const foldId = this.foldId++;
-        const expanded = this.tryUnfoldFirst();
-        const sectionContent = this.renderDefinitions(sectionData);
-
-        html += `
-          <div class="definition section-definition" id="${sec.fullName}">
-            <div class="definition-header foldable-header" onclick="app.toggleFold(${foldId})">
-              <span class="fold-toggle" id="fold-toggle-${foldId}">${expanded ? '▼' : '▶'}</span>
-              <span class="kind-badge kind-section">section</span>
-              <span class="definition-name">${sec.name}</span>
-              ${sectionData.source ? `<span class="source-link">${sectionData.source.file}:${sectionData.source.line}</span>` : ''}
-            </div>
-            <div class="fold-content" id="fold-content-${foldId}"${expanded ? '' : ' style="display: none;"'}>
-              ${sectionData.doc ? `<div class="doc">${this.renderDoc(sectionData.doc)}</div>` : ''}
-              ${sectionContent}
-            </div>
-          </div>
-        `;
-      }
+      html += `</section>`;
     }
 
     return html;
   },
 
-  groupByName(data) {
-    const groups = new Map();
+  groupByCategory(data) {
+    const categoryOrder = ['section', 'class', 'interface', 'abstract', 'object', 'type', 'pattern', 'function', 'context'];
+    const categoryLabels = {
+      section: 'Sections', class: 'Classes', interface: 'Interfaces', abstract: 'Abstract Types',
+      object: 'Objects', type: 'Types', pattern: 'Patterns', function: 'Functions', context: 'Context'
+    };
+    const categories = new Map();
 
     const addItem = (item, kind) => {
+      if (!categories.has(kind)) categories.set(kind, new Map());
+      const groups = categories.get(kind);
       const key = item.name;
       if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push({ ...item, _kind: kind });
+      const collapsedInList = kind === 'class' || kind === 'section';
+      groups.get(key).push({ ...item, _kind: kind, _collapsed: collapsedInList });
     };
 
+    if (data.sections) {
+      data.sections.forEach(section => {
+        const sectionData = JO_DOC_DATA.symbols[section.fullName] ?? section;
+        addItem(sectionData, 'section');
+      });
+    }
     if (data.types) data.types.forEach(t => addItem(t, t.kind));
     if (data.functions) data.functions.forEach(f => addItem(f, 'function'));
     if (data.patterns) data.patterns.forEach(p => addItem(p, 'pattern'));
     if (data.objects) data.objects.forEach(o => addItem(o, 'object'));
     if (data.contexts) data.contexts.forEach(c => addItem(c, 'context'));
 
-    return new Map([...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])));
+    return categoryOrder
+      .filter(kind => categories.has(kind))
+      .map(kind => ({
+        kind,
+        label: categoryLabels[kind],
+        groups: new Map([...categories.get(kind).entries()].sort((a, b) => a[0].localeCompare(b[0])))
+      }));
   },
 
   firstFoldable: false,

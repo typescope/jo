@@ -453,6 +453,21 @@ h3 {
 .kind-object    { background: linear-gradient(135deg, #f97316, #ef4444); color: #fff; }
 
 /* ── Definition cards ────────────────────────────────────────────────────── */
+.definition-category {
+  margin-top: 2rem;
+}
+
+.definition-category-title {
+  margin: 0 0 0.75rem;
+  padding: 0 0 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
 .definition {
   margin: 1rem 0;
   padding: 0.9rem 1.1rem 0.9rem 1.1rem;
@@ -469,6 +484,7 @@ h3 {
 
 /* ── Kind-specific accent borders ────────────────────────────────────────── */
 .kind-def-function  { border-left-color: #22c55e; }
+.kind-def-section   { border-left-color: #7c3aed; }
 .kind-def-class     { border-left-color: #3b82f6; }
 .kind-def-interface { border-left-color: #a78bfa; }
 .kind-def-type      { border-left-color: #6366f1; }
@@ -477,22 +493,6 @@ h3 {
 .kind-def-context   { border-left-color: #f59e0b; }
 .kind-def-object    { border-left-color: #f97316; }
 .kind-def-abstract  { border-left-color: #94a3b8; }
-
-.section-definition {
-  margin: 2rem 0 0.5rem;
-  border-top: 2px solid var(--border);
-  padding-top: 0.75rem;
-  border-left: none;
-  background: transparent;
-}
-
-.section-definition > .definition-header {
-  margin-bottom: 0.75rem;
-}
-
-.section-definition .definition {
-  margin-left: 0.75rem;
-}
 
 .foldable-header {
   cursor: pointer;
