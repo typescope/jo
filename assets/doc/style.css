@@ -494,6 +494,10 @@ h3 {
 .kind-def-object    { border-left-color: #f97316; }
 .kind-def-abstract  { border-left-color: #94a3b8; }
 
+.definition.expanded {
+  border-left-color: var(--border);
+}
+
 .foldable-header {
   cursor: pointer;
   user-select: none;

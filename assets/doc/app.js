@@ -505,6 +505,7 @@ const app = {
       const isHidden = content.style.display === 'none';
       content.style.display = isHidden ? 'block' : 'none';
       toggle.textContent = isHidden ? '▼' : '▶';
+      content.closest('.definition')?.classList.toggle('expanded', isHidden);
     }
   },
 
@@ -516,7 +517,7 @@ const app = {
     if (kind === 'section' && item.source) {
       const foldId = this.foldId++;
       const expanded = collapsed ? false : this.tryUnfoldFirst();
-      let html = `<div class="definition section-definition kind-def-section" id="${item.fullName}">`;
+      let html = `<div class="definition section-definition kind-def-section${expanded ? ' expanded' : ''}" id="${item.fullName}">`;
       html += `<div class="definition-header foldable-header" onclick="app.toggleFold(${foldId})">`;
       html += `<span class="fold-toggle" id="fold-toggle-${foldId}">${expanded ? '▼' : '▶'}</span>`;
       html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
@@ -567,6 +568,7 @@ const app = {
     if (isFoldable) {
       const foldId = this.foldId++;
       const expanded = collapsed ? false : this.tryUnfoldFirst();
+      if (expanded) html = html.replace(' class="definition ', ' class="definition expanded ');
       html += `<div class="definition-header foldable-header" onclick="app.toggleFold(${foldId})">`;
       html += `<span class="fold-toggle" id="fold-toggle-${foldId}">${expanded ? '▼' : '▶'}</span>`;
       html += `<span class="kind-badge kind-${kind}">${kind}</span>`;
