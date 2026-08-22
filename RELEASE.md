@@ -50,6 +50,22 @@ This produces:
 
 - [ ] Tarball and checksum created
 
+The standard library API docs ship as a release asset, which is what
+`jo-lang.org/stdlib/X.Y.Z/` is built from. Generate them with `bin/doc` rather
+than the released compiler: it runs the generator out of the working tree, so
+the bundle uses the current documentation system including any design changes
+made since the last release.
+
+```sh
+bin/doc --no-stdlib $(find lib -name '*.jo') \
+  --title "Jo Standard Library" \
+  --project-version X.Y.Z \
+  --out stdlib-doc
+tar czf jo-stdlib-docs-X.Y.Z.tar.gz -C stdlib-doc .
+```
+
+- [ ] Stdlib docs tarball created
+
 ## 3. Tag the Commit
 
 Tag the merged commit so the tag captures the complete release state.
@@ -71,7 +87,8 @@ self-contained on the release page:
 awk -v v="## [X.Y.Z]" 'index($0, v)==1 {f=1; next} /^## \[/ {f=0} f' \
   CHANGELOG.md > RELEASE_NOTES.md
 
-gh release create vX.Y.Z jo-X.Y.Z.tar.gz jo-X.Y.Z.tar.gz.sha256 \
+gh release create vX.Y.Z \
+  jo-X.Y.Z.tar.gz jo-X.Y.Z.tar.gz.sha256 jo-stdlib-docs-X.Y.Z.tar.gz \
   --repo typescope/jo \
   --title "Jo X.Y.Z" \
   --notes-file RELEASE_NOTES.md
@@ -92,8 +109,10 @@ gh workflow run docs.yml --repo typescope/jo
 - [ ] `curl -sSf https://jo-lang.org/install.sh | sh` installs X.Y.Z
 - [ ] `jo --version` prints X.Y.Z after install
 - [ ] `https://jo-lang.org/versions.jsonl` contains the new entry
+- [ ] `https://jo-lang.org/stdlib/X.Y.Z/` shows the new API docs, and the
+      Standard Library nav menu lists the version
 
 ## 7. Clean Up
 
-- [ ] Remove local `jo-X.Y.Z.tar.gz`, `jo-X.Y.Z.tar.gz.sha256`, and
-      `RELEASE_NOTES.md`
+- [ ] Remove local `jo-X.Y.Z.tar.gz`, `jo-X.Y.Z.tar.gz.sha256`,
+      `jo-stdlib-docs-X.Y.Z.tar.gz`, `stdlib-doc/`, and `RELEASE_NOTES.md`

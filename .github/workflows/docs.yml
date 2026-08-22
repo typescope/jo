@@ -25,6 +25,12 @@ jobs:
         with:
           node-version: 24
 
+      # Served at /stdlib/<version>/ — docs/public is copied to the site root
+      # verbatim. Bundles come from release assets, so releases without one are
+      # skipped rather than failing the build.
+      - name: Fetch published stdlib API docs
+        run: .github/scripts/fetch-stdlib-docs.sh
+
       - name: Install dependencies
         run: npm --prefix docs install
 
