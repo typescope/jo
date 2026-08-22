@@ -127,14 +127,39 @@ body::before {
 
 #nav-namespaces {
   padding: 0.5rem 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+#sidebar.has-page-index #nav-namespaces {
+  flex: 0 0 auto;
+  height: 45vh;
+}
+
+#nav-resizer {
+  display: none;
+  height: 5px;
   flex-shrink: 0;
+  cursor: row-resize;
+  border-top: 1px solid var(--border);
+  transition: border-color var(--transition), background var(--transition);
+  touch-action: none;
+}
+
+#sidebar.has-page-index #nav-resizer { display: block; }
+
+#nav-resizer:hover,
+#nav-resizer.dragging {
+  border-color: var(--brand-1);
+  background: var(--brand-soft);
 }
 
 #nav-page-index {
   padding: 0.75rem 0;
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  border-top: 1px solid var(--border);
 }
 
 #nav-page-index:empty { display: none; }
