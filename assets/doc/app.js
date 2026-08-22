@@ -55,10 +55,14 @@ const app = {
 
   renderPageIndex(data) {
     const container = document.getElementById('nav-page-index');
+    const appEl = document.getElementById('app');
     if (!data) {
       container.innerHTML = '';
+      appEl.classList.add('no-page-index');
       return;
     }
+
+    appEl.classList.remove('no-page-index');
 
     const namespaceName = data.fullName || data.name;
     const heading = `<div class="nav-page-index-header">${namespaceName}</div>`;
@@ -112,6 +116,7 @@ const app = {
     }
 
     container.innerHTML = html;
+    this.markActiveLinks();
   },
 
   toggleNavKind(id) {
@@ -271,10 +276,8 @@ const app = {
     const path    = sepIdx >= 0 ? raw.slice(0, sepIdx) : raw;
     const kindFilter = sepIdx >= 0 ? raw.slice(sepIdx + 2) : null;
 
-    // Update active nav link (match on fullName part only)
-    document.querySelectorAll('.nav-link').forEach(link => {
-      link.classList.toggle('active', link.getAttribute('href') === '#/' + path);
-    });
+    this.currentRoute = { raw, path, kindFilter };
+    this.markActiveLinks();
 
     if (!path) {
       this.renderPageIndex(null);
@@ -295,6 +298,23 @@ const app = {
         this.renderNotFound(path);
       }
     }
+  },
+
+  currentRoute: { raw: '', path: '', kindFilter: null },
+
+  // Highlight the nav entries for the current route. Namespace links in the
+  // left nav carry the bare path; page-index links carry a ::kind suffix, and
+  // a path visited without a suffix shows every kind, so all of them match.
+  markActiveLinks() {
+    const { raw, path, kindFilter } = this.currentRoute;
+
+    document.querySelectorAll('.nav-link').forEach(link => {
+      const href = link.getAttribute('href');
+      const active = href === '#/' + path ||
+                     href === '#/' + raw ||
+                     (!kindFilter && path !== '' && href.startsWith('#/' + path + '::'));
+      link.classList.toggle('active', active);
+    });
   },
 
   findNamespacePath(fullName) {

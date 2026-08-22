@@ -221,6 +221,11 @@ body::before {
 
 #app.sidebar-collapsed { grid-template-columns: 0 minmax(0, 1fr) 220px; }
 
+/* No page index (home, namespace prefix): collapse the right rail */
+#app.no-page-index #nav-page-index { display: none; }
+#app.no-page-index { grid-template-columns: 220px minmax(0, 1fr) 0; }
+#app.no-page-index.sidebar-collapsed { grid-template-columns: 0 minmax(0, 1fr) 0; }
+
 /* ── Content header (search bar) ─────────────────────────────────────────── */
 #content-header {
   display: grid;
@@ -692,7 +697,9 @@ pre {
   #nav-page-index { display: none; }
 
   #app,
-  #app.sidebar-collapsed {
+  #app.sidebar-collapsed,
+  #app.no-page-index,
+  #app.no-page-index.sidebar-collapsed {
     grid-template-columns: 0 minmax(0, 1fr);
   }
 }
