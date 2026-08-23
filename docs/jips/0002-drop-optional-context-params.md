@@ -9,8 +9,8 @@ created: 2026-08-23
 > *Il semble que la perfection soit atteinte non quand il n'y a plus rien à
 > ajouter, mais quand il n'y a plus rien à retrancher.*
 >
-> A designer knows he has achieved perfection not when there is nothing left to
-> add, but when there is nothing left to take away.
+> Perfection, it seems, is attained not when there is nothing more to add, but
+> when there is nothing more to take away.
 >
 > — Antoine de Saint-Exupéry, *Terre des Hommes* (1939)
 
