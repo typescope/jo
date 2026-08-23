@@ -61,6 +61,16 @@ cd "$PROJECT_ROOT"
 # Absolute input paths must not leak into published SAST metadata or HTML docs.
 "$PROJECT_ROOT/bin/jo" compile --sast "$SAST_DIR" --source-root "$PROJECT_ROOT" \
     --use-runtime-api python "$PROJECT_ROOT/$API_FILE" > "$SAST_LOG"
+
+# Direct-source query locations use the same published path mapping as SAST.
+run_query --source-root "$PROJECT_ROOT" --query "DocQueryAPI.describe" \
+    --fields loc "$PROJECT_ROOT/$API_FILE" > "$PORTABLE_JSON"
+grep -q -- '"file": "tests/custom/doc-query/api.jo"' "$PORTABLE_JSON"
+if grep -F -q -- "$PROJECT_ROOT" "$PORTABLE_JSON"; then
+    echo "Absolute project path leaked into direct-source query output"
+    exit 1
+fi
+
 run_query --lib "$SAST_DIR" --query "DocQueryAPI.describe" --fields loc > "$PORTABLE_JSON"
 grep -q -- '"file": "tests/custom/doc-query/api.jo"' "$PORTABLE_JSON"
 if grep -R -F -q -- "$PROJECT_ROOT" "$SAST_DIR"; then

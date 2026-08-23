@@ -1,6 +1,6 @@
 package query
 
-import reporting.Reporter
+import reporting.{Config, Reporter}
 import sast.*
 import sast.Symbols.*
 import sast.Trees.*
@@ -19,7 +19,7 @@ object Query:
 
   private val availableFields = outputFields.mkString(",")
 
-  private case class EmitContext(fields: Set[String], out: PrintWriter, indent: String):
+  private case class EmitContext(fields: Set[String], out: PrintWriter, indent: String, publishSourcePath: String => String):
     def indented: EmitContext = copy(indent = indent + "  ")
 
   def parseFields(rawFields: String)(using Reporter): Set[String] =
@@ -135,10 +135,10 @@ object Query:
     fields: Set[String],
     includePrivate: Boolean,
     out: PrintWriter,
-  )(using Reporter, Definitions): Unit =
+  )(using Reporter, Definitions, Config): Unit =
     val trimmedUnits = trimUnits(units, filter, includePrivate)
     val sortedTargets = sortRoots(jsonRoots(trimmedUnits, filter))
-    given EmitContext = EmitContext(fields, out, "  ")
+    given EmitContext = EmitContext(fields, out, "  ", Config.publishedSourcePath)
     out.println("[")
     emitRootList(sortedTargets)
     if sortedTargets.nonEmpty then out.println()
@@ -501,10 +501,10 @@ object Query:
 
   private case class SourceLoc(file: String, line: Int, end: Int)
 
-  private def sourceJson(source: Option[SourceLoc]): String =
+  private def sourceJson(source: Option[SourceLoc])(using ctx: EmitContext): String =
     source match
       case Some(SourceLoc(file, line, end)) =>
-        s"""{ "file": ${JsonUtil.string(file)}, "line": $line, "end": $end }"""
+        s"""{ "file": ${JsonUtil.string(ctx.publishSourcePath(file))}, "line": $line, "end": $end }"""
       case None =>
         "null"
 

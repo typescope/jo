@@ -64,7 +64,7 @@ object Compiler:
 
     writeJson(filteredUnits, filter, fields)
 
-  private def writeJson(units: List[FileUnit], filter: Query.Filter, fields: Set[String])(using Reporter, Definitions): Unit =
+  private def writeJson(units: List[FileUnit], filter: Query.Filter, fields: Set[String])(using Reporter, Definitions, Config): Unit =
     val out = new PrintWriter(new OutputStreamWriter(System.out, StandardCharsets.UTF_8))
     Query.emitJson(units, filter, fields, false, out)
     out.flush()
