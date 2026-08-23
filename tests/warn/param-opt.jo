@@ -1,9 +1,0 @@
-param newLine: Bool = 3  // error
-
-def printOpt(s: String): Unit =
-  print s
-  if newLine then print "\n"
-
-def main =
-  printOpt "hello "
-  with newLine = true in printOpt "world!"
