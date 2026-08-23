@@ -27,7 +27,7 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase:
           (eff, trace) <- effs
           if !allowed.contains(eff)
         do
-          Reporter.error("Parameter not allowed: " + eff, pos, trace)
+          Reporter.error("Context parameter not provided: " + eff, pos, trace)
 
       case _ =>
 

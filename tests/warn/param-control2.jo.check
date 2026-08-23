@@ -1,7 +1,7 @@
 ---------- Error at tests/warn/param-control2.jo:16:5 ---------------
 | def main receives IO.stdout = // error
 |     ^^^^
-|     Parameter not allowed: pageWidth
+|     Context parameter not provided: pageWidth
 
 The following is the trace that leads to the problem:
 ├──   i()	[ tests/warn/param-control2.jo:18:3 ]

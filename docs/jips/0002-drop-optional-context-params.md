@@ -126,7 +126,7 @@ Reading a context parameter that `receives` does not list is normally an error:
 param indent: Int
 
 def localOnly(): Int receives none =
-  indent    // error: Parameter not allowed: indent
+  indent    // error: Context parameter not provided: indent
 ```
 
 Give the declaration a default and the same body compiles, silently pinned to
@@ -261,7 +261,7 @@ even though `render` is itself `receives none`:
 
 ```text
 | def main receives IO.stdout =
-|     ^^^^  Parameter not allowed: pageWidth
+|     ^^^^  Context parameter not provided: pageWidth
 └──   println (Engine.render("c"))
 ```
 
