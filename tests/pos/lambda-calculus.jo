@@ -7,7 +7,7 @@ union Env = Empty | Cons(k: String, v: Value, outer: Env)
 
 class Value(lambda: Abs, env: Env)
 
-param env: Env = Empty // environment for variables
+param env: Env // environment for variables
 
 def show(expr: Expr): String =
   match expr
@@ -49,4 +49,5 @@ def main receives IO.stdout =
   val id: Expr = Abs("x", Var "x")
   val code: Expr = App(id, id)
   println:
-    show (eval code).lambda
+    with env = Empty in
+      show (eval code).lambda

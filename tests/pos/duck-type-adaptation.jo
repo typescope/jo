@@ -9,7 +9,7 @@ type Stringable = String :- [.toString]
 type IntOption = Option[Int] :- [boxInt]
 
 // Test 1: Context parameter with duck type
-param indent: IntOption = None
+param indent: IntOption
 
 def showWithContext: String receives indent =
   match indent
@@ -41,7 +41,7 @@ def main receives IO.stdout =
   println result1
 
   // Test 1b: Context parameter - without adapter (None)
-  val result2 = showWithContext
+  val result2 = with indent = None in showWithContext
   println result2
 
   // Test 2: Class fields

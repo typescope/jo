@@ -1,10 +1,10 @@
-param flip: Bool = false   // flip the sign
-param double: Bool = false // double the value
+param flip: Bool     // flip the sign
+param double: Bool   // double the value
 
 def foo(n: Int): Int = if flip then 0 - n else n
 def bar(n: Int): Int = if double then n * 2 else n
 
-// The optional context param `flip` and `double` are automatically active.
+// `flip` and `double` propagate automatically into `foo` and `bar`.
 def baz(n: Int): Int = foo(n) + bar(n)
 
 def main =
