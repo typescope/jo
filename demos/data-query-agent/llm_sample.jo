@@ -15,7 +15,7 @@ def printDocs(docs: List[Document]): Unit receives stdout =
   else
     for doc in docs do printDoc doc
 
-def analyzeDocuments(): Unit receives stdout, db, skills =
+def analyzeDocuments(): Unit receives stdout, db, skills = with ordering = NoOrder, limit = 100, offset = 0 in
 
   // ── 1. query(All) ──────────────────────────────────────────────────────────
   println("=== 1. query(All) ===")

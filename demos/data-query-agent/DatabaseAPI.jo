@@ -167,13 +167,13 @@ end
 //]
 param db: DB
 
-//[ Context parameters for query customization with defaults
+//[ Context parameters for query customization
   !
-  ! These can be overridden at call sites using 'with' syntax
+  ! These are supplied at call sites using 'with' syntax
 //]
-param ordering: OrderBy = NoOrder
-param limit: Int = 100
-param offset: Int = 0
+param ordering: OrderBy
+param limit: Int
+param offset: Int
 
 //[ Query and Update DSL - Operators for building filter conditions and updates
   !
