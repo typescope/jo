@@ -1,4 +1,4 @@
-param DEBUG: Bool = false
+param DEBUG: Bool
 
 class Seg(start: Int, str: String)
 
@@ -138,7 +138,7 @@ def matchString(str: String, pat: String): Bool =
 def debug(msg: StringLike) =
   if DEBUG then println(msg)
 
-def main receives IO.stdout =
+def main receives IO.stdout = with DEBUG = false in
   test "abba" "abba"
   test "abba" ".b.a"
   test "abba" ".*ba"
