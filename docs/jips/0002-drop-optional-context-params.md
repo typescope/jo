@@ -302,3 +302,27 @@ plugin hooks, and thread roots would all have to be classified, and behavior
 would depend on how a function happens to be compiled. It also leaves the policy
 at the declaration, which is the thing this proposal objects to. A library would
 still choose the application's value whenever the application omits one.
+
+**Mark the receive site as optional.** A function could declare that it
+tolerates the absence of a parameter:
+
+```jo
+def render(doc: Doc): Unit receives indent? = ...
+```
+
+`indent?` would mean: use the binding if one reaches here, otherwise bind the
+declared default. This is more honest than a bare default, because the tolerance
+is written at the site that tolerates it rather than at the declaration.
+
+It does not survive the question of where that binding is created. `render` can
+be called from contexts that provide `indent` and from contexts that do not, so
+the choice has to be made somewhere, and both answers are bad.
+
+Creating it inside `render` requires a dynamic check on every call — is a
+binding in scope? That replaces a static question with a runtime one, and it
+forces `allow` to become an operation that actually strips bindings at runtime
+instead of a compile-time restriction.
+
+Creating it at the call site returns to where this proposal started. The binding
+again has no site the reader can point to, and the sharing and access-control
+questions of the first problem come back unchanged.
