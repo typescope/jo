@@ -109,9 +109,9 @@ union Cond =
 interface DB
   //[ Query documents with filtering, optional ordering, and pagination
     !
-    ! Context parameters: ordering, limit, offset
+    ! Ordering and pagination are optional arguments with conventional defaults
   //]
-  def query(condition: Cond): List[Document] receives ordering, limit, offset
+  def query(condition: Cond, ordering: OrderBy = NoOrder, limit: Int = 100, offset: Int = 0): List[Document]
 
   // Count documents with filtering
   def count(condition: Cond): Int
@@ -166,14 +166,6 @@ end
   ! Provided by the runtime with row-level security enforced
 //]
 param db: DB
-
-//[ Context parameters for query customization
-  !
-  ! These are supplied at call sites using 'with' syntax
-//]
-param ordering: OrderBy
-param limit: Int
-param offset: Int
 
 //[ Query and Update DSL - Operators for building filter conditions and updates
   !
