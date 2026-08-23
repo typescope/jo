@@ -98,6 +98,15 @@ object RawPrinter:
   //----------------------------------------------------------------------------
 
   def print(unit: FileUnit)(using Definitions): Text =
+    print(unit, unit.source.file)
+
+  /** Print a unit with an explicit serialized source name.
+    *
+    * The source object remains unchanged so spans and line information still
+    * refer to the physical input file. This overload is used by the pickling
+    * round-trip test when artifact path mapping intentionally changes the name.
+    */
+  def print(unit: FileUnit, sourceFile: String)(using Definitions): Text =
     val FileUnit(owner, imports, defs, source) = unit
 
     given state: State = new State(owner)
@@ -111,7 +120,7 @@ object RawPrinter:
         defs.map(printDef).join(LINE_SEP)
       ~ "]"
 
-    val sourceText = printSource(source)
+    val sourceText = printSource(source, sourceFile)
 
     "[" ~ indent:
         List(sourceText, importData, defsData).join("," ~ Text.BreakLine)
@@ -585,8 +594,8 @@ object RawPrinter:
         "String ["  ~ value ~ "]"
 
   /** Print line lengths as comma-separated hexadecimal */
-  private def printSource(source: Source): Text =
-    "[" ~ source.file ~ "," ~ source.lineLengths.join("|") ~ "]"
+  private def printSource(source: Source, sourceFile: String): Text =
+    "[" ~ sourceFile ~ "," ~ source.lineLengths.join("|") ~ "]"
 
   private def printSpan(span: Span): Text =
     span.start ~ "," ~ span.length

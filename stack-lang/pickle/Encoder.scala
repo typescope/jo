@@ -235,7 +235,7 @@ object Encoder:
 
       val unit2 = Decoder.decode(owner2, nameTable).force()
 
-      val contentBefore = RawPrinter.print(unit).toString
+      val contentBefore = RawPrinter.print(unit, Config.publishedSourcePath(unit.source.file)).toString
       val contentAfter = RawPrinter.print(unit2).toString
 
       if contentBefore != contentAfter then
