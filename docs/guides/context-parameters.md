@@ -32,20 +32,6 @@ with pageWidth = 80 in truncate("A very long line...")
 The binding propagates to every function called within the expression — `truncate` and
 anything `truncate` calls — without any extra plumbing.
 
-## Default Values
-
-A context parameter with a default is optional. Callers that don't care about the value
-get the default; those that do can override it:
-
-```jo
-param pageWidth: Int = 80
-param indentSize: Int = 2
-
-formatBlock(lines)                                          // uses defaults: 80, 2
-with pageWidth = 40 in formatBlock(lines)                  // narrow terminal: 40, 2
-with pageWidth = 40, indentSize = 4 in formatBlock(lines)  // fully customized
-```
-
 ## Propagation and Shadowing
 
 Bindings travel through the entire call chain. A `with` on an outer call covers all
@@ -89,7 +75,7 @@ wherever it is *called*, not from where it was *created*. Mark the lambda type w
 `receives`:
 
 ```jo
-param pageWidth: Int = 78
+param pageWidth: Int
 
 type Printer = Doc => String receives pageWidth
 
@@ -144,8 +130,8 @@ Context parameters thread rendering configuration through a formatter without po
 every function signature:
 
 ```jo
-param pageWidth: Int = 80
-param indentSize: Int = 2
+param pageWidth: Int
+param indentSize: Int
 
 def indent(level: Int): String = " ".repeat(level * indentSize)
 

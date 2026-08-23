@@ -333,9 +333,9 @@ contains([1, 11, 21], 1)         // uses customEq
 ## Context Parameters
 
 ```jo
-// declare with default
-param indent: Int = 0
-param logger: Logger = ConsoleLogger
+// declare a requirement
+param indent: Int
+param logger: Logger
 
 // use in functions (accessed by name)
 def line(text: String): Unit = print(" " * indent + text)

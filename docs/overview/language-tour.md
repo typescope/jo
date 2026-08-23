@@ -268,7 +268,7 @@ See [Interface Definitions](../language/definitions/interface-definitions.md).
 `param` declares a context parameter — a value threaded implicitly through the call stack without explicit argument passing. `with ... in` overrides it for a scoped block.
 
 ```jo
-param indent: Int = 0
+param indent: Int
 
 def line(text: String): Unit =
   println: " " * indent + text
@@ -279,7 +279,8 @@ def list(title: String, items: List[String]): Unit =
     for item in items do line item
 
 def main =
-  list("Colors", ["red", "green", "blue"])
+  with indent = 0 in
+    list("Colors", ["red", "green", "blue"])
 ```
 
 Output:

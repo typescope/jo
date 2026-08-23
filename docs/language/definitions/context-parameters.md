@@ -8,12 +8,12 @@ automatically through function calls without appearing in every signature.
 ### Declaration
 
 ```
-param_decl = "param" ident ":" type ["=" expr]
+param_decl = "param" ident ":" type
 ```
 
 ```jo
 param indent: Int
-param pageWidth: Int = 80
+param pageWidth: Int
 param connection: Connection
 ```
 
@@ -69,18 +69,6 @@ allow none in test()
 - A context parameter must be bound — directly or via an outer `with` — before any
   function that uses it is called. Violations are reported at compile time with a
   dependency trace.
-
-### Optional Parameters
-
-`param name: T = rhs` desugars to a declaration plus a default definition:
-
-```jo
-param name: T
-def name$default: T = rhs
-```
-
-The default is used when no binding is in scope. The default expression cannot
-reference other context parameters.
 
 ### Lambdas and Capture
 
