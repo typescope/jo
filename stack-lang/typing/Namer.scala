@@ -1282,8 +1282,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
   : LazyDef[Def] =
     val index = lazyDefn.index
 
-    val extraFlags = pdef.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
-    val flags = Checker.checkModifiers(pdef) | Flags.Context | extraFlags
+    val flags = Checker.checkModifiers(pdef) | Flags.Context
 
     val paramSym = TermSymbol.create(pdef.name, flags, Checker.visibility(pdef, sc.owner), sc.owner, pdef.pos)
 

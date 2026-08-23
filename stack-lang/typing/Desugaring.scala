@@ -490,4 +490,3 @@ object Desugaring:
         )(cdef.span)
 
         cdef.copy(params = Nil, vals = vals.toList, funs = ctor :: cdef.funs)(cdef.span)
-
