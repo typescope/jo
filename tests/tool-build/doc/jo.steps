@@ -8,6 +8,12 @@ test -f .build/app/doc/index.html
 test -f .build/app/doc/data.js
 : ''
 
+grep -qF '"file": "src/Greeter.jo"' .build/app/doc/data.js
+: ''
+
+! grep -qF "$PWD" .build/app/doc/data.js
+: ''
+
 grep -qF '"title": "Doc Demo"' .build/app/doc/data.js
 : ''
 

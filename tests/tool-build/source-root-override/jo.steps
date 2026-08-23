@@ -1,0 +1,16 @@
+rm -rf .build
+
+jo build
+: ''
+
+test "$(grep -c -x -- '--source-root' .build/lib/jo-1.0/sast.done)" -eq 1
+: ''
+
+awk 'previous == "--source-root" { found = ($0 == "src") } { previous = $0 } END { exit !found }' .build/lib/jo-1.0/sast.done
+: ''
+
+grep -a -q -- 'Main.jo' .build/lib/jo-1.0/sast/SourceRootOverride/Main.sast
+: ''
+
+! grep -a -q -- 'src/Main.jo' .build/lib/jo-1.0/sast/SourceRootOverride/Main.sast
+: ''

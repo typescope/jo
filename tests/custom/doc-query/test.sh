@@ -58,6 +58,14 @@ cd "$PROJECT_ROOT"
 
 "$PROJECT_ROOT/bin/jo" compile --sast "$SAST_DIR" --use-runtime-api python "$API_FILE" > "$SAST_LOG"
 
+# Without an explicit root, the compiler uses its current working directory.
+run_query --query "DocQueryAPI.describe" --fields loc "$PROJECT_ROOT/$API_FILE" > "$PORTABLE_JSON"
+grep -q -- '"file": "tests/custom/doc-query/api.jo"' "$PORTABLE_JSON"
+if grep -F -q -- "$PROJECT_ROOT" "$PORTABLE_JSON"; then
+    echo "Absolute project path leaked with the default source root"
+    exit 1
+fi
+
 # Absolute input paths must not leak into published SAST metadata or HTML docs.
 "$PROJECT_ROOT/bin/jo" compile --sast "$SAST_DIR" --source-root "$PROJECT_ROOT" \
     --use-runtime-api python "$PROJECT_ROOT/$API_FILE" > "$SAST_LOG"
@@ -86,6 +94,22 @@ run_query --lib "$OUTSIDE_SAST_DIR" --query "DocQueryAPI.describe" --fields loc 
 grep -q -- '"file": "jo-doc-query-sast-[0-9]*-source.jo"' "$PORTABLE_JSON"
 if grep -R -F -q -- "$(dirname "$OUTSIDE_SOURCE")" "$OUTSIDE_SAST_DIR"; then
     echo "Containing directory of outside source leaked into SAST output"
+    exit 1
+fi
+
+run_query --source-root "$PROJECT_ROOT" --query "DocQueryAPI.describe" \
+    --fields loc "$OUTSIDE_SOURCE" > "$PORTABLE_JSON"
+grep -q -- '"file": "jo-doc-query-sast-[0-9]*-source.jo"' "$PORTABLE_JSON"
+if grep -F -q -- "$(dirname "$OUTSIDE_SOURCE")" "$PORTABLE_JSON"; then
+    echo "Containing directory of outside source leaked into direct-source query output"
+    exit 1
+fi
+
+"$PROJECT_ROOT/bin/jo" compile --doc --source-root "$PROJECT_ROOT" \
+    --use-runtime-api python --out "$PORTABLE_DOC_DIR" "$OUTSIDE_SOURCE" > /dev/null
+grep -q -- '"file": "jo-doc-query-sast-[0-9]*-source.jo"' "$PORTABLE_DOC_DIR/data.js"
+if grep -R -F -q -- "$(dirname "$OUTSIDE_SOURCE")" "$PORTABLE_DOC_DIR"; then
+    echo "Containing directory of outside source leaked into documentation"
     exit 1
 fi
 
