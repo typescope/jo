@@ -6,6 +6,7 @@ import sast.Trees.*
 import sast.Types.*
 import sast.Denotations.*
 import sast.Flags
+import reporting.Config
 
 import scala.collection.mutable
 import java.io.PrintWriter
@@ -200,7 +201,7 @@ object JsonEmitter:
     sections.toList
 
   /** Emit symbols/<fullName>.json for a section */
-  def emitSection(sec: Section, includePrivate: Boolean, out: PrintWriter)(using Definitions): Unit =
+  def emitSection(sec: Section, includePrivate: Boolean, out: PrintWriter)(using Definitions, Config): Unit =
     val sym = sec.symbol
     val defn = summon[Definitions]
 
@@ -214,7 +215,7 @@ object JsonEmitter:
     else
       out.println("""  "doc": null,""")
 
-    out.println(s"""  "source": { "file": ${jsonString(sym.source.file)}, "line": ${sym.sourcePos.startLine + 1} },""")
+    out.println(s"""  "source": { "file": ${jsonString(Config.publishedSourcePath(sym.source.file))}, "line": ${sym.sourcePos.startLine + 1} },""")
 
     // Collect types, functions, patterns, sections, contexts
     val types = mutable.ArrayBuffer[Def]()
@@ -266,7 +267,7 @@ object JsonEmitter:
     out.println("}")
 
   /** Emit members of a namespace (potentially spanning multiple file units) */
-  def emitNamespace(units: List[FileUnit], includePrivate: Boolean, out: PrintWriter)(using Definitions): Unit =
+  def emitNamespace(units: List[FileUnit], includePrivate: Boolean, out: PrintWriter)(using Definitions, Config): Unit =
     val sym = units.head.symbol
     val defn = summon[Definitions]
 
@@ -329,7 +330,7 @@ object JsonEmitter:
 
     out.println("}")
 
-  private def emitTypes(types: List[Def], includePrivate: Boolean, out: PrintWriter, indent: String)(using Definitions): Unit =
+  private def emitTypes(types: List[Def], includePrivate: Boolean, out: PrintWriter, indent: String)(using Definitions, Config): Unit =
     var first = true
 
     for t <- types do
@@ -348,7 +349,7 @@ object JsonEmitter:
 
         case _ => () // Skip other defs that shouldn't be in types list
 
-  private def emitClassDef(cd: ClassDef, includePrivate: Boolean, out: PrintWriter, indent: String)(using Definitions): Unit =
+  private def emitClassDef(cd: ClassDef, includePrivate: Boolean, out: PrintWriter, indent: String)(using Definitions, Config): Unit =
     val sym = cd.symbol
     val defn = summon[Definitions]
 
@@ -376,7 +377,7 @@ object JsonEmitter:
       out.println(s"""$indent  "doc": null,""")
 
     // Source
-    out.println(s"""$indent  "source": { "file": ${jsonString(sym.source.file)}, "line": ${sym.sourcePos.startLine + 1} },""")
+    out.println(s"""$indent  "source": { "file": ${jsonString(Config.publishedSourcePath(sym.source.file))}, "line": ${sym.sourcePos.startLine + 1} },""")
 
     // Fields (for classes)
     if sym.isClass then
@@ -427,7 +428,7 @@ object JsonEmitter:
 
     out.print(s"""$indent}""")
 
-  private def emitInterfaceDef(id: InterfaceDef, includePrivate: Boolean, out: PrintWriter, indent: String)(using Definitions): Unit =
+  private def emitInterfaceDef(id: InterfaceDef, includePrivate: Boolean, out: PrintWriter, indent: String)(using Definitions, Config): Unit =
     val sym = id.symbol
     val defn = summon[Definitions]
 
@@ -450,7 +451,7 @@ object JsonEmitter:
       out.println(s"""$indent  "doc": null,""")
 
     // Source
-    out.println(s"""$indent  "source": { "file": ${jsonString(sym.source.file)}, "line": ${sym.sourcePos.startLine + 1} },""")
+    out.println(s"""$indent  "source": { "file": ${jsonString(Config.publishedSourcePath(sym.source.file))}, "line": ${sym.sourcePos.startLine + 1} },""")
 
     // Methods
     out.println(s"""$indent  "methods": [""")
@@ -465,7 +466,7 @@ object JsonEmitter:
     out.println(s"""$indent  "views": []""")
     out.print(s"""$indent}""")
 
-  private def emitTypeDef(td: TypeDef, out: PrintWriter, indent: String)(using Definitions): Unit =
+  private def emitTypeDef(td: TypeDef, out: PrintWriter, indent: String)(using Definitions, Config): Unit =
     val sym = td.symbol
     val defn = summon[Definitions]
 
@@ -541,7 +542,7 @@ object JsonEmitter:
       out.println(s"""$indent  "doc": null$extras,""")
 
     // Source
-    out.println(s"""$indent  "source": { "file": ${jsonString(sym.source.file)}, "line": ${sym.sourcePos.startLine + 1} }""")
+    out.println(s"""$indent  "source": { "file": ${jsonString(Config.publishedSourcePath(sym.source.file))}, "line": ${sym.sourcePos.startLine + 1} }""")
 
     out.print(s"""$indent}""")
 
@@ -586,7 +587,7 @@ object JsonEmitter:
 
     out.print(s"""$indent}""")
 
-  private def emitFunctions(functions: List[FunDef], out: PrintWriter, indent: String)(using Definitions): Unit =
+  private def emitFunctions(functions: List[FunDef], out: PrintWriter, indent: String)(using Definitions, Config): Unit =
     val defn = summon[Definitions]
     var first = true
 
@@ -642,11 +643,11 @@ object JsonEmitter:
         out.println(s"""$indent  "doc": null,""")
 
       // Source
-      out.println(s"""$indent  "source": { "file": ${jsonString(sym.source.file)}, "line": ${sym.sourcePos.startLine + 1} }""")
+      out.println(s"""$indent  "source": { "file": ${jsonString(Config.publishedSourcePath(sym.source.file))}, "line": ${sym.sourcePos.startLine + 1} }""")
 
       out.print(s"""$indent}""")
 
-  private def emitPatterns(patterns: List[PatDef], out: PrintWriter, indent: String)(using Definitions): Unit =
+  private def emitPatterns(patterns: List[PatDef], out: PrintWriter, indent: String)(using Definitions, Config): Unit =
     val defn = summon[Definitions]
     var first = true
 
@@ -685,11 +686,11 @@ object JsonEmitter:
         out.println(s"""$indent  "doc": null,""")
 
       // Source
-      out.println(s"""$indent  "source": { "file": ${jsonString(sym.source.file)}, "line": ${sym.sourcePos.startLine + 1} }""")
+      out.println(s"""$indent  "source": { "file": ${jsonString(Config.publishedSourcePath(sym.source.file))}, "line": ${sym.sourcePos.startLine + 1} }""")
 
       out.print(s"""$indent}""")
 
-  private def emitContexts(contexts: List[ParamDef], out: PrintWriter, indent: String)(using Definitions): Unit =
+  private def emitContexts(contexts: List[ParamDef], out: PrintWriter, indent: String)(using Definitions, Config): Unit =
     val defn = summon[Definitions]
     var first = true
 
@@ -712,7 +713,7 @@ object JsonEmitter:
         out.println(s"""$indent  "doc": null,""")
 
       // Source
-      out.println(s"""$indent  "source": { "file": ${jsonString(sym.source.file)}, "line": ${sym.sourcePos.startLine + 1} }""")
+      out.println(s"""$indent  "source": { "file": ${jsonString(Config.publishedSourcePath(sym.source.file))}, "line": ${sym.sourcePos.startLine + 1} }""")
 
       out.print(s"""$indent}""")
 

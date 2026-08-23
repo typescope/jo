@@ -6,6 +6,7 @@ import cli.OptionParser.Setting
 import Config.InternalSetting
 
 import scala.collection.mutable
+import java.nio.file.Paths
 
 case class Config(private[Config] rawValues: Map[Setting[?], Any]):
   private val cache: mutable.Map[Setting[?], Any] = mutable.Map.empty
@@ -115,6 +116,28 @@ object Config:
 
   val outFilePath: Setting[Option[String]] = OptionStringSetting("-o", "output file path")
   val sastDir: Setting[Option[String]] = OptionStringSetting("--sast", "sast output directory")
+  val sourceRoot: Setting[Option[String]] = OptionStringSetting(
+    "--source-root",
+    "root used to make source paths portable in generated artifacts",
+  )
+
+  /** The source name persisted in SAST files and exposed in documentation.
+    *
+    * File access continues to use the original path. Absolute files below the
+    * configured root are made relative; files outside it are reduced to their
+    * basename so generated artifacts never disclose their containing directory.
+    */
+  def publishedSourcePath(file: String)(using config: Config): String =
+    val path = Paths.get(file)
+    val absolute = path.toAbsolutePath.normalize()
+    val root = sourceRoot.value
+      .map(Paths.get(_).toAbsolutePath.normalize())
+      .getOrElse(Paths.get("").toAbsolutePath.normalize())
+
+    val published =
+      if absolute.startsWith(root) then root.relativize(absolute)
+      else absolute.getFileName
+    published.toString.replace(java.io.File.separatorChar, '/')
 
 
 
@@ -250,6 +273,7 @@ object Config:
     explicitThis,
     noStarImport,
     sastDir,
+    sourceRoot,
   )
 
   val appOptions = outFilePath :: linkLibPaths :: linkMap :: commonOptions

@@ -24,7 +24,7 @@ object Runner:
       case app: CompileTask.AppTask =>
         info(s"[$action] ${moduleLabel(plan)}\n")
         runLib(
-          CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.compileOptions),
+          CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.defaultSourceRoot, app.compileOptions),
           jo,
           sentinelFile = dirSentinel(app.sastDir),
         ) match
@@ -48,7 +48,7 @@ object Runner:
         runLib(lib, jo, sentinelFile = dirSentinel(lib.outDir))
       case app: CompileTask.AppTask =>
         runLib(
-          CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.compileOptions),
+          CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.defaultSourceRoot, app.compileOptions),
           jo,
           sentinelFile = dirSentinel(app.sastDir),
         )
@@ -67,7 +67,7 @@ object Runner:
         runLib(lib, jo, sentinelFile = dirSentinel(outDir), requiredOutputs = List(docIndex))
       case app: CompileTask.AppTask =>
         runLib(
-          CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.compileOptions),
+          CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.defaultSourceRoot, app.compileOptions),
           jo,
           sentinelFile = dirSentinel(outDir),
           requiredOutputs = List(docIndex),
@@ -156,6 +156,9 @@ object Runner:
     args += "--sast"
     args += lib.outDir.toString
     lib.compileOptions.foreach(args += _)
+    if !lib.compileOptions.contains("--source-root") then
+      args += "--source-root"
+      args += lib.defaultSourceRoot.toString
     lib.sources.foreach(args += _.toString)
     lib.checkLibs.foreach: l =>
       args += "--lib"
@@ -170,6 +173,9 @@ object Runner:
     args += "--sast"
     args += app.sastDir.toString
     app.compileOptions.foreach(args += _)
+    if !app.compileOptions.contains("--source-root") then
+      args += "--source-root"
+      args += app.defaultSourceRoot.toString
     app.sources.foreach(args += _.toString)
     app.checkLibs.foreach: l =>
       args += "--lib"

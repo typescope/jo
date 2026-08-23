@@ -6,15 +6,16 @@ Raw compiler interface. No project spec required.
 
 ```
 # Type-check and emit .sast files
-jo compile [--sast <dir>] <file.jo>... [--lib <dir>]...
+jo compile [--sast <dir>] [--source-root <dir>] <file.jo>... [--lib <dir>]...
 
 # Compile to executable or script
-jo compile --python|--ruby|--js [--sast <dir>] <file.jo>... \
+jo compile --python|--ruby|--js [--sast <dir>] [--source-root <dir>] <file.jo>... \
            [--lib <dir>]... [--link-lib <dir>]... [--link <src>=<tgt>]... -o <output>
 
 # Generate HTML documentation from source files (experimental)
 jo compile --doc [--out <dir>] [--title <name>] [--readme <file>] \
-           [--include-private] [--include-source] <file.jo>...
+           [--include-private] [--include-source] [--source-root <dir>] \
+           <file.jo>...
 
 # Query API information as JSON (experimental)
 jo compile --query <selectors> [<file.jo>...] [--lib <dir>]...
@@ -36,9 +37,20 @@ including stricter checking and compiler-development flags, see
 | Flag                    | Description |
 |-------------------------|-------------|
 | `--sast <dir>`          | Also emit `.sast` files to `<dir>` |
+| `--source-root <dir>`   | Record source paths relative to `<dir>` in generated artifacts |
 | `--lib <dir>`           | Check library directory (can be repeated) |
 | `--use-runtime-api <runtime>` | Make the selected runtime API available as a check library. |
 | `--no-stdlib`           | Disable automatic stdlib loading |
+
+`--source-root` controls source paths published in `.sast` files and generated
+documentation. Sources inside the root are recorded relative to it. For a
+source outside the root, only the filename is recorded, so its containing
+directory is not disclosed. The compiler still uses the original path to read
+the file and report diagnostics.
+
+Project commands such as `jo build` and `jo doc` default the source root to the
+module's project directory. An explicit `--source-root` in the module's
+`compile-options` overrides that default.
 
 ### Documentation
 
@@ -96,6 +108,13 @@ Type-check a library and emit `.sast`:
 
 ```sh
 jo compile --sast .build/api/sast src/API.jo --lib ../core/.build/core/sast
+```
+
+Emit portable `.sast` source paths when invoking the compiler with absolute
+input paths:
+
+```sh
+jo compile --sast .build/api/sast --source-root "$PWD" "$PWD/src/API.jo"
 ```
 
 Type-check a Python runtime library and emit `.sast`:

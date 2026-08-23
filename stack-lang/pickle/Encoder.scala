@@ -8,6 +8,7 @@ import sast.Types.*
 import sast.Symbols.*
 
 import reporting.Reporter
+import reporting.Config
 import common.IO
 
 import scala.collection.mutable
@@ -184,7 +185,7 @@ object Encoder:
       sb ++= "]"
       sb.toString
 
-  private class State(val owner: Symbol, val source: Source):
+  private class State(val owner: Symbol, val source: Source, val publishedSourceFile: String):
     val stringTable = new StringTable
     val nameTable = new NameTable
     val symbolTable = new SymbolTable(source)
@@ -210,7 +211,7 @@ object Encoder:
 
   //----------------------------------------------------------------------------
 
-  def store(unit: FileUnit, outDir: String, testPickling: Boolean, verbose: Boolean = false)(using Definitions, Reporter): Unit =
+  def store(unit: FileUnit, outDir: String, testPickling: Boolean, verbose: Boolean = false)(using Definitions, Reporter, Config): Unit =
     val fileName = IO.fileNameNoExt(unit.source.file) + ".sast"
 
     val targetDir = getTargetDir(unit.owner, outDir)
@@ -234,7 +235,7 @@ object Encoder:
 
       val unit2 = Decoder.decode(owner2, nameTable).force()
 
-      val contentBefore = RawPrinter.print(unit).toString
+      val contentBefore = RawPrinter.print(unit, Config.publishedSourcePath(unit.source.file)).toString
       val contentAfter = RawPrinter.print(unit2).toString
 
       if contentBefore != contentAfter then
@@ -248,10 +249,10 @@ object Encoder:
     end if
 
 
-  def encode(unit: FileUnit)(using Definitions): WriteBuffer =
+  def encode(unit: FileUnit)(using Definitions, Config): WriteBuffer =
     val FileUnit(symbol, imports, defs, source) = unit
 
-    given state: State = new State(symbol, source)
+    given state: State = new State(symbol, source, Config.publishedSourcePath(source.file))
     given buf: WriteBuffer = new WriteBuffer(1 << 12)
 
     // Write file header: magic number + version
@@ -1201,7 +1202,7 @@ object Encoder:
 
   /** Encode line lengths as comma-separated hexadecimal */
   private def encodeSource(source: Source)(using WriteBuffer, State): Unit =
-    encodeString(source.file)
+    encodeString(summon[State].publishedSourceFile)
     val lineLengths = source.lineLengths
     repeated(lineLengths) { len => encodeNat(len) }
 
