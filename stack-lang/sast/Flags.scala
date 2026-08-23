@@ -43,7 +43,7 @@ object Flags:
 
   val Mutable    : Flag = defineFlag(0, "mutable"   ) // a mutable variable
   val Context    : Flag = defineFlag(1, "context"   ) // context parameter
-  val Default    : Flag = defineFlag(2, "default"   ) // context parameter with default value or its default function
+  val Default    : Flag = defineFlag(2, "default"   ) // a deferred function with a default implementation
   val Defer      : Flag = defineFlag(3, "defer"     ) // a deferred function, interface method or type definition
   val Synthetic  : Flag = defineFlag(4, "synthetic" ) // a compiler-synthesized symbol
   val Object     : Flag = defineFlag(5, "object"    ) // an object class or object accessor

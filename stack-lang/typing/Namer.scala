@@ -1280,8 +1280,6 @@ class Namer(using Config) extends Applications with SelectionTyper:
   private def transformParamDef(pdef: Ast.ParamDef)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : LazyDef[Def] =
-    assert(pdef.default.isEmpty, "optional context param not desugared: " + pdef)
-
     val index = lazyDefn.index
 
     val extraFlags = pdef.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)

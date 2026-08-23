@@ -462,18 +462,17 @@ object Trees:
 
   /** Context parameter definition */
   case class ParamDef
-    (ident: Ident, tpt: TypeTree, default: Option[Word])
+    (ident: Ident, tpt: TypeTree)
     (val span: Span)
   extends Def:
     def name: String = ident.name
 
     def copy(
         ident: Ident = this.ident,
-        tpt: TypeTree = this.tpt,
-        default: Option[Word] = this.default)
+        tpt: TypeTree = this.tpt)
         (span: Span)
     : ParamDef =
-      ParamDef(ident, tpt, default)(span).copyAttachments(this)
+      ParamDef(ident, tpt)(span).copyAttachments(this)
 
   case class Section
     (ident: Ident, defs: List[Def])

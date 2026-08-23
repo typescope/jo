@@ -93,7 +93,6 @@ object Desugaring:
       defs.flatMap:
         case edef: UnionDef  => synthesizeUnionDef(edef)
         case edef: ExtensionDef => desugarExtensionDef(edef)
-        case pdef: ParamDef => desugarParamDef(pdef)
         case cdef: ClassDef => synthesizeClassParamDefs(cdef, defs)
         case odef: ObjectDef => desugarObjectDef(odef)
         case defn => defn :: Nil
@@ -491,34 +490,4 @@ object Desugaring:
         )(cdef.span)
 
         cdef.copy(params = Nil, vals = vals.toList, funs = ctor :: cdef.funs)(cdef.span)
-
-  /* Desugaring for an optional context parameter
-   *
-   *    <Context> <Default> param a: T
-   *
-   *    <Default> fun a$default = rhs
-   */
-  def desugarParamDef(pdef: ParamDef): List[Def] =
-    val paramId = pdef.ident
-    val paramType = pdef.tpt
-
-    lazy val defaultId = Ident(pdef.name + "$default")(paramId.span)
-
-    def createDefaultFun(rhs: Word): FunDef =
-      val tparams = Nil
-      val params = Nil
-      val autos = Nil
-      val receives = Some(Nil) // no context params allowed for default
-
-      val fdef = FunDef(defaultId, tparams, params, autos, paramType, receives, rhs, preParamCount = 0, preTypeParamCount = 0)(pdef.span)
-      fdef.addKey(ExtraFlags, Flags.Default)
-      fdef
-
-    pdef.default match
-      case None => pdef :: Nil
-
-      case Some(rhs) =>
-        val pdef2 = pdef.copy(default = None)(pdef.span)
-        pdef2.addKey(ExtraFlags, Flags.Default)
-        pdef2 :: createDefaultFun(rhs) :: Nil
 

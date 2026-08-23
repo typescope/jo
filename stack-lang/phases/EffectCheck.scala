@@ -3,24 +3,14 @@ package phases
 import ast.Positions.*
 import sast.*
 import sast.Trees.*
-import sast.Symbols.Symbol
 import reporting.Reporter
 
-import scala.collection.mutable
-
-/** This phase checks effect usage and normalizes default/allow handling.
+/** This phase checks effect usage.
   *
   * It should run immediately after type checking, while code provider and
   * inferred effects still match the typed trees.
   */
 class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase:
-
-  private def synthesizeDefaultBindings(params: List[Symbol], span: Span): List[Assign] =
-    params.map: param =>
-      val paramRef = Ident(param)(span)
-      val defaultFunSym = param.defaultFunction
-      val defaultValue = Ident(defaultFunSym)(span).appliedTo()
-      Assign(paramRef, defaultValue)
 
   override  def transformFunDef(fdef: FunDef)(using Context): FunDef =
     val symbol = fdef.symbol
@@ -28,40 +18,20 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase:
     // Check against effects from the concrete body of the function.
     val effs = defn.index.effectEngine.getBodyEffects(symbol)
 
-    val rejectedDefaults =
-      fdef.effectPolicy match
+    fdef.effectPolicy match
       case Effects.Policy.CheckBound(params) =>
         val allowed = params.toSet
         val pos = symbol.sourcePos
 
-        // Default value functions of optional context parameters should not
-        // depend on any optional context parameters.
-        val allowDefault = !symbol.is(Flags.Default)
-
-        val rejected = new mutable.ArrayBuffer[Symbol]
         for
           (eff, trace) <- effs
           if !allowed.contains(eff)
         do
-          if eff.is(Flags.Default) then
-            rejected += eff
-            if !allowDefault then
-              Reporter.error("Parameter not allowed: " + eff, pos, trace)
-          else
-            Reporter.error("Parameter not allowed: " + eff, pos, trace)
-
-        rejected.toList
+          Reporter.error("Parameter not allowed: " + eff, pos, trace)
 
       case _ =>
-        Nil
 
-    val fdef2 = super.transformFunDef(fdef)
-
-    if rejectedDefaults.isEmpty then
-      fdef2
-    else
-      val args = synthesizeDefaultBindings(rejectedDefaults, fdef.body.span)
-      fdef2.copy(body = With(fdef2.body, args))(fdef.annots, fdef.span)
+    super.transformFunDef(fdef)
 
   /** Check `allow`-clause */
   override def transformAllow(allowExpr: Allow)(using Context): Word =
@@ -71,19 +41,12 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase:
     val effsInner = defn.index.effectEngine.effects(allowExpr.expr)
     val allowed = allowExpr.params.map(_.symbol).toSet
 
-    val unprovided = effsInner.filter((k, _) => !allowed.contains(k))
-
-    val rejectedDefaults = new mutable.ArrayBuffer[Symbol]
     for
-      (eff, trace) <- unprovided if !eff.is(Flags.Default)
+      (eff, trace) <- effsInner if !allowed.contains(eff)
     do
       Reporter.error("Parameter not allowed: " + eff, allowExpr.expr.pos, trace)
-    for (eff, _) <- unprovided if eff.is(Flags.Default) do rejectedDefaults += eff
 
-    if rejectedDefaults.isEmpty then
-      expr2
-    else
-      With(expr2, synthesizeDefaultBindings(rejectedDefaults.toList, allowExpr.span))
+    expr2
 
   private def checkTermInPattern(word: Word)(using Context): Word =
     given Source = Phase.source.value
@@ -94,7 +57,6 @@ class EffectCheck(using rp: Reporter, defn: Definitions) extends Phase:
     do
       Reporter.error("External context parameters not allowed in patterns: " + eff, word.pos, trace)
 
-    // The code might still bind and use default parameters
     this(word)
 
   override def transformGuardPattern(pat: GuardPattern)(using Context): Pattern =

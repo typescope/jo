@@ -282,10 +282,6 @@ object Symbols:
     def dealias(using Definitions): Symbol =
       if this.isAlias then this.info.as[StaticRef].symbol.dealias else this
 
-    /** The default function associated with a context parameter */
-    def defaultFunction(using Definitions): Symbol =
-      this.owner.termMember(this.name + "$default")
-
     def fullName: String =
       if isLocal then
         this.name

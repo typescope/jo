@@ -738,14 +738,20 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
     val id = name()
     eat(Token.COLON)
     val tpt = typ()
-    val default =
-      if peek() == Token.EQL then
-        val eqItem = eat(Token.EQL)
-        Some(block(token.indent, eqItem))
-      else
-        None
 
-    ParamDef(id, tpt, default)(token.span | tpt.span).withMods(mods)
+    // A context parameter declares a requirement: it takes no default value.
+    // Parse and discard the right-hand side so that the rest of the file still
+    // parses, and point at `with` as the way to supply the value.
+    if peek() == Token.EQL then
+      val eqItem = eat(Token.EQL)
+      val rhs = block(token.indent, eqItem)
+      error(
+        "A context parameter cannot have a default value. "
+          + "Bind it explicitly instead: with " + id.name + " = ... in ...",
+        rhs.pos
+      )
+
+    ParamDef(id, tpt)(token.span | tpt.span).withMods(mods)
 
   def patDef(mods: List[Modifier]): PatDef =
     val pat = eat(Token.PATTERN)
