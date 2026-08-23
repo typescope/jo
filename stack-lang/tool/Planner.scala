@@ -63,6 +63,7 @@ object Planner:
 
                 SourcePaths.expand(spec.src, project0.dir).flatMap: sources =>
                   val compileOptions = ffiCompileOptions(spec) ++ spec.compileOptions
+                  val defaultSourceRoot = project0.dir.toAbsolutePath.normalize()
                   val task =
                     spec.kind match
                       case ModuleKind.Lib =>
@@ -71,6 +72,7 @@ object Planner:
                             sources,
                             checkLibs,
                             project0.sastDir(id),
+                            defaultSourceRoot,
                             compileOptions,
                           )
                         )
@@ -90,6 +92,7 @@ object Planner:
                                 project0.appOutFile(id, target),
                                 project0.sastDir(id),
                                 resources,
+                                defaultSourceRoot,
                                 compileOptions,
                               )
 

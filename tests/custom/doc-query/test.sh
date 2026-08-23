@@ -12,10 +12,14 @@ COMPANION_FILE="$REL_DIR/companion.jo"
 SAST_DIR="${TMPDIR:-/tmp}/jo-doc-query-sast-$$"
 SAST_LOG="$SAST_DIR.log"
 FAIL_LOG="$DIR/fail.log"
+PORTABLE_DOC_DIR="$SAST_DIR-doc"
+PORTABLE_JSON="$DIR/portable.json"
+OUTSIDE_SOURCE="$SAST_DIR-source.jo"
+OUTSIDE_SAST_DIR="$SAST_DIR-outside"
 
 cleanup() {
     rm -f "$DIR"/*.json
-    rm -rf "$SAST_DIR" "$SAST_LOG" "$FAIL_LOG"
+    rm -rf "$SAST_DIR" "$SAST_LOG" "$FAIL_LOG" "$PORTABLE_DOC_DIR" "$OUTSIDE_SOURCE" "$OUTSIDE_SAST_DIR"
 }
 
 finish() {
@@ -53,6 +57,35 @@ expect_fail() {
 cd "$PROJECT_ROOT"
 
 "$PROJECT_ROOT/bin/jo" compile --sast "$SAST_DIR" --use-runtime-api python "$API_FILE" > "$SAST_LOG"
+
+# Absolute input paths must not leak into published SAST metadata or HTML docs.
+"$PROJECT_ROOT/bin/jo" compile --sast "$SAST_DIR" --source-root "$PROJECT_ROOT" \
+    --use-runtime-api python "$PROJECT_ROOT/$API_FILE" > "$SAST_LOG"
+run_query --lib "$SAST_DIR" --query "DocQueryAPI.describe" --fields loc > "$PORTABLE_JSON"
+grep -q -- '"file": "tests/custom/doc-query/api.jo"' "$PORTABLE_JSON"
+if grep -R -F -q -- "$PROJECT_ROOT" "$SAST_DIR"; then
+    echo "Absolute project path leaked into SAST output"
+    exit 1
+fi
+
+# Sources outside the root retain only their basename.
+cp "$PROJECT_ROOT/$API_FILE" "$OUTSIDE_SOURCE"
+"$PROJECT_ROOT/bin/jo" compile --sast "$OUTSIDE_SAST_DIR" --source-root "$PROJECT_ROOT" \
+    --use-runtime-api python "$OUTSIDE_SOURCE" > "$SAST_LOG"
+run_query --lib "$OUTSIDE_SAST_DIR" --query "DocQueryAPI.describe" --fields loc > "$PORTABLE_JSON"
+grep -q -- '"file": "jo-doc-query-sast-[0-9]*-source.jo"' "$PORTABLE_JSON"
+if grep -R -F -q -- "$(dirname "$OUTSIDE_SOURCE")" "$OUTSIDE_SAST_DIR"; then
+    echo "Containing directory of outside source leaked into SAST output"
+    exit 1
+fi
+
+"$PROJECT_ROOT/bin/jo" compile --doc --source-root "$PROJECT_ROOT" \
+    --use-runtime-api python --out "$PORTABLE_DOC_DIR" "$PROJECT_ROOT/$API_FILE" > /dev/null
+grep -q -- '"file": "tests/custom/doc-query/api.jo"' "$PORTABLE_DOC_DIR/data.js"
+if grep -R -F -q -- "$PROJECT_ROOT" "$PORTABLE_DOC_DIR"; then
+    echo "Absolute project path leaked into documentation"
+    exit 1
+fi
 
 run_query --query "DocQueryAPI.*,DocQueryAPI.FileLike.readText" "$API_FILE" > "$DIR/structural.json"
 run_query --query "file:$API_FILE" "$API_FILE" "$EXTRA_FILE" > "$DIR/file.json"

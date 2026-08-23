@@ -18,6 +18,7 @@ enum CompileTask:
     sources: List[Path],
     checkLibs: List[Path],
     outDir: Path,
+    defaultSourceRoot: Path,
     compileOptions: List[String] = Nil,
   )
   /** Compile sources into a runnable output (app build).
@@ -31,6 +32,7 @@ enum CompileTask:
     outFile: Path,
     sastDir: Path,
     resources: List[ResourceGroup],
+    defaultSourceRoot: Path,
     compileOptions: List[String],
   )
 

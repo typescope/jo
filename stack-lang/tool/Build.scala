@@ -44,7 +44,13 @@ object Build:
             lib.copy(compileOptions = lib.compileOptions ++ docOptions(project, module))
 
           case app: CompileTask.AppTask =>
-            CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, docOptions(project, module))
+            CompileTask.LibTask(
+              app.sources,
+              app.checkLibs,
+              app.sastDir,
+              app.defaultSourceRoot,
+              app.compileOptions ++ docOptions(project, module),
+            )
       )
       Runner.doc(withDoc, outDir).map: _ =>
         Logger.info(s"[output] ${LogFormat.path(outDir)}\n")

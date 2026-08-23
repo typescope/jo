@@ -4,3 +4,4 @@ jo = "1.0"
 kind = "app"
 platform = "python"
 src = ["src/"]
+compile-options = ["--source-root", "user-root"]

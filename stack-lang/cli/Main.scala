@@ -319,6 +319,7 @@ object Main:
       |
       |Compile options (library):
       |  --sast <dir>    Compile to .sast files; if no backend flag, this is the only output
+      |  --source-root <dir>  Store source paths relative to this root in generated artifacts
       |  --lib <dir>     Use a precompiled library (can be specified multiple times)
       |  --use-runtime-api <python|ruby|js>
       |                   Make a runtime API available as a check library (js is experimental)

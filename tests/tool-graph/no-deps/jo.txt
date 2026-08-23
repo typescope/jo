@@ -1,2 +1,2 @@
 # root [app] (app)
-jo compile --python src/Main.jo -o .build/app/jo-1.0/target/app.py
+jo compile --python --source-root user-root src/Main.jo -o .build/app/jo-1.0/target/app.py
