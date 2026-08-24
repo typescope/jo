@@ -36,9 +36,12 @@ def Map[K, V](elems: ..Pair[K, V])
   end
   m
 
-//[ A mutable hash table with separate chaining. Lookup, insert, and remove
-//  are O(1) on average. The table grows and rehashes when the load factor
-//  exceeds 0.75. Iteration order is unspecified.
+//[ A mutable hash table with separate chaining.
+  !
+  ! Lookup, insert, and remove are O(1) on average. The table grows and
+  ! rehashes when the load factor exceeds 0.75.
+  !
+  ! Iteration order is unspecified.
 //]
 class Map[K, V]
   val eq: Eq[K]
@@ -178,7 +181,8 @@ class Map[K, V]
     _size = 0
 
   //[ Reduce to a single value using a left fold with `f: (S, K, V) => S`.
-  //  Pairs are visited in unspecified order.
+    !
+    ! Pairs are visited in unspecified order.
   //]
   def fold[S](zero: S, f: (S, K, V) => S): S =
     var acc = zero

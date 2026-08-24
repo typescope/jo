@@ -35,9 +35,12 @@ def Set[T](elems: ..T)
   end
   s
 
-//[ A mutable set backed by a hash table with separate chaining. Membership
-//  test, add, and remove are O(1) on average. The table grows and rehashes
-//  when the load factor exceeds 0.75. Iteration order is unspecified.
+//[ A mutable set backed by a hash table with separate chaining.
+  !
+  ! Membership test, add, and remove are O(1) on average. The table grows and
+  ! rehashes when the load factor exceeds 0.75.
+  !
+  ! Iteration order is unspecified.
 //]
 class Set[T]
   val eq: Eq[T]
@@ -150,7 +153,8 @@ class Set[T]
     _size = 0
 
   //[ Reduce to a single value using a left fold with `f: (S, T) => S`.
-  //  Elements are visited in unspecified order.
+    !
+    ! Elements are visited in unspecified order.
   //]
   def fold[S](zero: S, f: (S, T) => S): S =
     var acc = zero

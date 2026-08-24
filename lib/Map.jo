@@ -1,17 +1,30 @@
 namespace jo
 
 
+//[ Create a `Map` from the given key-value pairs.
+  !
+  ! Later pairs win over earlier ones with the same key.
+//]
 def Map[K, V](elems: ..Pair[K, V])(auto ord: Ord[K] with [[K].compareTo]): Map[K, V] =
   var map = Map.empty[K, V]
   for k ~ v in elems do map = map.update(k, v)
   map
 
+//[ Factory methods for `Map`. //]
 section Map
+  //[ Create an empty map. //]
   def empty[K, V](auto ord: Ord[K] with [[K].compareTo]) : Map[K, V] =
     new Map(MapTree.Empty, 0, ord)
 end
 
-// Immutable Map based on Binary Search Tree
+//[ An immutable map backed by a balanced binary search tree (AVL).
+  !
+  ! Lookup, insert, and remove are O(log n). Updates return a new map that
+  ! shares most of its structure with the original.
+  !
+  ! Keys are kept in ascending order, so iteration, `keys`, `values` and
+  ! `toList` are ordered by the `Ord[K]` instance the map was created with.
+//]
 class Map[K, V]
   val ord: Ord[K]
   val tree: MapTree.Tree[K, V]
@@ -22,27 +35,40 @@ class Map[K, V]
     this._size = size
     this.ord = ord
 
+  //[ Number of key-value pairs. //]
   def size: Int = _size
+
+  //[ Number of key-value pairs (alias for `size`). //]
   def length: Int = _size
 
+  //[ True if the map has no bindings. //]
   def isEmpty: Bool = _size == 0
 
+  //[ True if `k` is bound in the map. O(log n). //]
   def contains(k: K): Bool = MapTree.contains tree k ord
 
+  //[ Return the value bound to `k`. Aborts if the key is absent. //]
   def get(k: K): V =
     match getOpt k
     case Some(v) => v
     case None => abort "key not found"
 
+  //[ Return `Some(v)` if `k` is bound to `v`, `None` otherwise. O(log n). //]
   def getOpt(k: K): Option[V] = MapTree.get tree k ord
 
+  //[ Return the value bound to `k`, or `default` if the key is absent. //]
   def getOrElse(k: K, default: V): V =
     match getOpt k
     case Some(v) => v
     case None => default
 
+  //[ Return a map with `k` bound to `v` (alias for `update`). //]
   def add(k: K, v: V): Map[K, V] = update k v
 
+  //[ Return a new map with `k` bound to `v`, replacing any existing binding.
+    !
+    ! The receiver is unchanged. O(log n).
+  //]
   def update(k: K, v: V): Map[K, V] =
     val result = MapTree.insert tree k v ord
     match result
@@ -51,15 +77,27 @@ class Map[K, V]
     case MapTree.Updated(newTree) =>
       new Map(newTree, _size, ord)
 
+  //[ Return a new map without the binding for `k`.
+    !
+    ! Returns the receiver unchanged if the key is absent. O(log n).
+  //]
   def remove(k: K): Map[K, V] =
     val result = MapTree.remove tree k ord
     match result
     case Some(newTree) => new Map(newTree, _size - 1, ord)
     case None => this
 
+  //[ Return the union of this map and `xs`.
+    !
+    ! Bindings in `xs` win on conflicting keys.
+  //]
   def ++(xs: Map[K, V]): Map[K, V] =
     xs.fold: this, (acc, k, v) => acc.add k v
 
+  //[ Return the union of this map and `other`.
+    !
+    ! Conflicting keys are resolved with `combine(key, thisValue, otherValue)`.
+  //]
   def merge(other: Map[K, V], combine: (K, V, V) => V): Map[K, V] =
     other.fold: this, (acc, k, rightV) =>
       match acc.getOpt(k)
@@ -68,33 +106,47 @@ class Map[K, V]
       case None =>
         acc.add(k, rightV)
 
+  //[ Return the map of bindings satisfying `pred`. //]
   def select(pred: (K, V) => Bool): Map[K, V] =
     auto ord: Ord[K] = this.ord
     fold: Map.empty, (acc, k, v) =>
       if pred k v then acc.add k v else acc
 
+  //[ Return the map of bindings not satisfying `pred`. //]
   def exclude(pred: (K, V) => Bool): Map[K, V] =
     auto ord: Ord[K] = this.ord
     fold: Map.empty, (acc, k, v) =>
       if pred k v then acc else acc.add k v
 
+  //[ Reduce to a single value using a left fold with `f: (S, K, V) => S`.
+    !
+    ! Bindings are visited in ascending key order.
+  //]
   def fold[S](zero: S, f: (S, K, V) => S): S =
     MapTree.fold tree zero f
 
+  //[ Return all keys as a `List`, in ascending order. //]
   def keys: List[K] =
     MapTree.fold(tree, [], (acc, k, v) => acc + k)
 
+  //[ Return all values as a `List`, ordered by their keys. //]
   def values: List[V] =
     MapTree.fold(tree, [], (acc, k, v) => acc + v)
 
+  //[ Return the set of keys. //]
   def keySet: Set[K] =
     auto ord: Ord[K] = this.ord
     fold(Set.empty[K], (acc, k, v) => acc + k)
 
+  //[ Return a map with the same keys and each value transformed by `f`. //]
   def mapValues[S](f: V => S): Map[K, S] =
     auto ord: Ord[K] = this.ord
     fold(Map.empty[K, S], (acc, k, v) => acc.update(k, f(v)))
 
+  //[ Return the first binding satisfying `pred`, or `None` if there is none.
+    !
+    ! Bindings are visited in ascending key order.
+  //]
   def find(pred: (K, V) => Bool): Option[K ~ V] =
     val iter = this.iterator
     var res: Option[K ~ V] = None
@@ -105,10 +157,13 @@ class Map[K, V]
     end
     res
 
+  //[ Return all key-value pairs as a `List`, in ascending key order. //]
   def toList: List[K ~ V] = MapTree.toList(tree)
 
+  //[ Return an iterator over the key-value pairs, in ascending key order. //]
   def iterator: Iterator[K ~ V] = toList.iterator
 
+  //[ Return a string representation, e.g. `{a -> 1, b -> 2}`. Shows at most 100 pairs. //]
   def toString(auto
       keyShow: Show[K] with [[K].toString],
       valueShow: Show[V] with [[V].toString])
