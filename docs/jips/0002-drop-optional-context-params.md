@@ -46,9 +46,9 @@ shadowing, and capture keep their current meaning.
 
 Context parameters make ambient dependencies explicit and statically checked.
 `receives` records what a function needs, `allow` bounds what a block may reach,
-and Jo reports a dependency trace when nothing supplies a required parameter. A
-default undermines both halves. It makes the meaning of a program harder to
-predict, and it removes the parameter from the checks.
+and Jo reports a dependency trace when nothing supplies a required parameter.
+Optional context parameters make the meaning of a program harder to predict,
+and they remove the parameter from the checks.
 
 ### It is not obvious where a default is bound
 
@@ -118,10 +118,6 @@ site of its own.
 Jo reports a context parameter that cannot reach a binding, and names the
 function and the read. That diagnostic is the practical payoff of tracking
 context statically. A default suppresses it.
-
-At each of the gates above, the compiler checks that a read is reachable from a
-binding. A default removes the parameter from every one of them, because
-wherever the check would report a gap, the default fills it instead.
 
 Reading a context parameter that `receives` does not list is normally an error:
 
@@ -300,11 +296,7 @@ def main receives IO.stdout =
 
 The alternative saves one line per entry, and charges for it with declaration
 syntax, a resolution rule, and a definition of "entry method" the language does
-not otherwise need — `main`, tests, exported functions, framework callbacks,
-plugin hooks, and thread roots would all have to be classified, and behavior
-would depend on how a function happens to be compiled. It also leaves the policy
-at the declaration, which is the thing this proposal objects to. A library would
-still choose the application's value whenever the application omits one.
+not otherwise need.
 
 **Mark the receive site as optional.** A function could declare that it
 tolerates the absence of a parameter:
