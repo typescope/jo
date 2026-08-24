@@ -28,7 +28,6 @@ private interface BuiltIn
   def iter(obj: Any): py.Dynamic
   def next(it: Any, default: Any): py.Dynamic
   def ord(c: Any): Int
-  def input(prompt: String): String
   def print(value: Any, suffix: String @py.keyword("end"), file: Any @py.keyword): Unit
   def str(obj: Any): String
 end
@@ -252,9 +251,6 @@ private def start(): Unit =
   end
   val argsArr: Array[String] = py.dynamic(argList).cast[Array[String]]
 
-  val stdin: () => String =
-    () => builtins.input("")
-
   val stdout: String => Unit =
     s => builtins.print(s, suffix = "", file = py.none)
 
@@ -262,7 +258,6 @@ private def start(): Unit =
     s => builtins.print(s, suffix = "", file = sysModule.stderr)
 
   with
-    IO.stdin = stdin,
     IO.stdout = stdout,
     IO.stderr = stderr,
     IO.args = argsArr

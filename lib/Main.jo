@@ -1,4 +1,21 @@
 namespace jo
 
-// The contract for the default main
-defer def main: Unit receives IO.stdin, IO.stdout, IO.stderr, IO.args = pass
+//[ The contract for the program entry point
+  !
+  ! The compiler locates the entry point by looking for a top-level function
+  ! named `main` that conforms to this signature. It is an error if no such
+  ! function exists, or if several do. To name the entry point explicitly, pass
+  ! `--link jo.main=app.main` to the compiler.
+  !
+  ! The `receives` clause lists the capabilities the runtime makes available to
+  ! the entry point. It is an upper bound, not a requirement: a `main` that uses
+  ! only some of them — or none at all — still conforms.
+  !
+  ! There is no standard input capability. A program that reads input obtains it
+  ! from a backend-specific API, such as `py.input`, and passes it on as its own
+  ! context parameter.
+  !
+  ! The `pass` body is only a placeholder, so that this declaration is a
+  ! well-formed deferred function; the program supplies the real entry point.
+//]
+defer def main: Unit receives IO.stdout, IO.stderr, IO.args = pass

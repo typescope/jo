@@ -11,9 +11,6 @@ private def start(): Unit =
   val proc = js.global.process
   val args = proc.argv.cast[JsArgv].slice(2)
 
-  val stdin: () => String =
-    () => fs.readFileSync(0).toString
-
   val jsStdout = proc.stdout.cast[JsWritable]
   val jsStderr = proc.stderr.cast[JsWritable]
 
@@ -21,7 +18,6 @@ private def start(): Unit =
   val stderr: String => Unit = s => jsStderr.write(s)
 
   with
-    IO.stdin = stdin,
     IO.stdout = stdout,
     IO.stderr = stderr,
     IO.args = args

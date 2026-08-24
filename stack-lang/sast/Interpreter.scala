@@ -243,14 +243,6 @@ object Interpreter:
         throw new Exception(v)
       },
 
-      "readLineStdIn" -> { (args: List[Value]) =>
-        assert(args.isEmpty, "Expect empty, found = " + args.size)
-        val reader = new java.io.BufferedReader(new java.io.InputStreamReader(System.in))
-        val res = reader.readLine()
-        reader.close()
-        StringVal(res) :: Nil
-      },
-
       "writeStdOut" -> { (args: List[Value]) =>
         val StringVal(content) :: Nil = args: @unchecked
         System.out.print(content)

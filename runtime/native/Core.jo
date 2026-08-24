@@ -498,7 +498,6 @@ private def start(argsRaw: Addr): Unit receives none =
     strArr[i - 1] = str
 
   with
-    IO.stdin = createStdIn(),
     IO.stdout = createStdOut(),
     IO.stderr = createStdErr(),
     IO.args = strArr
@@ -759,26 +758,6 @@ private def writeString(fd: Int, repr: StringRepr): Unit =
         fd
         cast[StringRepr] rhs
 
-
-private def createStdIn(): () => String =
-  () =>
-    var res = ""
-
-    // read 256-byte chunks, assuming normal length of lines
-    val buffer = GC.alloc 256
-
-    while true do
-      val bytesRead = Syscall.sys_read 0 buffer 256
-
-      if bytesRead > 0 then
-        val str = cast[String]: Raw(bytesRead, StringOps.countUtf8CodePoints(buffer, bytesRead), buffer)
-        res = res + str
-      end
-
-      if bytesRead < 256 then break
-    end
-
-    res
 
 private def createStdOut(): String => Unit =
   (s: String) => writeString: 1, cast[StringRepr] s

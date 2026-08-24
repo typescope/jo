@@ -1,20 +1,40 @@
-namespace jo.IO
+namespace jo
 
-import jo.*
-
-//------------------------------------------------------------------------------
-//
-// I/O support
-//
-
-param stdin: () => String
-
-param stdout: String => Unit
-
-param stderr: String => Unit
-
-//[ Command line arguments for the default main
+//[ Capabilities for standard I/O
   !
-  ! This does not need to be provided for custom entry point.
+  ! These are the capabilities the runtime provides to the entry point, see
+  ! `jo.main`. Each one is a context parameter rather than an ambient
+  ! operation: a function can only perform the I/O it has been given, and
+  ! `allow` confines what a call may reach.
+  !
+  ! There is no standard input capability. A program that reads input obtains
+  ! it from a backend-specific API, such as `py.input`, and passes it on as its
+  ! own context parameter.
 //]
-param args: Array[String]
+section IO
+  //[ Write text to standard output
+    !
+    ! The text is written as given: no newline is appended and no conversion is
+    ! performed. `print` and `println` in `Predef` are defined in terms of it.
+    !
+    ! Holding this parameter is the authority to write to standard output. Bind
+    ! it with `with IO.stdout = ...` to redirect output, for example to capture
+    ! it in a test.
+  //]
+  param stdout: String => Unit
+
+  //[ Write text to standard error
+    !
+    ! Behaves like `stdout`, but targets the diagnostic stream.
+  //]
+  param stderr: String => Unit
+
+  //[ Command line arguments for the default main
+    !
+    ! The program name is not included: the array holds only the arguments that
+    ! follow it.
+    !
+    ! This does not need to be provided for custom entry point.
+  //]
+  param args: Array[String]
+end

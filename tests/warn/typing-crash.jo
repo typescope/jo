@@ -1,7 +1,5 @@
-import jo.IO.*
-
 def main =
-  val line = stdin()
+  val line = "hello world"
   println(uppercase(line))
 
 def uppercase(s: String): String =
