@@ -320,10 +320,15 @@ const app = {
   },
 
   findNamespacePath(fullName) {
-    // Try exact match first
+    // An exact namespace match must win globally. A parent namespace can have
+    // a member with the same full name as a nested namespace (for example, a
+    // context parameter `a.foo` alongside namespace `a.foo`).
     for (const ns of this.nav.children) {
       if (ns.fullName === fullName) return ns.fullName;
-      // Check if it's a member of this namespace
+    }
+
+    // Check whether it is a direct member of a namespace.
+    for (const ns of this.nav.children) {
       if (ns.members) {
         for (const m of ns.members) {
           if (m.fullName === fullName) return ns.fullName;

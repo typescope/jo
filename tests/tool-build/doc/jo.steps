@@ -50,6 +50,12 @@ grep -qF 'Visible in the method list.' .build/app/doc/data.js
 grep -qF 'Fields</h3>' .build/app/doc/assets/app.js
 : ''
 
+python3 -c 'import json; p=".build/app/doc/data.js"; d=json.loads(open(p).read().removeprefix("var JO_DOC_DATA=")); names=[n["fullName"] for n in d["nav"]["children"]]; assert "HiddenFromDocNavigation" not in names; assert "Collision.Nested" in names'
+: ''
+
+grep -qF 'An exact namespace match must win globally.' .build/app/doc/assets/app.js
+: ''
+
 rm -rf .build/app/doc
 
 jo doc

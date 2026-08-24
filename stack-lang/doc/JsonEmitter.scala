@@ -31,7 +31,9 @@ object JsonEmitter:
     out.println("{")
     out.println("""  "children": [""")
 
-    val grouped = units.groupBy(_.owner).toList.sortBy(_._1.fullName)
+    val grouped = units.groupBy(_.owner).toList
+      .filter((_, groupUnits) => collectNavMembers(groupUnits, includePrivate).nonEmpty)
+      .sortBy(_._1.fullName)
 
     var first = true
     for (sym, groupUnits) <- grouped do
