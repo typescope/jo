@@ -12,5 +12,6 @@ namespace jo
   ! resolved at usage site.
 //]
 interface Eq[T]
+  //[ True if `a` and `b` are equal. //]
   def equal(a: T, b: T): Bool
 end

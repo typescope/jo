@@ -210,6 +210,7 @@ class Regex
     parts
 end
 
+//[ Ways to build a `Regex` other than a regex literal. //]
 section Regex
   //[ Compile from a pre-validated, pre-extracted pattern and flags.
     !

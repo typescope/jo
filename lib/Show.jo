@@ -13,5 +13,6 @@ namespace jo
   !
 //]
 interface Show[T]
+  //[ Render `v` as a `String`. //]
   def show(v: T): String
 end

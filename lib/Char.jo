@@ -11,40 +11,53 @@ class Char
   private def Char() = abort "Cannot create new Char instance"
 
   // Comparison operators (work via numeric coercion to Int)
+  //[ True if the two values are equal. //]
   @intrinsic
   def ==(other: Char): Bool = ...
 
+  //[ True if the two values differ. //]
   @intrinsic
   def !=(other: Char): Bool = !(this == other)
 
+  //[ True if this value is greater than `other`. Ordered by code point. //]
   @intrinsic
   def >(other: Char): Bool = ...
 
+  //[ True if this value is less than `other`. Ordered by code point. //]
   @intrinsic
   def <(other: Char): Bool = ...
 
+  //[ True if this value is greater than or equal to `other`. Ordered by code point. //]
   @intrinsic
   def >=(other: Char): Bool = ...
 
+  //[ True if this value is less than or equal to `other`. Ordered by code point. //]
   @intrinsic
   def <=(other: Char): Bool = ...
 
   // Conversion methods
+  //[ The low 8 bits of the code point as a `Byte`. //]
   @intrinsic
   def toByte: Byte = ...
 
+  //[ The Unicode code point as an `Int`, so `'A'.toInt` is `65`. //]
   @intrinsic
   def toInt: Int = ...
 
+  //[ The Unicode code point as a `Long`. //]
   @intrinsic
   def toLong: Long = ...
 
+  //[ The Unicode code point as a `Float`. //]
   @intrinsic
   def toFloat: Float = ...
 
+  //[ A one-character `String` holding this code point. //]
   @intrinsic
   def toString: String = ...
 
+  //[ Negative, zero or positive as this code point is less than, equal to or greater than `other`. //]
   def compareTo(other: Char): Int = this.toInt - other.toInt
+  //[ The code point. Used to synthesize `Hash[Char]`. //]
   def hashCode: Int = this.toInt
 end

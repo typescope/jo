@@ -1,25 +1,57 @@
 namespace jo
 
-union Result[T, E] = Ok(value: T) | Err(error: E)
+//[ The outcome of an operation that can fail: `Ok(value)` or `Err(error)`
+  !
+  ! Unlike `Option`, the failing case carries a description of what went wrong.
+  ! Use it for operations whose failure the caller is expected to inspect or
+  ! report, and `Option` where absence needs no explanation.
+  !
+  !     match resources.readText "config.toml"
+  !     case Ok(text)  => parse text
+  !     case Err(why)  => abort why
+//]
+union Result[T, E] =
+    //[ The success case, wrapping a value of type `T`. //]
+    Ok(value: T)
+    //[ The failure case, wrapping an error of type `E`. //]
+  | Err(error: E)
+
+  //[ Return the success value. Aborts if the result is an `Err`.
+    !
+    ! Use it only where failure is impossible; prefer `getOrElse` or a `match`
+    ! anywhere the error case can occur.
+  //]
   def success: T =
     match this
     case Ok(value) => value
     case _: Err[E] => abort "unreachable"
 
+  //[ True if the result is an `Ok`. //]
   def isOk: Bool = this is _: Ok[T]
 
+  //[ True if the result is an `Err`. //]
   def isErr: Bool = this is _: Err[E]
 
+  //[ Return the success value, or the result of `compute` on failure.
+    !
+    ! `compute` is only called for an `Err`, and does not receive the error.
+  //]
   def getOrElse(compute: () => T): T =
     match this
     case Ok(value) => value
     case _: Err[E] => compute()
 
+  //[ Apply `f` to the success value, leaving an error untouched.
+    !
+    ! `Ok(x)` becomes `Ok(f(x))`; an `Err` is returned unchanged, so `f` is
+    ! never called and the error type is preserved.
+  //]
   def map[U](f: T => U): Result[U, E] =
     match this
     case Ok(value) => Ok(f(value))
     case err: Err[E] => err
 
+  //[ Return `"Ok(v)"` or `"Err(e)"` with the payload shown. //]
   def toString(auto showT: Show[T] with [[T].toString], showE: Show[E] with [[E].toString]): String =
     match this
     case Ok value => "Ok(\{showT.show value})"

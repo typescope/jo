@@ -2,6 +2,11 @@ namespace jo.regex
 
 import jo.*
 
+//[ One successful regular-expression match
+  !
+  ! `from` and `length` locate the match in the subject string; the group
+  ! accessors return the captured sub-matches, by number or by name.
+//]
 class Match
   val from: Int
   val length: Int

@@ -1,21 +1,44 @@
 namespace jo
 
+//[ A one-pass cursor over a sequence of values
+  !
+  ! Implement `hasNext` and `next`; the remaining methods are derived from
+  ! them. A type with an `iterator` member can be used directly in `for`, and
+  ! satisfies a `:- [.iterator]` requirement.
+  !
+  !     val iter = list.iterator
+  !     while iter.hasNext do
+  !       println iter.next
+  !     end
+  !
+  ! An iterator is consumed as it is read and cannot be restarted. `map`,
+  ! `select`, `take` and `drop` are lazy: they wrap this iterator instead of
+  ! copying it, so the wrapper and the original must not both be read.
+//]
 interface Iterator[T]
+  //[ True if a further call to `next` will produce a value. //]
   def hasNext: Bool
+
+  //[ Return the next value and advance. Reading past the end is undefined. //]
   def next: T
 
+  //[ Return an iterator that applies `f` to each remaining value. Lazy. //]
   def map[S](f: T => S): Iterator[S] =
     new Iterator.MapIterator(this, f)
 
+  //[ Return an iterator over the remaining values satisfying `pred`. Lazy. //]
   def select(pred: T => Bool): Iterator[T] =
     new Iterator.SelectIterator(this, pred)
 
+  //[ Return an iterator over at most the next `n` values. Lazy. //]
   def take(n: Int): Iterator[T] =
     new Iterator.TakeIterator(this, n)
 
+  //[ Return an iterator that skips the next `n` values. Lazy. //]
   def drop(n: Int): Iterator[T] =
     new Iterator.DropIterator(this, n)
 
+  //[ Reduce the remaining values with a left fold, consuming the iterator. //]
   def fold[S](zero: S, f: (S, T) => S): S =
     var acc = zero
     while this.hasNext do
@@ -23,6 +46,7 @@ interface Iterator[T]
     end
     acc
 
+  //[ Collect the remaining values into a `List`, consuming the iterator. //]
   def toList: List[T] =
     var acc: List[T] = []
     while this.hasNext do

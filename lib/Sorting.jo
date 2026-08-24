@@ -1,5 +1,6 @@
 namespace jo
 
+//[ In-place sorting routines. //]
 section Sorting
   //[ Sort arr[from..to] (inclusive) in-place using recursive merge sort.
     !

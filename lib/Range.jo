@@ -1,6 +1,23 @@
 namespace jo
 
+//[ A sequence of `Int` values from `from` towards `to`, taken `step` at a time
+  !
+  ! Build one with `to` (inclusive) or `until` (exclusive), and change the
+  ! stride with `step`:
+  !
+  !     for i in 0 until 10 do ...        // 0, 1, ... 9
+  !     for i in 1 to 10 step 2 do ...    // 1, 3, 5, 7, 9
+  !     for i in 10 to 1 step -1 do ...   // counts down
+  !
+  ! A range is a description, not a collection: it holds four `Int` fields and
+  ! produces values on demand through `iterator`.
+//]
 class Range(from: Int, to: Int, inclusive: Bool, step: Int)
+  //[ The first value past the end of the range.
+    !
+    ! Normalizes `inclusive` away: an inclusive ascending range ending at `to`
+    ! has limit `to + 1`, a descending one has `to - 1`.
+  //]
   def limit: Int =
     if step > 0 then
       if inclusive then to + 1 else to
@@ -9,8 +26,10 @@ class Range(from: Int, to: Int, inclusive: Bool, step: Int)
     else
       to
 
+  //[ Return an iterator over the values of the range. //]
   def iterator: Iterator[Int] = new Range.RangeIterator(this)
 
+  //[ Collect the values of the range into a `List`. //]
   def toList: List[Int] =
     var acc: List[Int] = []
     val iter = this.iterator
@@ -19,6 +38,7 @@ class Range(from: Int, to: Int, inclusive: Bool, step: Int)
     end
     acc
 
+  //[ Return the same range with a stride of `value`. Aborts if `value` is 0. //]
   def withStep(value: Int): Range =
     if value == 0 then
       abort "range step cannot be zero"
@@ -51,8 +71,16 @@ end
 // Range operations
 //
 
+//[ The range `x, x+1, ... y`, including `y`. //]
 def (x: Int) to (y: Int): Range = Range(x, y, inclusive = true, step = 1)
+
+//[ The range `x, x+1, ... y-1`, excluding `y`. //]
 def (x: Int) until (y: Int): Range = Range(x, y, inclusive = false, step =1)
 
+//[ The same range with a stride of `delta`. Aborts if `delta` is 0.
+  !
+  ! A negative stride counts down, so `10 to 1 step -1` is non-empty while
+  ! `1 to 10 step -1` is empty.
+//]
 def (r: Range) step (delta: Int): Range =
   r.withStep(delta)

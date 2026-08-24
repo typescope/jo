@@ -16,6 +16,7 @@ def List[T](elems: ..T): List[T] = elems
 //]
 pattern List[T](elems: List[T]): List[T] = case elems
 
+//[ Ways to build a `List` other than the `[...]` literal. //]
 section List
   //[ An empty list. //]
   def empty[T]: List[T] =
@@ -370,6 +371,7 @@ class List[T]
       end
       Some(best)
 
+  //[ Return a string representation, e.g. `[1, 2, 3]`. Shows at most 100 elements. //]
   def toString(auto elementShow: Show[T] with [[T].toString]): String =
     var res = "["
     var count = 0

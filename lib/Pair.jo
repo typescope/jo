@@ -1,6 +1,15 @@
 namespace jo
 
+//[ Two values of independent types carried together
+  !
+  ! Written `a ~ b`, with the type `S ~ T`. The same syntax destructures it:
+  !
+  !     val name ~ age = "ada" ~ 36
+  !
+  ! `Map` uses it for key-value pairs, so `map.toList` yields `K ~ V`.
+//]
 class Pair[S, T](fst: S, snd: T)
+  //[ Return `"a ~ b"` with both components shown. //]
   def toString(auto
       lhsShow: Show[S] with [[S].toString],
       rhsShow: Show[T] with [[T].toString])
@@ -8,8 +17,11 @@ class Pair[S, T](fst: S, snd: T)
     lhsShow.show(fst) + " ~ " + rhsShow.show(snd)
 
 
+//[ Infix spelling of `Pair[S, T]`, written `S ~ T`. //]
 type [S] ~ [T] = Pair[S, T]
 
+//[ Build a pair, written `a ~ b`. //]
 def (a: S) ~ [S, T] (b: T): S ~ T = Pair a b
 
+//[ Destructure a pair, written `a ~ b` in a pattern position. //]
 pattern (a: S) ~[S, T](b: T): S ~ T = case p then a = p.fst, b = p.snd

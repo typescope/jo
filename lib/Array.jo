@@ -19,18 +19,28 @@ import jo.compile.intrinsic
 class Array[T]
   private def Array() = abort("Invalid Array creation")
 
+  //[ The element at index `i`, 0-based.
+    !
+    ! The index is not bounds-checked. An out-of-range access fails with a
+    ! backend-level error rather than a Jo `abort`, so prefer `mutable.List`
+    ! where the index is not already known to be valid.
+  //]
   @intrinsic
   def get(i: Int): T = ...
 
+  //[ The number of elements. Fixed when the array is created. //]
   @intrinsic
   def size: Int = ...
 
+  //[ Store `value` at index `i`, 0-based. The index is not bounds-checked. //]
   @intrinsic
   def set(i: Int, value: T): Unit = ...
 
+  //[ A new array with the same length and the same elements. Shallow: elements are not copied. //]
   @intrinsic
   def clone: Array[T] = ...
 
+  //[ Return a string representation, e.g. `[1, 2, 3]`. Shows at most 100 elements. //]
   def toString(auto elementShow: Show[T] with [[T].toString]): String =
     // Show at most 100
     var res = "["
@@ -49,6 +59,7 @@ class Array[T]
 
 end
 
+//[ Operations on `Array` that are not methods. //]
 section Array
   //[ create an object Array   //]
   defer def create[T](size: Int): Array[T]

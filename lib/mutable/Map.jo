@@ -4,6 +4,7 @@ import jo.*
 
 //[ Factory methods for `mutable.Map`. //]
 section Map
+  //[ Number of slots a new map starts with, before it first grows. //]
   def initialCapacity: Int = 16
 
   //[ Create an empty map. //]
