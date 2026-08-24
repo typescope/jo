@@ -1,7 +1,5 @@
 namespace jo.compile
 
-import jo.String
-
 //[ Vararg element type accepting positional args, splices, and keyword args.
   !
   ! Used as the element type of a vararg parameter to allow mixed calling

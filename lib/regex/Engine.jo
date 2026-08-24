@@ -1,7 +1,5 @@
 namespace jo.regex
 
-import jo.*
-
 //[ The backend regular-expression engine behind `Regex`.
   !
   ! Application code uses `Regex`; this section is the seam the backends

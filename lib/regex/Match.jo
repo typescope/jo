@@ -1,7 +1,5 @@
 namespace jo.regex
 
-import jo.*
-
 //[ One successful regular-expression match
   !
   ! `from` and `length` locate the match in the subject string; the group

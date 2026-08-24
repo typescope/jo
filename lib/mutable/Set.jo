@@ -1,7 +1,5 @@
 namespace jo.mutable
 
-import jo.*
-
 //[ Factory methods for `mutable.Set`. //]
 section Set
   //[ Number of slots a new set starts with, before it first grows. //]

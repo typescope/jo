@@ -1,7 +1,5 @@
 namespace jo.mutable
 
-import jo.*
-
 //[ Factory methods for `mutable.Map`. //]
 section Map
   //[ Number of slots a new map starts with, before it first grows. //]

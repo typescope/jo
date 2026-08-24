@@ -1,7 +1,5 @@
 namespace jo.regex
 
-import jo.*
-
 //[ Portable regular expression value.
   !
   ! Jo regexes intentionally support only a conservative common subset so the
