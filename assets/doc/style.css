@@ -629,6 +629,29 @@ h3 {
 .doc a       { color: var(--brand-1); text-decoration: none; }
 .doc a:hover { text-decoration: underline; }
 
+.doc table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.9rem 0 1.2rem;
+  font-size: 0.94rem;
+}
+.doc th,
+.doc td {
+  text-align: left;
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.doc th {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.doc tbody tr:last-child td { border-bottom: none; }
+.doc tbody tr:hover { background: var(--bg-secondary); }
+
 .doc h1 { font-size: 1.75rem; margin-bottom: 1rem; }
 .doc h2 { font-size: 1.25rem; margin-top: 1.5rem; }
 .doc h3 { font-size: 1.05rem; margin-top: 1.25rem; }
