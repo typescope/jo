@@ -2,7 +2,8 @@
 
 Jo ships **four libraries**, and this bundle documents all of them. They are not
 peers: one is confined, and three are not. Which is which decides what a program
-built on them is able to do.
+built on them is able to do. Everything under `jo` except `jo.py`, `jo.rb` and
+`jo.js` is the standard library.
 
 <svg viewBox="0 0 760 360" role="img" width="100%"
      aria-label="A wall separates two worlds. On the green confined side sits the jo standard library, which has no FFI, no ambient authority and cannot originate an effect; confinement is transitive, so confined code may depend only on confined code. On the orange trusted side, the jo.py, jo.rb and jo.js runtime libraries reach the host platform: filesystem, network, processes and any module. The only opening in the wall is a gate through which capabilities pass into confined code at link time. A direct route from confined code to the host is blocked."
@@ -66,14 +67,16 @@ built on them is able to do.
         fill="currentColor" fill-opacity="0.7">a runtime library is reachable only under --use-runtime-api</text>
 </svg>
 
-## Stability
+## The four libraries
 
-| Library | Status |
-| --- | --- |
-| [`jo`](#/jo) — standard library | Stabilizing |
-| [`jo.py`](#/jo.py) — Python interop | Stabilizing |
-| [`jo.rb`](#/jo.rb) — Ruby interop | Experimental |
-| [`jo.js`](#/jo.js) — JavaScript interop | Experimental |
+The standard library spans five namespaces; each runtime API is a single one.
+
+| Library | Namespaces | Status |
+| --- | --- | --- |
+| Standard library | [`jo`](#/jo) · [`jo.mutable`](#/jo.mutable) · [`jo.regex`](#/jo.regex) · [`jo.resource`](#/jo.resource) · [`jo.compile`](#/jo.compile) | Stabilizing |
+| Python interop | [`jo.py`](#/jo.py) | Stabilizing |
+| Ruby interop | [`jo.rb`](#/jo.rb) | Experimental |
+| JavaScript interop | [`jo.js`](#/jo.js) | Experimental |
 
 *Stabilizing* means the shape is settling: breaking changes are not intended, but
 expect some to slip through. *Experimental* means the API may change at any time.
