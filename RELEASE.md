@@ -50,14 +50,21 @@ This produces:
 
 - [ ] Tarball and checksum created
 
-The standard library API docs ship as a release asset, which is what
+The library API docs ship as a release asset, which is what
 `jo-lang.org/stdlib/X.Y.Z/` is built from. Generate them with `bin/doc` rather
 than the released compiler: it runs the generator out of the working tree, so
 the bundle uses the current documentation system including any design changes
 made since the last release.
 
+The bundle covers all four libraries: the standard library, plus the `jo.py`,
+`jo.rb` and `jo.js` runtime FFI APIs. The runtime files are listed explicitly
+because only the FFI surface is published -- the rest of each `runtime/`
+directory is backend plumbing, not API.
+
 ```sh
-bin/doc --no-stdlib $(find lib -name '*.jo') \
+bin/doc --no-stdlib \
+  $(find lib -name '*.jo') \
+  runtime/python/py.jo runtime/ruby/rb.jo runtime/javascript/js.jo \
   --title "Jo Standard Library" \
   --project-version X.Y.Z \
   --readme lib/README.md \
