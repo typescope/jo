@@ -1,0 +1,11 @@
+namespace jo
+
+//[ Mark a definition as experimental
+  !
+  ! The annotation carries a stability level so tooling can decide whether to
+  ! surface the definition.
+//]
+annotation docTestExperimental(level: Int)
+
+//[ Mark a definition as deprecated. //]
+annotation docTestDeprecated

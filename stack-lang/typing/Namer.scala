@@ -1417,6 +1417,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
 
     val index = lazyDefn.index
     index.addLazy(funSym, computeInfo, () => computeInfo())
+    index.setDocComment(funSym, adef.docComment)
 
     Checks.add:
       withDefn:
