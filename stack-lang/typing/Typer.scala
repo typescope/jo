@@ -21,7 +21,6 @@ object Typer:
   : (List[FileUnit], pickle.LazyFileUnits) =
 
     val rootNameTable = defnLazy.rootNameTable
-    val rootScope = new Scope.RootScope(rootNameTable, owner = null)
 
     def checkPostTyping(units: List[FileUnit]): List[FileUnit] =
       given Definitions = defnLazy.value
@@ -51,7 +50,7 @@ object Typer:
 
     if libs.isEmpty then
       // compile stdlib to a lib
-      val units0 = new Namer().transform(unitsAst, rootNameTable, rootScope) <| "namer.source"
+      val units0 = new Namer().transform(unitsAst, rootNameTable) <| "namer.source"
       val units = if !rp.hasErrors then checkPostTyping(units0) else units0
 
       (units, new pickle.LazyFileUnits)
@@ -61,12 +60,7 @@ object Typer:
       val delayedUnits = new pickle.LazyFileUnits
       libs.foreach(lib => pickle.Decoder.loadPackage(lib, delayedUnits)) <| "load libs"
 
-      // Must be after loading the stdlib
-      val defn = defnLazy.value
-
-      val joScope = rootScope.fresh(defn.jo, defn.jo_nameTable)
-
-      val units0 = new Namer().transform(unitsAst, rootNameTable, joScope) <| "namer.source"
+      val units0 = new Namer().transform(unitsAst, rootNameTable) <| "namer.source"
       val units = if !rp.hasErrors then checkPostTyping(units0) else units0
 
       (units, delayedUnits)

@@ -41,11 +41,32 @@ class Namer(using Config) extends Applications with SelectionTyper:
   val exprTyper = new ExprTyper(this)
 
   def transform
-      (units: List[Ast.FileUnit], rootNameTable: NameTable, worldScope: Scope)
+      (units: List[Ast.FileUnit], rootNameTable: NameTable)
       (using defnLazy: Definitions.Lazy, rp: Reporter)
   : List[FileUnit] = Checks.delayed:
 
     given SymbolIndex = defnLazy.index
+
+    /** The prelude a file unit sits in: the root, with `jo` opened.
+      *
+      * This is what lets a nested namespace such as `jo.mutable` or `jo.py` see
+      * the standard library without importing it, however the stdlib reached
+      * this compilation -- loaded from `.sast` libraries, or compiled from
+      * source in this same run.
+      *
+      * It is built per unit rather than once up front because when the stdlib
+      * is itself being compiled, `jo` does not exist yet as this loop starts:
+      * `resolveNamespace` below is what creates it. Nothing reads a name
+      * through the prelude before then, since imports run in `delayedImports`
+      * and bodies in `delayedUnits`, both after every unit has been indexed.
+      * The prelude also holds `jo`'s name table by reference, so members
+      * registered later are still visible through it.
+      */
+    def prelude: Scope =
+      val root = new Scope.RootScope(rootNameTable, owner = null)
+      Definitions.resolveStatic(rootNameTable, List("jo"), SymbolKind.Container) match
+        case Some(joSym) => root.fresh(joSym, joSym.nameTable)
+        case None => root
 
     val delayedImports = new mutable.ArrayBuffer[() => Unit]
     val delayedUnits = new mutable.ArrayBuffer[(() => FileUnit, Source)]
@@ -57,7 +78,7 @@ class Namer(using Config) extends Applications with SelectionTyper:
       val memberTable = unitSym.nameTable
 
       // Default imports should be treated as just before normal imports
-      val importScope: Scope = worldScope.fresh(unitSym)
+      val importScope: Scope = prelude.fresh(unitSym)
       val defsScope: Scope = importScope.fresh(unitSym, memberTable)
 
       val delayedDefs =
