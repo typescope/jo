@@ -94,7 +94,7 @@ object JsonEmitter:
 
         // Skip singleton accessor functions (they have Flags.Object)
         case fd: FunDef if !fd.symbol.isMethod && !fd.symbol.is(Flags.Object) =>
-          addMember(fd.symbol.name, fd.symbol.fullName, "function")
+          addMember(fd.symbol.name, fd.symbol.fullName, funKind(fd.symbol))
 
         case pd: PatDef if !pd.resultType.tpe.isSingletonObjectType =>
           addMember(pd.symbol.name, pd.symbol.fullName, "pattern")
@@ -162,7 +162,7 @@ object JsonEmitter:
           // Skip singleton accessor functions (they have Flags.Object)
           case fd: FunDef if !fd.symbol.isMethod && !fd.symbol.is(Flags.Object) =>
             val doc = defn.index.docComment(fd.symbol).headOption
-            emitSymbol(fd.symbol, "function", doc)
+            emitSymbol(fd.symbol, funKind(fd.symbol), doc)
 
           case pd: PatDef if !pd.resultType.tpe.isSingletonObjectType =>
             val doc = defn.index.docComment(pd.symbol).headOption
@@ -610,6 +610,8 @@ object JsonEmitter:
       out.println(s"""$indent{""")
       out.println(s"""$indent  "name": ${jsonString(sym.name)},""")
       out.println(s"""$indent  "fullName": ${jsonString(sym.fullName)},""")
+      if sym.isAnnotation then
+        out.println(s"""$indent  "kind": "annotation",""")
 
       // Type params
       if fd.tparams.nonEmpty then
@@ -738,6 +740,14 @@ object JsonEmitter:
 
         val sym = sec.symbol
         out.print(s"""$indent{ "name": ${jsonString(sym.name)}, "fullName": ${jsonString(sym.fullName)} }""")
+
+  /** The documented kind of a top-level term.
+    *
+    * `annotation` declarations are lowered to a FunDef carrying Flags.Annotation,
+    * so without this they would be published as ordinary functions.
+    */
+  private def funKind(sym: Symbol): String =
+    if sym.isAnnotation then "annotation" else "function"
 
   /** Check if a section has any visible (non-private unless includePrivate) members */
   private def hasVisibleMembers(sec: Section, includePrivate: Boolean): Boolean =

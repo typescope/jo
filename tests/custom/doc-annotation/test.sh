@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Regression test: doc comments on `annotation` declarations must reach the
-# generated documentation.
+# Regression test: `annotation` declarations must be documented correctly --
+# they must carry their doc comment, and be reported as kind "annotation"
+# rather than as an ordinary function.
 #
 # Two separate defects used to drop them:
 #   1. Scanner.isDefStartToken did not list Token.ANNOTATION, so the scanner
@@ -9,6 +10,10 @@
 #   2. Namer.transformAnnotationDef never called index.setDocComment, so even a
 #      doc that survived parsing was not recorded for the symbol.
 # Both must stay fixed for the summary and body below to appear.
+#
+# A third defect published annotations with kind "function": they are lowered
+# to a FunDef carrying Flags.Annotation, and the doc emitters did not look at
+# that flag.
 
 set -euo pipefail
 
@@ -39,16 +44,30 @@ cd "$PROJECT_ROOT"
 
 DATA="$DOC_DIR/data.js"
 
-# The summary line is the first line of the doc comment.
-if ! grep -q -- '"fullName": "jo.docTestExperimental", "kind": "function", "summary": "Mark a definition as experimental"' "$DATA"; then
-    echo "Missing summary for jo.docTestExperimental"
+# The summary line is the first line of the doc comment, and the kind must be
+# "annotation" -- not "function".
+if ! grep -q -- '"fullName": "jo.docTestExperimental", "kind": "annotation", "summary": "Mark a definition as experimental"' "$DATA"; then
+    echo "Wrong kind or missing summary for jo.docTestExperimental"
     grep -o '"fullName": "jo.docTestExperimental"[^}]*}' "$DATA" || echo "  (symbol not found at all)"
     exit 1
 fi
 
 # A single-line doc comment must work too.
-if ! grep -q -- '"fullName": "jo.docTestDeprecated", "kind": "function", "summary": "Mark a definition as deprecated."' "$DATA"; then
-    echo "Missing summary for jo.docTestDeprecated"
+if ! grep -q -- '"fullName": "jo.docTestDeprecated", "kind": "annotation", "summary": "Mark a definition as deprecated."' "$DATA"; then
+    echo "Wrong kind or missing summary for jo.docTestDeprecated"
+    grep -o '"fullName": "jo.docTestDeprecated"[^}]*}' "$DATA" || echo "  (symbol not found at all)"
+    exit 1
+fi
+
+# The nav tree reports the kind as well.
+if ! grep -q -- '"fullName": "jo.docTestExperimental", "kinds": \["annotation"\]' "$DATA"; then
+    echo "Nav entry for jo.docTestExperimental is not kind annotation"
+    exit 1
+fi
+
+# Entries in the symbols block carry the kind so the viewer can group them.
+if ! grep -q -- '"kind": "annotation"' "$DATA"; then
+    echo "symbols block does not tag annotations with their kind"
     exit 1
 fi
 
@@ -65,12 +84,12 @@ STDLIB_DOC_DIR="$DOC_DIR-stdlib"
 
 STDLIB_DATA="$STDLIB_DOC_DIR/data.js"
 
-if ! grep -q -- '"fullName": "jo.shadow", "kind": "function", "summary": "Mark an extension method' "$STDLIB_DATA"; then
+if ! grep -q -- '"fullName": "jo.shadow", "kind": "annotation", "summary": "Mark an extension method' "$STDLIB_DATA"; then
     echo "Missing summary for the stdlib annotation jo.shadow"
     exit 1
 fi
 
-if ! grep -q -- '"fullName": "jo.compile.intrinsic", "kind": "function", "summary": "Mark an intrinsic definition"' "$STDLIB_DATA"; then
+if ! grep -q -- '"fullName": "jo.compile.intrinsic", "kind": "annotation", "summary": "Mark an intrinsic definition"' "$STDLIB_DATA"; then
     echo "Missing summary for the stdlib annotation jo.compile.intrinsic"
     exit 1
 fi
