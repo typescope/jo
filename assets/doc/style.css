@@ -468,6 +468,7 @@ h3 {
 .kind-class     { background: linear-gradient(135deg, #3b82f6, #6366f1); color: #fff; }
 .kind-interface { background: linear-gradient(135deg, #8b5cf6, #a855f7); color: #fff; }
 .kind-function  { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
+.kind-annotation{ background: linear-gradient(135deg, #84cc16, #4d7c0f); color: #fff; }
 .kind-pattern   { background: linear-gradient(135deg, #ec4899, #f43f5e); color: #fff; }
 .kind-type      { background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; }
 .kind-abstract  { background: linear-gradient(135deg, #64748b, #475569); color: #fff; }
@@ -509,6 +510,7 @@ h3 {
 
 /* ── Kind-specific accent borders ────────────────────────────────────────── */
 .kind-def-function  { border-left-color: #22c55e; }
+.kind-def-annotation{ border-left-color: #84cc16; }
 .kind-def-section   { border-left-color: #7c3aed; }
 .kind-def-class     { border-left-color: #3b82f6; }
 .kind-def-interface { border-left-color: #a78bfa; }

@@ -94,4 +94,30 @@ if ! grep -q -- '"fullName": "jo.compile.intrinsic", "kind": "annotation", "summ
     exit 1
 fi
 
+# Every kind the emitter can produce needs a `.kind-<kind>` badge rule in the
+# stylesheet, or the viewer renders an unstyled, invisible badge. This is how
+# "annotation" shipped with no badge once it became its own kind.
+CSS="$(dirname "$STDLIB_DATA")/assets/style.css"
+[ -f "$CSS" ] || CSS="$(dirname "$STDLIB_DATA")/style.css"
+
+if [ ! -f "$CSS" ]; then
+    echo "Could not find the generated stylesheet next to $STDLIB_DATA"
+    exit 1
+fi
+
+# Only symbol entries, which are the ones that get a badge. Matching on the
+# `"fullName": ..., "kind": ...` pair skips the type descriptors in the symbols
+# block, which reuse the "kind" key for `ref`, `applied`, `union` and friends.
+# `leaf` is the nav tree's namespace node and carries no badge.
+missing=""
+for kind in $(grep -o '"fullName": "[^"]*", "kind": "[a-z]*"' "$STDLIB_DATA" \
+                | sed 's/.*"kind": "//; s/"//' | sort -u | grep -v '^leaf$'); do
+    grep -q "\.kind-$kind[[:space:]]*{" "$CSS" || missing="$missing $kind"
+done
+
+if [ -n "$missing" ]; then
+    echo "Kinds emitted with no .kind-<kind> badge rule in style.css:$missing"
+    exit 1
+fi
+
 echo "  ✓ All tests passed for $TEST_NAME"
