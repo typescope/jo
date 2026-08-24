@@ -131,8 +131,13 @@ object JsonEmitter:
       val defn = summon[Definitions]
 
       def processDef(d: Def): Unit =
+        // A private container hides everything inside it, so bail out before
+        // recursing. Without this a `private section` still contributed all of
+        // its members to the search index, even though nav excluded it.
+        if !includePrivate && d.symbol.isPrivate then return
+
         d match
-          case cd: ClassDef if includePrivate || !cd.symbol.isPrivate =>
+          case cd: ClassDef =>
             val kind =
               if cd.symbol.is(Flags.Object) then "object"
               else if cd.symbol.isInterface then "interface"
@@ -145,7 +150,7 @@ object JsonEmitter:
               val methodDoc = defn.index.docComment(meth.symbol).headOption
               emitSymbol(meth.symbol, "method", methodDoc)
 
-          case id: InterfaceDef if includePrivate || !id.symbol.isPrivate =>
+          case id: InterfaceDef =>
             val doc = defn.index.docComment(id.symbol).headOption
             emitSymbol(id.symbol, "interface", doc)
 
@@ -163,7 +168,7 @@ object JsonEmitter:
             val doc = defn.index.docComment(pd.symbol).headOption
             emitSymbol(pd.symbol, "pattern", doc)
 
-          case td: TypeDef if includePrivate || !td.symbol.isPrivate =>
+          case td: TypeDef =>
             val kind = if td.symbol.is(Flags.Defer) then "abstract" else "type"
             val doc = defn.index.docComment(td.symbol).headOption
             emitSymbol(td.symbol, kind, doc)
@@ -192,7 +197,10 @@ object JsonEmitter:
     def collectFromDefs(defs: List[Def]): Unit =
       for d <- defs do
         d match
-          case sec: Section if hasVisibleMembers(sec, includePrivate) =>
+          // A private section is not published, and neither is anything nested
+          // inside it, so do not descend into one either.
+          case sec: Section
+          if (includePrivate || !sec.symbol.isPrivate) && hasVisibleMembers(sec, includePrivate) =>
             sections += sec
             collectFromDefs(sec.defs)
           case _ => ()
