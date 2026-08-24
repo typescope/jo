@@ -1,10 +1,13 @@
 ---
 author: Fengyun Liu
-status: Draft
+status: Accepted
 created: 2026-08-23
+title: Drop optional context parameters
 ---
 
 # JIP 0002 — Drop optional context parameters
+
+<JipMeta />
 
 > *Il semble que la perfection soit atteinte non quand il n'y a plus rien à
 > ajouter, mais quand il n'y a plus rien à retrancher.*

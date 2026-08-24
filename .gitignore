@@ -9,6 +9,7 @@ hs_err_pid*
 .bsp/
 *.run
 *.js
+!docs/jips/jips.data.js
 *.py
 *.rb
 *.out
