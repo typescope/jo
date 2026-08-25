@@ -1640,10 +1640,8 @@ class Namer(using Config) extends Applications with SelectionTyper:
         Defaults.checkPostDefaults(astPostParams, postParamSyms, this)
       Checks.add { defaults.value }
 
-      /* The effects of a method symbol stored in the type is different from those
-       * raw effects computed from the code due to the auto provision of optional
-       * context parameters.
-       */
+      // Keep inferred receives lazy through the effect engine; store explicit
+      // bounds directly when the source provided a receives clause.
       val receivesInfo: Symbol | List[Symbol] =
         effectPolicyLazy.value.bound match
           case Some(effs) => effs

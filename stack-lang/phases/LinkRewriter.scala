@@ -89,8 +89,7 @@ object LinkRewriter:
             val sourceType = sourceSym.tpe
             val targetType = targetSym.tpe
 
-            // 1. First compare type, then compare effects for better error messages
-            // 2. If only optional context params differ, retrofit by synthesizing the defaults instead of reporting errors
+            // Compare full function types, including receives clauses, for type-safe linking.
 
             if !Subtyping.conforms(targetType, sourceType) then
               rp.error(
