@@ -14,14 +14,12 @@ final class JVMClassCompiler(
   methods: JVMClassCompiler.MethodCompiler,
   jvmType: Type => JType,
   methodDesc: (List[Type], Type) => String,
-  lambdaClass: String
+  lambdaABI: JVMLambdaABI
 )(using Definitions):
 
   def compileClass(cdef: ClassDef, constants: ConstantPool): (String, Array[Byte]) =
     val className = backend.className(cdef.symbol)
-    val isLambda =
-      cdef.symbol.is(Flags.Synthetic) && cdef.views.isEmpty &&
-        cdef.funs.exists(_.symbol.name == "apply")
+    val isLambda = lambdaABI.isMarkerLambda(cdef)
 
     val fields = cdef.vals.map { field =>
       FieldOut(AccessFlags.Public, field.symbol.name, descOf(jvmType(field.tpt.tpe)))
@@ -39,7 +37,7 @@ final class JVMClassCompiler(
     val declaredInterfaces = cdef.views
       .flatMap(view => JVMTypes.classOrInterfaceSymbol(view.tpe))
       .map(backend.requireClass)
-    val interfaces = (if isLambda then lambdaClass :: Nil else Nil) ++ declaredInterfaces
+    val interfaces = lambdaABI.implementedInterfaces(cdef, declaredInterfaces)
     val bytes = ClassFile.write(
       constants, className, ObjectClass, interfaces, fields,
       constructor.toList ++ otherMethods

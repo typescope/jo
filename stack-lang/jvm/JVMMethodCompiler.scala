@@ -14,7 +14,8 @@ final class JVMMethodCompiler(
   backend: JVMBackendContext,
   expressions: JVMMethodCompiler.Expressions,
   jvmType: Type => JType,
-  methodDesc: (List[Type], Type) => String
+  methodDesc: (List[Type], Type) => String,
+  lambdaABI: JVMLambdaABI
 )(using Definitions) extends JVMClassCompiler.MethodCompiler:
 
   def compileTopLevel(fdef: FunDef, constants: ConstantPool): MethodOut =
@@ -103,16 +104,9 @@ final class JVMMethodCompiler(
       argsArraySlot = Some(argumentsSlot)
     )
 
-    slots.reserveUpTo(2)
-    fdef.params.zipWithIndex.foreach { (param, index) =>
-      val parameterType = jvmType(param.tpe)
-      val slot = slots.bind(param, parameterType)
-      writer.aload(argumentsSlot)
-      writer.iconst(index)
-      writer.aaload()
-      expressions.adaptTo(Ref(ObjectDesc), parameterType, writer)
-      expressions.storeLocal(parameterType, slot, writer)
-    }
+    lambdaABI.unpackParameters(
+      fdef.params, slots, argumentsSlot, jvmType, expressions.adaptTo, writer
+    )
     val locals = fdef.locals.map(local => local -> slots.bind(local, jvmType(local.tpe)))
     expressions.initializeLocals(locals, writer)
     expressions.compile(fdef.body)
@@ -122,7 +116,7 @@ final class JVMMethodCompiler(
 
     val (code, maxStack, maxLocals) = writer.finish()
     MethodOut(
-      AccessFlags.Public, "apply", "([Ljava/lang/Object;)Ljava/lang/Object;",
+      AccessFlags.Public, lambdaABI.applyName, lambdaABI.applyDescriptor,
       Some((code, maxStack, maxLocals))
     )
 

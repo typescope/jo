@@ -15,7 +15,7 @@ final class JVMExpressionCompiler(
   runtime: JVMRuntime,
   jvmType: Type => JType,
   methodDesc: (List[Type], Type) => String,
-  lambdaClass: String
+  lambdaABI: JVMLambdaABI
 )(using defn: Definitions) extends JVMMethodCompiler.Expressions:
   import JVMCodeGen.MainClassName
   private type MethodCtx = JVMMethodContext
@@ -396,7 +396,7 @@ final class JVMExpressionCompiler(
     val fun = stripTypeApply(funRaw)
 
     if funRaw.tpe.isLambdaType then
-      compileLambdaCall(fun, allArgs, jvmType(apply.tpe))
+      lambdaABI.emitCall(fun, allArgs, jvmType(apply.tpe), compile, jvmType, adaptTo, ctx.cw)
     else
       fun match
         case Ident(symRaw) =>
@@ -953,21 +953,6 @@ final class JVMExpressionCompiler(
     // — same reasoning as `compileMethodCall`'s argument loop.
     args.foreach(compile)
     ctx.cw.invokespecial(className, Names.Constructor, "(" + ctorParamTypes.map(t => descOf(jvmType(t))).mkString + ")V")
-
-  private def compileLambdaCall(fun: Word, args: List[Word], resultType: JType)(using ctx: MethodCtx): Unit =
-    val cw = ctx.cw
-    compile(fun); adaptTo(jvmType(fun.tpe), Ref(ObjectDesc), cw)
-    cw.checkcast(lambdaClass)
-    cw.iconst(args.size)
-    cw.anewarray(ObjectClass)
-    for (a, i) <- args.zipWithIndex do
-      cw.dup()
-      cw.iconst(i)
-      compile(a)
-      adaptTo(jvmType(a.tpe), Ref(ObjectDesc), cw)
-      cw.aastore()
-    cw.invokeinterface(lambdaClass, "apply", "([Ljava/lang/Object;)Ljava/lang/Object;")
-    adaptTo(Ref(ObjectDesc), resultType, cw) // handles the value-drop (pop) when resultType is V
 
   //----------------------------------------------------------------------------
   // Representation adaptation (boxing / unboxing / checkcast / value-drop)

@@ -30,11 +30,11 @@ import scala.collection.mutable
 class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: Definitions):
   import JVMCodeGen.*
   import JVMBackendContext.Pending
-  val LambdaClass = "Lambda" // hand-written marker interface, see JVMRuntimeClasses
   private val backend = new JVMBackendContext(rewire)
-  private val expressionCompiler = new JVMExpressionCompiler(backend, runtime, jvmType, methodDesc, LambdaClass)
-  private val methodCompiler = new JVMMethodCompiler(backend, expressionCompiler, jvmType, methodDesc)
-  private val classCompiler = new JVMClassCompiler(backend, methodCompiler, jvmType, methodDesc, LambdaClass)
+  private val lambdaABI = new JVMLambdaABI
+  private val expressionCompiler = new JVMExpressionCompiler(backend, runtime, jvmType, methodDesc, lambdaABI)
+  private val methodCompiler = new JVMMethodCompiler(backend, expressionCompiler, jvmType, methodDesc, lambdaABI)
+  private val classCompiler = new JVMClassCompiler(backend, methodCompiler, jvmType, methodDesc, lambdaABI)
 
   def jvmType(tp: Type): JType =
     // Only the SAST's *internal* `VoidType` marker (statement-context/
