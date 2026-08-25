@@ -11,19 +11,42 @@ import jvm.JVMTypes.JType.*
   * single conversion contract to target.
   */
 object JVMAdaptation:
-  def emit(actual: JType, expected: JType, cw: CodeWriter): Unit =
-    if actual == expected then ()
+  enum Conversion:
+    case Identity, Drop, UnitValue
+    case Box(primitive: JType)
+    case Unbox(primitive: JType)
+    case CheckCast(internalName: String)
+
+  import Conversion.*
+
+  /** Decide a conversion without emitting bytecode. Lowering and tests can
+    * reason about representation policy independently of the class writer.
+    */
+  def conversion(actual: JType, expected: JType): Conversion =
+    if actual == expected then Identity
     else
       (actual, expected) match
-        case (_, V) => if actual != V then cw.pop()
-        case (V, Ref(_)) => cw.aconstNull()
-        case (V, _) => ()
-        case (a, Ref(ObjectDesc)) if isIntCat(a) => box(a, cw)
-        case (Ref(d), b) if isIntCat(b) && d == ObjectDesc => unbox(b, cw)
-        case (a, b) if isIntCat(a) && isIntCat(b) => ()
-        case (Ref(_), Ref(ObjectDesc)) => ()
-        case (Ref(_), Ref(d)) => cw.checkcast(internalNameOf(Ref(d)))
+        case (_, V) if actual != V => Drop
+        case (V, Ref(_)) => UnitValue
+        case (V, _) => Identity
+        case (a, Ref(ObjectDesc)) if isIntCat(a) => Box(a)
+        case (Ref(d), b) if isIntCat(b) && d == ObjectDesc => Unbox(b)
+        case (a, b) if isIntCat(a) && isIntCat(b) => Identity
+        case (Ref(_), Ref(ObjectDesc)) => Identity
+        case (Ref(_), Ref(d)) => CheckCast(internalNameOf(Ref(d)))
         case _ => throw new Exception("JVM backend prototype: no conversion from " + actual + " to " + expected)
+
+  def emit(actual: JType, expected: JType, cw: CodeWriter): Unit =
+    emit(conversion(actual, expected), cw)
+
+  def emit(conversion: Conversion, cw: CodeWriter): Unit =
+    conversion match
+      case Identity => ()
+      case Drop => cw.pop()
+      case UnitValue => cw.aconstNull()
+      case Box(primitive) => box(primitive, cw)
+      case Unbox(primitive) => unbox(primitive, cw)
+      case CheckCast(internalName) => cw.checkcast(internalName)
 
   private def box(t: JType, cw: CodeWriter): Unit =
     val (owner, desc) = t match
@@ -47,4 +70,3 @@ object JVMAdaptation:
       case _ => throw new Exception("cannot unbox " + t)
     cw.checkcast(owner)
     cw.invokevirtual(owner, meth, desc)
-

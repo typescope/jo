@@ -30,6 +30,8 @@ import scala.collection.mutable
 class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: Definitions):
   import JVMCodeGen.*
   import JVMBackendContext.Pending
+  private type MethodCtx = JVMMethodContext
+  private type Slots = JVMMethodSlots
   val LambdaClass = "Lambda" // hand-written marker interface, see JVMRuntimeClasses
   private val backend = new JVMBackendContext(rewire)
 
@@ -118,57 +120,6 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     runtime.nativeSpec(sym).isDefined || sym.hasAnnotation(defn.intrinsic)
 
   //----------------------------------------------------------------------------
-  // Local variable slots
-  //----------------------------------------------------------------------------
-
-  private class Slots:
-    private val slot = mutable.Map.empty[Symbol, Int]
-    private var next = 0
-
-    def reserveUpTo(n: Int): Unit = if n > next then next = n
-
-    def bind(sym: Symbol, t: JType): Int =
-      val s = next
-      slot(sym) = s
-      next += (if t == J then 2 else 1)
-      s
-
-    def apply(sym: Symbol): Int = slot(sym)
-    def contains(sym: Symbol): Boolean = slot.contains(sym)
-
-    /** Total local-variable slots handed out so far. `CodeWriter` computes
-      * `max_locals` from observed `iload`/`istore`/etc. references only, so
-      * a trailing parameter that's never read in the body (e.g. an
-      * intentionally unused one) would otherwise leave `max_locals` too
-      * small for the method descriptor — the JVM's own "arguments can't fit
-      * into locals" `ClassFormatError`. Callers touch this many slots
-      * explicitly right after binding parameters to rule that out.
-      */
-    def used: Int = next
-
-  //----------------------------------------------------------------------------
-  // Per-method compilation context
-  //----------------------------------------------------------------------------
-
-  /** `selfSym`, when set, is the ClassDef's `self` symbol and always lives in
-    * local slot 0 (`this`). `argsArraySlot`, when set, is the local slot of
-    * the incoming `Object[] args` array for a uniform-convention lambda
-    * `apply` method. `localLabels` maps a `Labeled` block's label symbol to
-    * its end-of-block jump target — used to compile `TailCallOpt`'s
-    * `_tco_loop` labeled blocks and local `Return(label, ...)` "break out
-    * of this block" jumps, as opposed to a `Return` to the enclosing
-    * function itself. (No declared result type is tracked alongside the
-    * label: `Erasure`'s own `Return`/`Labeled` handling already erases the
-    * jump's value against that block's own recorded type before this
-    * backend ever sees it — see the `Return` case's doc comment.)
-    */
-  private class MethodCtx(
-    val cw: CodeWriter, val slots: Slots, val returnType: JType,
-    val selfSym: Option[Symbol], val argsArraySlot: Option[Int] = None,
-    val localLabels: mutable.Map[Symbol, ClassFile.Label] = mutable.Map.empty
-  )
-
-  //----------------------------------------------------------------------------
   // Top-level (static) function compilation
   //----------------------------------------------------------------------------
 
@@ -176,7 +127,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     val sym = fdef.symbol
     val procType = sym.tpe.asProcType
     val cw = new CodeWriter(cp)
-    val slots = new Slots
+    val slots = new JVMMethodSlots
 
     // A concrete (default) method declared inside an `interface` body — see
     // compileInterface — is compiled here as an ordinary static function
@@ -195,7 +146,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     val localTypes = for local <- fdef.locals yield local -> slots.bind(local, jvmType(local.tpe))
 
     val resType = jvmType(procType.resultType)
-    given MethodCtx = new MethodCtx(cw, slots, resType, selfSym = selfOpt)
+    given JVMMethodContext = new JVMMethodContext(cw, slots, resType, selfSym = selfOpt)
 
     emitLocalDefaults(localTypes, cw)
     compile(fdef.body)
@@ -339,7 +290,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     */
   private def compileConstructor(fdef: FunDef, cdef: ClassDef, cp: ConstantPool): MethodOut =
     val cw = new CodeWriter(cp)
-    val slots = new Slots
+    val slots = new JVMMethodSlots
     slots.bind(cdef.self, Ref(ObjectDesc)) // reserve slot 0 for `this`
 
     val ctorParams = fdef.params // constructor's own explicit params are the field values
@@ -391,14 +342,14 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     val sym = fdef.symbol
     val procType = sym.tpe.asProcType
     val cw = new CodeWriter(cp)
-    val slots = new Slots
+    val slots = new JVMMethodSlots
     slots.bind(self, Ref(ObjectDesc))
     for param <- fdef.allParams do slots.bind(param, jvmType(param.tpe))
     if slots.used > 0 then cw.touchLocal(slots.used - 1) // see Slots.used
     val localTypes = for local <- fdef.locals yield local -> slots.bind(local, jvmType(local.tpe))
 
     val resType = jvmType(procType.resultType)
-    given MethodCtx = new MethodCtx(cw, slots, resType, selfSym = Some(self))
+    given JVMMethodContext = new JVMMethodContext(cw, slots, resType, selfSym = Some(self))
 
     emitLocalDefaults(localTypes, cw)
     compile(fdef.body)
@@ -428,13 +379,13 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     */
   private def compileLambdaApply(fdef: FunDef, cdef: ClassDef, cp: ConstantPool): MethodOut =
     val cw = new CodeWriter(cp)
-    val slots = new Slots
+    val slots = new JVMMethodSlots
     slots.bind(cdef.self, Ref(ObjectDesc)) // slot 0 = this
     val argsSlot = 1
     cw.touchLocal(argsSlot) // reserve slot 1 = incoming Object[] args
 
     val resType = jvmType(fdef.resultType.tpe)
-    given MethodCtx = new MethodCtx(cw, slots, resType, selfSym = Some(cdef.self), argsArraySlot = Some(argsSlot))
+    given JVMMethodContext = new JVMMethodContext(cw, slots, resType, selfSym = Some(cdef.self), argsArraySlot = Some(argsSlot))
 
     // Unpack args[i] into locals matching the lambda's own parameter slots.
     // Locals start at slot 2 (0 = this, 1 = args array).
