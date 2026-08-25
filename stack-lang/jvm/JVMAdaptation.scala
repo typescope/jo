@@ -1,6 +1,6 @@
 package jvm
 
-import jvm.ClassFile.CodeWriter
+import jvm.JVMInstructionEmitter
 import jvm.JVMTypes.*
 import jvm.JVMTypes.JType.*
 
@@ -36,10 +36,10 @@ object JVMAdaptation:
         case (Ref(_), Ref(d)) => CheckCast(internalNameOf(Ref(d)))
         case _ => throw new Exception("JVM backend prototype: no conversion from " + actual + " to " + expected)
 
-  def emit(actual: JType, expected: JType, cw: CodeWriter): Unit =
+  def emit(actual: JType, expected: JType, cw: JVMInstructionEmitter): Unit =
     emit(conversion(actual, expected), cw)
 
-  def emit(conversion: Conversion, cw: CodeWriter): Unit =
+  def emit(conversion: Conversion, cw: JVMInstructionEmitter): Unit =
     conversion match
       case Identity => ()
       case Drop => cw.pop()
@@ -48,7 +48,7 @@ object JVMAdaptation:
       case Unbox(primitive) => unbox(primitive, cw)
       case CheckCast(internalName) => cw.checkcast(internalName)
 
-  private def box(t: JType, cw: CodeWriter): Unit =
+  private def box(t: JType, cw: JVMInstructionEmitter): Unit =
     val (owner, desc) = t match
       case I => ("java/lang/Integer", "(I)Ljava/lang/Integer;")
       case Z => ("java/lang/Boolean", "(Z)Ljava/lang/Boolean;")
@@ -59,7 +59,7 @@ object JVMAdaptation:
       case _ => throw new Exception("cannot box " + t)
     cw.invokestatic(owner, "valueOf", desc)
 
-  private def unbox(t: JType, cw: CodeWriter): Unit =
+  private def unbox(t: JType, cw: JVMInstructionEmitter): Unit =
     val (owner, meth, desc) = t match
       case I => ("java/lang/Integer", "intValue", "()I")
       case Z => ("java/lang/Boolean", "booleanValue", "()Z")

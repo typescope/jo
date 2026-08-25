@@ -8,6 +8,7 @@ import sast.Types.*
 import jvm.ClassFile.*
 import jvm.JVMTypes.*
 import jvm.JVMTypes.JType.*
+import jvm.JVMInstructionEmitter
 
 /** Assembles complete JVM methods around expression lowering. */
 final class JVMMethodCompiler(
@@ -120,16 +121,16 @@ final class JVMMethodCompiler(
       Some((code, maxStack, maxLocals))
     )
 
-  private def touchAllocatedSlots(slots: JVMMethodSlots, writer: CodeWriter): Unit =
+  private def touchAllocatedSlots(slots: JVMMethodSlots, writer: JVMInstructionEmitter): Unit =
     if slots.used > 0 then writer.touchLocal(slots.used - 1)
 
 object JVMMethodCompiler:
   /** Expression-lowering service required by method assembly. */
   trait Expressions:
     def compile(word: Word)(using JVMMethodContext): Unit
-    def compileInline(word: Word, slots: JVMMethodSlots, writer: CodeWriter, self: Symbol): Unit
+    def compileInline(word: Word, slots: JVMMethodSlots, writer: JVMInstructionEmitter, self: Symbol): Unit
     def isTerminal(word: Word): Boolean
-    def emitReturn(tpe: JType, writer: CodeWriter): Unit
-    def initializeLocals(locals: List[(Symbol, Int)], writer: CodeWriter): Unit
-    def adaptTo(actual: JType, expected: JType, writer: CodeWriter): Unit
-    def storeLocal(tpe: JType, slot: Int, writer: CodeWriter): Unit
+    def emitReturn(tpe: JType, writer: JVMInstructionEmitter): Unit
+    def initializeLocals(locals: List[(Symbol, Int)], writer: JVMInstructionEmitter): Unit
+    def adaptTo(actual: JType, expected: JType, writer: JVMInstructionEmitter): Unit
+    def storeLocal(tpe: JType, slot: Int, writer: JVMInstructionEmitter): Unit

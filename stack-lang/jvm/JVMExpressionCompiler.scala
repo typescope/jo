@@ -5,9 +5,9 @@ import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
 
-import jvm.ClassFile.*
 import jvm.JVMTypes.*
 import jvm.JVMTypes.JType.*
+import jvm.JVMInstructionEmitter
 
 /** Lowers erased SAST expressions into JVM instructions for one method. */
 final class JVMExpressionCompiler(
@@ -23,7 +23,7 @@ final class JVMExpressionCompiler(
   private val primitiveCompiler = new JVMPrimitiveCompiler(runtime, jvmType, this)
   private val nativeCallCompiler = new JVMNativeCallCompiler(jvmType, this)
 
-  override def emitReturn(t: JType, cw: CodeWriter): Unit =
+  override def emitReturn(t: JType, cw: JVMInstructionEmitter): Unit =
     t match
       case V => cw.returnVoid()
       case r if isIntCat(r) => cw.ireturn()
@@ -44,7 +44,7 @@ final class JVMExpressionCompiler(
     * = _` locals — makes every incoming edge agree the slot holds *some*
     * value of the right category before the body ever runs.
     */
-  override def initializeLocals(locals: List[(Symbol, Int)], cw: CodeWriter): Unit =
+  override def initializeLocals(locals: List[(Symbol, Int)], cw: JVMInstructionEmitter): Unit =
     for (local, slot) <- locals do
       jvmType(local.tpe) match
         case V => ()
@@ -301,11 +301,11 @@ final class JVMExpressionCompiler(
         adaptTo(jvmType(qual.tpe), Ref("L" + owner + ";"), ctx.cw)
         owner
 
-  /** Compile a sub-expression using an already-open CodeWriter/Slots without
+  /** Compile a sub-expression using an already-open emitter/slots without
     * needing a full MethodCtx (used by the constructor emitter, which has a
     * restricted body shape and no control flow).
     */
-  override def compileInline(word: Word, slots: Slots, cw: CodeWriter, selfSym: Symbol): Unit =
+  override def compileInline(word: Word, slots: Slots, cw: JVMInstructionEmitter, selfSym: Symbol): Unit =
     given MethodCtx = new MethodCtx(cw, slots, V, selfSym = Some(selfSym))
     compile(word)
 
@@ -317,10 +317,8 @@ final class JVMExpressionCompiler(
       // sast.Constant) — `t` (the literal's target JVM type, e.g. `J` for a
       // `val x: Long = 5`) is what actually picks the right representation.
       case Constant.Int(n)  => if t == J then ctx.cw.lconst(n.toLong) else ctx.cw.iconst(n.toInt)
-      case Constant.String(s) => ctx.cw.ldc(cpOf(ctx).stringConst(s))
+      case Constant.String(s) => ctx.cw.stringConst(s)
       case Constant.Float(_) => throw new Exception("float literals not supported in this prototype")
-
-  private def cpOf(ctx: MethodCtx): ConstantPool = ctx.cw.constants
 
   private def compileIdent(sym: Symbol, t: JType)(using ctx: MethodCtx): Unit =
     if ctx.selfSym.contains(sym) then ctx.cw.aload(0)
@@ -329,12 +327,12 @@ final class JVMExpressionCompiler(
       // A field of the enclosing class, accessed as a bare Ident (self implicit)
       throw new Exception("Unsupported free identifier: " + sym.fullName)
 
-  private def loadLocal(t: JType, slot: Int, cw: CodeWriter): Unit =
+  private def loadLocal(t: JType, slot: Int, cw: JVMInstructionEmitter): Unit =
     if isIntCat(t) then cw.iload(slot)
     else if t == J then cw.lload(slot)
     else cw.aload(slot)
 
-  override def storeLocal(t: JType, slot: Int, cw: CodeWriter): Unit =
+  override def storeLocal(t: JType, slot: Int, cw: JVMInstructionEmitter): Unit =
     if isIntCat(t) then cw.istore(slot)
     else if t == J then cw.lstore(slot)
     else cw.astore(slot)
@@ -411,7 +409,7 @@ final class JVMExpressionCompiler(
         case Select(qual, name) if isStringOwner(qual.tpe) =>
           primitiveCompiler.compileString(qual, name, allArgs, jvmType(apply.tpe))
 
-        case Select(newExpr @ New(tpt), Names.Constructor) =>
+        case Select(New(tpt), Names.Constructor) =>
           compileNew(tpt.tpe, allArgs)
 
         case Select(qual, name) if qual.tpe.isClassInfoType =>
@@ -613,7 +611,7 @@ final class JVMExpressionCompiler(
       case Apply(inner, _, _) => paramSymOf(inner)
       case _ => throw new Exception("Unsupported argument to paramKey: " + w.show)
     val paramSym = paramSymOf(arg)
-    ctx.cw.ldc(cpOf(ctx).stringConst(paramSym.fullName))
+    ctx.cw.stringConst(paramSym.fullName)
 
   /** Emit a 0/1 int by branching on a JVM conditional-jump instruction. */
   override def boolFromBranch(branchIfTrue: ClassFile.Label => Unit)(using ctx: MethodCtx): Unit =
@@ -652,6 +650,6 @@ final class JVMExpressionCompiler(
   // Representation adaptation (boxing / unboxing / checkcast / value-drop)
   //----------------------------------------------------------------------------
 
-  override def adaptTo(actual: JType, expected: JType, cw: CodeWriter): Unit =
+  override def adaptTo(actual: JType, expected: JType, cw: JVMInstructionEmitter): Unit =
     JVMAdaptation.emit(actual, expected, cw)
 end JVMExpressionCompiler

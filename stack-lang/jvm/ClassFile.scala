@@ -175,7 +175,7 @@ object ClassFile:
     * resolving branch targets after the fact (a simple two-pass assembler,
     * mirroring the approach in native/Assembly.scala but for JVM opcodes).
     */
-  final class CodeWriter(val constants: ConstantPool):
+  final class CodeWriter(val constants: ConstantPool) extends JVMInstructionEmitter:
     private val cp = constants
     private val out = new ByteWriter
     private var curStack = 0
@@ -223,6 +223,8 @@ object ClassFile:
       if cpIndex <= 0xff then { op(18); out.u1(cpIndex) }
       else { op(19); out.u2(cpIndex) }
       stackDelta(1)
+
+    def stringConst(value: String): Unit = ldc(cp.stringConst(value))
 
     // `long`/`double` constant-pool entries are category-2 (see
     // `ConstantPoolEntry.width`); loading one always needs the wide

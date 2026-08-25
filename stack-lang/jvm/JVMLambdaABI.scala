@@ -5,7 +5,7 @@ import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
 
-import jvm.ClassFile.CodeWriter
+import jvm.JVMInstructionEmitter
 import jvm.JVMTypes.*
 import jvm.JVMTypes.JType.*
 
@@ -30,8 +30,8 @@ final class JVMLambdaABI(using Definitions):
 
   def unpackParameters(
     parameters: List[Symbol], slots: JVMMethodSlots, argumentsSlot: Int,
-    jvmType: Type => JType, adapt: (JType, JType, CodeWriter) => Unit,
-    writer: CodeWriter
+    jvmType: Type => JType, adapt: (JType, JType, JVMInstructionEmitter) => Unit,
+    writer: JVMInstructionEmitter
   ): Unit =
     slots.reserveUpTo(2) // slot 0 = this, slot 1 = Object[] arguments
     parameters.zipWithIndex.foreach { (parameter, index) =>
@@ -47,7 +47,7 @@ final class JVMLambdaABI(using Definitions):
   def emitCall(
     function: Word, arguments: List[Word], resultType: JType,
     compile: Word => Unit, jvmType: Type => JType,
-    adapt: (JType, JType, CodeWriter) => Unit, writer: CodeWriter
+    adapt: (JType, JType, JVMInstructionEmitter) => Unit, writer: JVMInstructionEmitter
   ): Unit =
     compile(function)
     adapt(jvmType(function.tpe), Ref(ObjectDesc), writer)
@@ -64,7 +64,7 @@ final class JVMLambdaABI(using Definitions):
     writer.invokeinterface(interfaceName, applyName, applyDescriptor)
     adapt(Ref(ObjectDesc), resultType, writer)
 
-  private def store(tpe: JType, slot: Int, writer: CodeWriter): Unit =
+  private def store(tpe: JType, slot: Int, writer: JVMInstructionEmitter): Unit =
     if isIntCat(tpe) then writer.istore(slot)
     else if tpe == J then writer.lstore(slot)
     else writer.astore(slot)
