@@ -8,20 +8,10 @@ import sast.Types.*
 import jvm.ClassFile.*
 import jvm.JVMTypes.*
 
-/** Method-body service required by class layout.
-  *
-  * `JVMCodeGen` implements this temporarily. The interface is the seam along
-  * which the short-lived `JVMMethodCompiler` will replace it.
-  */
-trait JVMMethodCompilation:
-  def compileConstructor(fdef: FunDef, owner: ClassDef, constants: ConstantPool): MethodOut
-  def compileInstanceMethod(fdef: FunDef, self: Symbol, constants: ConstantPool): MethodOut
-  def compileLambdaApply(fdef: FunDef, owner: ClassDef, constants: ConstantPool): MethodOut
-
 /** Computes JVM class/interface layout and delegates every method body. */
 final class JVMClassCompiler(
   backend: JVMBackendContext,
-  methods: JVMMethodCompilation,
+  methods: JVMClassCompiler.MethodCompiler,
   jvmType: Type => JType,
   methodDesc: (List[Type], Type) => String,
   lambdaClass: String
@@ -72,3 +62,13 @@ final class JVMClassCompiler(
       accessFlags = AccessFlags.Public | AccessFlags.Interface | AccessFlags.Abstract
     )
     name -> bytes
+
+object JVMClassCompiler:
+  /** Method-body service required by class layout. The consumer owns this
+    * contract; method compilation does not depend on the class compiler's
+    * concrete implementation.
+    */
+  trait MethodCompiler:
+    def compileConstructor(fdef: FunDef, owner: ClassDef, constants: ConstantPool): MethodOut
+    def compileInstanceMethod(fdef: FunDef, self: Symbol, constants: ConstantPool): MethodOut
+    def compileLambdaApply(fdef: FunDef, owner: ClassDef, constants: ConstantPool): MethodOut

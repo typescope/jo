@@ -9,27 +9,43 @@ import jvm.ClassFile.*
 import jvm.JVMTypes.*
 import jvm.JVMTypes.JType.*
 
-/** Transitional expression-lowering interface.
-  *
-  * It makes the remaining dependency explicit while method assembly moves
-  * out of `JVMCodeGen`. The next extraction moves this implementation into
-  * `JVMMethodCompiler` and removes the interface.
-  */
-trait JVMExpressionCompilation:
-  def compile(word: Word)(using JVMMethodContext): Unit
-  def compileInline(word: Word, slots: JVMMethodSlots, writer: CodeWriter, self: Symbol): Unit
-  def isTerminal(word: Word): Boolean
-  def emitReturn(tpe: JType, writer: CodeWriter): Unit
-  def initializeLocals(locals: List[(Symbol, Int)], writer: CodeWriter): Unit
-  def adaptTo(actual: JType, expected: JType, writer: CodeWriter): Unit
-  def storeLocal(tpe: JType, slot: Int, writer: CodeWriter): Unit
-
 /** Assembles complete JVM methods around expression lowering. */
 final class JVMMethodCompiler(
-  expressions: JVMExpressionCompilation,
+  backend: JVMBackendContext,
+  expressions: JVMMethodCompiler.Expressions,
   jvmType: Type => JType,
   methodDesc: (List[Type], Type) => String
-)(using Definitions) extends JVMMethodCompilation:
+)(using Definitions) extends JVMClassCompiler.MethodCompiler:
+
+  def compileTopLevel(fdef: FunDef, constants: ConstantPool): MethodOut =
+    val procType = fdef.symbol.tpe.asProcType
+    val writer = new CodeWriter(constants)
+    val slots = new JVMMethodSlots
+    val self =
+      if fdef.symbol.owner.isInterface then Some(backend.interfaceDef(fdef.symbol.owner).self)
+      else None
+    self.foreach(symbol => slots.bind(symbol, Ref(ObjectDesc)))
+    fdef.allParams.foreach(param => slots.bind(param, jvmType(param.tpe)))
+    touchAllocatedSlots(slots, writer)
+    val locals = fdef.locals.map(local => local -> slots.bind(local, jvmType(local.tpe)))
+    val resultType = jvmType(procType.resultType)
+    given JVMMethodContext = new JVMMethodContext(writer, slots, resultType, selfSym = self)
+
+    expressions.initializeLocals(locals, writer)
+    expressions.compile(fdef.body)
+    if !expressions.isTerminal(fdef.body) then expressions.emitReturn(resultType, writer)
+
+    val (code, maxStack, maxLocals) = writer.finish()
+    val parameterTypes = procType.paramTypes ++ procType.autoTypes
+    val selfDescriptor = if self.isDefined then ObjectDesc else ""
+    val descriptor =
+      "(" + selfDescriptor + parameterTypes.map(t => descOf(jvmType(t))).mkString + ")" +
+        descOf(jvmType(procType.resultType))
+    MethodOut(
+      AccessFlags.Public | AccessFlags.Static,
+      backend.topLevelName(fdef.symbol), descriptor,
+      Some((code, maxStack, maxLocals))
+    )
 
   override def compileConstructor(fdef: FunDef, owner: ClassDef, constants: ConstantPool): MethodOut =
     val writer = new CodeWriter(constants)
@@ -112,3 +128,14 @@ final class JVMMethodCompiler(
 
   private def touchAllocatedSlots(slots: JVMMethodSlots, writer: CodeWriter): Unit =
     if slots.used > 0 then writer.touchLocal(slots.used - 1)
+
+object JVMMethodCompiler:
+  /** Expression-lowering service required by method assembly. */
+  trait Expressions:
+    def compile(word: Word)(using JVMMethodContext): Unit
+    def compileInline(word: Word, slots: JVMMethodSlots, writer: CodeWriter, self: Symbol): Unit
+    def isTerminal(word: Word): Boolean
+    def emitReturn(tpe: JType, writer: CodeWriter): Unit
+    def initializeLocals(locals: List[(Symbol, Int)], writer: CodeWriter): Unit
+    def adaptTo(actual: JType, expected: JType, writer: CodeWriter): Unit
+    def storeLocal(tpe: JType, slot: Int, writer: CodeWriter): Unit
