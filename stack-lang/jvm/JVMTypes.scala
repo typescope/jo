@@ -35,6 +35,9 @@ object JVMTypes:
   val ThrowableClass = "java/lang/Throwable"
   val ObjectArrayDesc = "[Ljava/lang/Object;"
 
+  def classOrInterfaceSymbol(tpe: Type)(using Definitions): Option[Symbol] =
+    tpe.approx.typeSymbolOpt.filter(_.isOneOf(Flags.Class | Flags.Interface))
+
   def representationOf(tp: Type)(using defn: Definitions): Representation =
     import Representation.*
     if tp.isVoidType then Void
@@ -48,7 +51,7 @@ object JVMTypes:
         case StaticRef(sym) if sym == defn.Long_type => Long
         case StaticRef(sym) if sym == defn.String_type => String
         case _ =>
-          tp.approx.typeSymbolOpt.filter(_.isOneOf(Flags.Class | Flags.Interface)) match
+          classOrInterfaceSymbol(tp) match
             // Arrays are intrinsified as Object[] at their operations, but
             // ordinary Jo-level Array values retain the generic Object
             // representation used by the previous mapper.

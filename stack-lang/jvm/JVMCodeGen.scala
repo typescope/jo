@@ -27,13 +27,14 @@ import scala.collection.mutable
   * (or nothing, for `Unit`) — every call site relies on that postcondition
   * instead of threading an expected-type parameter through recursion.
   */
-class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: Definitions):
+class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: Definitions) extends JVMMethodCompilation:
   import JVMCodeGen.*
   import JVMBackendContext.Pending
   private type MethodCtx = JVMMethodContext
   private type Slots = JVMMethodSlots
   val LambdaClass = "Lambda" // hand-written marker interface, see JVMRuntimeClasses
   private val backend = new JVMBackendContext(rewire)
+  private val classCompiler = new JVMClassCompiler(backend, this, jvmType, methodDesc, LambdaClass)
 
   def jvmType(tp: Type): JType =
     // Only the SAST's *internal* `VoidType` marker (statement-context/
@@ -91,8 +92,8 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
         case Pending.TopLevel(fdef) =>
           if !isNativeOrIntrinsic(fdef.symbol) then
             mainClassMethods += compileTopLevelFunDef(fdef, cp)
-        case Pending.Class(cdef) => compileClass(cdef, cp)
-        case Pending.Interface(idef) => compileInterface(idef, cp)
+        case Pending.Class(cdef) => addClassFile(classCompiler.compileClass(cdef, cp))
+        case Pending.Interface(idef) => addClassFile(classCompiler.compileInterface(idef, cp))
       pending = backend.nextPending()
 
     // Synthetic entry point: `public static void main(String[] args)`
@@ -100,6 +101,9 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
     val mainBytes = ClassFile.write(cp, MainClassName, ObjectClass, Nil, Nil, mainClassMethods.toList)
     (classFiles.toMap + (MainClassName -> mainBytes), MainClassName)
+
+  private def addClassFile(compiled: (String, Array[Byte])): Unit =
+    classFiles(compiled._1) = compiled._2
 
   private def buildJavaMain(cp: ConstantPool): MethodOut =
     val startSym = backend.resolve(runtime.start)
@@ -204,91 +208,13 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
   // Lambda-lifted class compilation (ElimCapture output)
   //----------------------------------------------------------------------------
 
-  private def compileClass(cdef: ClassDef, cp: ConstantPool): Unit =
-    val className = backend.className(cdef.symbol)
-    // ElimCapture.liftLambda always names the lifted class's single method
-    // "apply" when the lambda isn't converted to some user SAM interface
-    // (`lambdaInterfaceOpt = None`, so `directViewTypes = Nil`) — but a
-    // lambda *converted* to a user interface whose own abstract member also
-    // happens to be called "apply" (e.g. `interface Transform[T] def
-    // apply(x: T): T`, see tests/pos/erasure-lambda-wrap.jo) produces the
-    // exact same method name while needing the natural/bridge compilation
-    // path below, not the arity-erased `Object apply(Object[])` marker
-    // convention. `cdef.views.isEmpty` (only true for the marker case)
-    // disambiguates the two; `Flags.Synthetic` guards against an unrelated
-    // ordinary class that happens to define its own no-view `apply` method.
-    val isLambda = cdef.symbol.is(Flags.Synthetic) && cdef.views.isEmpty && cdef.funs.exists(f => f.symbol.name == "apply")
-
-    val fieldOuts = cdef.vals.map(f => FieldOut(AccessFlags.Public, f.symbol.name, descOf(jvmType(f.tpt.tpe))))
-
-    val ctorFdefOpt = cdef.funs.find(_.symbol.name == Names.Constructor)
-    val ctorOut = ctorFdefOpt.map(compileConstructor(_, cdef, cp))
-
-    val otherMethods = cdef.funs.filter(_.symbol.name != Names.Constructor).map { fdef =>
-      if isLambda && fdef.symbol.name == "apply" then compileLambdaApply(fdef, cdef, cp)
-      else compileInstanceMethod(fdef, cdef.self, cp)
-    }
-
-    // `view Foo` declares this class implements interface `Foo` — enqueue
-    // it so it actually gets compiled, same as any other reachable type.
-    val declaredInterfaces = cdef.views.flatMap(v => classOrInterfaceSymbol(v.tpe)).map(backend.requireClass)
-
-    // A class method implementing an interface's abstract member may have
-    // narrower parameter/result types than the interface's own (generic,
-    // fully Object-erased) descriptor — e.g. a lambda literal converted to
-    // `Ord[String]` (see ElimCapture.liftLambda's `lambdaInterfaceOpt`)
-    // compiles its `compare` method with natural `(String, String)`
-    // parameters, but `invokeinterface Ord.compare` always resolves against
-    // the erased `(Object, Object)` descriptor. `InterfaceBridge` (see
-    // Compiler.scala) already synthesizes the JVM-standard fix — a bridge
-    // method with the interface's own erased signature that adapts and
-    // forwards to the natural-typed one — directly into `cdef.funs` for
-    // *every* class with `view`s, ordinary or `ElimCapture`-lifted alike,
-    // so it's already sitting there, compiled by `otherMethods` above like
-    // any other method. No special-casing needed here at all.
-    val interfaces = (if isLambda then LambdaClass :: Nil else Nil) ++ declaredInterfaces
-    val methods = ctorOut.toList ++ otherMethods
-    val bytes = ClassFile.write(cp, className, ObjectClass, interfaces, fieldOuts, methods)
-    classFiles(className) = bytes
-
-  /** A real JVM interface: only its `Flags.Defer` members (`hasNext`,
-    * `next`, ...) become actual interface methods (abstract, no `Code`
-    * attribute), dispatched via genuine `invokeinterface`.
-    *
-    * Jo interfaces can also carry concrete default-implemented methods
-    * (`map`, `fold`, ...); a real JVM interface *default method* would need
-    * class file version 52 (illegal below it) plus StackMapTable frames for
-    * any branch inside it, which this hand-rolled writer doesn't compute
-    * (see ClassFile's version-49 design note). So — like the native/Ruby/JS
-    * backends' `MaterializeView` lifting — these are instead compiled as
-    * ordinary top-level static functions taking the receiver as an extra
-    * argument; see `compileTopLevelFunDef`'s self-binding and
-    * `compileMethodCall`'s dispatch to them.
-    */
-  private def compileInterface(idef: InterfaceDef, cp: ConstantPool): Unit =
-    val ifaceName = backend.className(idef.symbol)
-    val methods = idef.methods.collect {
-      case fdef if fdef.symbol.is(Flags.Defer) =>
-        val procType = fdef.symbol.tpe.asProcType
-        val desc = methodDesc(procType.paramTypes ++ procType.autoTypes, procType.resultType)
-        MethodOut(AccessFlags.Public | AccessFlags.Abstract, fdef.symbol.name, desc, None)
-    }
-    val bytes = ClassFile.write(
-      cp, ifaceName, ObjectClass, Nil, Nil, methods,
-      accessFlags = AccessFlags.Public | AccessFlags.Interface | AccessFlags.Abstract
-    )
-    classFiles(ifaceName) = bytes
-
-  private def classOrInterfaceSymbol(tp: Type): Option[Symbol] =
-    tp.approx.typeSymbolOpt.filter(_.isOneOf(Flags.Class | Flags.Interface))
-
   /** Jo constructors are modeled as functions that return the constructed
     * `this` (see ElimCapture); a JVM `<init>` is void and operates on the
     * object `new` already allocated. We translate the specific shape
     * ElimCapture always produces: a `Block` of `FieldAssign`s (self.field =
     * ctorParam) followed by a trailing `Ident(self)`.
     */
-  private def compileConstructor(fdef: FunDef, cdef: ClassDef, cp: ConstantPool): MethodOut =
+  override def compileConstructor(fdef: FunDef, cdef: ClassDef, cp: ConstantPool): MethodOut =
     val cw = new CodeWriter(cp)
     val slots = new JVMMethodSlots
     slots.bind(cdef.self, Ref(ObjectDesc)) // reserve slot 0 for `this`
@@ -338,7 +264,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
   /** Compile a class instance method with the natural signature implied by
     * its Jo parameter/result types (slot 0 = `this`).
     */
-  private def compileInstanceMethod(fdef: FunDef, self: Symbol, cp: ConstantPool): MethodOut =
+  override def compileInstanceMethod(fdef: FunDef, self: Symbol, cp: ConstantPool): MethodOut =
     val sym = fdef.symbol
     val procType = sym.tpe.asProcType
     val cw = new CodeWriter(cp)
@@ -377,7 +303,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     * class. This method adapts that uniform entry point to the lambda's
     * natural per-parameter types.
     */
-  private def compileLambdaApply(fdef: FunDef, cdef: ClassDef, cp: ConstantPool): MethodOut =
+  override def compileLambdaApply(fdef: FunDef, cdef: ClassDef, cp: ConstantPool): MethodOut =
     val cw = new CodeWriter(cp)
     val slots = new JVMMethodSlots
     slots.bind(cdef.self, Ref(ObjectDesc)) // slot 0 = this
