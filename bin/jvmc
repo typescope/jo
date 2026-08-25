@@ -1,0 +1,32 @@
+#!/bin/bash
+# Prototype JVM backend. See docs/jips/jvm-backend.md.
+#
+# Usage: bin/jvmc [-o <outdir>] <file.jo>
+# Produces a directory of .class files; run with `java -cp <outdir> Main`.
+
+files=(
+    # parser
+    stack-lang/ast/*.scala
+    stack-lang/common/*.scala
+    stack-lang/parsing/*.scala
+    stack-lang/reporting/*.scala
+
+    # typer
+    stack-lang/typing/*.scala
+
+    stack-lang/sast/*.scala
+
+    stack-lang/pickle/*.scala
+
+    stack-lang/phases/*.scala
+
+    # jvm compiler
+    stack-lang/jvm/*.scala
+
+    # cli
+    stack-lang/cli/OptionParser.scala
+)
+
+FILES=${files[*]}
+
+scala-cli project.scala $FILES --main-class jvm.Compiler -- "$@"
