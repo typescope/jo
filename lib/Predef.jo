@@ -7,8 +7,19 @@ import jo.compile.intrinsic
 //
 // `Any` and `Bottom` are handled specially in the namer
 
+//[ The top type: every value is an `Any`
+  !
+  ! Nothing can be done with an `Any` except pass it on; recover a usable type
+  ! with a `match` or a cast. Handled specially in the namer.
+//]
 type Any
 
+//[ The bottom type: no value has this type
+  !
+  ! It is the result type of an expression that never returns normally, such as
+  ! `abort`. Because it is a subtype of every type, such an expression can stand
+  ! anywhere a value is expected. Handled specially in the namer.
+//]
 type Bottom
 
 //------------------------------------------------------------------------------
@@ -61,18 +72,42 @@ type ..[T] = List[T]
 // Utility functions
 //
 
-// print with automatic conversion for common types
+//[ Write `s` to standard output, with no trailing newline
+  !
+  ! Accepts anything printable, so `print 42` needs no conversion. Requires the
+  ! `IO.stdout` capability.
+//]
 def print(s: StringLike): Unit = IO.stdout s
 
-// println with automatic conversion for common types
+//[ Write `s` to standard output, followed by a newline
+  !
+  ! Accepts anything printable, so `println list` needs no conversion. Requires
+  ! the `IO.stdout` capability.
+//]
 def println(s: StringLike): Unit =
   print s
   print '\n'
 
+//[ Placeholder for an unwritten body; aborts with "not implemented" if reached
+  !
+  ! Its type is `Bottom`, so it type-checks wherever a value is expected:
+  !
+  !     def area(shape: Shape): Float = ...
+//]
 def ... : Bottom = abort("not implemented")
 
+//[ Terminate the program with the message `s`
+  !
+  ! Returns `Bottom`, so a call can stand in for a value of any type. This is
+  ! an unrecoverable exit, not an exception: there is nothing to catch.
+//]
 defer def abort(s: String): Bottom
 
+//[ Abort with the message from `error` unless `cond` holds
+  !
+  ! `error` is only called when the check fails, so building the message costs
+  ! nothing on the passing path.
+//]
 def assert(cond: Bool, error: () => String): Unit =
   if !cond then abort error()
 

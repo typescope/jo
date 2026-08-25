@@ -1,7 +1,5 @@
 namespace jo.resource
 
-import jo.*
-
 //[ Metadata for one packaged resource file or directory.
   !
   ! `sizeBytes` is meaningful for files. Directories report `0`.

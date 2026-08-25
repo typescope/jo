@@ -18,13 +18,15 @@ import jo.compile.intrinsic
 class Long
   private def Long() = abort "Cannot create new Long instance"
 
-  // Arithmetic operators as methods
+  //[ Addition. Overflowing the 64-bit range is undefined behavior. //]
   @intrinsic
   def +(other: Long): Long = ...
 
+  //[ Subtraction. Overflowing the 64-bit range is undefined behavior. //]
   @intrinsic
   def -(other: Long): Long = ...
 
+  //[ Multiplication. Overflowing the 64-bit range is undefined behavior. //]
   @intrinsic
   def *(other: Long): Long = ...
 
@@ -47,21 +49,27 @@ class Long
   def %(other: Long): Long = ...
 
   // Comparison operators as methods
+  //[ True if this value is greater than `other`. //]
   @intrinsic
   def >(other: Long): Bool = ...
 
+  //[ True if this value is less than `other`. //]
   @intrinsic
   def <(other: Long): Bool = ...
 
+  //[ True if this value is greater than or equal to `other`. //]
   @intrinsic
   def >=(other: Long): Bool = ...
 
+  //[ True if this value is less than or equal to `other`. //]
   @intrinsic
   def <=(other: Long): Bool = ...
 
+  //[ True if the two values are equal. //]
   @intrinsic
   def ==(other: Long): Bool = ...
 
+  //[ True if the two values differ. //]
   @intrinsic
   def !=(other: Long): Bool = !(this == other)
 
@@ -81,12 +89,15 @@ class Long
   @intrinsic
   def <<(count: Long): Long = ...
 
+  //[ Bitwise AND of the two 64-bit patterns. //]
   @intrinsic
   def &(other: Long): Long = ...
 
+  //[ Bitwise OR of the two 64-bit patterns. //]
   @intrinsic
   def |(other: Long): Long = ...
 
+  //[ Bitwise exclusive OR of the two 64-bit patterns. //]
   @intrinsic
   def ^(other: Long): Long = ...
 
@@ -99,21 +110,29 @@ class Long
   def ~-(): Long = ...
 
   // Conversion methods
+  //[ Narrow to a 32-bit `Int`, keeping the low 32 bits. //]
   @intrinsic
   def toInt: Int = ...
 
+  //[ Convert to a 64-bit `Float`. Magnitudes above 2^53 lose precision. //]
   @intrinsic
   def toFloat: Float = ...
 
+  //[ Decimal representation, with a leading `-` when negative. //]
   @intrinsic
   def toString: String = ...
 
+  //[ Return 1, -1 or 0 as this value is greater than, less than or equal to `other`. //]
   def compareTo(other: Long): Int = if this > other then 1 else if this < other then -1 else 0
+  //[ The low 32 bits. Used to synthesize `Hash[Long]`. //]
   def hashCode: Int = this.toInt
+  //[ The greater of the two values. //]
   def max(other: Long): Long = if this >= other then this else other
+  //[ The lesser of the two values. //]
   def min(other: Long): Long = if this <= other then this else other
 end
 
+//[ Operations on `Long` that are not methods. //]
 section Long
   //[ Parse signed decimal long integer. Returns None on invalid input.
     !

@@ -69,7 +69,7 @@ The compiler detects the entry point by locating a top-level function named `mai
 conforming to this signature from the standard library:
 
 ```jo
-defer def main: Unit receives IO.stdin, IO.stdout, IO.stderr, IO.args
+defer def main: Unit receives IO.stdout, IO.stderr, IO.args
 ```
 
 An error is reported if no matching candidate exists or multiple candidates are found.

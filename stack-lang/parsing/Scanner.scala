@@ -37,6 +37,7 @@ class Scanner(stream: CharStream)(using Reporter, Source):
       case Token.CLASS | Token.INTERFACE | Token.OBJECT | Token.EXTENSION => true
       case Token.PARAM | Token.PATTERN | Token.UNION => true
       case Token.SECTION | Token.AUTO | Token.VIEW => true
+      case Token.ANNOTATION => true
       case Token.AT => true
       case _ => false
 

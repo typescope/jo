@@ -1,17 +1,27 @@
 namespace jo
 
+//[ Create a `Set` from the given elements. Duplicates are discarded. //]
 def Set[T](elems: ..T)(auto ord: Ord[T] with [[T].compareTo]): Set[T] =
   var set = Set.empty[T]
   for e in elems do set = set + e
   set
 
 
+//[ Factory methods for `Set`. //]
 section Set
+  //[ Create an empty set. //]
   def empty[T](auto ord: Ord[T] with [[T].compareTo]): Set[T] =
     new Set(SetTree.Empty, 0, ord)
 end
 
-// Immutable Set based on Binary Search Tree
+//[ An immutable set backed by a balanced binary search tree (AVL).
+  !
+  ! Membership test, add, and remove are O(log n). Updates return a new set
+  ! that shares most of its structure with the original.
+  !
+  ! Elements are kept in ascending order, so iteration is ordered by the
+  ! `Ord[T]` instance the set was created with.
+//]
 class Set[T]
   val ord: Ord[T]
   val tree: SetTree.Tree[T]
@@ -22,13 +32,22 @@ class Set[T]
     this._size = size
     this.ord = ord
 
+  //[ Number of elements. //]
   def size: Int = _size
+
+  //[ Number of elements (alias for `size`). //]
   def length: Int = _size
 
+  //[ True if the set has no elements. //]
   def isEmpty: Bool = _size == 0
 
+  //[ True if `x` is a member of the set. O(log n). //]
   def contains(x: T): Bool = SetTree.contains tree x ord
 
+  //[ Return a new set with `x` added.
+    !
+    ! Returns the receiver unchanged if `x` is already present. O(log n).
+  //]
   def +(x: T): Set[T] =
     val inserted = SetTree.insert tree x ord
     if inserted then
@@ -36,38 +55,57 @@ class Set[T]
     else
       this
 
+  //[ Return a new set with `x` removed.
+    !
+    ! Returns the receiver unchanged if `x` is absent. O(log n).
+  //]
   def -(x: T): Set[T] =
     val result = SetTree.remove tree x ord
     match result
     case Some(newTree) => new Set(newTree, _size - 1, ord)
     case None => this
 
+  //[ Return the union of this set and `other`. //]
   def ++(other: Set[T]): Set[T] =
     other.fold: this, (acc, e) => acc + e
 
+  //[ Return the intersection of this set and `other`. //]
   def &(other: Set[T]): Set[T] =
     select(e => other.contains e)
 
+  //[ Return the elements of this set that are not in `other`. //]
   def diff(other: Set[T]): Set[T] =
     exclude(e => other.contains e)
 
+  //[ True if this set and `other` share at least one element. //]
   def intersects(other: Set[T]): Bool =
     this.exists(e => other.contains(e))
 
+  //[ Return the set of elements satisfying `pred`. //]
   def select(pred: T => Bool): Set[T] =
     auto ord: Ord[T] = this.ord
     fold: Set.empty, (acc, e) => if pred e then acc + e else acc
 
+  //[ Return the set of elements not satisfying `pred`. //]
   def exclude(pred: T => Bool): Set[T] =
     auto ord: Ord[T] = this.ord
     fold: Set.empty, (acc, e) => if pred e then acc else acc + e
 
+  //[ Reduce to a single value using a left fold with `f: (S, T) => S`.
+    !
+    ! Elements are visited in ascending order.
+  //]
   def fold[S](zero: S, f: (S, T) => S): S =
     SetTree.fold tree zero f
 
+  //[ True if at least one element satisfies `pred`. //]
   def exists(pred: T => Bool): Bool =
     SetTree.exists tree pred
 
+  //[ Return the first element satisfying `pred`, or `None` if there is none.
+    !
+    ! Elements are visited in ascending order.
+  //]
   def find(pred: T => Bool): Option[T] =
     val iter = this.iterator
     var res: Option[T] = None
@@ -78,6 +116,7 @@ class Set[T]
     end
     res
 
+  //[ Number of elements satisfying `pred`. //]
   def count(pred: T => Bool): Int =
     var n = 0
     val iter = this.iterator
@@ -87,14 +126,18 @@ class Set[T]
     end
     n
 
+  //[ True if every element satisfies `pred`. //]
   def forall(pred: T => Bool): Bool =
     SetTree.forall tree pred
 
+  //[ True if every element of this set is also in `other`. //]
   def subsetOf(other: Set[T]): Bool =
     this.forall(x => other.contains(x))
 
+  //[ Return an iterator over the elements, in ascending order. //]
   def iterator: Iterator[T] = (SetTree.toList tree).iterator
 
+  //[ Return a string representation, e.g. `{1, 2, 3}`. Shows at most 100 elements. //]
   def toString(auto elementShow: Show[T] with [[T].toString]): String =
     // Show at most 100
     var res = "{"

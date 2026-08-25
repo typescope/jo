@@ -1,31 +1,65 @@
 namespace jo
 
-union Option[T] = None | Some(value: T)
+//[ An optional value: either `Some(value)` or `None`
+  !
+  ! Use it for a result that may legitimately be absent, in place of a null
+  ! reference. The compiler cannot forget the `None` case, because reading the
+  ! value requires a `match` or one of the methods below.
+  !
+  !     val found: Option[Int] = Int.parse text
+  !     match found
+  !     case Some(n) => println n
+  !     case None    => println "not a number"
+//]
+union Option[T] =
+    //[ The absent case. //]
+    None
+    //[ The present case, wrapping a value of type `T`. //]
+  | Some(value: T)
+
+  //[ Return the wrapped value. Aborts if the option is `None`.
+    !
+    ! Use it only where absence is impossible; prefer `getOrElse` or a `match`
+    ! anywhere the `None` case can occur.
+  //]
   def success: T =
     match this
     case Some(value) => value
     case None => abort "unreachable"
 
+  //[ True if the option is `None`. //]
   def isEmpty: Bool =
     match this
     case None => true
     case _: Some[T] => false
 
+  //[ True if the option is a `Some`. //]
   def nonEmpty: Bool =
     match this
     case None => false
     case _: Some[T] => true
 
+  //[ Apply `f` to the wrapped value, if there is one.
+    !
+    ! `Some(x)` becomes `Some(f(x))`; `None` is returned unchanged, so `f` is
+    ! never called.
+  //]
   def map[U](f: T => U): Option[U] =
     match this
     case None => None
     case Some(value) => Some(f(value))
 
+  //[ Return the wrapped value, or the result of `compute` if there is none.
+    !
+    ! `compute` is only called for `None`, so it is safe to pass a fallback
+    ! that is expensive or that aborts.
+  //]
   def getOrElse(compute: () => T): T =
     match this
     case None => compute()
     case Some(value) => value
 
+  //[ Return `"None"`, or `"Some(v)"` with the value shown. //]
   def toString(auto show: Show[T] with [[T].toString]): String =
     match this
     case None => "None"

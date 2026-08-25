@@ -1,9 +1,8 @@
 namespace jo.mutable
 
-import jo.*
-
 //[ Factory methods for `mutable.List`. //]
 section List
+  //[ Number of slots a new list starts with, before it first grows. //]
   def initialCapacity: Int = 16
 
   //[ Create an empty list. //]
@@ -32,8 +31,10 @@ def List[T](elems: ..T): List[T] =
   end
   buf
 
-//[ A mutable dynamic array. Supports O(1) indexed access and amortized O(1)
-//  append. Prepend, insert, and remove are O(n).
+//[ A mutable dynamic array.
+  !
+  ! Supports O(1) indexed access and amortized O(1) append. Prepend, insert
+  ! and remove are O(n).
 //]
 class List[T]
   var _data: Array[T]

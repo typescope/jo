@@ -1,0 +1,19 @@
+namespace docprivate
+
+//[ A section whose members belong in the published docs. //]
+section PublicHelpers
+  //[ Double `x`. //]
+  def twice(x: Int): Int = x * 2
+end
+
+//[ An implementation detail that must not be published. //]
+private section InternalHelpers
+  //[ Triple `x`. //]
+  def thrice(x: Int): Int = x * 3
+
+  class Hidden(tag: Int)
+    def tagged: Int = tag
+  end
+
+  type HiddenAlias = Int
+end

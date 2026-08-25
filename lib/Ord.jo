@@ -14,5 +14,6 @@ namespace jo
   ! be resolved at usage site.
 //]
 interface Ord[T]
+  //[ Negative, zero or positive as `a` is less than, equal to or greater than `b`. //]
   def compare(a: T, b: T): Int
 end

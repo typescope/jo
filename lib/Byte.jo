@@ -11,40 +11,53 @@ class Byte
   private def Byte() = abort "Cannot create new Byte instance"
 
   // Comparison operators (work via numeric coercion to Int)
+  //[ True if the two values are equal. //]
   @intrinsic
   def ==(other: Byte): Bool = ...
 
+  //[ True if the two values differ. //]
   @intrinsic
   def !=(other: Byte): Bool = !(this == other)
 
+  //[ True if this value is greater than `other`. Compared as unsigned values in `[0, 255]`. //]
   @intrinsic
   def >(other: Byte): Bool = ...
 
+  //[ True if this value is less than `other`. Compared as unsigned values in `[0, 255]`. //]
   @intrinsic
   def <(other: Byte): Bool = ...
 
+  //[ True if this value is greater than or equal to `other`. Compared as unsigned values in `[0, 255]`. //]
   @intrinsic
   def >=(other: Byte): Bool = ...
 
+  //[ True if this value is less than or equal to `other`. Compared as unsigned values in `[0, 255]`. //]
   @intrinsic
   def <=(other: Byte): Bool = ...
 
   // Conversion methods
+  //[ The value as an `Int` in `[0, 255]`. Always exact. //]
   @intrinsic
   def toInt: Int = ...
 
+  //[ The value as a `Long` in `[0, 255]`. Always exact. //]
   @intrinsic
   def toLong: Long = ...
 
+  //[ The Unicode code point with this value, so a byte is read as Latin-1. //]
   @intrinsic
   def toChar: Char = ...
 
+  //[ The value as a `Float` in `[0, 255]`. Always exact. //]
   @intrinsic
   def toFloat: Float = ...
 
+  //[ Decimal representation in `[0, 255]`, e.g. `255`. //]
   @intrinsic
   def toString: String = ...
 
+  //[ Negative, zero or positive as this value is less than, equal to or greater than `other`. //]
   def compareTo(other: Byte): Int = this.toInt - other.toInt
+  //[ The value as an `Int`. Used to synthesize `Hash[Byte]`. //]
   def hashCode: Int = this.toInt
 end

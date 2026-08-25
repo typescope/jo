@@ -1,10 +1,11 @@
 namespace jo.mutable
 
-import jo.*
-
+//[ Factory methods for `mutable.Set`. //]
 section Set
+  //[ Number of slots a new set starts with, before it first grows. //]
   def initialCapacity: Int = 16
 
+  //[ Create an empty set. //]
   def empty[T]
       (auto
         eq: Eq[T] with [[T].==],
@@ -20,7 +21,7 @@ section Set
     new Set(buckets, 0, eq, hash)
 end
 
-// Varargs constructor for set literals
+//[ Create a `mutable.Set` from the given elements. Duplicates are discarded. //]
 def Set[T](elems: ..T)
     (auto
       eq: Eq[T] with [[T].==],
@@ -33,7 +34,13 @@ def Set[T](elems: ..T)
   end
   s
 
-// Mutable Set implementation with hash table
+//[ A mutable set backed by a hash table with separate chaining.
+  !
+  ! Membership test, add, and remove are O(1) on average. The table grows and
+  ! rehashes when the load factor exceeds 0.75.
+  !
+  ! Iteration order is unspecified.
+//]
 class Set[T]
   val eq: Eq[T]
   val hash: Hash[T]
@@ -46,7 +53,10 @@ class Set[T]
     this.eq = eq
     this.hash = hash
 
+  //[ Number of elements. //]
   def size: Int = _size
+
+  //[ Number of elements (alias for `size`). //]
   def length: Int = _size
 
   private def capacity: Int = buckets.size
@@ -83,12 +93,13 @@ class Set[T]
 
     buckets = newBuckets
 
+  //[ True if `x` is a member of the set. //]
   def contains(x: T): Bool =
     val index = bucketIndex x
     val bucket = buckets[index]
     bucket.exists(e => eq.equal(e, x))
 
-  // Mutable add - modifies in place
+  //[ Add `x` to the set. Does nothing if it is already present. Amortized O(1). //]
   def add(x: T): Unit =
     var index = bucketIndex x
     var oldBucket = buckets[index]
@@ -106,8 +117,10 @@ class Set[T]
       buckets[index] = oldBucket + x
       _size = _size + 1
 
+  //[ Add `x` to the set (alias for `add`). //]
   def +=(x: T): Unit = add x
 
+  //[ Remove `x` from the set. Does nothing if it is absent. //]
   def remove(x: T): Unit =
     val index = bucketIndex x
     val oldBucket = buckets[index]
@@ -117,15 +130,19 @@ class Set[T]
       buckets[index] = oldBucket.exclude(e => eq.equal(x, e))
       _size = _size - 1
 
+  //[ Remove `x` from the set (alias for `remove`). //]
   def -=(x: T): Unit = remove x
 
+  //[ Add all elements from `xs`. //]
   def addAll(xs: Iterator[T] :- [.iterator]): Unit =
     for x in xs do
       add x
     end
 
+  //[ Add all elements from `xs` (alias for `addAll`). //]
   def ++=(xs: Iterator[T] :- [.iterator]): Unit = addAll xs
 
+  //[ Remove all elements. //]
   def clear: Unit =
     var i = 0
     while i < capacity do
@@ -134,6 +151,10 @@ class Set[T]
     end
     _size = 0
 
+  //[ Reduce to a single value using a left fold with `f: (S, T) => S`.
+    !
+    ! Elements are visited in unspecified order.
+  //]
   def fold[S](zero: S, f: (S, T) => S): S =
     var acc = zero
     var i = 0
@@ -146,6 +167,7 @@ class Set[T]
     end
     acc
 
+  //[ True if at least one element satisfies `pred`. //]
   def exists(pred: T => Bool): Bool =
     var found = false
     var i = 0
@@ -156,6 +178,7 @@ class Set[T]
     end
     found
 
+  //[ True if every element satisfies `pred`. //]
   def forall(pred: T => Bool): Bool =
     var result = true
     var i = 0
@@ -166,9 +189,11 @@ class Set[T]
     end
     result
 
+  //[ Return an iterator over the elements, in unspecified order. //]
   def iterator: Iterator[T] =
     this.toList.iterator
 
+  //[ Copy all elements into a new immutable `List`, in unspecified order. //]
   def toList: jo.List[T] =
     var elements: jo.List[T] = []
     var i = 0
@@ -179,6 +204,7 @@ class Set[T]
     end
     elements
 
+  //[ Return a string representation, e.g. `{1, 2, 3}`. Shows at most 100 elements. //]
   def toString(auto elementShow: Show[T] with [[T].toString]): String =
     // Show at most 100
     var res = "{"

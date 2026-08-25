@@ -31,7 +31,9 @@ object JsonEmitter:
     out.println("{")
     out.println("""  "children": [""")
 
-    val grouped = units.groupBy(_.owner).toList.sortBy(_._1.fullName)
+    val grouped = units.groupBy(_.owner).toList
+      .filter((_, groupUnits) => collectNavMembers(groupUnits, includePrivate).nonEmpty)
+      .sortBy(_._1.fullName)
 
     var first = true
     for (sym, groupUnits) <- grouped do
@@ -92,7 +94,7 @@ object JsonEmitter:
 
         // Skip singleton accessor functions (they have Flags.Object)
         case fd: FunDef if !fd.symbol.isMethod && !fd.symbol.is(Flags.Object) =>
-          addMember(fd.symbol.name, fd.symbol.fullName, "function")
+          addMember(fd.symbol.name, fd.symbol.fullName, funKind(fd.symbol))
 
         case pd: PatDef if !pd.resultType.tpe.isSingletonObjectType =>
           addMember(pd.symbol.name, pd.symbol.fullName, "pattern")
@@ -129,8 +131,13 @@ object JsonEmitter:
       val defn = summon[Definitions]
 
       def processDef(d: Def): Unit =
+        // A private container hides everything inside it, so bail out before
+        // recursing. Without this a `private section` still contributed all of
+        // its members to the search index, even though nav excluded it.
+        if !includePrivate && d.symbol.isPrivate then return
+
         d match
-          case cd: ClassDef if includePrivate || !cd.symbol.isPrivate =>
+          case cd: ClassDef =>
             val kind =
               if cd.symbol.is(Flags.Object) then "object"
               else if cd.symbol.isInterface then "interface"
@@ -143,7 +150,7 @@ object JsonEmitter:
               val methodDoc = defn.index.docComment(meth.symbol).headOption
               emitSymbol(meth.symbol, "method", methodDoc)
 
-          case id: InterfaceDef if includePrivate || !id.symbol.isPrivate =>
+          case id: InterfaceDef =>
             val doc = defn.index.docComment(id.symbol).headOption
             emitSymbol(id.symbol, "interface", doc)
 
@@ -155,13 +162,13 @@ object JsonEmitter:
           // Skip singleton accessor functions (they have Flags.Object)
           case fd: FunDef if !fd.symbol.isMethod && !fd.symbol.is(Flags.Object) =>
             val doc = defn.index.docComment(fd.symbol).headOption
-            emitSymbol(fd.symbol, "function", doc)
+            emitSymbol(fd.symbol, funKind(fd.symbol), doc)
 
           case pd: PatDef if !pd.resultType.tpe.isSingletonObjectType =>
             val doc = defn.index.docComment(pd.symbol).headOption
             emitSymbol(pd.symbol, "pattern", doc)
 
-          case td: TypeDef if includePrivate || !td.symbol.isPrivate =>
+          case td: TypeDef =>
             val kind = if td.symbol.is(Flags.Defer) then "abstract" else "type"
             val doc = defn.index.docComment(td.symbol).headOption
             emitSymbol(td.symbol, kind, doc)
@@ -190,7 +197,10 @@ object JsonEmitter:
     def collectFromDefs(defs: List[Def]): Unit =
       for d <- defs do
         d match
-          case sec: Section if hasVisibleMembers(sec, includePrivate) =>
+          // A private section is not published, and neither is anything nested
+          // inside it, so do not descend into one either.
+          case sec: Section
+          if (includePrivate || !sec.symbol.isPrivate) && hasVisibleMembers(sec, includePrivate) =>
             sections += sec
             collectFromDefs(sec.defs)
           case _ => ()
@@ -600,6 +610,8 @@ object JsonEmitter:
       out.println(s"""$indent{""")
       out.println(s"""$indent  "name": ${jsonString(sym.name)},""")
       out.println(s"""$indent  "fullName": ${jsonString(sym.fullName)},""")
+      if sym.isAnnotation then
+        out.println(s"""$indent  "kind": "annotation",""")
 
       // Type params
       if fd.tparams.nonEmpty then
@@ -728,6 +740,14 @@ object JsonEmitter:
 
         val sym = sec.symbol
         out.print(s"""$indent{ "name": ${jsonString(sym.name)}, "fullName": ${jsonString(sym.fullName)} }""")
+
+  /** The documented kind of a top-level term.
+    *
+    * `annotation` declarations are lowered to a FunDef carrying Flags.Annotation,
+    * so without this they would be published as ordinary functions.
+    */
+  private def funKind(sym: Symbol): String =
+    if sym.isAnnotation then "annotation" else "function"
 
   /** Check if a section has any visible (non-private unless includePrivate) members */
   private def hasVisibleMembers(sec: Section, includePrivate: Boolean): Boolean =

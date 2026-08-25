@@ -1,8 +1,12 @@
 namespace jo.regex
 
-import jo.*
-
+//[ The backend regular-expression engine behind `Regex`.
+  !
+  ! Application code uses `Regex`; this section is the seam the backends
+  ! implement.
+//]
 section Engine
+  //[ A compiled pattern, opaque and backend-defined. //]
   type Pattern
   private[regex] defer def compilePattern(source: String, flags: String): Pattern
 

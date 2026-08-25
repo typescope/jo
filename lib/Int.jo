@@ -18,13 +18,15 @@ import jo.compile.intrinsic
 class Int
   private def Int() = abort "Cannot create new Int instance"
 
-  // Arithmetic operators as methods
+  //[ Addition. Overflowing the 32-bit range is undefined behavior. //]
   @intrinsic
   def +(other: Int): Int = ...
 
+  //[ Subtraction. Overflowing the 32-bit range is undefined behavior. //]
   @intrinsic
   def -(other: Int): Int = ...
 
+  //[ Multiplication. Overflowing the 32-bit range is undefined behavior. //]
   @intrinsic
   def *(other: Int): Int = ...
 
@@ -52,21 +54,27 @@ class Int
   def %(other: Int): Int = ...
 
   // Comparison operators as methods
+  //[ True if this value is greater than `other`. //]
   @intrinsic
   def >(other: Int): Bool = ...
 
+  //[ True if this value is less than `other`. //]
   @intrinsic
   def <(other: Int): Bool = ...
 
+  //[ True if this value is greater than or equal to `other`. //]
   @intrinsic
   def >=(other: Int): Bool = ...
 
+  //[ True if this value is less than or equal to `other`. //]
   @intrinsic
   def <=(other: Int): Bool = ...
 
+  //[ True if the two values are equal. //]
   @intrinsic
   def ==(other: Int): Bool = ...
 
+  //[ True if the two values differ. //]
   @intrinsic
   def !=(other: Int): Bool = !(this == other)
 
@@ -86,12 +94,15 @@ class Int
   @intrinsic
   def <<(count: Int): Int = ...
 
+  //[ Bitwise AND of the two 32-bit patterns. //]
   @intrinsic
   def &(other: Int): Int = ...
 
+  //[ Bitwise OR of the two 32-bit patterns. //]
   @intrinsic
   def |(other: Int): Int = ...
 
+  //[ Bitwise exclusive OR of the two 32-bit patterns. //]
   @intrinsic
   def ^(other: Int): Int = ...
 
@@ -104,24 +115,33 @@ class Int
   def ~-(): Int = ...
 
   // Conversion methods
+  //[ Read this value as a Unicode code point. Expects `[0, 0x10FFFF]`. //]
   @intrinsic
   def toChar: Char = ...
 
+  //[ The low 8 bits as a `Byte`, so `300.toByte` is `44` and `(0 - 1).toByte` is `255`. //]
   @intrinsic
   def toByte: Byte = ...
 
+  //[ Widen to a 64-bit `Long`. Always exact. //]
   @intrinsic
   def toLong: Long = ...
 
+  //[ Convert to a 64-bit `Float`. Always exact, as every `Int` fits. //]
   @intrinsic
   def toFloat: Float = ...
 
+  //[ Decimal representation, with a leading `-` when negative. //]
   @intrinsic
   def toString: String = ...
 
+  //[ Return 1, -1 or 0 as this value is greater than, less than or equal to `other`. //]
   def compareTo(other: Int): Int = if this > other then 1 else if this < other then -1 else 0
+  //[ The value itself. Used to synthesize `Hash[Int]`. //]
   def hashCode: Int = this
+  //[ The greater of the two values. //]
   def max(other: Int): Int = if this >= other then this else other
+  //[ The lesser of the two values. //]
   def min(other: Int): Int = if this <= other then this else other
 end
 
@@ -130,20 +150,32 @@ end
 //
 // Expose common operator on Int to facilitate type inference
 
+//[ Integer addition, as a top-level function. See `Int.+`. //]
 def (a: Int) + (b: Int): Int = a + b
+//[ Integer subtraction, as a top-level function. See `Int.-`. //]
 def (a: Int) - (b: Int): Int = a - b
+//[ Integer multiplication, as a top-level function. See `Int.*`. //]
 def (a: Int) * (b: Int): Int = a * b
+//[ Truncating integer division, as a top-level function. See `Int./`. //]
 def (a: Int) / (b: Int): Int = a / b
+//[ Remainder of truncated division, as a top-level function. See `Int.%`. //]
 def (a: Int) % (b: Int): Int = a % b
 
+//[ True if this value is greater than `other`, as a top-level function. See `Int.>`. //]
 def (a: Int) > (b: Int): Bool = a > b
+//[ True if this value is less than `other`, as a top-level function. See `Int.<`. //]
 def (a: Int) < (b: Int): Bool = a < b
+//[ True if this value is greater than or equal to `other`, as a top-level function. See `Int.>=`. //]
 def (a: Int) >= (b: Int): Bool = a >= b
+//[ True if this value is less than or equal to `other`, as a top-level function. See `Int.<=`. //]
 def (a: Int) <= (b: Int): Bool = a <= b
+//[ True if the two values are equal, as a top-level function. See `Int.==`. //]
 def (a: Int) == (b: Int): Bool = a == b
+//[ True if the two values differ, as a top-level function. See `Int.!=`. //]
 def (a: Int) != (b: Int): Bool = ! (a == b)
 
 
+//[ Operations on `Int` that are not methods. //]
 section Int
   //[ Parse signed decimal integer. Returns None on invalid input.
     !

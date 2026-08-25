@@ -54,7 +54,6 @@ end
 private def start(args: Array[String]): Unit receives none =
   with
     IO.stdout = createStdOut(),
-    IO.stdin = createStdIn(),
     IO.stderr = createStdErr(),
     IO.args = args
   in
@@ -66,9 +65,6 @@ private def createStdOut(): String => Unit =
 
 private def createStdErr(): String => Unit =
   (content: String) => platformCall1("writeStdErr", content)
-
-private def createStdIn(): () => String =
-  () => platformCall0("readLineStdIn")
 
 //------------------------------------------------------------------------------
 //

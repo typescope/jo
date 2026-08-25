@@ -14,5 +14,6 @@ namespace jo
   !
 //]
 interface Hash[T]
+  //[ A hash of `v`. Equal values must hash equally. //]
   def hashCode(v: T): Int
 end

@@ -204,8 +204,15 @@ background_task() {
     bin/jo compile --reg --report-time tests/pos/fact.jo || error "jo compile --reg"
 
     # check doc
-    bin/doc --no-stdlib $(find lib -name '*.jo') --title "Jo Standard Library" --out libdocs || error "bin/doc"
-    bin/jo compile --doc --no-stdlib $(find lib -name '*.jo') --title "Jo Standard Library" --out stdlib-doc || error "doc"
+    #
+    # Same source list as the release bundle in RELEASE.md: the standard library
+    # plus the three runtime FFI APIs. `--readme` is passed so a home page that
+    # breaks the generator, or markdown that mangles its inline SVG, fails here
+    # rather than at release time.
+    DOC_SOURCES="$(find $DIR/lib -name '*.jo') $DIR/runtime/python/py.jo $DIR/runtime/ruby/rb.jo $DIR/runtime/javascript/js.jo"
+
+    bin/doc --no-stdlib $DOC_SOURCES --title "Jo Standard Library" --readme $DIR/lib/README.md --out libdocs || error "bin/doc"
+    bin/jo compile --doc --no-stdlib $DOC_SOURCES --title "Jo Standard Library" --readme $DIR/lib/README.md --out stdlib-doc || error "doc"
 
     ################################################################################
     # AST printer round-trip

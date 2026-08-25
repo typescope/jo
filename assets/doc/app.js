@@ -8,6 +8,7 @@ const app = {
     'class': 'C',
     'interface': 'I',
     'function': 'F',
+    'annotation': 'A',
     'pattern': 'P',
     'object': 'O',
     'type': 'T',
@@ -69,11 +70,11 @@ const app = {
     const namespaceName = data.fullName || data.name;
     const heading = `<div class="nav-page-index-header">${namespaceName}</div>`;
 
-    const kindOrder = ['section', 'class', 'interface', 'abstract', 'object', 'type', 'pattern', 'function', 'context', 'method'];
+    const kindOrder = ['section', 'class', 'interface', 'abstract', 'object', 'type', 'pattern', 'function', 'annotation', 'context', 'method'];
     const kindLabel = {
       'section': 'Sections', 'class': 'Classes', 'interface': 'Interfaces', 'abstract': 'Abstract Types',
       'object': 'Objects', 'type': 'Types', 'pattern': 'Patterns',
-      'function': 'Functions', 'context': 'Context', 'method': 'Methods'
+      'function': 'Functions', 'annotation': 'Annotations', 'context': 'Context', 'method': 'Methods'
     };
 
     // Collect members by kind
@@ -85,7 +86,7 @@ const app = {
     };
 
     if (data.sections)  data.sections.forEach(s => addMember(s, 'section'));
-    if (data.functions) data.functions.forEach(f => addMember(f, 'function'));
+    if (data.functions) data.functions.forEach(f => addMember(f, f.kind || 'function'));
     if (data.classes)   data.classes.forEach(c => addMember(c, c.kind));
     if (data.types)     data.types.forEach(t => addMember(t, t.kind));
     if (data.patterns)  data.patterns.forEach(p => addMember(p, 'pattern'));
@@ -320,10 +321,15 @@ const app = {
   },
 
   findNamespacePath(fullName) {
-    // Try exact match first
+    // An exact namespace match must win globally. A parent namespace can have
+    // a member with the same full name as a nested namespace (for example, a
+    // context parameter `a.foo` alongside namespace `a.foo`).
     for (const ns of this.nav.children) {
       if (ns.fullName === fullName) return ns.fullName;
-      // Check if it's a member of this namespace
+    }
+
+    // Check whether it is a direct member of a namespace.
+    for (const ns of this.nav.children) {
       if (ns.members) {
         for (const m of ns.members) {
           if (m.fullName === fullName) return ns.fullName;
@@ -471,10 +477,11 @@ const app = {
   },
 
   groupByCategory(data) {
-    const categoryOrder = ['section', 'class', 'interface', 'abstract', 'object', 'type', 'pattern', 'function', 'context'];
+    const categoryOrder = ['section', 'class', 'interface', 'abstract', 'object', 'type', 'pattern', 'function', 'annotation', 'context'];
     const categoryLabels = {
       section: 'Sections', class: 'Classes', interface: 'Interfaces', abstract: 'Abstract Types',
-      object: 'Objects', type: 'Types', pattern: 'Patterns', function: 'Functions', context: 'Context'
+      object: 'Objects', type: 'Types', pattern: 'Patterns', function: 'Functions',
+      annotation: 'Annotations', context: 'Context'
     };
     const categories = new Map();
 
@@ -494,7 +501,7 @@ const app = {
       });
     }
     if (data.types) data.types.forEach(t => addItem(t, t.kind));
-    if (data.functions) data.functions.forEach(f => addItem(f, 'function'));
+    if (data.functions) data.functions.forEach(f => addItem(f, f.kind || 'function'));
     if (data.patterns) data.patterns.forEach(p => addItem(p, 'pattern'));
     if (data.objects) data.objects.forEach(o => addItem(o, 'object'));
     if (data.contexts) data.contexts.forEach(c => addItem(c, 'context'));
@@ -786,8 +793,8 @@ const app = {
       }
     }
 
-    // Return type
-    if (item.returnType) {
+    // Return type - an annotation declares none, so suppress the implicit Unit
+    if (item.returnType && kind !== 'annotation') {
       sig += `: ${this.renderType(item.returnType)}`;
     }
 

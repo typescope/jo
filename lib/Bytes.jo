@@ -14,6 +14,7 @@ namespace jo
 //]
 type Bytes = Bytes.Repr :+ [Bytes.size, Bytes.get, Bytes.slice, Bytes.toBase64]
 
+//[ The backend representation behind `Bytes`, and the operations on it. //]
 section Bytes
   //[ The backend byte buffer //]
   type Repr

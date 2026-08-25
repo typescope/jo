@@ -1,7 +1,5 @@
 namespace jo.regex
 
-import jo.*
-
 //[ Portable regular expression value.
   !
   ! Jo regexes intentionally support only a conservative common subset so the
@@ -210,6 +208,7 @@ class Regex
     parts
 end
 
+//[ Ways to build a `Regex` other than a regex literal. //]
 section Regex
   //[ Compile from a pre-validated, pre-extracted pattern and flags.
     !

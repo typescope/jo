@@ -1,10 +1,11 @@
 namespace jo.mutable
 
-import jo.*
-
+//[ Factory methods for `mutable.Map`. //]
 section Map
+  //[ Number of slots a new map starts with, before it first grows. //]
   def initialCapacity: Int = 16
 
+  //[ Create an empty map. //]
   def empty[K, V]
       (auto
         eq: Eq[K] with [[K].==],
@@ -21,7 +22,7 @@ section Map
     new Map(buckets, 0, eq, hash)
 end
 
-// Varargs constructor for map literals
+//[ Create a `mutable.Map` from the given key-value pairs. //]
 def Map[K, V](elems: ..Pair[K, V])
     (auto
       eq: Eq[K] with [[K].==],
@@ -34,7 +35,13 @@ def Map[K, V](elems: ..Pair[K, V])
   end
   m
 
-// Mutable Hash table implementation with separate chaining
+//[ A mutable hash table with separate chaining.
+  !
+  ! Lookup, insert, and remove are O(1) on average. The table grows and
+  ! rehashes when the load factor exceeds 0.75.
+  !
+  ! Iteration order is unspecified.
+//]
 class Map[K, V]
   val eq: Eq[K]
   val hash: Hash[K]
@@ -47,7 +54,10 @@ class Map[K, V]
     this.eq = eq
     this.hash = hash
 
+  //[ Number of key-value pairs. //]
   def size: Int = _size
+
+  //[ Number of key-value pairs (alias for `size`). //]
   def length: Int = _size
 
   private def capacity: Int = buckets.size
@@ -84,11 +94,13 @@ class Map[K, V]
 
     buckets = newBuckets
 
+  //[ True if `k` is bound in the map. //]
   def contains(k: K): Bool =
     val index = bucketIndex k
     val bucket = buckets[index]
     bucket.exists(p => eq.equal(p.fst, k))
 
+  //[ Return `Some(v)` if `k` is bound to `v`, `None` otherwise. //]
   def getOpt(k: K): Option[V] =
     val index = bucketIndex k
     val bucket = buckets[index]
@@ -98,19 +110,22 @@ class Map[K, V]
     end
     result
 
+  //[ Return the value bound to `k`. Aborts if the key is absent. //]
   def get(k: K): V =
     match getOpt k
     case Some(v) => v
     case None => abort "key not found"
 
+  //[ Return the value bound to `k`, or `default` if the key is absent. //]
   def getOrElse(k: K, default: V): V =
     match getOpt k
     case Some(v) => v
     case None => default
 
+  //[ Bind `k` to `v` (alias for `update`). //]
   def set(k: K, v: V): Unit = update(k, v)
 
-  // Mutable update - modifies in place
+  //[ Bind `k` to `v`, replacing any existing binding. Amortized O(1). //]
   def update(k: K, v: V): Unit =
     var index = bucketIndex k
     var oldBucket = buckets[index]
@@ -132,16 +147,20 @@ class Map[K, V]
       buckets[index] = oldBucket + (k ~ v)
       _size = _size + 1
 
+  //[ Bind `k` to `v` (alias for `update`). //]
   def add(k: K, v: V): Unit = update k v
 
+  //[ Add all key-value pairs from `pairs`, replacing existing bindings. //]
   def addAll(pairs: Iterator[K ~ V] :- [.iterator]): Unit =
     while pairs.hasNext do
       val p = pairs.next()
       update p.fst p.snd
     end
 
+  //[ Add all key-value pairs from `pairs` (alias for `addAll`). //]
   def ++=(pairs: Iterator[K ~ V] :- [.iterator]): Unit = addAll pairs
 
+  //[ Remove the binding for `k`. Does nothing if the key is absent. //]
   def remove(k: K): Unit =
     val index = bucketIndex k
     val oldBucket = buckets[index]
@@ -151,6 +170,7 @@ class Map[K, V]
       buckets[index] = oldBucket.exclude(p => eq.equal(k, p.fst))
       _size = _size - 1
 
+  //[ Remove all bindings. //]
   def clear: Unit =
     var i = 0
     while i < capacity do
@@ -159,6 +179,10 @@ class Map[K, V]
     end
     _size = 0
 
+  //[ Reduce to a single value using a left fold with `f: (S, K, V) => S`.
+    !
+    ! Pairs are visited in unspecified order.
+  //]
   def fold[S](zero: S, f: (S, K, V) => S): S =
     var acc = zero
     var i = 0
@@ -171,6 +195,7 @@ class Map[K, V]
     end
     acc
 
+  //[ Return all keys as an immutable `List`, in unspecified order. //]
   def keys: jo.List[K] =
     var keys: jo.List[K] = []
     var i = 0
@@ -181,6 +206,7 @@ class Map[K, V]
     end
     keys
 
+  //[ Return all values as an immutable `List`, in unspecified order. //]
   def values: jo.List[V] =
     var values: jo.List[V] = []
     var i = 0
@@ -191,6 +217,7 @@ class Map[K, V]
     end
     values
 
+  //[ Copy all key-value pairs into a new immutable `List`, in unspecified order. //]
   def toList: jo.List[K ~ V] =
     // Convert all buckets to a single list
     var pairs: jo.List[K ~ V] = []
@@ -202,8 +229,10 @@ class Map[K, V]
     end
     pairs
 
+  //[ Return an iterator over the key-value pairs, in unspecified order. //]
   def iterator: Iterator[K ~ V] = toList.iterator
 
+  //[ Return a string representation, e.g. `{a -> 1, b -> 2}`. Shows at most 100 pairs. //]
   def toString(auto
       keyShow: Show[K] with [[K].toString],
       valueShow: Show[V] with [[V].toString])

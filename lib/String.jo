@@ -50,6 +50,7 @@ class String
   //[ Inequality.    //]
   def !=(other: String): Bool = !(this == other)
 
+  //[ The number of characters (alias for `size`). //]
   def length: Int = this.size
 
   //[ True when string length is zero.    //]
@@ -128,6 +129,11 @@ class String
     else
       0
 
+  //[ A hash of the characters, computed as `hash * 31 + codePoint`.
+    !
+    ! Used to synthesize `Hash[String]`. Equal strings hash equally; the value
+    ! is not stable across releases and must not be persisted.
+  //]
   def hashCode: Int =
     var hash = 0
     var i = 0
@@ -299,6 +305,11 @@ class String
     parts + this.substring(lineStart, n - lineStart)
 end
 
+//[ Anything printable: a `String`, or a value with a `toString` member
+  !
+  ! Used by `print` and `println` so a call site does not have to convert
+  ! first: `println 42` and `println list` both work.
+//]
 type StringLike = String :- [.toString]
 
 private section String

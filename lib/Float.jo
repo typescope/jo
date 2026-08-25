@@ -5,40 +5,57 @@ import jo.compile.intrinsic
 //[ 64-bit IEEE 754 floating-point numbers
   !
   ! Float is a class (like String) to avoid operator namespace pollution.
+  !
+  ! Not available on the native backends: compiling any use of `Float` with
+  ! `--reg` or `--stack` fails with "Floating point not supported for native
+  ! backend".
+  !
+  ! IEEE 754 semantics apply, so `0.0 / 0.0` is NaN and NaN compares false
+  ! against every value, itself included.
 //]
 @intrinsic
 class Float
   private def Float() = abort "Cannot create new Float instance"
 
   // Arithmetic operators as methods
+  //[ Floating-point addition. //]
   @intrinsic
   def +(other: Float): Float = ...
 
+  //[ Floating-point subtraction. //]
   @intrinsic
   def -(other: Float): Float = ...
 
+  //[ Floating-point multiplication. //]
   @intrinsic
   def *(other: Float): Float = ...
 
+  //[ Floating-point division. Division by zero yields an infinity or NaN, never an abort. //]
   @intrinsic
   def /(other: Float): Float = ...
 
   // Comparison operators as methods
+  //[ True if this value is greater than `other`. //]
   @intrinsic
   def >(other: Float): Bool = ...
 
+  //[ True if this value is less than `other`. //]
   @intrinsic
   def <(other: Float): Bool = ...
 
+  //[ True if this value is greater than or equal to `other`. //]
   @intrinsic
   def >=(other: Float): Bool = ...
 
+  //[ True if this value is less than or equal to `other`. //]
   @intrinsic
   def <=(other: Float): Bool = ...
 
+  //[ True if the two values are equal. //]
   @intrinsic
   def ==(other: Float): Bool = ...
 
+  //[ True if the two values differ. //]
   @intrinsic
   def !=(other: Float): Bool = ! (this == other)
 
@@ -51,18 +68,23 @@ class Float
   @intrinsic
   def toInt: Int = ...
 
+  //[ Decimal representation. The exact spelling is backend dependent: the JavaScript backend prints `7` where the others print `7.0`. //]
   @intrinsic
   def toString: String = ...
 
+  //[ Return 1, -1 or 0 as this value is greater than, less than or equal to `other`. Returns 0 if either value is NaN. //]
   def compareTo(other: Float): Int =
     if this < other then -1
     else if this > other then 1
     else 0
 
+  //[ The greater of the two values. Returns `other` if this value is NaN. //]
   def max(other: Float): Float = if this >= other then this else other
+  //[ The lesser of the two values. Returns `other` if this value is NaN. //]
   def min(other: Float): Float = if this <= other then this else other
 end
 
+//[ Operations on `Float` that are not methods. //]
 section Float
   //[ Parse decimal float with optional sign and exponent. Returns None on invalid input.
     !

@@ -1,7 +1,5 @@
 namespace jo.regex
 
-import jo.*
-
 private def flagsPrefixLen(source: String): Int =
   if source.size < 4 || source[0] != '(' || source[1] != '?' then
     0
