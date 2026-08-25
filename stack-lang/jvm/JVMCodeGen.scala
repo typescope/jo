@@ -29,7 +29,9 @@ import scala.collection.mutable
   */
 class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: Definitions):
   import JVMCodeGen.*
+  import JVMBackendContext.Pending
   val LambdaClass = "Lambda" // hand-written marker interface, see JVMRuntimeClasses
+  private val backend = new JVMBackendContext(rewire)
 
   def jvmType(tp: Type): JType =
     // Only the SAST's *internal* `VoidType` marker (statement-context/
@@ -49,7 +51,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     // a `Bottom`-declared function, e.g. `abort(...)`, is semantically
     // non-returning but compiles to a plain `invokestatic` the verifier
     // still expects a value from — see `isTerminal`'s doc comment).
-    JVMTypes.lower(JVMTypes.representationOf(tp), enqueueClass)
+    JVMTypes.lower(JVMTypes.representationOf(tp), backend.requireClass)
 
   def methodDesc(paramTypes: List[Type], resultType: Type): String =
     "(" + paramTypes.map(t => descOf(jvmType(t))).mkString + ")" + descOf(jvmType(resultType))
@@ -58,73 +60,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
   // Program-wide state: reachability worklists, name assignment
   //----------------------------------------------------------------------------
 
-  private val funDefOf   = mutable.Map.empty[Symbol, FunDef]
-  private val classDefOf = mutable.Map.empty[Symbol, ClassDef]
-  private val interfaceDefOf = mutable.Map.empty[Symbol, InterfaceDef]
-
-  private val topLevelWork = new mutable.ArrayDeque[Symbol]()
-  private val topLevelSeen = mutable.Set.empty[Symbol]
-  private val topLevelName = mutable.Map.empty[Symbol, String]
-
-  // Pre-reserved so a user class/function can never collide with the
-  // synthetic entry-point class or the hand-written runtime classes, which
-  // are merged into the output by Compiler.writeClassFiles without going
-  // through classSimpleName/enqueueTopLevel's own dedup (see
-  // JVMRuntimeClasses).
-  // (Literal "Main", not `MainClassName`: that val is declared later in this
-  // class body and would still be null at this field's initialization time.)
-  private val usedNames = mutable.Set[String]("Main", "Node", "Lambda")
-
-  private val classWork = new mutable.ArrayDeque[Symbol]()
-  private val classSeen = mutable.Set.empty[Symbol]
   private val classFiles = mutable.LinkedHashMap.empty[String, Array[Byte]]
-
-  private def resolve(sym: Symbol): Symbol = rewire.getOrElse(sym, sym)
-
-  private def sanitize(s: String): String =
-    val b = new StringBuilder
-    for c <- s do
-      if c.isLetterOrDigit || c == '_' || c == '$' then b += c else b += '_'
-    if b.isEmpty || b.head.isDigit then b.insert(0, '_')
-    b.toString
-
-  private def enqueueTopLevel(sym: Symbol): String =
-    val r = resolve(sym)
-    topLevelName.get(r) match
-      case Some(n) => n
-      case None =>
-        val base = sanitize(r.fullName.replace('.', '$'))
-        var name = base
-        var i = 0
-        while usedNames.contains(name) do { i += 1; name = base + "_" + i }
-        usedNames += name
-        topLevelName(r) = name
-        topLevelWork.append(r)
-        name
-
-  private def enqueueClass(sym: Symbol): String =
-    if !classSeen(sym) then
-      classSeen += sym
-      classWork.append(sym)
-    classSimpleName(sym)
-
-  private val classNameOf = mutable.Map.empty[Symbol, String]
-  private def classSimpleName(sym: Symbol): String =
-    classNameOf.get(sym) match
-      case Some(n) => n
-      case None =>
-        // ElimCapture's `flatName` is not guaranteed unique across sibling
-        // lambdas (it has no per-occurrence counter, unlike e.g. the Ruby
-        // backend's UniqueName-based dedup) — two anonymous lambdas in the
-        // same enclosing function can compute the identical string. Dedupe
-        // here the same way enqueueTopLevel dedupes method names.
-        val base = sanitize(sym.name.replace('.', '$'))
-        var name = base
-        var i = 0
-        while usedNames.contains(name) do { i += 1; name = base + "_" + i }
-        usedNames += name
-        classNameOf(sym) = name
-        name
 
   //----------------------------------------------------------------------------
   // Entry point
@@ -134,9 +70,9 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     *         name of the class holding `public static void main`.
     */
   def generate(units: List[FileUnit]): (Map[String, Array[Byte]], String) =
-    for unit <- units do collectDefs(unit.defs)
+    backend.index(units)
 
-    enqueueTopLevel(runtime.start)
+    backend.requireTopLevel(runtime.start)
     val mainClassMethods = new mutable.ArrayBuffer[MethodOut]()
     val cp = new ConstantPool
 
@@ -147,19 +83,15 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     // compiling a top-level function can likewise discover new classes via
     // `New`. Draining the two queues in sequence would silently drop
     // whichever queue gained new work after its own pass already finished.
-    while topLevelWork.nonEmpty || classWork.nonEmpty do
-      while topLevelWork.nonEmpty do
-        val sym = topLevelWork.removeHead()
-        if !topLevelSeen(sym) then
-          topLevelSeen += sym
-          if !isNativeOrIntrinsic(sym) then
-            mainClassMethods += compileTopLevelFunDef(funDefOf(sym), cp)
-
-      if classWork.nonEmpty then
-        val sym = classWork.removeHead()
-        classDefOf.get(sym) match
-          case Some(cdef) => compileClass(cdef, cp)
-          case None => compileInterface(interfaceDefOf(sym), cp)
+    var pending = backend.nextPending()
+    while pending.nonEmpty do
+      pending.get match
+        case Pending.TopLevel(fdef) =>
+          if !isNativeOrIntrinsic(fdef.symbol) then
+            mainClassMethods += compileTopLevelFunDef(fdef, cp)
+        case Pending.Class(cdef) => compileClass(cdef, cp)
+        case Pending.Interface(idef) => compileInterface(idef, cp)
+      pending = backend.nextPending()
 
     // Synthetic entry point: `public static void main(String[] args)`
     mainClassMethods += buildJavaMain(cp)
@@ -168,12 +100,12 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     (classFiles.toMap + (MainClassName -> mainBytes), MainClassName)
 
   private def buildJavaMain(cp: ConstantPool): MethodOut =
-    val startSym = resolve(runtime.start)
+    val startSym = backend.resolve(runtime.start)
     val startProcType = startSym.tpe.asProcType
     val startDesc = methodDesc(startProcType.paramTypes ++ startProcType.autoTypes, startProcType.resultType)
     val cw = new CodeWriter(cp)
     cw.touchLocal(0) // String[] args
-    cw.invokestatic(MainClassName, topLevelName(startSym), startDesc)
+    cw.invokestatic(MainClassName, backend.topLevelName(startSym), startDesc)
     // `start`'s Jo-level return type is `Unit`, which — like any other Jo
     // value type — now erases to `Ref(Object)` (see the `jvmType` doc
     // comment), not `V`; the real Java `main` truly is `void`, so discard it.
@@ -184,21 +116,6 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
   private def isNativeOrIntrinsic(sym: Symbol): Boolean =
     runtime.nativeSpec(sym).isDefined || sym.hasAnnotation(defn.intrinsic)
-
-  private def collectDefs(defs: List[Def]): Unit =
-    for d <- defs do
-      d match
-        case fdef: FunDef =>
-          funDefOf(fdef.symbol) = fdef
-        case cdef: ClassDef =>
-          classDefOf(cdef.symbol) = cdef
-          collectDefs(cdef.funs)
-        case idef: InterfaceDef =>
-          interfaceDefOf(idef.symbol) = idef
-          collectDefs(idef.methods)
-        case sec: Section =>
-          collectDefs(sec.defs)
-        case _ =>
 
   //----------------------------------------------------------------------------
   // Local variable slots
@@ -270,7 +187,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     // hand-rolled writer doesn't compute. Only the interface's own abstract
     // members (`hasNext`, `next`, ...) get real `invokeinterface` dispatch —
     // see compileMethodCall.
-    val selfOpt = if sym.owner.isInterface then Some(interfaceDefOf(sym.owner).self) else None
+    val selfOpt = if sym.owner.isInterface then Some(backend.interfaceDef(sym.owner).self) else None
     for self <- selfOpt do slots.bind(self, Ref(ObjectDesc))
 
     for param <- fdef.allParams do slots.bind(param, jvmType(param.tpe))
@@ -300,7 +217,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     val desc =
       val selfDesc = if selfOpt.isDefined then "Ljava/lang/Object;" else ""
       "(" + selfDesc + paramTypes.map(t => descOf(jvmType(t))).mkString + ")" + descOf(jvmType(procType.resultType))
-    MethodOut(AccessFlags.Public | AccessFlags.Static, topLevelName(sym), desc, Some((code, maxStack, maxLocals)))
+    MethodOut(AccessFlags.Public | AccessFlags.Static, backend.topLevelName(sym), desc, Some((code, maxStack, maxLocals)))
 
   private def emitReturn(t: JType, cw: CodeWriter): Unit =
     t match
@@ -337,7 +254,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
   //----------------------------------------------------------------------------
 
   private def compileClass(cdef: ClassDef, cp: ConstantPool): Unit =
-    val className = classSimpleName(cdef.symbol)
+    val className = backend.className(cdef.symbol)
     // ElimCapture.liftLambda always names the lifted class's single method
     // "apply" when the lambda isn't converted to some user SAM interface
     // (`lambdaInterfaceOpt = None`, so `directViewTypes = Nil`) — but a
@@ -363,7 +280,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
     // `view Foo` declares this class implements interface `Foo` — enqueue
     // it so it actually gets compiled, same as any other reachable type.
-    val declaredInterfaces = cdef.views.flatMap(v => classOrInterfaceSymbol(v.tpe)).map(enqueueClass)
+    val declaredInterfaces = cdef.views.flatMap(v => classOrInterfaceSymbol(v.tpe)).map(backend.requireClass)
 
     // A class method implementing an interface's abstract member may have
     // narrower parameter/result types than the interface's own (generic,
@@ -398,7 +315,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     * `compileMethodCall`'s dispatch to them.
     */
   private def compileInterface(idef: InterfaceDef, cp: ConstantPool): Unit =
-    val ifaceName = classSimpleName(idef.symbol)
+    val ifaceName = backend.className(idef.symbol)
     val methods = idef.methods.collect {
       case fdef if fdef.symbol.is(Flags.Defer) =>
         val procType = fdef.symbol.tpe.asProcType
@@ -594,7 +511,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
       case Apply(funRaw, _, _) =>
         stripTypeApply(funRaw) match
-          case Ident(sym) => resolve(sym) == runtime.throwAny
+          case Ident(sym) => backend.resolve(sym) == runtime.throwAny
           case _ => false
 
       case If(_, thenp, elsep) =>
@@ -737,7 +654,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     // testing against that compiled-but-never-instantiated class would
     // always fail.
     else if classSym == defn.Array_class then ObjectArrayDesc
-    else enqueueClass(classSym)
+    else backend.requireClass(classSym)
 
   /** Compile a field access's receiver and return its JVM owner class name.
     * `jvmType`'s "erase everything non-primitive to Object" rule (right for
@@ -773,10 +690,10 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     compile(qual)
     qual match
       case Ident(sym) if ctx.selfSym.contains(sym) =>
-        classSimpleName(sym.owner)
+        backend.className(sym.owner)
       case _ =>
         val owner = classOrInterfaceSymbol(qual.tpe) match
-          case Some(sym) => enqueueClass(sym)
+          case Some(sym) => backend.requireClass(sym)
           case None => internalNameOf(jvmType(qual.tpe))
         // `jvmType` now keeps a concrete class/interface's own identity
         // through erasure (see its doc comment), so `qual`'s erased type is
@@ -891,7 +808,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     else
       fun match
         case Ident(symRaw) =>
-          val sym = resolve(symRaw)
+          val sym = backend.resolve(symRaw)
           compileIdentApply(sym, allArgs, apply.tpe)
 
         case Select(qual, name) if isPrimitiveOwner(qual.tpe) =>
@@ -947,14 +864,14 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     // `compileMethodCall` is a genuine, `Erasure`-visible Jo-level method
     // call, args included.
     if isIface && !methodSym.is(Flags.Defer) then
-      val fnName = enqueueTopLevel(methodSym)
+      val fnName = backend.requireTopLevel(methodSym)
       compile(qual); adaptTo(jvmType(qual.tpe), Ref(ObjectDesc), ctx.cw)
       args.foreach(compile)
       val desc = "(Ljava/lang/Object;" + paramTypes.map(t => descOf(jvmType(t))).mkString + ")" + descOf(jvmType(procType.resultType))
       ctx.cw.invokestatic(MainClassName, fnName, desc)
 
     else
-      val ownerName = enqueueClass(classSym)
+      val ownerName = backend.requireClass(classSym)
       // See `compileFieldReceiver`'s doc comment: `jvmType(qual.tpe)` is
       // already `ownerName` in the common case now, so this is a no-op, not
       // a redundant `checkcast`, whenever no real mismatch remains.
@@ -996,7 +913,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       // the JS/Ruby backends' cached static-field singleton — a fresh
       // instance per access is simplest and just as correct here.
       val classSym = sym.tpe.asProcType.resultType.classSymbol
-      val className = enqueueClass(classSym)
+      val className = backend.requireClass(classSym)
       ctx.cw.newObj(className)
       ctx.cw.dup()
       ctx.cw.invokespecial(className, Names.Constructor, "()V")
@@ -1081,7 +998,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     * stack effect against a Jo-declared type.
     */
   private def compileStaticCall(sym: Symbol, args: List[Word], expected: JType)(using ctx: MethodCtx): Unit =
-    val name = enqueueTopLevel(sym)
+    val name = backend.requireTopLevel(sym)
     val procType = sym.tpe.asProcType
     for (arg, pt) <- args.zip(procType.paramTypes ++ procType.autoTypes) do
       compile(arg)
@@ -1433,8 +1350,8 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
   private def compileNew(classType: Type, args: List[Word])(using ctx: MethodCtx): Unit =
     val classSym = classType.classSymbol
-    val className = enqueueClass(classSym)
-    val cdef = classDefOf(classSym)
+    val className = backend.requireClass(classSym)
+    val cdef = backend.classDef(classSym)
     val ctorParamTypes = cdef.funs.find(_.symbol.name == Names.Constructor).map(_.params.map(_.tpe)).getOrElse(Nil)
     ctx.cw.newObj(className)
     ctx.cw.dup()
