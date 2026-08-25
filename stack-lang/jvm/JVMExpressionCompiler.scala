@@ -16,11 +16,12 @@ final class JVMExpressionCompiler(
   jvmType: Type => JType,
   methodDesc: (List[Type], Type) => String,
   lambdaABI: JVMLambdaABI
-)(using defn: Definitions) extends JVMMethodCompiler.Expressions, JVMPrimitiveCompiler.Operands:
+)(using defn: Definitions) extends JVMMethodCompiler.Expressions, JVMPrimitiveCompiler.Operands, JVMNativeCallCompiler.Operands:
   import JVMCodeGen.MainClassName
   private type MethodCtx = JVMMethodContext
   private type Slots = JVMMethodSlots
   private val primitiveCompiler = new JVMPrimitiveCompiler(runtime, jvmType, this)
+  private val nativeCallCompiler = new JVMNativeCallCompiler(jvmType, this)
 
   override def emitReturn(t: JType, cw: CodeWriter): Unit =
     t match
@@ -571,7 +572,7 @@ final class JVMExpressionCompiler(
       ctx.cw.checkcast(ObjectArrayDesc)
 
     else if runtime.nativeSpec(sym).isDefined then
-      compileNativeCall(runtime.nativeSpec(sym).get, args, resultType)
+      nativeCallCompiler.compile(runtime.nativeSpec(sym).get, args, resultType, ctx.cw)
 
     else
       compileStaticCall(sym, args, jvmType(resultType))
@@ -626,73 +627,6 @@ final class JVMExpressionCompiler(
     ctx.cw.setStack(afterBranch) // trueL is reached with the pre-`iconst(0)` depth, not the false arm's
     ctx.cw.iconst(1)
     ctx.cw.mark(endL)
-
-  /** `declaredResultType` is the calling Jo symbol's own declared return
-    * type, e.g. `Unit` for `psPrint`/`setNodeValue`. It's frequently *not*
-    * the same JVM representation as what the raw JDK member actually
-    * produces — a `putfield`/`void`-`virtual` call produces nothing, but a
-    * `Unit`-declared Jo function now erases to `Ref(Object)` (see the
-    * `jvmType` doc comment), so a real `null` needs materializing to match.
-    * Every kind below is adapted uniformly at the end from what it actually
-    * left on the stack to `jvmType(declaredResultType)`, the same way any
-    * other call's result is reconciled, rather than relying on informal
-    * "close enough" reasoning about widening.
-    */
-  private def compileNativeCall(spec: runtime.NativeSpec, args: List[Word], declaredResultType: Type)(using ctx: MethodCtx): Unit =
-    val cw = ctx.cw
-    val actual: JType = spec.kind match
-      case "static" =>
-        val paramTs = parseMethodParams(spec.desc)
-        for (a, pt) <- args.zip(paramTs) do { compile(a); adaptTo(jvmType(a.tpe), pt, cw) }
-        cw.invokestatic(spec.owner, spec.member, spec.desc)
-        parseMethodReturn(spec.desc)
-
-      case "virtual" | "interface" =>
-        val recv :: rest = args: @unchecked
-        compile(recv); adaptTo(jvmType(recv.tpe), Ref(ObjectDesc), cw); cw.checkcast(spec.owner)
-        val paramTs = parseMethodParams(spec.desc)
-        for (a, pt) <- rest.zip(paramTs) do { compile(a); adaptTo(jvmType(a.tpe), pt, cw) }
-        if spec.kind == "virtual" then cw.invokevirtual(spec.owner, spec.member, spec.desc)
-        else cw.invokeinterface(spec.owner, spec.member, spec.desc)
-        parseMethodReturn(spec.desc)
-
-      case "special" =>
-        cw.newObj(spec.owner)
-        cw.dup()
-        val paramTs = parseMethodParams(spec.desc)
-        for (a, pt) <- args.zip(paramTs) do { compile(a); adaptTo(jvmType(a.tpe), pt, cw) }
-        cw.invokespecial(spec.owner, "<init>", spec.desc)
-        // Constructor descriptors are always declared `(...)V`, but `new`+
-        // `dup`+`invokespecial <init>` actually leaves the new instance —
-        // of the constructed class specifically, not `V` — on the stack.
-        Ref("L" + spec.owner + ";")
-
-      case "getstatic" =>
-        cw.getstatic(spec.owner, spec.member, spec.desc)
-        parseFieldDesc(spec.desc)
-
-      case "putstatic" =>
-        val t = parseFieldDesc(spec.desc)
-        compile(args.head); adaptTo(jvmType(args.head.tpe), t, cw)
-        cw.putstatic(spec.owner, spec.member, spec.desc)
-        V
-
-      case "getfield" =>
-        compile(args.head); adaptTo(jvmType(args.head.tpe), Ref(ObjectDesc), cw); cw.checkcast(spec.owner)
-        cw.getfield(spec.owner, spec.member, spec.desc)
-        parseFieldDesc(spec.desc)
-
-      case "putfield" =>
-        compile(args.head); adaptTo(jvmType(args.head.tpe), Ref(ObjectDesc), cw); cw.checkcast(spec.owner)
-        val t = parseFieldDesc(spec.desc)
-        compile(args(1)); adaptTo(jvmType(args(1).tpe), t, cw)
-        cw.putfield(spec.owner, spec.member, spec.desc)
-        V
-
-      case other =>
-        throw new Exception("Unknown @extern kind: " + other)
-
-    adaptTo(actual, jvmType(declaredResultType), cw)
 
   //----------------------------------------------------------------------------
 

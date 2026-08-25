@@ -59,13 +59,14 @@ class JVMRuntime(using defn: Definitions):
     */
   def intrinsicDeps: Map[Symbol, List[Symbol]] = Map.empty
 
-  /** Decoded payload of an `@extern(owner, member, desc, kind)` annotation. */
-  case class NativeSpec(owner: String, member: String, desc: String, kind: String)
-
-  def nativeSpec(sym: Symbol): Option[NativeSpec] =
+  def nativeSpec(sym: Symbol): Option[JVMRuntime.NativeSpec] =
     sym.annotation(annot_extern).map:
       case Annotation(_, Constant.String(owner) :: Constant.String(member) :: Constant.String(desc) :: Constant.String(kind) :: Nil) =>
-        NativeSpec(owner, member, desc, kind)
+        JVMRuntime.NativeSpec(owner, member, desc, kind)
       case other =>
         throw new Exception(s"Unexpected @extern payload on ${sym.fullName}: $other")
 end JVMRuntime
+
+object JVMRuntime:
+  /** Decoded payload of an `@extern(owner, member, desc, kind)` annotation. */
+  case class NativeSpec(owner: String, member: String, desc: String, kind: String)
