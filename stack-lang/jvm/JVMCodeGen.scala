@@ -27,14 +27,15 @@ import scala.collection.mutable
   * (or nothing, for `Unit`) — every call site relies on that postcondition
   * instead of threading an expected-type parameter through recursion.
   */
-class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: Definitions) extends JVMMethodCompilation:
+class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: Definitions) extends JVMExpressionCompilation:
   import JVMCodeGen.*
   import JVMBackendContext.Pending
   private type MethodCtx = JVMMethodContext
   private type Slots = JVMMethodSlots
   val LambdaClass = "Lambda" // hand-written marker interface, see JVMRuntimeClasses
   private val backend = new JVMBackendContext(rewire)
-  private val classCompiler = new JVMClassCompiler(backend, this, jvmType, methodDesc, LambdaClass)
+  private val methodCompiler = new JVMMethodCompiler(this, jvmType, methodDesc)
+  private val classCompiler = new JVMClassCompiler(backend, methodCompiler, jvmType, methodDesc, LambdaClass)
 
   def jvmType(tp: Type): JType =
     // Only the SAST's *internal* `VoidType` marker (statement-context/
@@ -152,7 +153,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     val resType = jvmType(procType.resultType)
     given JVMMethodContext = new JVMMethodContext(cw, slots, resType, selfSym = selfOpt)
 
-    emitLocalDefaults(localTypes, cw)
+    initializeLocals(localTypes, cw)
     compile(fdef.body)
     // A function whose body already ends in a terminal instruction (e.g. an
     // `abort`-stubbed function whose body is a direct `throwAny` call, or one
@@ -174,7 +175,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       "(" + selfDesc + paramTypes.map(t => descOf(jvmType(t))).mkString + ")" + descOf(jvmType(procType.resultType))
     MethodOut(AccessFlags.Public | AccessFlags.Static, backend.topLevelName(sym), desc, Some((code, maxStack, maxLocals)))
 
-  private def emitReturn(t: JType, cw: CodeWriter): Unit =
+  override def emitReturn(t: JType, cw: CodeWriter): Unit =
     t match
       case V => cw.returnVoid()
       case r if isIntCat(r) => cw.ireturn()
@@ -195,7 +196,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     * = _` locals — makes every incoming edge agree the slot holds *some*
     * value of the right category before the body ever runs.
     */
-  private def emitLocalDefaults(locals: List[(Symbol, Int)], cw: CodeWriter): Unit =
+  override def initializeLocals(locals: List[(Symbol, Int)], cw: CodeWriter): Unit =
     for (local, slot) <- locals do
       jvmType(local.tpe) match
         case V => ()
@@ -203,138 +204,6 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
         case t @ Ref(_) => cw.aconstNull(); storeLocal(t, slot, cw)
         case J => cw.lconst(0L); storeLocal(J, slot, cw)
         case F => throw new Exception("float locals not supported in this prototype")
-
-  //----------------------------------------------------------------------------
-  // Lambda-lifted class compilation (ElimCapture output)
-  //----------------------------------------------------------------------------
-
-  /** Jo constructors are modeled as functions that return the constructed
-    * `this` (see ElimCapture); a JVM `<init>` is void and operates on the
-    * object `new` already allocated. We translate the specific shape
-    * ElimCapture always produces: a `Block` of `FieldAssign`s (self.field =
-    * ctorParam) followed by a trailing `Ident(self)`.
-    */
-  override def compileConstructor(fdef: FunDef, cdef: ClassDef, cp: ConstantPool): MethodOut =
-    val cw = new CodeWriter(cp)
-    val slots = new JVMMethodSlots
-    slots.bind(cdef.self, Ref(ObjectDesc)) // reserve slot 0 for `this`
-
-    val ctorParams = fdef.params // constructor's own explicit params are the field values
-    for p <- ctorParams do slots.bind(p, jvmType(p.tpe))
-
-    // A field initializer can itself contain local `val`s (e.g. `val flags:
-    // String = val prefixLen = ...; if prefixLen > 0 then ... else ...`,
-    // see lib/regex/Validator.jo) — `fdef.locals` finds every such local
-    // anywhere in the constructor body via the same census the ordinary
-    // function/method compilers use, so they get slots before `emitInit`
-    // (via `compileInline`) compiles any code that references them.
-    val localTypes = for local <- fdef.locals yield local -> slots.bind(local, jvmType(local.tpe))
-    if slots.used > 0 then cw.touchLocal(slots.used - 1) // see Slots.used
-
-    cw.aload(0)
-    cw.invokespecial(ObjectClass, Names.Constructor, "()V")
-    emitLocalDefaults(localTypes, cw)
-
-    // ElimCapture's usual shape is a `Block` of `FieldAssign`s (self.field =
-    // ctorParam) followed by a trailing `Ident(self)`, but an explicit
-    // user-written constructor can contain arbitrary statements too — a
-    // local `Assign`, a side-effecting call like `println`, and so on (see
-    // tests/pos/constructor-flexible-init.jo, constructor-init-order.jo).
-    // `FieldAssign` (self-qualified) and ordinary statements both already
-    // compile correctly through the general `compile` dispatcher — see
-    // `compileFieldReceiver`'s `ctx.selfSym`-aware fast path — so only the
-    // trailing bare `self` result (a JVM `<init>` has nothing to return)
-    // and `Block` flattening need special-casing here.
-    def emitInit(word: Word): Unit =
-      word match
-        case Block(words) =>
-          words.foreach(emitInit)
-        case _: Ident =>
-          () // trailing `self` result — a JVM <init> has nothing to return
-        case other =>
-          compileInline(other, slots, cw, cdef.self)
-
-    emitInit(fdef.body)
-    cw.returnVoid()
-
-    val (code, maxStack, maxLocals) = cw.finish()
-    val desc = "(" + ctorParams.map(p => descOf(jvmType(p.tpe))).mkString + ")V"
-    MethodOut(AccessFlags.Public, Names.Constructor, desc, Some((code, maxStack, maxLocals)))
-
-  /** Compile a class instance method with the natural signature implied by
-    * its Jo parameter/result types (slot 0 = `this`).
-    */
-  override def compileInstanceMethod(fdef: FunDef, self: Symbol, cp: ConstantPool): MethodOut =
-    val sym = fdef.symbol
-    val procType = sym.tpe.asProcType
-    val cw = new CodeWriter(cp)
-    val slots = new JVMMethodSlots
-    slots.bind(self, Ref(ObjectDesc))
-    for param <- fdef.allParams do slots.bind(param, jvmType(param.tpe))
-    if slots.used > 0 then cw.touchLocal(slots.used - 1) // see Slots.used
-    val localTypes = for local <- fdef.locals yield local -> slots.bind(local, jvmType(local.tpe))
-
-    val resType = jvmType(procType.resultType)
-    given JVMMethodContext = new JVMMethodContext(cw, slots, resType, selfSym = Some(self))
-
-    emitLocalDefaults(localTypes, cw)
-    compile(fdef.body)
-    // See the matching check in `compileTopLevelFunDef`.
-    if !isTerminal(fdef.body) then emitReturn(resType, cw)
-
-    val (code, maxStack, maxLocals) = cw.finish()
-    val desc = methodDesc(procType.paramTypes ++ procType.autoTypes, procType.resultType)
-    // `Erasure` names a synthesized bridge method `<name>$bridge` (see
-    // Names.BridgeSuffix) — that convention is native's own, which looks
-    // bridges up explicitly by that suffixed name in its own itable
-    // (native/runtime/InterfaceTable.scala), not a real JVM requirement.
-    // Real `invokeinterface` dispatch needs the bridge to carry the exact
-    // same name as the interface method it bridges — the JVM tells it apart
-    // from the natural-typed method purely by descriptor (return type is
-    // part of a JVM method's identity, even though Java source can't
-    // overload on it alone), so stripping the suffix here is enough.
-    val bytecodeName = sym.name.stripSuffix(Names.BridgeSuffix)
-    MethodOut(AccessFlags.Public, bytecodeName, desc, Some((code, maxStack, maxLocals)))
-
-  /** Every lambda-lifted class implements the shared marker interface
-    * `Lambda` with a single arity-erased method `Object apply(Object[])`,
-    * so a call site that only knows a value's abstract lambda type can still
-    * dispatch to it via `invokeinterface` without knowing the concrete
-    * class. This method adapts that uniform entry point to the lambda's
-    * natural per-parameter types.
-    */
-  override def compileLambdaApply(fdef: FunDef, cdef: ClassDef, cp: ConstantPool): MethodOut =
-    val cw = new CodeWriter(cp)
-    val slots = new JVMMethodSlots
-    slots.bind(cdef.self, Ref(ObjectDesc)) // slot 0 = this
-    val argsSlot = 1
-    cw.touchLocal(argsSlot) // reserve slot 1 = incoming Object[] args
-
-    val resType = jvmType(fdef.resultType.tpe)
-    given JVMMethodContext = new JVMMethodContext(cw, slots, resType, selfSym = Some(cdef.self), argsArraySlot = Some(argsSlot))
-
-    // Unpack args[i] into locals matching the lambda's own parameter slots.
-    // Locals start at slot 2 (0 = this, 1 = args array).
-    slots.reserveUpTo(2)
-    for (param, i) <- fdef.params.zipWithIndex do
-      val pt = jvmType(param.tpe)
-      val s = slots.bind(param, pt)
-      cw.aload(argsSlot)
-      cw.iconst(i)
-      cw.aaload()
-      adaptTo(Ref(ObjectDesc), pt, cw)
-      storeLocal(pt, s, cw)
-
-    val localTypes = for local <- fdef.locals yield local -> slots.bind(local, jvmType(local.tpe))
-
-    emitLocalDefaults(localTypes, cw)
-    compile(fdef.body)
-    // Box the natural result up to Object for the uniform `apply` signature.
-    if resType == V then cw.aconstNull() else adaptTo(resType, Ref(ObjectDesc), cw)
-    cw.areturn()
-
-    val (code, maxStack, maxLocals) = cw.finish()
-    MethodOut(AccessFlags.Public, "apply", "([Ljava/lang/Object;)Ljava/lang/Object;", Some((code, maxStack, maxLocals)))
 
   //----------------------------------------------------------------------------
   // Statement/expression compilation
@@ -382,7 +251,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     * `true` would be a real bug (skipping control flow that's actually
     * needed), so this stays conservative and defaults to `false`.
     */
-  private def isTerminal(word: Word): Boolean =
+  override def isTerminal(word: Word): Boolean =
     word match
       case _: Return => true
 
@@ -401,7 +270,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
       case _ => false
 
-  private def compile(word: Word)(using ctx: MethodCtx): Unit =
+  override def compile(word: Word)(using ctx: MethodCtx): Unit =
     word match
       case Literal(c) => compileLiteral(c, jvmType(word.tpe))
 
@@ -588,7 +457,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     * needing a full MethodCtx (used by the constructor emitter, which has a
     * restricted body shape and no control flow).
     */
-  private def compileInline(word: Word, slots: Slots, cw: CodeWriter, selfSym: Symbol): Unit =
+  override def compileInline(word: Word, slots: Slots, cw: CodeWriter, selfSym: Symbol): Unit =
     given MethodCtx = new MethodCtx(cw, slots, V, selfSym = Some(selfSym))
     compile(word)
 
@@ -617,7 +486,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
     else if t == J then cw.lload(slot)
     else cw.aload(slot)
 
-  private def storeLocal(t: JType, slot: Int, cw: CodeWriter): Unit =
+  override def storeLocal(t: JType, slot: Int, cw: CodeWriter): Unit =
     if isIntCat(t) then cw.istore(slot)
     else if t == J then cw.lstore(slot)
     else cw.astore(slot)
@@ -1258,7 +1127,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
   // Representation adaptation (boxing / unboxing / checkcast / value-drop)
   //----------------------------------------------------------------------------
 
-  private def adaptTo(actual: JType, expected: JType, cw: CodeWriter): Unit =
+  override def adaptTo(actual: JType, expected: JType, cw: CodeWriter): Unit =
     JVMAdaptation.emit(actual, expected, cw)
 end JVMCodeGen
 
