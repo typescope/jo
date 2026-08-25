@@ -1280,12 +1280,9 @@ class Namer(using Config) extends Applications with SelectionTyper:
   private def transformParamDef(pdef: Ast.ParamDef)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : LazyDef[Def] =
-    assert(pdef.default.isEmpty, "optional context param not desugared: " + pdef)
-
     val index = lazyDefn.index
 
-    val extraFlags = pdef.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
-    val flags = Checker.checkModifiers(pdef) | Flags.Context | extraFlags
+    val flags = Checker.checkModifiers(pdef) | Flags.Context
 
     val paramSym = TermSymbol.create(pdef.name, flags, Checker.visibility(pdef, sc.owner), sc.owner, pdef.pos)
 
@@ -1643,10 +1640,8 @@ class Namer(using Config) extends Applications with SelectionTyper:
         Defaults.checkPostDefaults(astPostParams, postParamSyms, this)
       Checks.add { defaults.value }
 
-      /* The effects of a method symbol stored in the type is different from those
-       * raw effects computed from the code due to the auto provision of optional
-       * context parameters.
-       */
+      // Keep inferred receives lazy through the effect engine; store explicit
+      // bounds directly when the source provided a receives clause.
       val receivesInfo: Symbol | List[Symbol] =
         effectPolicyLazy.value.bound match
           case Some(effs) => effs

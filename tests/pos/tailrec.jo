@@ -21,7 +21,7 @@ class Node(value: Int, prev: Option[Node])
 end
 
 // Tail-recursive function with context parameter
-param factor: Int = 1
+param factor: Int
 
 def scaledSum(n: Int, acc: Int): Int =
   if n == 0 then

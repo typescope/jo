@@ -1,9 +1,9 @@
-param level: Int = 0
+param level: Int
 
 def plain(x: Int): Int receives none =
   x + 1
 
-def main receives IO.stdout =
+def main receives IO.stdout = with level = 0 in
   println level
 
   val nested =

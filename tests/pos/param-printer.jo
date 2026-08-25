@@ -1,4 +1,4 @@
-param pageWidth: Int = 78
+param pageWidth: Int
 
 type Doc = String
 

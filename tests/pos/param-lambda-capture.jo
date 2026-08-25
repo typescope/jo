@@ -1,5 +1,5 @@
-param x: Int = 0
-param y: Int = 0
+param x: Int
+param y: Int
 
 type Adder = () => Int receives y
 

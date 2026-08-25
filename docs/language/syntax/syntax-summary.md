@@ -309,7 +309,7 @@ branch = name [default_param_section]
 
 extension_def = "extension" name [tparams] "for" type {qualifier def_def} ["end"]
 
-param_def = "param" param ["=" block]
+param_def = "param" param
 
 type_def = "type" [tparams] ident [tparams] ["=" type]
 

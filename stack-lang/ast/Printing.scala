@@ -143,12 +143,8 @@ object Printing:
           else "(" ~ params.join(", ") ~ ")"
         "annotation " ~ id.name ~ ps
 
-      case ParamDef(id, tpt, default) =>
-        val rhs = default match
-          case None => Text.Empty
-          case Some(word) => " = " ~ word
-
-        "param " ~ id ~ ": " ~ tpt ~ rhs
+      case ParamDef(id, tpt) =>
+        "param " ~ id ~ ": " ~ tpt
 
       case ValDef(id, tpt, rhs, mutable) =>
         val mods =

@@ -215,8 +215,8 @@ section Impl
     !
     ! All operations enforce row-level security by including userId in queries
   //]
-  def queryImpl(userId: Int, condition: Cond): List[Document]
-      receives connection, ordering, limit, offset
+  def queryImpl(userId: Int, condition: Cond, ordering: OrderBy, limit: Int, offset: Int): List[Document]
+      receives connection
   =
     // Build WHERE clause with condition
     val condParts = condToSQL(condition)
@@ -438,8 +438,8 @@ end
   ! Implements DB interface with row-level security enforced by userId
 //]
 class SecureDB(userId: Int, connection: sqlite3.Connection)
-  def query(condition: Cond): List[Document] receives ordering, limit, offset =
-    with Impl.connection = connection in Impl.queryImpl(userId, condition)
+  def query(condition: Cond, ordering: OrderBy = NoOrder, limit: Int = 100, offset: Int = 0): List[Document] =
+    with Impl.connection = connection in Impl.queryImpl(userId, condition, ordering, limit, offset)
 
   def count(condition: Cond): Int =
     with Impl.connection = connection in Impl.countImpl(userId, condition)

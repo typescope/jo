@@ -13,7 +13,7 @@ The following is the trace that leads to the problem:
 ---------- Error at tests/warn/param-control.jo:21:5 ---------------
 | def main receives stdout =  // error
 |     ^^^^
-|     Parameter not allowed: newLine
+|     Context parameter not provided: newLine
 
 The following is the trace that leads to the problem:
 ├──   bar()	[ tests/warn/param-control.jo:23:3 ]

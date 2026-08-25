@@ -2,6 +2,8 @@ import { h } from 'vue'
 import DefaultTheme from 'vitepress/theme'
 import HeroCode from './HeroCode.vue'
 import BlogIndex from './BlogIndex.vue'
+import JipIndex from './JipIndex.vue'
+import JipMeta from './JipMeta.vue'
 import './custom.css'
 
 export default {
@@ -13,5 +15,7 @@ export default {
   },
   enhanceApp({ app }) {
     app.component('BlogIndex', BlogIndex)
+    app.component('JipIndex', JipIndex)
+    app.component('JipMeta', JipMeta)
   }
 }

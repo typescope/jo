@@ -54,6 +54,7 @@ export default defineConfig({
       { text: 'Build Tool', link: '/usage/install' },
       { text: 'Language Reference', link: '/language/design-principles' },
       ...stdlibNav,
+      { text: 'JIPs', link: '/jips/' },
       { text: 'Blog', link: '/blog/' },
     ],
 
@@ -200,6 +201,16 @@ export default defineConfig({
           text: 'Blog',
           items: [
             { text: 'All Posts', link: '/blog/' },
+          ]
+        }
+      ],
+
+      '/jips/': [
+        {
+          text: 'Jo Improvement Proposals',
+          items: [
+            { text: 'JIP-0001: Regularize expression syntax', link: '/jips/0001-expression-contexts' },
+            { text: 'JIP-0002: Drop optional context parameters', link: '/jips/0002-drop-optional-context-params' },
           ]
         }
       ],

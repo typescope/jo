@@ -11,8 +11,8 @@
 //
 // Capture constructs use dummy states with explicit labels.
 
-param DEBUG: Bool = false
-param DEBUG_CAPTURE: Bool = false
+param DEBUG: Bool
+param DEBUG_CAPTURE: Bool
 
 def Start: Int = 0
 def Finish: Int = 1
@@ -694,7 +694,7 @@ end
 def debug(msg: String) =
   if DEBUG then println msg
 
-def main receives IO.stdout =
+def main receives IO.stdout = with DEBUG = false, DEBUG_CAPTURE = false in
   println "=== Basic Named Captures ==="
   testCapture "abc" "(?<x>a)bc"
   testCapture "abc" "a(?<x>b)c"

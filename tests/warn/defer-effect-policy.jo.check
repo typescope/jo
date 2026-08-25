@@ -1,7 +1,7 @@
 ---------- Error at tests/warn/defer-effect-policy.jo:1:11 ---------------
 | defer def foo(): Unit receives none =
 |           ^^^
-|           Parameter not allowed: stdout
+|           Context parameter not provided: stdout
 
 The following is the trace that leads to the problem:
 └──   println "hello"	[ tests/warn/defer-effect-policy.jo:2:3 ]
@@ -11,7 +11,7 @@ The following is the trace that leads to the problem:
 ---------- Error at tests/warn/defer-effect-policy.jo:4:11 ---------------
 | defer def bar(): Unit = // default to receive none
 |           ^^^
-|           Parameter not allowed: stdout
+|           Context parameter not provided: stdout
 
 The following is the trace that leads to the problem:
 └──   println "hello"	[ tests/warn/defer-effect-policy.jo:5:3 ]

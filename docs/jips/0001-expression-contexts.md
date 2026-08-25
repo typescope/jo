@@ -2,9 +2,12 @@
 author: Fengyun Liu
 status: Accepted
 created: 2026-07-12
+title: Regularize expression syntax
 ---
 
 # JIP 0001 — Regularize expression syntax
+
+<JipMeta />
 
 ## Summary
 

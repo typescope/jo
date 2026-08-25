@@ -9,7 +9,7 @@
 // TIME COMPLEXITY: O(n*m) where n = input length, m = number of states
 // No backtracking, no exponential blowup!
 
-param DEBUG: Bool = false
+param DEBUG: Bool
 
 def Start: Int = 0
 def Finish: Int = 1
@@ -242,7 +242,7 @@ end
 def debug(msg: String) =
   if DEBUG then println msg
 
-def main receives IO.stdout =
+def main receives IO.stdout = with DEBUG = false in
   println "=== Basic Character Matching ==="
   test "abc" "abc"
   test "abc" "abd"

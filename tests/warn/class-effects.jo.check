@@ -1,7 +1,7 @@
 ---------- Error at tests/warn/class-effects.jo:9:7 ---------------
 |   def foo(x: Int) receives none = bar x.toString
 |       ^^^
-|       Parameter not allowed: out
+|       Context parameter not provided: out
 
 The following is the trace that leads to the problem:
 ├──   def foo(x: Int) receives none = bar x.toString	[ tests/warn/class-effects.jo:9:35 ]
@@ -13,7 +13,7 @@ The following is the trace that leads to the problem:
 ---------- Error at tests/warn/class-effects.jo:14:5 ---------------
 | def instantiate receives none = new Foo
 |     ^^^^^^^^^^^
-|     Parameter not allowed: out
+|     Context parameter not provided: out
 
 The following is the trace that leads to the problem:
 ├── def instantiate receives none = new Foo	[ tests/warn/class-effects.jo:14:37 ]
@@ -25,7 +25,7 @@ The following is the trace that leads to the problem:
 ---------- Error at tests/warn/class-effects.jo:16:5 ---------------
 | def test(o: Foo) receives none = o.work()
 |     ^^^^
-|     Parameter not allowed: out
+|     Context parameter not provided: out
 
 The following is the trace that leads to the problem:
 ├── def test(o: Foo) receives none = o.work()	[ tests/warn/class-effects.jo:16:34 ]

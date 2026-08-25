@@ -502,13 +502,7 @@ object Interpreter:
           params.get(sym) match
             case Some(v) => v :: Nil
             case None =>
-              if sym.is(Flags.Default) then
-                val defaultSym = sym.defaultFunction
-                val fdef = defn.index.getCode(defaultSym).asInstanceOf[FunDef]
-                val defaultVal = call(fdef, Nil).head.asInstanceOf[Value]
-                defaultVal :: Nil
-              else
-                throw new Exception("Unbound context parameter " + sym)
+              throw new Exception("Unbound context parameter " + sym)
 
         else
           env.resolve(sym) :: Nil
