@@ -98,6 +98,12 @@ object Compiler:
             defn.Float_type,
           )
         val erasure = new Erasure(Erasure.untaggedTypes(untaggedTypes))
+        // Bridge materialization used to happen inside `Erasure` itself
+        // (`Erasure.transformClassDef`); it's now a separate phase (see its
+        // doc comment), placed here — immediately after `erasure`, still
+        // before `closureConvert` — to keep that exact same relative timing
+        // and leave this backend's behavior unchanged.
+        val interfaceBridge = new InterfaceBridge(erasure.bridges)
         val closureConvert = new ElimCapture
         val contextParamsLower = new phases.LowerContextParams(backend.runtime.ParamSupport)
         val encodeClass = new native.EncodeClass(backend.runtime)
@@ -111,6 +117,7 @@ object Compiler:
         namespacesSAST     |>
         contextParamsLower |>
         erasure            |>
+        interfaceBridge    |>
         closureConvert     |>
         boxing             |>
         encodeClass        |>

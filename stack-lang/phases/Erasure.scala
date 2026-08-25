@@ -28,17 +28,98 @@ import scala.collection.mutable
   * call's declared return representation to be reconciled with wherever the
   * value is used — see `jvm.JVMCodeGen.isTerminal`'s doc comment for the
   * full story of why this backend, specifically, needs that.
+  * @param bridgeRepresentationMatches whether two erased types (an
+  * interface method's and the implementing natural method's, per
+  * parameter/result) count as the *same representation* for bridge
+  * purposes — as opposed to merely `Subtyping.conforms`-compatible with
+  * the same tagging category, which `makeBridge`'s `taggingConforms` check
+  * alone allows. Defaults to `(_, _) => true` (native's original, still
+  * unchanged behavior: no extra restriction beyond tagging/conformance).
+  * `taggingConforms` only asks "is this tagged/boxed at all," not "is it
+  * *this* reference type" — so e.g. a natural method returning `String`
+  * against an interface method erased to `Any` looks tagging-compatible,
+  * and `String <: Any` conforms, so no bridge gets synthesized by default.
+  * That's fine for a backend whose calling convention treats all reference
+  * values uniformly regardless of declared type. The JVM backend's
+  * `invokeinterface` dispatch instead needs the *exact* descriptor
+  * (`Ljava/lang/Object;`, not `Ljava/lang/String;`) to exist on the class,
+  * so it compares the backend's name-independent JVM representations, not
+  * an approximation reproduced here: `Erasure`'s own erased types alone
+  * aren't a reliable proxy for
+  * "same JVM representation" (e.g. a plain type alias like `type Num = Int
+  * | String` is left as `StaticRef(Num)` by `EraseTypeMap` — only `Bottom`
+  * gets special dealiasing treatment there — while an interface's
+  * uninstantiated type parameter erases to `AnyType`; those look like
+  * different `Erasure`-level types even though `jvmType` maps both to the
+  * identical `Ref(ObjectDesc)`, since it fully dealiases via `.approx`).
   */
-class Erasure(isTagged: Type => Boolean, bottomErasedTo: Type = BottomType)(using defn: Definitions) extends Phase:
+class Erasure(
+  isTagged: Type => Boolean, bottomErasedTo: Type = BottomType,
+  bridgeRepresentationMatches: (Type, Type) => Boolean = (_, _) => true
+)(using defn: Definitions) extends Phase:
   private val allPrimitivesTagged = isTagged `eq` Erasure.allTagged
 
+  // Bridge-detection results, the erased-type map, and the pre-erasure
+  // `Definitions` snapshot all live as plain instance fields here, not
+  // `Phase.PhaseKey`s (contrast `Erasure.labelResultTypes`, kept as one
+  // below since it's genuinely only ever read within this phase's own
+  // single tree walk). `Phase.transform` creates a *fresh* `Context` per
+  // phase invocation, so anything routed through a `PhaseKey` is invisible
+  // across phase boundaries. The bridge capability exported below needs to
+  // call back into this exact Erasure instance from a separate, later phase
+  // invocation — a plain field on `this` is visible
+  // there regardless (an object reference doesn't care which `Context` is
+  // ambient when it's dereferenced), where a `PhaseKey` read wouldn't be.
+  private val bridgeMap: mutable.Map[Symbol, List[(Symbol, Symbol)]] = mutable.Map.empty
+  private var prevDefn: Definitions = defn
+  private var typeMap: Erasure.EraseTypeMap = new Erasure.EraseTypeMap(bottomErasedTo)(using defn)
+
+  /** Bridges detected for `classSym`, forcing detection first if it hasn't
+    * happened yet. `eraseDenotation`'s `ClassInfo` case (below) always
+    * writes `bridgeMap(classSym)`, even to an empty list — so "has this
+    * symbol's key ever been written" is a reliable "already detected" test.
+    *
+    * For an ordinary class, forcing `classSym.info` is enough on its own:
+    * the installed `defn.index` transform (`initContext`, below) runs
+    * `eraseDenotation` lazily, the first time anything reads a symbol's
+    * info, exactly the trigger detection needs. But a class `ElimCapture`
+    * synthesizes *after* this transform is installed is instead registered
+    * via `defn.index.add(classSym, someClassInfo)` — and `add`, on an
+    * already-transform-wrapped index, writes straight into that wrapper's
+    * own cache, bypassing the transform entirely (see
+    * `InfoProvider.InfoTransformer.add`/`get`). So for such a class,
+    * `classSym.info` alone just reads the same never-transformed value back
+    * forever — detection needs to be run on it explicitly instead, which is
+    * exactly what the fallback below does (and then re-registers the
+    * erased result, so this class's info reads consistently everywhere
+    * from here on, the same as an ordinary class's would).
+    */
+  private def bridgesFor(classSym: Symbol)(using Context): List[(Symbol, Symbol)] =
+    if !bridgeMap.contains(classSym) then
+      classSym.info
+      if !bridgeMap.contains(classSym) then
+        defn.index.add(classSym, eraseDenotation(classSym.info))
+    bridgeMap.getOrElse(classSym, Nil)
+
+  /** The only cross-phase interface exported by erasure. Consumers need not
+    * know that bridge detection and adaptation are implemented by this
+    * particular phase instance.
+    */
+  val bridges: Erasure.Bridges = new Erasure.Bridges:
+    def materialize(classSym: Symbol)(using ctx: Context): List[FunDef] =
+      Erasure.createBridges(
+        classSym,
+        bridgesFor(classSym),
+        (word, expectedType, returnType, context) =>
+          eraseWord(word, expectedType, returnType)(using context),
+        prevDefn
+      )
+
   override def initContext()(using Context): Unit =
-    Erasure.bridges.set(mutable.Map.empty)
     Erasure.labelResultTypes.set(mutable.Map.empty)
 
-    val prevDefinitions = defn.snapshot
-    Erasure.prevDefinitions.set(prevDefinitions)
-    Erasure.eraseTypeMap.set(new Erasure.EraseTypeMap(bottomErasedTo)(using prevDefinitions))
+    prevDefn = defn.snapshot
+    typeMap = new Erasure.EraseTypeMap(bottomErasedTo)(using prevDefn)
 
     defn.index.installTransform: (_, denot) =>
       eraseDenotation(denot)
@@ -65,7 +146,7 @@ class Erasure(isTagged: Type => Boolean, bottomErasedTo: Type = BottomType)(usin
           tp2
 
         val bridgeList = bridges.toList
-        Erasure.bridges.value(info.classSymbol) = bridgeList
+        bridgeMap(info.classSymbol) = bridgeList
 
         if !changed && info.tparams.isEmpty && bridges.isEmpty then return denot
 
@@ -86,7 +167,7 @@ class Erasure(isTagged: Type => Boolean, bottomErasedTo: Type = BottomType)(usin
       case tp: Type => eraseType(tp)
 
   def eraseType(tp: Type)(using Context): Type =
-    Erasure.eraseTypeMap.value.apply(tp)(using Set.empty)
+    typeMap.apply(tp)(using Set.empty)
 
   def taggingConforms(tp1: Type, tp2: Type): Boolean =
     isTagged(tp1) == isTagged(tp2) && {
@@ -125,7 +206,11 @@ class Erasure(isTagged: Type => Boolean, bottomErasedTo: Type = BottomType)(usin
       taggingConforms(procType1.resultType, procType2.resultType)
       && procType1.paramTypes.zip(procType2.paramTypes).forall((tp1, tp2) => taggingConforms(tp2, tp1))
 
-    if taggingOK && Subtyping.conforms(procType2, procType1) then
+    val representationOK =
+      bridgeRepresentationMatches(procType1.resultType, procType2.resultType)
+      && procType1.paramTypes.zip(procType2.paramTypes).forall((tp1, tp2) => bridgeRepresentationMatches(tp1, tp2))
+
+    if taggingOK && representationOK && Subtyping.conforms(procType2, procType1) then
       None
 
     else
@@ -136,7 +221,7 @@ class Erasure(isTagged: Type => Boolean, bottomErasedTo: Type = BottomType)(usin
         Visibility.Default,
         methImpl.owner,
         methImpl.sourcePos
-      )(using Erasure.prevDefinitions.value)
+      )(using prevDefn)
 
       Some(bridge)
 
@@ -223,7 +308,7 @@ class Erasure(isTagged: Type => Boolean, bottomErasedTo: Type = BottomType)(usin
           adapt(paramRef, paramType)
 
         adapt(Apply(value, args, autos = Nil)(value.span), resType2)
-      })(using Erasure.prevDefinitions.value)
+      })(using prevDefn)
 
   def eraseWord(word: Word, expectedType: Type, returnType: Type | Null)(using Context): Word = common.Debug.trace("erase " + word.show, (_: Word).show, enable = false):
     word match
@@ -427,32 +512,6 @@ class Erasure(isTagged: Type => Boolean, bottomErasedTo: Type = BottomType)(usin
 
         throw new Exception("Unexpected tree: " + word)
 
-  def createBridges(classSym: Symbol, bridgePairs: List[(Symbol, Symbol)])(using Context): List[FunDef] =
-    for (bridgeSym, targetSym) <- bridgePairs yield
-      val procType = bridgeSym.tpe.asProcType
-      TreeOps.createFunDef(bridgeSym)((paramRefs, autoRefs) => {
-        val targetRef = Ident(classSym.classInfo.self)(bridgeSym.span).select(targetSym.name)
-        val app = Apply(targetRef, paramRefs, autoRefs)(bridgeSym.span)
-        val resType = procType.resultType
-        eraseWord(app, expectedType = resType, returnType = resType)
-      })(using Erasure.prevDefinitions.value)
-    end for
-
-  override def transformClassDef(cdef: ClassDef)(using Context): ClassDef =
-    val classSym = cdef.symbol
-    Phase.owner.set(classSym)
-    val funs = cdef.funs.map(transformFunDef)
-
-    classSym.info
-    val bridgeSymbols = Erasure.bridges.value(classSym)
-
-    if bridgeSymbols.isEmpty then
-      cdef.copy(funs = funs)(cdef.annots, cdef.span)
-
-    else
-      val bridges = createBridges(classSym, bridgeSymbols)
-      cdef.copy(funs = funs ++ bridges)(cdef.annots, cdef.span)
-
   /** Leave the def tree in original info, which are harmless */
   override def transformFunDef(fdef: FunDef)(using Context): FunDef = try
     val sym = fdef.symbol
@@ -470,19 +529,39 @@ class Erasure(isTagged: Type => Boolean, bottomErasedTo: Type = BottomType)(usin
     throw ex
 
 object Erasure:
-  val bridges: Phase.PhaseKey[mutable.Map[Symbol, List[(Symbol, Symbol)]]] =
-    new Phase.PhaseKey("bridges")
+  /** Narrow result consumed by the later bridge-materialization phase. */
+  trait Bridges:
+    def materialize(classSym: Symbol)(using Phase.Context): List[FunDef]
+
+  /** Builds bridge trees using the erasure operation captured by the phase
+    * that detected them. Keeping the tree construction here makes it
+    * independent of both `InterfaceBridge` and a concrete `Erasure` object.
+    */
+  def createBridges(
+    classSym: Symbol,
+    bridgePairs: List[(Symbol, Symbol)],
+    eraseWord: (Word, Type, Type | Null, Phase.Context) => Word,
+    definitions: Definitions
+  )(using context: Phase.Context): List[FunDef] =
+    given Definitions = definitions
+    for (bridgeSym, targetSym) <- bridgePairs yield
+      val procType = bridgeSym.tpe.asProcType
+      TreeOps.createFunDef(bridgeSym)((paramRefs, autoRefs) => {
+        val targetRef = Ident(classSym.classInfo.self)(bridgeSym.span).select(targetSym.name)
+        val app = Apply(targetRef, paramRefs, autoRefs)(bridgeSym.span)
+        val resType = procType.resultType
+        eraseWord(app, resType, resType, context)
+      })(using definitions)
 
   /** Each currently-erased `Labeled` block's own (erased) result type,
     * keyed by its label symbol — see the `Labeled`/`Return` cases in
-    * `eraseWord`.
+    * `eraseWord`. Safe as a `Phase.PhaseKey` (unlike `bridgeMap`/`typeMap`/
+    * `prevDefn` on the class itself, see their doc comment) because it's
+    * only ever written and read within this phase's own single tree walk,
+    * never from a separate later phase.
     */
   val labelResultTypes: Phase.PhaseKey[mutable.Map[Symbol, Type]] =
     new Phase.PhaseKey("labelResultTypes")
-
-  val prevDefinitions: Phase.PhaseKey[Definitions] = new Phase.PhaseKey("prevDefinitions")
-
-  val eraseTypeMap: Phase.PhaseKey[EraseTypeMap] = new Phase.PhaseKey("eraseTypeMap")
 
   val allTagged: Type => Boolean = _ => true
 

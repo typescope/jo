@@ -74,11 +74,22 @@ object Compiler:
         // which defaults to leaving it as `BottomType`) so a `Bottom`-typed
         // value participates in the ordinary Any-erased cast/unbox-at-use
         // scheme — see `Erasure`'s own doc comment for why this backend
-        // specifically needs that.
-        val erasure = new Erasure(Erasure.untaggedTypes(untaggedTypes), AnyType)
+        // specifically needs that. Bridge comparison uses the same pure,
+        // name-independent representation model as code generation.
+        val erasure = new Erasure(
+          Erasure.untaggedTypes(untaggedTypes), AnyType,
+          bridgeRepresentationMatches = (a, b) => JVMTypes.representationOf(a) == JVMTypes.representationOf(b)
+        )
         val closureConvert = new ElimCapture
         val rewire = FrontEnd.rewireMap.value
         val codeGen = new JVMCodeGen(jvmRuntime, rewire)
+        // Runs after `closureConvert`, not immediately after `erasure` like
+        // `native`'s (see its own `Compiler.scala`) — this backend's whole
+        // reason for a separate `InterfaceBridge` phase in the first place
+        // is to also cover the SAM-implementing classes `ElimCapture` lifts
+        // lambda literals into, which don't exist yet when `erasure` runs.
+        // See `InterfaceBridge`'s doc comment.
+        val interfaceBridge = new InterfaceBridge(erasure.bridges)
 
         val backend: Step[List[FileUnit], Unit] =
           Step("Backend", (units: List[FileUnit]) => writeClassFiles(codeGen.generate(units), outDir))
@@ -87,6 +98,7 @@ object Compiler:
         contextParamsLower  |>
         erasure             |>
         closureConvert      |>
+        interfaceBridge     |>
         backend
       } <| "Backend"
 
