@@ -3,6 +3,47 @@ namespace jo.jvm.runtime
 import jo.compile.intrinsic
 import jo.jvm.extern
 
+// Boxing/unboxing markers inserted after shared erasure. Their signatures
+// preserve the concrete primitive input/output representation in ordinary
+// SAST, without introducing JVM-specific tree nodes.
+private section Lowering
+  @intrinsic
+  def boxInt(value: Int): Any = abort "boxInt should be intrinsified"
+
+  @intrinsic
+  def boxBool(value: Bool): Any = abort "boxBool should be intrinsified"
+
+  @intrinsic
+  def boxByte(value: Byte): Any = abort "boxByte should be intrinsified"
+
+  @intrinsic
+  def boxChar(value: Char): Any = abort "boxChar should be intrinsified"
+
+  @intrinsic
+  def boxFloat(value: Float): Any = abort "boxFloat should be intrinsified"
+
+  @intrinsic
+  def boxLong(value: Long): Any = abort "boxLong should be intrinsified"
+
+  @intrinsic
+  def unboxInt(value: Any): Int = abort "unboxInt should be intrinsified"
+
+  @intrinsic
+  def unboxBool(value: Any): Bool = abort "unboxBool should be intrinsified"
+
+  @intrinsic
+  def unboxByte(value: Any): Byte = abort "unboxByte should be intrinsified"
+
+  @intrinsic
+  def unboxChar(value: Any): Char = abort "unboxChar should be intrinsified"
+
+  @intrinsic
+  def unboxFloat(value: Any): Float = abort "unboxFloat should be intrinsified"
+
+  @intrinsic
+  def unboxLong(value: Any): Long = abort "unboxLong should be intrinsified"
+end
+
 //------------------------------------------------------------------------------
 //
 // A single hand-written support class (Node, compiled directly by the JVM

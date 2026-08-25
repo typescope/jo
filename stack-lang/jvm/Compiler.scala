@@ -90,6 +90,10 @@ object Compiler:
         // lambda literals into, which don't exist yet when `erasure` runs.
         // See `InterfaceBridge`'s doc comment.
         val interfaceBridge = new InterfaceBridge(erasure.bridges)
+        val jvmLowering = new JVMLowering(
+          jvmRuntime,
+          (actual, expected) => JVMAdaptation.conversion(codeGen.jvmType(actual), codeGen.jvmType(expected))
+        )
 
         val backend: Step[List[FileUnit], Unit] =
           Step("Backend", (units: List[FileUnit]) => writeClassFiles(codeGen.generate(units), outDir))
@@ -99,6 +103,7 @@ object Compiler:
         erasure             |>
         closureConvert      |>
         interfaceBridge     |>
+        jvmLowering         |>
         backend
       } <| "Backend"
 

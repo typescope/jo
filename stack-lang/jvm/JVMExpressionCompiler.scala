@@ -199,15 +199,6 @@ final class JVMExpressionCompiler(
           compile(value)
           ctx.cw.gotoL(target)
 
-      case Encoded(repr) =>
-        val target = jvmType(word.tpe)
-        compile(repr)
-        // A terminal `repr` (typically a `Return`, e.g. this exact shape is
-        // how the frontend adapts a `Return` used as an if-branch statement,
-        // `Encoded(Return(...))(VoidType)`) never reaches here with a value
-        // to adapt — see `isTerminal`'s doc comment.
-        if !isTerminal(repr) then adaptTo(jvmType(repr.tpe), target, ctx.cw)
-
       case apply: Apply => compileApply(apply)
 
       case TypeApply(fun, _) => compile(fun)
@@ -219,11 +210,15 @@ final class JVMExpressionCompiler(
         val owner = compileFieldReceiver(qual)
         val declared = fieldDeclaredType(sel)
         ctx.cw.getfield(owner, name, descOf(declared))
-        adaptTo(declared, jvmType(sel.tpe), ctx.cw)
 
       case ClassTest(value, classSym) =>
-        compile(value); adaptTo(jvmType(value.tpe), Ref(ObjectDesc), ctx.cw)
+        compile(value)
         ctx.cw.instanceOf(classTestOwnerName(classSym))
+
+      case Encoded(repr) =>
+        val target = jvmType(word.tpe)
+        compile(repr)
+        if !isTerminal(repr) then JVMAdaptation.emit(jvmType(repr.tpe), target, ctx.cw)
 
       case other =>
         throw new Exception("JVM backend prototype: unsupported node " + other.getClass.getSimpleName + " -- " + other.show)
@@ -298,7 +293,7 @@ final class JVMExpressionCompiler(
         // covers the genuine mismatch (with an actual `checkcast`) when one
         // remains, and is a no-op — not a redundant explicit `checkcast` —
         // when it's already exactly `owner`.
-        adaptTo(jvmType(qual.tpe), Ref("L" + owner + ";"), ctx.cw)
+        ctx.cw.checkcast(owner)
         owner
 
   /** Compile a sub-expression using an already-open emitter/slots without
@@ -396,7 +391,7 @@ final class JVMExpressionCompiler(
     val fun = stripTypeApply(funRaw)
 
     if funRaw.tpe.isLambdaType then
-      lambdaABI.emitCall(fun, allArgs, jvmType(apply.tpe), compile, jvmType, adaptTo, ctx.cw)
+      lambdaABI.emitCall(fun, allArgs, jvmType(apply.tpe), compile, jvmType, ctx.cw)
     else
       fun match
         case Ident(symRaw) =>
@@ -407,7 +402,7 @@ final class JVMExpressionCompiler(
           primitiveCompiler.compilePrimitive(qual, name, allArgs)
 
         case Select(qual, name) if isStringOwner(qual.tpe) =>
-          primitiveCompiler.compileString(qual, name, allArgs, jvmType(apply.tpe))
+          primitiveCompiler.compileString(qual, name, allArgs)
 
         case Select(New(tpt), Names.Constructor) =>
           compileNew(tpt.tpe, allArgs)
@@ -457,7 +452,7 @@ final class JVMExpressionCompiler(
     // call, args included.
     if isIface && !methodSym.is(Flags.Defer) then
       val fnName = backend.requireTopLevel(methodSym)
-      compile(qual); adaptTo(jvmType(qual.tpe), Ref(ObjectDesc), ctx.cw)
+      compile(qual)
       args.foreach(compile)
       val desc = "(Ljava/lang/Object;" + paramTypes.map(t => descOf(jvmType(t))).mkString + ")" + descOf(jvmType(procType.resultType))
       ctx.cw.invokestatic(MainClassName, fnName, desc)
@@ -467,7 +462,8 @@ final class JVMExpressionCompiler(
       // See `compileFieldReceiver`'s doc comment: `jvmType(qual.tpe)` is
       // already `ownerName` in the common case now, so this is a no-op, not
       // a redundant `checkcast`, whenever no real mismatch remains.
-      compile(qual); adaptTo(jvmType(qual.tpe), Ref("L" + ownerName + ";"), ctx.cw)
+      compile(qual)
+      ctx.cw.checkcast(ownerName)
       args.foreach(compile)
       val desc = methodDesc(paramTypes, procType.resultType)
       if isIface then ctx.cw.invokeinterface(ownerName, name, desc) else ctx.cw.invokevirtual(ownerName, name, desc)
@@ -493,6 +489,18 @@ final class JVMExpressionCompiler(
   // instantiation via an outer `Encoded` node — so `args.head`/`resultType`
   // already arrive `Object`-erased here, same as any other call's args.
   private def compileIdentApply(sym: Symbol, args: List[Word], resultType: Type)(using ctx: MethodCtx): Unit =
+    runtime.lowerBox.collectFirst { case (primitive, intrinsic) if intrinsic == sym => primitive } match
+      case Some(primitive) =>
+        compile(args.head)
+        JVMAdaptation.emit(JVMAdaptation.Conversion.Box(primitive), ctx.cw)
+      case None =>
+        runtime.lowerUnbox.collectFirst { case (primitive, intrinsic) if intrinsic == sym => primitive } match
+          case Some(primitive) =>
+            compile(args.head)
+            JVMAdaptation.emit(JVMAdaptation.Conversion.Unbox(primitive), ctx.cw)
+          case None => compileNonConversionIdentApply(sym, args, resultType)
+
+  private def compileNonConversionIdentApply(sym: Symbol, args: List[Word], resultType: Type)(using ctx: MethodCtx): Unit =
     if sym == runtime.cast then
       compile(args.head)
 
@@ -509,7 +517,6 @@ final class JVMExpressionCompiler(
       ctx.cw.newObj(className)
       ctx.cw.dup()
       ctx.cw.invokespecial(className, Names.Constructor, "()V")
-      adaptTo(Ref(ObjectDesc), jvmType(resultType), ctx.cw)
 
     else if sym == runtime.paramKey then
       compileParamKey(args.head)
@@ -545,12 +552,12 @@ final class JVMExpressionCompiler(
     else if sym == runtime.Array_get then
       // See `Array_create`: the receiver conversion is the genuine,
       // backend-specific exception; the `Int` index isn't.
-      compile(args.head); adaptTo(jvmType(args.head.tpe), Ref(ObjectArrayDesc), ctx.cw)
+      compile(args.head); ctx.cw.checkcast(ObjectArrayDesc)
       compile(args(1))
       ctx.cw.aaload()
 
     else if sym == runtime.Array_set then
-      compile(args.head); adaptTo(jvmType(args.head.tpe), Ref(ObjectArrayDesc), ctx.cw)
+      compile(args.head); ctx.cw.checkcast(ObjectArrayDesc)
       compile(args(1))
       compile(args(2))
       ctx.cw.aastore()
@@ -558,14 +565,14 @@ final class JVMExpressionCompiler(
       // needs a real null materialized to match (same reconciliation
       // `compileNativeCall` does for e.g. `psPrint`) — a genuine opcode/Jo
       // semantics gap, not anything `Erasure` could have closed.
-      adaptTo(V, jvmType(resultType), ctx.cw)
+      ctx.cw.aconstNull()
 
     else if sym == runtime.Array_size then
-      compile(args.head); adaptTo(jvmType(args.head.tpe), Ref(ObjectArrayDesc), ctx.cw)
+      compile(args.head); ctx.cw.checkcast(ObjectArrayDesc)
       ctx.cw.arraylength()
 
     else if sym == runtime.Array_clone then
-      compile(args.head); adaptTo(jvmType(args.head.tpe), Ref(ObjectArrayDesc), ctx.cw)
+      compile(args.head); ctx.cw.checkcast(ObjectArrayDesc)
       ctx.cw.invokevirtual(ObjectArrayDesc, "clone", "()Ljava/lang/Object;")
       ctx.cw.checkcast(ObjectArrayDesc)
 
@@ -573,7 +580,7 @@ final class JVMExpressionCompiler(
       nativeCallCompiler.compile(runtime.nativeSpec(sym).get, args, resultType, ctx.cw)
 
     else
-      compileStaticCall(sym, args, jvmType(resultType))
+      compileStaticCall(sym, args)
 
   /** Compile a call to an ordinary top-level Jo function (`invokestatic`
     * against `Main`, enqueuing it for compilation if not already reached).
@@ -589,14 +596,11 @@ final class JVMExpressionCompiler(
     * the same way `compileNativeCall` reconciles a raw JDK call's actual
     * stack effect against a Jo-declared type.
     */
-  override def compileStaticCall(sym: Symbol, args: List[Word], expected: JType)(using ctx: MethodCtx): Unit =
+  override def compileStaticCall(sym: Symbol, args: List[Word])(using ctx: MethodCtx): Unit =
     val name = backend.requireTopLevel(sym)
     val procType = sym.tpe.asProcType
-    for (arg, pt) <- args.zip(procType.paramTypes ++ procType.autoTypes) do
-      compile(arg)
-      adaptTo(jvmType(arg.tpe), jvmType(pt), ctx.cw)
+    args.foreach(compile)
     ctx.cw.invokestatic(MainClassName, name, methodDesc(procType.paramTypes ++ procType.autoTypes, procType.resultType))
-    adaptTo(jvmType(procType.resultType), expected, ctx.cw)
 
   /** `paramKey(id)` where `id` is (a possibly-encoded) `Ident` to a context
     * parameter symbol: emit the interned fully-qualified name as a String
@@ -646,10 +650,4 @@ final class JVMExpressionCompiler(
     args.foreach(compile)
     ctx.cw.invokespecial(className, Names.Constructor, "(" + ctorParamTypes.map(t => descOf(jvmType(t))).mkString + ")V")
 
-  //----------------------------------------------------------------------------
-  // Representation adaptation (boxing / unboxing / checkcast / value-drop)
-  //----------------------------------------------------------------------------
-
-  override def adaptTo(actual: JType, expected: JType, cw: JVMInstructionEmitter): Unit =
-    JVMAdaptation.emit(actual, expected, cw)
 end JVMExpressionCompiler

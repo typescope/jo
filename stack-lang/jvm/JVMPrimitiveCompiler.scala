@@ -19,8 +19,8 @@ final class JVMPrimitiveCompiler(
   private def compile(word: Word)(using JVMMethodContext): Unit = operands.compile(word)
   private def boolFromBranch(branch: Label => Unit)(using JVMMethodContext): Unit =
     operands.boolFromBranch(branch)
-  private def compileStaticCall(symbol: Symbols.Symbol, args: List[Word], expected: JType)(using JVMMethodContext): Unit =
-    operands.compileStaticCall(symbol, args, expected)
+  private def compileStaticCall(symbol: Symbols.Symbol, args: List[Word])(using JVMMethodContext): Unit =
+    operands.compileStaticCall(symbol, args)
 
   // Primitive numeric/boolean operators (Int/Bool/Byte/Char intrinsics)
   //----------------------------------------------------------------------------
@@ -226,7 +226,7 @@ final class JVMPrimitiveCompiler(
     * (`jo.jvm.runtime.StringOps.StringIterator`, an ordinary Jo class), so
     * it's dispatched the same way as `size`/`get`/`substring`/`indexOf`.
     */
-  def compileString(qual: Word, name: String, args: List[Word], resultType: JType)(using ctx: MethodCtx): Unit =
+  def compileString(qual: Word, name: String, args: List[Word])(using ctx: MethodCtx): Unit =
     val cw = ctx.cw
 
     // No `adaptTo` needed in either helper, for the same reason as
@@ -238,12 +238,12 @@ final class JVMPrimitiveCompiler(
     def stringArg(w: Word): Unit = compile(w)
 
     name match
-      case "size" => compileStaticCall(runtime.String_size, qual :: Nil, resultType)
-      case "get" => compileStaticCall(runtime.String_get, qual :: args, resultType)
-      case "substring" => compileStaticCall(runtime.String_substring, qual :: args, resultType)
+      case "size" => compileStaticCall(runtime.String_size, qual :: Nil)
+      case "get" => compileStaticCall(runtime.String_get, qual :: args)
+      case "substring" => compileStaticCall(runtime.String_substring, qual :: args)
       case "indexOf" =>
         val from = if args.size > 1 then args(1) else IntLit(0)(args.head.span)
-        compileStaticCall(runtime.String_indexOf, qual :: args.head :: from :: Nil, resultType)
+        compileStaticCall(runtime.String_indexOf, qual :: args.head :: from :: Nil)
 
       case "+" =>
         receiver(); stringArg(args.head)
@@ -259,7 +259,7 @@ final class JVMPrimitiveCompiler(
       case "toUpper" =>
         receiver(); cw.invokevirtual(StringClass, "toUpperCase", "()Ljava/lang/String;")
 
-      case "iterator" => compileStaticCall(runtime.String_iterator, qual :: Nil, resultType)
+      case "iterator" => compileStaticCall(runtime.String_iterator, qual :: Nil)
 
       case other =>
         throw new Exception("JVM backend prototype: unsupported String operator " + other)
@@ -268,5 +268,4 @@ object JVMPrimitiveCompiler:
   trait Operands:
     def compile(word: Word)(using JVMMethodContext): Unit
     def boolFromBranch(branch: Label => Unit)(using JVMMethodContext): Unit
-    def compileStaticCall(symbol: Symbols.Symbol, args: List[Word], expected: JType)(using JVMMethodContext): Unit
-
+    def compileStaticCall(symbol: Symbols.Symbol, args: List[Word])(using JVMMethodContext): Unit

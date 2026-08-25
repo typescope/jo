@@ -30,8 +30,7 @@ final class JVMLambdaABI(using Definitions):
 
   def unpackParameters(
     parameters: List[Symbol], slots: JVMMethodSlots, argumentsSlot: Int,
-    jvmType: Type => JType, adapt: (JType, JType, JVMInstructionEmitter) => Unit,
-    writer: JVMInstructionEmitter
+    jvmType: Type => JType, writer: JVMInstructionEmitter
   ): Unit =
     slots.reserveUpTo(2) // slot 0 = this, slot 1 = Object[] arguments
     parameters.zipWithIndex.foreach { (parameter, index) =>
@@ -40,17 +39,17 @@ final class JVMLambdaABI(using Definitions):
       writer.aload(argumentsSlot)
       writer.iconst(index)
       writer.aaload()
-      adapt(Ref(ObjectDesc), parameterType, writer)
+      JVMAdaptation.emit(Ref(ObjectDesc), parameterType, writer)
       store(parameterType, slot, writer)
     }
 
   def emitCall(
     function: Word, arguments: List[Word], resultType: JType,
     compile: Word => Unit, jvmType: Type => JType,
-    adapt: (JType, JType, JVMInstructionEmitter) => Unit, writer: JVMInstructionEmitter
+    writer: JVMInstructionEmitter
   ): Unit =
     compile(function)
-    adapt(jvmType(function.tpe), Ref(ObjectDesc), writer)
+    JVMAdaptation.emit(jvmType(function.tpe), Ref(ObjectDesc), writer)
     writer.checkcast(interfaceName)
     writer.iconst(arguments.size)
     writer.anewarray(ObjectClass)
@@ -58,11 +57,11 @@ final class JVMLambdaABI(using Definitions):
       writer.dup()
       writer.iconst(index)
       compile(argument)
-      adapt(jvmType(argument.tpe), Ref(ObjectDesc), writer)
+      JVMAdaptation.emit(jvmType(argument.tpe), Ref(ObjectDesc), writer)
       writer.aastore()
     }
     writer.invokeinterface(interfaceName, applyName, applyDescriptor)
-    adapt(Ref(ObjectDesc), resultType, writer)
+    JVMAdaptation.emit(Ref(ObjectDesc), resultType, writer)
 
   private def store(tpe: JType, slot: Int, writer: JVMInstructionEmitter): Unit =
     if isIntCat(tpe) then writer.istore(slot)

@@ -19,7 +19,7 @@ final class JVMNativeCallCompiler(
   )(using JVMMethodContext): Unit =
     def argument(word: Word, expected: JType): Unit =
       operands.compile(word)
-      operands.adaptTo(jvmType(word.tpe), expected, writer)
+      JVMAdaptation.emit(jvmType(word.tpe), expected, writer)
 
     val actual = spec.kind match
       case "static" =>
@@ -69,9 +69,8 @@ final class JVMNativeCallCompiler(
 
       case other => throw new Exception("Unknown @extern kind: " + other)
 
-    operands.adaptTo(actual, jvmType(declaredResultType), writer)
+    JVMAdaptation.emit(actual, jvmType(declaredResultType), writer)
 
 object JVMNativeCallCompiler:
   trait Operands:
     def compile(word: Word)(using JVMMethodContext): Unit
-    def adaptTo(actual: JType, expected: JType, writer: JVMInstructionEmitter): Unit

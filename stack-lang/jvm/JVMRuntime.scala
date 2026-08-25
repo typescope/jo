@@ -26,6 +26,24 @@ class JVMRuntime(using defn: Definitions):
   val isNull       = JvmRuntimeNs.termMember("isNull")
   val cast         = JvmRuntimeNs.termMember("cast")
 
+  val Lowering     = JvmRuntimeNs.containerMember("Lowering")
+  val lowerBox = Map(
+    JVMTypes.JType.I -> Lowering.termMember("boxInt"),
+    JVMTypes.JType.Z -> Lowering.termMember("boxBool"),
+    JVMTypes.JType.B -> Lowering.termMember("boxByte"),
+    JVMTypes.JType.C -> Lowering.termMember("boxChar"),
+    JVMTypes.JType.F -> Lowering.termMember("boxFloat"),
+    JVMTypes.JType.J -> Lowering.termMember("boxLong")
+  )
+  val lowerUnbox = Map(
+    JVMTypes.JType.I -> Lowering.termMember("unboxInt"),
+    JVMTypes.JType.Z -> Lowering.termMember("unboxBool"),
+    JVMTypes.JType.B -> Lowering.termMember("unboxByte"),
+    JVMTypes.JType.C -> Lowering.termMember("unboxChar"),
+    JVMTypes.JType.F -> Lowering.termMember("unboxFloat"),
+    JVMTypes.JType.J -> Lowering.termMember("unboxLong")
+  )
+
   val ParamSupport = JvmRuntimeNs.containerMember("ParamSupport")
   val paramKey     = ParamSupport.termMember("paramKey")
 

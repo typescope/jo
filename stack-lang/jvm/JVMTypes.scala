@@ -77,6 +77,8 @@ object JVMTypes:
     case I | Z | B | C => true
     case _ => false
 
+  def isPrimitive(t: JType): Boolean = isIntCat(t) || t == F || t == J
+
   def isRef(t: JType): Boolean = t.isInstanceOf[Ref]
 
   def descOf(t: JType): String = t match

@@ -29,8 +29,8 @@ object JVMAdaptation:
         case (_, V) if actual != V => Drop
         case (V, Ref(_)) => UnitValue
         case (V, _) => Identity
-        case (a, Ref(ObjectDesc)) if isIntCat(a) => Box(a)
-        case (Ref(d), b) if isIntCat(b) && d == ObjectDesc => Unbox(b)
+        case (a, Ref(ObjectDesc)) if isPrimitive(a) => Box(a)
+        case (Ref(d), b) if isPrimitive(b) && d == ObjectDesc => Unbox(b)
         case (a, b) if isIntCat(a) && isIntCat(b) => Identity
         case (Ref(_), Ref(ObjectDesc)) => Identity
         case (Ref(_), Ref(d)) => CheckCast(internalNameOf(Ref(d)))

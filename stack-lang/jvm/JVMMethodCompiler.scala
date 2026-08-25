@@ -106,13 +106,13 @@ final class JVMMethodCompiler(
     )
 
     lambdaABI.unpackParameters(
-      fdef.params, slots, argumentsSlot, jvmType, expressions.adaptTo, writer
+      fdef.params, slots, argumentsSlot, jvmType, writer
     )
     val locals = fdef.locals.map(local => local -> slots.bind(local, jvmType(local.tpe)))
     expressions.initializeLocals(locals, writer)
     expressions.compile(fdef.body)
     if resultType == V then writer.aconstNull()
-    else expressions.adaptTo(resultType, Ref(ObjectDesc), writer)
+    else JVMAdaptation.emit(resultType, Ref(ObjectDesc), writer)
     writer.areturn()
 
     val (code, maxStack, maxLocals) = writer.finish()
@@ -132,5 +132,4 @@ object JVMMethodCompiler:
     def isTerminal(word: Word): Boolean
     def emitReturn(tpe: JType, writer: JVMInstructionEmitter): Unit
     def initializeLocals(locals: List[(Symbol, Int)], writer: JVMInstructionEmitter): Unit
-    def adaptTo(actual: JType, expected: JType, writer: JVMInstructionEmitter): Unit
     def storeLocal(tpe: JType, slot: Int, writer: JVMInstructionEmitter): Unit
