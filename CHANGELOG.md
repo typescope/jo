@@ -2,6 +2,76 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.13.0] - 2026-08-25
+
+### Added
+
+- `--source-root <dir>` records source paths relative to `<dir>` in `.sast`
+  files and generated documentation, so absolute build paths stay out of
+  published artifacts. A file outside the root is recorded by name only. `jo
+  build` defaults it to the module's project directory. ([#94])
+- The `jo.py`, `jo.rb` and `jo.js` runtime FFI APIs are published together with
+  the standard library documentation, and each library lists its namespaces on
+  the home page. ([#100])
+- Annotations appear as their own kind in the generated documentation, with a
+  badge in the UI, and doc comments now attach to annotation declarations.
+  ([#100])
+
+### Changed
+
+- Optional context parameters are dropped. A declaration that carries a default,
+  `param pageWidth: Int = 80`, is no longer accepted. A declaration now states
+  only the requirement and the caller provides the value with `with pageWidth =
+  80 in render(document)`. `with`, `receives`, `allow`, shadowing and capture
+  keep their current meaning. See [JIP-0002] for the rationale. ([#95])
+- `jo.*` is opened for every unit however the standard library arrived.
+  `--no-stdlib` selects where the library comes from and no longer suppresses
+  the automatic import. ([#100])
+- The `jo.IO` capabilities are documented as capabilities and moved into a
+  `section IO` of namespace `jo`. The paths `IO.stdout`, `IO.stderr` and
+  `IO.args` are unchanged. ([#100])
+
+### Removed
+
+- `IO.stdin`, and with it the standard input capability. A program that reads
+  input obtains it from a backend-specific API such as `py.input` and passes it
+  on as its own context parameter. `jo.main` correspondingly receives
+  `IO.stdout`, `IO.stderr` and `IO.args`. ([#100])
+
+### Fixed
+
+- Private sections are kept out of the generated documentation. ([#100])
+- Empty namespaces are hidden in the documentation navigation list. ([#100])
+
+### Security
+
+- Dropping optional context parameters closes a capability hole. A default
+  satisfied a requirement silently, so `allow none in e` denied `e` only the
+  ambient context that lacked a default rather than all of it, and a `receives
+  none` body could keep reading a parameter pinned to its declared value with
+  nothing to notice at the call site. Every context parameter is now supplied by
+  an explicit binding and is subject to `allow`. ([#95])
+- `--source-root` keeps absolute filesystem paths out of `.sast` files and
+  generated documentation. ([#94])
+
+### Compatibility
+
+- This release is source-breaking. Code that declares an optional context
+  parameter no longer compiles. Give the declaration no default and bind it at
+  the call site with `with`. ([#95])
+- Libraries must be recompiled. `.sast` files produced by earlier compilers are
+  not loadable by this release. Files produced by this release remain loadable
+  by earlier compilers. ([#95])
+- Code that uses `IO.stdin` no longer compiles, and a custom entry point that
+  declares `receives IO.stdin` must drop it. ([#100])
+- No build-spec changes are required. `--source-root` is optional, and artifacts
+  generated without it record paths as before. ([#94])
+
+[#94]: https://github.com/typescope/jo/pull/94
+[#95]: https://github.com/typescope/jo/pull/95
+[#100]: https://github.com/typescope/jo/pull/100
+[JIP-0002]: https://jo-lang.org/jips/0002-drop-optional-context-params
+
 ## [0.12.5] - 2026-08-22
 
 ### Added
