@@ -1,9 +1,8 @@
 # Jo Standard Library
 
 Jo ships **four libraries**, and this bundle documents all of them. They are not
-peers: one is confined, and three are not. Which is which decides what a program
-built on them is able to do. Everything under `jo` except `jo.py`, `jo.rb` and
-`jo.js` is the standard library.
+peers: one is confined, and three are not. Except `jo.py`, `jo.rb` and
+`jo.js`, everything under `jo` is the standard library.
 
 <svg viewBox="0 0 760 360" role="img" width="100%"
      aria-label="A wall separates two worlds. On the green confined side sits the jo standard library, which has no FFI, no ambient authority and cannot originate an effect; confinement is transitive, so confined code may depend only on confined code. On the orange trusted side, the jo.py, jo.rb and jo.js runtime libraries reach the host platform: filesystem, network, processes and any module. The only opening in the wall is a gate through which capabilities pass into confined code at link time. A direct route from confined code to the host is blocked."
@@ -69,7 +68,7 @@ built on them is able to do. Everything under `jo` except `jo.py`, `jo.rb` and
 
 ## The four libraries
 
-The standard library spans five namespaces; each runtime API is a single one.
+The standard library spans five namespaces. Each runtime API is a single namespace.
 
 | Library | Namespaces | Status |
 | --- | --- | --- |
@@ -100,10 +99,10 @@ rejects the attempt.
 
 Confinement is **transitive**, and that is what makes it worth anything. A
 confined library may depend only on other confined libraries, so the property
-holds across the whole dependency graph rather than at its top. Import anything
-that transitively reaches a trusted library and compilation fails with a type
-error — so no dependency, however deep, can quietly widen what confined code is
-able to do.
+holds across the whole dependency graph rather than at its top.
+Import anything that transitively reaches a trusted library that uses FFI will
+be a compilation error — so transitive dependency cannot break the confinement
+property.
 
 So every real side effect a Jo program performs originates in the trusted world,
 where FFI is available, and crosses into confined code as a capability resolved
@@ -119,10 +118,12 @@ this code is able to break the guarantees the confined world rests on, so it has
 to be code you are willing to vouch for.
 
 They exist to *build* capabilities, by calling the host platform directly.
-`py.module` imports any Python module, `subprocess` included; `rb.require` loads
-any Ruby library; `js.global` reaches the whole JavaScript environment.
 
-None of it is reachable unless the compilation asks for it:
+- `py.module` imports any Python module, `subprocess` included;
+- `rb.require` loads any Ruby library;
+- `js.global` reaches the whole JavaScript environment.
+
+The FFI libraries are guarded behind the compilation flag `--user-runtime-api`:
 
 ```sh
 jo compile --python app.jo --use-runtime-api python
