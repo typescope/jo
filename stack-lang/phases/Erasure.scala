@@ -541,9 +541,8 @@ object Erasure:
     classSym: Symbol,
     bridgePairs: List[(Symbol, Symbol)],
     eraseWord: (Word, Type, Type | Null, Phase.Context) => Word,
-    definitions: Definitions
-  )(using context: Phase.Context): List[FunDef] =
-    given Definitions = definitions
+    previousDefinitions: Definitions
+  )(using context: Phase.Context, currentDefinitions: Definitions): List[FunDef] =
     for (bridgeSym, targetSym) <- bridgePairs yield
       val procType = bridgeSym.tpe.asProcType
       TreeOps.createFunDef(bridgeSym)((paramRefs, autoRefs) => {
@@ -551,7 +550,7 @@ object Erasure:
         val app = Apply(targetRef, paramRefs, autoRefs)(bridgeSym.span)
         val resType = procType.resultType
         eraseWord(app, resType, resType, context)
-      })(using definitions)
+      })(using previousDefinitions)
 
   /** Each currently-erased `Labeled` block's own (erased) result type,
     * keyed by its label symbol — see the `Labeled`/`Return` cases in
