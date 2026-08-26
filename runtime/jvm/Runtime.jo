@@ -8,6 +8,10 @@ import jo.jvm.extern
 // SAST, without introducing JVM-specific tree nodes.
 private section Lowering
   @intrinsic
+  def invokeLambda(call: Any): Any =
+    abort "invokeLambda should be intrinsified"
+
+  @intrinsic
   def boxInt(value: Int): Any = abort "boxInt should be intrinsified"
 
   @intrinsic

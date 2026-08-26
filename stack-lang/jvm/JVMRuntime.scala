@@ -27,6 +27,7 @@ class JVMRuntime(using defn: Definitions):
   val cast         = JvmRuntimeNs.termMember("cast")
 
   val Lowering     = JvmRuntimeNs.containerMember("Lowering")
+  val lowerInvokeLambda = Lowering.termMember("invokeLambda")
   val lowerBox = Map(
     JVMTypes.JType.I -> Lowering.termMember("boxInt"),
     JVMTypes.JType.Z -> Lowering.termMember("boxBool"),

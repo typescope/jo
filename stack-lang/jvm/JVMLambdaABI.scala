@@ -43,25 +43,25 @@ final class JVMLambdaABI(using Definitions):
       store(parameterType, slot, writer)
     }
 
-  def emitCall(
-    function: Word, arguments: List[Word], resultType: JType,
-    compile: Word => Unit, jvmType: Type => JType,
-    writer: JVMInstructionEmitter
-  ): Unit =
+  /** Emit a lambda call already normalized by `JVMLowering`.
+    *
+    * Every argument is already represented as Object. Result conversion is
+    * explicit in the surrounding lowered tree.
+    */
+  def emitLoweredCall(call: Word, compile: Word => Unit, writer: JVMInstructionEmitter): Unit =
+    val Apply(function, arguments, automaticArguments) = call: @unchecked
+    val allArguments = arguments ++ automaticArguments
     compile(function)
-    JVMAdaptation.emit(jvmType(function.tpe), Ref(ObjectDesc), writer)
     writer.checkcast(interfaceName)
-    writer.iconst(arguments.size)
+    writer.iconst(allArguments.size)
     writer.anewarray(ObjectClass)
-    arguments.zipWithIndex.foreach { (argument, index) =>
+    allArguments.zipWithIndex.foreach { (argument, index) =>
       writer.dup()
       writer.iconst(index)
       compile(argument)
-      JVMAdaptation.emit(jvmType(argument.tpe), Ref(ObjectDesc), writer)
       writer.aastore()
     }
     writer.invokeinterface(interfaceName, applyName, applyDescriptor)
-    JVMAdaptation.emit(Ref(ObjectDesc), resultType, writer)
 
   private def store(tpe: JType, slot: Int, writer: JVMInstructionEmitter): Unit =
     if isIntCat(tpe) then writer.istore(slot)

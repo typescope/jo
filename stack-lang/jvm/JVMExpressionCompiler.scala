@@ -390,28 +390,25 @@ final class JVMExpressionCompiler(
     val allArgs = args ++ autos
     val fun = stripTypeApply(funRaw)
 
-    if funRaw.tpe.isLambdaType then
-      lambdaABI.emitCall(fun, allArgs, jvmType(apply.tpe), compile, jvmType, ctx.cw)
-    else
-      fun match
-        case Ident(symRaw) =>
-          val sym = backend.resolve(symRaw)
-          compileIdentApply(sym, allArgs, apply.tpe)
+    fun match
+      case Ident(symRaw) =>
+        val sym = backend.resolve(symRaw)
+        compileIdentApply(sym, allArgs, apply.tpe)
 
-        case Select(qual, name) if isPrimitiveOwner(qual.tpe) =>
-          primitiveCompiler.compilePrimitive(qual, name, allArgs)
+      case Select(qual, name) if isPrimitiveOwner(qual.tpe) =>
+        primitiveCompiler.compilePrimitive(qual, name, allArgs)
 
-        case Select(qual, name) if isStringOwner(qual.tpe) =>
-          primitiveCompiler.compileString(qual, name, allArgs)
+      case Select(qual, name) if isStringOwner(qual.tpe) =>
+        primitiveCompiler.compileString(qual, name, allArgs)
 
-        case Select(New(tpt), Names.Constructor) =>
-          compileNew(tpt.tpe, allArgs)
+      case Select(New(tpt), Names.Constructor) =>
+        compileNew(tpt.tpe, allArgs)
 
-        case Select(qual, name) if qual.tpe.isClassInfoType =>
-          compileMethodCall(apply, qual, name, allArgs)
+      case Select(qual, name) if qual.tpe.isClassInfoType =>
+        compileMethodCall(apply, qual, name, allArgs)
 
-        case other =>
-          throw new Exception("JVM backend prototype: unsupported call target " + other)
+      case other =>
+        throw new Exception("JVM backend prototype: unsupported call target " + other)
 
   /** A method call on a user class or interface instance (`p.sum`,
     * `iter.hasNext`), the general counterpart to
@@ -489,7 +486,9 @@ final class JVMExpressionCompiler(
   // instantiation via an outer `Encoded` node — so `args.head`/`resultType`
   // already arrive `Object`-erased here, same as any other call's args.
   private def compileIdentApply(sym: Symbol, args: List[Word], resultType: Type)(using ctx: MethodCtx): Unit =
-    runtime.lowerBox.collectFirst { case (primitive, intrinsic) if intrinsic == sym => primitive } match
+    if sym == runtime.lowerInvokeLambda then
+      lambdaABI.emitLoweredCall(args.head, compile, ctx.cw)
+    else runtime.lowerBox.collectFirst { case (primitive, intrinsic) if intrinsic == sym => primitive } match
       case Some(primitive) =>
         compile(args.head)
         JVMAdaptation.emit(JVMAdaptation.Conversion.Box(primitive), ctx.cw)
