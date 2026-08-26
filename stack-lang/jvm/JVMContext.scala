@@ -3,6 +3,7 @@ package jvm
 import sast.*
 import sast.Trees.*
 import sast.Symbols.*
+import sast.Types.*
 
 import java.nio.file.Paths
 import scala.collection.mutable
@@ -53,6 +54,7 @@ final class JVMContext(rewire: Map[Symbol, Symbol])(using defn: Definitions):
             val bucket = definitionBuckets(sym)
             if !bucket.methods.exists(_.symbol == sym) then bucket.methods += fdef
             allocateTopLevel(sym, bucket)
+            addSignatureTypes(fdef.symbol.tpe.asProcType)
       else if sym.isClass then addClass(sym)
       else if sym.isInterface then addInterface(sym)
 
@@ -83,6 +85,8 @@ final class JVMContext(rewire: Map[Symbol, Symbol])(using defn: Definitions):
         // them directly; backend-only allocation and JVM dispatch need them.
         bucket.classes += original
         className(sym)
+        original.vals.foreach(field => addTypeDependency(field.tpt.tpe))
+        original.funs.foreach(fdef => addSignatureTypes(fdef.symbol.tpe.asProcType))
         // Every name in the class-file `interfaces` table must itself be
         // emitted, even when no call was made through that interface type.
         original.views
@@ -97,7 +101,18 @@ final class JVMContext(rewire: Map[Symbol, Symbol])(using defn: Definitions):
         // Default bodies are still separate static helpers and enter the
         // bucket individually through the function branch in `populate`.
         bucket.interfaces += original
+        original.methods.foreach(fdef => addSignatureTypes(fdef.symbol.tpe.asProcType))
         className(sym)
+
+  private def addSignatureTypes(procType: ProcType): Unit =
+    (procType.paramTypes ++ procType.autoTypes :+ procType.resultType).foreach(addTypeDependency)
+
+  private def addTypeDependency(tpe: Type): Unit =
+    JVMTypes.representationOf(tpe) match
+      case JVMTypes.Representation.Class(sym) =>
+        if sym.isInterface then addInterface(sym)
+        else if sym.isClass then addClass(sym)
+      case _ =>
 
   private def indexDefs(defs: List[Def], bucket: Bucket, sourcePath: String): Unit =
     defs.foreach {

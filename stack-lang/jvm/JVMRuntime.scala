@@ -76,7 +76,13 @@ class JVMRuntime(using defn: Definitions):
     * enqueue anything by themselves, so no extra entries are needed yet —
     * kept as a hook mirroring RubyRuntime.intrinsicDeps for future growth.
     */
-  def intrinsicDeps: Map[Symbol, List[Symbol]] = Map.empty
+  def intrinsicDeps: Map[Symbol, List[Symbol]] = Map(
+    defn.String_type.termMember("size") -> (String_size :: Nil),
+    defn.String_type.termMember("get") -> (String_get :: Nil),
+    defn.String_type.termMember("substring") -> (String_substring :: Nil),
+    defn.String_type.termMember("indexOf") -> (String_indexOf :: Nil),
+    defn.String_type.termMember("iterator") -> (String_iterator :: Nil)
+  )
 
   def nativeSpec(sym: Symbol): Option[JVMRuntime.NativeSpec] =
     sym.annotation(annot_extern).map:
