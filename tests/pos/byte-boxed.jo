@@ -1,0 +1,35 @@
+// Byte is an unsigned 8-bit value [0, 255], so a byte with the high bit set
+// must survive every boundary that could narrow it to a signed 8-bit value:
+// a function return, a field, a generic (erased) position, and a type test.
+
+class Holder(value: Byte)
+
+def identity[T](x: T): T = x
+
+def echo(b: Byte): Byte = b
+
+def describe(v: Byte | String): String =
+  match v
+    case b: Byte => "Byte: " + b
+    case s: String => "String: " + s
+
+def main() =
+  val big: Byte = 200
+
+  println big                       // 200
+  println (echo big)                // 200, across a function return
+  println (identity(big))           // 200, through a generic parameter
+  println (new Holder(big).value)   // 200, through a field
+  println (describe big)            // Byte: 200, through a type test
+  println (describe "x")            // String: x
+
+  // Boundary values through a generic parameter
+  println (identity(0.toByte))      // 0
+  println (identity(127.toByte))    // 127
+  println (identity(128.toByte))    // 128
+  println (identity(255.toByte))    // 255
+
+  // Still unsigned after the round trip
+  println (identity(big).toInt + 1)               // 201
+  println (identity(big) > identity(100.toByte))  // true
+  println (identity(big) == big)                  // true
