@@ -535,8 +535,18 @@ final class ExpressionEmitter(
     def paramSymOf(w: Word): Symbol = w match
       case Ident(s) => s
       case Encoded(inner) => paramSymOf(inner)
-      case Apply(inner, _, _) => paramSymOf(inner)
+
+      // `paramKey[T](id: T)` erases its argument to `Object`, so `Lowering`
+      // wraps the parameter's `Ident` in a boxing intrinsic whenever the
+      // parameter has a primitive representation. The parameter's identity
+      // is the boxed operand; the box function is the same symbol for every
+      // parameter of that representation, so descending into `fun` here
+      // would give every `Int` parameter one shared key and make context
+      // lookup return whichever binding was added last.
+      case Apply(Ident(fun), boxed :: Nil, Nil) if runtime.isBoxIntrinsic(fun) => paramSymOf(boxed)
+
       case _ => throw new Exception("Unsupported argument to paramKey: " + w.show)
+
     val paramSym = paramSymOf(arg)
     ctx.cw.stringConst(paramSym.fullName)
 

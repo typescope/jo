@@ -45,6 +45,13 @@ class JVMRuntime(using defn: Definitions):
     JVMTypes.JType.J -> Lowering.termMember("unboxLong")
   )
 
+  private val boxIntrinsics = lowerBox.values.toSet
+
+  /** Is `sym` one of the `Lowering.box*` intrinsics `Lowering` inserts to
+    * adapt a primitive to its `Object`-erased representation?
+    */
+  def isBoxIntrinsic(sym: Symbol): Boolean = boxIntrinsics.contains(sym)
+
   val ParamSupport = JvmRuntimeNs.containerMember("ParamSupport")
   val paramKey     = ParamSupport.termMember("paramKey")
 
