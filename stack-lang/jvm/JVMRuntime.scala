@@ -70,6 +70,16 @@ class JVMRuntime(using defn: Definitions):
   // instructions, so — like Int/Bool arithmetic — they're intrinsified
   // directly rather than routed through the @extern FFI mechanism (which
   // models member calls, not dedicated opcodes).
+  // `Bytes` is backed by a real JVM `byte[]` (`Bytes.Repr`), so its element
+  // access is bytecode — `newarray`/`baload`/`bastore`/`arraylength` — and is
+  // intrinsified here exactly like `RefArray`'s `Object[]` operations, not
+  // routed through the `@extern` FFI, which models member calls only.
+  val ByteArray        = JvmRuntimeNs.containerMember("ByteArray")
+  val ByteArray_create = ByteArray.termMember("create")
+  val ByteArray_get    = ByteArray.termMember("get")
+  val ByteArray_set    = ByteArray.termMember("set")
+  val ByteArray_size   = ByteArray.termMember("size")
+
   val RefArray      = JvmRuntimeNs.containerMember("RefArray")
   val Array_create  = RefArray.termMember("create")
   val Array_get     = RefArray.termMember("get")

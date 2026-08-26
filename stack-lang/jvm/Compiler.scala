@@ -27,6 +27,13 @@ object Compiler:
     "jo.abort" -> "jo.jvm.runtime.abort",
     "jo.Array.create" -> "jo.jvm.runtime.RefArray.create",
 
+    // Bytes, backed by a real JVM byte[]; see runtime/jvm/Runtime.jo
+    "jo.Bytes.size"     -> "jo.jvm.runtime.RawBytes.size",
+    "jo.Bytes.get"      -> "jo.jvm.runtime.RawBytes.get",
+    "jo.Bytes.slice"    -> "jo.jvm.runtime.RawBytes.slice",
+    "jo.Bytes.toBase64" -> "jo.jvm.runtime.RawBytes.toBase64",
+    "jo.Bytes.fill"     -> "jo.jvm.runtime.RawBytes.fill",
+
     // Regex engine hooks, delegating to java.util.regex; see runtime/jvm/Runtime.jo
     "jo.regex.Engine.compilePattern" -> "jo.jvm.runtime.RegexEngine.compilePattern",
     "jo.regex.Engine.execPatternAt"  -> "jo.jvm.runtime.RegexEngine.execPatternAt",

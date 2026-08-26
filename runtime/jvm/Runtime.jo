@@ -238,6 +238,68 @@ end
 // JVM array bytecode instructions (anewarray/aaload/aastore/arraylength/
 // Object[].clone()), so — like Int/Bool arithmetic — they're intrinsified
 // rather than expressed through the @extern FFI, which models member calls.
+//------------------------------------------------------------------------------
+//
+// Bytes (Bytes.Repr is a real JVM byte[])
+//
+// A Jo `Byte` is carried as its signed 8-bit pattern, which is exactly what a
+// `byte[]` element holds, so `baload`/`bastore` move octets between the two
+// with no conversion at all. Base64 is delegated to java.util.Base64 rather
+// than hand-rolled, so it stays the JDK's problem.
+//
+//------------------------------------------------------------------------------
+
+private section ByteArray
+  @intrinsic
+  def create(size: Int): Bytes.Repr =
+    abort "create should be intrinsified by the JVM backend"
+
+  @intrinsic
+  def get(arr: Bytes.Repr, i: Int): Byte =
+    abort "get should be intrinsified by the JVM backend"
+
+  @intrinsic
+  def set(arr: Bytes.Repr, i: Int, v: Byte): Unit =
+    abort "set should be intrinsified by the JVM backend"
+
+  @intrinsic
+  def size(arr: Bytes.Repr): Int =
+    abort "size should be intrinsified by the JVM backend"
+end
+
+@extern("java/util/Base64", "getEncoder", "()Ljava/util/Base64$Encoder;", "static")
+private def base64Encoder(): Any = ...
+
+@extern("java/util/Base64$Encoder", "encodeToString", "([B)Ljava/lang/String;", "virtual")
+private def base64Encode(encoder: Any, data: Bytes.Repr): String = ...
+
+private section RawBytes
+  def size(repr: Bytes.Repr): Int = ByteArray.size(repr)
+
+  def get(repr: Bytes.Repr, index: Int): Byte = ByteArray.get(repr, index)
+
+  def slice(repr: Bytes.Repr, offset: Int, length: Int): Bytes =
+    val out = ByteArray.create(length)
+    var i = 0
+    while i < length do
+      ByteArray.set(out, i, ByteArray.get(repr, offset + i))
+      i = i + 1
+    end
+    cast[Bytes](out)
+
+  def toBase64(repr: Bytes.Repr): String =
+    base64Encode(base64Encoder(), repr)
+
+  def fill(size: Int, values: Int => Byte): Bytes =
+    val out = ByteArray.create(size)
+    var i = 0
+    while i < size do
+      ByteArray.set(out, i, values(i))
+      i = i + 1
+    end
+    cast[Bytes](out)
+end
+
 private section RefArray
   @intrinsic
   def create[T](size: Int): Array[T] =

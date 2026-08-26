@@ -32,6 +32,7 @@ object JVMTypes:
   val StringDesc = "Ljava/lang/String;"
   val ThrowableClass = "java/lang/Throwable"
   val ObjectArrayDesc = "[Ljava/lang/Object;"
+  val ByteArrayDesc = "[B"
 
   def classOrInterfaceSymbol(tpe: Type)(using Definitions): Option[Symbol] =
     tpe.approx.typeSymbolOpt.filter(_.isOneOf(Flags.Class | Flags.Interface))
@@ -178,8 +179,13 @@ object JVMTypes:
         val semi = desc.indexOf(';', at)
         (Ref(desc.substring(at, semi + 1)), semi + 1)
       case '[' =>
+        // Keep the array's own descriptor rather than widening it to
+        // `Object`: an `@extern` whose parameter is, say, `[B` needs the
+        // `checkcast [B` that `ValueAdaptation` derives from this type —
+        // an `Object` on the stack where the descriptor says `[B` is a
+        // VerifyError, not a silent widening.
         var j = at
         while desc(j) == '[' do j += 1
         val (_, next) = charToJType(desc, j)
-        (Ref(ObjectDesc), next)
+        (Ref(desc.substring(at, next)), next)
       case c => throw new Exception("Unexpected descriptor char '" + c + "' in " + desc)

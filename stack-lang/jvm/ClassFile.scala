@@ -109,8 +109,11 @@ object ClassFile:
     def checkcast(owner: String): Unit = instructions.add(new TypeInsnNode(Opcodes.CHECKCAST, owner))
     def instanceOf(owner: String): Unit = instructions.add(new TypeInsnNode(Opcodes.INSTANCEOF, owner))
     def anewarray(element: String): Unit = instructions.add(new TypeInsnNode(Opcodes.ANEWARRAY, element))
+    def newByteArray(): Unit = instructions.add(new IntInsnNode(Opcodes.NEWARRAY, Opcodes.T_BYTE))
     def aaload(): Unit = insn(Opcodes.AALOAD)
     def aastore(): Unit = insn(Opcodes.AASTORE)
+    def baload(): Unit = insn(Opcodes.BALOAD)
+    def bastore(): Unit = insn(Opcodes.BASTORE)
     def arraylength(): Unit = insn(Opcodes.ARRAYLENGTH)
 
     def getstatic(owner: String, name: String, desc: String): Unit = field(Opcodes.GETSTATIC, owner, name, desc)

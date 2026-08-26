@@ -506,6 +506,30 @@ final class ExpressionEmitter(
       ctx.cw.invokevirtual(ObjectArrayDesc, "clone", "()Ljava/lang/Object;")
       ctx.cw.checkcast(ObjectArrayDesc)
 
+    else if sym == runtime.ByteArray_create then
+      compile(args.head)
+      ctx.cw.newByteArray()
+
+    else if sym == runtime.ByteArray_get then
+      // `baload` sign-extends the stored octet, which is exactly the signed
+      // 8-bit pattern a Jo `Byte` is carried as (see `JVMTypes.descOf`).
+      compile(args.head); ctx.cw.checkcast(ByteArrayDesc)
+      compile(args(1))
+      ctx.cw.baload()
+
+    else if sym == runtime.ByteArray_set then
+      compile(args.head); ctx.cw.checkcast(ByteArrayDesc)
+      compile(args(1))
+      compile(args(2))
+      ctx.cw.bastore()
+      // See `Array_set`: `bastore` leaves nothing, so `set`'s declared Unit
+      // result needs a null materialized to match.
+      ctx.cw.aconstNull()
+
+    else if sym == runtime.ByteArray_size then
+      compile(args.head); ctx.cw.checkcast(ByteArrayDesc)
+      ctx.cw.arraylength()
+
     else if runtime.nativeSpec(sym).isDefined then
       nativeCalls.compile(runtime.nativeSpec(sym).get, args, resultType, ctx.cw)
 
