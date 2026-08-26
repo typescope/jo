@@ -5,7 +5,7 @@ import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.Type
 
-import jvm.JVMInstructionEmitter
+import jvm.ClassFile.CodeWriter
 import jvm.JVMTypes.*
 import jvm.JVMTypes.JType.*
 
@@ -30,7 +30,7 @@ object JVMLambdaABI:
 
   def unpackParameters(
     parameters: List[Symbol], slots: JVMMethodSlots, argumentsSlot: Int,
-    jvmType: Type => JType, writer: JVMInstructionEmitter
+    jvmType: Type => JType, writer: CodeWriter
   )(using Definitions): Unit =
     slots.reserveUpTo(2) // slot 0 = this, slot 1 = Object[] arguments
     parameters.zipWithIndex.foreach { (parameter, index) =>
@@ -48,7 +48,7 @@ object JVMLambdaABI:
     * Every argument is already represented as Object. Result conversion is
     * explicit in the surrounding lowered tree.
     */
-  def emitLoweredCall(call: Word, compile: Word => JVMMethodCompiler.Flow, writer: JVMInstructionEmitter): Unit =
+  def emitLoweredCall(call: Word, compile: Word => JVMMethodCompiler.Flow, writer: CodeWriter): Unit =
     val Apply(function, arguments, automaticArguments) = call: @unchecked
     val allArguments = arguments ++ automaticArguments
     compile(function)
@@ -63,7 +63,7 @@ object JVMLambdaABI:
     }
     writer.invokeinterface(interfaceName, applyName, applyDescriptor)
 
-  private def store(tpe: JType, slot: Int, writer: JVMInstructionEmitter): Unit =
+  private def store(tpe: JType, slot: Int, writer: CodeWriter): Unit =
     if isIntCat(tpe) then writer.istore(slot)
     else if tpe == J then writer.lstore(slot)
     else writer.astore(slot)

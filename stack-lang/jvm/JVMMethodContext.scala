@@ -2,7 +2,7 @@ package jvm
 
 import sast.Symbols.Symbol
 import jvm.ClassFile.Label
-import jvm.JVMInstructionEmitter
+import jvm.ClassFile.CodeWriter
 import jvm.JVMTypes.JType
 import jvm.JVMTypes.JType.J
 
@@ -34,7 +34,7 @@ final class JVMMethodSlots:
   * into `JVMCodeGen` as that compiler is extracted.
   */
 final class JVMMethodContext(
-  val cw: JVMInstructionEmitter,
+  val cw: CodeWriter,
   val slots: JVMMethodSlots,
   val returnType: JType,
   val selfSym: Option[Symbol],

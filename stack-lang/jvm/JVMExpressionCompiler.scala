@@ -7,7 +7,7 @@ import sast.Types.*
 
 import jvm.JVMTypes.*
 import jvm.JVMTypes.JType.*
-import jvm.JVMInstructionEmitter
+import jvm.ClassFile.CodeWriter
 
 /** Lowers erased SAST expressions into JVM instructions for one method. */
 final class JVMExpressionCompiler(
@@ -20,7 +20,7 @@ final class JVMExpressionCompiler(
   private val primitiveCompiler = new JVMPrimitiveCompiler(runtime, JVMTypes.typeOf, this)
   private val nativeCallCompiler = new JVMNativeCallCompiler(JVMTypes.typeOf, this)
 
-  override def emitReturn(t: JType, cw: JVMInstructionEmitter): Unit =
+  override def emitReturn(t: JType, cw: CodeWriter): Unit =
     t match
       case V => cw.returnVoid()
       case r if isIntCat(r) => cw.ireturn()
@@ -41,7 +41,7 @@ final class JVMExpressionCompiler(
     * = _` locals — makes every incoming edge agree the slot holds *some*
     * value of the right category before the body ever runs.
     */
-  override def initializeLocals(locals: List[(Symbol, Int)], cw: JVMInstructionEmitter): Unit =
+  override def initializeLocals(locals: List[(Symbol, Int)], cw: CodeWriter): Unit =
     for (local, slot) <- locals do
       JVMTypes.typeOf(local.tpe) match
         case V => ()
@@ -243,7 +243,7 @@ final class JVMExpressionCompiler(
     * needing a full MethodCtx (used by the constructor emitter, which has a
     * restricted body shape and no control flow).
     */
-  override def compileInline(word: Word, slots: Slots, cw: JVMInstructionEmitter, selfSym: Symbol): Unit =
+  override def compileInline(word: Word, slots: Slots, cw: CodeWriter, selfSym: Symbol): Unit =
     given MethodCtx = new MethodCtx(cw, slots, V, selfSym = Some(selfSym))
     compile(word)
 
@@ -265,12 +265,12 @@ final class JVMExpressionCompiler(
       // A field of the enclosing class, accessed as a bare Ident (self implicit)
       throw new Exception("Unsupported free identifier: " + sym.fullName)
 
-  private def loadLocal(t: JType, slot: Int, cw: JVMInstructionEmitter): Unit =
+  private def loadLocal(t: JType, slot: Int, cw: CodeWriter): Unit =
     if isIntCat(t) then cw.iload(slot)
     else if t == J then cw.lload(slot)
     else cw.aload(slot)
 
-  override def storeLocal(t: JType, slot: Int, cw: JVMInstructionEmitter): Unit =
+  override def storeLocal(t: JType, slot: Int, cw: CodeWriter): Unit =
     if isIntCat(t) then cw.istore(slot)
     else if t == J then cw.lstore(slot)
     else cw.astore(slot)

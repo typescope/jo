@@ -175,7 +175,7 @@ object ClassFile:
     * resolving branch targets after the fact (a simple two-pass assembler,
     * mirroring the approach in native/Assembly.scala but for JVM opcodes).
     */
-  final class CodeWriter(val constants: ConstantPool) extends JVMInstructionEmitter:
+  final class CodeWriter(val constants: ConstantPool):
     private val cp = constants
     private val out = new ByteWriter
     private var curStack = 0

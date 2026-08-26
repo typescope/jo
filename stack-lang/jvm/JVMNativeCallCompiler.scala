@@ -4,7 +4,7 @@ import sast.*
 import sast.Trees.*
 import sast.Types.*
 
-import jvm.JVMInstructionEmitter
+import jvm.ClassFile.CodeWriter
 import jvm.JVMTypes.*
 import jvm.JVMTypes.JType.*
 
@@ -15,7 +15,7 @@ final class JVMNativeCallCompiler(
 ):
   def compile(
     spec: JVMRuntime.NativeSpec, arguments: List[Word], declaredResultType: Type,
-    writer: JVMInstructionEmitter
+    writer: CodeWriter
   )(using JVMMethodContext): Unit =
     def argument(word: Word, expected: JType): Unit =
       operands.compile(word)
