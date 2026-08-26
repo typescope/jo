@@ -51,7 +51,7 @@ end
 //------------------------------------------------------------------------------
 //
 // A single hand-written support class (Node, compiled directly by the JVM
-// backend into the output — see stack-lang/jvm/JVMRuntimeClasses.scala)
+// backend into the output — see stack-lang/jvm/RuntimeClasses.scala)
 // provides three Object fields (next/key/value) used below to build a small
 // association list, plus a static field whose value is always the real JVM
 // `null`. This is enough machinery to implement context-parameter support

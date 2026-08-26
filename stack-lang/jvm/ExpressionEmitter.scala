@@ -10,15 +10,15 @@ import jvm.JVMTypes.JType.*
 import jvm.ClassFile.CodeWriter
 
 /** Lowers erased SAST expressions into JVM instructions for one method. */
-final class JVMExpressionCompiler(
+final class ExpressionEmitter(
   runtime: JVMRuntime
-)(using defn: Definitions, context: JVMContext) extends JVMMethodCompiler.Expressions, JVMPrimitiveCompiler.Operands, JVMNativeCallCompiler.Operands:
+)(using defn: Definitions, context: JVMContext) extends MethodBuilder.Expressions, PrimitiveOps.Operands, NativeCalls.Operands:
   import JVMCodeGen.MainClassName
-  import JVMMethodCompiler.Flow
-  private type MethodCtx = JVMMethodContext
-  private type Slots = JVMMethodSlots
-  private val primitiveCompiler = new JVMPrimitiveCompiler(runtime, JVMTypes.typeOf, this)
-  private val nativeCallCompiler = new JVMNativeCallCompiler(JVMTypes.typeOf, this)
+  import MethodBuilder.Flow
+  private type MethodCtx = MethodContext
+  private type Slots = MethodSlots
+  private val primitiveOps = new PrimitiveOps(runtime, JVMTypes.typeOf, this)
+  private val nativeCalls = new NativeCalls(JVMTypes.typeOf, this)
 
   override def emitReturn(t: JType, cw: CodeWriter): Unit =
     t match
@@ -160,7 +160,7 @@ final class JVMExpressionCompiler(
       case Encoded(repr) =>
         val target = JVMTypes.typeOf(word.tpe)
         val flow = compile(repr)
-        if flow == Flow.FallsThrough then JVMAdaptation.emit(JVMTypes.typeOf(repr.tpe), target, ctx.cw)
+        if flow == Flow.FallsThrough then ValueAdaptation.emit(JVMTypes.typeOf(repr.tpe), target, ctx.cw)
         flow
 
       case other =>
@@ -338,11 +338,11 @@ final class JVMExpressionCompiler(
         compileIdentApply(sym, allArgs, apply.tpe)
 
       case Select(qual, name) if isPrimitiveOwner(qual.tpe) =>
-        primitiveCompiler.compilePrimitive(qual, name, allArgs)
+        primitiveOps.compilePrimitive(qual, name, allArgs)
         Flow.FallsThrough
 
       case Select(qual, name) if isStringOwner(qual.tpe) =>
-        primitiveCompiler.compileString(qual, name, allArgs)
+        primitiveOps.compileString(qual, name, allArgs)
         Flow.FallsThrough
 
       case Select(New(tpt), Names.Constructor) =>
@@ -433,18 +433,18 @@ final class JVMExpressionCompiler(
   // already arrive `Object`-erased here, same as any other call's args.
   private def compileIdentApply(sym: Symbol, args: List[Word], resultType: Type)(using ctx: MethodCtx): Flow =
     if sym == runtime.lowerInvokeLambda then
-      JVMLambdaABI.emitLoweredCall(args.head, compile, ctx.cw)
+      LambdaABI.emitLoweredCall(args.head, compile, ctx.cw)
       Flow.FallsThrough
     else runtime.lowerBox.collectFirst { case (primitive, intrinsic) if intrinsic == sym => primitive } match
       case Some(primitive) =>
         compile(args.head)
-        JVMAdaptation.emit(JVMAdaptation.Conversion.Box(primitive), ctx.cw)
+        ValueAdaptation.emit(ValueAdaptation.Conversion.Box(primitive), ctx.cw)
         Flow.FallsThrough
       case None =>
         runtime.lowerUnbox.collectFirst { case (primitive, intrinsic) if intrinsic == sym => primitive } match
           case Some(primitive) =>
             compile(args.head)
-            JVMAdaptation.emit(JVMAdaptation.Conversion.Unbox(primitive), ctx.cw)
+            ValueAdaptation.emit(ValueAdaptation.Conversion.Unbox(primitive), ctx.cw)
             Flow.FallsThrough
           case None => compileNonConversionIdentApply(sym, args, resultType)
 
@@ -525,7 +525,7 @@ final class JVMExpressionCompiler(
       ctx.cw.checkcast(ObjectArrayDesc)
 
     else if runtime.nativeSpec(sym).isDefined then
-      nativeCallCompiler.compile(runtime.nativeSpec(sym).get, args, resultType, ctx.cw)
+      nativeCalls.compile(runtime.nativeSpec(sym).get, args, resultType, ctx.cw)
 
     else
       compileStaticCall(sym, args)
@@ -600,4 +600,4 @@ final class JVMExpressionCompiler(
     args.foreach(compile)
     ctx.cw.invokespecial(className, Names.Constructor, "(" + ctorParamTypes.map(descriptorOf).mkString + ")V")
 
-end JVMExpressionCompiler
+end ExpressionEmitter

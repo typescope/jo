@@ -9,17 +9,17 @@ import jvm.JVMTypes.*
 import jvm.JVMTypes.JType.*
 
 /** Lowers declarative `@extern` bindings to JVM member instructions. */
-final class JVMNativeCallCompiler(
+final class NativeCalls(
   jvmType: Type => JType,
-  operands: JVMNativeCallCompiler.Operands
+  operands: NativeCalls.Operands
 ):
   def compile(
     spec: JVMRuntime.NativeSpec, arguments: List[Word], declaredResultType: Type,
     writer: CodeWriter
-  )(using JVMMethodContext): Unit =
+  )(using MethodContext): Unit =
     def argument(word: Word, expected: JType): Unit =
       operands.compile(word)
-      JVMAdaptation.emit(jvmType(word.tpe), expected, writer)
+      ValueAdaptation.emit(jvmType(word.tpe), expected, writer)
 
     val actual = spec.kind match
       case "static" =>
@@ -69,8 +69,8 @@ final class JVMNativeCallCompiler(
 
       case other => throw new Exception("Unknown @extern kind: " + other)
 
-    JVMAdaptation.emit(actual, jvmType(declaredResultType), writer)
+    ValueAdaptation.emit(actual, jvmType(declaredResultType), writer)
 
-object JVMNativeCallCompiler:
+object NativeCalls:
   trait Operands:
-    def compile(word: Word)(using JVMMethodContext): JVMMethodCompiler.Flow
+    def compile(word: Word)(using MethodContext): MethodBuilder.Flow

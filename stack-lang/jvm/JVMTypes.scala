@@ -5,7 +5,7 @@ import sast.Symbols.*
 import sast.Types.*
 
 import scala.collection.mutable
-import jvm.JVMAdaptation.Conversion
+import jvm.ValueAdaptation.Conversion
 
 /** The JVM-level value representations shared by lowering and emission.
   *
@@ -97,7 +97,7 @@ object JVMTypes:
       case (Representation.Object | Representation.String | Representation.Class(_), Representation.Class(_)) =>
         Conversion.CheckCast("")
       case _ =>
-        JVMAdaptation.conversion(
+        ValueAdaptation.conversion(
           lowerWithoutClassNames(actualRepresentation),
           lowerWithoutClassNames(expectedRepresentation)
         )

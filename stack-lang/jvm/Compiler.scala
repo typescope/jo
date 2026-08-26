@@ -90,7 +90,7 @@ object Compiler:
         // lambda literals into, which don't exist yet when `erasure` runs.
         // See `InterfaceBridge`'s doc comment.
         val interfaceBridge = new InterfaceBridge(erasure.bridges)
-        val jvmLowering = new JVMLowering(jvmRuntime)
+        val jvmLowering = new Lowering(jvmRuntime)
 
         val backend: Step[List[FileUnit], Unit] =
           Step("Backend", (units: List[FileUnit]) => writeClassFiles(codeGen.generate(units), outDir))
@@ -106,8 +106,8 @@ object Compiler:
 
   private def writeClassFiles(result: (Map[String, Array[Byte]], String), outDir: String): Unit =
     val (generated, mainClass) = result
-    val (nodeName, nodeBytes) = JVMRuntimeClasses.nodeClass()
-    val (lambdaName, lambdaBytes) = JVMRuntimeClasses.lambdaInterface()
+    val (nodeName, nodeBytes) = RuntimeClasses.nodeClass()
+    val (lambdaName, lambdaBytes) = RuntimeClasses.lambdaInterface()
     val allFiles = generated + (nodeName -> nodeBytes) + (lambdaName -> lambdaBytes)
 
     IO.ensureExists(outDir)

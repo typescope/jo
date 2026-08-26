@@ -9,19 +9,19 @@ import jvm.JVMTypes.*
 import jvm.JVMTypes.JType.*
 
 /** Lowers primitive and String operations to JVM instructions. */
-final class JVMPrimitiveCompiler(
+final class PrimitiveOps(
   runtime: JVMRuntime,
   jvmType: Type => JType,
-  operands: JVMPrimitiveCompiler.Operands
+  operands: PrimitiveOps.Operands
 )(using Definitions):
-  private type MethodCtx = JVMMethodContext
+  private type MethodCtx = MethodContext
 
-  private def compile(word: Word)(using JVMMethodContext): Unit =
+  private def compile(word: Word)(using MethodContext): Unit =
     operands.compile(word)
     ()
-  private def boolFromBranch(branch: Label => Unit)(using JVMMethodContext): Unit =
+  private def boolFromBranch(branch: Label => Unit)(using MethodContext): Unit =
     operands.boolFromBranch(branch)
-  private def compileStaticCall(symbol: Symbols.Symbol, args: List[Word])(using JVMMethodContext): Unit =
+  private def compileStaticCall(symbol: Symbols.Symbol, args: List[Word])(using MethodContext): Unit =
     operands.compileStaticCall(symbol, args)
 
   // Primitive numeric/boolean operators (Int/Bool/Byte/Char intrinsics)
@@ -266,8 +266,8 @@ final class JVMPrimitiveCompiler(
       case other =>
         throw new Exception("JVM backend prototype: unsupported String operator " + other)
 
-object JVMPrimitiveCompiler:
+object PrimitiveOps:
   trait Operands:
-    def compile(word: Word)(using JVMMethodContext): JVMMethodCompiler.Flow
-    def boolFromBranch(branch: Label => Unit)(using JVMMethodContext): Unit
-    def compileStaticCall(symbol: Symbols.Symbol, args: List[Word])(using JVMMethodContext): Unit
+    def compile(word: Word)(using MethodContext): MethodBuilder.Flow
+    def boolFromBranch(branch: Label => Unit)(using MethodContext): Unit
+    def compileStaticCall(symbol: Symbols.Symbol, args: List[Word])(using MethodContext): Unit

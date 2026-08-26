@@ -16,7 +16,7 @@ import jvm.JVMTypes.JType.*
   * sites. Replacing the Object-array convention or adopting invokedynamic
   * should therefore change this boundary rather than general lowering.
   */
-object JVMLambdaABI:
+object LambdaABI:
   val interfaceName = "Lambda"
   val applyName = "apply"
   val applyDescriptor = "([Ljava/lang/Object;)Ljava/lang/Object;"
@@ -29,7 +29,7 @@ object JVMLambdaABI:
     (if isMarkerLambda(cdef) then interfaceName :: Nil else Nil) ++ declared
 
   def unpackParameters(
-    parameters: List[Symbol], slots: JVMMethodSlots, argumentsSlot: Int,
+    parameters: List[Symbol], slots: MethodSlots, argumentsSlot: Int,
     jvmType: Type => JType, writer: CodeWriter
   )(using Definitions): Unit =
     slots.reserveUpTo(2) // slot 0 = this, slot 1 = Object[] arguments
@@ -39,16 +39,16 @@ object JVMLambdaABI:
       writer.aload(argumentsSlot)
       writer.iconst(index)
       writer.aaload()
-      JVMAdaptation.emit(Ref(ObjectDesc), parameterType, writer)
+      ValueAdaptation.emit(Ref(ObjectDesc), parameterType, writer)
       store(parameterType, slot, writer)
     }
 
-  /** Emit a lambda call already normalized by `JVMLowering`.
+  /** Emit a lambda call already normalized by `Lowering`.
     *
     * Every argument is already represented as Object. Result conversion is
     * explicit in the surrounding lowered tree.
     */
-  def emitLoweredCall(call: Word, compile: Word => JVMMethodCompiler.Flow, writer: CodeWriter): Unit =
+  def emitLoweredCall(call: Word, compile: Word => MethodBuilder.Flow, writer: CodeWriter): Unit =
     val Apply(function, arguments, automaticArguments) = call: @unchecked
     val allArguments = arguments ++ automaticArguments
     compile(function)

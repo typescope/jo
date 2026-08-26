@@ -30,9 +30,9 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
   import JVMCodeGen.*
   import JVMContext.Pending
   private given context: JVMContext = new JVMContext(rewire)
-  private val expressionCompiler = new JVMExpressionCompiler(runtime)
-  private val methodCompiler = new JVMMethodCompiler(expressionCompiler)
-  private val classCompiler = new JVMClassCompiler(methodCompiler)
+  private val expressionEmitter = new ExpressionEmitter(runtime)
+  private val methodBuilder = new MethodBuilder(expressionEmitter)
+  private val classBuilder = new ClassBuilder(methodBuilder)
 
   //----------------------------------------------------------------------------
   // Program-wide state: reachability worklists, name assignment
@@ -66,9 +66,9 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       pending.get match
         case Pending.TopLevel(fdef) =>
           if !isNativeOrIntrinsic(fdef.symbol) then
-            mainClassMethods += methodCompiler.compileTopLevel(fdef, cp)
-        case Pending.Class(cdef) => addClassFile(classCompiler.compileClass(cdef, cp))
-        case Pending.Interface(idef) => addClassFile(classCompiler.compileInterface(idef, cp))
+            mainClassMethods += methodBuilder.compileTopLevel(fdef, cp)
+        case Pending.Class(cdef) => addClassFile(classBuilder.compileClass(cdef, cp))
+        case Pending.Interface(idef) => addClassFile(classBuilder.compileInterface(idef, cp))
       pending = context.nextPending()
 
     // Synthetic entry point: `public static void main(String[] args)`

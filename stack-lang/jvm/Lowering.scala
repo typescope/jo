@@ -4,7 +4,7 @@ import phases.Phase
 import sast.*
 import sast.Trees.*
 
-import jvm.JVMAdaptation.Conversion
+import jvm.ValueAdaptation.Conversion
 
 /** Makes JVM representation and ABI choices explicit in ordinary SAST before
   * instruction emission.
@@ -15,7 +15,7 @@ import jvm.JVMAdaptation.Conversion
   * - Box primitive values used by JVM class tests.
   * - Make lambda argument packing and result conversion explicit.
   */
-final class JVMLowering(
+final class Lowering(
   runtime: JVMRuntime
 )(using Definitions) extends Phase:
   private def conversion(actual: Types.Type, expected: Types.Type): Conversion =

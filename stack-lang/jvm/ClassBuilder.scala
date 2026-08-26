@@ -8,13 +8,13 @@ import jvm.ClassFile.*
 import jvm.JVMTypes.*
 
 /** Computes JVM class/interface layout and delegates every method body. */
-final class JVMClassCompiler(
-  methods: JVMClassCompiler.MethodCompiler
+final class ClassBuilder(
+  methods: ClassBuilder.MethodBodies
 )(using defn: Definitions, context: JVMContext):
 
   def compileClass(cdef: ClassDef, constants: ConstantPool): (String, Array[Byte]) =
     val className = context.className(cdef.symbol)
-    val isLambda = JVMLambdaABI.isMarkerLambda(cdef)
+    val isLambda = LambdaABI.isMarkerLambda(cdef)
 
     val fields = cdef.vals.map { field =>
       FieldOut(AccessFlags.Public, field.symbol.name, JVMTypes.descriptorOf(field.tpt.tpe))
@@ -32,7 +32,7 @@ final class JVMClassCompiler(
     val declaredInterfaces = cdef.views
       .flatMap(view => JVMTypes.classOrInterfaceSymbol(view.tpe))
       .map(context.requireClass)
-    val interfaces = JVMLambdaABI.implementedInterfaces(cdef, declaredInterfaces)
+    val interfaces = LambdaABI.implementedInterfaces(cdef, declaredInterfaces)
     val bytes = ClassFile.write(
       constants, className, ObjectClass, interfaces, fields,
       constructor.toList ++ otherMethods
@@ -56,12 +56,12 @@ final class JVMClassCompiler(
     )
     name -> bytes
 
-object JVMClassCompiler:
+object ClassBuilder:
   /** Method-body service required by class layout. The consumer owns this
     * contract; method compilation does not depend on the class compiler's
     * concrete implementation.
     */
-  trait MethodCompiler:
+  trait MethodBodies:
     def compileConstructor(fdef: FunDef, owner: ClassDef, constants: ConstantPool): MethodOut
     def compileInstanceMethod(fdef: FunDef, self: Symbol, constants: ConstantPool): MethodOut
     def compileLambdaApply(fdef: FunDef, owner: ClassDef, constants: ConstantPool): MethodOut

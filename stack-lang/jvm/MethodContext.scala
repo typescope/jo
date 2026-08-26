@@ -9,7 +9,7 @@ import jvm.JVMTypes.JType.J
 import scala.collection.mutable
 
 /** Local-slot allocation for one JVM method. */
-final class JVMMethodSlots:
+final class MethodSlots:
   private val slots = mutable.Map.empty[Symbol, Int]
   private var next = 0
 
@@ -30,12 +30,12 @@ final class JVMMethodSlots:
 /** All mutable state scoped to compilation of one method body.
   *
   * Keeping this outside the program coordinator is the first boundary of the
-  * short-lived `JVMMethodCompiler`: no method-local state should migrate back
+  * short-lived `MethodBuilder`: no method-local state should migrate back
   * into `JVMCodeGen` as that compiler is extracted.
   */
-final class JVMMethodContext(
+final class MethodContext(
   val cw: CodeWriter,
-  val slots: JVMMethodSlots,
+  val slots: MethodSlots,
   val returnType: JType,
   val selfSym: Option[Symbol],
   val argsArraySlot: Option[Int] = None,

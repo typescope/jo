@@ -10,7 +10,7 @@ import jvm.JVMTypes.JType.*
   * it here makes that distinction explicit and gives future lowering passes a
   * single conversion contract to target.
   */
-object JVMAdaptation:
+object ValueAdaptation:
   enum Conversion:
     case Identity, Drop, UnitValue
     case Box(primitive: JType)

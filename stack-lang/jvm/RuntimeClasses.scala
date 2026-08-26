@@ -18,7 +18,7 @@ import jvm.ClassFile.*
   * their only "caller" — `jo.jvm.runtime.Runtime.jo` references them purely
   * through `@extern` FFI declarations.
   */
-object JVMRuntimeClasses:
+object RuntimeClasses:
   def nodeClass(): (String, Array[Byte]) =
     val cp = new ConstantPool
     val fields = List(
@@ -46,4 +46,4 @@ object JVMRuntimeClasses:
       accessFlags = AccessFlags.Public | AccessFlags.Interface | AccessFlags.Abstract
     )
     "Lambda" -> bytes
-end JVMRuntimeClasses
+end RuntimeClasses
