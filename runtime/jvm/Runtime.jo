@@ -164,6 +164,9 @@ private def offsetByCodePoints(s: String, from: Int, codePointOffset: Int): Int 
 @extern("java/lang/String", "codePointAt", "(I)I", "virtual")
 private def codePointAt(s: String, charIndex: Int): Char = ...
 
+@extern("java/lang/Character", "charCount", "(I)I", "static")
+private def charCount(codePoint: Int): Int = ...
+
 @extern("java/lang/String", "substring", "(II)Ljava/lang/String;", "virtual")
 private def rawSubstring(s: String, beginChar: Int, endChar: Int): String = ...
 
@@ -209,14 +212,21 @@ private section StringOps
     new StringIterator(s)
 end
 
+// Walks the UTF-16 offset rather than the code-point index, even though the
+// values it yields are code points. Stepping a code-point index would make
+// every `next` re-scan the string from the start (`StringOps.get` walks
+// `offsetByCodePoints(s, 0, i)`) and every `hasNext` re-count all of it
+// (`StringOps.size`), turning one traversal into O(n^2). The UTF-16 offset
+// is what the underlying JDK calls already index by, so each step is O(1).
 private class StringIterator(source: String)
+  // A UTF-16 code-unit offset, not a code-point index.
   var pos: Int = 0
 
-  def hasNext: Bool = pos < StringOps.size(source)
+  def hasNext: Bool = pos < rawLength(source)
 
   def next: Char =
-    val c = StringOps.get(source, pos)
-    pos = pos + 1
+    val c = codePointAt(source, pos)
+    pos = pos + charCount(c.toInt)
     c
 
   view Iterator[Char]
