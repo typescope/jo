@@ -2,7 +2,7 @@ package jvm
 
 import sast.*
 import sast.Trees.*
-import sast.Types.*
+import sast.Types.Type
 
 import jvm.ClassFile.*
 import jvm.JVMTypes.*
@@ -16,7 +16,9 @@ final class JVMPrimitiveCompiler(
 )(using Definitions):
   private type MethodCtx = JVMMethodContext
 
-  private def compile(word: Word)(using JVMMethodContext): Unit = operands.compile(word)
+  private def compile(word: Word)(using JVMMethodContext): Unit =
+    operands.compile(word)
+    ()
   private def boolFromBranch(branch: Label => Unit)(using JVMMethodContext): Unit =
     operands.boolFromBranch(branch)
   private def compileStaticCall(symbol: Symbols.Symbol, args: List[Word])(using JVMMethodContext): Unit =
@@ -266,6 +268,6 @@ final class JVMPrimitiveCompiler(
 
 object JVMPrimitiveCompiler:
   trait Operands:
-    def compile(word: Word)(using JVMMethodContext): Unit
+    def compile(word: Word)(using JVMMethodContext): JVMMethodCompiler.Flow
     def boolFromBranch(branch: Label => Unit)(using JVMMethodContext): Unit
     def compileStaticCall(symbol: Symbols.Symbol, args: List[Word])(using JVMMethodContext): Unit

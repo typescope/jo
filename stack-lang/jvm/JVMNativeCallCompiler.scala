@@ -73,4 +73,4 @@ final class JVMNativeCallCompiler(
 
 object JVMNativeCallCompiler:
   trait Operands:
-    def compile(word: Word)(using JVMMethodContext): Unit
+    def compile(word: Word)(using JVMMethodContext): JVMMethodCompiler.Flow

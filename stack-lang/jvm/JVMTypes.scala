@@ -5,6 +5,7 @@ import sast.Symbols.*
 import sast.Types.*
 
 import scala.collection.mutable
+import jvm.JVMAdaptation.Conversion
 
 /** The JVM-level value representations shared by lowering and emission.
   *
@@ -72,6 +73,46 @@ object JVMTypes:
       case Object => Ref(ObjectDesc)
       case String => Ref(StringDesc)
       case Class(sym) => Ref("L" + className(sym) + ";")
+
+  def typeOf(tpe: Type)(using context: JVMContext, defn: Definitions): JType =
+    lower(representationOf(tpe), context.requireClass)
+
+  def descriptorOf(tpe: Type)(using context: JVMContext, defn: Definitions): String =
+    descOf(typeOf(tpe))
+
+  def methodDescriptor(
+    parameterTypes: List[Type], resultType: Type
+  )(using context: JVMContext, defn: Definitions): String =
+    "(" + parameterTypes.map(descriptorOf).mkString + ")" + descriptorOf(resultType)
+
+  /** Classifies conversions that lowering can make explicit without assigning
+    * JVM class names.
+    */
+  def loweringConversion(actual: Type, expected: Type)(using Definitions): Conversion =
+    val actualRepresentation = representationOf(actual)
+    val expectedRepresentation = representationOf(expected)
+    (actualRepresentation, expectedRepresentation) match
+      case (Representation.Class(actualClass), Representation.Class(expectedClass))
+          if actualClass == expectedClass => Conversion.Identity
+      case (Representation.Object | Representation.String | Representation.Class(_), Representation.Class(_)) =>
+        Conversion.CheckCast("")
+      case _ =>
+        JVMAdaptation.conversion(
+          lowerWithoutClassNames(actualRepresentation),
+          lowerWithoutClassNames(expectedRepresentation)
+        )
+
+  private def lowerWithoutClassNames(representation: Representation): JType =
+    representation match
+      case Representation.Void => V
+      case Representation.Int => I
+      case Representation.Bool => Z
+      case Representation.Byte => B
+      case Representation.Char => C
+      case Representation.Float => F
+      case Representation.Long => J
+      case Representation.String => Ref(StringDesc)
+      case Representation.Object | Representation.Class(_) => Ref(ObjectDesc)
 
   def isIntCat(t: JType): Boolean = t match
     case I | Z | B | C => true

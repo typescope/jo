@@ -3,26 +3,21 @@ package jvm
 import sast.*
 import sast.Trees.*
 import sast.Symbols.*
-import sast.Types.*
 
 import jvm.ClassFile.*
 import jvm.JVMTypes.*
 
 /** Computes JVM class/interface layout and delegates every method body. */
 final class JVMClassCompiler(
-  backend: JVMBackendContext,
-  methods: JVMClassCompiler.MethodCompiler,
-  jvmType: Type => JType,
-  methodDesc: (List[Type], Type) => String,
-  lambdaABI: JVMLambdaABI
-)(using Definitions):
+  methods: JVMClassCompiler.MethodCompiler
+)(using defn: Definitions, context: JVMContext):
 
   def compileClass(cdef: ClassDef, constants: ConstantPool): (String, Array[Byte]) =
-    val className = backend.className(cdef.symbol)
-    val isLambda = lambdaABI.isMarkerLambda(cdef)
+    val className = context.className(cdef.symbol)
+    val isLambda = JVMLambdaABI.isMarkerLambda(cdef)
 
     val fields = cdef.vals.map { field =>
-      FieldOut(AccessFlags.Public, field.symbol.name, descOf(jvmType(field.tpt.tpe)))
+      FieldOut(AccessFlags.Public, field.symbol.name, JVMTypes.descriptorOf(field.tpt.tpe))
     }
 
     val constructor = cdef.funs.find(_.symbol.name == Names.Constructor)
@@ -36,8 +31,8 @@ final class JVMClassCompiler(
 
     val declaredInterfaces = cdef.views
       .flatMap(view => JVMTypes.classOrInterfaceSymbol(view.tpe))
-      .map(backend.requireClass)
-    val interfaces = lambdaABI.implementedInterfaces(cdef, declaredInterfaces)
+      .map(context.requireClass)
+    val interfaces = JVMLambdaABI.implementedInterfaces(cdef, declaredInterfaces)
     val bytes = ClassFile.write(
       constants, className, ObjectClass, interfaces, fields,
       constructor.toList ++ otherMethods
@@ -45,11 +40,11 @@ final class JVMClassCompiler(
     className -> bytes
 
   def compileInterface(idef: InterfaceDef, constants: ConstantPool): (String, Array[Byte]) =
-    val name = backend.className(idef.symbol)
+    val name = context.className(idef.symbol)
     val abstractMethods = idef.methods.collect {
       case fdef if fdef.symbol.is(Flags.Defer) =>
         val procType = fdef.symbol.tpe.asProcType
-        val descriptor = methodDesc(
+        val descriptor = JVMTypes.methodDescriptor(
           procType.paramTypes ++ procType.autoTypes,
           procType.resultType
         )

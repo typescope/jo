@@ -12,40 +12,37 @@ import jvm.JVMInstructionEmitter
 
 /** Assembles complete JVM methods around expression lowering. */
 final class JVMMethodCompiler(
-  backend: JVMBackendContext,
-  expressions: JVMMethodCompiler.Expressions,
-  jvmType: Type => JType,
-  methodDesc: (List[Type], Type) => String,
-  lambdaABI: JVMLambdaABI
-)(using Definitions) extends JVMClassCompiler.MethodCompiler:
+  expressions: JVMMethodCompiler.Expressions
+)(using defn: Definitions, context: JVMContext) extends JVMClassCompiler.MethodCompiler:
+  import JVMMethodCompiler.Flow
 
   def compileTopLevel(fdef: FunDef, constants: ConstantPool): MethodOut =
     val procType = fdef.symbol.tpe.asProcType
     val writer = new CodeWriter(constants)
     val slots = new JVMMethodSlots
     val self =
-      if fdef.symbol.owner.isInterface then Some(backend.interfaceDef(fdef.symbol.owner).self)
+      if fdef.symbol.owner.isInterface then Some(context.interfaceDef(fdef.symbol.owner).self)
       else None
     self.foreach(symbol => slots.bind(symbol, Ref(ObjectDesc)))
-    fdef.allParams.foreach(param => slots.bind(param, jvmType(param.tpe)))
+    fdef.allParams.foreach(param => slots.bind(param, JVMTypes.typeOf(param.tpe)))
     touchAllocatedSlots(slots, writer)
-    val locals = fdef.locals.map(local => local -> slots.bind(local, jvmType(local.tpe)))
-    val resultType = jvmType(procType.resultType)
+    val locals = fdef.locals.map(local => local -> slots.bind(local, JVMTypes.typeOf(local.tpe)))
+    val resultType = JVMTypes.typeOf(procType.resultType)
     given JVMMethodContext = new JVMMethodContext(writer, slots, resultType, selfSym = self)
 
     expressions.initializeLocals(locals, writer)
-    expressions.compile(fdef.body)
-    if !expressions.isTerminal(fdef.body) then expressions.emitReturn(resultType, writer)
+    if expressions.compile(fdef.body) == Flow.FallsThrough then
+      expressions.emitReturn(resultType, writer)
 
     val (code, maxStack, maxLocals) = writer.finish()
     val parameterTypes = procType.paramTypes ++ procType.autoTypes
     val selfDescriptor = if self.isDefined then ObjectDesc else ""
     val descriptor =
-      "(" + selfDescriptor + parameterTypes.map(t => descOf(jvmType(t))).mkString + ")" +
-        descOf(jvmType(procType.resultType))
+      "(" + selfDescriptor + parameterTypes.map(JVMTypes.descriptorOf).mkString + ")" +
+        JVMTypes.descriptorOf(procType.resultType)
     MethodOut(
       AccessFlags.Public | AccessFlags.Static,
-      backend.topLevelName(fdef.symbol), descriptor,
+      context.topLevelName(fdef.symbol), descriptor,
       Some((code, maxStack, maxLocals))
     )
 
@@ -54,8 +51,8 @@ final class JVMMethodCompiler(
     val slots = new JVMMethodSlots
     slots.bind(owner.self, Ref(ObjectDesc))
     val parameters = fdef.params
-    parameters.foreach(param => slots.bind(param, jvmType(param.tpe)))
-    val locals = fdef.locals.map(local => local -> slots.bind(local, jvmType(local.tpe)))
+    parameters.foreach(param => slots.bind(param, JVMTypes.typeOf(param.tpe)))
+    val locals = fdef.locals.map(local => local -> slots.bind(local, JVMTypes.typeOf(local.tpe)))
     touchAllocatedSlots(slots, writer)
 
     writer.aload(0)
@@ -70,7 +67,7 @@ final class JVMMethodCompiler(
     compileInitializer(fdef.body)
     writer.returnVoid()
     val (code, maxStack, maxLocals) = writer.finish()
-    val descriptor = "(" + parameters.map(p => descOf(jvmType(p.tpe))).mkString + ")V"
+    val descriptor = "(" + parameters.map(p => JVMTypes.descriptorOf(p.tpe)).mkString + ")V"
     MethodOut(AccessFlags.Public, Names.Constructor, descriptor, Some((code, maxStack, maxLocals)))
 
   override def compileInstanceMethod(fdef: FunDef, self: Symbol, constants: ConstantPool): MethodOut =
@@ -78,18 +75,18 @@ final class JVMMethodCompiler(
     val writer = new CodeWriter(constants)
     val slots = new JVMMethodSlots
     slots.bind(self, Ref(ObjectDesc))
-    fdef.allParams.foreach(param => slots.bind(param, jvmType(param.tpe)))
+    fdef.allParams.foreach(param => slots.bind(param, JVMTypes.typeOf(param.tpe)))
     touchAllocatedSlots(slots, writer)
-    val locals = fdef.locals.map(local => local -> slots.bind(local, jvmType(local.tpe)))
-    val resultType = jvmType(procType.resultType)
+    val locals = fdef.locals.map(local => local -> slots.bind(local, JVMTypes.typeOf(local.tpe)))
+    val resultType = JVMTypes.typeOf(procType.resultType)
     given JVMMethodContext = new JVMMethodContext(writer, slots, resultType, selfSym = Some(self))
 
     expressions.initializeLocals(locals, writer)
-    expressions.compile(fdef.body)
-    if !expressions.isTerminal(fdef.body) then expressions.emitReturn(resultType, writer)
+    if expressions.compile(fdef.body) == Flow.FallsThrough then
+      expressions.emitReturn(resultType, writer)
 
     val (code, maxStack, maxLocals) = writer.finish()
-    val descriptor = methodDesc(procType.paramTypes ++ procType.autoTypes, procType.resultType)
+    val descriptor = JVMTypes.methodDescriptor(procType.paramTypes ++ procType.autoTypes, procType.resultType)
     val bytecodeName = fdef.symbol.name.stripSuffix(Names.BridgeSuffix)
     MethodOut(AccessFlags.Public, bytecodeName, descriptor, Some((code, maxStack, maxLocals)))
 
@@ -99,25 +96,25 @@ final class JVMMethodCompiler(
     slots.bind(owner.self, Ref(ObjectDesc))
     val argumentsSlot = 1
     writer.touchLocal(argumentsSlot)
-    val resultType = jvmType(fdef.resultType.tpe)
+    val resultType = JVMTypes.typeOf(fdef.resultType.tpe)
     given JVMMethodContext = new JVMMethodContext(
       writer, slots, resultType, selfSym = Some(owner.self),
       argsArraySlot = Some(argumentsSlot)
     )
 
-    lambdaABI.unpackParameters(
-      fdef.params, slots, argumentsSlot, jvmType, writer
+    JVMLambdaABI.unpackParameters(
+      fdef.params, slots, argumentsSlot, JVMTypes.typeOf, writer
     )
-    val locals = fdef.locals.map(local => local -> slots.bind(local, jvmType(local.tpe)))
+    val locals = fdef.locals.map(local => local -> slots.bind(local, JVMTypes.typeOf(local.tpe)))
     expressions.initializeLocals(locals, writer)
-    expressions.compile(fdef.body)
-    if resultType == V then writer.aconstNull()
-    else JVMAdaptation.emit(resultType, Ref(ObjectDesc), writer)
-    writer.areturn()
+    if expressions.compile(fdef.body) == Flow.FallsThrough then
+      if resultType == V then writer.aconstNull()
+      else JVMAdaptation.emit(resultType, Ref(ObjectDesc), writer)
+      writer.areturn()
 
     val (code, maxStack, maxLocals) = writer.finish()
     MethodOut(
-      AccessFlags.Public, lambdaABI.applyName, lambdaABI.applyDescriptor,
+      AccessFlags.Public, JVMLambdaABI.applyName, JVMLambdaABI.applyDescriptor,
       Some((code, maxStack, maxLocals))
     )
 
@@ -125,11 +122,13 @@ final class JVMMethodCompiler(
     if slots.used > 0 then writer.touchLocal(slots.used - 1)
 
 object JVMMethodCompiler:
+  enum Flow:
+    case FallsThrough, Terminal
+
   /** Expression-lowering service required by method assembly. */
   trait Expressions:
-    def compile(word: Word)(using JVMMethodContext): Unit
+    def compile(word: Word)(using JVMMethodContext): Flow
     def compileInline(word: Word, slots: JVMMethodSlots, writer: JVMInstructionEmitter, self: Symbol): Unit
-    def isTerminal(word: Word): Boolean
     def emitReturn(tpe: JType, writer: JVMInstructionEmitter): Unit
     def initializeLocals(locals: List[(Symbol, Int)], writer: JVMInstructionEmitter): Unit
     def storeLocal(tpe: JType, slot: Int, writer: JVMInstructionEmitter): Unit

@@ -16,9 +16,10 @@ import jvm.JVMAdaptation.Conversion
   * - Make lambda argument packing and result conversion explicit.
   */
 final class JVMLowering(
-  runtime: JVMRuntime,
-  conversion: (Types.Type, Types.Type) => Conversion
+  runtime: JVMRuntime
 )(using Definitions) extends Phase:
+  private def conversion(actual: Types.Type, expected: Types.Type): Conversion =
+    JVMTypes.loweringConversion(actual, expected)
   private def intrinsicCall(symbol: Symbols.Symbol, value: Word): Apply =
     Apply(Ident(symbol)(value.span), value :: Nil, Nil)(value.span)
 

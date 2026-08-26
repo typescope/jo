@@ -13,8 +13,8 @@ import scala.collection.mutable
   * requests definitions and names through this API without sharing its
   * mutable collections.
   */
-final class JVMBackendContext(rewire: Map[Symbol, Symbol]):
-  import JVMBackendContext.*
+final class JVMContext(rewire: Map[Symbol, Symbol]):
+  import JVMContext.*
 
   private val funDefs = mutable.Map.empty[Symbol, FunDef]
   private val classDefs = mutable.Map.empty[Symbol, ClassDef]
@@ -103,9 +103,8 @@ final class JVMBackendContext(rewire: Map[Symbol, Symbol]):
     if result.isEmpty || result.head.isDigit then result.insert(0, '_')
     result.toString
 
-object JVMBackendContext:
+object JVMContext:
   enum Pending:
     case TopLevel(definition: FunDef)
     case Class(definition: ClassDef)
     case Interface(definition: InterfaceDef)
-

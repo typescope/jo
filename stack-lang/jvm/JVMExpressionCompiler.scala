@@ -11,17 +11,14 @@ import jvm.JVMInstructionEmitter
 
 /** Lowers erased SAST expressions into JVM instructions for one method. */
 final class JVMExpressionCompiler(
-  backend: JVMBackendContext,
-  runtime: JVMRuntime,
-  jvmType: Type => JType,
-  methodDesc: (List[Type], Type) => String,
-  lambdaABI: JVMLambdaABI
-)(using defn: Definitions) extends JVMMethodCompiler.Expressions, JVMPrimitiveCompiler.Operands, JVMNativeCallCompiler.Operands:
+  runtime: JVMRuntime
+)(using defn: Definitions, context: JVMContext) extends JVMMethodCompiler.Expressions, JVMPrimitiveCompiler.Operands, JVMNativeCallCompiler.Operands:
   import JVMCodeGen.MainClassName
+  import JVMMethodCompiler.Flow
   private type MethodCtx = JVMMethodContext
   private type Slots = JVMMethodSlots
-  private val primitiveCompiler = new JVMPrimitiveCompiler(runtime, jvmType, this)
-  private val nativeCallCompiler = new JVMNativeCallCompiler(jvmType, this)
+  private val primitiveCompiler = new JVMPrimitiveCompiler(runtime, JVMTypes.typeOf, this)
+  private val nativeCallCompiler = new JVMNativeCallCompiler(JVMTypes.typeOf, this)
 
   override def emitReturn(t: JType, cw: JVMInstructionEmitter): Unit =
     t match
@@ -46,7 +43,7 @@ final class JVMExpressionCompiler(
     */
   override def initializeLocals(locals: List[(Symbol, Int)], cw: JVMInstructionEmitter): Unit =
     for (local, slot) <- locals do
-      jvmType(local.tpe) match
+      JVMTypes.typeOf(local.tpe) match
         case V => ()
         case t if isIntCat(t) => cw.iconst(0); storeLocal(t, slot, cw)
         case t @ Ref(_) => cw.aconstNull(); storeLocal(t, slot, cw)
@@ -56,73 +53,15 @@ final class JVMExpressionCompiler(
   //----------------------------------------------------------------------------
   // Statement/expression compilation
   //
-  // Postcondition: compile(word) leaves exactly jvmType(word.tpe) on the
-  // operand stack (nothing, for VoidType).
+  // Postcondition: a falling-through compile leaves exactly
+  // jvmType(word.tpe) on the operand stack (nothing, for VoidType).
   //----------------------------------------------------------------------------
 
-  /** Whether compiling `word` is guaranteed to already leave the current
-    * instruction stream ended in a genuine JVM control-transfer instruction
-    * (`xreturn`/`athrow` via `Return`, or the inlined `throwAny`'s
-    * `checkcast`+`athrow`) — i.e. nothing placed immediately after it, in
-    * this position, can ever execute.
-    *
-    * This used to be approximated by asking the *type checker* whether
-    * `word`'s type was `Bottom` (`Type.isBottomType`, `this ==
-    * BottomType`). That's the wrong question, answered by accident: the
-    * only tree node whose `.tpe` is ever the literal `BottomType` singleton
-    * is `Return` itself (a hardcoded override — see `Trees.scala`). Every
-    * other `Bottom`-declared expression, including an inlined `throwAny`
-    * call, carries `StaticRef` to the `Bottom` *alias* symbol instead, which
-    * the raw check never matches — so it was really testing "is this
-    * literally a `Return` node", not "is this provably terminal", and
-    * happened to stay safe only because always falling back to "emit the
-    * epilogue" is harmless here: this project targets a pre-StackMapTable
-    * classfile version (49, the legacy type-inferencing verifier), which
-    * never visits code with no incoming control-flow edge, so a redundant
-    * epilogue after a genuinely terminal instruction is inert (confirmed
-    * directly: `abort`'s own compiled body is `athrow` followed by a dead
-    * `areturn`, and it loads and runs fine even under `-Xverify:all`). An
-    * *ordinary call* to a `Bottom`-declared function (`abort(...)`, a plain
-    * `invokestatic`) needing the epilogue anyway is the case that actually
-    * matters: the verifier has no interprocedural knowledge that `abort`
-    * never returns, so it still expects the call's declared return value to
-    * be there — confirmed by regression (`ParamSupport.getParam` falling
-    * off the end of the code when this was once conflated with the
-    * `Return` case; `SetTree.insert`'s pattern-match exhaustiveness
-    * fallback landing in `Assign` via `TailCallOpt` needing the same thing).
-    *
-    * This instead mirrors `compile`'s own case dispatch directly for the
-    * handful of shapes that end in a real terminal instruction, and must be
-    * kept in sync with any case in `compile` that can end control flow
-    * outright. Under-reporting (`false` for something actually terminal)
-    * only costs a few bytes of dead code, per the paragraph above; a wrong
-    * `true` would be a real bug (skipping control flow that's actually
-    * needed), so this stays conservative and defaults to `false`.
-    */
-  override def isTerminal(word: Word): Boolean =
+  override def compile(word: Word)(using ctx: MethodCtx): Flow =
     word match
-      case _: Return => true
+      case Literal(c) => compileLiteral(c, JVMTypes.typeOf(word.tpe)); Flow.FallsThrough
 
-      case Apply(funRaw, _, _) =>
-        stripTypeApply(funRaw) match
-          case Ident(sym) => backend.resolve(sym) == runtime.throwAny
-          case _ => false
-
-      case If(_, thenp, elsep) =>
-        !elsep.isEmpty && isTerminal(thenp) && isTerminal(elsep)
-
-      case Block(words) =>
-        words.nonEmpty && isTerminal(words.last)
-
-      case Encoded(repr) => isTerminal(repr)
-
-      case _ => false
-
-  override def compile(word: Word)(using ctx: MethodCtx): Unit =
-    word match
-      case Literal(c) => compileLiteral(c, jvmType(word.tpe))
-
-      case Ident(sym) => compileIdent(sym, jvmType(word.tpe))
+      case Ident(sym) => compileIdent(sym, JVMTypes.typeOf(word.tpe)); Flow.FallsThrough
 
       case Assign(Ident(sym), rhs, _) =>
         // A `rhs` whose compiled form is directly terminal (a `Return`, or
@@ -140,11 +79,11 @@ final class JVMExpressionCompiler(
         // tail-position catch-all — see `insert` in lib/Set.jo) already
         // arrives wrapped in `Encoded`, reconciled by `compile`'s own
         // `Encoded` case; anything not wrapped already erased to exactly
-        // `pt`. See `isTerminal`'s doc comment for the terminal-instruction
-        // reasoning this case still relies on.
-        val pt = jvmType(sym.tpe)
-        compile(rhs)
-        if !isTerminal(rhs) then storeLocal(pt, ctx.slots(sym), ctx.cw)
+        // `pt`. The returned flow says whether the store is reachable.
+        val pt = JVMTypes.typeOf(sym.tpe)
+        val flow = compile(rhs)
+        if flow == Flow.FallsThrough then storeLocal(pt, ctx.slots(sym), ctx.cw)
+        flow
 
       case FieldAssign(sel @ Select(qual, name), rhs) =>
         val owner = compileFieldReceiver(qual)
@@ -157,26 +96,26 @@ final class JVMExpressionCompiler(
         // exact declared type — same reasoning as `Assign`'s local case
         // above, not re-derived here every time.
         val declared = fieldDeclaredType(sel)
-        compile(rhs)
-        if isTerminal(rhs) then ctx.cw.pop() // discard the now-orphaned `qual` receiver; see above
+        val flow = compile(rhs)
+        if flow == Flow.Terminal then ctx.cw.pop()
         else ctx.cw.putfield(owner, name, descOf(declared))
+        flow
 
       case If(cond, thenp, elsep) => compileIf(cond, thenp, elsep)
 
       case While(cond, body) => compileWhile(cond, body)
 
       case Block(words) =>
-        words match
-          case Nil => ()
-          case init :+ last =>
-            init.foreach(compile)
-            compile(last)
+        words.foldLeft(Flow.FallsThrough) { (flow, next) =>
+          if flow == Flow.Terminal then flow else compile(next)
+        }
 
       case Labeled(label, _, body) =>
         val endL = ctx.cw.newLabel()
         ctx.localLabels(label) = endL
         compile(body)
         ctx.cw.mark(endL)
+        Flow.FallsThrough
 
       case Return(label, value) =>
         // No adaptation of `value` needed in either arm: `Erasure`'s own
@@ -198,6 +137,7 @@ final class JVMExpressionCompiler(
           val target = ctx.localLabels(label)
           compile(value)
           ctx.cw.gotoL(target)
+        Flow.Terminal
 
       case apply: Apply => compileApply(apply)
 
@@ -210,15 +150,18 @@ final class JVMExpressionCompiler(
         val owner = compileFieldReceiver(qual)
         val declared = fieldDeclaredType(sel)
         ctx.cw.getfield(owner, name, descOf(declared))
+        Flow.FallsThrough
 
       case ClassTest(value, classSym) =>
         compile(value)
         ctx.cw.instanceOf(classTestOwnerName(classSym))
+        Flow.FallsThrough
 
       case Encoded(repr) =>
-        val target = jvmType(word.tpe)
-        compile(repr)
-        if !isTerminal(repr) then JVMAdaptation.emit(jvmType(repr.tpe), target, ctx.cw)
+        val target = JVMTypes.typeOf(word.tpe)
+        val flow = compile(repr)
+        if flow == Flow.FallsThrough then JVMAdaptation.emit(JVMTypes.typeOf(repr.tpe), target, ctx.cw)
+        flow
 
       case other =>
         throw new Exception("JVM backend prototype: unsupported node " + other.getClass.getSimpleName + " -- " + other.show)
@@ -243,7 +186,7 @@ final class JVMExpressionCompiler(
     // testing against that compiled-but-never-instantiated class would
     // always fail.
     else if classSym == defn.Array_class then ObjectArrayDesc
-    else backend.requireClass(classSym)
+    else context.requireClass(classSym)
 
   /** Compile a field access's receiver and return its JVM owner class name.
     * `jvmType`'s "erase everything non-primitive to Object" rule (right for
@@ -272,18 +215,18 @@ final class JVMExpressionCompiler(
     */
   private def fieldDeclaredType(sel: Select): JType =
     sel.tpe match
-      case MemberRef(_, sym) => jvmType(sym.tpe)
+      case MemberRef(_, sym) => JVMTypes.typeOf(sym.tpe)
       case _ => throw new Exception("Cannot resolve field symbol for ." + sel.name)
 
   private def compileFieldReceiver(qual: Word)(using ctx: MethodCtx): String =
     compile(qual)
     qual match
       case Ident(sym) if ctx.selfSym.contains(sym) =>
-        backend.className(sym.owner)
+        context.className(sym.owner)
       case _ =>
         val owner = classOrInterfaceSymbol(qual.tpe) match
-          case Some(sym) => backend.requireClass(sym)
-          case None => internalNameOf(jvmType(qual.tpe))
+          case Some(sym) => context.requireClass(sym)
+          case None => internalNameOf(JVMTypes.typeOf(qual.tpe))
         // `jvmType` now keeps a concrete class/interface's own identity
         // through erasure (see its doc comment), so `qual`'s erased type is
         // already `owner` in the common case — `Erasure`'s own `Select`
@@ -332,50 +275,49 @@ final class JVMExpressionCompiler(
     else if t == J then cw.lstore(slot)
     else cw.astore(slot)
 
-  private def compileIf(cond: Word, thenp: Word, elsep: Word)(using ctx: MethodCtx): Unit =
+  private def compileIf(cond: Word, thenp: Word, elsep: Word)(using ctx: MethodCtx): Flow =
     // No `adaptTo` needed: `Erasure`'s `If` case always erases `cond`
     // against `Bool` explicitly (`eraseWord(cond, expectedType = BoolType,
     // ...)`), so it already arrives as a real `Z`, or wrapped in `Encoded`
     // reconciled by `compile`'s own `Encoded` case.
-    compile(cond)
+    if compile(cond) == Flow.Terminal then return Flow.Terminal
     val elseL = ctx.cw.newLabel()
     val endL = ctx.cw.newLabel()
     val hasElse = !elsep.isEmpty
     ctx.cw.ifeq(if hasElse then elseL else endL)
     val afterCond = ctx.cw.currentStack
-    compile(thenp)
-    // A branch that's already terminal (e.g. ending in `Return`, or an
-    // inlined `throwAny`) never actually reaches `endL` — see `isTerminal`'s
-    // doc comment — so jumping to the merge point would be dead code, and no
+    val thenFlow = compile(thenp)
+    // A terminal branch never reaches `endL`, so jumping to the merge point
+    // would be dead code. No
     // `adaptTo` is needed for a non-terminal branch either: `Erasure`'s `If`
     // case erases both branches against this whole `If`'s own (erased)
     // type, so each branch's compiled value already matches directly, or
     // arrives wrapped in `Encoded` (reconciled by `compile`'s own `Encoded`
-    // case) wherever it doesn't. Unlike the other `isTerminal` call sites,
-    // getting `thenTerminal` wrong in the *unsafe* direction (treating a
-    // branch that actually falls through as terminal) would still be a real
-    // bug: `endL` is a live merge point with a real second incoming edge
-    // from `elsep`, so a wrongly-omitted `gotoL` here would fall straight
-    // into `elsep`'s code instead of jumping past it.
-    val thenTerminal = isTerminal(thenp)
+    // case) wherever it doesn't. The result comes directly from emitting
+    // the branch, so this control-flow decision cannot diverge from emission.
     if hasElse then
-      if !thenTerminal then ctx.cw.gotoL(endL)
+      if thenFlow == Flow.FallsThrough then ctx.cw.gotoL(endL)
       ctx.cw.mark(elseL)
       ctx.cw.setStack(afterCond)
-      compile(elsep)
-    ctx.cw.mark(endL)
+      val elseFlow = compile(elsep)
+      ctx.cw.mark(endL)
+      if thenFlow == Flow.Terminal && elseFlow == Flow.Terminal then Flow.Terminal
+      else Flow.FallsThrough
+    else
+      ctx.cw.mark(endL)
+      Flow.FallsThrough
 
-  private def compileWhile(cond: Word, body: Word)(using ctx: MethodCtx): Unit =
+  private def compileWhile(cond: Word, body: Word)(using ctx: MethodCtx): Flow =
     val beginL = ctx.cw.newLabel()
     val endL = ctx.cw.newLabel()
     ctx.cw.mark(beginL)
     // See `compileIf`'s matching comment: `Erasure`'s `While` case also
     // erases `cond` against `Bool` explicitly.
-    compile(cond)
+    if compile(cond) == Flow.Terminal then return Flow.Terminal
     ctx.cw.ifeq(endL)
-    compile(body)
-    ctx.cw.gotoL(beginL)
+    if compile(body) == Flow.FallsThrough then ctx.cw.gotoL(beginL)
     ctx.cw.mark(endL)
+    Flow.FallsThrough
 
   //----------------------------------------------------------------------------
   // Apply / calls
@@ -385,27 +327,31 @@ final class JVMExpressionCompiler(
     case TypeApply(f, _) => f
     case f => f
 
-  private def compileApply(apply: Apply)(using ctx: MethodCtx): Unit =
+  private def compileApply(apply: Apply)(using ctx: MethodCtx): Flow =
     val Apply(funRaw, args, autos) = apply
     val allArgs = args ++ autos
     val fun = stripTypeApply(funRaw)
 
     fun match
       case Ident(symRaw) =>
-        val sym = backend.resolve(symRaw)
+        val sym = context.resolve(symRaw)
         compileIdentApply(sym, allArgs, apply.tpe)
 
       case Select(qual, name) if isPrimitiveOwner(qual.tpe) =>
         primitiveCompiler.compilePrimitive(qual, name, allArgs)
+        Flow.FallsThrough
 
       case Select(qual, name) if isStringOwner(qual.tpe) =>
         primitiveCompiler.compileString(qual, name, allArgs)
+        Flow.FallsThrough
 
       case Select(New(tpt), Names.Constructor) =>
         compileNew(tpt.tpe, allArgs)
+        Flow.FallsThrough
 
       case Select(qual, name) if qual.tpe.isClassInfoType =>
         compileMethodCall(apply, qual, name, allArgs)
+        Flow.FallsThrough
 
       case other =>
         throw new Exception("JVM backend prototype: unsupported call target " + other)
@@ -448,21 +394,21 @@ final class JVMExpressionCompiler(
     // `compileMethodCall` is a genuine, `Erasure`-visible Jo-level method
     // call, args included.
     if isIface && !methodSym.is(Flags.Defer) then
-      val fnName = backend.requireTopLevel(methodSym)
+      val fnName = context.requireTopLevel(methodSym)
       compile(qual)
       args.foreach(compile)
-      val desc = "(Ljava/lang/Object;" + paramTypes.map(t => descOf(jvmType(t))).mkString + ")" + descOf(jvmType(procType.resultType))
+      val desc = "(Ljava/lang/Object;" + paramTypes.map(JVMTypes.descriptorOf).mkString + ")" + JVMTypes.descriptorOf(procType.resultType)
       ctx.cw.invokestatic(MainClassName, fnName, desc)
 
     else
-      val ownerName = backend.requireClass(classSym)
+      val ownerName = context.requireClass(classSym)
       // See `compileFieldReceiver`'s doc comment: `jvmType(qual.tpe)` is
       // already `ownerName` in the common case now, so this is a no-op, not
       // a redundant `checkcast`, whenever no real mismatch remains.
       compile(qual)
       ctx.cw.checkcast(ownerName)
       args.foreach(compile)
-      val desc = methodDesc(paramTypes, procType.resultType)
+      val desc = JVMTypes.methodDescriptor(paramTypes, procType.resultType)
       if isIface then ctx.cw.invokeinterface(ownerName, name, desc) else ctx.cw.invokevirtual(ownerName, name, desc)
 
   private def isPrimitiveOwner(tp: Type): Boolean =
@@ -485,21 +431,24 @@ final class JVMExpressionCompiler(
   // `cast`'s generic `T` result) reconciles the call site's own concrete
   // instantiation via an outer `Encoded` node — so `args.head`/`resultType`
   // already arrive `Object`-erased here, same as any other call's args.
-  private def compileIdentApply(sym: Symbol, args: List[Word], resultType: Type)(using ctx: MethodCtx): Unit =
+  private def compileIdentApply(sym: Symbol, args: List[Word], resultType: Type)(using ctx: MethodCtx): Flow =
     if sym == runtime.lowerInvokeLambda then
-      lambdaABI.emitLoweredCall(args.head, compile, ctx.cw)
+      JVMLambdaABI.emitLoweredCall(args.head, compile, ctx.cw)
+      Flow.FallsThrough
     else runtime.lowerBox.collectFirst { case (primitive, intrinsic) if intrinsic == sym => primitive } match
       case Some(primitive) =>
         compile(args.head)
         JVMAdaptation.emit(JVMAdaptation.Conversion.Box(primitive), ctx.cw)
+        Flow.FallsThrough
       case None =>
         runtime.lowerUnbox.collectFirst { case (primitive, intrinsic) if intrinsic == sym => primitive } match
           case Some(primitive) =>
             compile(args.head)
             JVMAdaptation.emit(JVMAdaptation.Conversion.Unbox(primitive), ctx.cw)
+            Flow.FallsThrough
           case None => compileNonConversionIdentApply(sym, args, resultType)
 
-  private def compileNonConversionIdentApply(sym: Symbol, args: List[Word], resultType: Type)(using ctx: MethodCtx): Unit =
+  private def compileNonConversionIdentApply(sym: Symbol, args: List[Word], resultType: Type)(using ctx: MethodCtx): Flow =
     if sym == runtime.cast then
       compile(args.head)
 
@@ -512,7 +461,7 @@ final class JVMExpressionCompiler(
       // the JS/Ruby backends' cached static-field singleton — a fresh
       // instance per access is simplest and just as correct here.
       val classSym = sym.tpe.asProcType.resultType.classSymbol
-      val className = backend.requireClass(classSym)
+      val className = context.requireClass(classSym)
       ctx.cw.newObj(className)
       ctx.cw.dup()
       ctx.cw.invokespecial(className, Names.Constructor, "()V")
@@ -581,6 +530,8 @@ final class JVMExpressionCompiler(
     else
       compileStaticCall(sym, args)
 
+    if sym == runtime.throwAny then Flow.Terminal else Flow.FallsThrough
+
   /** Compile a call to an ordinary top-level Jo function (`invokestatic`
     * against `Main`, enqueuing it for compilation if not already reached).
     *
@@ -596,10 +547,10 @@ final class JVMExpressionCompiler(
     * stack effect against a Jo-declared type.
     */
   override def compileStaticCall(sym: Symbol, args: List[Word])(using ctx: MethodCtx): Unit =
-    val name = backend.requireTopLevel(sym)
+    val name = context.requireTopLevel(sym)
     val procType = sym.tpe.asProcType
     args.foreach(compile)
-    ctx.cw.invokestatic(MainClassName, name, methodDesc(procType.paramTypes ++ procType.autoTypes, procType.resultType))
+    ctx.cw.invokestatic(MainClassName, name, JVMTypes.methodDescriptor(procType.paramTypes ++ procType.autoTypes, procType.resultType))
 
   /** `paramKey(id)` where `id` is (a possibly-encoded) `Ident` to a context
     * parameter symbol: emit the interned fully-qualified name as a String
@@ -637,8 +588,8 @@ final class JVMExpressionCompiler(
 
   private def compileNew(classType: Type, args: List[Word])(using ctx: MethodCtx): Unit =
     val classSym = classType.classSymbol
-    val className = backend.requireClass(classSym)
-    val cdef = backend.classDef(classSym)
+    val className = context.requireClass(classSym)
+    val cdef = context.classDef(classSym)
     val ctorParamTypes = cdef.funs.find(_.symbol.name == Names.Constructor).map(_.params.map(_.tpe)).getOrElse(Nil)
     ctx.cw.newObj(className)
     ctx.cw.dup()
@@ -647,6 +598,6 @@ final class JVMExpressionCompiler(
     // `args`), so each argument is already erased against `ctorParamTypes`
     // — same reasoning as `compileMethodCall`'s argument loop.
     args.foreach(compile)
-    ctx.cw.invokespecial(className, Names.Constructor, "(" + ctorParamTypes.map(t => descOf(jvmType(t))).mkString + ")V")
+    ctx.cw.invokespecial(className, Names.Constructor, "(" + ctorParamTypes.map(descriptorOf).mkString + ")V")
 
 end JVMExpressionCompiler

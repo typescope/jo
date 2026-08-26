@@ -3,7 +3,7 @@ package jvm
 import sast.*
 import sast.Trees.*
 import sast.Symbols.*
-import sast.Types.*
+import sast.Types.Type
 
 import jvm.JVMInstructionEmitter
 import jvm.JVMTypes.*
@@ -16,7 +16,7 @@ import jvm.JVMTypes.JType.*
   * sites. Replacing the Object-array convention or adopting invokedynamic
   * should therefore change this boundary rather than general lowering.
   */
-final class JVMLambdaABI(using Definitions):
+object JVMLambdaABI:
   val interfaceName = "Lambda"
   val applyName = "apply"
   val applyDescriptor = "([Ljava/lang/Object;)Ljava/lang/Object;"
@@ -31,7 +31,7 @@ final class JVMLambdaABI(using Definitions):
   def unpackParameters(
     parameters: List[Symbol], slots: JVMMethodSlots, argumentsSlot: Int,
     jvmType: Type => JType, writer: JVMInstructionEmitter
-  ): Unit =
+  )(using Definitions): Unit =
     slots.reserveUpTo(2) // slot 0 = this, slot 1 = Object[] arguments
     parameters.zipWithIndex.foreach { (parameter, index) =>
       val parameterType = jvmType(parameter.tpe)
@@ -48,7 +48,7 @@ final class JVMLambdaABI(using Definitions):
     * Every argument is already represented as Object. Result conversion is
     * explicit in the surrounding lowered tree.
     */
-  def emitLoweredCall(call: Word, compile: Word => Unit, writer: JVMInstructionEmitter): Unit =
+  def emitLoweredCall(call: Word, compile: Word => JVMMethodCompiler.Flow, writer: JVMInstructionEmitter): Unit =
     val Apply(function, arguments, automaticArguments) = call: @unchecked
     val allArguments = arguments ++ automaticArguments
     compile(function)
