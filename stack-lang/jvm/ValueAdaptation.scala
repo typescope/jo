@@ -34,7 +34,7 @@ object ValueAdaptation:
         case (a, b) if isIntCat(a) && isIntCat(b) => Identity
         case (Ref(_), Ref(ObjectDesc)) => Identity
         case (Ref(_), Ref(d)) => CheckCast(internalNameOf(Ref(d)))
-        case _ => throw new Exception("JVM backend prototype: no conversion from " + actual + " to " + expected)
+        case _ => throw new Exception("JVM backend: no conversion from " + actual + " to " + expected)
 
   def emit(actual: JType, expected: JType, cw: CodeWriter): Unit =
     emit(conversion(actual, expected), cw)

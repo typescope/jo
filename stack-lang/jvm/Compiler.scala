@@ -15,7 +15,7 @@ import scala.language.implicitConversions
 
 /***********************************************************************
  *
- * Main entry point for the JVM compiler prototype.
+ * Main entry point for the JVM backend.
  *
  * See docs/jips/jvm-backend.md for the architecture this implements and
  * what is deliberately left out of scope.

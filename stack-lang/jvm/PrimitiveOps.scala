@@ -33,24 +33,8 @@ final class PrimitiveOps(
     else
       compileIntCatPrimitiveOp(qual, name, args)
 
-  /** `Int`/`Bool`/`Byte`/`Char`/`Float` intrinsics — every one of these
-    * (except `Float`, not supported in this prototype) shares the `I`
-    * representation, so they're compiled uniformly here. `Long` doesn't (a
-    * category-2 JVM value, distinct opcodes for everything), so it's
-    * dispatched to `compileLongOp` instead, from `compilePrimitiveOp`.
-    *
-    * No `adaptTo` needed anywhere below, unlike most other call/argument
-    * sites: `qual`'s type is already pinned by `compilePrimitiveOp`'s own
-    * dispatch (this function is only ever reached when `jvmType(qual.tpe)`
-    * is one of `I`/`Z`/`B`/`C`, per `isPrimitiveOwner`), and every operator
-    * here (`+`, `&&`, `toByte`, ...) has a concrete, non-generic primitive
-    * parameter type, so `Erasure`'s own `Apply` case (which erases each
-    * argument against that exact declared parameter type) already leaves
-    * `args.head` erased to the same bucket, or wrapped in `Encoded`
-    * (reconciled by `compile`'s own `Encoded` case). Source and target are
-    * therefore always both in `{I, Z, B, C}`, which `adaptTo` itself treats
-    * as a no-op (`isIntCat(a) && isIntCat(b) => ()`) — there is no case left
-    * for it to actually do anything.
+  /** Operations whose values share the JVM category-1 integer
+    * representation. Erasure has already normalized their operands.
     */
   private def compileIntCatPrimitiveOp(qual: Word, name: String, args: List[Word])(using ctx: MethodCtx): Unit =
     val cw = ctx.cw
@@ -134,21 +118,12 @@ final class PrimitiveOps(
         compile(qual)
         cw.invokestatic(owner, "toString", desc)
       case other =>
-        throw new Exception("JVM backend prototype: unsupported primitive operator " + other)
+        throw new Exception("JVM backend: unsupported primitive operator " + other)
 
   /** `Long`'s intrinsics — a genuine category-2 JVM value (2 operand-stack
     * words, 2 local-variable slots), so unlike `Int`/`Bool`/`Byte`/`Char`
     * (all sharing the `I` representation, see `compileIntCatPrimitiveOp`)
     * it needs its own opcodes throughout, not just a wider range of `I`.
-    *
-    * No `adaptTo` needed here either, for the same reason as
-    * `compileIntCatPrimitiveOp` — `compilePrimitiveOp` only dispatches here
-    * when `jvmType(qual.tpe)` is already exactly `J`, and every operator's
-    * declared parameter type is `Long`, so `Erasure`'s `Apply` case already
-    * leaves `args.head` erased to `J` too (directly, or via `Encoded`
-    * consumed by `compile`'s own case). Source and target are always both
-    * `J`, and `adaptTo`'s very first check (`actual == expected`) already
-    * makes that a no-op.
     */
   private def compileLongOp(qual: Word, name: String, args: List[Word])(using ctx: MethodCtx): Unit =
     val cw = ctx.cw
@@ -204,7 +179,7 @@ final class PrimitiveOps(
         compile(qual)
         cw.invokestatic("java/lang/Long", "toString", "(J)Ljava/lang/String;")
       case other =>
-        throw new Exception("JVM backend prototype: unsupported Long operator " + other)
+        throw new Exception("JVM backend: unsupported Long operator " + other)
 
   private def boolNot()(using ctx: MethodCtx): Unit =
     boolFromBranch(l => ctx.cw.ifeq(l))
@@ -231,11 +206,7 @@ final class PrimitiveOps(
   def compileString(qual: Word, name: String, args: List[Word])(using ctx: MethodCtx): Unit =
     val cw = ctx.cw
 
-    // No `adaptTo` needed in either helper, for the same reason as
-    // `compileIntCatPrimitiveOp`: `isStringOwner` already gates this whole
-    // function on `jvmType(qual.tpe) == Ref(StringDesc)`, and `+`/`==`'s
-    // declared parameter is concretely `String`, so `Erasure`'s `Apply`
-    // case already leaves the other operand erased to `String` too.
+    // Erasure has normalized both operands to String.
     def receiver(): Unit = compile(qual)
     def stringArg(w: Word): Unit = compile(w)
 
@@ -264,7 +235,7 @@ final class PrimitiveOps(
       case "iterator" => compileStaticCall(runtime.String_iterator, qual :: Nil)
 
       case other =>
-        throw new Exception("JVM backend prototype: unsupported String operator " + other)
+        throw new Exception("JVM backend: unsupported String operator " + other)
 
 object PrimitiveOps:
   trait Operands:

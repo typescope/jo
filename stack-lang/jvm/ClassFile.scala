@@ -2,20 +2,14 @@ package jvm
 
 import scala.collection.mutable
 
-/** A minimal, dependency-free JVM class file writer.
-  *
-  * Only the subset of the class file format needed by [[JVMCodeGen]] is
-  * implemented: no generics/signature attributes, no annotations, no
-  * StackMapTable.
+/** A dependency-free writer for the class-file subset used by this backend.
+  * It does not emit generic signatures, annotations, or `StackMapTable`.
   *
   * Class files are emitted with major version 49 (Java 5). That predates the
   * requirement (introduced in version 50 / Java 6) for methods to carry an
   * explicit `StackMapTable` attribute, so the JVM falls back to its legacy
   * type-inferring verifier. Every current JVM still accepts old class file
-  * versions, so this sidesteps implementing stack-map-frame computation
-  * entirely — the same trade-off toy/education bytecode emitters commonly
-  * make. A production backend would emit modern class files with computed
-  * frames instead (see docs/jips/jvm-backend.md).
+  * versions, allowing verification without stack-map-frame computation.
   */
 object ClassFile:
   val MinorVersion = 0

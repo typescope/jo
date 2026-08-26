@@ -25,9 +25,8 @@ import scala.collection.mutable
   * already exists for any other Any-erased value. That distinction matters
   * because `Bottom`-typed *ordinary calls* (e.g. `abort(...)`, a plain
   * `invokestatic`) are opaque to the JVM verifier, which still expects the
-  * call's declared return representation to be reconciled with wherever the
-  * value is used — see `jvm.JVMCodeGen.isTerminal`'s doc comment for the
-  * full story of why this backend, specifically, needs that.
+  * call's declared return representation to be reconciled with the position
+  * where the value is used.
   * @param bridgeRepresentationMatches whether two erased types (an
   * interface method's and the implementing natural method's, per
   * parameter/result) count as the *same representation* for bridge

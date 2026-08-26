@@ -50,8 +50,8 @@ class JVMRuntime(using defn: Definitions):
 
   // String.{size,get,substring,indexOf} redirect here rather than being
   // hand-compiled: the Unicode code-point/UTF-16-code-unit bridging they
-  // need is API-level behavior, implemented as ordinary Jo code in
-  // runtime/jvm/Runtime.jo, not as bytecode-emission logic in JVMCodeGen.
+  // need is API-level behavior implemented as ordinary Jo code in
+  // runtime/jvm/Runtime.jo.
   val StringOps       = JvmRuntimeNs.containerMember("StringOps")
   val String_size     = StringOps.termMember("size")
   val String_get      = StringOps.termMember("get")

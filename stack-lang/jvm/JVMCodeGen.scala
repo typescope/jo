@@ -10,21 +10,11 @@ import jvm.JVMTypes.JType.*
 
 import scala.collection.mutable
 
-/** Translates Jo SAST to JVM class files.
+/** Coordinates reachability, class layout, method construction, and class-file
+  * emission for the JVM backend.
   *
-  * Scope of this prototype: enough of the SAST is handled to compile
-  * `tests/pos/fact.jo` end to end (top-level functions, Int/Bool arithmetic,
-  * `if`/`while`, recursion, non-capturing lambdas, and the small amount of
-  * runtime plumbing `Predef.println` and context parameters need). See
-  * docs/jips/jvm-backend.md for what is deliberately out of scope and how a
-  * production version would extend this.
-  *
-  * Design in one paragraph: every non-primitive Jo type erases to
-  * `java.lang.Object` (see `JVMTypes`); `Int`/`Bool`/`Byte`/`Char`/`Float`/
-  * `Long` erase to genuine JVM primitives. `compile(word)` always leaves
-  * exactly the value implied by `JVMTypes.typeOf(word.tpe)` on the operand stack
-  * (or nothing, for `Unit`) — every call site relies on that postcondition
-  * instead of threading an expected-type parameter through recursion.
+  * Representation choices live in [[JVMTypes]], expression emission in
+  * [[ExpressionEmitter]], and class-file encoding in [[ClassFile]].
   */
 class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: Definitions):
   import JVMCodeGen.*
@@ -34,15 +24,7 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
   private val methodBuilder = new MethodBuilder(expressionEmitter)
   private val classBuilder = new ClassBuilder(methodBuilder)
 
-  //----------------------------------------------------------------------------
-  // Program-wide state: reachability worklists, name assignment
-  //----------------------------------------------------------------------------
-
   private val classFiles = mutable.LinkedHashMap.empty[String, Array[Byte]]
-
-  //----------------------------------------------------------------------------
-  // Entry point
-  //----------------------------------------------------------------------------
 
   /** @return output class files, keyed by (JVM internal) class name, plus the
     *         name of the class holding `public static void main`.

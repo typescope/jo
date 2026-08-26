@@ -26,7 +26,7 @@ final class ExpressionEmitter(
       case r if isIntCat(r) => cw.ireturn()
       case Ref(_) => cw.areturn()
       case J => cw.lreturn()
-      case F => throw new Exception("float return not supported in this prototype")
+      case F => throw new Exception("float returns are not supported by the JVM backend")
 
   /** Zero-initialize every local at method entry.
     *
@@ -48,7 +48,7 @@ final class ExpressionEmitter(
         case t if isIntCat(t) => cw.iconst(0); storeLocal(t, slot, cw)
         case t @ Ref(_) => cw.aconstNull(); storeLocal(t, slot, cw)
         case J => cw.lconst(0L); storeLocal(J, slot, cw)
-        case F => throw new Exception("float locals not supported in this prototype")
+        case F => throw new Exception("float locals are not supported by the JVM backend")
 
   //----------------------------------------------------------------------------
   // Statement/expression compilation
@@ -68,7 +68,6 @@ final class ExpressionEmitter(
         // an inlined `throwAny`) never actually completes, so there's no
         // value to store and the store never executes.
         //
-        // No local `adaptTo` needed for the non-terminal case either:
         // `Erasure`'s `Assign` case (`eraseWord(rhs, id.symbol.tpe, ...)`)
         // already erases `rhs` against this exact assignment's target type
         // (`sym.tpe`, i.e. `pt` below) — including for a `Bottom`-typed
@@ -91,8 +90,8 @@ final class ExpressionEmitter(
         // generic `class Pair[S, T]`) — not `rhs.tpe`, the call site's own
         // (possibly further-instantiated, e.g. `Int`) type — is what the
         // class's own field descriptor was written with in `compileClass`;
-        // see `fieldDeclaredType`'s doc comment. No local `adaptTo` needed:
-        // `Erasure`'s `FieldAssign` case already erases `rhs` against this
+        // see `fieldDeclaredType`'s doc comment. `Erasure`'s `FieldAssign`
+        // case already erases `rhs` against this
         // exact declared type — same reasoning as `Assign`'s local case
         // above, not re-derived here every time.
         val declared = fieldDeclaredType(sel)
@@ -164,7 +163,7 @@ final class ExpressionEmitter(
         flow
 
       case other =>
-        throw new Exception("JVM backend prototype: unsupported node " + other.getClass.getSimpleName + " -- " + other.show)
+        throw new Exception("JVM backend: unsupported node " + other.getClass.getSimpleName + " -- " + other.show)
 
   /** `instanceof`'s target class for a `ClassTest`. A primitive/`String`
     * type test checks against its real JDK box class — the same type any
@@ -208,7 +207,7 @@ final class ExpressionEmitter(
     * its *declared* type on the class itself (`b: T` in `class Pair[S, T]`,
     * an unresolved type parameter — erasing, like any other non-primitive
     * type, to `Object`) — exactly the same "one descriptor per declaration,
-    * reconciled with `adaptTo` at each call site" rule already applied to
+    * reconciled at each call site" rule already applied to
     * generic function/method calls. Using the call site's own (possibly
     * narrower, e.g. `Int`) type instead would build a `Fieldref` the class
     * doesn't actually have, `NoSuchFieldError` at runtime.
@@ -227,15 +226,9 @@ final class ExpressionEmitter(
         val owner = classOrInterfaceSymbol(qual.tpe) match
           case Some(sym) => context.requireClass(sym)
           case None => internalNameOf(JVMTypes.typeOf(qual.tpe))
-        // `jvmType` now keeps a concrete class/interface's own identity
-        // through erasure (see its doc comment), so `qual`'s erased type is
-        // already `owner` in the common case — `Erasure`'s own `Select`
-        // handling (`eraseWord`) already adapts a receiver that needed
-        // narrowing from a generic position before this point is ever
-        // reached. `adaptTo`'s existing `(Ref(_), Ref(d))` case still
-        // covers the genuine mismatch (with an actual `checkcast`) when one
-        // remains, and is a no-op — not a redundant explicit `checkcast` —
-        // when it's already exactly `owner`.
+        // Field instructions require the receiver's verified type to match
+        // the declaring class. A redundant checkcast is harmless when the
+        // receiver already has that type.
         ctx.cw.checkcast(owner)
         owner
 
@@ -256,7 +249,7 @@ final class ExpressionEmitter(
       // `val x: Long = 5`) is what actually picks the right representation.
       case Constant.Int(n)  => if t == J then ctx.cw.lconst(n.toLong) else ctx.cw.iconst(n.toInt)
       case Constant.String(s) => ctx.cw.stringConst(s)
-      case Constant.Float(_) => throw new Exception("float literals not supported in this prototype")
+      case Constant.Float(_) => throw new Exception("float literals are not supported by the JVM backend")
 
   private def compileIdent(sym: Symbol, t: JType)(using ctx: MethodCtx): Unit =
     if ctx.selfSym.contains(sym) then ctx.cw.aload(0)
@@ -276,10 +269,7 @@ final class ExpressionEmitter(
     else cw.astore(slot)
 
   private def compileIf(cond: Word, thenp: Word, elsep: Word)(using ctx: MethodCtx): Flow =
-    // No `adaptTo` needed: `Erasure`'s `If` case always erases `cond`
-    // against `Bool` explicitly (`eraseWord(cond, expectedType = BoolType,
-    // ...)`), so it already arrives as a real `Z`, or wrapped in `Encoded`
-    // reconciled by `compile`'s own `Encoded` case.
+    // Erasure normalizes the condition to the JVM Boolean representation.
     if compile(cond) == Flow.Terminal then return Flow.Terminal
     val elseL = ctx.cw.newLabel()
     val endL = ctx.cw.newLabel()
@@ -288,13 +278,8 @@ final class ExpressionEmitter(
     val afterCond = ctx.cw.currentStack
     val thenFlow = compile(thenp)
     // A terminal branch never reaches `endL`, so jumping to the merge point
-    // would be dead code. No
-    // `adaptTo` is needed for a non-terminal branch either: `Erasure`'s `If`
-    // case erases both branches against this whole `If`'s own (erased)
-    // type, so each branch's compiled value already matches directly, or
-    // arrives wrapped in `Encoded` (reconciled by `compile`'s own `Encoded`
-    // case) wherever it doesn't. The result comes directly from emitting
-    // the branch, so this control-flow decision cannot diverge from emission.
+    // would be dead code. Erasure has already normalized both branch values
+    // to the `If` expression's representation.
     if hasElse then
       if thenFlow == Flow.FallsThrough then ctx.cw.gotoL(endL)
       ctx.cw.mark(elseL)
@@ -354,18 +339,17 @@ final class ExpressionEmitter(
         Flow.FallsThrough
 
       case other =>
-        throw new Exception("JVM backend prototype: unsupported call target " + other)
+        throw new Exception("JVM backend: unsupported call target " + other)
 
   /** A method call on a user class or interface instance (`p.sum`,
     * `iter.hasNext`), the general counterpart to
-    * `compilePrimitiveOp`/`compileStringOp`. A class receiver, or an
+    * primitive and String operations. A class receiver, or an
     * interface receiver calling one of the interface's own abstract
     * members, uses real `invokevirtual`/`invokeinterface` — the JVM's own
     * dispatch resolves overrides correctly from the static receiver type,
     * exactly as for real Java, unlike native's hand-built itable (see
-    * docs/jips/jvm-backend.md). A default (concrete) interface method is
-    * instead a call to the static helper `compileTopLevelFunDef` compiles
-    * it as — see that method's doc comment for why.
+    * docs/jips/jvm-backend.md). A default interface method is emitted as a
+    * static top-level helper.
     */
   private def compileMethodCall(apply: Apply, qual: Word, name: String, args: List[Word])(using ctx: MethodCtx): Unit =
     // `.classSymbol` throws for anything but a plain class (in particular
@@ -487,13 +471,8 @@ final class ExpressionEmitter(
       ctx.cw.aconstNull() // the one value of Unit, materialized as null (Ref(ObjectDesc))
 
     else if sym == runtime.Array_create then
-      // `size: Int` is an ordinary concrete param (Erasure-covered, no
-      // `adaptTo` needed). No result reconciliation either: `create[T]`'s
-      // generic `Array[T]` result erases (like `clone`'s, below) to
-      // `Ref(ObjectDesc)` via `jvmType`'s own `Array_class` exclusion (see
-      // its doc comment) — exactly `anewarray`'s actual `Ref(ObjectArrayDesc)`
-      // widened, which `adaptTo`'s `(Ref(_), Ref(ObjectDesc)) => ()` rule
-      // already treats as free.
+      // The generic Array result uses the erased Object representation;
+      // `anewarray` produces the compatible, more specific Object[] value.
       compile(args.head)
       ctx.cw.anewarray(ObjectClass)
 
@@ -593,10 +572,7 @@ final class ExpressionEmitter(
     val ctorParamTypes = cdef.funs.find(_.symbol.name == Names.Constructor).map(_.params.map(_.tpe)).getOrElse(Nil)
     ctx.cw.newObj(className)
     ctx.cw.dup()
-    // No `adaptTo` needed: a constructor call is an ordinary `Apply` as far
-    // as `Erasure` is concerned (`Select(New(tpt), Constructor)` applied to
-    // `args`), so each argument is already erased against `ctorParamTypes`
-    // — same reasoning as `compileMethodCall`'s argument loop.
+    // Erasure has normalized each argument to its declared constructor type.
     args.foreach(compile)
     ctx.cw.invokespecial(className, Names.Constructor, "(" + ctorParamTypes.map(descriptorOf).mkString + ")V")
 

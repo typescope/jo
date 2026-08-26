@@ -7,11 +7,10 @@ import jvm.ClassFile.*
   *
   *   - `Node`: a plain 3-field (next/key/value) cons cell, used by
   *     `jo.jvm.runtime.ParamSupport` (see runtime/jvm/Runtime.jo) to
-  *     implement context-parameter lookup without needing general JVM array
-  *     codegen in this prototype.
+  *     implement context-parameter lookup.
   *   - `Lambda`: the marker interface every ElimCapture-lifted lambda class
   *     implements, with a single arity-erased `Object apply(Object[])`
-  *     method — see JVMCodeGen's design note on lambda calls.
+  *     method defined by [[LambdaABI]].
   *
   * These are emitted directly via the low-level ClassFile writer rather than
   * compiled from Jo source, since the compiler itself (not user code) is

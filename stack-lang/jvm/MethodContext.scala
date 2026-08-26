@@ -27,12 +27,7 @@ final class MethodSlots:
   /** Total slots allocated, including parameters that the method never reads. */
   def used: Int = next
 
-/** All mutable state scoped to compilation of one method body.
-  *
-  * Keeping this outside the program coordinator is the first boundary of the
-  * short-lived `MethodBuilder`: no method-local state should migrate back
-  * into `JVMCodeGen` as that compiler is extracted.
-  */
+/** Mutable state scoped to one method body. */
 final class MethodContext(
   val cw: CodeWriter,
   val slots: MethodSlots,

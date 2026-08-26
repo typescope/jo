@@ -54,9 +54,7 @@ end
 // backend into the output — see stack-lang/jvm/RuntimeClasses.scala)
 // provides three Object fields (next/key/value) used below to build a small
 // association list, plus a static field whose value is always the real JVM
-// `null`. This is enough machinery to implement context-parameter support
-// and error signaling without needing general Array codegen for this
-// prototype.
+// `null`. This supports context-parameter lookup and error signaling.
 //
 //------------------------------------------------------------------------------
 
@@ -150,8 +148,7 @@ private def psPrint(ps: Any, s: String): Unit = ...
 // backend/language semantics, so it's implemented here as ordinary Jo code
 // over thin @extern bindings to the raw JDK methods, rather than as
 // hand-written bytecode in the compiler (contrast with `+`/`==`/`toLower`/
-// `toUpper`, which have no such semantic gap and stay direct 1:1 FFI calls
-// in JVMCodeGen, same as Int/Bool arithmetic).
+// `toUpper`, which have no such semantic gap and map directly to JVM calls).
 //
 //------------------------------------------------------------------------------
 
@@ -212,19 +209,10 @@ end
 
 //------------------------------------------------------------------------------
 //
-// Array support is out of scope for this prototype (see docs/jips/jvm-backend.md);
-// this section exists only because the shared frontend's LiftPrimitiveMethods
-// phase needs an "array ops" namespace to resolve, even when no array
-// operation is ever reached.
-//
-//------------------------------------------------------------------------------
-// Array[T] is represented directly as a real JVM Object[] — genuinely
-// native, zero-overhead, unlike every other backend's array representation
-// (see docs/jips/jvm-backend.md). These five operations are the actual
+// Array[T] is represented directly as a JVM Object[]. These operations map to
 // JVM array bytecode instructions (anewarray/aaload/aastore/arraylength/
 // Object[].clone()), so — like Int/Bool arithmetic — they're intrinsified
-// directly in JVMCodeGen rather than expressed through the @extern FFI
-// mechanism, which models member calls, not dedicated opcodes.
+// rather than expressed through the @extern FFI, which models member calls.
 private section RefArray
   @intrinsic
   def create[T](size: Int): Array[T] =

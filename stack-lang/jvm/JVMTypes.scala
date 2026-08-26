@@ -7,12 +7,9 @@ import sast.Types.*
 import scala.collection.mutable
 import jvm.ValueAdaptation.Conversion
 
-/** The JVM-level value representations shared by lowering and emission.
-  *
-  * This deliberately contains no SAST traversal or reachability policy. A
-  * backend phase may compare representations without depending on
-  * [[JVMCodeGen]], while the code generator remains responsible for mapping
-  * Jo types and assigning internal names to reachable classes.
+/** JVM-level value representations shared by lowering and emission.
+  * Representation comparison is name-independent; resolving a concrete class
+  * descriptor delegates name allocation and reachability to [[JVMContext]].
   */
 object JVMTypes:
   /** A name-independent representation key. In particular, comparing two
@@ -53,9 +50,8 @@ object JVMTypes:
         case StaticRef(sym) if sym == defn.String_type => String
         case _ =>
           classOrInterfaceSymbol(tp) match
-            // Arrays are intrinsified as Object[] at their operations, but
-            // ordinary Jo-level Array values retain the generic Object
-            // representation used by the previous mapper.
+            // Array operations use Object[] instructions, while ordinary
+            // Jo-level Array values use the erased Object representation.
             case Some(sym) if sym == defn.Array_class => Object
             case Some(sym) => Class(sym)
             case None => Object
