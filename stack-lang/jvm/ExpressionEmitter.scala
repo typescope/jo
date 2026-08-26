@@ -13,7 +13,6 @@ import jvm.ClassFile.CodeWriter
 final class ExpressionEmitter(
   runtime: JVMRuntime
 )(using defn: Definitions, context: JVMContext) extends MethodBuilder.Expressions, PrimitiveOps.Operands, NativeCalls.Operands:
-  import JVMCodeGen.MainClassName
   import MethodBuilder.Flow
   private type MethodCtx = MethodContext
   private type Slots = MethodSlots
@@ -376,11 +375,11 @@ final class ExpressionEmitter(
     // `compileMethodCall` is a genuine, `Erasure`-visible Jo-level method
     // call, args included.
     if isIface && !methodSym.is(Flags.Defer) then
-      val fnName = context.requireTopLevel(methodSym)
+      val target = context.topLevelLocation(methodSym)
       compile(qual)
       args.foreach(compile)
       val desc = "(Ljava/lang/Object;" + paramTypes.map(JVMTypes.descriptorOf).mkString + ")" + JVMTypes.descriptorOf(procType.resultType)
-      ctx.cw.invokestatic(MainClassName, fnName, desc)
+      ctx.cw.invokestatic(target.owner, target.name, desc)
 
     else
       val ownerName = context.requireClass(classSym)
@@ -438,15 +437,12 @@ final class ExpressionEmitter(
       // Singleton-object accessor synthesized by `desugarObjectDef` as
       // `def A: A = ...` (a stub body every backend must special-case, see
       // Desugaring.scala). Union cases with no fields (e.g. `Empty`, `None`)
-      // desugar the same way. Pattern matching on these always compiles to
-      // `ClassTest`/`instanceof` (never reference equality), so — unlike
-      // the JS/Ruby backends' cached static-field singleton — a fresh
-      // instance per access is simplest and just as correct here.
+      // desugar the same way. The class eagerly initializes its unique
+      // instance in `<clinit>`; Jo guarantees global initialization is
+      // acyclic, so no lazy guard or re-entrancy protocol is required.
       val classSym = sym.tpe.asProcType.resultType.classSymbol
       val className = context.requireClass(classSym)
-      ctx.cw.newObj(className)
-      ctx.cw.dup()
-      ctx.cw.invokespecial(className, Names.Constructor, "()V")
+      ctx.cw.getstatic(className, ClassBuilder.SingletonField, "L" + className + ";")
 
     else if sym == runtime.paramKey then
       compileParamKey(args.head)
@@ -524,10 +520,10 @@ final class ExpressionEmitter(
     * stack effect against a Jo-declared type.
     */
   override def compileStaticCall(sym: Symbol, args: List[Word])(using ctx: MethodCtx): Unit =
-    val name = context.requireTopLevel(sym)
+    val target = context.topLevelLocation(sym)
     val procType = sym.tpe.asProcType
     args.foreach(compile)
-    ctx.cw.invokestatic(MainClassName, name, JVMTypes.methodDescriptor(procType.paramTypes ++ procType.autoTypes, procType.resultType))
+    ctx.cw.invokestatic(target.owner, target.name, JVMTypes.methodDescriptor(procType.paramTypes ++ procType.autoTypes, procType.resultType))
 
   /** `paramKey(id)` where `id` is (a possibly-encoded) `Ident` to a context
     * parameter symbol: emit the interned fully-qualified name as a String

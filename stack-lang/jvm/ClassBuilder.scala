@@ -15,10 +15,19 @@ final class ClassBuilder(
   def compileClass(cdef: ClassDef): (String, Array[Byte]) =
     val className = context.className(cdef.symbol)
     val isLambda = LambdaABI.isMarkerLambda(cdef)
+    val isObject = cdef.symbol.is(Flags.Object)
 
-    val fields = cdef.vals.map { field =>
+    val instanceFields = cdef.vals.map { field =>
       FieldOut(AccessFlags.Public, field.symbol.name, JVMTypes.descriptorOf(field.tpt.tpe))
     }
+    val singletonFields =
+      if isObject then
+        FieldOut(
+          AccessFlags.Public | AccessFlags.Static | AccessFlags.Final,
+          ClassBuilder.SingletonField, "L" + className + ";"
+        ) :: Nil
+      else Nil
+    val fields = singletonFields ++ instanceFields
 
     val constructor = cdef.funs.find(_.symbol.name == Names.Constructor)
       .map(methods.compileConstructor(_, cdef))
@@ -33,9 +42,11 @@ final class ClassBuilder(
       .flatMap(view => JVMTypes.classOrInterfaceSymbol(view.tpe))
       .map(context.requireClass)
     val interfaces = LambdaABI.implementedInterfaces(cdef, declaredInterfaces)
+    val classInitializer = if isObject then buildObjectInitializer(className) :: Nil else Nil
     val bytes = ClassFile.write(
       className, ObjectClass, interfaces, fields,
-      constructor.toList ++ otherMethods
+      constructor.toList ++ classInitializer ++ otherMethods,
+      sourceFile = Some(java.nio.file.Paths.get(cdef.symbol.source.file).getFileName.toString)
     )
     className -> bytes
 
@@ -52,11 +63,26 @@ final class ClassBuilder(
     }
     val bytes = ClassFile.write(
       name, ObjectClass, Nil, Nil, abstractMethods,
-      accessFlags = AccessFlags.Public | AccessFlags.Interface | AccessFlags.Abstract
+      accessFlags = AccessFlags.Public | AccessFlags.Interface | AccessFlags.Abstract,
+      sourceFile = Some(java.nio.file.Paths.get(idef.symbol.source.file).getFileName.toString)
     )
     name -> bytes
 
+  /** Eager singleton initialization. Jo rejects cyclic global
+    * initialization, so this needs neither a lazy guard nor re-entrancy.
+    */
+  private def buildObjectInitializer(className: String): MethodOut =
+    val writer = new CodeWriter
+    writer.newObj(className)
+    writer.dup()
+    writer.invokespecial(className, Names.Constructor, "()V")
+    writer.putstatic(className, ClassBuilder.SingletonField, "L" + className + ";")
+    writer.returnVoid()
+    MethodOut(AccessFlags.Static, "<clinit>", "()V", Some(writer))
+
 object ClassBuilder:
+  val SingletonField = "INSTANCE"
+
   /** Method-body service required by class layout. The consumer owns this
     * contract; method compilation does not depend on the class compiler's
     * concrete implementation.

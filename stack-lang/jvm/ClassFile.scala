@@ -24,6 +24,10 @@ object ClassFile:
 
     def newLabel(): Label = new LabelNode
     def mark(label: Label): Unit = instructions.add(label)
+    def lineNumber(line: Int): Unit =
+      val label = newLabel()
+      mark(label)
+      instructions.add(new LineNumberNode(line, label))
     def iconst(value: Int): Unit =
       if value >= -1 && value <= 5 then insn(Opcodes.ICONST_0 + value)
       else if value >= Byte.MinValue && value <= Byte.MaxValue then instructions.add(new IntInsnNode(Opcodes.BIPUSH, value))
@@ -128,12 +132,14 @@ object ClassFile:
   def write(
     thisClass: String, superClass: String, interfaces: List[String],
     fields: List[FieldOut], methods: List[MethodOut],
-    accessFlags: Int = AccessFlags.Public | AccessFlags.Super
+    accessFlags: Int = AccessFlags.Public | AccessFlags.Super,
+    sourceFile: Option[String] = None
   ): Array[Byte] =
     val writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS):
       override protected def getCommonSuperClass(left: String, right: String): String =
         if left == right then left else "java/lang/Object"
     writer.visit(Opcodes.V17, accessFlags, thisClass, null, superClass, interfaces.toArray)
+    sourceFile.foreach(file => writer.visitSource(file, null))
     fields.foreach: field =>
       writer.visitField(field.accessFlags, field.name, field.desc, null, null).visitEnd()
     methods.foreach: method =>

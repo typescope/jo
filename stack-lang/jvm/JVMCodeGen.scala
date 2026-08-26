@@ -18,7 +18,6 @@ import scala.collection.mutable
   */
 class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: Definitions):
   import JVMCodeGen.*
-  import JVMContext.Pending
   private given context: JVMContext = new JVMContext(rewire)
   private val expressionEmitter = new ExpressionEmitter(runtime)
   private val methodBuilder = new MethodBuilder(expressionEmitter)
@@ -32,30 +31,26 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
   def generate(units: List[FileUnit]): (Map[String, Array[Byte]], String) =
     context.index(units)
 
-    context.requireTopLevel(runtime.start)
-    val mainClassMethods = new mutable.ArrayBuffer[MethodOut]()
+    // Finish reachability and bucket assignment before lowering any body.
+    // Static owners and generated class names are therefore stable inputs to
+    // lowering rather than side effects of it.
+    val live = new Universe(runtime.start, rewire, runtime.intrinsicDeps).run()
+    context.populate(live)
 
-    // A single interleaved loop, not "drain topLevelWork, then drain
-    // classWork": compiling a class's methods (e.g. a lifted lambda's
-    // `apply`) can discover new top-level function calls — reaching a
-    // context parameter pulls in whatever function provides it, say — and
-    // compiling a top-level function can likewise discover new classes via
-    // `New`. Draining the two queues in sequence would silently drop
-    // whichever queue gained new work after its own pass already finished.
-    var pending = context.nextPending()
-    while pending.nonEmpty do
-      pending.get match
-        case Pending.TopLevel(fdef) =>
-          if !isNativeOrIntrinsic(fdef.symbol) then
-            mainClassMethods += methodBuilder.compileTopLevel(fdef)
-        case Pending.Class(cdef) => addClassFile(classBuilder.compileClass(cdef))
-        case Pending.Interface(idef) => addClassFile(classBuilder.compileInterface(idef))
-      pending = context.nextPending()
+    context.buckets.foreach: bucket =>
+      bucket.classes.foreach(cdef => addClassFile(classBuilder.compileClass(cdef)))
+      bucket.interfaces.foreach(idef => addClassFile(classBuilder.compileInterface(idef)))
+      val methods = bucket.methods.iterator
+        .filterNot(fdef => isNativeOrIntrinsic(fdef.symbol))
+        .map(methodBuilder.compileTopLevel).toList
+      if methods.nonEmpty then
+        classFiles(bucket.className) = ClassFile.write(
+          bucket.className, ObjectClass, Nil, Nil, methods,
+          sourceFile = Some(bucket.sourceName)
+        )
 
-    // Synthetic entry point: `public static void main(String[] args)`
-    mainClassMethods += buildJavaMain()
-
-    val mainBytes = ClassFile.write(MainClassName, ObjectClass, Nil, Nil, mainClassMethods.toList)
+    // Keep a tiny conventional Java launcher; Jo code lives in source buckets.
+    val mainBytes = ClassFile.write(MainClassName, ObjectClass, Nil, Nil, buildJavaMain() :: Nil)
     (classFiles.toMap + (MainClassName -> mainBytes), MainClassName)
 
   private def addClassFile(compiled: (String, Array[Byte])): Unit =
@@ -69,7 +64,8 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       startProcType.resultType
     )
     val cw = new CodeWriter
-    cw.invokestatic(MainClassName, context.topLevelName(startSym), startDesc)
+    val start = context.topLevelLocation(startSym)
+    cw.invokestatic(start.owner, start.name, startDesc)
     // `start`'s Jo-level return type is `Unit`, which — like any other Jo
     // value type — now erases to `Ref(Object)` (see `JVMTypes`),
     // comment), not `V`; the real Java `main` truly is `void`, so discard it.

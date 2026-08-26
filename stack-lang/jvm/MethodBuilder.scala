@@ -28,6 +28,7 @@ final class MethodBuilder(
     val resultType = JVMTypes.typeOf(procType.resultType)
     given MethodContext = new MethodContext(writer, slots, resultType, selfSym = self)
 
+    writer.lineNumber(fdef.symbol.sourcePos.startLine + 1)
     expressions.initializeLocals(locals, writer)
     if expressions.compile(fdef.body) == Flow.FallsThrough then
       expressions.emitReturn(resultType, writer)
@@ -37,9 +38,10 @@ final class MethodBuilder(
     val descriptor =
       "(" + selfDescriptor + parameterTypes.map(JVMTypes.descriptorOf).mkString + ")" +
         JVMTypes.descriptorOf(procType.resultType)
+    val location = context.topLevelLocation(fdef.symbol)
     MethodOut(
       AccessFlags.Public | AccessFlags.Static,
-      context.topLevelName(fdef.symbol), descriptor,
+      location.name, descriptor,
       Some(writer)
     )
 
@@ -53,6 +55,7 @@ final class MethodBuilder(
 
     writer.aload(0)
     writer.invokespecial(ObjectClass, Names.Constructor, "()V")
+    writer.lineNumber(fdef.symbol.sourcePos.startLine + 1)
     expressions.initializeLocals(locals, writer)
 
     def compileInitializer(word: Word): Unit = word match
@@ -75,6 +78,7 @@ final class MethodBuilder(
     val resultType = JVMTypes.typeOf(procType.resultType)
     given MethodContext = new MethodContext(writer, slots, resultType, selfSym = Some(self))
 
+    writer.lineNumber(fdef.symbol.sourcePos.startLine + 1)
     expressions.initializeLocals(locals, writer)
     if expressions.compile(fdef.body) == Flow.FallsThrough then
       expressions.emitReturn(resultType, writer)
@@ -94,6 +98,7 @@ final class MethodBuilder(
       argsArraySlot = Some(argumentsSlot)
     )
 
+    writer.lineNumber(fdef.symbol.sourcePos.startLine + 1)
     LambdaABI.unpackParameters(
       fdef.params, slots, argumentsSlot, JVMTypes.typeOf, writer
     )

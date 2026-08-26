@@ -113,6 +113,7 @@ object Compiler:
     IO.ensureExists(outDir)
     for (name, bytes) <- allFiles do
       val path = java.nio.file.Paths.get(outDir, name + ".class")
+      Option(path.getParent).foreach(java.nio.file.Files.createDirectories(_))
       java.nio.file.Files.write(path, bytes)
 
     println(s"Wrote ${allFiles.size} class file(s) to $outDir (entry point: $mainClass)")
