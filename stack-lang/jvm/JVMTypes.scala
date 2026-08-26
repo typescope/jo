@@ -118,13 +118,22 @@ object JVMTypes:
 
   def isRef(t: JType): Boolean = t.isInstanceOf[Ref]
 
-  /** `C` describes a Jo `Char`, not a JVM `char`: a Jo `Char` is a Unicode
-    * code point, and code points above 0xFFFF do not survive a 16-bit
-    * `char`. A method declared to return `C` narrows its `ireturn` value to
-    * 16 bits, and a `C` field or array element stores only 16 bits, so
-    * every Jo `Char` is carried in a full `I` slot instead. `JType.C` stays
-    * a distinct case because `PrimitiveOps` still needs to know a value is a
-    * `Char` — `toString` on one renders the code point, not its digits.
+  /** `C` is not emitted as a JVM `char`, because it cannot be: a Jo `Char`
+    * is a Unicode code point up to 0x10FFFF, and a method declared to return
+    * `C` narrows 0x1F680 to 0xF680 on `ireturn`. A Jo `Char` therefore rides
+    * in a full `I` slot, and boxes to `java.lang.Integer`.
+    *
+    * `B` *is* a JVM `byte`. A Jo `Byte` is unsigned [0, 255] and a JVM
+    * `byte` is signed, but that is a disagreement about how to read the high
+    * bit, not about what fits: all 256 bit patterns are representable
+    * either way. The signed pattern is the canonical form here, so
+    * `PrimitiveOps` zero-extends at every observation that reads a `Byte`
+    * as a number (`toInt`, `toLong`, `toChar`, `toString`, and the ordering
+    * comparisons) and narrows at the one place that produces a `Byte`
+    * (`toByte`, plus `Byte`-typed literals). `Byte` has no arithmetic at all
+    * (lib/Byte.jo: "Storage/octet type: no arithmetic — convert to Int to
+    * compute"), so no computation can ever produce an unnormalized value
+    * that a narrowing boundary hasn't already canonicalized.
     */
   def descOf(t: JType): String = t match
     case I => "I"

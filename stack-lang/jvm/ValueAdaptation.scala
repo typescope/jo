@@ -16,6 +16,8 @@ object ValueAdaptation:
     case Box(primitive: JType)
     case Unbox(primitive: JType)
     case CheckCast(internalName: String)
+    // Between an int-category value and a Jo `Byte`'s signed 8-bit pattern.
+    case NarrowToByte, WidenFromByte
 
   import Conversion.*
 
@@ -31,6 +33,11 @@ object ValueAdaptation:
         case (V, _) => Identity
         case (a, Ref(ObjectDesc)) if isPrimitive(a) => Box(a)
         case (Ref(d), b) if isPrimitive(b) && d == ObjectDesc => Unbox(b)
+        // A Jo `Byte` is unsigned but is stored in a signed JVM `byte`, so
+        // moving between the two representations is a real conversion, not
+        // the identity the other int-category pairs enjoy.
+        case (a, B) if isIntCat(a) => NarrowToByte
+        case (B, b) if isIntCat(b) => WidenFromByte
         case (a, b) if isIntCat(a) && isIntCat(b) => Identity
         case (Ref(_), Ref(ObjectDesc)) => Identity
         case (Ref(_), Ref(d)) => CheckCast(internalNameOf(Ref(d)))
@@ -47,16 +54,20 @@ object ValueAdaptation:
       case Box(primitive) => box(primitive, cw)
       case Unbox(primitive) => unbox(primitive, cw)
       case CheckCast(internalName) => cw.checkcast(internalName)
+      case NarrowToByte => cw.i2b()
+      case WidenFromByte => cw.iconst(0xFF); cw.iand()
 
-  // A Jo `Char` boxes to `java.lang.Integer`, not `java.lang.Character`:
-  // `Character` holds 16 bits, which silently truncates every supplementary
-  // code point (emoji, for one), while a Jo `Char` is a full Unicode code
-  // point. Sharing `Integer` with `Int` costs nothing observable, because
-  // the only way a program can type-test a primitive is through a union,
-  // and the typer rejects a union containing more than one numeric type
-  // ("Union type cannot contain multiple numeric/boolean types") — so no
-  // legal program can ask whether a boxed value is a `Char` rather than an
-  // `Int`.
+  // A Jo `Char` boxes to `java.lang.Integer` rather than to
+  // `java.lang.Character`, which holds 16 bits and would truncate every
+  // supplementary code point (emoji, for one). Sharing `Integer` with `Int`
+  // costs nothing observable: the only way a program can type-test a
+  // primitive is through a union, and the typer rejects a union containing
+  // more than one numeric type ("Union type cannot contain multiple
+  // numeric/boolean types"), so no legal program can ask whether a boxed
+  // value is a `Char` rather than an `Int`.
+  //
+  // A `Byte` needs no such compromise: its 8-bit pattern round-trips
+  // through `java.lang.Byte` exactly.
   private def box(t: JType, cw: CodeWriter): Unit =
     val (owner, desc) = t match
       case I => ("java/lang/Integer", "(I)Ljava/lang/Integer;")

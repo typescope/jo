@@ -249,7 +249,13 @@ final class ExpressionEmitter(
       // literal, `Long` included (there's no separate `Constant.Long` — see
       // sast.Constant) — `t` (the literal's target JVM type, e.g. `J` for a
       // `val x: Long = 5`) is what actually picks the right representation.
-      case Constant.Int(n)  => if t == J then ctx.cw.lconst(n.toLong) else ctx.cw.iconst(n.toInt)
+      // A `Byte`-typed literal is pushed already narrowed to its signed
+      // 8-bit pattern (`200` as `-56`), the canonical form every other
+      // producer of a `Byte` yields — see `JVMTypes.descOf`.
+      case Constant.Int(n)  =>
+        if t == J then ctx.cw.lconst(n.toLong)
+        else if t == B then ctx.cw.iconst(n.toInt.toByte)
+        else ctx.cw.iconst(n.toInt)
       case Constant.String(s) => ctx.cw.stringConst(s)
       case Constant.Float(_) => throw new Exception("float literals are not supported by the JVM backend")
 

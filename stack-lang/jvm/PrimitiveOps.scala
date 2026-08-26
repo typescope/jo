@@ -45,9 +45,32 @@ final class PrimitiveOps(
       compile(args.head)
       emit()
 
+    // A Jo `Byte` is stored as its signed 8-bit pattern (see
+    // `JVMTypes.descOf`), so every operation that reads one *as a number*
+    // has to zero-extend first: -56 and 200 are the same byte, but only one
+    // of them converts, prints, and orders the way Jo's unsigned [0, 255]
+    // `Byte` requires.
+    def unsigned(): Unit =
+      if qt == B then
+        cw.iconst(0xFF)
+        cw.iand()
+
     def cmpOp(cond: String): Unit =
       compile(qual)
       compile(args.head)
+      boolFromBranch(l => cw.ifIcmp(cond, l))
+
+    /** `<`, `>`, `<=`, `>=` — unlike `==`/`!=`, these read a `Byte` as a
+      * number, and `if_icmp*` reads it as a *signed* one: a `Byte` of 200 is
+      * stored as -56 and would order below 100. Equality needs no such
+      * bridge, because zero-extension is a bijection on the 8-bit patterns a
+      * `Byte` slot can hold — equal patterns stay equal either way.
+      */
+    def orderOp(cond: String): Unit =
+      compile(qual)
+      unsigned()
+      compile(args.head)
+      unsigned()
       boolFromBranch(l => cw.ifIcmp(cond, l))
 
     name match
@@ -65,10 +88,10 @@ final class PrimitiveOps(
       case ">>" => binIntOp(cw.ishr)
       case "==" => cmpOp("eq")
       case "!=" => cmpOp("ne")
-      case ">" => cmpOp("gt")
-      case "<" => cmpOp("lt")
-      case ">=" => cmpOp("ge")
-      case "<=" => cmpOp("le")
+      case ">" => orderOp("gt")
+      case "<" => orderOp("lt")
+      case ">=" => orderOp("ge")
+      case "<=" => orderOp("le")
       case "!" | "~!" => compile(qual); boolNot()
       case "&&" =>
         // short-circuiting and/or are already lowered to If by earlier phases
@@ -92,18 +115,18 @@ final class PrimitiveOps(
       case "toChar" | "toInt" =>
         // Char shares Int's full range in this backend (no truncation to
         // 16 bits — Jo's Char is a full Unicode code point, not a UTF-16
-        // code unit), and Byte->Int/Char->Int are already the same
-        // representation, so both are genuine no-ops.
+        // code unit), so Char->Int and Int->Char are genuine no-ops.
         compile(qual)
+        unsigned()
       case "toByte" =>
-        // Jo's Byte is unsigned 8-bit ([0, 255], lib/Byte.jo) sharing Int's
-        // representation, so converting *to* Byte must mask to 8 bits
-        // (unlike JVM's own signed `i2b`, which would sign-extend and give
-        // the wrong answer for values >= 128).
+        // The one producer of a `Byte`: keep the low 8 bits as the signed
+        // pattern every `Byte` slot holds. `iand 0xFF` would be wrong here
+        // — it leaves 200 as 200, which a `B` return or field would then
+        // narrow behind our back.
         compile(qual)
-        cw.iconst(0xFF); cw.iand()
+        cw.i2b()
       case "toLong" =>
-        compile(qual); cw.i2l()
+        compile(qual); unsigned(); cw.i2l()
       case "toString" =>
         val (owner, desc) =
           // Character.toString(char) truncates to 16 bits — wrong for Jo's
@@ -113,9 +136,12 @@ final class PrimitiveOps(
           // as a surrogate pair.
           if qt == C then ("java/lang/Character", "(I)Ljava/lang/String;")
           else if qt == Z then ("java/lang/Boolean", "(Z)Ljava/lang/String;")
-          else if qt == B then ("java/lang/Byte", "(B)Ljava/lang/String;")
+          // A `Byte` renders through `Integer` on its zero-extended value:
+          // `Byte.toString` reads the pattern as signed and prints 200
+          // as -56.
           else ("java/lang/Integer", "(I)Ljava/lang/String;")
         compile(qual)
+        unsigned()
         cw.invokestatic(owner, "toString", desc)
       case other =>
         throw new Exception("JVM backend: unsupported primitive operator " + other)

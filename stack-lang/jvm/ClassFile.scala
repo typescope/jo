@@ -75,6 +75,7 @@ object ClassFile:
     def lcmp(): Unit = insn(Opcodes.LCMP)
     def l2i(): Unit = insn(Opcodes.L2I)
     def i2l(): Unit = insn(Opcodes.I2L)
+    def i2b(): Unit = insn(Opcodes.I2B)
 
     def gotoL(target: Label): Unit = jump(Opcodes.GOTO, target)
     def ifeq(target: Label): Unit = jump(Opcodes.IFEQ, target)
