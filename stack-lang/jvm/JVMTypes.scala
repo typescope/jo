@@ -118,11 +118,19 @@ object JVMTypes:
 
   def isRef(t: JType): Boolean = t.isInstanceOf[Ref]
 
+  /** `C` describes a Jo `Char`, not a JVM `char`: a Jo `Char` is a Unicode
+    * code point, and code points above 0xFFFF do not survive a 16-bit
+    * `char`. A method declared to return `C` narrows its `ireturn` value to
+    * 16 bits, and a `C` field or array element stores only 16 bits, so
+    * every Jo `Char` is carried in a full `I` slot instead. `JType.C` stays
+    * a distinct case because `PrimitiveOps` still needs to know a value is a
+    * `Char` — `toString` on one renders the code point, not its digits.
+    */
   def descOf(t: JType): String = t match
     case I => "I"
     case Z => "Z"
     case B => "B"
-    case C => "C"
+    case C => "I"
     case F => "F"
     case J => "J"
     case V => "V"

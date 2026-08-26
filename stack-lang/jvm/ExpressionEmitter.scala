@@ -175,7 +175,10 @@ final class ExpressionEmitter(
     else if classSym == defn.Int_type then "java/lang/Integer"
     else if classSym == defn.Bool_type then "java/lang/Boolean"
     else if classSym == defn.Byte_type then "java/lang/Byte"
-    else if classSym == defn.Char_type then "java/lang/Character"
+    // A `Char` is boxed as an `Integer` (see `ValueAdaptation.box`), and a
+    // union can hold at most one numeric type, so this can never be
+    // confused with an `Int` test.
+    else if classSym == defn.Char_type then "java/lang/Integer"
     else if classSym == defn.Float_type then "java/lang/Float"
     else if classSym == defn.Long_type then "java/lang/Long"
     // `Array[T]` is represented as a genuine JVM `Object[]` (see the

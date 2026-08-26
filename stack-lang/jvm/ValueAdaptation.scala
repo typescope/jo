@@ -48,12 +48,21 @@ object ValueAdaptation:
       case Unbox(primitive) => unbox(primitive, cw)
       case CheckCast(internalName) => cw.checkcast(internalName)
 
+  // A Jo `Char` boxes to `java.lang.Integer`, not `java.lang.Character`:
+  // `Character` holds 16 bits, which silently truncates every supplementary
+  // code point (emoji, for one), while a Jo `Char` is a full Unicode code
+  // point. Sharing `Integer` with `Int` costs nothing observable, because
+  // the only way a program can type-test a primitive is through a union,
+  // and the typer rejects a union containing more than one numeric type
+  // ("Union type cannot contain multiple numeric/boolean types") — so no
+  // legal program can ask whether a boxed value is a `Char` rather than an
+  // `Int`.
   private def box(t: JType, cw: CodeWriter): Unit =
     val (owner, desc) = t match
       case I => ("java/lang/Integer", "(I)Ljava/lang/Integer;")
       case Z => ("java/lang/Boolean", "(Z)Ljava/lang/Boolean;")
       case B => ("java/lang/Byte", "(B)Ljava/lang/Byte;")
-      case C => ("java/lang/Character", "(C)Ljava/lang/Character;")
+      case C => ("java/lang/Integer", "(I)Ljava/lang/Integer;")
       case F => ("java/lang/Float", "(F)Ljava/lang/Float;")
       case J => ("java/lang/Long", "(J)Ljava/lang/Long;")
       case _ => throw new Exception("cannot box " + t)
@@ -64,7 +73,7 @@ object ValueAdaptation:
       case I => ("java/lang/Integer", "intValue", "()I")
       case Z => ("java/lang/Boolean", "booleanValue", "()Z")
       case B => ("java/lang/Byte", "byteValue", "()B")
-      case C => ("java/lang/Character", "charValue", "()C")
+      case C => ("java/lang/Integer", "intValue", "()I")
       case F => ("java/lang/Float", "floatValue", "()F")
       case J => ("java/lang/Long", "longValue", "()J")
       case _ => throw new Exception("cannot unbox " + t)

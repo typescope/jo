@@ -185,8 +185,23 @@ private section StringOps
   // Java's indexOf returns a char index (or -1); Jo wants the code-point
   // index of that same position (or -1, which has no code-point-count
   // equivalent, so it's kept as-is).
+  //
+  // `from` is clamped to `0..size` first: Jo accepts any `from` (a negative
+  // one searches from the start, one past the end finds nothing but the
+  // empty needle, matching the other backends' runtimes), whereas
+  // `offsetByCodePoints` throws IndexOutOfBoundsException off either end.
   def indexOf(s: String, other: String, from: Int): Int =
-    val charFrom = offsetByCodePoints(s, 0, from)
+    var start = from
+    if start < 0 then
+      start = 0
+    end
+
+    val n = size(s)
+    if start > n then
+      start = n
+    end
+
+    val charFrom = offsetByCodePoints(s, 0, start)
     val r = rawIndexOf(s, other, charFrom)
     if r == -1 then -1 else codePointCount(s, 0, r)
 

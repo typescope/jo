@@ -11,7 +11,6 @@ import jvm.ClassFile.*
   *   - `Lambda`: the marker interface every ElimCapture-lifted lambda class
   *     implements, with a single arity-erased `Object apply(Object[])`
   *     method defined by [[LambdaABI]].
-  *
   * These are emitted directly via the low-level ClassFile writer rather than
   * compiled from Jo source, since the compiler itself (not user code) is
   * their only "caller" — `jo.jvm.runtime.Runtime.jo` references them purely
