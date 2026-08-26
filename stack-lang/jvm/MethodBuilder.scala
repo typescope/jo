@@ -1,5 +1,7 @@
 package jvm
 
+import ast.Positions.Source
+
 import sast.*
 import sast.Trees.*
 import sast.Symbols.*
@@ -26,9 +28,10 @@ final class MethodBuilder(
     fdef.allParams.foreach(param => slots.bind(param, JVMTypes.typeOf(param.tpe)))
     val locals = fdef.locals.map(local => local -> slots.bind(local, JVMTypes.typeOf(local.tpe)))
     val resultType = JVMTypes.typeOf(procType.resultType)
-    given MethodContext = new MethodContext(writer, slots, resultType, selfSym = self)
+    val source = context.sourceOf(fdef.symbol)
+    given MethodContext = new MethodContext(writer, slots, resultType, selfSym = self, source = source)
 
-    writer.lineNumber(fdef.symbol.sourcePos.startLine + 1)
+    writer.lineNumber(entryLine(fdef, source))
     expressions.initializeLocals(locals, writer)
     if expressions.compile(fdef.body) == Flow.FallsThrough then
       expressions.emitReturn(resultType, writer)
@@ -52,16 +55,17 @@ final class MethodBuilder(
     val parameters = fdef.params
     parameters.foreach(param => slots.bind(param, JVMTypes.typeOf(param.tpe)))
     val locals = fdef.locals.map(local => local -> slots.bind(local, JVMTypes.typeOf(local.tpe)))
+    val source = context.sourceOf(fdef.symbol)
 
     writer.aload(0)
     writer.invokespecial(ObjectClass, Names.Constructor, "()V")
-    writer.lineNumber(fdef.symbol.sourcePos.startLine + 1)
+    writer.lineNumber(entryLine(fdef, source))
     expressions.initializeLocals(locals, writer)
 
     def compileInitializer(word: Word): Unit = word match
       case Block(words) => words.foreach(compileInitializer)
       case _: Ident => () // the trailing Jo constructor result is `self`
-      case other => expressions.compileInline(other, slots, writer, owner.self)
+      case other => expressions.compileInline(other, slots, writer, owner.self, source)
 
     compileInitializer(fdef.body)
     writer.returnVoid()
@@ -76,9 +80,10 @@ final class MethodBuilder(
     fdef.allParams.foreach(param => slots.bind(param, JVMTypes.typeOf(param.tpe)))
     val locals = fdef.locals.map(local => local -> slots.bind(local, JVMTypes.typeOf(local.tpe)))
     val resultType = JVMTypes.typeOf(procType.resultType)
-    given MethodContext = new MethodContext(writer, slots, resultType, selfSym = Some(self))
+    val source = context.sourceOf(fdef.symbol)
+    given MethodContext = new MethodContext(writer, slots, resultType, selfSym = Some(self), source = source)
 
-    writer.lineNumber(fdef.symbol.sourcePos.startLine + 1)
+    writer.lineNumber(entryLine(fdef, source))
     expressions.initializeLocals(locals, writer)
     if expressions.compile(fdef.body) == Flow.FallsThrough then
       expressions.emitReturn(resultType, writer)
@@ -93,12 +98,13 @@ final class MethodBuilder(
     slots.bind(owner.self, Ref(ObjectDesc))
     val argumentsSlot = 1
     val resultType = JVMTypes.typeOf(fdef.resultType.tpe)
+    val source = context.sourceOf(fdef.symbol)
     given MethodContext = new MethodContext(
-      writer, slots, resultType, selfSym = Some(owner.self),
+      writer, slots, resultType, selfSym = Some(owner.self), source = source,
       argsArraySlot = Some(argumentsSlot)
     )
 
-    writer.lineNumber(fdef.symbol.sourcePos.startLine + 1)
+    writer.lineNumber(entryLine(fdef, source))
     LambdaABI.unpackParameters(
       fdef.params, slots, argumentsSlot, JVMTypes.typeOf, writer
     )
@@ -114,6 +120,15 @@ final class MethodBuilder(
       Some(writer)
     )
 
+  /** The line a method's prologue — the zero-initialization of its locals,
+    * and any argument unpacking — is attributed to: where the definition
+    * itself starts. Resolved against the bucket's own source, so a symbol
+    * whose position was recorded elsewhere cannot silently name a line in
+    * another file.
+    */
+  private def entryLine(fdef: FunDef, source: Source): Int =
+    source.offsetToLine(fdef.symbol.span.start) + 1
+
 object MethodBuilder:
   enum Flow:
     case FallsThrough, Terminal
@@ -121,7 +136,7 @@ object MethodBuilder:
   /** Expression-lowering service required by method assembly. */
   trait Expressions:
     def compile(word: Word)(using MethodContext): Flow
-    def compileInline(word: Word, slots: MethodSlots, writer: CodeWriter, self: Symbol): Unit
+    def compileInline(word: Word, slots: MethodSlots, writer: CodeWriter, self: Symbol, source: Source): Unit
     def emitReturn(tpe: JType, writer: CodeWriter): Unit
     def initializeLocals(locals: List[(Symbol, Int)], writer: CodeWriter): Unit
     def storeLocal(tpe: JType, slot: Int, writer: CodeWriter): Unit

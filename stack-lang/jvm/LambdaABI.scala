@@ -46,9 +46,13 @@ object LambdaABI:
   /** Emit a lambda call already normalized by `Lowering`.
     *
     * Every argument is already represented as Object. Result conversion is
-    * explicit in the surrounding lowered tree.
+    * explicit in the surrounding lowered tree. `atCallSite` re-asserts the
+    * call's own source line once the arguments — which have moved it to
+    * their own — are on the stack.
     */
-  def emitLoweredCall(call: Word, compile: Word => MethodBuilder.Flow, writer: CodeWriter): Unit =
+  def emitLoweredCall(
+    call: Word, compile: Word => MethodBuilder.Flow, atCallSite: () => Unit, writer: CodeWriter
+  ): Unit =
     val Apply(function, arguments, automaticArguments) = call: @unchecked
     val allArguments = arguments ++ automaticArguments
     compile(function)
@@ -61,6 +65,7 @@ object LambdaABI:
       compile(argument)
       writer.aastore()
     }
+    atCallSite()
     writer.invokeinterface(interfaceName, applyName, applyDescriptor)
 
   private def store(tpe: JType, slot: Int, writer: CodeWriter): Unit =

@@ -40,9 +40,14 @@ final class PrimitiveOps(
     val cw = ctx.cw
     val qt = jvmType(qual.tpe)
 
+    // Each operator instruction is emitted once both operands are on the
+    // stack, so for an expression spread over several lines the line in
+    // effect by then is the right operand's. Put the operator's own back —
+    // it is the line `idiv`/`irem` name when they divide by zero.
     def binIntOp(emit: () => Unit): Unit =
       compile(qual)
       compile(args.head)
+      ctx.lines.here()
       emit()
 
     // A Jo `Byte` is stored as its signed 8-bit pattern (see
@@ -58,6 +63,7 @@ final class PrimitiveOps(
     def cmpOp(cond: String): Unit =
       compile(qual)
       compile(args.head)
+      ctx.lines.here()
       boolFromBranch(l => cw.ifIcmp(cond, l))
 
     /** `<`, `>`, `<=`, `>=` — unlike `==`/`!=`, these read a `Byte` as a
@@ -71,6 +77,7 @@ final class PrimitiveOps(
       unsigned()
       compile(args.head)
       unsigned()
+      ctx.lines.here()
       boolFromBranch(l => cw.ifIcmp(cond, l))
 
     name match
@@ -142,6 +149,7 @@ final class PrimitiveOps(
           else ("java/lang/Integer", "(I)Ljava/lang/String;")
         compile(qual)
         unsigned()
+        ctx.lines.here()
         cw.invokestatic(owner, "toString", desc)
       case other =>
         throw new Exception("JVM backend: unsupported primitive operator " + other)
@@ -154,9 +162,11 @@ final class PrimitiveOps(
   private def compileLongOp(qual: Word, name: String, args: List[Word])(using ctx: MethodCtx): Unit =
     val cw = ctx.cw
 
+    // See `binIntOp`: the operator's own line, not the right operand's.
     def binLongOp(emit: () => Unit): Unit =
       compile(qual)
       compile(args.head)
+      ctx.lines.here()
       emit()
 
     // `lshl`/`lshr`'s shift-*amount* operand must be a plain `int` (JVMS),
@@ -167,6 +177,7 @@ final class PrimitiveOps(
     def shiftLongOp(emit: () => Unit): Unit =
       compile(qual)
       compile(args.head); cw.l2i()
+      ctx.lines.here()
       emit()
 
     // No `if_lcmp<cond>` branch family exists — `lcmp` reduces the
@@ -175,6 +186,7 @@ final class PrimitiveOps(
     def cmpOp(cond: String): Unit =
       compile(qual)
       compile(args.head)
+      ctx.lines.here()
       cw.lcmp()
       boolFromBranch(l => cw.ifCond(cond, l))
 
@@ -203,6 +215,7 @@ final class PrimitiveOps(
         compile(qual)
       case "toString" =>
         compile(qual)
+        ctx.lines.here()
         cw.invokestatic("java/lang/Long", "toString", "(J)Ljava/lang/String;")
       case other =>
         throw new Exception("JVM backend: unsupported Long operator " + other)
@@ -246,17 +259,23 @@ final class PrimitiveOps(
 
       case "+" =>
         receiver(); stringArg(args.head)
+        ctx.lines.here()
         cw.invokevirtual(StringClass, "concat", "(Ljava/lang/String;)Ljava/lang/String;")
 
       case "==" =>
         receiver(); stringArg(args.head)
+        ctx.lines.here()
         cw.invokevirtual(StringClass, "equals", "(Ljava/lang/Object;)Z")
 
       case "toLower" =>
-        receiver(); cw.invokevirtual(StringClass, "toLowerCase", "()Ljava/lang/String;")
+        receiver()
+        ctx.lines.here()
+        cw.invokevirtual(StringClass, "toLowerCase", "()Ljava/lang/String;")
 
       case "toUpper" =>
-        receiver(); cw.invokevirtual(StringClass, "toUpperCase", "()Ljava/lang/String;")
+        receiver()
+        ctx.lines.here()
+        cw.invokevirtual(StringClass, "toUpperCase", "()Ljava/lang/String;")
 
       case "iterator" => compileStaticCall(runtime.String_iterator, qual :: Nil)
 

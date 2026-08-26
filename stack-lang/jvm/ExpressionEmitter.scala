@@ -1,5 +1,7 @@
 package jvm
 
+import ast.Positions.Source
+
 import sast.*
 import sast.Trees.*
 import sast.Symbols.*
@@ -56,7 +58,28 @@ final class ExpressionEmitter(
   // jvmType(word.tpe) on the operand stack (nothing, for VoidType).
   //----------------------------------------------------------------------------
 
+  /** Lower one node, attributing the instructions it emits to its own Jo
+    * source line.
+    *
+    * `Block` and `Labeled` are skipped: they emit no instruction of their
+    * own, and their span covers everything nested inside them, so marking a
+    * line for them would only claim their first child's instructions for
+    * the line the block opens on. Every other node marks its line on the
+    * way in, and restores the enclosing node's on the way out so that an
+    * instruction emitted after a nested operand (see `LineNumbers.here`)
+    * can still find it.
+    */
   override def compile(word: Word)(using ctx: MethodCtx): Flow =
+    word match
+      case _: Block | _: Labeled => compileNode(word)
+
+      case _ =>
+        val enclosing = ctx.lines.enter(word.span)
+        val flow = compileNode(word)
+        ctx.lines.leave(enclosing)
+        flow
+
+  private def compileNode(word: Word)(using ctx: MethodCtx): Flow =
     word match
       case Literal(c) => compileLiteral(c, JVMTypes.typeOf(word.tpe)); Flow.FallsThrough
 
@@ -95,8 +118,12 @@ final class ExpressionEmitter(
         // above, not re-derived here every time.
         val declared = fieldDeclaredType(sel)
         val flow = compile(rhs)
+
         if flow == Flow.Terminal then ctx.cw.pop()
-        else ctx.cw.putfield(owner, name, descOf(declared))
+        else
+          ctx.lines.here()
+          ctx.cw.putfield(owner, name, descOf(declared))
+
         flow
 
       case If(cond, thenp, elsep) => compileIf(cond, thenp, elsep)
@@ -158,7 +185,11 @@ final class ExpressionEmitter(
       case Encoded(repr) =>
         val target = JVMTypes.typeOf(word.tpe)
         val flow = compile(repr)
-        if flow == Flow.FallsThrough then ValueAdaptation.emit(JVMTypes.typeOf(repr.tpe), target, ctx.cw)
+
+        if flow == Flow.FallsThrough then
+          ctx.lines.here()
+          ValueAdaptation.emit(JVMTypes.typeOf(repr.tpe), target, ctx.cw)
+
         flow
 
       case other =>
@@ -221,6 +252,11 @@ final class ExpressionEmitter(
 
   private def compileFieldReceiver(qual: Word)(using ctx: MethodCtx): String =
     compile(qual)
+    // The receiver's own subexpression has moved the current line; the
+    // `checkcast` and the field instruction that follow belong to the field
+    // access, and are what a `ClassCastException` or `NullPointerException`
+    // here would report.
+    ctx.lines.here()
     qual match
       case Ident(sym) if ctx.selfSym.contains(sym) =>
         context.className(sym.owner)
@@ -238,8 +274,8 @@ final class ExpressionEmitter(
     * needing a full MethodCtx (used by the constructor emitter, which has a
     * restricted body shape and no control flow).
     */
-  override def compileInline(word: Word, slots: Slots, cw: CodeWriter, selfSym: Symbol): Unit =
-    given MethodCtx = new MethodCtx(cw, slots, V, selfSym = Some(selfSym))
+  override def compileInline(word: Word, slots: Slots, cw: CodeWriter, selfSym: Symbol, source: Source): Unit =
+    given MethodCtx = new MethodCtx(cw, slots, V, selfSym = Some(selfSym), source = source)
     compile(word)
 
   private def compileLiteral(c: Constant, t: JType)(using ctx: MethodCtx): Unit =
@@ -388,6 +424,7 @@ final class ExpressionEmitter(
       compile(qual)
       args.foreach(compile)
       val desc = "(Ljava/lang/Object;" + paramTypes.map(JVMTypes.descriptorOf).mkString + ")" + JVMTypes.descriptorOf(procType.resultType)
+      ctx.lines.here()
       ctx.cw.invokestatic(target.owner, target.name, desc)
 
     else
@@ -399,6 +436,7 @@ final class ExpressionEmitter(
       ctx.cw.checkcast(ownerName)
       args.foreach(compile)
       val desc = JVMTypes.methodDescriptor(paramTypes, procType.resultType)
+      ctx.lines.here()
       if isIface then ctx.cw.invokeinterface(ownerName, name, desc) else ctx.cw.invokevirtual(ownerName, name, desc)
 
   private def isPrimitiveOwner(tp: Type): Boolean =
@@ -423,7 +461,7 @@ final class ExpressionEmitter(
   // already arrive `Object`-erased here, same as any other call's args.
   private def compileIdentApply(sym: Symbol, args: List[Word], resultType: Type)(using ctx: MethodCtx): Flow =
     if sym == runtime.lowerInvokeLambda then
-      LambdaABI.emitLoweredCall(args.head, compile, ctx.cw)
+      LambdaABI.emitLoweredCall(args.head, compile, () => ctx.lines.here(), ctx.cw)
       Flow.FallsThrough
     else runtime.lowerBox.collectFirst { case (primitive, intrinsic) if intrinsic == sym => primitive } match
       case Some(primitive) =>
@@ -467,6 +505,7 @@ final class ExpressionEmitter(
 
     else if sym == runtime.throwAny then
       compile(args.head)
+      ctx.lines.here()
       ctx.cw.checkcast(ThrowableClass)
       ctx.cw.athrow()
 
@@ -484,12 +523,14 @@ final class ExpressionEmitter(
       // backend-specific exception; the `Int` index isn't.
       compile(args.head); ctx.cw.checkcast(ObjectArrayDesc)
       compile(args(1))
+      ctx.lines.here()
       ctx.cw.aaload()
 
     else if sym == runtime.Array_set then
       compile(args.head); ctx.cw.checkcast(ObjectArrayDesc)
       compile(args(1))
       compile(args(2))
+      ctx.lines.here()
       ctx.cw.aastore()
       // `aastore` itself leaves nothing (V); `set`'s declared Unit result
       // needs a real null materialized to match (same reconciliation
@@ -499,10 +540,12 @@ final class ExpressionEmitter(
 
     else if sym == runtime.Array_size then
       compile(args.head); ctx.cw.checkcast(ObjectArrayDesc)
+      ctx.lines.here()
       ctx.cw.arraylength()
 
     else if sym == runtime.Array_clone then
       compile(args.head); ctx.cw.checkcast(ObjectArrayDesc)
+      ctx.lines.here()
       ctx.cw.invokevirtual(ObjectArrayDesc, "clone", "()Ljava/lang/Object;")
       ctx.cw.checkcast(ObjectArrayDesc)
 
@@ -515,12 +558,14 @@ final class ExpressionEmitter(
       // 8-bit pattern a Jo `Byte` is carried as (see `JVMTypes.descOf`).
       compile(args.head); ctx.cw.checkcast(ByteArrayDesc)
       compile(args(1))
+      ctx.lines.here()
       ctx.cw.baload()
 
     else if sym == runtime.ByteArray_set then
       compile(args.head); ctx.cw.checkcast(ByteArrayDesc)
       compile(args(1))
       compile(args(2))
+      ctx.lines.here()
       ctx.cw.bastore()
       // See `Array_set`: `bastore` leaves nothing, so `set`'s declared Unit
       // result needs a null materialized to match.
@@ -528,6 +573,7 @@ final class ExpressionEmitter(
 
     else if sym == runtime.ByteArray_size then
       compile(args.head); ctx.cw.checkcast(ByteArrayDesc)
+      ctx.lines.here()
       ctx.cw.arraylength()
 
     else if runtime.nativeSpec(sym).isDefined then
@@ -556,6 +602,7 @@ final class ExpressionEmitter(
     val target = context.topLevelLocation(sym)
     val procType = sym.tpe.asProcType
     args.foreach(compile)
+    ctx.lines.here()
     ctx.cw.invokestatic(target.owner, target.name, JVMTypes.methodDescriptor(procType.paramTypes ++ procType.autoTypes, procType.resultType))
 
   /** `paramKey(id)` where `id` is (a possibly-encoded) `Ident` to a context
@@ -609,6 +656,7 @@ final class ExpressionEmitter(
     ctx.cw.dup()
     // Erasure has normalized each argument to its declared constructor type.
     args.foreach(compile)
+    ctx.lines.here()
     ctx.cw.invokespecial(className, Names.Constructor, "(" + ctorParamTypes.map(descriptorOf).mkString + ")V")
 
 end ExpressionEmitter

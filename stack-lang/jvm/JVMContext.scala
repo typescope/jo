@@ -1,5 +1,7 @@
 package jvm
 
+import ast.Positions.Source
+
 import sast.*
 import sast.Trees.*
 import sast.Symbols.*
@@ -30,7 +32,7 @@ final class JVMContext(rewire: Map[Symbol, Symbol])(using defn: Definitions):
   def index(units: List[FileUnit]): Unit =
     units.foreach: unit =>
       val bucket = createBucket(unit)
-      indexDefs(unit.defs, bucket, unit.source.file)
+      indexDefs(unit.defs, bucket, unit.source)
 
   /** Populate the already-created source buckets from completed liveness.
     * No expression or method lowering occurs here.
@@ -59,6 +61,18 @@ final class JVMContext(rewire: Map[Symbol, Symbol])(using defn: Definitions):
       else if sym.isInterface then addInterface(sym)
 
   def resolve(sym: Symbol): Symbol = rewire.getOrElse(sym, sym)
+
+  /** The Jo source a definition's bytecode is attributed to.
+    *
+    * This is the bucket's source, not the symbol's own: it is the file the
+    * enclosing class file names in its `SourceFile` attribute, and a
+    * `LineNumberTable` entry is only meaningful relative to that file. A
+    * symbol reached through a `@link` rewiring, or one with no bucket at
+    * all, falls back to its own source.
+    */
+  def sourceOf(sym: Symbol): Source =
+    val resolved = resolve(sym)
+    definitionBuckets.get(resolved).map(_.source).getOrElse(resolved.source)
 
   def topLevelLocation(sym: Symbol): MethodLocation =
     val resolved = resolve(sym)
@@ -114,7 +128,7 @@ final class JVMContext(rewire: Map[Symbol, Symbol])(using defn: Definitions):
         else if sym.isClass then addClass(sym)
       case _ =>
 
-  private def indexDefs(defs: List[Def], bucket: Bucket, sourcePath: String): Unit =
+  private def indexDefs(defs: List[Def], bucket: Bucket, source: Source): Unit =
     defs.foreach {
       case fdef: FunDef =>
         funDefs(fdef.symbol) = fdef
@@ -122,14 +136,14 @@ final class JVMContext(rewire: Map[Symbol, Symbol])(using defn: Definitions):
       case cdef: ClassDef =>
         classDefs(cdef.symbol) = cdef
         definitionBuckets(cdef.symbol) = bucket
-        indexDefs(cdef.funs, bucket, sourcePath)
+        indexDefs(cdef.funs, bucket, source)
       case idef: InterfaceDef =>
         interfaceDefs(idef.symbol) = idef
         definitionBuckets(idef.symbol) = bucket
-        indexDefs(idef.methods, bucket, sourcePath)
+        indexDefs(idef.methods, bucket, source)
       case section: Section =>
-        val sectionBucket = createSectionBucket(section, sourcePath)
-        indexDefs(section.defs, sectionBucket, sourcePath)
+        val sectionBucket = createSectionBucket(section, source)
+        indexDefs(section.defs, sectionBucket, source)
       case _ =>
     }
 
@@ -140,7 +154,7 @@ final class JVMContext(rewire: Map[Symbol, Symbol])(using defn: Definitions):
     val sourceStem = if dot > 0 then sourceName.substring(0, dot) else sourceName
     val requested = (namespace.split('/').filter(_.nonEmpty) :+ sanitize(sourceStem)).mkString("/")
     val className = allocateClassName(requested)
-    val bucket = Bucket(unit.owner, unit.source.file, sourceName, className)
+    val bucket = Bucket(unit.owner, unit.source, sourceName, className)
     bucketsByClass(className) = bucket
     bucket
 
@@ -149,12 +163,12 @@ final class JVMContext(rewire: Map[Symbol, Symbol])(using defn: Definitions):
     * `allocateClassName` disambiguates repeated extension sections originating
     * in different files while keeping every bucket tied to one SourceFile.
     */
-  private def createSectionBucket(section: Section, sourcePath: String): Bucket =
-    val sourceName = Paths.get(sourcePath).getFileName.toString
+  private def createSectionBucket(section: Section, source: Source): Bucket =
+    val sourceName = Paths.get(source.file).getFileName.toString
     val requested = section.symbol.fullName.split('.').iterator
       .filter(_.nonEmpty).map(sanitize).mkString("/")
     val className = allocateClassName(requested)
-    val bucket = Bucket(section.symbol, sourcePath, sourceName, className)
+    val bucket = Bucket(section.symbol, source, sourceName, className)
     bucketsByClass(className) = bucket
     bucket
 
@@ -193,7 +207,7 @@ object JVMContext:
 
   final case class Bucket(
     namespace: Symbol,
-    sourcePath: String,
+    source: Source,
     sourceName: String,
     className: String,
     methods: mutable.ArrayBuffer[FunDef] = mutable.ArrayBuffer.empty,

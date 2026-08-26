@@ -46,7 +46,7 @@ final class ClassBuilder(
     val bytes = ClassFile.write(
       className, ObjectClass, interfaces, fields,
       constructor.toList ++ classInitializer ++ otherMethods,
-      sourceFile = Some(java.nio.file.Paths.get(cdef.symbol.source.file).getFileName.toString)
+      sourceFile = Some(sourceFileName(cdef.symbol))
     )
     className -> bytes
 
@@ -64,9 +64,16 @@ final class ClassBuilder(
     val bytes = ClassFile.write(
       name, ObjectClass, Nil, Nil, abstractMethods,
       accessFlags = AccessFlags.Public | AccessFlags.Interface | AccessFlags.Abstract,
-      sourceFile = Some(java.nio.file.Paths.get(idef.symbol.source.file).getFileName.toString)
+      sourceFile = Some(sourceFileName(idef.symbol))
     )
     name -> bytes
+
+  /** The file name a class file's `SourceFile` attribute names, taken from
+    * the same source the bodies' `LineNumberTable` entries are resolved
+    * against (see `JVMContext.sourceOf`) so the two cannot disagree.
+    */
+  private def sourceFileName(sym: Symbol): String =
+    java.nio.file.Paths.get(context.sourceOf(sym).file).getFileName.toString
 
   /** Eager singleton initialization. Jo rejects cyclic global
     * initialization, so this needs neither a lazy guard nor re-entrancy.

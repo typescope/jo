@@ -19,33 +19,73 @@ object ClassFile:
 
   final class CodeWriter:
     private[ClassFile] val instructions = new InsnList
-    private def insn(opcode: Int): Unit = instructions.add(new InsnNode(opcode))
-    private def jump(opcode: Int, target: Label): Unit = instructions.add(new JumpInsnNode(opcode, target))
+    private def insn(opcode: Int): Unit = add(new InsnNode(opcode))
+    private def jump(opcode: Int, target: Label): Unit = add(new JumpInsnNode(opcode, target))
+
+    /** The source line the instructions being appended are attributed to,
+      * and the one waiting to take over. -1 means "none".
+      */
+    private var currentLine = -1
+    private var pendingLine = -1
+
+    /** Append an instruction, first materializing any line marker waiting
+      * for one to attach to.
+      *
+      * Deferring the marker this way keeps the `LineNumberTable` free of
+      * entries that cover no instruction: expression lowering asks for a
+      * line on entering every node, and a node whose operands start on a
+      * later line than the node itself would otherwise put two entries at
+      * the same bytecode offset.
+      */
+    private def add(node: AbstractInsnNode): Unit =
+      if pendingLine >= 0 then
+        val label = new LabelNode
+        instructions.add(label)
+        instructions.add(new LineNumberNode(pendingLine, label))
+        currentLine = pendingLine
+        pendingLine = -1
+
+      instructions.add(node)
 
     def newLabel(): Label = new LabelNode
-    def mark(label: Label): Unit = instructions.add(label)
+
+    def mark(label: Label): Unit =
+      instructions.add(label)
+      // A marked label is a jump target, so control can arrive here from any
+      // predecessor and the line covering the preceding instruction says
+      // nothing about this position. Forget it, so that the next
+      // `lineNumber` writes a real entry instead of being deduplicated
+      // against the fall-through predecessor's line.
+      currentLine = -1
+      pendingLine = -1
+
+    /** Attribute the instructions that follow to `line`.
+      *
+      * Callers re-assert a line freely — an instruction emitted after its
+      * operands has to put its own line back (see `LineNumbers`) — so this
+      * is a no-op when `line` already covers this position.
+      */
     def lineNumber(line: Int): Unit =
-      val label = newLabel()
-      mark(label)
-      instructions.add(new LineNumberNode(line, label))
+      pendingLine = if line == currentLine then -1 else line
+
     def iconst(value: Int): Unit =
       if value >= -1 && value <= 5 then insn(Opcodes.ICONST_0 + value)
-      else if value >= Byte.MinValue && value <= Byte.MaxValue then instructions.add(new IntInsnNode(Opcodes.BIPUSH, value))
-      else if value >= Short.MinValue && value <= Short.MaxValue then instructions.add(new IntInsnNode(Opcodes.SIPUSH, value))
-      else instructions.add(new LdcInsnNode(Integer.valueOf(value)))
+      else if value >= Byte.MinValue && value <= Byte.MaxValue then add(new IntInsnNode(Opcodes.BIPUSH, value))
+      else if value >= Short.MinValue && value <= Short.MaxValue then add(new IntInsnNode(Opcodes.SIPUSH, value))
+      else add(new LdcInsnNode(Integer.valueOf(value)))
     def lconst(value: Long): Unit =
       if value == 0L then insn(Opcodes.LCONST_0)
       else if value == 1L then insn(Opcodes.LCONST_1)
-      else instructions.add(new LdcInsnNode(java.lang.Long.valueOf(value)))
-    def stringConst(value: String): Unit = instructions.add(new LdcInsnNode(value))
+      else add(new LdcInsnNode(java.lang.Long.valueOf(value)))
+    def stringConst(value: String): Unit = add(new LdcInsnNode(value))
     def aconstNull(): Unit = insn(Opcodes.ACONST_NULL)
 
-    def iload(slot: Int): Unit = instructions.add(new VarInsnNode(Opcodes.ILOAD, slot))
-    def lload(slot: Int): Unit = instructions.add(new VarInsnNode(Opcodes.LLOAD, slot))
-    def aload(slot: Int): Unit = instructions.add(new VarInsnNode(Opcodes.ALOAD, slot))
-    def istore(slot: Int): Unit = instructions.add(new VarInsnNode(Opcodes.ISTORE, slot))
-    def lstore(slot: Int): Unit = instructions.add(new VarInsnNode(Opcodes.LSTORE, slot))
-    def astore(slot: Int): Unit = instructions.add(new VarInsnNode(Opcodes.ASTORE, slot))
+    def iload(slot: Int): Unit = add(new VarInsnNode(Opcodes.ILOAD, slot))
+    def lload(slot: Int): Unit = add(new VarInsnNode(Opcodes.LLOAD, slot))
+    def aload(slot: Int): Unit = add(new VarInsnNode(Opcodes.ALOAD, slot))
+    def istore(slot: Int): Unit = add(new VarInsnNode(Opcodes.ISTORE, slot))
+    def lstore(slot: Int): Unit = add(new VarInsnNode(Opcodes.LSTORE, slot))
+    def astore(slot: Int): Unit = add(new VarInsnNode(Opcodes.ASTORE, slot))
 
     def dup(): Unit = insn(Opcodes.DUP)
     def pop(): Unit = insn(Opcodes.POP)
@@ -105,11 +145,11 @@ object ClassFile:
     def areturn(): Unit = insn(Opcodes.ARETURN)
     def returnVoid(): Unit = insn(Opcodes.RETURN)
     def athrow(): Unit = insn(Opcodes.ATHROW)
-    def newObj(owner: String): Unit = instructions.add(new TypeInsnNode(Opcodes.NEW, owner))
-    def checkcast(owner: String): Unit = instructions.add(new TypeInsnNode(Opcodes.CHECKCAST, owner))
-    def instanceOf(owner: String): Unit = instructions.add(new TypeInsnNode(Opcodes.INSTANCEOF, owner))
-    def anewarray(element: String): Unit = instructions.add(new TypeInsnNode(Opcodes.ANEWARRAY, element))
-    def newByteArray(): Unit = instructions.add(new IntInsnNode(Opcodes.NEWARRAY, Opcodes.T_BYTE))
+    def newObj(owner: String): Unit = add(new TypeInsnNode(Opcodes.NEW, owner))
+    def checkcast(owner: String): Unit = add(new TypeInsnNode(Opcodes.CHECKCAST, owner))
+    def instanceOf(owner: String): Unit = add(new TypeInsnNode(Opcodes.INSTANCEOF, owner))
+    def anewarray(element: String): Unit = add(new TypeInsnNode(Opcodes.ANEWARRAY, element))
+    def newByteArray(): Unit = add(new IntInsnNode(Opcodes.NEWARRAY, Opcodes.T_BYTE))
     def aaload(): Unit = insn(Opcodes.AALOAD)
     def aastore(): Unit = insn(Opcodes.AASTORE)
     def baload(): Unit = insn(Opcodes.BALOAD)
@@ -121,14 +161,14 @@ object ClassFile:
     def getfield(owner: String, name: String, desc: String): Unit = field(Opcodes.GETFIELD, owner, name, desc)
     def putfield(owner: String, name: String, desc: String): Unit = field(Opcodes.PUTFIELD, owner, name, desc)
     private def field(opcode: Int, owner: String, name: String, desc: String): Unit =
-      instructions.add(new FieldInsnNode(opcode, owner, name, desc))
+      add(new FieldInsnNode(opcode, owner, name, desc))
 
     def invokevirtual(owner: String, name: String, desc: String): Unit = method(Opcodes.INVOKEVIRTUAL, owner, name, desc, false)
     def invokespecial(owner: String, name: String, desc: String): Unit = method(Opcodes.INVOKESPECIAL, owner, name, desc, false)
     def invokestatic(owner: String, name: String, desc: String): Unit = method(Opcodes.INVOKESTATIC, owner, name, desc, false)
     def invokeinterface(owner: String, name: String, desc: String): Unit = method(Opcodes.INVOKEINTERFACE, owner, name, desc, true)
     private def method(opcode: Int, owner: String, name: String, desc: String, isInterface: Boolean): Unit =
-      instructions.add(new MethodInsnNode(opcode, owner, name, desc, isInterface))
+      add(new MethodInsnNode(opcode, owner, name, desc, isInterface))
 
   final case class MethodOut(accessFlags: Int, name: String, desc: String, code: Option[CodeWriter])
   final case class FieldOut(accessFlags: Int, name: String, desc: String)
