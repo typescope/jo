@@ -34,7 +34,6 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
 
     context.requireTopLevel(runtime.start)
     val mainClassMethods = new mutable.ArrayBuffer[MethodOut]()
-    val cp = new ConstantPool
 
     // A single interleaved loop, not "drain topLevelWork, then drain
     // classWork": compiling a class's methods (e.g. a lifted lambda's
@@ -48,37 +47,35 @@ class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: D
       pending.get match
         case Pending.TopLevel(fdef) =>
           if !isNativeOrIntrinsic(fdef.symbol) then
-            mainClassMethods += methodBuilder.compileTopLevel(fdef, cp)
-        case Pending.Class(cdef) => addClassFile(classBuilder.compileClass(cdef, cp))
-        case Pending.Interface(idef) => addClassFile(classBuilder.compileInterface(idef, cp))
+            mainClassMethods += methodBuilder.compileTopLevel(fdef)
+        case Pending.Class(cdef) => addClassFile(classBuilder.compileClass(cdef))
+        case Pending.Interface(idef) => addClassFile(classBuilder.compileInterface(idef))
       pending = context.nextPending()
 
     // Synthetic entry point: `public static void main(String[] args)`
-    mainClassMethods += buildJavaMain(cp)
+    mainClassMethods += buildJavaMain()
 
-    val mainBytes = ClassFile.write(cp, MainClassName, ObjectClass, Nil, Nil, mainClassMethods.toList)
+    val mainBytes = ClassFile.write(MainClassName, ObjectClass, Nil, Nil, mainClassMethods.toList)
     (classFiles.toMap + (MainClassName -> mainBytes), MainClassName)
 
   private def addClassFile(compiled: (String, Array[Byte])): Unit =
     classFiles(compiled._1) = compiled._2
 
-  private def buildJavaMain(cp: ConstantPool): MethodOut =
+  private def buildJavaMain(): MethodOut =
     val startSym = context.resolve(runtime.start)
     val startProcType = startSym.tpe.asProcType
     val startDesc = JVMTypes.methodDescriptor(
       startProcType.paramTypes ++ startProcType.autoTypes,
       startProcType.resultType
     )
-    val cw = new CodeWriter(cp)
-    cw.touchLocal(0) // String[] args
+    val cw = new CodeWriter
     cw.invokestatic(MainClassName, context.topLevelName(startSym), startDesc)
     // `start`'s Jo-level return type is `Unit`, which — like any other Jo
     // value type — now erases to `Ref(Object)` (see `JVMTypes`),
     // comment), not `V`; the real Java `main` truly is `void`, so discard it.
     if JVMTypes.typeOf(startProcType.resultType) != V then cw.pop()
     cw.returnVoid()
-    val (code, ms, ml) = cw.finish()
-    MethodOut(AccessFlags.Public | AccessFlags.Static, "main", "([Ljava/lang/String;)V", Some((code, ms, ml)))
+    MethodOut(AccessFlags.Public | AccessFlags.Static, "main", "([Ljava/lang/String;)V", Some(cw))
 
   private def isNativeOrIntrinsic(sym: Symbol): Boolean =
     runtime.nativeSpec(sym).isDefined || sym.hasAnnotation(defn.intrinsic)

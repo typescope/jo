@@ -275,7 +275,6 @@ final class ExpressionEmitter(
     val endL = ctx.cw.newLabel()
     val hasElse = !elsep.isEmpty
     ctx.cw.ifeq(if hasElse then elseL else endL)
-    val afterCond = ctx.cw.currentStack
     val thenFlow = compile(thenp)
     // A terminal branch never reaches `endL`, so jumping to the merge point
     // would be dead code. Erasure has already normalized both branch values
@@ -283,7 +282,6 @@ final class ExpressionEmitter(
     if hasElse then
       if thenFlow == Flow.FallsThrough then ctx.cw.gotoL(endL)
       ctx.cw.mark(elseL)
-      ctx.cw.setStack(afterCond)
       val elseFlow = compile(elsep)
       ctx.cw.mark(endL)
       if thenFlow == Flow.Terminal && elseFlow == Flow.Terminal then Flow.Terminal
@@ -551,11 +549,9 @@ final class ExpressionEmitter(
     val trueL = ctx.cw.newLabel()
     val endL = ctx.cw.newLabel()
     branchIfTrue(trueL)
-    val afterBranch = ctx.cw.currentStack // depth once both compared operands are popped
     ctx.cw.iconst(0)
     ctx.cw.gotoL(endL)
     ctx.cw.mark(trueL)
-    ctx.cw.setStack(afterBranch) // trueL is reached with the pre-`iconst(0)` depth, not the false arm's
     ctx.cw.iconst(1)
     ctx.cw.mark(endL)
 

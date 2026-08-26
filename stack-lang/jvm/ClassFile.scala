@@ -1,502 +1,148 @@
 package jvm
 
-import scala.collection.mutable
+import org.objectweb.asm.{ClassWriter, Opcodes}
+import org.objectweb.asm.tree.*
 
-/** A dependency-free writer for the class-file subset used by this backend.
-  * It does not emit generic signatures, annotations, or `StackMapTable`.
-  *
-  * Class files are emitted with major version 49 (Java 5). That predates the
-  * requirement (introduced in version 50 / Java 6) for methods to carry an
-  * explicit `StackMapTable` attribute, so the JVM falls back to its legacy
-  * type-inferring verifier. Every current JVM still accepts old class file
-  * versions, allowing verification without stack-map-frame computation.
+/** ASM-backed JVM class-file construction. ASM computes constant-pool layout,
+  * instruction sizes, branch offsets, maximums, and stack-map frames.
   */
 object ClassFile:
-  val MinorVersion = 0
-  val MajorVersion = 49 // Java 5 — legacy verifier, no StackMapTable required
-
   object AccessFlags:
-    val Public    = 0x0001
-    val Static    = 0x0008
-    val Final     = 0x0010
-    val Super     = 0x0020
-    val Interface = 0x0200
-    val Abstract  = 0x0400
+    val Public = Opcodes.ACC_PUBLIC
+    val Static = Opcodes.ACC_STATIC
+    val Final = Opcodes.ACC_FINAL
+    val Super = Opcodes.ACC_SUPER
+    val Interface = Opcodes.ACC_INTERFACE
+    val Abstract = Opcodes.ACC_ABSTRACT
 
-  //----------------------------------------------------------------------------
-  // Constant pool
-  //----------------------------------------------------------------------------
+  type Label = LabelNode
 
-  sealed trait ConstantPoolEntry:
-    /** Number of constant-pool slots this entry occupies (Long/Double take 2). */
-    def width: Int = 1
+  final class CodeWriter:
+    private[ClassFile] val instructions = new InsnList
+    private def insn(opcode: Int): Unit = instructions.add(new InsnNode(opcode))
+    private def jump(opcode: Int, target: Label): Unit = instructions.add(new JumpInsnNode(opcode, target))
 
-  object ConstantPoolEntry:
-    case class Utf8(s: String) extends ConstantPoolEntry
-    case class ClassRef(nameIdx: Int) extends ConstantPoolEntry
-    case class NameAndType(nameIdx: Int, descIdx: Int) extends ConstantPoolEntry
-    case class Fieldref(classIdx: Int, ntIdx: Int) extends ConstantPoolEntry
-    case class Methodref(classIdx: Int, ntIdx: Int) extends ConstantPoolEntry
-    case class InterfaceMethodref(classIdx: Int, ntIdx: Int) extends ConstantPoolEntry
-    case class StringRef(utf8Idx: Int) extends ConstantPoolEntry
-    case class IntegerEntry(v: Int) extends ConstantPoolEntry
-    case class FloatEntry(v: Float) extends ConstantPoolEntry
-    case class LongEntry(v: Long) extends ConstantPoolEntry:
-      override def width = 2
-    case class DoubleEntry(v: Double) extends ConstantPoolEntry:
-      override def width = 2
+    def newLabel(): Label = new LabelNode
+    def mark(label: Label): Unit = instructions.add(label)
+    def iconst(value: Int): Unit =
+      if value >= -1 && value <= 5 then insn(Opcodes.ICONST_0 + value)
+      else if value >= Byte.MinValue && value <= Byte.MaxValue then instructions.add(new IntInsnNode(Opcodes.BIPUSH, value))
+      else if value >= Short.MinValue && value <= Short.MaxValue then instructions.add(new IntInsnNode(Opcodes.SIPUSH, value))
+      else instructions.add(new LdcInsnNode(Integer.valueOf(value)))
+    def lconst(value: Long): Unit =
+      if value == 0L then insn(Opcodes.LCONST_0)
+      else if value == 1L then insn(Opcodes.LCONST_1)
+      else instructions.add(new LdcInsnNode(java.lang.Long.valueOf(value)))
+    def stringConst(value: String): Unit = instructions.add(new LdcInsnNode(value))
+    def aconstNull(): Unit = insn(Opcodes.ACONST_NULL)
 
-  /** Builds a class file constant pool, deduplicating entries. */
-  final class ConstantPool:
-    // Slot 0 is reserved by the JVM spec; real entries start at index 1.
-    private val entries = new mutable.ArrayBuffer[ConstantPoolEntry]()
-    private val index = mutable.Map.empty[ConstantPoolEntry, Int]
-    private var nextIdx = 1
+    def iload(slot: Int): Unit = instructions.add(new VarInsnNode(Opcodes.ILOAD, slot))
+    def lload(slot: Int): Unit = instructions.add(new VarInsnNode(Opcodes.LLOAD, slot))
+    def aload(slot: Int): Unit = instructions.add(new VarInsnNode(Opcodes.ALOAD, slot))
+    def istore(slot: Int): Unit = instructions.add(new VarInsnNode(Opcodes.ISTORE, slot))
+    def lstore(slot: Int): Unit = instructions.add(new VarInsnNode(Opcodes.LSTORE, slot))
+    def astore(slot: Int): Unit = instructions.add(new VarInsnNode(Opcodes.ASTORE, slot))
 
-    private def intern(e: ConstantPoolEntry): Int =
-      index.get(e) match
-        case Some(i) => i
-        case None =>
-          val i = nextIdx
-          entries += e
-          index(e) = i
-          nextIdx += e.width
-          i
+    def dup(): Unit = insn(Opcodes.DUP)
+    def pop(): Unit = insn(Opcodes.POP)
+    def swap(): Unit = insn(Opcodes.SWAP)
+    def iadd(): Unit = insn(Opcodes.IADD)
+    def isub(): Unit = insn(Opcodes.ISUB)
+    def imul(): Unit = insn(Opcodes.IMUL)
+    def idiv(): Unit = insn(Opcodes.IDIV)
+    def irem(): Unit = insn(Opcodes.IREM)
+    def ineg(): Unit = insn(Opcodes.INEG)
+    def iand(): Unit = insn(Opcodes.IAND)
+    def ior(): Unit = insn(Opcodes.IOR)
+    def ixor(): Unit = insn(Opcodes.IXOR)
+    def ishl(): Unit = insn(Opcodes.ISHL)
+    def ishr(): Unit = insn(Opcodes.ISHR)
+    def ladd(): Unit = insn(Opcodes.LADD)
+    def lsub(): Unit = insn(Opcodes.LSUB)
+    def lmul(): Unit = insn(Opcodes.LMUL)
+    def ldiv(): Unit = insn(Opcodes.LDIV)
+    def lrem(): Unit = insn(Opcodes.LREM)
+    def lneg(): Unit = insn(Opcodes.LNEG)
+    def land(): Unit = insn(Opcodes.LAND)
+    def lor(): Unit = insn(Opcodes.LOR)
+    def lxor(): Unit = insn(Opcodes.LXOR)
+    def lshl(): Unit = insn(Opcodes.LSHL)
+    def lshr(): Unit = insn(Opcodes.LSHR)
+    def lcmp(): Unit = insn(Opcodes.LCMP)
+    def l2i(): Unit = insn(Opcodes.L2I)
+    def i2l(): Unit = insn(Opcodes.I2L)
 
-    def utf8(s: String): Int = intern(ConstantPoolEntry.Utf8(s))
-    def classRef(internalName: String): Int = intern(ConstantPoolEntry.ClassRef(utf8(internalName)))
-    def nameAndType(name: String, desc: String): Int = intern(ConstantPoolEntry.NameAndType(utf8(name), utf8(desc)))
-    def fieldref(owner: String, name: String, desc: String): Int =
-      intern(ConstantPoolEntry.Fieldref(classRef(owner), nameAndType(name, desc)))
-    def methodref(owner: String, name: String, desc: String): Int =
-      intern(ConstantPoolEntry.Methodref(classRef(owner), nameAndType(name, desc)))
-    def interfaceMethodref(owner: String, name: String, desc: String): Int =
-      intern(ConstantPoolEntry.InterfaceMethodref(classRef(owner), nameAndType(name, desc)))
-    def stringConst(s: String): Int = intern(ConstantPoolEntry.StringRef(utf8(s)))
-    def intConst(v: Int): Int = intern(ConstantPoolEntry.IntegerEntry(v))
-    def floatConst(v: Float): Int = intern(ConstantPoolEntry.FloatEntry(v))
-    def longConst(v: Long): Int = intern(ConstantPoolEntry.LongEntry(v))
+    def gotoL(target: Label): Unit = jump(Opcodes.GOTO, target)
+    def ifeq(target: Label): Unit = jump(Opcodes.IFEQ, target)
+    def ifne(target: Label): Unit = jump(Opcodes.IFNE, target)
+    def ifnull(target: Label): Unit = jump(Opcodes.IFNULL, target)
+    def ifnonnull(target: Label): Unit = jump(Opcodes.IFNONNULL, target)
+    def ifIcmp(condition: String, target: Label): Unit = jump(conditionOpcode(condition, Opcodes.IF_ICMPEQ), target)
+    def ifCond(condition: String, target: Label): Unit = jump(conditionOpcode(condition, Opcodes.IFEQ), target)
+    def ifAcmp(condition: String, target: Label): Unit =
+      jump(condition match
+        case "eq" => Opcodes.IF_ACMPEQ
+        case "ne" => Opcodes.IF_ACMPNE
+        case other => throw new IllegalArgumentException("Unsupported reference comparison: " + other), target)
 
-    private[ClassFile] def write(out: ByteWriter): Unit =
-      out.u2(nextIdx) // constant_pool_count = highest index + 1
-      for e <- entries do
-        e match
-          case ConstantPoolEntry.Utf8(s) =>
-            out.u1(1); out.utf8Bytes(s)
-          case ConstantPoolEntry.IntegerEntry(v) =>
-            out.u1(3); out.u4(v)
-          case ConstantPoolEntry.FloatEntry(v) =>
-            out.u1(4); out.u4(java.lang.Float.floatToIntBits(v))
-          case ConstantPoolEntry.LongEntry(v) =>
-            out.u1(5); out.u8(v)
-          case ConstantPoolEntry.DoubleEntry(v) =>
-            out.u1(6); out.u8(java.lang.Double.doubleToLongBits(v))
-          case ConstantPoolEntry.ClassRef(nameIdx) =>
-            out.u1(7); out.u2(nameIdx)
-          case ConstantPoolEntry.StringRef(utf8Idx) =>
-            out.u1(8); out.u2(utf8Idx)
-          case ConstantPoolEntry.Fieldref(c, nt) =>
-            out.u1(9); out.u2(c); out.u2(nt)
-          case ConstantPoolEntry.Methodref(c, nt) =>
-            out.u1(10); out.u2(c); out.u2(nt)
-          case ConstantPoolEntry.InterfaceMethodref(c, nt) =>
-            out.u1(11); out.u2(c); out.u2(nt)
-          case ConstantPoolEntry.NameAndType(n, d) =>
-            out.u1(12); out.u2(n); out.u2(d)
-  end ConstantPool
+    private def conditionOpcode(condition: String, equalOpcode: Int): Int =
+      equalOpcode + (condition match
+        case "eq" => 0
+        case "ne" => 1
+        case "lt" => 2
+        case "ge" => 3
+        case "gt" => 4
+        case "le" => 5
+        case other => throw new IllegalArgumentException("Unsupported comparison: " + other))
 
-  //----------------------------------------------------------------------------
-  // Byte output helper
-  //----------------------------------------------------------------------------
+    def ireturn(): Unit = insn(Opcodes.IRETURN)
+    def lreturn(): Unit = insn(Opcodes.LRETURN)
+    def areturn(): Unit = insn(Opcodes.ARETURN)
+    def returnVoid(): Unit = insn(Opcodes.RETURN)
+    def athrow(): Unit = insn(Opcodes.ATHROW)
+    def newObj(owner: String): Unit = instructions.add(new TypeInsnNode(Opcodes.NEW, owner))
+    def checkcast(owner: String): Unit = instructions.add(new TypeInsnNode(Opcodes.CHECKCAST, owner))
+    def instanceOf(owner: String): Unit = instructions.add(new TypeInsnNode(Opcodes.INSTANCEOF, owner))
+    def anewarray(element: String): Unit = instructions.add(new TypeInsnNode(Opcodes.ANEWARRAY, element))
+    def aaload(): Unit = insn(Opcodes.AALOAD)
+    def aastore(): Unit = insn(Opcodes.AASTORE)
+    def arraylength(): Unit = insn(Opcodes.ARRAYLENGTH)
 
-  final class ByteWriter:
-    val buf = new mutable.ArrayBuffer[Byte]()
+    def getstatic(owner: String, name: String, desc: String): Unit = field(Opcodes.GETSTATIC, owner, name, desc)
+    def putstatic(owner: String, name: String, desc: String): Unit = field(Opcodes.PUTSTATIC, owner, name, desc)
+    def getfield(owner: String, name: String, desc: String): Unit = field(Opcodes.GETFIELD, owner, name, desc)
+    def putfield(owner: String, name: String, desc: String): Unit = field(Opcodes.PUTFIELD, owner, name, desc)
+    private def field(opcode: Int, owner: String, name: String, desc: String): Unit =
+      instructions.add(new FieldInsnNode(opcode, owner, name, desc))
 
-    def pos: Int = buf.size
+    def invokevirtual(owner: String, name: String, desc: String): Unit = method(Opcodes.INVOKEVIRTUAL, owner, name, desc, false)
+    def invokespecial(owner: String, name: String, desc: String): Unit = method(Opcodes.INVOKESPECIAL, owner, name, desc, false)
+    def invokestatic(owner: String, name: String, desc: String): Unit = method(Opcodes.INVOKESTATIC, owner, name, desc, false)
+    def invokeinterface(owner: String, name: String, desc: String): Unit = method(Opcodes.INVOKEINTERFACE, owner, name, desc, true)
+    private def method(opcode: Int, owner: String, name: String, desc: String, isInterface: Boolean): Unit =
+      instructions.add(new MethodInsnNode(opcode, owner, name, desc, isInterface))
 
-    def u1(v: Int): Unit = buf += v.toByte
-    def u2(v: Int): Unit = { buf += ((v >>> 8) & 0xff).toByte; buf += (v & 0xff).toByte }
-    def u4(v: Int): Unit =
-      buf += ((v >>> 24) & 0xff).toByte
-      buf += ((v >>> 16) & 0xff).toByte
-      buf += ((v >>> 8) & 0xff).toByte
-      buf += (v & 0xff).toByte
-    def u8(v: Long): Unit = { u4(((v >>> 32) & 0xffffffffL).toInt); u4((v & 0xffffffffL).toInt) }
-
-    /** Encode as JVM "modified UTF-8" (JVMS 4.4.7), not plain UTF-8: NUL is
-      * `0xC0 0x80` instead of a literal zero byte, and — the part plain
-      * `s.getBytes("UTF-8")` gets wrong — characters outside the Basic
-      * Multilingual Plane (e.g. emoji) are encoded as a *surrogate pair*,
-      * each UTF-16 half separately 3-byte-encoded (6 bytes total), not as
-      * a single 4-byte UTF-8 sequence. Encoding each `Char` (UTF-16 code
-      * unit) of the Scala/Java string independently, rather than decoding
-      * to Unicode code points first, produces exactly that.
-      */
-    def utf8Bytes(s: String): Unit =
-      val encoded = new mutable.ArrayBuffer[Byte]()
-      for c <- s do
-        val cp = c.toInt
-        if cp == 0 then
-          encoded += 0xC0.toByte; encoded += 0x80.toByte
-        else if cp <= 0x7F then
-          encoded += cp.toByte
-        else if cp <= 0x7FF then
-          encoded += (0xC0 | (cp >> 6)).toByte
-          encoded += (0x80 | (cp & 0x3F)).toByte
-        else
-          encoded += (0xE0 | (cp >> 12)).toByte
-          encoded += (0x80 | ((cp >> 6) & 0x3F)).toByte
-          encoded += (0x80 | (cp & 0x3F)).toByte
-      u2(encoded.size)
-      buf ++= encoded
-
-    /** Patch a previously-written u2 (big-endian) at an absolute position. */
-    def patchU2(at: Int, v: Int): Unit =
-      buf(at) = ((v >>> 8) & 0xff).toByte
-      buf(at + 1) = (v & 0xff).toByte
-
-    def toByteArray: Array[Byte] = buf.toArray
-  end ByteWriter
-
-  //----------------------------------------------------------------------------
-  // Labels and code buffer (bytecode assembler)
-  //----------------------------------------------------------------------------
-
-  final class Label
-  private case class Patch(operandPos: Int, opcodePos: Int, target: Label)
-
-  /** Accumulates bytecode for a single method body, tracking stack depth and
-    * resolving branch targets after the fact (a simple two-pass assembler,
-    * mirroring the approach in native/Assembly.scala but for JVM opcodes).
-    */
-  final class CodeWriter(val constants: ConstantPool):
-    private val cp = constants
-    private val out = new ByteWriter
-    private var curStack = 0
-    private var maxStackSeen = 0
-    private var maxLocalsSeen = 0
-    private val labelPos = mutable.Map.empty[Label, Int]
-    private val patches = new mutable.ArrayBuffer[Patch]()
-
-    def pos: Int = out.pos
-    def newLabel(): Label = new Label
-    def mark(l: Label): Unit = labelPos(l) = out.pos
-
-    def touchLocal(slot: Int, widthTwo: Boolean = false): Unit =
-      val top = slot + (if widthTwo then 2 else 1)
-      if top > maxLocalsSeen then maxLocalsSeen = top
-
-    def maxLocals: Int = maxLocalsSeen
-
-    /** Adjust the tracked operand-stack depth. Call after each instruction. */
-    def stackDelta(d: Int): Unit =
-      curStack += d
-      assert(curStack >= 0, "stack underflow, depth = " + curStack)
-      if curStack > maxStackSeen then maxStackSeen = curStack
-
-    /** Explicitly note the stack depth at a forward jump target reached only
-      * via `goto`/branch (i.e. where fall-through analysis can't see it) —
-      * used at the start of else/end blocks so maxStack stays adequate even
-      * though our tracker is a simple linear pass, not real dataflow.
-      */
-    def setStack(n: Int): Unit = curStack = n
-    def currentStack: Int = curStack
-
-    private def op(b: Int): Unit = out.u1(b)
-
-    // ---- constants ----
-    def iconst(n: Int): Unit =
-      n match
-        case -1              => op(2); stackDelta(1)
-        case _ if n >= 0 && n <= 5 => op(3 + n); stackDelta(1)
-        case _ if n >= Byte.MinValue && n <= Byte.MaxValue => op(16); out.u1(n); stackDelta(1)
-        case _ if n >= Short.MinValue && n <= Short.MaxValue => op(17); out.u2(n & 0xffff); stackDelta(1)
-        case _ => ldc(cp.intConst(n))
-
-    def ldc(cpIndex: Int): Unit =
-      if cpIndex <= 0xff then { op(18); out.u1(cpIndex) }
-      else { op(19); out.u2(cpIndex) }
-      stackDelta(1)
-
-    def stringConst(value: String): Unit = ldc(cp.stringConst(value))
-
-    // `long`/`double` constant-pool entries are category-2 (see
-    // `ConstantPoolEntry.width`); loading one always needs the wide
-    // `ldc2_w` form — there's no single-byte-index variant like `ldc` has.
-    def ldc2(cpIndex: Int): Unit = { op(20); out.u2(cpIndex); stackDelta(2) }
-
-    def aconstNull(): Unit = { op(1); stackDelta(1) }
-
-    def lconst(n: Long): Unit =
-      if n == 0L then { op(9); stackDelta(2) }
-      else if n == 1L then { op(10); stackDelta(2) }
-      else ldc2(cp.longConst(n))
-
-    // ---- locals ----
-    def iload(slot: Int): Unit = { touchLocal(slot); loadOp(21, slot); stackDelta(1) }
-    def lload(slot: Int): Unit = { touchLocal(slot, widthTwo = true); loadOp(22, slot); stackDelta(2) }
-    def aload(slot: Int): Unit = { touchLocal(slot); loadOp(25, slot); stackDelta(1) }
-    def istore(slot: Int): Unit = { touchLocal(slot); storeOp(54, slot); stackDelta(-1) }
-    def lstore(slot: Int): Unit = { touchLocal(slot, widthTwo = true); storeOp(55, slot); stackDelta(-2) }
-    def astore(slot: Int): Unit = { touchLocal(slot); storeOp(58, slot); stackDelta(-1) }
-
-    private def loadOp(baseWide: Int, slot: Int): Unit =
-      val shortBase = baseWide match
-        case 21 => 26 // iload_0
-        case 22 => 30 // lload_0
-        case 25 => 42 // aload_0
-      if slot <= 3 then op(shortBase + slot)
-      else { op(baseWide); out.u1(slot) }
-
-    private def storeOp(baseWide: Int, slot: Int): Unit =
-      val shortBase = baseWide match
-        case 54 => 59 // istore_0
-        case 55 => 63 // lstore_0
-        case 58 => 75 // astore_0
-      if slot <= 3 then op(shortBase + slot)
-      else { op(baseWide); out.u1(slot) }
-
-    // ---- stack ops ----
-    def dup(): Unit = { op(89); stackDelta(1) }
-    def pop(): Unit = { op(87); stackDelta(-1) }
-    def swap(): Unit = { op(95); stackDelta(0) }
-
-    // ---- arithmetic (int) ----
-    def iadd(): Unit = { op(96); stackDelta(-1) }
-    def isub(): Unit = { op(100); stackDelta(-1) }
-    def imul(): Unit = { op(104); stackDelta(-1) }
-    def idiv(): Unit = { op(108); stackDelta(-1) }
-    def irem(): Unit = { op(112); stackDelta(-1) }
-    def ineg(): Unit = { op(116); stackDelta(0) }
-    def iand(): Unit = { op(126); stackDelta(-1) }
-    def ior(): Unit  = { op(128); stackDelta(-1) }
-    def ixor(): Unit = { op(130); stackDelta(-1) }
-    def ishl(): Unit = { op(120); stackDelta(-1) }
-    def ishr(): Unit = { op(122); stackDelta(-1) }
-
-    // ---- arithmetic (long) ----
-    // Every operand/result here is category-2 (2 operand-stack words), per
-    // JVMS §2.11.1, except the shifts, whose shift-amount operand is a
-    // plain (category-1) `int`, and `lcmp`, which produces a category-1
-    // `int` (-1/0/1) — `stackDelta` below reflects that word accounting,
-    // not "how many values".
-    def ladd(): Unit = { op(97); stackDelta(-2) }
-    def lsub(): Unit = { op(101); stackDelta(-2) }
-    def lmul(): Unit = { op(105); stackDelta(-2) }
-    def ldiv(): Unit = { op(109); stackDelta(-2) }
-    def lrem(): Unit = { op(113); stackDelta(-2) }
-    def lneg(): Unit = { op(117); stackDelta(0) }
-    def land(): Unit = { op(127); stackDelta(-2) }
-    def lor(): Unit  = { op(129); stackDelta(-2) }
-    def lxor(): Unit = { op(131); stackDelta(-2) }
-    def lshl(): Unit = { op(121); stackDelta(-1) }
-    def lshr(): Unit = { op(123); stackDelta(-1) }
-    def lcmp(): Unit = { op(148); stackDelta(-3) }
-    def l2i(): Unit  = { op(136); stackDelta(-1) }
-    def i2l(): Unit  = { op(133); stackDelta(1) }
-
-    // ---- control flow ----
-    private def branch(opcode: Int, target: Label, stackEffect: Int): Unit =
-      val opcodePos = out.pos
-      op(opcode)
-      val operandPos = out.pos
-      out.u2(0) // placeholder, patched in resolve()
-      patches += Patch(operandPos, opcodePos, target)
-      stackDelta(stackEffect)
-
-    def gotoL(target: Label): Unit = branch(167, target, 0)
-    def ifeq(target: Label): Unit = branch(153, target, -1)
-    def ifne(target: Label): Unit = branch(154, target, -1)
-    def ifnull(target: Label): Unit = branch(198, target, -1)
-    def ifnonnull(target: Label): Unit = branch(199, target, -1)
-    def ifIcmp(cond: String, target: Label): Unit =
-      val opcode = cond match
-        case "eq" => 159
-        case "ne" => 160
-        case "lt" => 161
-        case "ge" => 162
-        case "gt" => 163
-        case "le" => 164
-      branch(opcode, target, -2)
-    def ifAcmp(cond: String, target: Label): Unit =
-      val opcode = cond match
-        case "eq" => 165
-        case "ne" => 166
-      branch(opcode, target, -2)
-
-    // Single-operand int-vs-zero branch — used directly for `Bool`
-    // truth-testing (`ifeq`/`ifne` above) and, after `lcmp` reduces a
-    // `Long` comparison to an int -1/0/1, for the other four conditions too.
-    def ifCond(cond: String, target: Label): Unit =
-      val opcode = cond match
-        case "eq" => 153
-        case "ne" => 154
-        case "lt" => 155
-        case "ge" => 156
-        case "gt" => 157
-        case "le" => 158
-      branch(opcode, target, -1)
-
-    def ireturn(): Unit = { op(172); stackDelta(-1) }
-    def lreturn(): Unit = { op(173); stackDelta(-2) }
-    def areturn(): Unit = { op(176); stackDelta(-1) }
-    def returnVoid(): Unit = { op(177); stackDelta(0) }
-    def athrow(): Unit = { op(191); stackDelta(0) }
-
-    // ---- objects ----
-    def newObj(internalClassName: String): Unit = { op(187); out.u2(cp.classRef(internalClassName)); stackDelta(1) }
-    def checkcast(internalClassName: String): Unit = { op(192); out.u2(cp.classRef(internalClassName)); stackDelta(0) }
-    def instanceOf(internalClassName: String): Unit = { op(193); out.u2(cp.classRef(internalClassName)); stackDelta(0) }
-
-    def anewarray(elemInternalClassName: String): Unit = { op(189); out.u2(cp.classRef(elemInternalClassName)); stackDelta(0) }
-    def aaload(): Unit = { op(50); stackDelta(-1) }
-    def aastore(): Unit = { op(83); stackDelta(-3) }
-    def arraylength(): Unit = { op(190); stackDelta(0) }
-
-    def getstatic(owner: String, name: String, desc: String): Unit =
-      op(178); out.u2(cp.fieldref(owner, name, desc)); stackDelta(descWords(desc))
-    def putstatic(owner: String, name: String, desc: String): Unit =
-      op(179); out.u2(cp.fieldref(owner, name, desc)); stackDelta(-descWords(desc))
-    def getfield(owner: String, name: String, desc: String): Unit =
-      op(180); out.u2(cp.fieldref(owner, name, desc)); stackDelta(descWords(desc) - 1)
-    def putfield(owner: String, name: String, desc: String): Unit =
-      op(181); out.u2(cp.fieldref(owner, name, desc)); stackDelta(-descWords(desc) - 1)
-
-    def invokevirtual(owner: String, name: String, desc: String): Unit =
-      op(182); out.u2(cp.methodref(owner, name, desc)); stackDelta(invokeEffect(desc, hasReceiver = true))
-    def invokespecial(owner: String, name: String, desc: String): Unit =
-      op(183); out.u2(cp.methodref(owner, name, desc)); stackDelta(invokeEffect(desc, hasReceiver = true))
-    def invokestatic(owner: String, name: String, desc: String): Unit =
-      op(184); out.u2(cp.methodref(owner, name, desc)); stackDelta(invokeEffect(desc, hasReceiver = false))
-    def invokeinterface(owner: String, name: String, desc: String): Unit =
-      val argWords = paramWords(desc)
-      op(185); out.u2(cp.interfaceMethodref(owner, name, desc)); out.u1(argWords + 1); out.u1(0)
-      stackDelta(invokeEffect(desc, hasReceiver = true))
-
-    /** Descriptor width in operand-stack words (0 for `V`, 2 for J/D, else 1). */
-    private def descWords(desc: String): Int =
-      desc match
-        case "V" => 0
-        case "J" | "D" => 2
-        case _ => 1
-
-    private def paramWords(methodDesc: String): Int =
-      val params = methodDesc.substring(1, methodDesc.indexOf(')'))
-      var i = 0
-      var words = 0
-      while i < params.length do
-        params(i) match
-          case 'J' | 'D' => words += 2; i += 1
-          case 'L' => i = params.indexOf(';', i) + 1; words += 1
-          case '[' =>
-            var j = i
-            while params(j) == '[' do j += 1
-            if params(j) == 'L' then j = params.indexOf(';', j)
-            i = j + 1
-            words += 1
-          case _ => i += 1; words += 1
-      words
-
-    private def invokeEffect(methodDesc: String, hasReceiver: Boolean): Int =
-      val retIdx = methodDesc.indexOf(')') + 1
-      val retDesc = methodDesc.substring(retIdx)
-      val argWords = paramWords(methodDesc)
-      val ret = descWords(retDesc)
-      ret - argWords - (if hasReceiver then 1 else 0)
-
-    /** Resolve all recorded branch targets and return the finished bytecode
-      * along with computed max_stack / max_locals.
-      */
-    def finish(): (Array[Byte], Int, Int) =
-      for Patch(operandPos, opcodePos, target) <- patches do
-        val t = labelPos.getOrElse(target, throw new Exception("Unresolved label"))
-        val offset = t - opcodePos
-        out.patchU2(operandPos, offset & 0xffff)
-      (out.toByteArray, math.max(maxStackSeen, 1), math.max(maxLocalsSeen, 1))
-  end CodeWriter
-
-  //----------------------------------------------------------------------------
-  // Class / field / method assembly
-  //----------------------------------------------------------------------------
-
-  final case class MethodOut(
-    accessFlags: Int, name: String, desc: String,
-    code: Option[(Array[Byte], Int, Int)] // (bytecode, maxStack, maxLocals); None for abstract
-  )
-
+  final case class MethodOut(accessFlags: Int, name: String, desc: String, code: Option[CodeWriter])
   final case class FieldOut(accessFlags: Int, name: String, desc: String)
 
-  /** Assemble and return the bytes of a complete `.class` file.
-    *
-    * `cp` must be the same [[ConstantPool]] instance used by the
-    * [[CodeWriter]]s that produced `methods`' bytecode, since method bodies
-    * reference constants by index into it.
-    */
   def write(
-    cp: ConstantPool,
-    thisClass: String,
-    superClass: String,
-    interfaces: List[String],
-    fields: List[FieldOut],
-    methods: List[MethodOut],
+    thisClass: String, superClass: String, interfaces: List[String],
+    fields: List[FieldOut], methods: List[MethodOut],
     accessFlags: Int = AccessFlags.Public | AccessFlags.Super
   ): Array[Byte] =
-    val thisIdx = cp.classRef(thisClass)
-    val superIdx = cp.classRef(superClass)
-    val ifaceIdxs = interfaces.map(cp.classRef)
-
-    // Pre-touch all UTF8/name/desc/code entries so the pool is fully built
-    // before we serialize it (methods reference cp indices computed above).
-    val codeAttrNameIdx = cp.utf8("Code")
-
-    val fieldBytes = fields.map { f =>
-      val nameIdx = cp.utf8(f.name)
-      val descIdx = cp.utf8(f.desc)
-      (f.accessFlags, nameIdx, descIdx)
-    }
-
-    val methodBytes = methods.map { m =>
-      val nameIdx = cp.utf8(m.name)
-      val descIdx = cp.utf8(m.desc)
-      (m.accessFlags, nameIdx, descIdx, m.code)
-    }
-
-    val out = new ByteWriter
-    out.u4(0xCAFEBABE)
-    out.u2(MinorVersion)
-    out.u2(MajorVersion)
-
-    cp.write(out)
-
-    out.u2(accessFlags)
-    out.u2(thisIdx)
-    out.u2(superIdx)
-    out.u2(ifaceIdxs.size)
-    for i <- ifaceIdxs do out.u2(i)
-
-    out.u2(fieldBytes.size)
-    for (flags, nameIdx, descIdx) <- fieldBytes do
-      out.u2(flags); out.u2(nameIdx); out.u2(descIdx); out.u2(0) // no attributes
-
-    out.u2(methodBytes.size)
-    for (flags, nameIdx, descIdx, codeOpt) <- methodBytes do
-      out.u2(flags); out.u2(nameIdx); out.u2(descIdx)
-      codeOpt match
-        case None =>
-          out.u2(0) // no attributes (abstract/interface method)
-        case Some((bytecode, maxStack, maxLocals)) =>
-          out.u2(1) // one attribute: Code
-          out.u2(codeAttrNameIdx)
-          val codeAttrLen = 2 + 2 + 4 + bytecode.length + 2 + 0 + 2 + 0 // stack+locals+codeLen+code+excTable+attrs
-          out.u4(codeAttrLen)
-          out.u2(maxStack)
-          out.u2(maxLocals)
-          out.u4(bytecode.length)
-          out.buf ++= bytecode
-          out.u2(0) // exception table
-          out.u2(0) // no code attributes
-
-    out.u2(0) // no class attributes
-
-    out.toByteArray
+    val writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS):
+      override protected def getCommonSuperClass(left: String, right: String): String =
+        if left == right then left else "java/lang/Object"
+    writer.visit(Opcodes.V17, accessFlags, thisClass, null, superClass, interfaces.toArray)
+    fields.foreach: field =>
+      writer.visitField(field.accessFlags, field.name, field.desc, null, null).visitEnd()
+    methods.foreach: method =>
+      val visitor = writer.visitMethod(method.accessFlags, method.name, method.desc, null, null)
+      method.code.foreach: code =>
+        visitor.visitCode()
+        code.instructions.accept(visitor)
+        visitor.visitMaxs(0, 0)
+      visitor.visitEnd()
+    writer.visitEnd()
+    writer.toByteArray
 end ClassFile

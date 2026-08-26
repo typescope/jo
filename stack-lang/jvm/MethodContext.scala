@@ -24,9 +24,6 @@ final class MethodSlots:
   def apply(sym: Symbol): Int = slots(sym)
   def contains(sym: Symbol): Boolean = slots.contains(sym)
 
-  /** Total slots allocated, including parameters that the method never reads. */
-  def used: Int = next
-
 /** Mutable state scoped to one method body. */
 final class MethodContext(
   val cw: CodeWriter,

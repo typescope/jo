@@ -19,29 +19,26 @@ import jvm.ClassFile.*
   */
 object RuntimeClasses:
   def nodeClass(): (String, Array[Byte]) =
-    val cp = new ConstantPool
     val fields = List(
       FieldOut(AccessFlags.Public, "next", "Ljava/lang/Object;"),
       FieldOut(AccessFlags.Public, "key", "Ljava/lang/Object;"),
       FieldOut(AccessFlags.Public, "value", "Ljava/lang/Object;"),
       FieldOut(AccessFlags.Public | AccessFlags.Static, "NULL", "Ljava/lang/Object;"),
     )
-    val cw = new CodeWriter(cp)
+    val cw = new CodeWriter
     cw.aload(0)
     cw.invokespecial("java/lang/Object", "<init>", "()V")
     cw.returnVoid()
-    val (code, ms, ml) = cw.finish()
-    val ctor = MethodOut(AccessFlags.Public, "<init>", "()V", Some((code, ms, ml)))
-    val bytes = ClassFile.write(cp, "Node", "java/lang/Object", Nil, fields, List(ctor))
+    val ctor = MethodOut(AccessFlags.Public, "<init>", "()V", Some(cw))
+    val bytes = ClassFile.write("Node", "java/lang/Object", Nil, fields, List(ctor))
     "Node" -> bytes
 
   def lambdaInterface(): (String, Array[Byte]) =
-    val cp = new ConstantPool
     val applyMethod = MethodOut(
       AccessFlags.Public | AccessFlags.Abstract, "apply", "([Ljava/lang/Object;)Ljava/lang/Object;", None
     )
     val bytes = ClassFile.write(
-      cp, "Lambda", "java/lang/Object", Nil, Nil, List(applyMethod),
+      "Lambda", "java/lang/Object", Nil, Nil, List(applyMethod),
       accessFlags = AccessFlags.Public | AccessFlags.Interface | AccessFlags.Abstract
     )
     "Lambda" -> bytes
