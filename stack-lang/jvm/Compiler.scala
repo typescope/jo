@@ -57,6 +57,16 @@ object Compiler:
 
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
+      // The `jvm` root has to exist before typing, since that is when an
+      // `import jvm.java.io.File` is resolved. It is registered whether or not
+      // Java interop is enabled: when it is not, looking anything up under it
+      // reports why, which beats "`java` is not a member of jvm".
+      val javaSymbols = new JavaSymbols(
+        new JavaClasspath(Config.javaLibPaths.value),
+        enabled = Config.enableJavaFfi.value
+      )
+      rootNameTable.define(javaSymbols.root)
+
       val defaultRuntimePackages = Config.JvmRuntimePath :: Nil
 
       val units = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, "jo.jvm.runtime.RefArray") <| "Frontend"
@@ -64,7 +74,7 @@ object Compiler:
       locally {
         given defn: Definitions = lazyDefn.value
 
-        val jvmRuntime = new JVMRuntime
+        val jvmRuntime = new JVMRuntime(javaSymbols)
         val contextParamsLower = new LowerContextParams(jvmRuntime.ParamSupport)
 
         // Untagged (real JVM primitive/String-equivalent) representation —

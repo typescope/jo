@@ -54,6 +54,11 @@ object JVMTypes:
             // Array operations use Object[] instructions, while ordinary
             // Jo-level Array values use the erased Object representation.
             case Some(sym) if sym == defn.Array_class => Object
+            // An external (Java) class is not one this backend names or emits:
+            // it crosses Jo-level boundaries as a plain `Object`, and the real
+            // Java descriptor only reappears at the FFI call itself, where
+            // `NativeCalls` casts to it.
+            case Some(sym) if sym.isExternal => Object
             case Some(sym) => Class(sym)
             case None => Object
 

@@ -394,6 +394,20 @@ final class ExpressionEmitter(
     * static top-level helper.
     */
   private def compileMethodCall(apply: Apply, qual: Word, name: String, args: List[Word])(using ctx: MethodCtx): Unit =
+    val methodSym = apply.memberSymbol.getOrElse(
+      throw new Exception("Cannot resolve method symbol for ." + name))
+
+    // A method reflected out of a Java class file (`JavaSymbols`) carries the
+    // same owner/member/descriptor spec a hand-written `@extern` does, and its
+    // receiver is just the spec's first operand — so it lowers through
+    // `NativeCalls` rather than through this backend's own class naming, which
+    // knows nothing about `java/io/FileWriter`.
+    runtime.nativeSpec(methodSym) match
+      case Some(spec) if methodSym.isExternal =>
+        nativeCalls.compile(spec, qual :: args, apply.tpe, ctx.cw)
+        return
+      case _ =>
+
     // `.classSymbol` throws for anything but a plain class (in particular
     // for an interface, or a generic instantiation like `Iterator[Int]` —
     // an `AppliedType`, not a bare `StaticRef`); `classOrInterfaceSymbol`
@@ -402,8 +416,6 @@ final class ExpressionEmitter(
       throw new Exception("Cannot resolve receiver class/interface for ." + name + " on " + qual.tpe.show))
     val isIface = classSym.isInterface
 
-    val methodSym = apply.memberSymbol.getOrElse(
-      throw new Exception("Cannot resolve method symbol for ." + name))
     val procType = methodSym.tpe.asProcType
     val paramTypes = procType.paramTypes ++ procType.autoTypes
 
@@ -649,6 +661,16 @@ final class ExpressionEmitter(
 
   private def compileNew(classType: Type, args: List[Word])(using ctx: MethodCtx): Unit =
     val classSym = classType.classSymbol
+
+    // `new java.io.File(path)` is a real `<init>` on a real Java class, which
+    // is exactly the `"special"` spec kind `NativeCalls` already emits.
+    if classSym.isExternal then
+      val ctor = classSym.classInfo.constructor
+      val spec = runtime.nativeSpec(ctor).getOrElse(
+        throw new Exception("No constructor binding for external class " + classSym.fullName))
+      nativeCalls.compile(spec, args, classType, ctx.cw)
+      return
+
     val className = context.requireClass(classSym)
     val cdef = context.classDef(classSym)
     val ctorParamTypes = cdef.funs.find(_.symbol.name == Names.Constructor).map(_.params.map(_.tpe)).getOrElse(Nil)

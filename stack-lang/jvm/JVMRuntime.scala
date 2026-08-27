@@ -9,7 +9,7 @@ import sast.Symbols.{ Symbol, Annotation }
   *
   * Mirrors the role `RubyRuntime`/`NativeRuntime` play for their backends.
   */
-class JVMRuntime(using defn: Definitions):
+class JVMRuntime(javaSymbols: JavaSymbols)(using defn: Definitions):
   val JvmNs        = defn.resolveContainer("jo.jvm")
   val JvmRuntimeNs = defn.resolveContainer("jo.jvm.runtime")
 
@@ -101,7 +101,18 @@ class JVMRuntime(using defn: Definitions):
     defn.String_type.termMember("iterator") -> (String_iterator :: Nil)
   )
 
+  /** How to reach `sym`'s host-platform definition, if it has one.
+    *
+    * Two sources, one shape: a hand-written `@extern` annotation in
+    * `runtime/jvm/Runtime.jo`, and a symbol reflected out of a real class file
+    * by `JavaSymbols`. The latter is what the former would say if written by
+    * hand for the same member.
+    */
   def nativeSpec(sym: Symbol): Option[JVMRuntime.NativeSpec] =
+    if sym.isExternal then javaSymbols.nativeSpec(sym)
+    else annotationSpec(sym)
+
+  private def annotationSpec(sym: Symbol): Option[JVMRuntime.NativeSpec] =
     sym.annotation(annot_extern).map:
       case Annotation(_, Constant.String(owner) :: Constant.String(member) :: Constant.String(desc) :: Constant.String(kind) :: Nil) =>
         JVMRuntime.NativeSpec(owner, member, desc, kind)
