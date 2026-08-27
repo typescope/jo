@@ -125,6 +125,11 @@ final class JavaSymbols(classpath: JavaClasspath, enabled: Boolean)(using lazyDe
       views = Nil
     ))
     arrayClassSym = classSym
+    // `jvm.Array[T]`'s own JVM type varies with `T`, so it travels as `Object`
+    // and the element operations cast to `[Ljava/lang/Object;` where they need
+    // to. Registering that here also keeps `JVMContext.className` total over
+    // every external class symbol.
+    classInternalNames(classSym) = "java/lang/Object"
 
     val opsTable = new NameTable
     val container = ContainerSymbol.create("Array", opsTable, Flags.Section | Flags.External, Visibility.Default, owner, javaPos)

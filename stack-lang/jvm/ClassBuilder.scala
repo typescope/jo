@@ -57,14 +57,18 @@ final class ClassBuilder(
     * A Jo class implementing a Java interface — in practice a lambda literal
     * that `ElimCapture` lifted, since `Runnable` and friends are ordinary Jo
     * lambda interfaces once their abstract methods are marked deferred — gets
-    * its method descriptors from *Jo* types. Those do not have to agree with
-    * Java's: Jo `Unit` is a value that erases to `Object` where Java `void`
-    * leaves nothing at all, so `run` compiles to `()Ljava/lang/Object;` and the
-    * JVM, resolving `run()V`, finds no implementation.
+    * its method descriptors from *Jo* types. Those agree with Java's for most
+    * of the mapping, and where they do this emits nothing. Three cases remain:
     *
-    * `InterfaceBridge` cannot close this: it compares two *Jo* signatures, and
-    * both sides agree here. The disagreement is with the class file Java
-    * actually published, which only the reflected `NativeSpec` records.
+    *   - Jo `Char` is a code point riding in an `I` slot, not a JVM `char`
+    *     (see `JVMTypes.descOf`), so a `char` parameter reads as `I`;
+    *   - `jvm.Array[T]` travels as `Object` rather than as `[Ljava/lang/String;`;
+    *   - a bounded type variable erases to `Any`, while Java's descriptor names
+    *     the bound.
+    *
+    * `InterfaceBridge` cannot close these: it compares two *Jo* signatures, and
+    * both sides agree. The disagreement is with the class file Java actually
+    * published, which only the reflected `NativeSpec` records.
     */
   private def javaBridgesFor(className: String, cdef: ClassDef, iface: Symbol): List[MethodOut] =
     for
