@@ -24,6 +24,7 @@ class JVMRuntime(javaSymbols: JavaSymbols)(using defn: Definitions):
   val throwAny     = JvmRuntimeNs.termMember("throwAny")
   val refEq        = JvmRuntimeNs.termMember("refEq")
   val isNull       = JvmRuntimeNs.termMember("isNull")
+  val nullValue    = JvmRuntimeNs.termMember("nullValue")
   val cast         = JvmRuntimeNs.termMember("cast")
 
   val Lowering     = JvmRuntimeNs.containerMember("Lowering")
@@ -89,7 +90,7 @@ class JVMRuntime(javaSymbols: JavaSymbols)(using defn: Definitions):
 
   /** Extra symbols reachable once a given symbol is reached.
     *
-    * `cast[T]`/`refEq`/`isNull`/`throwAny` are intrinsified directly and never
+    * `cast[T]`/`refEq`/`isNull`/`nullValue`/`throwAny` are intrinsified directly and never
     * enqueue anything by themselves, so no extra entries are needed yet —
     * kept as a hook mirroring RubyRuntime.intrinsicDeps for future growth.
     */

@@ -27,7 +27,7 @@ final class JVMContext(rewire: Map[Symbol, Symbol], javaInternalName: Symbol => 
 
   private val topLevelLocations = mutable.Map.empty[Symbol, MethodLocation]
   private val classNames = mutable.Map.empty[Symbol, String]
-  private val usedClassNames = mutable.Set[String]("Main", "Node", "Lambda")
+  private val usedClassNames = mutable.Set[String]("Main", LambdaABI.interfaceName)
 
   def index(units: List[FileUnit]): Unit =
     units.foreach: unit =>

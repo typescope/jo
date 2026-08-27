@@ -123,9 +123,7 @@ object Compiler:
 
   private def writeClassFiles(result: (Map[String, Array[Byte]], String), outDir: String): Unit =
     val (generated, mainClass) = result
-    val (nodeName, nodeBytes) = RuntimeClasses.nodeClass()
-    val (lambdaName, lambdaBytes) = RuntimeClasses.lambdaInterface()
-    val allFiles = generated + (nodeName -> nodeBytes) + (lambdaName -> lambdaBytes)
+    val allFiles = generated + LambdaABI.interfaceClassFile()
 
     IO.ensureExists(outDir)
     for (name, bytes) <- allFiles do

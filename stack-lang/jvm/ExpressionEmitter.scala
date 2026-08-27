@@ -521,6 +521,9 @@ final class ExpressionEmitter(
       compile(args.head)
       boolFromBranch(l => ctx.cw.ifnull(l))
 
+    else if sym == runtime.nullValue then
+      ctx.cw.aconstNull()
+
     else if sym == runtime.throwAny then
       compile(args.head)
       ctx.lines.here()

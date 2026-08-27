@@ -48,40 +48,6 @@ private section Lowering
   def unboxLong(value: Any): Long = abort "unboxLong should be intrinsified"
 end
 
-//------------------------------------------------------------------------------
-//
-// A single hand-written support class (Node, compiled directly by the JVM
-// backend into the output — see stack-lang/jvm/RuntimeClasses.scala)
-// provides three Object fields (next/key/value) used below to build a small
-// association list, plus a static field whose value is always the real JVM
-// `null`. This supports context-parameter lookup and error signaling.
-//
-//------------------------------------------------------------------------------
-
-@extern("Node", "<init>", "()V", "special")
-private def newNode(): Any = ...
-
-@extern("Node", "next", "Ljava/lang/Object;", "getfield")
-private def nodeNext(n: Any): Any = ...
-
-@extern("Node", "next", "Ljava/lang/Object;", "putfield")
-private def setNodeNext(n: Any, v: Any): Unit = ...
-
-@extern("Node", "key", "Ljava/lang/Object;", "getfield")
-private def nodeKey(n: Any): Any = ...
-
-@extern("Node", "key", "Ljava/lang/Object;", "putfield")
-private def setNodeKey(n: Any, v: Any): Unit = ...
-
-@extern("Node", "value", "Ljava/lang/Object;", "getfield")
-private def nodeValue(n: Any): Any = ...
-
-@extern("Node", "value", "Ljava/lang/Object;", "putfield")
-private def setNodeValue(n: Any, v: Any): Unit = ...
-
-@extern("Node", "NULL", "Ljava/lang/Object;", "getstatic")
-private def nullValue(): Any = ...
-
 //[ Reference identity, `a == b` for two `Any` values.
   !
   ! Intrinsified by the backend as `if_acmpeq`. Used instead of a user-level
@@ -95,6 +61,18 @@ private def refEq(a: Any, b: Any): Bool =
 @intrinsic
 private def isNull(a: Any): Bool =
   abort "isNull should be intrinsified by the JVM backend"
+
+//[ The real JVM `null`. Intrinsified as `aconst_null`.
+  !
+  ! `null` is not a Jo value, so there is no literal for it; this is the one
+  ! place it enters the runtime, and `isNull` above the one place it is
+  ! observed. Both are needed because the JDK hands out `null` (a
+  ! non-participating regex group) and because a context chain terminates in
+  ! one.
+//]
+@intrinsic
+private def nullValue(): Any =
+  abort "nullValue should be intrinsified by the JVM backend"
 
 //[ Narrow `Any` to `T` without a runtime check.
   !
@@ -452,20 +430,34 @@ end
 //
 // Context parameters
 //
-// Ctx is represented as a possibly-null chain of Node cells: `next` points to
-// the tail (or JVM null at the end), `key` is the value returned by paramKey
-// (a compiler-interned String, compared by reference identity), and `value`
-// is the bound value.
+// A Ctx is a possibly-null chain of `Node` cells: `next` points to the tail
+// (or JVM null at the end), `key` is the value returned by paramKey (a
+// compiler-interned String, compared by reference identity), and `value` is
+// the bound value.
+//
+// `Node` and `Bindings` are ordinary Jo classes, compiled like any other
+// user class — the backend has no hand-written support classes of its own.
 //
 //------------------------------------------------------------------------------
+
+// One binding in a context chain. `next` is the tail of the chain, or JVM
+// null at its end; a cell is never mutated after construction.
+private class Node(next: Any, key: Any, value: Any)
+
+// The mutable accumulator a `with` expression threads through
+// `startBatch`/`addBinding`/`finish` while it prepends its bindings.
+private class Bindings(start: Any)
+  var head: Any = start
+end
+
 private section ParamSupport
   // Declared as aliases to `Any` (not bare abstract `type X`/`type X[T]`)
   // so `Erasure` — now wired into the JVM pipeline — has a concrete target
   // to dealias each to (matching the proven `Mixed[T] = T`/`Named[T] = T`
   // pattern in lib/compile.jo); a bodyless abstract generic type like the
   // old `type Key[T]` doesn't converge cleanly through `EraseTypeMap`'s
-  // erasure. At runtime this is unchanged: `Ctx`/`Key[T]`/`Batch` were
-  // always just erased-to-Object `Node` cells threaded through `cast`.
+  // erasure. At runtime this is unchanged: `Ctx`/`Key[T]`/`Batch` are just
+  // erased-to-Object cells threaded through `cast`.
   type Ctx = Any
   type Key[T] = Any
   type Batch = Any
@@ -485,29 +477,23 @@ private section ParamSupport
   def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
     var cur: Any = ctx
     while !isNull(cur) do
-      if refEq(nodeKey(cur), key) then
-        return cast[T](nodeValue(cur))
+      val node = cast[Node](cur)
+      if refEq(node.key, key) then
+        return cast[T](node.value)
       end
-      cur = nodeNext(cur)
+      cur = node.next
     end
     abort("Unbound parameter")
 
-  // A Batch reuses a fresh Node whose `value` field tracks the current head
-  // of the association list being built.
   def startBatch(ctx: Ctx, count: Int): Batch receives none =
-    val b = newNode()
-    setNodeValue(b, ctx)
-    cast[Batch](b)
+    cast[Batch](new Bindings(ctx))
 
   def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
-    val n = newNode()
-    setNodeNext(n, nodeValue(batch))
-    setNodeKey(n, key)
-    setNodeValue(n, value)
-    setNodeValue(batch, n)
+    val bindings = cast[Bindings](batch)
+    bindings.head = new Node(bindings.head, key, value)
 
   def finish(batch: Batch): Ctx receives none =
-    cast[Ctx](nodeValue(batch))
+    cast[Ctx](cast[Bindings](batch).head)
 end
 
 //------------------------------------------------------------------------------

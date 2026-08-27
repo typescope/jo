@@ -5,7 +5,7 @@ import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.Type
 
-import jvm.ClassFile.CodeWriter
+import jvm.ClassFile.*
 import jvm.JVMTypes.*
 import jvm.JVMTypes.JType.*
 
@@ -20,6 +20,27 @@ object LambdaABI:
   val interfaceName = "Lambda"
   val applyName = "apply"
   val applyDescriptor = "([Ljava/lang/Object;)Ljava/lang/Object;"
+
+  /** The marker interface's own class file.
+    *
+    * The one class file the backend still writes by hand rather than
+    * compiling from Jo source. Its `apply` takes a real `Object[]`, and no
+    * Jo type has that representation — `jo.Array[T]` and `jvm.Array[T]`
+    * both travel as `Object` (see `JVMTypes.representationOf`) — so
+    * declaring this interface in `runtime/jvm/Runtime.jo` would weaken the
+    * ABI to `(Ljava/lang/Object;)Ljava/lang/Object;` and cost every closure
+    * call a `checkcast` on entry. It lives here, with the ABI that defines
+    * it, rather than in a separate module of hand-written runtime classes.
+    */
+  def interfaceClassFile(): (String, Array[Byte]) =
+    val applyMethod = MethodOut(
+      AccessFlags.Public | AccessFlags.Abstract, applyName, applyDescriptor, None
+    )
+    val bytes = ClassFile.write(
+      interfaceName, ObjectClass, Nil, Nil, List(applyMethod),
+      accessFlags = AccessFlags.Public | AccessFlags.Interface | AccessFlags.Abstract
+    )
+    interfaceName -> bytes
 
   def isMarkerLambda(cdef: ClassDef): Boolean =
     cdef.symbol.is(Flags.Synthetic) && cdef.views.isEmpty &&

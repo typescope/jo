@@ -103,6 +103,10 @@ bin/jo compile --verbose --sast $PYTHON_RUNTIME --test-pickling --explicit-retur
 NATIVE_RUNTIME=libs/runtime-native
 bin/jo compile --verbose --sast $NATIVE_RUNTIME --test-pickling --explicit-return-type --no-star-import --check-shadowing runtime/native/*.jo runtime/native/**/*.jo
 
+# build JVM runtime
+JVM_RUNTIME=libs/runtime-jvm
+bin/jo compile --verbose --sast $JVM_RUNTIME --test-pickling --explicit-return-type --no-star-import --check-shadowing runtime/jvm/*.jo
+
 # Package release if requested
 if [ "$BUILD_RELEASE" = true ]; then
   echo "Creating release package..."

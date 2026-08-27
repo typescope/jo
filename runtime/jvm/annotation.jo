@@ -4,10 +4,18 @@ import jo.compile.intrinsic
 
 //[ Bind a Jo function directly to a JVM/JDK member, bypassing normal compilation.
   !
-  ! This is the FFI mechanism for the JVM backend: it lets a small number of
-  ! trusted declarations in `jo.jvm.runtime` (and, in the future, user code)
-  ! reach into the JDK class library without the compiler needing built-in
-  ! knowledge of every JDK symbol.
+  ! The low-level FFI mechanism for the JVM backend: it names a JVM member by
+  ! its raw owner/descriptor, without the compiler needing built-in knowledge
+  ! of every JDK symbol.
+  !
+  ! `import jvm.java.io.File` is the ordinary way to reach the JDK, and user
+  ! code should prefer it. `@extern` remains for what reflection cannot
+  ! express: a primitive array parameter (`[B`), a specific overload other
+  ! than the one that keeps the plain Java name, or a member on
+  ! `java.lang.String`, whose Jo counterpart is a built-in type with no Java
+  ! members. `jo.jvm.runtime` also has a reason of its own — it is compiled
+  ! into every program, and `import jvm.*` is available only under
+  ! `--enable-java-ffi`.
   !
   ! - `owner`  the JVM internal class name, e.g. "java/io/PrintStream"
   ! - `member` the field/method name on the JVM side; "<init>" for constructors
@@ -31,9 +39,8 @@ import jo.compile.intrinsic
   ! Named `jo.jvm.extern` — scoped under `jvm` since it's specific to this
   ! backend (a future native/wasm/... backend would want its own extern
   ! mechanism, not this one), and named `extern` rather than reusing `jvm`
-  ! itself so it doesn't collide with `jvm` as a namespace root once JDK
-  ! classes can be imported directly (e.g. a future `import jvm
-  ! "java.util.regex.Pattern"` for reflective FFI) — see
-  ! docs/jips/jvm-backend.md for the full design rationale.
+  ! itself so it doesn't collide with `jvm`, the namespace root JDK classes
+  ! are imported through — see docs/jips/jvm-backend.md for the full design
+  ! rationale.
 //]
 annotation extern(owner: String, member: String, desc: String, kind: String)
