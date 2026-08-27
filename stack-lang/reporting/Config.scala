@@ -170,6 +170,25 @@ object Config:
   val linkLibPaths: Setting[List[String]] = MultiPathSetting("--link-lib", "path to a link library")
 
   //----------------------------------------------------------------------------
+  // Java interop (JVM backend)
+  //
+
+  /** Opt-in for the `jvm` namespace root, the JVM backend's reflective Java FFI.
+    *
+    * Java interop is an ambient authority: a program that can reach
+    * `java.lang.Runtime` can reach anything. It is therefore off by default and
+    * meant to be enabled only for a designated runtime/FFI library, mirroring
+    * how `--use-runtime-api` gates `py.*`/`rb.*`.
+    */
+  val enableJavaFfi: Setting[Boolean] = BooleanSetting("--enable-java-ffi", false, "allow importing Java symbols through the `jvm` namespace")
+
+  /** Jars added to the classpath the Java FFI reflects over, on top of the JDK.
+    *
+    * The same jars must be on the classpath when running the compiled program.
+    */
+  val javaLibPaths: Setting[List[String]] = MultiPathSetting("--java-lib", "path to a jar made importable through the `jvm` namespace")
+
+  //----------------------------------------------------------------------------
 
   /** User-supplied link data from command-line */
   object linkMap extends Setting[Map[String, String]]:
@@ -276,7 +295,7 @@ object Config:
     sourceRoot,
   )
 
-  val appOptions = outFilePath :: linkLibPaths :: linkMap :: commonOptions
+  val appOptions = outFilePath :: linkLibPaths :: linkMap :: enableJavaFfi :: javaLibPaths :: commonOptions
 
   //----------------------------------------------------------------------------
 
