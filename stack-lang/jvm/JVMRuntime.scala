@@ -101,6 +101,21 @@ class JVMRuntime(javaSymbols: JavaSymbols)(using defn: Definitions):
     defn.String_type.termMember("iterator") -> (String_iterator :: Nil)
   )
 
+  // `jvm.Array[T]` element access. Like `RefArray`'s, these are real array
+  // opcodes rather than member calls, so they are intrinsified here instead of
+  // going through the `@extern`/`NativeSpec` path.
+  val javaArray_size = javaSymbols.arrayOp("size")
+  val javaArray_get  = javaSymbols.arrayOp("get")
+  val javaArray_set  = javaSymbols.arrayOp("set")
+
+  /** `sym`'s JVM internal name, if it is a reflected Java class or interface.
+    *
+    * Needed where a Jo class implements a Java interface: the `interfaces` table
+    * of its class file has to name `java/util/Comparator`, the one place a Java
+    * class is named rather than erased to `Object`.
+    */
+  def javaInternalName(sym: Symbol): Option[String] = javaSymbols.internalNameOf(sym)
+
   /** How to reach `sym`'s host-platform definition, if it has one.
     *
     * Two sources, one shape: a hand-written `@extern` annotation in

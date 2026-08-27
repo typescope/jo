@@ -18,10 +18,10 @@ import scala.collection.mutable
   */
 class JVMCodeGen(runtime: JVMRuntime, rewire: Map[Symbol, Symbol])(using defn: Definitions):
   import JVMCodeGen.*
-  private given context: JVMContext = new JVMContext(rewire)
+  private given context: JVMContext = new JVMContext(rewire, runtime.javaInternalName)
   private val expressionEmitter = new ExpressionEmitter(runtime)
   private val methodBuilder = new MethodBuilder(expressionEmitter)
-  private val classBuilder = new ClassBuilder(methodBuilder)
+  private val classBuilder = new ClassBuilder(methodBuilder, runtime)
 
   private val classFiles = mutable.LinkedHashMap.empty[String, Array[Byte]]
 

@@ -561,6 +561,31 @@ final class ExpressionEmitter(
       ctx.cw.invokevirtual(ObjectArrayDesc, "clone", "()Ljava/lang/Object;")
       ctx.cw.checkcast(ObjectArrayDesc)
 
+    // `jvm.Array[T]` — a real Java array. Every reference array is an
+    // `Object[]` by Java's own covariance, so the `Object[]` opcodes read and
+    // write one correctly, and a bad store raises Java's `ArrayStoreException`
+    // exactly as it would in Java.
+    else if sym == runtime.javaArray_size then
+      compile(args.head); ctx.cw.checkcast(ObjectArrayDesc)
+      ctx.lines.here()
+      ctx.cw.arraylength()
+
+    else if sym == runtime.javaArray_get then
+      compile(args.head); ctx.cw.checkcast(ObjectArrayDesc)
+      compile(args(1))
+      ctx.lines.here()
+      ctx.cw.aaload()
+
+    else if sym == runtime.javaArray_set then
+      compile(args.head); ctx.cw.checkcast(ObjectArrayDesc)
+      compile(args(1))
+      compile(args(2))
+      ctx.lines.here()
+      ctx.cw.aastore()
+      // See `Array_set`: `aastore` leaves nothing, so `set`'s declared Unit
+      // result needs a null materialized to match.
+      ctx.cw.aconstNull()
+
     else if sym == runtime.ByteArray_create then
       compile(args.head)
       ctx.cw.newByteArray()

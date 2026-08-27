@@ -9,7 +9,8 @@ import jvm.JVMTypes.*
 
 /** Computes JVM class/interface layout and delegates every method body. */
 final class ClassBuilder(
-  methods: ClassBuilder.MethodBodies
+  methods: ClassBuilder.MethodBodies,
+  runtime: JVMRuntime
 )(using defn: Definitions, context: JVMContext):
 
   def compileClass(cdef: ClassDef): (String, Array[Byte]) =
@@ -38,17 +39,72 @@ final class ClassBuilder(
       else methods.compileInstanceMethod(fdef, cdef.self)
     }
 
-    val declaredInterfaces = cdef.views
-      .flatMap(view => JVMTypes.classOrInterfaceSymbol(view.tpe))
-      .map(context.requireClass)
+    val viewSymbols = cdef.views.flatMap(view => JVMTypes.classOrInterfaceSymbol(view.tpe))
+    val declaredInterfaces = viewSymbols.map(context.requireClass)
     val interfaces = LambdaABI.implementedInterfaces(cdef, declaredInterfaces)
     val classInitializer = if isObject then buildObjectInitializer(className) :: Nil else Nil
+    val javaBridges = viewSymbols.filter(_.isExternal).flatMap(javaBridgesFor(className, cdef, _))
     val bytes = ClassFile.write(
       className, ObjectClass, interfaces, fields,
-      constructor.toList ++ classInitializer ++ otherMethods,
+      constructor.toList ++ classInitializer ++ otherMethods ++ javaBridges,
       sourceFile = Some(sourceFileName(cdef.symbol))
     )
     className -> bytes
+
+  /** Bridges from a Java interface's own descriptors to the Jo methods
+    * implementing them.
+    *
+    * A Jo class implementing a Java interface — in practice a lambda literal
+    * that `ElimCapture` lifted, since `Runnable` and friends are ordinary Jo
+    * lambda interfaces once their abstract methods are marked deferred — gets
+    * its method descriptors from *Jo* types. Those do not have to agree with
+    * Java's: Jo `Unit` is a value that erases to `Object` where Java `void`
+    * leaves nothing at all, so `run` compiles to `()Ljava/lang/Object;` and the
+    * JVM, resolving `run()V`, finds no implementation.
+    *
+    * `InterfaceBridge` cannot close this: it compares two *Jo* signatures, and
+    * both sides agree here. The disagreement is with the class file Java
+    * actually published, which only the reflected `NativeSpec` records.
+    */
+  private def javaBridgesFor(className: String, cdef: ClassDef, iface: Symbol): List[MethodOut] =
+    for
+      method <- iface.classInfo.allMethods if method.is(Flags.Defer)
+      spec <- runtime.nativeSpec(method).toList
+      impl <- cdef.funs.find(_.symbol.name == method.name).toList
+      procType = impl.symbol.tpe.asProcType
+      joDescriptor = JVMTypes.methodDescriptor(procType.paramTypes ++ procType.autoTypes, procType.resultType)
+      if joDescriptor != spec.desc
+    yield
+      val javaParams = parseMethodParams(spec.desc)
+      val javaResult = parseMethodReturn(spec.desc)
+      val joParams = parseMethodParams(joDescriptor)
+      val joResult = parseMethodReturn(joDescriptor)
+
+      val cw = new CodeWriter
+      cw.aload(0)
+      // Slot 0 is `this`; a category-2 argument occupies two slots.
+      var slot = 1
+      javaParams.zip(joParams).foreach { (javaParam, joParam) =>
+        load(javaParam, slot, cw)
+        ValueAdaptation.emit(javaParam, joParam, cw)
+        slot += (if javaParam == JType.J then 2 else 1)
+      }
+      cw.invokevirtual(className, method.name, joDescriptor)
+      ValueAdaptation.emit(joResult, javaResult, cw)
+      emitReturn(javaResult, cw)
+      MethodOut(AccessFlags.Public, method.name, spec.desc, Some(cw))
+
+  private def load(tpe: JType, slot: Int, cw: CodeWriter): Unit =
+    if isIntCat(tpe) then cw.iload(slot)
+    else if tpe == JType.J then cw.lload(slot)
+    else cw.aload(slot)
+
+  private def emitReturn(tpe: JType, cw: CodeWriter): Unit =
+    tpe match
+      case JType.V => cw.returnVoid()
+      case JType.J => cw.lreturn()
+      case t if isIntCat(t) => cw.ireturn()
+      case _ => cw.areturn()
 
   def compileInterface(idef: InterfaceDef): (String, Array[Byte]) =
     val name = context.className(idef.symbol)

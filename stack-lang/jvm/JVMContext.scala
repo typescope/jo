@@ -16,7 +16,7 @@ import scala.collection.mutable
   * fills those buckets with definitions, without compiling a method body.
   * Bytecode generation only starts after that fixed point is complete.
   */
-final class JVMContext(rewire: Map[Symbol, Symbol])(using defn: Definitions):
+final class JVMContext(rewire: Map[Symbol, Symbol], javaInternalName: Symbol => Option[String])(using defn: Definitions):
   import JVMContext.*
 
   private val funDefs = mutable.Map.empty[Symbol, FunDef]
@@ -81,10 +81,14 @@ final class JVMContext(rewire: Map[Symbol, Symbol])(using defn: Definitions):
   def requireClass(sym: Symbol): String = className(sym)
 
   def className(sym: Symbol): String =
-    classNames.getOrElseUpdate(sym, {
+    // A reflected Java class already has a name, and no bucket to allocate one
+    // from. This is reached for the `interfaces` table of a Jo class that
+    // implements a Java interface; everywhere else an external class is erased
+    // to `Object` before it gets here (see `JVMTypes.representationOf`).
+    javaInternalName(sym).getOrElse(classNames.getOrElseUpdate(sym, {
       val bucket = definitionBuckets(sym)
       allocateClassName(bucket.className + "$" + sanitize(sym.name))
-    })
+    }))
 
   def buckets: List[Bucket] = bucketsByClass.values.toList
   def classDef(sym: Symbol): ClassDef = classDefs(sym)
