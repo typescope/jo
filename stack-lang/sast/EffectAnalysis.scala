@@ -178,7 +178,11 @@ object EffectAnalysis:
   Debug.trace("effects for " + fun.fullName, enable = false):
     // Usage of stable cache has to be part of the computation for speed
 
-    if fun.isOneOf(Flags.Defer | Flags.Loaded) then
+    // A deferred, loaded, or external function has no body here to analyze, so
+    // its declared context parameters are all there is to go on. (For an
+    // external one — a host-platform definition, see `Flags.External` — that
+    // list is empty: a Java method cannot receive a Jo context parameter.)
+    if fun.isOneOf(Flags.Defer | Flags.Loaded | Flags.External) then
       val procType = fun.tpe.asProcType
       procType.receives.map(_ -> Vector.empty).toMap
 

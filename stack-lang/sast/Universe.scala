@@ -47,7 +47,10 @@ class Universe(root: Symbol, rewire: Map[Symbol, Symbol], intrinsicDeps: Map[Sym
       if !_live.contains(sym) then
         _live += sym
 
-        if sym.isFunction then
+        // An external symbol denotes a host-platform definition (a JDK method,
+        // say): there is no Jo body to walk, and the backend intercepts every
+        // reference to it. Asking for its code would throw.
+        if sym.isFunction && !sym.isExternal then
           val fdef = defn.index.getCode(sym)
           collectRefs(fdef.body)
 

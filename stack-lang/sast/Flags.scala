@@ -9,7 +9,7 @@ object Flags:
   opaque type Flags = Long
 
   private val flagNames: Array[String] = Array.fill(64)("")
-  private val MAX_INDEX = 41
+  private val MAX_INDEX = 42
 
   private[Flags] def defineFlag(index: Byte, name: String): Flag =
     assert(index <= MAX_INDEX, s"Maximum flags reached: at most $MAX_INDEX flags")
@@ -62,6 +62,10 @@ object Flags:
   val Alias      : Flag = defineFlag(39, "alias"    ) // an alias symbol created by import or alias
   val Constructor: Flag = defineFlag(40, "constructor") // a constructor
   val Label      : Flag = defineFlag(41, "label"    ) // a compiler-internal block label
+  // A symbol that denotes a definition of the host platform rather than of the
+  // Jo program: it has no Jo body, is never compiled, and every reference to
+  // it is intercepted by the backend (see `jvm.JavaSymbols`).
+  val External   : Flag = defineFlag(42, "external" )
 
 
   val empty   : Flags = 0

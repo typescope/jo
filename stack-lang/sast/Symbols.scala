@@ -104,6 +104,7 @@ object Symbols:
     def isMutable  : Boolean = flags.is(Flags.Mutable)
     def isField    : Boolean = flags.is(Flags.Field)
     def isSynthetic: Boolean = flags.is(Flags.Synthetic)
+    def isExternal : Boolean = flags.is(Flags.External)
     def isAlias    : Boolean = flags.is(Flags.Alias)
 
     def isTerm     : Boolean = this.isInstanceOf[TermSymbol]
