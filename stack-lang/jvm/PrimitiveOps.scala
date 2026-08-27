@@ -28,10 +28,10 @@ final class PrimitiveOps(
   //----------------------------------------------------------------------------
 
   def compilePrimitive(qual: Word, name: String, args: List[Word])(using ctx: MethodCtx): Unit =
-    if jvmType(qual.tpe) == J then
-      compileLongOp(qual, name, args)
-    else
-      compileIntCatPrimitiveOp(qual, name, args)
+    jvmType(qual.tpe) match
+      case J => compileLongOp(qual, name, args)
+      case D => compileFloatOp(qual, name, args)
+      case _ => compileIntCatPrimitiveOp(qual, name, args)
 
   /** Operations whose values share the JVM category-1 integer
     * representation. Erasure has already normalized their operands.
@@ -134,6 +134,8 @@ final class PrimitiveOps(
         cw.i2b()
       case "toLong" =>
         compile(qual); unsigned(); cw.i2l()
+      case "toFloat" =>
+        compile(qual); unsigned(); cw.i2d()
       case "toString" =>
         val (owner, desc) =
           // Character.toString(char) truncates to 16 bits — wrong for Jo's
@@ -213,12 +215,77 @@ final class PrimitiveOps(
         compile(qual); cw.l2i()
       case "toLong" =>
         compile(qual)
+      case "toFloat" =>
+        compile(qual); cw.l2d()
       case "toString" =>
         compile(qual)
         ctx.lines.here()
         cw.invokestatic("java/lang/Long", "toString", "(J)Ljava/lang/String;")
       case other =>
         throw new Exception("JVM backend: unsupported Long operator " + other)
+
+  /** `Float`'s intrinsics.
+    *
+    * Jo's `Float` is 64-bit IEEE 754 (`lib/Float.jo`), so it is the JVM's
+    * `double` — a category-2 value like `Long`, needing its own opcodes
+    * throughout. The JVM's 32-bit `float` is a different type that no Jo type
+    * maps to.
+    */
+  private def compileFloatOp(qual: Word, name: String, args: List[Word])(using ctx: MethodCtx): Unit =
+    val cw = ctx.cw
+
+    // See `binIntOp`: the operator's own line, not the right operand's.
+    def binFloatOp(emit: () => Unit): Unit =
+      compile(qual)
+      compile(args.head)
+      ctx.lines.here()
+      emit()
+
+    /** There is no `if_dcmp<cond>` family: `dcmpg`/`dcmpl` reduce the
+      * comparison to a category-1 int (-1/0/1), which an ordinary
+      * int-vs-zero branch then reads, exactly as `lcmp` does for `Long`.
+      *
+      * Which of the two is correct depends on the operator, and only because
+      * of NaN. Both push -1/0/1 for ordered operands and differ solely on an
+      * unordered pair: `dcmpg` answers 1, `dcmpl` answers -1. Picking the one
+      * whose answer falls *outside* the branch makes every comparison with a
+      * NaN operand false, which is what IEEE 754 requires — and is the same
+      * choice `javac` makes.
+      */
+    def cmpOp(cond: String, unorderedIsGreater: Boolean): Unit =
+      compile(qual)
+      compile(args.head)
+      ctx.lines.here()
+      if unorderedIsGreater then cw.dcmpg() else cw.dcmpl()
+      boolFromBranch(l => cw.ifCond(cond, l))
+
+    name match
+      case "+" => binFloatOp(cw.dadd)
+      case "-" if args.nonEmpty => binFloatOp(cw.dsub)
+      case "-" | "~-" => compile(qual); cw.dneg()
+      case "*" => binFloatOp(cw.dmul)
+      case "/" => binFloatOp(cw.ddiv)
+      case "%" => binFloatOp(cw.drem)
+      // `<` and `<=` must be false for NaN, so an unordered pair has to answer
+      // *greater*; `>` and `>=` need the mirror image. `==` is false and `!=`
+      // is true for NaN either way, since neither -1 nor 1 is zero.
+      case "<"  => cmpOp("lt", unorderedIsGreater = true)
+      case "<=" => cmpOp("le", unorderedIsGreater = true)
+      case ">"  => cmpOp("gt", unorderedIsGreater = false)
+      case ">=" => cmpOp("ge", unorderedIsGreater = false)
+      case "==" => cmpOp("eq", unorderedIsGreater = false)
+      case "!=" => cmpOp("ne", unorderedIsGreater = false)
+      case "toInt" =>
+        // `d2i` truncates toward zero, which is what lib/Float.jo promises.
+        compile(qual); cw.d2i()
+      case "toFloat" =>
+        compile(qual)
+      case "toString" =>
+        compile(qual)
+        ctx.lines.here()
+        cw.invokestatic("java/lang/Double", "toString", "(D)Ljava/lang/String;")
+      case other =>
+        throw new Exception("JVM backend: unsupported Float operator " + other)
 
   private def boolNot()(using ctx: MethodCtx): Unit =
     boolFromBranch(l => ctx.cw.ifeq(l))

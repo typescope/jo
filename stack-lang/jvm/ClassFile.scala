@@ -77,18 +77,28 @@ object ClassFile:
       if value == 0L then insn(Opcodes.LCONST_0)
       else if value == 1L then insn(Opcodes.LCONST_1)
       else add(new LdcInsnNode(java.lang.Long.valueOf(value)))
+    def dconst(value: Double): Unit =
+      // Raw bits, not `== 0.0`: that is also true of -0.0, which `dconst_0`
+      // does not produce and which `1.0 / x` can tell apart.
+      if java.lang.Double.doubleToRawLongBits(value) == 0L then insn(Opcodes.DCONST_0)
+      else if value == 1.0 then insn(Opcodes.DCONST_1)
+      else add(new LdcInsnNode(java.lang.Double.valueOf(value)))
     def stringConst(value: String): Unit = add(new LdcInsnNode(value))
     def aconstNull(): Unit = insn(Opcodes.ACONST_NULL)
 
     def iload(slot: Int): Unit = add(new VarInsnNode(Opcodes.ILOAD, slot))
     def lload(slot: Int): Unit = add(new VarInsnNode(Opcodes.LLOAD, slot))
+    def dload(slot: Int): Unit = add(new VarInsnNode(Opcodes.DLOAD, slot))
     def aload(slot: Int): Unit = add(new VarInsnNode(Opcodes.ALOAD, slot))
     def istore(slot: Int): Unit = add(new VarInsnNode(Opcodes.ISTORE, slot))
     def lstore(slot: Int): Unit = add(new VarInsnNode(Opcodes.LSTORE, slot))
+    def dstore(slot: Int): Unit = add(new VarInsnNode(Opcodes.DSTORE, slot))
     def astore(slot: Int): Unit = add(new VarInsnNode(Opcodes.ASTORE, slot))
 
     def dup(): Unit = insn(Opcodes.DUP)
     def pop(): Unit = insn(Opcodes.POP)
+    // A category-2 value (`long`, `double`) occupies two operand-stack words.
+    def pop2(): Unit = insn(Opcodes.POP2)
     def swap(): Unit = insn(Opcodes.SWAP)
     def iadd(): Unit = insn(Opcodes.IADD)
     def isub(): Unit = insn(Opcodes.ISUB)
@@ -113,6 +123,20 @@ object ClassFile:
     def lshl(): Unit = insn(Opcodes.LSHL)
     def lshr(): Unit = insn(Opcodes.LSHR)
     def lcmp(): Unit = insn(Opcodes.LCMP)
+    def dadd(): Unit = insn(Opcodes.DADD)
+    def dsub(): Unit = insn(Opcodes.DSUB)
+    def dmul(): Unit = insn(Opcodes.DMUL)
+    def ddiv(): Unit = insn(Opcodes.DDIV)
+    def drem(): Unit = insn(Opcodes.DREM)
+    def dneg(): Unit = insn(Opcodes.DNEG)
+    // `dcmpg` yields 1 for NaN and `dcmpl` yields -1, so which one is correct
+    // depends on the comparison: each is chosen so an unordered pair answers
+    // false. See `PrimitiveOps.compileFloatOp`.
+    def dcmpg(): Unit = insn(Opcodes.DCMPG)
+    def dcmpl(): Unit = insn(Opcodes.DCMPL)
+    def i2d(): Unit = insn(Opcodes.I2D)
+    def l2d(): Unit = insn(Opcodes.L2D)
+    def d2i(): Unit = insn(Opcodes.D2I)
     def l2i(): Unit = insn(Opcodes.L2I)
     def i2l(): Unit = insn(Opcodes.I2L)
     def i2b(): Unit = insn(Opcodes.I2B)
@@ -142,6 +166,7 @@ object ClassFile:
 
     def ireturn(): Unit = insn(Opcodes.IRETURN)
     def lreturn(): Unit = insn(Opcodes.LRETURN)
+    def dreturn(): Unit = insn(Opcodes.DRETURN)
     def areturn(): Unit = insn(Opcodes.ARETURN)
     def returnVoid(): Unit = insn(Opcodes.RETURN)
     def athrow(): Unit = insn(Opcodes.ATHROW)

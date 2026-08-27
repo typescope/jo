@@ -7,6 +7,7 @@ import jvm.ClassFile.Label
 import jvm.ClassFile.CodeWriter
 import jvm.JVMTypes.JType
 import jvm.JVMTypes.JType.J
+import jvm.JVMTypes.isCategory2
 
 import scala.collection.mutable
 
@@ -20,7 +21,7 @@ final class MethodSlots:
   def bind(sym: Symbol, tpe: JType): Int =
     val result = next
     slots(sym) = result
-    next += (if tpe == J then 2 else 1)
+    next += (if isCategory2(tpe) then 2 else 1)
     result
 
   def apply(sym: Symbol): Int = slots(sym)

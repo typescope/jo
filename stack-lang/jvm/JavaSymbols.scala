@@ -508,7 +508,7 @@ final class JavaSymbols(classpath: JavaClasspath, enabled: Boolean)(using lazyDe
           case Some(tp) => tp
           case None =>
             if cls.isPrimitive then
-              Reporter.error(s"Java type `${cls.getName}` in ${what()} has no Jo representation")
+              Reporter.error(unrepresentablePrimitive(cls, what()))
               ErrorType
             else if cls.isArray then
               arrayTypeOf(cls.getComponentType, env, what)
@@ -570,6 +570,34 @@ final class JavaSymbols(classpath: JavaClasspath, enabled: Boolean)(using lazyDe
           case ErrorType => ErrorType
           case elemType  => AppliedType(arrayClassSym, elemType :: Nil)
 
+  /** Why a Java primitive has no Jo type.
+    *
+    * Two of these look like obvious mappings and are not.
+    *
+    * A Java `char` is a UTF-16 *code unit* and a Jo `Char` is a Unicode *code
+    * point*, so they are not the same type even though both ride in an integer
+    * slot. Equating them would silently truncate every supplementary character
+    * — every emoji — at the boundary, the same trap `JVMTypes.descOf`
+    * documents for the `C` descriptor.
+    *
+    * Java's 32-bit `float` is the other: Jo's `Float` is 64-bit IEEE 754
+    * (`lib/Float.jo`), so it is Java's `double`, and nothing in Jo is a
+    * 32-bit float.
+    *
+    * A distinct set of FFI-only types (`jvm.Char`, `jvm.Float`, `jvm.Short`,
+    * in the shape the JIP calls for) is what makes the rest reachable.
+    */
+  private def unrepresentablePrimitive(cls: Class[?], where: String): String =
+    cls.getName match
+      case "char" =>
+        s"Java type `char` in $where is a UTF-16 code unit, not Jo's `Char` (a Unicode code point); "
+        + "it has no Jo counterpart yet"
+      case "float" =>
+        s"Java type `float` in $where is 32-bit; Jo's `Float` is 64-bit IEEE 754 "
+        + "(that is Java's `double`), so there is no Jo type for a `float`"
+      case name =>
+        s"Java type `$name` in $where has no Jo representation"
+
   private def knownType(cls: Class[?])(using defn: Definitions): Option[Type] =
     if cls == classOf[Object] then Some(AnyType)
     else if cls == classOf[String] then Some(defn.StringType)
@@ -578,9 +606,10 @@ final class JavaSymbols(classpath: JavaClasspath, enabled: Boolean)(using lazyDe
       case "int"     => Some(defn.IntType)
       case "boolean" => Some(defn.BoolType)
       case "byte"    => Some(defn.ByteType)
-      case "char"    => Some(defn.CharType)
       case "long"    => Some(defn.LongType)
-      case "float"   => Some(defn.FloatType)
+      // Jo's `Float` is 64-bit IEEE 754 (`lib/Float.jo`), so Java's `double`
+      // is the one that maps to it. Java's 32-bit `float` has no Jo type.
+      case "double"  => Some(defn.FloatType)
       // The SAST's own `VoidType`, not Jo's `Unit`. They are different things
       // (see jvm.md): `Unit` is a value that erases to `Object`, while
       // `VoidType` leaves nothing — which is what Java `void` is. Getting this
@@ -691,11 +720,14 @@ object JavaSymbols:
   private def typeScore(cls: Class[?]): Int =
     if !cls.isPrimitive then (if cls == classOf[String] then 0 else 1)
     else cls.getName match
-      case "int" | "boolean" | "byte" | "char" => 0
-      case "long"  => 2
-      case "float" => 4
-      // `double` and `short` have no representation in this backend at all.
-      case _       => 100
+      case "int" | "boolean" | "byte" => 0
+      case "long"   => 2
+      case "double" => 4
+      // `char`, `float` and `short` have no Jo type at all (see
+      // `unrepresentablePrimitive`), so an overload using one must never be
+      // the one that keeps the plain Java name: it would shadow a usable
+      // sibling with a member that cannot be called.
+      case _      => 100
 
   def overloadSuffix(params: Array[Class[?]]): String =
     if params.isEmpty then "0" else params.map(simpleName).mkString("_")

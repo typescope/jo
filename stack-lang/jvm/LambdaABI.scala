@@ -71,4 +71,5 @@ object LambdaABI:
   private def store(tpe: JType, slot: Int, writer: CodeWriter): Unit =
     if isIntCat(tpe) then writer.istore(slot)
     else if tpe == J then writer.lstore(slot)
+    else if tpe == D then writer.dstore(slot)
     else writer.astore(slot)

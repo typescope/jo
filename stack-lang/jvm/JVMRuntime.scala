@@ -33,7 +33,7 @@ class JVMRuntime(javaSymbols: JavaSymbols)(using defn: Definitions):
     JVMTypes.JType.Z -> Lowering.termMember("boxBool"),
     JVMTypes.JType.B -> Lowering.termMember("boxByte"),
     JVMTypes.JType.C -> Lowering.termMember("boxChar"),
-    JVMTypes.JType.F -> Lowering.termMember("boxFloat"),
+    JVMTypes.JType.D -> Lowering.termMember("boxFloat"),
     JVMTypes.JType.J -> Lowering.termMember("boxLong")
   )
   val lowerUnbox = Map(
@@ -41,7 +41,7 @@ class JVMRuntime(javaSymbols: JavaSymbols)(using defn: Definitions):
     JVMTypes.JType.Z -> Lowering.termMember("unboxBool"),
     JVMTypes.JType.B -> Lowering.termMember("unboxByte"),
     JVMTypes.JType.C -> Lowering.termMember("unboxChar"),
-    JVMTypes.JType.F -> Lowering.termMember("unboxFloat"),
+    JVMTypes.JType.D -> Lowering.termMember("unboxFloat"),
     JVMTypes.JType.J -> Lowering.termMember("unboxLong")
   )
 

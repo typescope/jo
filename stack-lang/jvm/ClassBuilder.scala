@@ -58,10 +58,8 @@ final class ClassBuilder(
     * that `ElimCapture` lifted, since `Runnable` and friends are ordinary Jo
     * lambda interfaces once their abstract methods are marked deferred — gets
     * its method descriptors from *Jo* types. Those agree with Java's for most
-    * of the mapping, and where they do this emits nothing. Three cases remain:
+    * of the mapping, and where they do this emits nothing. Two cases remain:
     *
-    *   - Jo `Char` is a code point riding in an `I` slot, not a JVM `char`
-    *     (see `JVMTypes.descOf`), so a `char` parameter reads as `I`;
     *   - `jvm.Array[T]` travels as `Object` rather than as `[Ljava/lang/String;`;
     *   - a bounded type variable erases to `Any`, while Java's descriptor names
     *     the bound.
@@ -91,7 +89,7 @@ final class ClassBuilder(
       javaParams.zip(joParams).foreach { (javaParam, joParam) =>
         load(javaParam, slot, cw)
         ValueAdaptation.emit(javaParam, joParam, cw)
-        slot += (if javaParam == JType.J then 2 else 1)
+        slot += (if isCategory2(javaParam) then 2 else 1)
       }
       cw.invokevirtual(className, method.name, joDescriptor)
       ValueAdaptation.emit(joResult, javaResult, cw)
@@ -101,12 +99,14 @@ final class ClassBuilder(
   private def load(tpe: JType, slot: Int, cw: CodeWriter): Unit =
     if isIntCat(tpe) then cw.iload(slot)
     else if tpe == JType.J then cw.lload(slot)
+    else if tpe == JType.D then cw.dload(slot)
     else cw.aload(slot)
 
   private def emitReturn(tpe: JType, cw: CodeWriter): Unit =
     tpe match
       case JType.V => cw.returnVoid()
       case JType.J => cw.lreturn()
+      case JType.D => cw.dreturn()
       case t if isIntCat(t) => cw.ireturn()
       case _ => cw.areturn()
 

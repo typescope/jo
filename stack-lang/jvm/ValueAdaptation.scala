@@ -12,7 +12,7 @@ import jvm.JVMTypes.JType.*
   */
 object ValueAdaptation:
   enum Conversion:
-    case Identity, Drop, UnitValue
+    case Identity, Drop, DropWide, UnitValue
     case Box(primitive: JType)
     case Unbox(primitive: JType)
     case CheckCast(internalName: String)
@@ -28,7 +28,7 @@ object ValueAdaptation:
     if actual == expected then Identity
     else
       (actual, expected) match
-        case (_, V) if actual != V => Drop
+        case (a, V) if a != V => if isCategory2(a) then DropWide else Drop
         case (V, Ref(_)) => UnitValue
         case (V, _) => Identity
         case (a, Ref(ObjectDesc)) if isPrimitive(a) => Box(a)
@@ -50,6 +50,7 @@ object ValueAdaptation:
     conversion match
       case Identity => ()
       case Drop => cw.pop()
+      case DropWide => cw.pop2()
       case UnitValue => cw.aconstNull()
       case Box(primitive) => box(primitive, cw)
       case Unbox(primitive) => unbox(primitive, cw)
@@ -74,7 +75,7 @@ object ValueAdaptation:
       case Z => ("java/lang/Boolean", "(Z)Ljava/lang/Boolean;")
       case B => ("java/lang/Byte", "(B)Ljava/lang/Byte;")
       case C => ("java/lang/Integer", "(I)Ljava/lang/Integer;")
-      case F => ("java/lang/Float", "(F)Ljava/lang/Float;")
+      case D => ("java/lang/Double", "(D)Ljava/lang/Double;")
       case J => ("java/lang/Long", "(J)Ljava/lang/Long;")
       case _ => throw new Exception("cannot box " + t)
     cw.invokestatic(owner, "valueOf", desc)
@@ -85,7 +86,7 @@ object ValueAdaptation:
       case Z => ("java/lang/Boolean", "booleanValue", "()Z")
       case B => ("java/lang/Byte", "byteValue", "()B")
       case C => ("java/lang/Integer", "intValue", "()I")
-      case F => ("java/lang/Float", "floatValue", "()F")
+      case D => ("java/lang/Double", "doubleValue", "()D")
       case J => ("java/lang/Long", "longValue", "()J")
       case _ => throw new Exception("cannot unbox " + t)
     cw.checkcast(owner)

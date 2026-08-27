@@ -27,7 +27,8 @@ final class ExpressionEmitter(
       case r if isIntCat(r) => cw.ireturn()
       case Ref(_) => cw.areturn()
       case J => cw.lreturn()
-      case F => throw new Exception("float returns are not supported by the JVM backend")
+      case D => cw.dreturn()
+      case F => throw new Exception("JVM `float` has no Jo type; see JavaSymbols.unrepresentablePrimitive")
 
   /** Zero-initialize every local at method entry.
     *
@@ -49,7 +50,8 @@ final class ExpressionEmitter(
         case t if isIntCat(t) => cw.iconst(0); storeLocal(t, slot, cw)
         case t @ Ref(_) => cw.aconstNull(); storeLocal(t, slot, cw)
         case J => cw.lconst(0L); storeLocal(J, slot, cw)
-        case F => throw new Exception("float locals are not supported by the JVM backend")
+        case D => cw.dconst(0.0); storeLocal(D, slot, cw)
+        case F => throw new Exception("JVM `float` has no Jo type; see JavaSymbols.unrepresentablePrimitive")
 
   //----------------------------------------------------------------------------
   // Statement/expression compilation
@@ -210,7 +212,9 @@ final class ExpressionEmitter(
     // union can hold at most one numeric type, so this can never be
     // confused with an `Int` test.
     else if classSym == defn.Char_type then "java/lang/Integer"
-    else if classSym == defn.Float_type then "java/lang/Float"
+    // A Jo `Float` is 64-bit IEEE 754 (lib/Float.jo), so it is a JVM `double`
+    // and boxes to `java.lang.Double` — see `ValueAdaptation.box`.
+    else if classSym == defn.Float_type then "java/lang/Double"
     else if classSym == defn.Long_type then "java/lang/Long"
     // `Array[T]` is represented as a genuine JVM `Object[]` (see the
     // RefArray intrinsics), never as an instance of the library's own
@@ -293,7 +297,7 @@ final class ExpressionEmitter(
         else if t == B then ctx.cw.iconst(n.toInt.toByte)
         else ctx.cw.iconst(n.toInt)
       case Constant.String(s) => ctx.cw.stringConst(s)
-      case Constant.Float(_) => throw new Exception("float literals are not supported by the JVM backend")
+      case Constant.Float(v) => ctx.cw.dconst(v)
 
   private def compileIdent(sym: Symbol, t: JType)(using ctx: MethodCtx): Unit =
     if ctx.selfSym.contains(sym) then ctx.cw.aload(0)
@@ -305,11 +309,13 @@ final class ExpressionEmitter(
   private def loadLocal(t: JType, slot: Int, cw: CodeWriter): Unit =
     if isIntCat(t) then cw.iload(slot)
     else if t == J then cw.lload(slot)
+    else if t == D then cw.dload(slot)
     else cw.aload(slot)
 
   override def storeLocal(t: JType, slot: Int, cw: CodeWriter): Unit =
     if isIntCat(t) then cw.istore(slot)
     else if t == J then cw.lstore(slot)
+    else if t == D then cw.dstore(slot)
     else cw.astore(slot)
 
   private def compileIf(cond: Word, thenp: Word, elsep: Word)(using ctx: MethodCtx): Flow =

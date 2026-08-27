@@ -21,7 +21,10 @@ object JVMTypes:
     case Class(symbol: Symbol)
 
   enum JType:
-    case I, Z, B, C, F, J, V
+    // `D` is Jo's `Float`: `lib/Float.jo` defines it as 64-bit IEEE 754, so it
+    // is the JVM's `double`. `F` is the JVM's 32-bit `float`, which no Jo type
+    // maps to — it exists only so a Java descriptor containing one still parses.
+    case I, Z, B, C, F, D, J, V
     case Ref(desc: String)
 
   import JType.*
@@ -68,7 +71,7 @@ object JVMTypes:
       case Bool => Z
       case Byte => B
       case Char => C
-      case Float => F
+      case Float => D
       case Long => J
       case Void => V
       case Object => Ref(ObjectDesc)
@@ -110,7 +113,7 @@ object JVMTypes:
       case Representation.Bool => Z
       case Representation.Byte => B
       case Representation.Char => C
-      case Representation.Float => F
+      case Representation.Float => D
       case Representation.Long => J
       case Representation.String => Ref(StringDesc)
       case Representation.Object | Representation.Class(_) => Ref(ObjectDesc)
@@ -119,7 +122,10 @@ object JVMTypes:
     case I | Z | B | C => true
     case _ => false
 
-  def isPrimitive(t: JType): Boolean = isIntCat(t) || t == F || t == J
+  /** A category-2 value takes two operand-stack words and two local slots. */
+  def isCategory2(t: JType): Boolean = t == J || t == D
+
+  def isPrimitive(t: JType): Boolean = isIntCat(t) || t == F || t == D || t == J
 
   def isRef(t: JType): Boolean = t.isInstanceOf[Ref]
 
@@ -146,6 +152,7 @@ object JVMTypes:
     case B => "B"
     case C => "I"
     case F => "F"
+    case D => "D"
     case J => "J"
     case V => "V"
     case Ref(d) => d
@@ -177,6 +184,7 @@ object JVMTypes:
       case 'B' => (B, at + 1)
       case 'C' => (C, at + 1)
       case 'F' => (F, at + 1)
+      case 'D' => (D, at + 1)
       case 'J' => (J, at + 1)
       case 'V' => (V, at + 1)
       case 'L' =>
