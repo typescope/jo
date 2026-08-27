@@ -64,12 +64,24 @@ class Universe(root: Symbol, rewire: Map[Symbol, Symbol], intrinsicDeps: Map[Sym
               enqueue(classInfo.memberSymbol(sym.name))
 
         // CHA mirror: class live → find already-live abstract methods it implements.
-        if sym.isClass then
+        //
+        // Skipped for an external class, whose methods are host-platform
+        // definitions this compilation never emits. Its `ClassInfo` also lists
+        // only what the class itself declares, so asking it for an inherited
+        // implementation is a question it cannot always answer.
+        if sym.isClass && !sym.isExternal then
           _liveClasses += sym
           val classInfo = sym.classInfo
           classInfo.views.foreach: itype =>
             val ifaceSym = itype.typeSymbol
-            val reachable = ifaceSym.classInfo.allMethods.filter(_deferMethods.contains)
+            // An *external* view is an interface of the host platform, which
+            // can call back into the class without anything in this program
+            // naming the method — a Jo lambda passed to a Java API is invoked
+            // by Java, not by Jo. Its implementations are entry points, so they
+            // are reachable whether or not the abstract method is.
+            val reachable =
+              if ifaceSym.isExternal then ifaceSym.classInfo.allMethods.filter(_.is(Flags.Defer))
+              else ifaceSym.classInfo.allMethods.filter(_deferMethods.contains)
             for abstractMeth <- reachable do
               enqueue(classInfo.memberSymbol(abstractMeth.name))
         end if
