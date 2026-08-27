@@ -132,7 +132,11 @@ class Erasure(
           val tp2 = eraseType(tp)
           changed = changed || tp2.ne(tp)
 
-          if !allPrimitivesTagged then
+          // An external class implements its interfaces on the host platform,
+          // where no bridge of ours is emitted or wanted — and its `ClassInfo`
+          // lists only its own declarations, so the lookup below is not one it
+          // can always answer.
+          if !allPrimitivesTagged && !info.classSymbol.isExternal then
             val interfaceInfo = tp2.classInfo
             for method <- interfaceInfo.methods if method.is(Flags.Defer) do
               val implMeth = info.memberSymbol(method.name)
