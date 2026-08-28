@@ -136,6 +136,16 @@ run_query --lib "$SAST_DIR" --query "DocQueryAPI" > "$DIR/lib-query.json"
 run_query --lib "$SAST_DIR" --query "DocQueryAPI.Box.label" > "$DIR/lib-exact-member.json"
 run_query --lib "$SAST_DIR" --query "file:api.jo" > "$DIR/lib-file-query.json"
 
+# A public type and a private companion section may share a qualified name.
+# The private companion must not make a successful public-type query fail.
+run_plain_query --query "jo.String" --fields name,kind > "$DIR/stdlib-companion.json"
+grep -q -- '"name": "jo.String"' "$DIR/stdlib-companion.json"
+grep -q -- '"kind": "class"' "$DIR/stdlib-companion.json"
+if grep -q -- 'jo.String.LineIterator' "$DIR/stdlib-companion.json"; then
+    echo "Private stdlib companion member leaked into query output"
+    exit 1
+fi
+
 diff -u "$DIR/structural.json.check" "$DIR/structural.json"
 diff -u "$DIR/structural.json.check" "$DIR/file.json"
 diff -u "$DIR/structural.json.check" "$DIR/file-absolute.json"
