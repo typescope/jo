@@ -2,6 +2,9 @@ rm -rf .build
 
 jo doc
 
+! grep -q -x -- '--fatal-warnings' .build/app/doc.done
+grep -q -x -- '--readme' .build/app/doc.done
+
 test -f .build/app/doc/index.html
 : ''
 

@@ -1,13 +1,11 @@
 jo = "1.0"
 
-[doc]
-title = "Doc Demo"
-readme = "README.md"
-
 [module.app]
 kind = "app"
 platform = "python"
 src = ["src/"]
+compile-options = ["--fatal-warnings"]
+doc-options = ["--title", "Doc Demo", "--readme", "tests/tool-build/doc/README.md"]
 
 [module.app.package]
 name = "doc-demo"
