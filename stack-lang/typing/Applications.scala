@@ -161,7 +161,7 @@ trait Applications extends DynamicTyper:
           if invokeType.autoTypes.isEmpty then
             TreeOps.smartApply(fun1, argsTyped, autos = Nil)(applySpan).adapt
           else
-            Autos.resolve(fun1, argsTyped, applySpan).adapt
+            Autos.resolve(fun1, argsTyped, applySpan, config).adapt
 
     else
       if !fun1.tpe.isError then
@@ -206,7 +206,7 @@ trait Applications extends DynamicTyper:
     else
       val paramType = procType.paramTypes.head
       val argTyped = transformArg(arg, paramType)
-      Autos.resolve(fun, argTyped :: Nil, call.span).adapt
+      Autos.resolve(fun, argTyped :: Nil, call.span, config).adapt
 
   /** Handles infix call formed by expression typer `1 + 2` */
   def transformInfixCall(call: Ast.InfixCall)
@@ -258,7 +258,7 @@ trait Applications extends DynamicTyper:
           transformArgs(postArgs, procType.postParamTypes)
 
 
-      Autos.resolve(fun, preArgs2 ++ postArgs2, call.span).adapt
+      Autos.resolve(fun, preArgs2 ++ postArgs2, call.span, config).adapt
 
   /** Assumes that the argument count requirement is satisfied */
   def transformArgs

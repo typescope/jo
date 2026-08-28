@@ -1,5 +1,12 @@
 namespace jo.compile
 
+//[ The compiler-published source path and 1-based line number of a call.
+  !
+  ! A value is synthesized when a function requires an automatic
+  ! `SourceLocation` and no local automatic value of this type is available.
+//]
+class SourceLocation(file: String, line: Int)
+
 //[ Vararg element type accepting positional args, splices, and keyword args.
   !
   ! Used as the element type of a vararg parameter to allow mixed calling

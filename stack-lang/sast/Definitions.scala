@@ -80,6 +80,7 @@ final class Definitions(private var _index: SymbolIndex) extends Definitions.Laz
 
   // Compile utilities
   val compile          = resolveContainer("jo.compile")
+  val SourceLocation_class = compile.typeMember("SourceLocation")
   val Mixed_type       = compile.typeMember("Mixed")
   val Named_type       = compile.typeMember("Named")
   val compile_namedArg = compile.termMember("namedArg")

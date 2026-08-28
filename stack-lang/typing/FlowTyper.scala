@@ -10,6 +10,7 @@ import common.OutOfBand
 import sast.*
 import sast.Trees.*
 import reporting.Reporter
+import reporting.Config
 
 import Inference.TargetType
 
@@ -21,9 +22,10 @@ import scala.collection.mutable
   */
 object FlowTyper:
   extension (word: Word)
-    def adapt(using tt: TargetType, defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars): Word =
+    def adapt(config: Config)(using tt: TargetType, defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars): Word =
       // adaptation should not need flow scope
       given Scope = sc.outer
+      given Config = config
       Checker.adapt(word, tt)
 
   def transformFlow(word: Ast.Word, namer: Namer)
@@ -147,7 +149,7 @@ object FlowTyper:
       // `!` does not change bound variables
       sc.resetPromotedSet(snapShot)
 
-      rhsTyped.select(Names.PrefixNot).adapt
+      rhsTyped.select(Names.PrefixNot).adapt(namer.config)
 
     else
       val prefixOperatorMethod = Naming.prefixOperatorMethod(op.name)
@@ -156,7 +158,7 @@ object FlowTyper:
           tp match
             case ref: Types.RefType => Checker.checkAccess(ref.symbol, sc.owner, call.span)
             case _ =>
-          TreeOps.smartSelect(rhsTyped, prefixOperatorMethod, call.span).adapt
+          TreeOps.smartSelect(rhsTyped, prefixOperatorMethod, call.span).adapt(namer.config)
 
         case _ =>
           // Typing operator using outer scope
@@ -177,7 +179,7 @@ object FlowTyper:
 
           given Scope = sc.fresh()
           val infixCall = Ast.InfixCall(Nil, op, rhs :: Nil)(call.span)
-          namer.transformInfixCall(infixCall).adapt
+          namer.transformInfixCall(infixCall).adapt(namer.config)
 
   def transformInfixOperatorCall(call: Ast.InfixOperatorCall, namer: Namer)
       (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tt: TargetType, tvars: TypeVars, cs: ControlScope)
@@ -204,7 +206,7 @@ object FlowTyper:
         given TargetType = TargetType.Known(defn.BoolType)
         transformFlow(rhs, namer)
 
-      lhsTyped.select(op.name).appliedTo(rhsTyped).adapt
+      lhsTyped.select(op.name).appliedTo(rhsTyped).adapt(namer.config)
 
     else if tp.isBoolType && op.name == "||" then
       // `||` must bind the same set of variables for both branches
@@ -218,7 +220,7 @@ object FlowTyper:
       val setRHS = sc.promotedSet() -- snapShot
       for sym <- setRHS if !setLHS.contains(sym) do sc.demote(sym)
 
-      lhsTyped.select(op.name).appliedTo(rhsTyped).adapt
+      lhsTyped.select(op.name).appliedTo(rhsTyped).adapt(namer.config)
 
     else
       val isDotlessMethodCall = tp.isValueType && {
@@ -250,7 +252,7 @@ object FlowTyper:
 
       given Scope = sc.fresh()
       val infixCall = Ast.InfixCall(lhs :: Nil, op, rhs :: Nil)(call.span)
-      namer.transformInfixCall(infixCall).adapt
+      namer.transformInfixCall(infixCall).adapt(namer.config)
 
   /** Form AST from the words with the limit precedence for precedence expression
     *

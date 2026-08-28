@@ -36,7 +36,7 @@ import scala.collection.mutable
   * It is important to NOT trigger effect inference and effect check during type
   * checking.
   */
-class Namer(using Config) extends Applications with SelectionTyper:
+class Namer(using val config: Config) extends Applications with SelectionTyper:
   val patternTyper = PatternTyper(this)
   val exprTyper = new ExprTyper(this)
 

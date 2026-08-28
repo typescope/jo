@@ -9,6 +9,7 @@ import sast.Types.*
 import sast.Symbols.*
 
 import reporting.Reporter
+import reporting.Config
 
 import scala.collection.mutable
 
@@ -147,7 +148,7 @@ object Autos:
       i += 1
     end while
 
-  def resolve(fun: Word, args: List[Word], span: Span)
+  def resolve(fun: Word, args: List[Word], span: Span, config: Config)
       (using defn: Definitions, source: Source, rp: Reporter, sc: Scope)
   : Word =
     val procType: ProcType = fun.tpe.asProcType
@@ -178,8 +179,9 @@ object Autos:
 
     val all = new AutoResolution.SearchNode.All(new mutable.ArrayBuffer)
     val localAutos = sc.collectLocalAutos
+    given Config = config
 
-    AutoResolution.resolve(procType, localAutos, Vector.empty[AutoResolution.TraceElement], all, sc.owner, span.endPoint) match
+    AutoResolution.resolve(procType, localAutos, Vector.empty[AutoResolution.TraceElement], all, sc.owner, span) match
       case Some(autos) =>
         TreeOps.smartApply(fun, args, autos)(span)
 
