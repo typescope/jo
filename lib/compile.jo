@@ -2,8 +2,27 @@ namespace jo.compile
 
 //[ The compiler-published source path and 1-based line number of a call.
   !
-  ! A value is synthesized when a function requires an automatic
-  ! `SourceLocation` and no local automatic value of this type is available.
+  ! A value is synthesized when a function requires an auto
+  ! `SourceLocation` and no local auto value of this type is available.
+  ! Declare it in a function's auto parameter block:
+  !
+  !     import jo.compile.SourceLocation
+  !
+  !     def check(cond: Bool)(auto location: SourceLocation): Unit =
+  !       if !cond then
+  !         abort(location.file + ":" + location.line.toString + ": check failed")
+  !
+  !     check(answer == 42)
+  !
+  ! The call to `check` receives the source path and line of the call expression.
+  ! If a function with a `SourceLocation` parameter calls another such function,
+  ! normal auto resolution forwards the existing value. This
+  ! preserves the location of the outermost call rather than reporting a line
+  ! inside a test helper.
+  !
+  ! `file` is the portable path published by the compiler. A source below
+  ! `--source-root` is recorded relative to that root; a source outside the root
+  ! is reduced to its filename. `line` is 1-based.
 //]
 class SourceLocation(file: String, line: Int)
 
