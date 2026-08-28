@@ -15,22 +15,22 @@ If `module` is omitted, Jo documents the project default module.
 Generated HTML files are written to `.build/<module>/doc/`.
 On success, `jo doc` prints that output directory.
 
-`jo doc` uses the selected module's sources and reads documentation settings from `jo.toml`:
+`jo doc` uses the selected module's sources and reads `doc-options` from `jo.toml`:
 
 ```toml
-[doc]
-title = "Agent API"
-readme = "README.md"
-include-private = false
-include-source = false
+[module.api]
+kind = "lib"
+src = ["src/"]
+doc-options = [
+  "--title", "Agent API",
+  "--readme", "README.md",
+]
 ```
 
-| Field             | Description                                                  |
-|-------------------|--------------------------------------------------------------|
-| `title`           | Project title shown in the documentation header.             |
-| `readme`          | Markdown file used as the home page. Optional.               |
-| `include-private` | Include private symbols. Default: `false`.                   |
-| `include-source`  | Embed source locations. Default: `false`.                    |
+The options are passed verbatim to `jo compile --doc`. They apply only to
+documentation generation; the module's `compile-options` do not apply to
+`jo doc`. See the [compiler options reference](../reference/compiler-options.md#documentation-options)
+for available documentation options.
 
 The documentation header shows the module's version, taken from
 `[module.<id>.package].version`. Modules that declare no package show

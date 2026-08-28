@@ -77,7 +77,8 @@ and may contain only ASCII letters, digits, and hyphens.
 | `platform`        | string           | app only | Platform this module is bound to. Apps: `"python"` or `"ruby"`, required. Libs: `"pure"`, `"python"`, or `"ruby"`, default `"pure"`. |
 | `enable-ffi`      | boolean          | no       | May this module's own code call the platform's FFI API (`py.*`, `rb.*`). Default: `false`. |
 | `depth`           | integer          | no       | Maximum registry package dependency depth for this module. Default: `0` for `lib`, `1` for `app`. |
-| `compile-options` | array of strings | no       | Extra flags passed verbatim to `jo compile` for this module. |
+| `compile-options` | array of strings | no       | Extra flags passed verbatim to normal compilation for this module. Not used by `jo doc`. |
+| `doc-options`     | array of strings | no       | Extra flags passed verbatim to `jo compile --doc` for this module. |
 | `modules`         | array            | no       | Source module dependencies. Strings, or tables with `id`. |
 | `packages`        | array of tables  | no       | Registry package dependencies. |
 | `links`           | array of tables  | app only | Explicit `defer def` wiring. Invalid on lib modules. |
@@ -306,18 +307,6 @@ version = "1.2.0"
 The package table has no `platform` of its own. Generated `meta.toml` takes it from the module, so there is one place to state it and it cannot drift from what was compiled.
 
 When packaging, direct registry dependencies are recorded in `meta.toml`. Direct source module dependencies are recorded by their package name and version line, unless `link = true`.
-
-## `[doc]`
-
-Documentation settings apply to `jo doc <module>`.
-
-```toml
-[doc]
-title = "Agent API"
-readme = "README.md"
-include-private = false
-include-source = false
-```
 
 ## `[commands]`
 
