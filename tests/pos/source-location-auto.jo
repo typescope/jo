@@ -1,0 +1,35 @@
+import jo.compile.SourceLocation
+
+def location()(auto source: SourceLocation): SourceLocation = source
+
+def forwarded()(auto source: SourceLocation): SourceLocation =
+  location()
+
+type Formatter[T] = T => String
+
+def formatInt(value: Int): String = value.toString
+
+def intFormatter: Formatter[Int] = value => formatInt(value)
+
+def describe(value: Int)(
+    auto formatter: Formatter[Int] with [intFormatter],
+         source: SourceLocation
+): String =
+  formatter(value) + "@" + source.file + ":" + source.line.toString
+
+def main: Unit =
+  val direct = location()
+  println direct.file
+  println direct.line
+
+  val propagated = forwarded()
+  println propagated.file
+  println propagated.line
+
+  val combined = describe(42)
+  println combined
+
+  auto overridden: SourceLocation = new SourceLocation("generated.jo", 99)
+  val explicit = location()
+  println explicit.file
+  println explicit.line
