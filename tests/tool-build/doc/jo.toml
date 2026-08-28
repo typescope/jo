@@ -4,8 +4,12 @@ jo = "1.0"
 kind = "app"
 platform = "python"
 src = ["src/"]
-compile-options = ["--fatal-warnings"]
-doc-options = ["--title", "Doc Demo", "--readme", "tests/tool-build/doc/README.md"]
+compile-options = ["--fatal-warnings", "--source-root", "wrong-root"]
+doc-options = [
+  "--title", "Doc Demo",
+  "--readme", "tests/tool-build/doc/README.md",
+  "--source-root", "tests/tool-build/doc",
+]
 
 [module.app.package]
 name = "doc-demo"
