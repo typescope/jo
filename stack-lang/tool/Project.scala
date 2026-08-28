@@ -70,8 +70,6 @@ final class Project private (
   def pkg(id: ModuleId): Option[PackageSpec] =
     module(id).flatMap(_.pkg)
 
-  def doc: Option[DocSpec] = spec.doc
-
   def commands: Map[String, String] = spec.commands
 
   def declaredPlatform(id: ModuleId): Platform =
