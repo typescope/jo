@@ -4,9 +4,8 @@ import jo.compile.intrinsic
 
 //[ The JVM null reference.
   !
-  ! `Bottom` lets the value adapt to any Jo reference type. The JVM backend
-  ! treats this intrinsic as a normally completing `aconst_null`, despite the
-  ! otherwise non-returning meaning of `Bottom`.
+  ! The JVM backend emits `aconst_null`. The value is intended for reference
+  ! positions.
 //]
 @intrinsic
 def null: Bottom = ...
