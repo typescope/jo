@@ -2,6 +2,9 @@ namespace jo.jvm.runtime
 
 import jo.compile.intrinsic
 import jo.jvm.extern
+import jo.jvm.null
+import jo.jvm.isNull
+import jo.jvm.refEq
 
 // Boxing/unboxing markers inserted after shared erasure. Their signatures
 // preserve the concrete primitive input/output representation in ordinary
@@ -47,32 +50,6 @@ private section Lowering
   @intrinsic
   def unboxLong(value: Any): Long = abort "unboxLong should be intrinsified"
 end
-
-//[ Reference identity, `a == b` for two `Any` values.
-  !
-  ! Intrinsified by the backend as `if_acmpeq`. Used instead of a user-level
-  ! `==` because `Key[T]` (below) is an abstract type with no `==` of its own.
-//]
-@intrinsic
-private def refEq(a: Any, b: Any): Bool =
-  abort "refEq should be intrinsified by the JVM backend"
-
-//[ Whether a value is the real JVM `null`. Intrinsified as `ifnull`. //]
-@intrinsic
-private def isNull(a: Any): Bool =
-  abort "isNull should be intrinsified by the JVM backend"
-
-//[ The real JVM `null`. Intrinsified as `aconst_null`.
-  !
-  ! `null` is not a Jo value, so there is no literal for it; this is the one
-  ! place it enters the runtime, and `isNull` above the one place it is
-  ! observed. Both are needed because the JDK hands out `null` (a
-  ! non-participating regex group) and because a context chain terminates in
-  ! one.
-//]
-@intrinsic
-private def nullValue(): Any =
-  abort "nullValue should be intrinsified by the JVM backend"
 
 //[ Narrow `Any` to `T` without a runtime check.
   !
@@ -472,7 +449,7 @@ private section ParamSupport
     abort "paramKey should be replaced by backend"
 
   def emptyCtx(): Ctx receives none =
-    cast[Ctx](nullValue())
+    cast[Ctx](null)
 
   def getParam[T](ctx: Ctx, key: Key[T]): T receives none =
     var cur: Any = ctx
@@ -512,7 +489,7 @@ private def start(): Unit =
   val stderr: String => Unit =
     s => psPrint(systemErr(), s)
 
-  val argv: Array[String] = cast[Array[String]](nullValue())
+  val argv: Array[String] = cast[Array[String]](null)
 
   with
     IO.stdin = stdin,

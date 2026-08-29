@@ -1,0 +1,20 @@
+namespace jo.jvm
+
+import jo.compile.intrinsic
+
+//[ The JVM null reference.
+  !
+  ! `Bottom` lets the value adapt to any Jo reference type. The JVM backend
+  ! treats this intrinsic as a normally completing `aconst_null`, despite the
+  ! otherwise non-returning meaning of `Bottom`.
+//]
+@intrinsic
+def null: Bottom = ...
+
+//[ Whether a value is the JVM null reference. //]
+@intrinsic
+def isNull(value: Any): Bool = ...
+
+//[ JVM reference identity comparison. //]
+@intrinsic
+def refEq(left: Any, right: Any): Bool = ...
