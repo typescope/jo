@@ -165,7 +165,9 @@ object Query:
     for sym <- filter.symbols do
       val matchedByAncestor =
         sym.ownersIterator.exists(matched.contains)
-      if !matched.contains(sym) && !matchedByAncestor then
+      val matchedBySameName =
+        matched.exists(_.fullName == sym.fullName)
+      if !matched.contains(sym) && !matchedByAncestor && !matchedBySameName then
         Reporter.error(s"No documentation entries match symbol selector `${sym.fullName}`")
 
     distinctUnits(trimmed)

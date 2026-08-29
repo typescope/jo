@@ -6,6 +6,7 @@ import sast.Symbols.*
 
 import ast.Positions.{Span, Source}
 import common.Debug
+import reporting.Config
 
 
 object Adaptation:
@@ -77,7 +78,7 @@ object Adaptation:
     *
     */
   def adapt(word: Word, targetType: Type, adapters: List[Adapter])
-      (using defn: Definitions)
+      (using defn: Definitions, config: Config)
   : Word = Debug.trace(s"adapting ${word.show} to ${targetType.show}", enable = false):
 
     assert(targetType.isFullyInstantiated, "not fully instantiated: " + targetType.show)
@@ -277,7 +278,7 @@ object Adaptation:
     Adapter.VarargSplice(adapters, owner, scope, source) :: Nil
 
   private def adaptWithAdapters(word: Word, targetType: Type, adapters: List[Adapter])
-      (using defn: Definitions)
+      (using defn: Definitions, config: Config)
   : Result =
     val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
     var success: Option[Word] = None
@@ -317,7 +318,7 @@ object Adaptation:
 
   def adaptSimple
       (word: Word, targetType: Type, adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)
-      (using Definitions, Source)
+      (using Definitions, Source, Config)
   : Result = Debug.trace(s"adapt ${word.show} to ${targetType.show} with ${adapters}", enable = false):
     val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
     var remaining = adapters
@@ -420,7 +421,7 @@ object Adaptation:
 
   def adaptVarargSplice
       (word: Word, targetElemType: Type, elemType: Type, adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)
-      (using Definitions, Source)
+      (using Definitions, Source, Config)
   : Result = Debug.trace(s"adapt splice ${word.show} from ${elemType.show} to ${targetElemType.show} with ${adapters}", enable = false):
     val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
     var remaining = adapters
@@ -514,7 +515,7 @@ object Adaptation:
     */
   private def createMemberAccessor
       (memberName: String, paramType: Type, memberType: Type, resultType: Type, owner: Symbol, scope: typing.Scope, span: Span)
-      (using Definitions, Source)
+      (using Definitions, Source, Config)
   : Either[AutoResolution.SearchNode.All, Word] =
     // Build the lambda type for the lambda
     val lambdaType = LambdaType(

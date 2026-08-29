@@ -1,0 +1,9 @@
+jo = "1.0"
+
+[doc]
+title = "Old documentation settings"
+
+[module.app]
+kind = "app"
+platform = "python"
+src = ["src/"]

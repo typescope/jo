@@ -35,25 +35,27 @@ object Build:
       case e: IOException => Result.Err(s"error: ${e.getMessage}")
 
   def buildDoc(project: Project, module: ModuleId)(using Logger, PackageProvider): Result[Unit] =
-    makePlanResult(project, List(module)).flatMap: plans =>
-      val plan = plans.modules.head
-      val outDir = project.buildDir(module).resolve("doc")
-      val withDoc = plan.copy(
-        task = plan.task match
-          case lib: CompileTask.LibTask =>
-            lib.copy(compileOptions = lib.compileOptions ++ docOptions(project, module))
+    project.requireModule(module).flatMap: spec =>
+      makePlanResult(project, List(module)).flatMap: plans =>
+        val plan = plans.modules.head
+        val outDir = project.buildDir(module).resolve("doc")
+        val options = Planner.ffiCompileOptions(spec) ++ docOptions(project, module, spec.docOptions) ++ spec.docOptions
+        val withDoc = plan.copy(
+          task = plan.task match
+            case lib: CompileTask.LibTask =>
+              lib.copy(compileOptions = options)
 
-          case app: CompileTask.AppTask =>
-            CompileTask.LibTask(
-              app.sources,
-              app.checkLibs,
-              app.sastDir,
-              app.defaultSourceRoot,
-              app.compileOptions ++ docOptions(project, module),
-            )
-      )
-      Runner.doc(withDoc, outDir).map: _ =>
-        Logger.info(s"[output] ${LogFormat.path(outDir)}\n")
+            case app: CompileTask.AppTask =>
+              CompileTask.LibTask(
+                app.sources,
+                app.checkLibs,
+                app.sastDir,
+                app.defaultSourceRoot,
+                options,
+              )
+        )
+        Runner.doc(withDoc, outDir).map: _ =>
+          Logger.info(s"[output] ${LogFormat.path(outDir)}\n")
 
   def deps(project: Project, module: ModuleId)(using Logger, PackageProvider): Result[Unit] =
     depsResult(project, module).map: output =>
@@ -221,19 +223,14 @@ object Build:
   private def writeLock(path: Path, pkgs: List[ResolvedPackage])(using provider: PackageProvider): Result[Unit] =
     makeLock(pkgs).flatMap(LockFile.write(path, _))
 
-  private def docOptions(project: Project, module: ModuleId): List[String] =
-    val docSpec = project.doc.getOrElse(DocSpec())
+  private def docOptions(project: Project, module: ModuleId, userOptions: List[String]): List[String] =
     val options = mutable.ArrayBuffer[String](
       "--doc",
       "--out",
       project.buildDir(module).resolve("doc").toString,
-      "--title",
-      docSpec.title.getOrElse(module.value),
     )
+    if !userOptions.contains("--title") then options ++= List("--title", module.value)
     project.pkg(module).foreach(p => options ++= List("--project-version", p.version))
-    docSpec.readme.foreach(r => options ++= List("--readme", project.dir.resolve(r).toString))
-    if docSpec.includePrivate then options += "--include-private"
-    if docSpec.includeSource then options += "--include-source"
     options.toList
 
   private def warnUnusedPinning(resolved: ResolutionResult)(using Logger): Unit =

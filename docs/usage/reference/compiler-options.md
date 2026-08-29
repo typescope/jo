@@ -2,7 +2,8 @@
 
 These are the low-level options accepted by `jo compile`. Project commands such as
 `jo build`, `jo check`, and `jo run` usually derive compiler flags from
-`jo.toml`, but `module.<id>.compile-options` can pass extra flags through to `jo compile`.
+`jo.toml`, but `module.<id>.compile-options` can pass extra flags through to normal
+compilation and `module.<id>.doc-options` can pass flags to `jo compile --doc`.
 
 For the command-level interface and examples, see [`jo compile`](../commands/compile.md).
 
@@ -100,7 +101,6 @@ above plus these documentation-specific options.
 | `--title <name>` | single value | Documentation title. Default: `API Documentation`. |
 | `--readme <file>` | single value | Markdown file to use as the generated documentation home page. |
 | `--include-private` | flag | Include private symbols. |
-| `--include-source` | flag | Embed source code in the generated documentation. |
 
 Documentation output is always HTML.
 

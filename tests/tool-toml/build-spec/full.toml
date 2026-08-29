@@ -4,17 +4,14 @@ default = "app"
 [pinning]
 mustache = "1.2.3"
 
-[doc]
-title = "My App API"
-include-private = true
-include-source = true
-
 [module.app]
 kind = "app"
 src = ["src/", "vendor/"]
 resources = ["assets/", "public/logo.svg:logo.svg"]
 platform = "python"
 depth = 2
+compile-options = ["--fatal-warnings"]
+doc-options = ["--title", "My App API", "--include-private"]
 
 modules = [
   { id = "utils", path = "../utils" },

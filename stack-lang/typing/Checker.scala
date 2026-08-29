@@ -271,7 +271,7 @@ object Checker:
         Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", pos)
         ErrorType
 
-  def adaptParameterless(word: Word, targetType: TargetType)(using Definitions, Scope, Reporter, Source, TypeVars): Word =
+  def adaptParameterless(word: Word, targetType: TargetType)(using Definitions, Scope, Reporter, Source, TypeVars, Config): Word =
     if !word.tpe.isProcType then return word
 
     val procType = word.tpe.asProcType
@@ -298,13 +298,13 @@ object Checker:
       // Constrain result type
       Inference.conditionalInstantiate(resType, targetType)
 
-      Autos.resolve(fun, Nil, word.span)
+      Autos.resolve(fun, Nil, word.span, summon[Config])
 
     else
       word
 
   def adapt(word: Word, targetType: TargetType)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, config: Config)
   : Word = Debug.trace("Adapting " + word.show + ", tt = " + targetType.show, (_: Word).show, enable = false):
     val defn = summon[Definitions]
 

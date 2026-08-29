@@ -64,7 +64,27 @@ For each omitted auto argument of type `T` with candidate list `[c1, ..., cn]`:
 1. **Local scope:** Search for an `auto` definition or `auto` parameter of type `T` in the enclosing scope. Innermost definition wins. If found, use it and stop.
 2. **Candidates:** Try `c1, c2, ...` in order. The first that conforms to `T` (or whose eta-expansion conforms to `T`) is used. When a matching candidate itself has auto parameters, they are resolved recursively by the same algorithm.
 3. **Identity synthesis:** If `T` is a function type `U => V` with `U <: V`, synthesize the identity function `(x: U) => x`.
-4. **Failure:** Report an error with the full search tree.
+4. **Source-location synthesis:** If `T` is the standard-library type `jo.compile.SourceLocation`, synthesize a value containing the compiler-published path and 1-based line number of the call expression. This rule applies only to that canonical type, not to another type with the same name.
+5. **Failure:** Report an error with the full search tree.
+
+Local-scope lookup happens before source-location synthesis. A helper that already
+has an auto `SourceLocation` therefore forwards it to nested calls, preserving the
+location where the outermost helper was called:
+
+```jo
+import jo.compile.SourceLocation
+
+def fail(message: String)(auto location: SourceLocation): Unit =
+  abort(location.file + ":" + location.line.toString + ": " + message)
+
+def check(cond: Bool)(auto location: SourceLocation): Unit =
+  if !cond then fail("check failed") // forwards location
+
+check(answer == 42) // synthesis occurs here
+```
+
+The synthesized file is relative to `--source-root` when the source is beneath
+that root. For a source outside the root, only its filename is published.
 
 ```jo
 def process[T](x: T)(auto eq: Eq[T] with [eqInt, eqString, [T].==]): Unit = ...

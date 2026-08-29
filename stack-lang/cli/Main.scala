@@ -328,5 +328,4 @@ object Main:
       |  --out <dir>           Output directory (default: docs)
       |  --title <name>        Project title for documentation
       |  --include-private     Include private symbols
-      |  --include-source      Embed source code in output
       |""".stripMargin)

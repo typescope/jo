@@ -317,7 +317,7 @@ object Planner:
       case Some(target) => Result.Ok(target)
       case None         => Result.Err(s"module '${module.value}' has no app platform")
 
-  private def ffiCompileOptions(module: ModuleSpec): List[String] =
+  private[tool] def ffiCompileOptions(module: ModuleSpec): List[String] =
     if module.enableFfi then
       module.platform.flatMap(_.target).toList.flatMap(target => List("--use-runtime-api", target.flag))
     else

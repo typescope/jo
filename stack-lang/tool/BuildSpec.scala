@@ -40,6 +40,7 @@ case class ModuleSpec(
   packageDeps: List[PackageDepSpec],
   links: List[LinkSpec],        // defer-sym -> target-sym
   compileOptions: List[String] = Nil,  // extra flags passed to `jo compile`
+  docOptions: List[String] = Nil,      // extra flags passed to `jo compile --doc`
   pkg: Option[PackageSpec] = None,
 ):
   /** This module's own direct (not transitive) check-visible registry package deps. */
@@ -64,17 +65,9 @@ case class PackageSpec(
   keywords: List[String] = Nil,
 )
 
-case class DocSpec(
-  title: Option[String] = None,
-  readme: Option[String] = None,
-  includePrivate: Boolean = false,
-  includeSource: Boolean = false,
-)
-
 case class BuildSpec(
   jo: VersionSpec,              // compiler compatibility line, e.g. "1.0"
   pinning: Map[String, Version] = Map.empty, // root-only exact resolver overrides
-  doc: Option[DocSpec],
   defaultModule: Option[ModuleId],
   modules: List[ModuleDef],
   commands: Map[String, String] = Map.empty, // [commands] -> `jo <name>` shell aliases
@@ -98,7 +91,8 @@ object BuildSpec:
       throw TomlError("'depth' is no longer supported at the top level; set depth under [module.<id>]")
 
     val pinning = doc.get("pinning").map(v => decodePinning(asTbl(v, "pinning"))).getOrElse(Map.empty)
-    val docSpec = doc.get("doc").map(v => decodeDoc(asTbl(v, "doc")))
+    if doc.contains("doc") then
+      throw TomlError("'[doc]' is no longer supported; set doc-options under [module.<id>]")
     val default = doc.get("default").map(v => ModuleId(validateModuleId(asStr(v, "default"), "default")))
     val modules = decodeModules(doc.get("module"))
     val commands = doc.get("commands").map(v => decodeCommands(asTbl(v, "commands"))).getOrElse(Map.empty)
@@ -110,7 +104,7 @@ object BuildSpec:
       if !modules.exists(_.id == id) then
         throw TomlError(s"default module '${id.value}' is not defined")
 
-    BuildSpec(jo, pinning, docSpec, default, modules, commands)
+    BuildSpec(jo, pinning, default, modules, commands)
 
   private def decodeModules(value: Option[TomlValue]): List[ModuleDef] =
     value match
@@ -148,6 +142,7 @@ object BuildSpec:
     val packageDeps = tbl.get("packages").map(v => decodePackageDeps(v, id)).getOrElse(Nil)
     val links = tbl.get("links").map(v => decodeLinks(v, id)).getOrElse(Nil)
     val compileOptions = tbl.get("compile-options").map(asStrList(_, s"module.${id.value}.compile-options")).getOrElse(Nil)
+    val docOptions = tbl.get("doc-options").map(asStrList(_, s"module.${id.value}.doc-options")).getOrElse(Nil)
     val pkg = tbl.get("package").map(v => decodePackage(asTbl(v, s"module.${id.value}.package"), id))
 
     if kind == ModuleKind.App then
@@ -166,7 +161,7 @@ object BuildSpec:
     if enableFfi && platform.getOrElse(Platform.Pure) == Platform.Pure then
       throw TomlError(s"module.${id.value}.enable-ffi requires platform = \"python\" or platform = \"ruby\"")
 
-    ModuleSpec(kind, src, resources, platform, enableFfi, depth, moduleDeps, packageDeps, links, compileOptions, pkg)
+    ModuleSpec(kind, src, resources, platform, enableFfi, depth, moduleDeps, packageDeps, links, compileOptions, docOptions, pkg)
 
   /** `modules = ["api", { id = "helpers", path = "../lib" }]`
    *  A bare string is shorthand for `{ id = "<string>" }`.
@@ -302,13 +297,6 @@ object BuildSpec:
     validateVersion(version, s"$ctx.version")
 
     PackageSpec(name, version, description, authors, homepage, license, keywords)
-
-  private def decodeDoc(tbl: Map[String, TomlValue]): DocSpec =
-    val title = tbl.get("title").map(asStr(_, "[doc].title"))
-    val readme = tbl.get("readme").map(asStr(_, "[doc].readme"))
-    val includePrivate = tbl.get("include-private").map(asBool(_, "[doc].include-private")).getOrElse(false)
-    val includeSource = tbl.get("include-source").map(asBool(_, "[doc].include-source")).getOrElse(false)
-    DocSpec(title, readme, includePrivate, includeSource)
 
   private def validateModuleId(id: String, ctx: String): String =
     if id.isEmpty || !isAsciiLetter(id.head) || !id.tail.forall(c => isAsciiLetterOrDigit(c) || c == '-') then

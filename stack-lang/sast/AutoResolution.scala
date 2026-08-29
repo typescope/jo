@@ -5,6 +5,7 @@ import Trees.*
 import Symbols.*
 
 import ast.Positions.*
+import reporting.Config
 
 import scala.collection.mutable
 
@@ -49,7 +50,7 @@ object AutoResolution:
     case Success
 
   def resolve(procType: ProcType, localAutos: List[Symbol], trace: Vector[TraceElement], all: SearchNode.All, owner: Symbol, span: Span)
-      (using Definitions, Source)
+      (using Definitions, Source, Config)
   : Option[List[Word]] =
 
     val autos = new mutable.ArrayBuffer[Word]
@@ -87,7 +88,7 @@ object AutoResolution:
   def search
       (targetType: Type, cands: List[Symbol | MemberCandidate], localAutos: List[Symbol],
         trace: Vector[TraceElement], choice: SearchNode.Choice, owner: Symbol, span: Span)
-      (using defn: Definitions, source: Source)
+      (using defn: Definitions, source: Source, config: Config)
   : Option[Word] =
 
     // First, search local autos
@@ -117,10 +118,11 @@ object AutoResolution:
 
     // Last resort: try identity
     trySynthesizeIdentity(targetType, choice, owner, span)
+      .orElse(trySynthesizeSourceLocation(targetType, span))
 
   def tryValue
       (sym: Symbol, targetType: Type, trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, localAutos: List[Symbol], span: Span)
-      (using Definitions, Source)
+      (using Definitions, Source, Config)
   : Option[Word] =
 
     val tp = sym.tpe
@@ -173,7 +175,7 @@ object AutoResolution:
   def tryMember
       (receiverType: Type, name: String, targetType: Type, trace: Vector[TraceElement],
         trial: SearchNode.Trial, owner: Symbol, localAutos: List[Symbol], span: Span)
-      (using defn: Definitions, so: Source)
+      (using defn: Definitions, so: Source, config: Config)
   : Option[Word] =
 
     // Check for cycles: if this member candidate is already in trace, we have divergence
@@ -244,7 +246,7 @@ object AutoResolution:
   def tryMethodMember
       (procType: ProcType, receiverType: Type, memberName: String, targetLambda: LambdaType,
         trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, localAutos: List[Symbol], span: Span)
-      (using defn: Definitions, so: Source)
+      (using defn: Definitions, so: Source, config: Config)
   : Option[Word] =
     val lambdaParamTypes = receiverType :: procType.paramTypes
 
@@ -297,7 +299,7 @@ object AutoResolution:
   def tryExtensionMember
       (sym: Symbol, receiverType: Type, memberName: String, targetLambda: LambdaType,
         trace: Vector[TraceElement], trial: SearchNode.Trial, owner: Symbol, localAutos: List[Symbol], span: Span)
-      (using defn: Definitions, so: Source)
+      (using defn: Definitions, so: Source, config: Config)
   : Option[Word] =
     val procType = sym.tpe.asProcType
 
@@ -416,6 +418,16 @@ object AutoResolution:
         case res => res
     else
       Some(lambda)
+
+  private def trySynthesizeSourceLocation(targetType: Type, span: Span)(using defn: Definitions, source: Source, config: Config): Option[Word] =
+    if !Subtyping.isEqualType(targetType, StaticRef(defn.SourceLocation_class)) then return None
+
+    val newLocation = New(TypeTree(targetType)(span.point))(span.point)
+    val constructor = newLocation.select(Names.Constructor)
+    Some(constructor.appliedTo(
+      StringLit(Config.publishedSourcePath(source.file))(span.point),
+      IntLit(span.toPos.startLine + 1)(span.point),
+    ))
 
   /** Format search tree as error message */
   def formatSearchTree(all: AutoResolution.SearchNode.All, baseIndent: String = "")(using Definitions): String =

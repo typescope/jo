@@ -10,11 +10,6 @@ object ToolPrinter:
       for (name, version) <- spec.pinning.toSeq.sortBy(_._1) do
         sb.append(s"  $name = ${str(version.toString)}\n")
 
-    spec.doc.foreach: d =>
-      d.title.foreach(t => sb.append(s"doc.title = ${str(t)}\n"))
-      if d.includePrivate then sb.append("doc.include-private = true\n")
-      if d.includeSource then sb.append("doc.include-source = true\n")
-
     for module <- spec.modules do
       sb.append(s"module.${module.id.value}:\n")
       appendSection(sb, module.spec, "  ")
@@ -67,6 +62,7 @@ object ToolPrinter:
     if s.enableFfi then sb.append(s"${pad}enable-ffi = true\n")
     s.depth.foreach(d => sb.append(s"${pad}depth = $d\n"))
     if s.compileOptions.nonEmpty then sb.append(s"${pad}compile-options = ${strList(s.compileOptions)}\n")
+    if s.docOptions.nonEmpty then sb.append(s"${pad}doc-options = ${strList(s.docOptions)}\n")
 
     s.pkg.foreach: p =>
       sb.append(s"${pad}package:\n")

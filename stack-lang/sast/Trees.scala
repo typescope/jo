@@ -735,16 +735,15 @@ object Trees:
       assert(procType.tparams.isEmpty, "type params not supplied")
       assert(procType.autos.isEmpty, "autos not supplied")
 
-      val args2 =
-        for
-          (arg, paramType) <- args.zip(procType.paramTypes)
-        yield
-          // Both fun and arg are fully instantiated
-          Adaptation.adapt(arg, paramType, Nil)
+      for (arg, paramType) <- args.zip(procType.paramTypes) do
+        assert(
+          Subtyping.conforms(arg.tpe, paramType),
+          s"argument type ${arg.tpe.show} does not conform to parameter type ${paramType.show} in ${word.show}",
+        )
 
       val span = args.foldLeft(word.span)(_ | _.span)
 
-      Apply(word, args2.toList, autos = Nil)(span)
+      Apply(word, args.toList, autos = Nil)(span)
 
     def appliedToTypes(targs: Type*)(using Definitions): Word =
       val targList = targs.toList

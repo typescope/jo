@@ -51,14 +51,13 @@ documents your project:
 jo doc
 ```
 
-It reads settings from `jo.toml` and writes a self-contained directory to
+It reads the selected module's `doc-options` from `jo.toml` and writes a self-contained directory to
 `.build/<module>/doc/` — no web server, no build step, open `index.html` in a
 browser:
 
 ```toml
-[doc]
-title = "Agent API"
-readme = "README.md"
+[module.api]
+doc-options = ["--title", "Agent API", "--readme", "README.md"]
 ```
 
 The version shown beside the title in the header comes from your module's

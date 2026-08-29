@@ -14,7 +14,7 @@ jo compile --python|--ruby|--js [--sast <dir>] [--source-root <dir>] <file.jo>..
 
 # Generate HTML documentation from source files (experimental)
 jo compile --doc [--out <dir>] [--title <name>] [--readme <file>] \
-           [--include-private] [--include-source] [--source-root <dir>] \
+           [--include-private] [--source-root <dir>] \
            <file.jo>...
 
 # Query API information as JSON (experimental)
@@ -50,7 +50,8 @@ the file and report diagnostics.
 
 Project commands such as `jo build` and `jo doc` default the source root to the
 module's project directory. An explicit `--source-root` in the module's
-`compile-options` overrides that default.
+`compile-options` overrides that default for compilation; put it in
+`doc-options` to override the documentation default.
 
 ### Documentation
 
@@ -64,7 +65,6 @@ Experimental.
 | `--project-version <version>` | Version shown beside the title. Omitted: the header reads `version unknown` |
 | `--readme <file>` | Markdown file to use as the generated documentation home page |
 | `--include-private` | Include private symbols |
-| `--include-source` | Embed source code in output |
 
 ### Query
 

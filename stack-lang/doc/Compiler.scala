@@ -17,10 +17,9 @@ object Compiler:
   val projectVersion: Config.StringSetting = Config.StringSetting("--project-version", "", "project version shown in the header")
   val readme: Config.StringSetting = Config.StringSetting("--readme", "", "markdown file to use as home page")
   val includePrivate: Config.BooleanSetting = Config.BooleanSetting("--include-private", false, "include private symbols")
-  val includeSource: Config.BooleanSetting = Config.BooleanSetting("--include-source", false, "embed source code")
 
   val docOptions: List[cli.OptionParser.Setting[?]] =
-    outputDir :: title :: projectVersion :: readme :: includePrivate :: includeSource :: Config.commonOptions
+    outputDir :: title :: projectVersion :: readme :: includePrivate :: Config.commonOptions
 
   def main(args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
@@ -37,7 +36,6 @@ object Compiler:
       println("  --title <name>         Project title for documentation")
       println("  --project-version <v>  Project version shown in the header")
       println("  --include-private      Include private symbols")
-      println("  --include-source       Embed source code in output")
       println()
       println("Examples:")
       println("  jo doc lib/Core.jo lib/List.jo --out site/api")

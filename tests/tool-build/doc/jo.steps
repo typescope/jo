@@ -2,6 +2,11 @@ rm -rf .build
 
 jo doc
 
+! grep -q -x -- '--fatal-warnings' .build/app/doc.done
+grep -q -x -- '--readme' .build/app/doc.done
+test "$(grep -c -x -- '--source-root' .build/app/doc.done)" -eq 1
+awk 'previous == "--source-root" { found = ($0 == "tests/tool-build/doc") } { previous = $0 } END { exit !found }' .build/app/doc.done
+
 test -f .build/app/doc/index.html
 : ''
 
