@@ -2,6 +2,39 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.13.1] - 2026-08-30
+
+### Added
+
+- Auto parameters of type `jo.compile.SourceLocation` receive a compiler-
+  synthesized source path and line number when no local auto value is available.
+  This lets helpers report the outermost call site without explicit plumbing.
+  ([#103])
+
+### Changed
+
+- `jo doc` now takes compiler documentation flags verbatim from each module's
+  `doc-options`. The top-level `[doc]` table is no longer supported, and normal
+  `compile-options` no longer affect documentation generation. ([#103])
+
+### Fixed
+
+- `jo compile --query` no longer reports a false missing-entry error when a
+  selector such as `jo.String` resolves to equivalent symbols loaded from
+  multiple compilation units. ([#103])
+
+### Security
+
+- No security-relevant changes.
+
+### Compatibility
+
+- Build specs with a top-level `[doc]` table must move those settings to the
+  documented module's `doc-options` array. ([#103])
+- No library recompilation is required.
+
+[#103]: https://github.com/typescope/jo/pull/103
+
 ## [0.13.0] - 2026-08-25
 
 ### Added
