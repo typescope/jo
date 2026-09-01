@@ -1,0 +1,5 @@
+namespace reservedViewValBinder
+
+def f(): String =
+  val view = "x"
+  view

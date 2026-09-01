@@ -1,0 +1,5 @@
+namespace reservedInterfaceValBinder
+
+def f(): String =
+  val interface = "x"
+  interface

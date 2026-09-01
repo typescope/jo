@@ -2396,6 +2396,11 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       else
         pat = simplePattern(prevPattern = pat)
 
+    if patterns.isEmpty then
+      val item = peekItem()
+      error("Expect a pattern, found token " + item.token, item.span.toPos)
+      throw new SyntaxError
+
     patterns.toList match
       case (op: Ident) :: rhs :: Nil if Naming.isOperator(op.name) =>
         ApplyPattern(op, rhs :: Nil)(op.span | rhs.span)

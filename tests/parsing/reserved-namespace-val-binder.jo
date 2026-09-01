@@ -1,0 +1,5 @@
+namespace reservedNamespaceValBinder
+
+def f(): String =
+  val namespace = "x"
+  namespace

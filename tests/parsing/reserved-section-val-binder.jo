@@ -1,0 +1,5 @@
+namespace reservedSectionValBinder
+
+def f(): String =
+  val section = "x"
+  section
