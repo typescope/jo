@@ -188,8 +188,8 @@ interface Dynamic
     ! This is the safe conversion path: use it when you want a human-readable
     ! string representation of any `py.Dynamic`.
     !
-    ! Contrast with `asString`, which is an unsafe cast asserting the value is
-    ! already a Python `str` with no conversion.
+    ! Contrast with `asString`, which checks that the value is already a Python
+    ! `str` and returns it without conversion.
     !
     ! Because Jo uses `toString` as the standard string-conversion adapter,
     ! `py.Dynamic` will also work transparently in string concatenation and
@@ -197,22 +197,38 @@ interface Dynamic
   //]
   def toString: String = py.str(this)
 
-  //[ Reinterpret this Python value as a Jo String.
+  //[ Return this Python value as a Jo String.
     !
-    ! The value must already be a Python `str`; no conversion is performed.
+    ! Aborts unless the value is exactly a Python `str`; no conversion is performed.
     ! Use `toString` instead when you need a human-readable representation of
     ! an arbitrary Python value.
   //]
-  def asString: String = cast[String]
+  def asString: String =
+    val actual = builtins.callDynamic("type", this)
+    if !py.isIdentical(actual, builtins.str) then
+      abort("py.Dynamic.asString: expected Python str, got " + actual.__name__.cast[String])
+    cast[String]
 
-  //[ Reinterpret this Python value as a Jo Int.   //]
-  def asInt: Int = cast[Int]
+  //[ Return this Python value as a Jo Int, aborting unless it is exactly a Python `int`.   //]
+  def asInt: Int =
+    val actual = builtins.callDynamic("type", this)
+    if !py.isIdentical(actual, builtins.int) then
+      abort("py.Dynamic.asInt: expected Python int, got " + actual.__name__.cast[String])
+    cast[Int]
 
-  //[ Reinterpret this Python value as a Jo Float.   //]
-  def asFloat: Float = cast[Float]
+  //[ Return this Python value as a Jo Float, aborting unless it is exactly a Python `float`.   //]
+  def asFloat: Float =
+    val actual = builtins.callDynamic("type", this)
+    if !py.isIdentical(actual, builtins.float) then
+      abort("py.Dynamic.asFloat: expected Python float, got " + actual.__name__.cast[String])
+    cast[Float]
 
-  //[ Reinterpret this Python value as a Jo Bool.   //]
-  def asBool: Bool = cast[Bool]
+  //[ Return this Python value as a Jo Bool, aborting unless it is exactly a Python `bool`.   //]
+  def asBool: Bool =
+    val actual = builtins.callDynamic("type", this)
+    if !py.isIdentical(actual, builtins.bool) then
+      abort("py.Dynamic.asBool: expected Python bool, got " + actual.__name__.cast[String])
+    cast[Bool]
 
   //[ Test whether this Python value is Python None.   //]
   def isNone: Bool = py.isNone(this)

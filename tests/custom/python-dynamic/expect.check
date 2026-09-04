@@ -26,3 +26,9 @@ sep = /
 capwords = Jo-Ffi
 --- callDynamic + splice ---
 max(*[1,7,3]) = 7
+--- checked accessors ---
+py.Dynamic.asInt: expected Python int, got str
+py.Dynamic.asFloat: expected Python float, got int
+py.Dynamic.asInt: expected Python int, got bool
+py.Dynamic.asBool: expected Python bool, got int
+py.Dynamic.asString: expected Python str, got int

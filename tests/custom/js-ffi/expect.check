@@ -74,3 +74,9 @@ call isArray(42) = false
 --- toString ---
 toString 42 = 42
 toString [1,2,3] = 1,2,3
+--- checked accessors ---
+js.Dynamic.asInt: expected JavaScript integer number, got string
+js.Dynamic.asInt: expected JavaScript integer number, got number
+js.Dynamic.asFloat: expected JavaScript number, got string
+js.Dynamic.asBool: expected JavaScript boolean, got number
+js.Dynamic.asString: expected JavaScript string, got number
