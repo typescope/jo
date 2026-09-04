@@ -98,11 +98,13 @@ val b: Bool   = someValue.cast[Bool]
 `py.Dynamic` provides shorthand methods for the four primitive types:
 
 ```jo
-val i: Int    = v.asInt     // equivalent to v.cast[Int]
-val f: Float  = v.asFloat   // equivalent to v.cast[Float]
-val s: String = v.asString  // equivalent to v.cast[String]
-val b: Bool   = v.asBool    // equivalent to v.cast[Bool]
+val i: Int    = v.asInt
+val f: Float  = v.asFloat
+val s: String = v.asString
+val b: Bool   = v.asBool
 ```
+
+Each shortcut checks that the value has exactly the corresponding Python type and aborts with a descriptive error if it does not. In particular, `asInt` rejects Python `bool` values even though Python treats `bool` as a subclass of `int`. The generic `cast[T]` remains an unchecked reinterpretation for typed wrappers and other advanced uses.
 
 Use `asString` when you know the value is already a Python `str`. Use `toString` (see below) when you want a human-readable representation of an arbitrary value.
 
