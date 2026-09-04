@@ -1,0 +1,5 @@
+namespace reservedUnionValBinder
+
+def f(): String =
+  val union = "x"
+  union

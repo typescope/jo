@@ -1,0 +1,6 @@
+namespace reservedSectionForBinder
+
+def f(xs: List[String]): Int =
+  var n = 0
+  for section in xs do n = n + section.size
+  n
