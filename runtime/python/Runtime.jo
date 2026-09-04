@@ -124,11 +124,11 @@ end
 private def reModule: py.Dynamic = py.module("re")
 
 private section RegexEngine
-  def ignoreCaseFlag: Int = reModule.IGNORECASE.asInt
+  def ignoreCaseFlag: Int = reModule.IGNORECASE.value.asInt
 
-  def multilineFlag: Int = reModule.MULTILINE.asInt
+  def multilineFlag: Int = reModule.MULTILINE.value.asInt
 
-  def dotAllFlag: Int = reModule.DOTALL.asInt
+  def dotAllFlag: Int = reModule.DOTALL.value.asInt
 
   def compileFlags(flags: String): Int =
     var bits = 0
