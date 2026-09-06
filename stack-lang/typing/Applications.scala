@@ -291,6 +291,59 @@ trait Applications extends DynamicTyper:
         errorWord(arg.span)
 
 
+  /** Build an application from arguments that are already typed
+    *
+    * This is the error-tolerant counterpart of `Trees.appliedTo`, which
+    * requires the arguments to already conform to the parameter types. Here
+    * each argument is adapted to its parameter type, which also takes care of
+    * inference when either side is not yet fully instantiated. The result may
+    * therefore still contain unconstrained type variables --- they are
+    * resolved, or reported, by the enclosing isolate.
+    *
+    * When the application cannot be built, a dummy word of the result type is
+    * returned, so that typing of the enclosing expression can continue.
+    */
+  def applyTypedArgs(fun: Word, args: List[Word], applySpan: Span)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
+  : Word =
+
+    if fun.tpe.isError then
+      errorWord(applySpan)
+
+    else if !fun.tpe.isProcType then
+      Reporter.error("Not a function: " + fun.tpe.show, fun.pos)
+      errorWord(applySpan)
+
+    else
+      val procType = fun.tpe.asProcType
+      val paramTypes = procType.paramTypes
+
+      assert(procType.tparams.isEmpty, "type params not supplied")
+      assert(procType.autos.isEmpty, "autos not supplied")
+
+      def dummy = dummyWord(procType.resultType, applySpan)
+
+      if paramTypes.size != args.size then
+        Reporter.error(
+          s"The function expects ${paramTypes.size} argument(s), found = ${args.size}",
+          applySpan.toPos)
+        dummy
+
+      else if args.exists(_.tpe.isError) then
+        dummy
+
+      else
+        val args2 =
+          for (arg, paramType) <- args.zip(paramTypes) yield
+            Checker.adapt(arg, TargetType.Known(paramType))
+
+        if args2.exists(_.tpe.isError) then
+          dummy
+
+        else
+          val span = args2.foldLeft(fun.span)(_ | _.span)
+          Apply(fun, args2, autos = Nil)(span)
+
   /** Assumes that the argument count requirement is satisfied */
   def transformVarargs
       (args: List[Ast.Word], paramTypes: List[Type], span: Span)
@@ -313,7 +366,7 @@ trait Applications extends DynamicTyper:
       val argTyped = transformArg(arg, paramTypeFlex)
 
       if !argTyped.tpe.isError then
-        lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
+        lastFlexArg = applyTypedArgs(lastFlexArg.select("++"), argTyped :: Nil, argTyped.span)
 
     for arg <- argsFlex do
       arg match
@@ -341,7 +394,7 @@ trait Applications extends DynamicTyper:
         case _ =>
           val argTyped = transformArg(arg, elementType)
           if !argTyped.tpe.isError then
-            lastFlexArg = lastFlexArg.select("+").appliedTo(argTyped)
+            lastFlexArg = applyTypedArgs(lastFlexArg.select("+"), argTyped :: Nil, argTyped.span)
       end match
 
     argsFixTyped :+ lastFlexArg
@@ -490,7 +543,7 @@ trait Applications extends DynamicTyper:
       // Splice target types as List[T] (Mixed[T] = T at runtime)
       val argTyped = transformArg(arg, paramTypeFlex)
       if !argTyped.tpe.isError then
-        lastFlexArg = lastFlexArg.select("++").appliedTo(argTyped)
+        lastFlexArg = applyTypedArgs(lastFlexArg.select("++"), argTyped :: Nil, argTyped.span)
 
     for callArg <- flexCallArgs do
       callArg match
@@ -512,13 +565,13 @@ trait Applications extends DynamicTyper:
         case word: Ast.Word =>
           val argTyped = transformArg(word, elementType)
           if !argTyped.tpe.isError then
-            lastFlexArg = lastFlexArg.select("+").appliedTo(argTyped)
+            lastFlexArg = applyTypedArgs(lastFlexArg.select("+"), argTyped :: Nil, argTyped.span)
 
         case namedArg: Ast.NamedArg =>
           val argTyped = transformArg(namedArg.arg, elementType)
           if !argTyped.tpe.isError then
             val wrapped = wrapNamedArg(namedArg.name, argTyped)
-            lastFlexArg = lastFlexArg.select("+").appliedTo(wrapped)
+            lastFlexArg = applyTypedArgs(lastFlexArg.select("+"), wrapped :: Nil, wrapped.span)
 
     Some(fixedTyped :+ lastFlexArg)
 
@@ -580,7 +633,7 @@ trait Applications extends DynamicTyper:
           val argTyped = transformArg(namedArg.arg, elementType)
           if !argTyped.tpe.isError then
             val wrapped = wrapNamedArg(namedArg.name, argTyped)
-            lastFlexArg = lastFlexArg.select("+").appliedTo(wrapped)
+            lastFlexArg = applyTypedArgs(lastFlexArg.select("+"), wrapped :: Nil, wrapped.span)
         case _ =>
 
     Some(fixedTyped :+ lastFlexArg)
