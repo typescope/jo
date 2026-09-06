@@ -1,0 +1,6 @@
+---------- Error at tests/warn/vararg-uninferred-mixed-splice.jo:7:7 ---------------
+|   g(..undefinedVar)
+|       ^^^^^^^^^^^^
+|       Undefined term name undefinedVar
+
+1 error(s), 0 warning(s)

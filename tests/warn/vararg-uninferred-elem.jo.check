@@ -1,0 +1,11 @@
+---------- Error at tests/warn/vararg-uninferred-elem.jo:5:23 ---------------
+|   println(collect(1 ~ undefinedVar))
+|                       ^^^^^^^^^^^^
+|                       Undefined term name undefinedVar
+
+---------- Error at tests/warn/vararg-uninferred-elem.jo:5:22 ---------------
+|   println(collect(1 ~ undefinedVar))
+|                      ^
+|                      Cannot infer a type for type variable ?T
+
+2 error(s), 0 warning(s)

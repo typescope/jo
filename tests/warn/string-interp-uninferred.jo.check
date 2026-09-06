@@ -1,0 +1,16 @@
+---------- Error at tests/warn/string-interp-uninferred.jo:3:19 ---------------
+|   println "a\{1 ~ undefinedVar}b"
+|                   ^^^^^^^^^^^^
+|                   Undefined term name undefinedVar
+
+---------- Error at tests/warn/string-interp-uninferred.jo:3:15 ---------------
+|   println "a\{1 ~ undefinedVar}b"
+|               ^^^^^^^^^^^^^^^^
+|               Expect type StringLike, found = Int ~ ?T
+
+---------- Error at tests/warn/string-interp-uninferred.jo:3:18 ---------------
+|   println "a\{1 ~ undefinedVar}b"
+|                  ^
+|                  Cannot infer a type for type variable ?T
+
+3 error(s), 0 warning(s)

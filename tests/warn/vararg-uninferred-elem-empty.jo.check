@@ -1,0 +1,6 @@
+---------- Error at tests/warn/vararg-uninferred-elem-empty.jo:3:23 ---------------
+|   val m = Map("k" ~ [])
+|                       ^
+|                       Cannot infer a type for type variable ?T
+
+1 error(s), 0 warning(s)

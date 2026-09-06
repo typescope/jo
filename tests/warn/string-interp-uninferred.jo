@@ -1,0 +1,3 @@
+// String interpolation part whose type is left uninferred
+def main(): Unit =
+  println "a\{1 ~ undefinedVar}b"

@@ -1,0 +1,7 @@
+// ..Mixed[T] named argument leaves the element type uninferred
+import jo.compile.Mixed
+
+def g(xs: ..Mixed[Any]): Unit = pass
+
+def main(): Unit =
+  g(key = "k" ~ undefinedVar)

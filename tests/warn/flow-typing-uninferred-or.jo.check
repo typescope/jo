@@ -1,0 +1,16 @@
+---------- Error at tests/warn/flow-typing-uninferred-or.jo:3:22 ---------------
+|   if false || ("k" ~ undefinedVar) then
+|                      ^^^^^^^^^^^^
+|                      Undefined term name undefinedVar
+
+---------- Error at tests/warn/flow-typing-uninferred-or.jo:3:16 ---------------
+|   if false || ("k" ~ undefinedVar) then
+|                ^^^^^^^^^^^^^^^^^^
+|                Expect type Bool, found = String ~ ?T
+
+---------- Error at tests/warn/flow-typing-uninferred-or.jo:3:21 ---------------
+|   if false || ("k" ~ undefinedVar) then
+|                     ^
+|                     Cannot infer a type for type variable ?T
+
+3 error(s), 0 warning(s)

@@ -1,0 +1,16 @@
+---------- Error at tests/warn/string-interp-uninferred-class.jo:9:20 ---------------
+|   println "a\{make(undefinedVar)}b"
+|                    ^^^^^^^^^^^^
+|                    Undefined term name undefinedVar
+
+---------- Error at tests/warn/string-interp-uninferred-class.jo:9:15 ---------------
+|   println "a\{make(undefinedVar)}b"
+|               ^^^^^^^^^^^^^^^^^^
+|               Expect type StringLike, found = Box[?T]
+
+---------- Error at tests/warn/string-interp-uninferred-class.jo:9:19 ---------------
+|   println "a\{make(undefinedVar)}b"
+|                   ^
+|                   Cannot infer a type for type variable ?T
+
+3 error(s), 0 warning(s)

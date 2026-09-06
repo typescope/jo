@@ -1,0 +1,7 @@
+// ..Mixed[T] splice of an erroneous argument
+import jo.compile.Mixed
+
+def g(xs: ..Mixed[Any]): Unit = pass
+
+def main(): Unit =
+  g(..undefinedVar)

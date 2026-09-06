@@ -1,0 +1,21 @@
+---------- Error at tests/warn/vararg-uninferred-splice-empty.jo:3:20 ---------------
+|   val m = Map(..[])
+|                    ^
+|                    The auto type is not fully instantiated: Ord[?K]
+
+---------- Error at tests/warn/vararg-uninferred-splice-empty.jo:3:11 ---------------
+|   val m = Map(..[])
+|           ^^^^^^^^^
+|           The member candidate type is not fully instantiated: ?K
+
+---------- Error at tests/warn/vararg-uninferred-splice-empty.jo:3:14 ---------------
+|   val m = Map(..[])
+|              ^
+|              Cannot infer a type for type variable ?K
+
+---------- Error at tests/warn/vararg-uninferred-splice-empty.jo:3:14 ---------------
+|   val m = Map(..[])
+|              ^
+|              Cannot infer a type for type variable ?V
+
+4 error(s), 0 warning(s)

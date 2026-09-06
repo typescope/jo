@@ -1,0 +1,5 @@
+// The vararg element type is determined only by the erroneous argument
+def collect[T](xs: ..T): Int = 0
+
+def main(): Unit =
+  println(collect(1 ~ undefinedVar))

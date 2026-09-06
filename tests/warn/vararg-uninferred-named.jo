@@ -1,0 +1,7 @@
+// ..Named[T] argument leaves the element type uninferred
+import jo.compile.Named
+
+def h(xs: ..Named[Any]): Unit = pass
+
+def main(): Unit =
+  h(key = "k" ~ undefinedVar)

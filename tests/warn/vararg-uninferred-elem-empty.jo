@@ -1,0 +1,3 @@
+// The vararg element type is never determined
+def main(): Unit =
+  val m = Map("k" ~ [])
