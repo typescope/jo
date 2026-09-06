@@ -26,3 +26,8 @@ name after update = Bob
 toString(42) = 42
 json parse answer = 42
 json roundtrip contains answer = true
+--- checked accessors ---
+rb.Dynamic.asInt: expected Ruby Integer, got String
+rb.Dynamic.asFloat: expected Ruby Float, got Integer
+rb.Dynamic.asBool: expected Ruby boolean, got Integer
+rb.Dynamic.asString: expected Ruby String, got Integer

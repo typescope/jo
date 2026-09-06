@@ -9,7 +9,7 @@ def main =
   println("pi = " + pi)
 
   // Test callDynamic with single arg
-  val floorResult: Float = math.floor(2.7).asFloat
+  val floorResult: Int = math.floor(2.7).asInt
   println("floor(2.7) = " + floorResult)
 
   // Test splice: max(*[1, 7, 3]) -> 7 via native splice

@@ -20,6 +20,7 @@ def main =
   testDynamic()
   testCall()
   testToString()
+  testCheckedAccessors()
 
 //[ 1. js.global + selectDynamic / callDynamic //]
 def testGlobal =
@@ -236,3 +237,27 @@ def testToString =
   // toString on array (gives comma-joined)
   val arr: js.Array = js.array(1, 2, 3)
   println("toString [1,2,3] = " + js.dynamic(arr).toString)
+
+//[ 16. Primitive accessors reject values of the wrong JavaScript type //]
+def testCheckedAccessors =
+  println "--- checked accessors ---"
+
+  match js.try(js.dynamic("not an int").asInt)
+    case Ok(_)  => println "asInt unexpectedly accepted string"
+    case Err(e) => println e.asString
+
+  match js.try(js.dynamic(1.5).asInt)
+    case Ok(_)  => println "asInt unexpectedly accepted fractional number"
+    case Err(e) => println e.asString
+
+  match js.try(js.dynamic("not a float").asFloat)
+    case Ok(_)  => println "asFloat unexpectedly accepted string"
+    case Err(e) => println e.asString
+
+  match js.try(js.dynamic(1).asBool)
+    case Ok(_)  => println "asBool unexpectedly accepted number"
+    case Err(e) => println e.asString
+
+  match js.try(js.dynamic(1).asString)
+    case Ok(_)  => println "asString unexpectedly accepted number"
+    case Err(e) => println e.asString

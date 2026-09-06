@@ -152,22 +152,38 @@ interface Dynamic
   //]
   def toString: String
 
-  //[ Reinterpret this JavaScript value as a Jo String.
+  //[ Return this JavaScript value as a Jo String.
     !
     ! The value must already be a JavaScript `string`; no conversion is performed.
     ! Use `toString` instead when you need a human-readable representation of
     ! an arbitrary JavaScript value.
   //]
-  def asString: String = cast[String]
+  def asString: String =
+    val actual = js.typeof(this)
+    if actual != "string" then
+      abort("js.Dynamic.asString: expected JavaScript string, got " + actual)
+    cast[String]
 
-  //[ Reinterpret this JavaScript value as a Jo Int.   //]
-  def asInt: Int = cast[Int]
+  //[ Return this JavaScript value as a Jo Int, aborting unless it is an integer-valued number.   //]
+  def asInt: Int =
+    val actual = js.typeof(this)
+    if actual != "number" || !js.global.Number.isInteger(this).cast[Bool] then
+      abort("js.Dynamic.asInt: expected JavaScript integer number, got " + actual)
+    cast[Int]
 
-  //[ Reinterpret this JavaScript value as a Jo Float.   //]
-  def asFloat: Float = cast[Float]
+  //[ Return this JavaScript value as a Jo Float, aborting unless it is a number.   //]
+  def asFloat: Float =
+    val actual = js.typeof(this)
+    if actual != "number" then
+      abort("js.Dynamic.asFloat: expected JavaScript number, got " + actual)
+    cast[Float]
 
-  //[ Reinterpret this JavaScript value as a Jo Bool.   //]
-  def asBool: Bool = cast[Bool]
+  //[ Return this JavaScript value as a Jo Bool, aborting unless it is a boolean.   //]
+  def asBool: Bool =
+    val actual = js.typeof(this)
+    if actual != "boolean" then
+      abort("js.Dynamic.asBool: expected JavaScript boolean, got " + actual)
+    cast[Bool]
 
   //[ Test whether this JavaScript value is `undefined`.   //]
   def isUndefined: Bool = js.isUndefined(this)

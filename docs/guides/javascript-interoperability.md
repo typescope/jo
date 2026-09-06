@@ -93,11 +93,13 @@ val v: String = process.env["MY_VAR"].asString   // item read
 `js.Dynamic` provides shorthand methods for the four primitive types:
 
 ```jo
-val i: Int    = v.asInt     // equivalent to v.cast[Int]
-val f: Float  = v.asFloat   // equivalent to v.cast[Float]
-val s: String = v.asString  // equivalent to v.cast[String]
-val b: Bool   = v.asBool    // equivalent to v.cast[Bool]
+val i: Int    = v.asInt
+val f: Float  = v.asFloat
+val s: String = v.asString
+val b: Bool   = v.asBool
 ```
+
+Each shortcut validates the JavaScript value and aborts with a descriptive error on mismatch. Because JavaScript represents both Jo `Int` and `Float` values as numbers, `asFloat` accepts any number; `asInt` additionally requires `Number.isInteger(value)`. The generic `cast[T]` remains unchecked.
 
 Use `asString` when you know the value is already a JavaScript `string`. Use `toString` (see below) when you want a human-readable representation of an arbitrary value.
 

@@ -97,3 +97,24 @@ def main: Unit =
   println("json parse answer = " + answer)
   val serialized: String = json.callDynamic("generate", parsed).asString
   println("json roundtrip contains answer = " + (serialized.indexOf("42") >= 0))
+
+  testCheckedAccessors()
+
+def testCheckedAccessors: Unit =
+  println "--- checked accessors ---"
+
+  match rb.try(rb.dynamic("not an int").asInt)
+    case Ok(_)  => println "asInt unexpectedly accepted String"
+    case Err(e) => println e.message
+
+  match rb.try(rb.dynamic(1).asFloat)
+    case Ok(_)  => println "asFloat unexpectedly accepted Integer"
+    case Err(e) => println e.message
+
+  match rb.try(rb.dynamic(1).asBool)
+    case Ok(_)  => println "asBool unexpectedly accepted Integer"
+    case Err(e) => println e.message
+
+  match rb.try(rb.dynamic(1).asString)
+    case Ok(_)  => println "asString unexpectedly accepted Integer"
+    case Err(e) => println e.message

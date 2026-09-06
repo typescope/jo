@@ -9,6 +9,7 @@ def main =
   testChainedAccess()
   testCallWithKwarg()
   testCallWithSplice()
+  testCheckedAccessors()
 
 //[ 1. importModule + selectDynamic (attribute read) //]
 def testImportAndSelect =
@@ -26,10 +27,10 @@ def testCallDynamic =
   println "--- callDynamic ---"
   val math: py.Dynamic = py.module("math")
 
-  val floor: Float = math.floor(2.7).asFloat
+  val floor: Int = math.floor(2.7).asInt
   println("floor(2.7) = " + floor.toString)
 
-  val ceil: Float = math.ceil(2.1).asFloat
+  val ceil: Int = math.ceil(2.1).asInt
   println("ceil(2.1) = " + ceil.toString)
 
   val sqrt: Float = math.sqrt(9.0).asFloat
@@ -136,3 +137,28 @@ def testCallWithSplice =
   // max(*[1, 7, 3]) = 7 via native splice
   val maxResult: Int = builtins.max(..[1, 7, 3]).asInt
   println("max(*[1,7,3]) = " + maxResult.toString)
+
+//[ 10. Primitive accessors reject values of the wrong Python type //]
+def testCheckedAccessors =
+  println "--- checked accessors ---"
+  val builtins: py.Dynamic = py.module("builtins")
+
+  match py.try(builtins.str("not an int").asInt)
+    case Ok(_)  => println "asInt unexpectedly accepted str"
+    case Err(e) => println e.message
+
+  match py.try(builtins.int(1).asFloat)
+    case Ok(_)  => println "asFloat unexpectedly accepted int"
+    case Err(e) => println e.message
+
+  match py.try(builtins.bool(true).asInt)
+    case Ok(_)  => println "asInt unexpectedly accepted bool"
+    case Err(e) => println e.message
+
+  match py.try(builtins.int(1).asBool)
+    case Ok(_)  => println "asBool unexpectedly accepted int"
+    case Err(e) => println e.message
+
+  match py.try(builtins.int(1).asString)
+    case Ok(_)  => println "asString unexpectedly accepted int"
+    case Err(e) => println e.message
