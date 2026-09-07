@@ -5,12 +5,14 @@
   xmlns="http://www.w3.org/2000/svg"
 >
   <defs>
-    <!-- Same ramp as logo-mark.svg, so the boxed and unboxed marks match -->
+    <!-- Same hues as logo-mark.svg, two steps darker: the mark is white here,
+         and on the lighter ramp it only reached 1.9:1 against the tile. This
+         ramp carries it at 3.8:1 to 7.6:1. -->
     <linearGradient id="joTile" gradientUnits="userSpaceOnUse"
                     x1="0" y1="0" x2="128" y2="128">
-      <stop offset="0"    stop-color="#34D399"/>
-      <stop offset="0.55" stop-color="#10B981"/>
-      <stop offset="1"    stop-color="#0E9488"/>
+      <stop offset="0"    stop-color="#059669"/>
+      <stop offset="0.55" stop-color="#047857"/>
+      <stop offset="1"    stop-color="#115E59"/>
     </linearGradient>
   </defs>
 

@@ -5,15 +5,15 @@
   xmlns="http://www.w3.org/2000/svg"
 >
   <!-- Green fading to teal: calm rather than alarm-green, and far enough from
-       GitHub's own success green not to read as a CI badge. Checked against the
-       three README canvases (#ffffff, #0d1117, #22272e). In user space so the
-       ramp flows across the whole mark rather than restarting on each shape. -->
+       GitHub's own success green not to read as a CI badge. Same ramp as the
+       logo.svg tile. In user space so it flows across the whole mark rather
+       than restarting on each shape. -->
   <defs>
     <linearGradient id="joMark" gradientUnits="userSpaceOnUse"
                     x1="16" y1="20" x2="120" y2="104">
-      <stop offset="0"    stop-color="#34D399"/>
-      <stop offset="0.55" stop-color="#10B981"/>
-      <stop offset="1"    stop-color="#0E9488"/>
+      <stop offset="0"    stop-color="#059669"/>
+      <stop offset="0.55" stop-color="#047857"/>
+      <stop offset="1"    stop-color="#115E59"/>
     </linearGradient>
   </defs>
 
@@ -48,6 +48,6 @@
     cx="84"
     cy="77"
     r="6.4"
-    fill="#2DD4BF"
+    fill="#14B8A6"
   />
 </svg>
