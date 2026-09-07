@@ -32,6 +32,12 @@ export default defineConfig({
   srcDir: '.',
   srcExclude: ['**/.vitepress/**', '**/img/**', '**/jo_lexer.py*', '**/setup.py', '**/__pycache__/**'],
 
+  head: [
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/img/logo.svg' }],
+    // iOS home screen does not render SVG icons, so ship a raster fallback.
+    ['link', { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' }],
+  ],
+
   vite: {
     resolve: { preserveSymlinks: true }
   },

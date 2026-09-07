@@ -61,6 +61,16 @@ function formatDate(date) {
   font-size: 2.2rem;
   font-weight: 800;
   letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #047857 0%, #0E7490 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  padding-bottom: 8px;
+}
+.dark .jip-header h1 {
+  background: linear-gradient(135deg, #10B981 0%, #14B8A6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
 }
 
 .jip-header p {

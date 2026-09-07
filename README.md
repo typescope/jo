@@ -1,9 +1,5 @@
 <div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./docs/img/logo.svg">
-    <source media="(prefers-color-scheme: light)" srcset="./docs/img/logo-black.svg">
-    <img alt="Jo" src="./docs/img/logo.svg" width="40px">
-  </picture>
+  <img alt="Jo" src="./docs/public/img/logo-mark.svg" width="52px">
 
   <p>For the joy of secure programming</p>
 
