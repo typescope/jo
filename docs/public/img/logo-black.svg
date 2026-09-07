@@ -7,9 +7,9 @@
   <!-- Transparent background -->
   <rect width="128" height="128" fill="none"/>
 
-  <!-- J with uniform stroke -->
+  <!-- Capital J: stem from the cap line down to the baseline at y=100 -->
   <path
-    d="M36 28 V78 C36 90 28 98 20 98"
+    d="M37 28 V82 C37 94 29 100 21 100"
     fill="none"
     stroke="#222222"
     stroke-width="14"
@@ -17,11 +17,12 @@
     stroke-linejoin="round"
   />
 
-  <!-- Smaller O with uniform stroke -->
+  <!-- Lowercase o: x-height is 70% of the cap height, sitting on the same
+       baseline as the J -->
   <circle
-    cx="88"
-    cy="64"
-    r="28"
+    cx="84"
+    cy="77"
+    r="23"
     fill="none"
     stroke="#222222"
     stroke-width="14"
@@ -29,11 +30,11 @@
     stroke-linejoin="round"
   />
 
-  <!-- Accent dot inside O -->
+  <!-- Accent dot in the counter of the o -->
   <circle
-    cx="88"
-    cy="64"
-    r="6"
-    fill="#1FB6FF"
+    cx="84"
+    cy="77"
+    r="6.4"
+    fill="#222222"
   />
 </svg>

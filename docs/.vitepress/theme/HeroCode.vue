@@ -209,7 +209,7 @@ code {
   transition: background 0.2s;
   opacity: 0.4;
 }
-.dot-btn.active { background: #7c3aed; opacity: 1; }
+.dot-btn.active { background: #047857; opacity: 1; }
 .dot-btn:hover  { opacity: 0.8; }
 
 /* Syntax colour tokens — light defaults, overridden in dark via global */

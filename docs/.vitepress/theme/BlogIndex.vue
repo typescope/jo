@@ -50,12 +50,17 @@ function formatDate(dateStr) {
   font-size: 2.2rem;
   font-weight: 800;
   letter-spacing: -0.03em;
-  background: linear-gradient(135deg, #7c3aed 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #047857 0%, #0E7490 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   margin: 0 0 12px;
   padding-bottom: 8px;
+}
+.dark .blog-header h1 {
+  background: linear-gradient(135deg, #10B981 0%, #14B8A6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
 }
 
 .blog-header p {
@@ -79,7 +84,7 @@ function formatDate(dateStr) {
 
 .blog-card:hover {
   border-color: var(--vp-c-brand-1);
-  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.1);
+  box-shadow: 0 4px 20px rgba(4, 120, 87, 0.1);
 }
 
 .blog-card-link {

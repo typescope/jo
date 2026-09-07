@@ -1,0 +1,53 @@
+<svg
+  width="128"
+  height="128"
+  viewBox="0 0 128 128"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <!-- Green fading to teal: calm rather than alarm-green, and far enough from
+       GitHub's own success green not to read as a CI badge. Same ramp as the
+       logo.svg tile. In user space so it flows across the whole mark rather
+       than restarting on each shape. -->
+  <defs>
+    <linearGradient id="joMark" gradientUnits="userSpaceOnUse"
+                    x1="16" y1="20" x2="120" y2="104">
+      <stop offset="0"    stop-color="#059669"/>
+      <stop offset="0.55" stop-color="#047857"/>
+      <stop offset="1"    stop-color="#115E59"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Transparent background -->
+  <rect width="128" height="128" fill="none"/>
+
+  <!-- Capital J: stem from the cap line down to the baseline at y=100 -->
+  <path
+    d="M37 28 V82 C37 94 29 100 21 100"
+    fill="none"
+    stroke="url(#joMark)"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Lowercase o: x-height is 70% of the cap height, and it sits on the
+       same baseline as the J, so the mark reads the way "Jo" is written -->
+  <circle
+    cx="84"
+    cy="77"
+    r="23"
+    fill="none"
+    stroke="url(#joMark)"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Accent dot in the counter of the o -->
+  <circle
+    cx="84"
+    cy="77"
+    r="6.4"
+    fill="#14B8A6"
+  />
+</svg>

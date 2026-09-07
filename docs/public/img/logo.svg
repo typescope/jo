@@ -1,0 +1,33 @@
+<svg
+  width="128"
+  height="128"
+  viewBox="0 0 128 128"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <defs>
+    <!-- Same hues as logo-mark.svg, two steps darker: the mark is white here,
+         and on the lighter ramp it only reached 1.9:1 against the tile. This
+         ramp carries it at 3.8:1 to 7.6:1. -->
+    <linearGradient id="joTile" gradientUnits="userSpaceOnUse"
+                    x1="0" y1="0" x2="128" y2="128">
+      <stop offset="0"    stop-color="#059669"/>
+      <stop offset="0.55" stop-color="#047857"/>
+      <stop offset="1"    stop-color="#115E59"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded tile background -->
+  <rect width="128" height="128" rx="28" ry="28" fill="url(#joTile)"/>
+
+  <!-- Same geometry as logo-mark.svg, scaled up 1.05 so the mark fills the tile.
+       The transform also thickens the stroke to 14.7, which keeps the o's
+       counter open at favicon sizes. -->
+  <g transform="translate(-3.2 -3.2) scale(1.05)">
+    <g fill="none" stroke="#FFFFFF" stroke-width="14"
+       stroke-linecap="round" stroke-linejoin="round">
+      <path d="M37 28 V82 C37 94 29 100 21 100"/>
+      <circle cx="84" cy="77" r="23"/>
+    </g>
+    <circle cx="84" cy="77" r="7" fill="#A7F3D0"/>
+  </g>
+</svg>
