@@ -1,0 +1,11 @@
+---------- Error at tests/warn/vararg-uninferred-mixed-named.jo:7:17 ---------------
+|   g(key = "k" ~ undefinedVar)
+|                 ^^^^^^^^^^^^
+|                 Undefined term name undefinedVar
+
+---------- Error at tests/warn/vararg-uninferred-mixed-named.jo:7:16 ---------------
+|   g(key = "k" ~ undefinedVar)
+|                ^
+|                Cannot infer a type for type variable ?T
+
+2 error(s), 0 warning(s)

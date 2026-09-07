@@ -1,0 +1,4 @@
+// `||` operand whose type is left uninferred
+def main(): Unit =
+  if false || ("k" ~ undefinedVar) then
+    println "yes"

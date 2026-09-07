@@ -1,0 +1,9 @@
+// String interpolation part of a class type left uninferred
+class Box[T](value: T)
+  def toString: String = "box"
+end
+
+def make[T](x: T): Box[T] = new Box[T](x)
+
+def main(): Unit =
+  println "a\{make(undefinedVar)}b"

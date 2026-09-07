@@ -1,0 +1,11 @@
+---------- Error at tests/warn/vararg-uninferred-splice.jo:5:26 ---------------
+|   println(collect(..[1 ~ undefinedVar]))
+|                          ^^^^^^^^^^^^
+|                          Undefined term name undefinedVar
+
+---------- Error at tests/warn/vararg-uninferred-splice.jo:5:25 ---------------
+|   println(collect(..[1 ~ undefinedVar]))
+|                         ^
+|                         Cannot infer a type for type variable ?T
+
+2 error(s), 0 warning(s)

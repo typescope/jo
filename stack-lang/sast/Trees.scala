@@ -727,7 +727,16 @@ object Trees:
     def select(name: String)(using Definitions): Word =
       Select(word, name)(word.span)
 
-    /** No adaption is performed except for numeric adaptation */
+    /** Apply the word to the given arguments
+      *
+      * No adaptation is performed: the caller is responsible for supplying
+      * arguments that already conform to the parameter types.
+      *
+      * Both the arguments and the parameter types must be fully instantiated.
+      * Inference variables may not reach tree construction: an erroneous or
+      * still uninstantiated argument must be handled by the caller, which
+      * should propagate the error instead of building an application from it.
+      */
     def appliedTo(args: Word*)(using defn: Definitions): Word =
       val procType = word.tpe.asProcType
 
@@ -736,6 +745,8 @@ object Trees:
       assert(procType.autos.isEmpty, "autos not supplied")
 
       for (arg, paramType) <- args.zip(procType.paramTypes) do
+        assert(arg.tpe.isFullyInstantiated, "not fully instantiated: " + arg.tpe.show)
+        assert(paramType.isFullyInstantiated, "not fully instantiated: " + paramType.show)
         assert(
           Subtyping.conforms(arg.tpe, paramType),
           s"argument type ${arg.tpe.show} does not conform to parameter type ${paramType.show} in ${word.show}",

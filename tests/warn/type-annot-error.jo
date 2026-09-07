@@ -1,0 +1,3 @@
+def main(): Unit =
+  val s: String = "x"
+  val m = Map("k" ~ (s: Int))

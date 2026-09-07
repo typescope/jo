@@ -1,0 +1,11 @@
+---------- Error at tests/warn/type-annot-error.jo:3:22 ---------------
+|   val m = Map("k" ~ (s: Int))
+|                      ^
+|                      Not a function: s: String
+
+---------- Error at tests/warn/type-annot-error.jo:3:14 ---------------
+|   val m = Map("k" ~ (s: Int))
+|              ^
+|              Cannot infer a type for type variable ?V
+
+2 error(s), 0 warning(s)

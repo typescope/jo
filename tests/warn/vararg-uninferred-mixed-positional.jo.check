@@ -1,0 +1,11 @@
+---------- Error at tests/warn/vararg-uninferred-mixed-positional.jo:7:11 ---------------
+|   g("k" ~ undefinedVar)
+|           ^^^^^^^^^^^^
+|           Undefined term name undefinedVar
+
+---------- Error at tests/warn/vararg-uninferred-mixed-positional.jo:7:10 ---------------
+|   g("k" ~ undefinedVar)
+|          ^
+|          Cannot infer a type for type variable ?T
+
+2 error(s), 0 warning(s)
