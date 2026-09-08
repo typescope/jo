@@ -2,6 +2,46 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.13.2] - 2026-09-08
+
+### Changed
+
+- The `asInt`, `asFloat`, `asString` and `asBool` shortcuts on `py.Dynamic`,
+  `rb.Dynamic` and `js.Dynamic` now check that the foreign value has exactly the
+  corresponding host type and abort with a descriptive error otherwise. In
+  particular, Python's `asInt` rejects `bool` values even though Python treats
+  `bool` as a subclass of `int`. The generic `cast[T]` remains an unchecked
+  reinterpretation for typed wrappers and other advanced uses. ([#107])
+- Refreshed the `jo-lang.org` logo and site visuals. ([#109])
+
+### Fixed
+
+- The parser no longer crashes when a reserved word such as `section`, `union`,
+  `view`, `interface` or `namespace` appears in a `val` or `for` binder
+  position; it reports a source-located diagnostic instead. ([#106])
+- The typer no longer crashes on vararg applications whose function or argument
+  types are not yet fully initialized. Adaptation and inference for varargs are
+  now handled uniformly during type checking rather than inside `.appliedTo`.
+  ([#108])
+
+### Security
+
+- Values crossing the Python, Ruby and JavaScript FFI boundaries through the
+  `as*` shortcuts are now type-checked at the boundary, so a mistyped foreign
+  value fails immediately instead of propagating into typed Jo code. ([#107])
+
+### Compatibility
+
+- Code that relied on the `as*` shortcuts silently reinterpreting a foreign
+  value of a different host type now aborts at runtime. Use `cast[T]` where an
+  unchecked reinterpretation is intended. ([#107])
+- No library recompilation is required.
+
+[#106]: https://github.com/typescope/jo/pull/106
+[#107]: https://github.com/typescope/jo/pull/107
+[#108]: https://github.com/typescope/jo/pull/108
+[#109]: https://github.com/typescope/jo/pull/109
+
 ## [0.13.1] - 2026-08-30
 
 ### Added
