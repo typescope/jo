@@ -1477,6 +1477,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           case Token.EQL if allowAssign =>
             if !w.isInstanceOf[RefTree | BracketApply] then
               error("Unexpected left-side of assignment", w.pos)
+              throw new SyntaxError
 
             assign(w)
 
@@ -1934,7 +1935,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           val branches = mutable.ArrayBuffer[TypeTree](tp)
 
           var item = nextItem
-          while item.token == Token.Operator("|") do
+          while item != null && item.token == Token.Operator("|") do
             next()
             val branch = simpleType(prevType = null)
             if branch == null then
