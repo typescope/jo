@@ -195,14 +195,13 @@ class Set[T]
 
   //[ Copy all elements into a new immutable `List`, in unspecified order. //]
   def toList: jo.List[T] =
-    var elements: jo.List[T] = []
+    val elements = jo.List.builder[T]()
     var i = 0
     while i < capacity do
-      val bucket = buckets[i]
-      elements = elements ++ bucket
+      val _ = elements.addList buckets[i]
       i = i + 1
     end
-    elements
+    elements.result
 
   //[ Return a string representation, e.g. `{1, 2, 3}`. Shows at most 100 elements. //]
   def toString(auto elementShow: Show[T] with [[T].toString]): String =

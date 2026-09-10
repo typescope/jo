@@ -99,6 +99,7 @@ class RubyRuntime(using defn: Definitions):
     Map(
       strSym.termMember("iterator") -> List(String_iterator),
       listSym.termMember("++")      -> List(rb_array),
+      defn.ListBuilder_addList -> List(rb_array),
       rb_try -> List(jo_Ok, jo_Ok.termMember(Names.Constructor),
                      jo_Err, jo_Err.termMember(Names.Constructor)),
     )

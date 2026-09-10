@@ -358,15 +358,22 @@ trait Applications extends DynamicTyper:
     val elementType = paramTypeFlex.stripVarargs
     val flexSpan = argsFlex.headOption.map(_.span).getOrElse(span)
 
-    var lastFlexArg: Word =
+    // Every vararg pack is collected the same way, whatever the callee:
+    //
+    //     [a, ..xs, b]  ~>  List.builder[T](2).add(a).addList(xs).add(b).result
+    //
+    // `add`/`addAll` return the builder, so the pack stays a single expression
+    // and needs no local binding. The capacity is the number of plain elements,
+    // which is exact unless the pack also splices.
+    if argsFlex.isEmpty then
+      // An empty pack is just the empty list.
       val tapply = Ident(defn.List_empty)(flexSpan).appliedToTypes(elementType)
-      Apply(tapply, args = Nil, autos = Nil)(flexSpan)
+      return argsFixTyped :+ Apply(tapply, args = Nil, autos = Nil)(flexSpan)
 
-    def checkSplice(arg: Ast.Word): Unit =
-      val argTyped = transformArg(arg, paramTypeFlex)
+    val plainCount = argsFlex.count(arg => !isSplice(arg))
+    val capacity = if argsFlex.exists(isSplice) then 0 else plainCount
 
-      if !argTyped.tpe.isError then
-        lastFlexArg = applyTypedArgs(lastFlexArg.select("++"), argTyped :: Nil, argTyped.span)
+    var pack = newPack(capacity, elementType, flexSpan)
 
     for arg <- argsFlex do
       arg match
@@ -375,18 +382,18 @@ trait Applications extends DynamicTyper:
             Reporter.error(".. should be followed by exact one word, found = " + rest.size, arg.pos)
 
           else
-            checkSplice(rest.head)
+            pack = addAll(pack, rest.head, paramTypeFlex)
 
         case Ast.Apply(Ast.Ident(".."), callArgs) =>
           callArgs match
             case List(word: Ast.Word) =>
-              checkSplice(word)
+              pack = addAll(pack, word, paramTypeFlex)
 
             case _ =>
               Reporter.error(".. should be followed by exact one word, found = " + callArgs.size, arg.pos)
 
-        case Ast.PrefixOperatorCall(Ast.Ident(".."), arg) =>
-          checkSplice(arg)
+        case Ast.PrefixOperatorCall(Ast.Ident(".."), spliced) =>
+          pack = addAll(pack, spliced, paramTypeFlex)
 
         case Ast.Ident("..") =>
           Reporter.error(".. should be followed by exact one word, found = 0", arg.pos)
@@ -394,10 +401,47 @@ trait Applications extends DynamicTyper:
         case _ =>
           val argTyped = transformArg(arg, elementType)
           if !argTyped.tpe.isError then
-            lastFlexArg = applyTypedArgs(lastFlexArg.select("+"), argTyped :: Nil, argTyped.span)
+            pack = applyTypedArgs(pack.select("add"), argTyped :: Nil, argTyped.span)
       end match
 
-    argsFixTyped :+ lastFlexArg
+    argsFixTyped :+ finishPack(pack, flexSpan)
+
+  private def intLiteral(value: Int, span: Span)(using defn: Definitions): Word =
+    Literal(Constant.Int(value))(defn.IntType, span)
+
+  /** Start a vararg pack: `List.builder[T](capacity)`.
+    *
+    * `capacity` is what the caller expects to add; an inaccurate value only
+    * costs the builder a little extra work.
+    */
+  private def newPack(capacity: Int, elementType: Type, span: Span)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
+  : Word =
+    val newBuilder = Ident(defn.List_builder)(span).appliedToTypes(elementType)
+    applyTypedArgs(newBuilder, intLiteral(capacity, span) :: Nil, span)
+
+  /** Close a vararg pack: `.result`. */
+  private def finishPack(pack: Word, span: Span)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
+  : Word =
+    applyTypedArgs(pack.select("result"), Nil, span)
+
+  /** Splice a whole list into the pack being built. */
+  private def addAll(pack: Word, arg: Ast.Word, paramTypeFlex: Type)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, cs: ControlScope)
+  : Word =
+    val argTyped = transformArg(arg, paramTypeFlex)
+
+    if argTyped.tpe.isError then pack
+    else applyTypedArgs(pack.select("addList"), argTyped :: Nil, argTyped.span)
+
+  private def isSplice(arg: Ast.Word): Boolean =
+    arg match
+      case Ast.Expr(Ast.Ident("..") :: _) => true
+      case Ast.Apply(Ast.Ident(".."), _) => true
+      case Ast.PrefixOperatorCall(Ast.Ident(".."), _) => true
+      case Ast.Ident("..") => true
+      case _ => false
 
   protected def transformNamedArgs(rawArgs: List[Ast.CallArg], procType: ProcType, callSpan: Span)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, cs: ControlScope)
@@ -535,15 +579,13 @@ trait Applications extends DynamicTyper:
 
     val flexSpan = flexCallArgs.headOption.map(_.span).getOrElse(callSpan)
 
-    var lastFlexArg: Word =
-      val tapply = Ident(defn.List_empty)(flexSpan).appliedToTypes(elementType)
-      Apply(tapply, args = Nil, autos = Nil)(flexSpan)
+    var lastFlexArg: Word = newPack(flexCallArgs.size, elementType, flexSpan)
 
     def checkSpliceMixed(arg: Ast.Word): Unit =
       // Splice target types as List[T] (Mixed[T] = T at runtime)
       val argTyped = transformArg(arg, paramTypeFlex)
       if !argTyped.tpe.isError then
-        lastFlexArg = applyTypedArgs(lastFlexArg.select("++"), argTyped :: Nil, argTyped.span)
+        lastFlexArg = applyTypedArgs(lastFlexArg.select("addList"), argTyped :: Nil, argTyped.span)
 
     for callArg <- flexCallArgs do
       callArg match
@@ -565,15 +607,15 @@ trait Applications extends DynamicTyper:
         case word: Ast.Word =>
           val argTyped = transformArg(word, elementType)
           if !argTyped.tpe.isError then
-            lastFlexArg = applyTypedArgs(lastFlexArg.select("+"), argTyped :: Nil, argTyped.span)
+            lastFlexArg = applyTypedArgs(lastFlexArg.select("add"), argTyped :: Nil, argTyped.span)
 
         case namedArg: Ast.NamedArg =>
           val argTyped = transformArg(namedArg.arg, elementType)
           if !argTyped.tpe.isError then
             val wrapped = wrapNamedArg(namedArg.name, argTyped)
-            lastFlexArg = applyTypedArgs(lastFlexArg.select("+"), wrapped :: Nil, wrapped.span)
+            lastFlexArg = applyTypedArgs(lastFlexArg.select("add"), wrapped :: Nil, wrapped.span)
 
-    Some(fixedTyped :+ lastFlexArg)
+    Some(fixedTyped :+ finishPack(lastFlexArg, flexSpan))
 
   /** Handle a call to a vararg function whose vararg element type is Named[T].
     *
@@ -623,9 +665,7 @@ trait Applications extends DynamicTyper:
 
     val flexSpan = flexCallArgs.headOption.map(_.span).getOrElse(callSpan)
 
-    var lastFlexArg: Word =
-      val tapply = Ident(defn.List_empty)(flexSpan).appliedToTypes(elementType)
-      Apply(tapply, args = Nil, autos = Nil)(flexSpan)
+    var lastFlexArg: Word = newPack(flexCallArgs.size, elementType, flexSpan)
 
     for callArg <- flexCallArgs do
       callArg match
@@ -633,10 +673,10 @@ trait Applications extends DynamicTyper:
           val argTyped = transformArg(namedArg.arg, elementType)
           if !argTyped.tpe.isError then
             val wrapped = wrapNamedArg(namedArg.name, argTyped)
-            lastFlexArg = applyTypedArgs(lastFlexArg.select("+"), wrapped :: Nil, wrapped.span)
+            lastFlexArg = applyTypedArgs(lastFlexArg.select("add"), wrapped :: Nil, wrapped.span)
         case _ =>
 
-    Some(fixedTyped :+ lastFlexArg)
+    Some(fixedTyped :+ finishPack(lastFlexArg, flexSpan))
 
   private def synthesizePostDefaultAt(procType: ProcType, postIndex: Int, span: Span)
       (using defn: Definitions)

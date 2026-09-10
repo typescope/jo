@@ -23,25 +23,25 @@ section List
     val arr = Array.create[T](0)
     new List(ListImpl.Leaf(arr), 0, 0)
 
+  //[ Start building a list one element at a time.
+    !
+    ! See `ListBuilder` for when to prefer this over `+`, `fill` or `tabulate`.
+    !
+    ! `capacity` matters only when the final length is already known to be under
+    ! 32, where it saves the builder a copy; the typer passes it when lowering a
+    ! list literal. For anything longer the default is what you want.
+  //]
+  def builder[T](capacity: Int = 32): ListBuilder[T] =
+    new ListBuilder(capacity)
+
+
   //[ Create a list of `n` copies of `value`. //]
   def fill[T](n: Int, value: T): List[T] =
-    var acc: List[T] = []
-    var i = 0
-    while i < n do
-      acc = acc + value
-      i = i + 1
-    end
-    acc
+    ListImpl.fromGenerator(n, i => value)
 
   //[ Create a list of `n` elements by applying `f` to each index `0..n-1`. //]
   def tabulate[T](n: Int, f: Int => T): List[T] =
-    var acc: List[T] = []
-    var i = 0
-    while i < n do
-      acc = acc + (f i)
-      i = i + 1
-    end
-    acc
+    ListImpl.fromGenerator(n, f)
 end
 
 //[ An immutable indexed sequence backed by a 32-way trie.
@@ -49,9 +49,11 @@ end
   ! All operations are O(log₃₂ n) ≈ effectively O(1):
   !   - `get(i)`, `updated(i, v)`: O(log₃₂ n)
   !   - `+` (append one element): O(log₃₂ n) amortized
-  !   - `++` (concatenate): O(m log₃₂ n) where m = size of argument
+  !   - `++` (concatenate): O(min(n + m, m log₃₂ n)) where m = size of argument
   !
-  ! Build a list with `[]` literal or by appending with `+`.
+  ! Build a list with `[]` literal or by appending with `+`. `fill`, `tabulate`
+  ! and `map` build the trie bottom up in O(n) instead, and `tabulate` is the
+  ! way to turn an `Array` into a `List` in one pass.
   ! Use `for v in list` or `iterator` for O(n) traversal.
 //]
 class List[T]
@@ -76,10 +78,23 @@ class List[T]
   //[ Returns an iterator over the elements in order. //]
   def iterator: Iterator[T] = new ListImpl.ListIterator(this)
 
+  // Copy all elements into `arr`, starting at index `start`.
+  private def copyInto(arr: Array[T], start: Int): Unit =
+    var i = start
+    val iter = this.iterator
+    while iter.hasNext do
+      arr[i] = iter.next
+      i = i + 1
+
   //[ Return the element at index `i` (0-based). Aborts if out of bounds. //]
   def get(i: Int): T receives none =
     if i < 0 || i >= _size then errorIndex i
     lookup(root, i, _depth)
+
+  // The leaf array holding index `i`. Used by `ListIterator` to walk the trie
+  // one leaf at a time instead of once per element.
+  private[jo] def leafAt(i: Int): Array[T] receives none =
+    ListImpl.leafAt(root, i, _depth)
 
   //[ Return a new list with the element at index `i` replaced by `value`. Aborts if out of bounds. //]
   def updated(i: Int, value: T): List[T] =
@@ -103,31 +118,47 @@ class List[T]
 
   //[ Prepend one element at the front. O(n). //]
   def prepend(v: T): List[T] =
-    var result = List.empty[T] + v
-    val iter = this.iterator
-    while iter.hasNext do
-      result = result + iter.next
-    result
+    val arr = Array.create[T](_size + 1)
+    arr[0] = v
+    copyInto(arr, 1)
+    ListImpl.fromOwnedArray(arr)
 
-  //[ Concatenate two lists. O(m log₃₂ n) where m = size of `l`. //]
+  //[ Concatenate two lists. O(min(n + m, m log₃₂ n)) for n = `size`, m = `l.size`. //]
   def ++(l: List[T]): List[T] =
-    var result = this
-    val iter = l.iterator
-    while iter.hasNext do
-      result = result + iter.next
-    result
+    // Appending element by element costs O(32) per element of `l`, so it only
+    // beats rebuilding the whole trie while `l` is much shorter than `this`.
+    if l.size == 0 then this
+    else if _size > l.size * 32 then
+      var result = this
+      val iter = l.iterator
+      while iter.hasNext do
+        result = result + iter.next
+      result
+    else
+      val n = _size + l.size
+      val arr = Array.create[T](n)
+      copyInto(arr, 0)
+      var i = _size
+      val iter = l.iterator
+      while iter.hasNext do
+        arr[i] = iter.next
+        i = i + 1
+      end
+      ListImpl.fromOwnedArray(arr)
 
   //[ Return a sublist starting at index `from` with at most `len` elements. //]
   def slice(from: Int, len: Int): List[T] receives none =
     if from >= _size || len <= 0 then []
     else
       val to = if _size - from > len then from + len else _size
-      var result = List.empty[T]
-      var i = from
-      while i < to do
-        result = result + this.get(i)
+      val n = to - from
+      val arr = Array.create[T](n)
+      var i = 0
+      while i < n do
+        arr[i] = this.get(from + i)
         i = i + 1
-      result
+      end
+      ListImpl.fromOwnedArray(arr)
 
   //[ Return the first `n` elements. //]
   def take(n: Int): List[T] receives none =
@@ -143,29 +174,32 @@ class List[T]
 
   //[ Return elements satisfying `pred`. //]
   def select(pred: T => Bool): List[T] =
-    var acc: List[T] = []
+    val kept = List.builder[T]()
 
     for v in this if pred v do
-      acc = acc + v
+      val _ = kept.add v
 
-    acc
+    kept.result
 
   //[ Return elements not satisfying `pred`. //]
   def exclude(pred: T => Bool): List[T] =
-    var acc: List[T] = []
+    val kept = List.builder[T]()
 
     for v in this if !(pred v) do
-      acc = acc + v
+      val _ = kept.add v
 
-    acc
+    kept.result
 
   //[ Apply `f` to each element and return the resulting list. //]
   def map[S](f: T => S): List[S] =
-    var result = List.empty[S]
+    val arr = Array.create[S](_size)
+    var i = 0
     val iter = this.iterator
     while iter.hasNext do
-      result = result + f(iter.next)
-    result
+      arr[i] = f(iter.next)
+      i = i + 1
+    end
+    ListImpl.fromOwnedArray(arr)
 
   //[ Reduce the list to a single value using a left fold. //]
   def fold[S](zero: S, f: (S, T) => S): S =
@@ -240,59 +274,71 @@ class List[T]
 
   //[ Return a new list with elements in reverse order. //]
   def reverse: List[T] =
-    var result = List.empty[T]
-    var i = _size - 1
-    while i >= 0 do
-      result = result + this.get(i)
-      i = i - 1
-    result
-
-  //[ Split into two lists: elements satisfying `pred` and those that don't. //]
-  def partition(pred: T => Bool): List[T] ~ List[T] =
-    var accepted: List[T] = []
-    var rejected: List[T] = []
-    val iter = this.iterator
-    while iter.hasNext do
-      val v = iter.next
-      if pred v then
-        accepted = accepted + v
-      else
-        rejected = rejected + v
-    end
-    accepted ~ rejected
-
-  //[ Pair up elements from two lists; stops at the shorter one. //]
-  def zip[S](other: List[S]): List[T ~ S] =
-    var result = List.empty[T ~ S]
-    val left = this.iterator
-    val right = other.iterator
-    while left.hasNext && right.hasNext do
-      result = result + (left.next ~ right.next)
-    result
-
-  //[ Pair each element with its 0-based index. //]
-  def zipWithIndex: List[T ~ Int] =
-    var result = List.empty[T ~ Int]
+    val arr = Array.create[T](_size)
     var i = 0
     val iter = this.iterator
     while iter.hasNext do
-      result = result + (iter.next ~ i)
+      arr[_size - 1 - i] = iter.next
       i = i + 1
-    result
+    end
+    ListImpl.fromOwnedArray(arr)
+
+  //[ Split into two lists: elements satisfying `pred` and those that don't. //]
+  def partition(pred: T => Bool): List[T] ~ List[T] =
+    val accepted = List.builder[T]()
+    val rejected = List.builder[T]()
+    val iter = this.iterator
+    while iter.hasNext do
+      val v = iter.next
+
+      if pred v then
+        val _ = accepted.add v
+      else
+        val _ = rejected.add v
+    end
+    accepted.result ~ rejected.result
+
+  //[ Pair up elements from two lists; stops at the shorter one. //]
+  def zip[S](other: List[S]): List[T ~ S] =
+    val n = if _size < other.size then _size else other.size
+    val arr = Array.create[T ~ S](n)
+    var i = 0
+    val left = this.iterator
+    val right = other.iterator
+    while left.hasNext && right.hasNext do
+      arr[i] = left.next ~ right.next
+      i = i + 1
+    end
+    ListImpl.fromOwnedArray(arr)
+
+  //[ Pair each element with its 0-based index. //]
+  def zipWithIndex: List[T ~ Int] =
+    val arr = Array.create[T ~ Int](_size)
+    var i = 0
+    val iter = this.iterator
+    while iter.hasNext do
+      arr[i] = iter.next ~ i
+      i = i + 1
+    end
+    ListImpl.fromOwnedArray(arr)
 
   //[ Insert `sep` between every pair of adjacent elements. //]
   def intersperse(sep: T): List[T] =
     if _size == 0 then []
     else
-      var result = List.empty[T]
-      var first = true
+      val n = _size * 2 - 1
+      val arr = Array.create[T](n)
+      var i = 0
       val iter = this.iterator
       while iter.hasNext do
-        if !first then
-          result = result + sep
-        result = result + iter.next
-        first = false
-      result
+        if i > 0 then
+          arr[i] = sep
+          i = i + 1
+
+        arr[i] = iter.next
+        i = i + 1
+      end
+      ListImpl.fromOwnedArray(arr)
 
   //[ Group elements by key, returning a map from key to list of elements. //]
   def groupBy[K](f: T => K)(auto ord: Ord[K] with [[K].compareTo]) : Map[K, List[T]] =
@@ -312,18 +358,9 @@ class List[T]
     if _size <= 1 then this
     else
       val arr = Array.create[T](_size)
-      var i = 0
-      val iter = this.iterator
-      while iter.hasNext do
-        arr[i] = iter.next
-        i = i + 1
+      copyInto(arr, 0)
       Sorting.sortArray(arr, 0, _size - 1, ord)
-      var result = List.empty[T]
-      i = 0
-      while i < _size do
-        result = result + arr[i]
-        i = i + 1
-      result
+      ListImpl.fromOwnedArray(arr)
 
   //[ Return a sorted copy, comparing elements by the key produced by `f`. //]
   def sortBy[S](f: T => S)
@@ -334,14 +371,24 @@ class List[T]
 
   //[ Return a copy with duplicate elements removed (first occurrence kept). //]
   def distinct(auto eq: Eq[T] with [[T].==]): List[T] =
-    var acc: List[T] = []
+    val arr = Array.create[T](_size)
+    var n = 0
     val iter = this.iterator
     while iter.hasNext do
       val v = iter.next
-      if !(acc.exists(x => eq.equal(x, v))) then
-        acc = acc + v
+      var seen = false
+      var i = 0
+
+      while !seen && i < n do
+        seen = eq.equal(arr[i], v)
+        i = i + 1
+      end
+
+      if !seen then
+        arr[n] = v
+        n = n + 1
     end
-    acc
+    ListImpl.fromArray(arr, n)
 
   //[ Return the minimum element, or `None` if the list is empty. //]
   def minOpt(auto ord: Ord[T] with [[T].compareTo]): Option[T] =
@@ -389,18 +436,167 @@ class List[T]
     res
 end // List
 
-private section ListImpl
+private[jo] section ListImpl
   union Node[T] =
       Internal(children: Array[Node[T]])
     | Leaf(values: Array[T])
 
   def errorIndex(i: Int): Bottom = abort ("invalid index for list " + i)
 
+  //[ Build a list from the first `n` elements of `arr`, bottom up, in O(n).
+    !
+    ! The result has exactly the shape `n` successive `+` operations would
+    ! produce, but allocates one node per 32 elements instead of one node and
+    ! one array copy per element.
+  //]
+  def fromArray[T](arr: Array[T], n: Int): List[T] =
+    if n <= 32 then
+      // A single leaf: no level array and no grouping pass are needed.
+      val size = if n > 0 then n else 0
+      val values = Array.create[T](size)
+      var i = 0
+      while i < size do
+        values[i] = arr[i]
+        i = i + 1
+      end
+      new List(Leaf(values), size, 0)
+
+    else
+      // The leaf level: full 32-element leaves, with a partial one at the end.
+      val leafCount = (n + 31) >> 5
+      val level = Array.create[Node[T]](leafCount)
+      var i = 0
+      while i < leafCount do
+        val from = i << 5
+        val width = if n - from > 32 then 32 else n - from
+        val values = Array.create[T](width)
+        var j = 0
+        while j < width do
+          values[j] = arr[from + j]
+          j = j + 1
+        end
+        level[i] = Leaf(values)
+        i = i + 1
+      end
+
+      fromLeaves(level, leafCount, n)
+
+  //[ Assemble `leafCount` leaves holding `n` elements into a list.
+    !
+    ! `leaves` may be longer than `leafCount`; only the first `leafCount`
+    ! entries are read, so a builder can pass its partly filled spine.
+  //]
+  def fromLeaves[T](leaves: Array[Node[T]], leafCount: Int, n: Int): List[T] =
+    // Group each level into parents of at most 32 children until one is left.
+    var level = leaves
+    var count = leafCount
+    var depth = 0
+    while count > 1 do
+      val parentCount = (count + 31) >> 5
+      val parents = Array.create[Node[T]](parentCount)
+      var p = 0
+      while p < parentCount do
+        val from = p << 5
+        val width = if count - from > 32 then 32 else count - from
+        val children = Array.create[Node[T]](width)
+        var j = 0
+        while j < width do
+          children[j] = level[from + j]
+          j = j + 1
+        end
+        parents[p] = Internal(children)
+        p = p + 1
+      end
+
+      level = parents
+      count = parentCount
+      depth = depth + 1
+    end
+
+    new List(level[0], n, depth)
+
+  //[ Build a list of `n` elements by filling each leaf straight from `f`.
+    !
+    ! Unlike `fromArray` no intermediate array is materialised: the elements go
+    ! directly into the leaves that make up the trie.
+  //]
+  def fromGenerator[T](n: Int, f: Int => T): List[T] =
+    if n <= 32 then
+      // A single leaf: no spine array and no grouping pass are needed.
+      val size = if n > 0 then n else 0
+      val values = Array.create[T](size)
+      var i = 0
+      while i < size do
+        values[i] = f i
+        i = i + 1
+      end
+      new List(Leaf(values), size, 0)
+
+    else
+      val leafCount = (n + 31) >> 5
+      val leaves = Array.create[Node[T]](leafCount)
+      var i = 0
+      while i < leafCount do
+        val from = i << 5
+        val width = if n - from > 32 then 32 else n - from
+        val values = Array.create[T](width)
+        var j = 0
+        while j < width do
+          values[j] = f (from + j)
+          j = j + 1
+        end
+        leaves[i] = Leaf(values)
+        i = i + 1
+      end
+
+      fromLeaves(leaves, leafCount, n)
+
+  //[ Like `fromArray`, but the array becomes the list's own storage when it
+    ! fits in a single leaf, so no copy is made. The caller must not touch `arr`
+    ! afterwards. Above 32 elements the array has to be split across leaves, so
+    ! the copy is unavoidable and this falls back to `fromArray`.
+  //]
+  def fromOwnedArray[T](arr: Array[T]): List[T] =
+    val n = arr.size
+
+    if n <= 32 then new List(Leaf(arr), n, 0)
+    else fromArray(arr, n)
+
+  //[ The leaf array holding index `i`. //]
+  def leafAt[T](node: Node[T], i: Int, depth: Int): Array[T] =
+    match node
+    case Leaf values =>
+      values
+
+    case Internal children =>
+      val idx = (i >> (5 * depth)) & 31
+      leafAt(children[idx], i, depth - 1)
+
+  //[ Walks the trie one leaf at a time.
+    !
+    ! Fetching the leaf costs one root-to-leaf walk per 32 elements rather than
+    ! one per element, so a full traversal is O(n) instead of O(n log₃₂ n).
+  //]
   class ListIterator[T](l: List[T])
+    val count: Int = l.size
     var i: Int = 0
-    def hasNext: Bool = l.size > i
+
+    // The leaf holding index `i`, and the index just past the elements it
+    // covers. `limit` starts at 0 so the first `next` loads a leaf.
+    var leaf: Array[T] = Array.create[T](0)
+    var limit: Int = 0
+
+    def hasNext: Bool = i < count
+
     def next: T =
-      val item = l.get(i)
+      if i >= limit then
+        // Only reached once per leaf, so bounds-checking here is free.
+        if i >= count then errorIndex i
+
+        leaf = l.leafAt(i)
+        limit = i - (i & 31) + leaf.size
+
+      val item = leaf[i & 31]
       i = i + 1
       item
 

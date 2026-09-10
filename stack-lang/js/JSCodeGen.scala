@@ -590,15 +590,21 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   /** Unpack a @js.interop vararg pack (List.empty + a + b ++ xs) into JS exprs, splicing Lists as ...js.list(xs) */
   private def compileVarargItems(word: Word)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], List[JS.Expr]) =
     word match
+      case Apply(Select(pack, "result"), Nil, _) =>
+        compileVarargItems(pack)
+
       case Apply(Ident(sym), Nil, _) if sym == defn.List_empty =>
         (Nil, Nil)
 
-      case Apply(Select(prev, "+"), List(item), _) =>
+      case Apply(fun, List(_), _) if fun.refers(defn.List_builder) =>
+        (Nil, Nil)
+
+      case Apply(Select(prev, "add"), List(item), _) =>
         val (prevStats, prevExprs) = compileVarargItems(prev)
         val (itemStats, itemExpr)  = compileExpr(item, enforcePurity = false)
         (prevStats ++ itemStats, prevExprs :+ itemExpr)
 
-      case Apply(Select(prev, "++"), List(xs), _) =>
+      case Apply(Select(prev, "addList"), List(xs), _) =>
         val (prevStats, prevExprs) = compileVarargItems(prev)
         val (xsStats, xsExpr) = compileExpr(xs, enforcePurity = false)
         // Convert Jo List[T] to JS Array before spreading (Jo_List ≠ native Array)

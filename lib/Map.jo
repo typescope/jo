@@ -127,11 +127,11 @@ class Map[K, V]
 
   //[ Return all keys as a `List`, in ascending order. //]
   def keys: List[K] =
-    MapTree.fold(tree, [], (acc, k, v) => acc + k)
+    MapTree.fold(tree, jo.List.builder[K](), (acc, k, v) => acc.add k).result
 
   //[ Return all values as a `List`, ordered by their keys. //]
   def values: List[V] =
-    MapTree.fold(tree, [], (acc, k, v) => acc + v)
+    MapTree.fold(tree, jo.List.builder[V](), (acc, k, v) => acc.add v).result
 
   //[ Return the set of keys. //]
   def keySet: Set[K] =
@@ -352,5 +352,5 @@ private section MapTree
       fold right acc2 f
 
   def toList[K, V](tree: Tree[K, V]): List[K ~ V] =
-    fold: tree, [], (acc, k, v) => acc + (k ~ v)
+    fold(tree, jo.List.builder[K ~ V](), (acc, k, v) => acc.add(k ~ v)).result
 end

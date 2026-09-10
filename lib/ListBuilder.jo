@@ -1,0 +1,163 @@
+namespace jo
+
+//[ Incrementally builds a `List`, filling one leaf of the trie at a time.
+  !
+  ! Reach for a builder whenever the elements of a list arrive one at a time:
+  !
+  !     val evens = List.builder[Int]()
+  !     for v in source do
+  !       if v % 2 == 0 then
+  !         val _ = evens.add v
+  !     evens.result
+  !
+  ! The obvious alternative, `acc = acc + v` in a loop, is much more expensive
+  ! than it looks: `List` is a 32-way trie, so every `+` copies a leaf and one
+  ! interior array per level of depth, and allocates a fresh node for each.
+  ! A builder instead writes each element into the leaf it will live in, so an
+  ! element costs one array store plus one leaf allocation per 32 elements.
+  !
+  ! Prefer, in order:
+  !
+  !   - `[a, b, c]` when the elements are written out literally,
+  !   - `List.fill` / `List.tabulate` when the length is known up front and the
+  !     elements are a function of the index, since they size every leaf exactly,
+  !   - a builder for everything else,
+  !   - `+` only to append to a list that already exists.
+  !
+  ! Invariants
+  ! ----------
+  !
+  ! 1. `result` does not mutate the builder. Only `add`, `addAll` and `addList`
+  !    change its state, so `result` may be called any number of times,
+  !    interleaved with further additions, and each call returns the elements
+  !    added so far.
+  !
+  ! 2. A leaf array handed to a list is never written again. Every operation on
+  !    `List` that would change an element copies the array first, so a leaf may
+  !    safely be shared between the builder and every list `result` returned.
+  !    Together with (1) this is what makes repeated `result` calls independent
+  !    of one another: earlier results keep working, including under `+`.
+  !
+  ! 3. A leaf array is exactly as long as the number of elements in it, and only
+  !    the last leaf of a list may hold fewer than 32. This is why `add` widens
+  !    a short leaf instead of parking it, and why `result` trims a partly
+  !    filled last leaf rather than handing over the working array.
+  !
+  ! Breaking (1) or (2) does not fail loudly: the list reads back correctly and
+  ! only corrupts later, when an append walks into a stale leaf.
+//]
+class ListBuilder[T]
+  // The leaf being filled. A full leaf is 32 wide, so that is the default; a
+  // caller that already knows the final length may size it exactly instead,
+  // which lets `result` hand this array over without copying it.
+  private var leaf: Array[T]
+  private var fill: Int
+
+  // Completed leaves, allocated on the first spill and grown by doubling.
+  private var leaves: Array[ListImpl.Node[T]]
+  private var leafCount: Int
+
+  private var total: Int
+
+  private[jo] def ListBuilder(capacity: Int) =
+    this.leaf = Array.create[T](if capacity > 0 && capacity < 32 then capacity else 32)
+    this.fill = 0
+    this.leaves = Array.create[ListImpl.Node[T]](0)
+    this.leafCount = 0
+    this.total = 0
+
+  //[ Number of elements added so far. //]
+  def size: Int = total
+
+  //[ Append one element and return this builder. //]
+  def add(v: T): ListBuilder[T] =
+    if fill == leaf.size then
+      if fill < 32 then
+        // More elements arrived than `capacity` promised: a leaf may only be
+        // short if it is the last one, so widen this one to a full leaf.
+        widen()
+      else
+        park leaf
+        leaf = Array.create[T](32)
+        fill = 0
+
+    leaf[fill] = v
+    fill = fill + 1
+    total = total + 1
+    this
+
+  //[ Append every remaining element of `source` and return this builder.
+    !
+    ! `source` is consumed. Anything the language can iterate can be added this
+    ! way, since collections all provide an `iterator`:
+    !
+    !     b.addAll(someMap.iterator)
+  //]
+  def addAll(source: Iterator[T]): ListBuilder[T] =
+    while source.hasNext do
+      val _ = add source.next
+    this
+
+  //[ Append every element of `l` and return this builder. //]
+  def addList(l: List[T]): ListBuilder[T] =
+    addAll l.iterator
+
+  private def widen: Unit =
+    val wider = Array.create[T](32)
+    var i = 0
+    while i < fill do
+      wider[i] = leaf[i]
+      i = i + 1
+    end
+    leaf = wider
+
+  private def park(values: Array[T]): Unit =
+    if leafCount == leaves.size then
+      val bigger = Array.create[ListImpl.Node[T]](if leaves.size == 0 then 8 else leaves.size * 2)
+      var i = 0
+      while i < leafCount do
+        bigger[i] = leaves[i]
+        i = i + 1
+      end
+      leaves = bigger
+
+    leaves[leafCount] = ListImpl.Leaf(values)
+    leafCount = leafCount + 1
+
+  //[ The list of everything added so far.
+    !
+    ! This does not consume the builder: it leaves the builder untouched, so
+    ! more elements may be added afterwards and `result` called again.
+  //]
+  def result: List[T] =
+    // Not `[]`: an empty literal is lowered to a builder, which would recur.
+    if total == 0 then ListImpl.fromOwnedArray(Array.create[T](0))
+    else if leafCount == 0 && fill == leaf.size then
+      // Everything fits one exactly filled leaf: hand the array over as is.
+      ListImpl.fromOwnedArray(leaf)
+
+    else
+      // The trie requires a leaf array to be exactly as long as its fill, and
+      // `result` must leave the builder alone, so the final spine is assembled
+      // in a copy rather than by parking into `leaves`.
+      val lastLeaf =
+        if fill == leaf.size then leaf
+        else
+          val trimmed = Array.create[T](fill)
+          var i = 0
+          while i < fill do
+            trimmed[i] = leaf[i]
+            i = i + 1
+          end
+          trimmed
+
+      val spine = Array.create[ListImpl.Node[T]](leafCount + 1)
+      var i = 0
+      while i < leafCount do
+        spine[i] = leaves[i]
+        i = i + 1
+      end
+      spine[leafCount] = ListImpl.Leaf(lastLeaf)
+
+      ListImpl.fromLeaves(spine, leafCount + 1, total)
+end

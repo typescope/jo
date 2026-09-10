@@ -320,5 +320,5 @@ private section SetTree
       (pred value) && (forall left pred) && (forall right pred)
 
   def toList[T](tree: Tree[T]): List[T] =
-    fold: tree, [], (acc, e) => acc + e
+    fold(tree, jo.List.builder[T](), (acc, e) => acc.add e).result
 end
