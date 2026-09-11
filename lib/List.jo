@@ -86,14 +86,6 @@ class List[T]
     iter.i = start
     iter
 
-  // Copy all elements into `arr`, starting at index `start`.
-  private def copyInto(arr: Array[T], start: Int): Unit =
-    var i = start
-    val iter = this.iterator
-    while iter.hasNext do
-      arr[i] = iter.next
-      i = i + 1
-
   //[ Return the element at index `i` (0-based). Aborts if out of bounds. //]
   def get(i: Int): T receives none =
     if i < 0 || i >= _size then errorIndex i
@@ -354,11 +346,7 @@ class List[T]
   //[ Return a sorted copy of this list. //]
   def sort(auto ord: Ord[T] with [[T].compareTo]): List[T] =
     if _size <= 1 then this
-    else
-      val arr = Array.create[T](_size)
-      copyInto(arr, 0)
-      Sorting.sortArray(arr, 0, _size - 1, ord)
-      ListImpl.fromOwnedArray(arr)
+    else Sorting.sortList(this)
 
   //[ Return a sorted copy, comparing elements by the key produced by `f`. //]
   def sortBy[S](f: T => S)
@@ -556,17 +544,6 @@ private[jo] section ListImpl
       end
 
       fromLeaves(leaves, leafCount - 1, leaves[leafCount - 1], n)
-
-  //[ Like `fromArray`, but the array becomes the list's own storage when it
-    ! fits in a single leaf, so no copy is made. The caller must not touch `arr`
-    ! afterwards. Above 32 elements the array has to be split across leaves, so
-    ! the copy is unavoidable and this falls back to `fromArray`.
-  //]
-  def fromOwnedArray[T](arr: Array[T]): List[T] =
-    val n = arr.size
-
-    if n <= 32 then new List(Leaf(arr), n, 0)
-    else fromArray(arr, n)
 
   //[ The leaf array holding index `i`. //]
   def leafAt[T](node: Node[T], i: Int, depth: Int): Array[T] =

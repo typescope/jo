@@ -44,4 +44,217 @@ section Sorting
     while i < n do
       arr[from + i] = temp[i]
       i = i + 1
+
+  //[ Sort `l`, returning a new list. Time: O(n log n), Space: O(n) auxiliary.
+    ! Stable sort.
+    !
+    ! The elements are sorted in the leaves they will live in, so the sorted
+    ! buffer becomes the leaf level of the trie directly: unlike sorting through
+    ! an array, nothing is copied on the way in or out.
+  //]
+  private[jo] def sortList[T](l: List[T])(auto ord: Ord[T]): List[T] =
+    val buffer = new SortingBuffer[T](l.size)
+    buffer.fill l.iterator
+    buffer.sort()
+    buffer.result
+
+  // A leaf level for `size` elements: 32 to a leaf, only the last one short,
+  // which is the shape `List` requires of the leaves it is given.
+  private def newLeaves[T](size: Int): Array[Array[T]] =
+    val leafCount = (size + 31) >> 5
+    val leaves = Array.create[Array[T]](leafCount)
+    var i = 0
+    while i < leafCount do
+      val from = i << 5
+      val width = if size - from > 32 then 32 else size - from
+      leaves[i] = Array.create[T](width)
+      i = i + 1
+    end
+    leaves
+
+  //[ Holds elements as the leaves of a `List` and sorts them where they lie.
+    !
+    ! Sorting bottom up rather than top down is what lets the leaves stand in
+    ! for an array: a merge pass sweeps forward, so each position walks its own
+    ! leaf and only looks up the next one every 32 elements.
+  //]
+  private class SortingBuffer[T]
+    private var leaves: Array[Array[T]]
+
+    // The other half of the ping-pong: a merge pass reads one set of leaves and
+    // writes the other, then the two swap. Only allocated if a pass is needed.
+    private var spare: Array[Array[T]]
+    private var leafCount: Int
+    private var count: Int
+
+    def SortingBuffer(size: Int) =
+      val ls = newLeaves[T](size)
+      this.leaves = ls
+      this.spare = Array.create[Array[T]](0)
+      this.leafCount = ls.size
+      this.count = size
+
+    //[ Take `count` elements from `source`, in order. //]
+    def fill(source: Iterator[T]): Unit =
+      var k = 0
+      while k < leafCount do
+        val leaf = leaves[k]
+        var j = 0
+        while j < leaf.size do
+          leaf[j] = source.next
+          j = j + 1
+        end
+        k = k + 1
+
+    //[ Sort the elements in place. //]
+    def sort(auto ord: Ord[T]): Unit =
+      // Short runs first, insertion sorted where they lie. Eight is small
+      // enough that insertion sort spends fewer compares than merging the run
+      // would, and it divides 32, so a run never crosses a leaf.
+      var from = 0
+      while from < count do
+        val last = from + 7
+        insertionSort(from, if last < count - 1 then last else count - 1, ord)
+        from = from + 8
+      end
+
+      if count > 8 then
+        spare = newLeaves[T](count)
+
+        // Merge pairs of runs until one run covers everything. A run left
+        // without a partner is already in order and moves across as it is.
+        var width = 8
+        while width < count do
+          var start = 0
+
+          while start < count do
+            val mid = start + width - 1
+
+            if mid >= count - 1 then
+              copyRun(leaves, spare, start, count - 1, start)
+            else
+              val last = start + 2 * width - 1
+              mergeRuns(leaves, spare, start, mid, if last < count - 1 then last else count - 1, ord)
+
+            start = start + 2 * width
+          end
+
+          val sorted = spare
+          spare = leaves
+          leaves = sorted
+          width = width * 2
+        end
+
+    //[ The sorted elements as a list. The leaves are handed over as they are,
+      ! so the buffer must not be used again.
+    //]
+    def result: List[T] =
+      if count == 0 then List.empty[T]
+      else
+        val spine = Array.create[ListImpl.Node[T]](leafCount - 1)
+        var i = 0
+        while i < leafCount - 1 do
+          spine[i] = ListImpl.Leaf(leaves[i])
+          i = i + 1
+        end
+        ListImpl.fromLeaves(spine, leafCount - 1, ListImpl.Leaf(leaves[leafCount - 1]), count)
+
+    // Sort `from..to`, which lie in a single leaf, on that leaf's own array.
+    private def insertionSort(from: Int, to: Int, ord: Ord[T]): Unit =
+      val leaf = leaves[from >> 5]
+      val base = from & 31
+      val n = to - from
+      var i = 1
+      while i <= n do
+        val v = leaf[base + i]
+        var j = i - 1
+
+        // Strictly greater, so equal elements keep their order.
+        while j >= 0 && ord.compare(leaf[base + j], v) > 0 do
+          leaf[base + j + 1] = leaf[base + j]
+          j = j - 1
+        end
+
+        leaf[base + j + 1] = v
+        i = i + 1
+
+    // Merge src[from..mid] and src[mid+1..to] into dst[from..to].
+    //
+    // All three positions move forward one element at a time, so each keeps
+    // its leaf in hand and picks up the next one only when it steps off the
+    // end, which keeps the addressing out of the inner loop.
+    private def mergeRuns(src: Array[Array[T]], dst: Array[Array[T]], from: Int, mid: Int, to: Int, ord: Ord[T]): Unit =
+      var li = from
+      var ri = mid + 1
+      var k = from
+
+      var leftLeaf = src[li >> 5]
+      var leftSlot = li & 31
+      var rightLeaf = src[ri >> 5]
+      var rightSlot = ri & 31
+      var outLeaf = dst[k >> 5]
+      var outSlot = k & 31
+
+      while li <= mid && ri <= to do
+        val left = leftLeaf[leftSlot]
+        val right = rightLeaf[rightSlot]
+
+        if ord.compare(left, right) <= 0 then
+          outLeaf[outSlot] = left
+          li = li + 1
+          leftSlot = leftSlot + 1
+
+          if leftSlot == 32 && li <= mid then
+            leftLeaf = src[li >> 5]
+            leftSlot = 0
+
+        else
+          outLeaf[outSlot] = right
+          ri = ri + 1
+          rightSlot = rightSlot + 1
+
+          if rightSlot == 32 && ri <= to then
+            rightLeaf = src[ri >> 5]
+            rightSlot = 0
+
+        k = k + 1
+        outSlot = outSlot + 1
+
+        if outSlot == 32 && k <= to then
+          outLeaf = dst[k >> 5]
+          outSlot = 0
+      end
+
+      // Whichever run is left over is in order already, but it carries on
+      // from `k`, which has fallen behind the run it came from.
+      if li <= mid then
+        copyRun(src, dst, li, mid, k)
+      else
+        copyRun(src, dst, ri, to, k)
+
+    // Copy src[from..to] into dst, starting at `dstFrom`.
+    private def copyRun(src: Array[Array[T]], dst: Array[Array[T]], from: Int, to: Int, dstFrom: Int): Unit =
+      var i = from
+      var k = dstFrom
+      var inLeaf = src[i >> 5]
+      var inSlot = i & 31
+      var outLeaf = dst[k >> 5]
+      var outSlot = k & 31
+
+      while i <= to do
+        outLeaf[outSlot] = inLeaf[inSlot]
+        i = i + 1
+        k = k + 1
+        inSlot = inSlot + 1
+        outSlot = outSlot + 1
+
+        if inSlot == 32 && i <= to then
+          inLeaf = src[i >> 5]
+          inSlot = 0
+
+        if outSlot == 32 && i <= to then
+          outLeaf = dst[k >> 5]
+          outSlot = 0
+      end
+  end
 end
