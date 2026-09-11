@@ -1,0 +1,63 @@
+// Bulk operations at trie boundaries. Each of these fills a fresh list one
+// element at a time, so a mistake in leaf sizing or in where a traversal
+// starts only shows up once the list spans more than one leaf.
+
+// `l` must hold exactly `f 0 .. f (n-1)`
+def expect(l: List[Int], n: Int, f: Int => Int): Int =
+  var bad = if l.size == n then 0 else 1
+  var i = 0
+  while i < l.size do
+    if l.get(i) != f(i) then bad = bad + 1
+    i = i + 1
+  if bad > 0 then 1 else 0
+
+def check(n: Int): Int =
+  val l = List.tabulate(n, i => i)
+  var bad = 0
+
+  bad = bad + expect(l.prepend(-1), n + 1, i => i - 1)
+  bad = bad + expect(l ++ l, n * 2, i => if i < n then i else i - n)
+  // a right side much shorter than the left appends element by element instead
+  bad = bad + expect(l ++ [7], n + 1, i => if i < n then i else 7)
+  bad = bad + expect([7] ++ l, n + 1, i => if i == 0 then 7 else i - 1)
+  bad = bad + expect(l.map(x => x * 2), n, i => i * 2)
+  bad = bad + expect(l.reverse, n, i => n - 1 - i)
+  bad = bad + expect(l.sort, n, i => i)
+  bad = bad + expect(l.zipWithIndex.map(p => p.fst + p.snd), n, i => i * 2)
+
+  val short = List.tabulate(if n > 5 then 5 else n, i => i)
+  bad = bad + expect(l.zip(short).map(p => p.fst * 10 + p.snd), short.size, i => i * 11)
+
+  if n > 0 then
+    bad = bad + expect(l.intersperse(-9), n * 2 - 1, i => if i % 2 == 0 then i / 2 else -9)
+  else
+    bad = bad + expect(l.intersperse(-9), 0, i => 0)
+
+  // slices starting mid-leaf, at a leaf edge, and past the end
+  var cursor = 0
+  while cursor <= n do
+    val start = cursor
+    val len = (n - start) / 2 + 1
+    bad = bad + expect(l.slice(start, len), if n - start < len then n - start else len, i => start + i)
+    cursor = cursor + (if n > 64 then n / 8 + 1 else 1)
+  end
+
+  bad = bad + expect(l.take(n / 2), n / 2, i => i)
+  bad = bad + expect(l.drop(n / 2), n - n / 2, i => n / 2 + i)
+  bad = bad + expect(l.slice(0, n), n, i => i)
+  bad = bad + expect(l.slice(n, 5), 0, i => 0)
+  bad = bad + expect(l.slice(0, 0), 0, i => 0)
+
+  // a list built this way must still take appends: every leaf handed over is
+  // exactly as long as its contents
+  bad = bad + expect(l.map(x => x) + n, n + 1, i => i)
+  bad = bad + expect(l.slice(1, n) + n, if n > 0 then n else 1, i => if i < n - 1 then i + 1 else n)
+  bad
+
+def main =
+  var bad = 0
+
+  for n in [0, 1, 2, 31, 32, 33, 65, 1025] do
+    bad = bad + (check n)
+
+  println ("failures: " + bad)
