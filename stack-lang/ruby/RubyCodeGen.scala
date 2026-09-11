@@ -407,9 +407,13 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     */
   private def compileVarargItems(word: Word)(using scope: UniqueName, ctx: Context): List[R.Tree] =
     word match
+      case Apply(Select(pack, "result"), Nil, _) => compileVarargItems(pack)
+
       case Apply(Ident(sym), Nil, _) if sym == defn.List_empty => Nil
 
-      case Apply(Select(prev, "+"), List(item), _) =>
+      case Apply(fun, List(_), _) if fun.refers(defn.ListBuilder_fun) => Nil
+
+      case Apply(Select(prev, "add"), List(item), _) =>
         val compiled = item match
           case Apply(fun, List(Literal(Constant.String(name)), value), _)
               if fun.refers(defn.compile_namedArg) =>
@@ -418,7 +422,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
             compileExpr(other)
         compileVarargItems(prev) :+ compiled
 
-      case Apply(Select(prev, "++"), List(xs), _) =>
+      case Apply(Select(prev, "addList"), List(xs), _) =>
         // Jo List[T] is not a native Ruby Array; convert via rb.array before splatting
         val rubyArray = R.Call(None, rubyName(runtime.rb_array), List(compileExpr(xs)))
         compileVarargItems(prev) :+ R.Starred(rubyArray)

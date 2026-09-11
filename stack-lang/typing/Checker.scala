@@ -69,6 +69,28 @@ object Checker:
     || tp.getTermMember("callDynamic").isDefined
     || tp.getTermMember("selectDynamic").isDefined
 
+  /** True when the value of `word` may be dropped without a warning.
+    *
+    * Either its type never carries meaning (see above), or the definition the
+    * call targets is marked `@discardableResult` — the case of a method that
+    * returns its own receiver so that calls can be chained.
+    */
+  def canSilentDrop(word: Word)(using defn: Definitions): Boolean =
+    canSilentDrop(word.tpe)
+    || calleeOf(word).exists(_.hasAnnotation(defn.discardableResult))
+
+  /** The definition a call targets.
+    *
+    * `adaptParameterless` has already run, so every call is an `Apply`, even a
+    * parameterless one; `funSymbol` and `memberSymbol` between them cover the
+    * prefixed and unprefixed targets and see through a `TypeApply`.
+    */
+  private def calleeOf(word: Word)(using Definitions): Option[Symbol] =
+    word match
+      case apply: Apply  => apply.funSymbol.orElse(apply.memberSymbol)
+      case Encoded(expr) => calleeOf(expr)
+      case _             => None
+
   def checkValueType(word: Word)(using Reporter, Source): Unit =
     checkValueType(word.tpe, word.pos)
 
@@ -321,7 +343,7 @@ object Checker:
         if word2.tpe.isVoidType then
           word2
         else if word2.tpe.isValueType then
-          if !canSilentDrop(word2.tpe) then
+          if !canSilentDrop(word2) then
             Reporter.warn(s"value of type ${word2.tpe.show} is silently dropped; use `val _ = ...` to make the intent explicit", word2.pos)
           word2.dropValue
         else
@@ -346,7 +368,7 @@ object Checker:
           // Unit adaptation: target accepts Unit but value doesn't conform directly.
           // Warn if the dropped value is a union type, then drop it and append unit.
           if !Subtyping.conforms(word2.tpe, tpe) && Subtyping.conforms(tpe, defn.UnitType) && (word2.tpe.isValueType || word2.tpe.isVoidType) then
-            if !canSilentDrop(word2.tpe) then
+            if !canSilentDrop(word2) then
               Reporter.warn(s"value of type ${word2.tpe.show} is silently dropped; use `val _ = ...` to make the intent explicit", word2.pos)
             val unit = unitValue(word2.span.endPoint)
             return Block(word2.ensureDropValue :: unit :: Nil)(word2.span)

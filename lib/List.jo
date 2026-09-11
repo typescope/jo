@@ -23,25 +23,21 @@ section List
     val arr = Array.create[T](0)
     new List(ListImpl.Leaf(arr), 0, 0)
 
+  //[ Start building a list one element at a time.
+    !
+    ! See `ListBuilder` for when to prefer this over `+`, `fill` or `tabulate`.
+  //]
+  def builder[T]: ListBuilder[T] =
+    new ListBuilder(capacity = 32)
+
+
   //[ Create a list of `n` copies of `value`. //]
   def fill[T](n: Int, value: T): List[T] =
-    var acc: List[T] = []
-    var i = 0
-    while i < n do
-      acc = acc + value
-      i = i + 1
-    end
-    acc
+    ListImpl.fromGenerator(n, i => value)
 
   //[ Create a list of `n` elements by applying `f` to each index `0..n-1`. //]
   def tabulate[T](n: Int, f: Int => T): List[T] =
-    var acc: List[T] = []
-    var i = 0
-    while i < n do
-      acc = acc + (f i)
-      i = i + 1
-    end
-    acc
+    ListImpl.fromGenerator(n, f)
 end
 
 //[ An immutable indexed sequence backed by a 32-way trie.
@@ -49,9 +45,11 @@ end
   ! All operations are O(log₃₂ n) ≈ effectively O(1):
   !   - `get(i)`, `updated(i, v)`: O(log₃₂ n)
   !   - `+` (append one element): O(log₃₂ n) amortized
-  !   - `++` (concatenate): O(m log₃₂ n) where m = size of argument
+  !   - `++` (concatenate): O(min(n + m, m log₃₂ n)) where m = size of argument
   !
-  ! Build a list with `[]` literal or by appending with `+`.
+  ! Build a list with `[]` literal or by appending with `+`. `fill`, `tabulate`
+  ! and `map` build the trie bottom up in O(n) instead, and `tabulate` is the
+  ! way to turn an `Array` into a `List` in one pass.
   ! Use `for v in list` or `iterator` for O(n) traversal.
 //]
 class List[T]
@@ -74,12 +72,17 @@ class List[T]
   def isEmpty: Bool = _size == 0
 
   //[ Returns an iterator over the elements in order. //]
-  def iterator: Iterator[T] = new ListImpl.ListIterator(this)
+  def iterator: Iterator[T] = new ListImpl.ListIterator(this, 0)
 
   //[ Return the element at index `i` (0-based). Aborts if out of bounds. //]
   def get(i: Int): T receives none =
     if i < 0 || i >= _size then errorIndex i
     lookup(root, i, _depth)
+
+  // The leaf array holding index `i`. Used by `ListIterator` to walk the trie
+  // one leaf at a time instead of once per element.
+  private[jo] def leafAt(i: Int): Array[T] receives none =
+    ListImpl.leafAt(root, i, _depth)
 
   //[ Return a new list with the element at index `i` replaced by `value`. Aborts if out of bounds. //]
   def updated(i: Int, value: T): List[T] =
@@ -101,33 +104,36 @@ class List[T]
       case Some newRoot => new List(newRoot, _size + 1, _depth)
       case None => abort ("List: unexpected full trie")
 
-  //[ Prepend one element at the front. O(n). //]
-  def prepend(v: T): List[T] =
-    var result = List.empty[T] + v
-    val iter = this.iterator
-    while iter.hasNext do
-      result = result + iter.next
-    result
-
-  //[ Concatenate two lists. O(m log₃₂ n) where m = size of `l`. //]
+  //[ Concatenate two lists. O(min(n + m, m log₃₂ n)) for n = `size`, m = `l.size`. //]
   def ++(l: List[T]): List[T] =
-    var result = this
-    val iter = l.iterator
-    while iter.hasNext do
-      result = result + iter.next
-    result
+    // Appending element by element costs O(32) per element of `l`, so it only
+    // beats rebuilding the whole trie while `l` is much shorter than `this`.
+    if l.size == 0 then this
+    else if _size > l.size * 32 then
+      var result = this
+      val iter = l.iterator
+      while iter.hasNext do
+        result = result + iter.next
+      result
+    else
+      new ListBuilder[T](_size + l.size).addAll(this.iterator).addAll(l.iterator).result
 
   //[ Return a sublist starting at index `from` with at most `len` elements. //]
   def slice(from: Int, len: Int): List[T] receives none =
     if from >= _size || len <= 0 then []
     else
       val to = if _size - from > len then from + len else _size
-      var result = List.empty[T]
-      var i = from
-      while i < to do
-        result = result + this.get(i)
+      val n = to - from
+      // Walking from `from` costs one trie descent per leaf, where `get` per
+      // element would cost one per element.
+      val iter = new ListImpl.ListIterator(this, from)
+      val out = new ListBuilder[T](n)
+      var i = 0
+      while i < n do
+        out += iter.next
         i = i + 1
-      result
+      end
+      out.result
 
   //[ Return the first `n` elements. //]
   def take(n: Int): List[T] receives none =
@@ -143,29 +149,30 @@ class List[T]
 
   //[ Return elements satisfying `pred`. //]
   def select(pred: T => Bool): List[T] =
-    var acc: List[T] = []
+    val kept = List.builder[T]()
 
     for v in this if pred v do
-      acc = acc + v
+      kept += v
 
-    acc
+    kept.result
 
   //[ Return elements not satisfying `pred`. //]
   def exclude(pred: T => Bool): List[T] =
-    var acc: List[T] = []
+    val kept = List.builder[T]()
 
     for v in this if !(pred v) do
-      acc = acc + v
+      kept += v
 
-    acc
+    kept.result
 
   //[ Apply `f` to each element and return the resulting list. //]
   def map[S](f: T => S): List[S] =
-    var result = List.empty[S]
+    val out = new ListBuilder[S](_size)
     val iter = this.iterator
     while iter.hasNext do
-      result = result + f(iter.next)
-    result
+      out += f(iter.next)
+    end
+    out.result
 
   //[ Reduce the list to a single value using a left fold. //]
   def fold[S](zero: S, f: (S, T) => S): S =
@@ -240,59 +247,72 @@ class List[T]
 
   //[ Return a new list with elements in reverse order. //]
   def reverse: List[T] =
-    var result = List.empty[T]
+    // Walked leaf by leaf from the end, so the descent through the trie costs
+    // one walk per 32 elements, as a forward traversal does.
+    val out = new ListBuilder[T](_size)
     var i = _size - 1
     while i >= 0 do
-      result = result + this.get(i)
-      i = i - 1
-    result
+      val leaf = this.leafAt(i)
+      var j = i & 31
+      while j >= 0 do
+        out += leaf[j]
+        j = j - 1
+      end
+      i = i - (i & 31) - 1
+    end
+    out.result
 
   //[ Split into two lists: elements satisfying `pred` and those that don't. //]
   def partition(pred: T => Bool): List[T] ~ List[T] =
-    var accepted: List[T] = []
-    var rejected: List[T] = []
+    val accepted = List.builder[T]()
+    val rejected = List.builder[T]()
     val iter = this.iterator
     while iter.hasNext do
       val v = iter.next
+
       if pred v then
-        accepted = accepted + v
+        accepted += v
       else
-        rejected = rejected + v
+        rejected += v
     end
-    accepted ~ rejected
+    accepted.result ~ rejected.result
 
   //[ Pair up elements from two lists; stops at the shorter one. //]
   def zip[S](other: List[S]): List[T ~ S] =
-    var result = List.empty[T ~ S]
+    val n = if _size < other.size then _size else other.size
+    val out = new ListBuilder[T ~ S](n)
     val left = this.iterator
     val right = other.iterator
     while left.hasNext && right.hasNext do
-      result = result + (left.next ~ right.next)
-    result
+      out += (left.next ~ right.next)
+    end
+    out.result
 
   //[ Pair each element with its 0-based index. //]
   def zipWithIndex: List[T ~ Int] =
-    var result = List.empty[T ~ Int]
+    val out = new ListBuilder[T ~ Int](_size)
     var i = 0
     val iter = this.iterator
     while iter.hasNext do
-      result = result + (iter.next ~ i)
+      out += (iter.next ~ i)
       i = i + 1
-    result
+    end
+    out.result
 
   //[ Insert `sep` between every pair of adjacent elements. //]
   def intersperse(sep: T): List[T] =
     if _size == 0 then []
     else
-      var result = List.empty[T]
-      var first = true
+      // The list is not empty, so the first element goes in before the loop
+      // and every element after it brings a separator along.
+      val out = new ListBuilder[T](_size * 2 - 1)
       val iter = this.iterator
+      out += iter.next
       while iter.hasNext do
-        if !first then
-          result = result + sep
-        result = result + iter.next
-        first = false
-      result
+        out += sep
+        out += iter.next
+      end
+      out.result
 
   //[ Group elements by key, returning a map from key to list of elements. //]
   def groupBy[K](f: T => K)(auto ord: Ord[K] with [[K].compareTo]) : Map[K, List[T]] =
@@ -310,20 +330,7 @@ class List[T]
   //[ Return a sorted copy of this list. //]
   def sort(auto ord: Ord[T] with [[T].compareTo]): List[T] =
     if _size <= 1 then this
-    else
-      val arr = Array.create[T](_size)
-      var i = 0
-      val iter = this.iterator
-      while iter.hasNext do
-        arr[i] = iter.next
-        i = i + 1
-      Sorting.sortArray(arr, 0, _size - 1, ord)
-      var result = List.empty[T]
-      i = 0
-      while i < _size do
-        result = result + arr[i]
-        i = i + 1
-      result
+    else Sorting.sortList(this)
 
   //[ Return a sorted copy, comparing elements by the key produced by `f`. //]
   def sortBy[S](f: T => S)
@@ -332,16 +339,37 @@ class List[T]
     auto itemCompare: Ord[T] = (a, b) => ord.compare(f(a), f(b))
     this.sort
 
-  //[ Return a copy with duplicate elements removed (first occurrence kept). //]
-  def distinct(auto eq: Eq[T] with [[T].==]): List[T] =
-    var acc: List[T] = []
+  //[ Return a copy with duplicate elements removed (first occurrence kept).
+    !
+    ! O(n). Hashing is what keeps it linear: comparing each element against the
+    ! ones already kept would be quadratic.
+    !
+    ! The elements need a `hashCode` that agrees with their `==`. A type that
+    ! defines one without the other, or that you cannot change, needs no edit:
+    ! the instance may come from the call site instead.
+    !
+    !     class Item(id: Int, label: String)
+    !       def ==(that: Item): Bool = this.id == that.id
+    !
+    !     auto itemHash: Hash[Item] = item => item.id
+    !     items.distinct
+  //]
+  def distinct(auto eq: Eq[T] with [[T].==], hash: Hash[T] with [[T].hashCode]): List[T] =
+    val seen = mutable.Set.empty[T]
+    val out = new ListBuilder[T](_size)
     val iter = this.iterator
     while iter.hasNext do
       val v = iter.next
-      if !(acc.exists(x => eq.equal(x, v))) then
-        acc = acc + v
+
+      // `add` already looks the element up, so the size tells us whether it
+      // was new without paying for a second lookup.
+      val before = seen.size
+      seen.add v
+
+      if seen.size != before then
+        out += v
     end
-    acc
+    out.result
 
   //[ Return the minimum element, or `None` if the list is empty. //]
   def minOpt(auto ord: Ord[T] with [[T].compareTo]): Option[T] =
@@ -389,18 +417,134 @@ class List[T]
     res
 end // List
 
-private section ListImpl
+private[jo] section ListImpl
   union Node[T] =
       Internal(children: Array[Node[T]])
     | Leaf(values: Array[T])
 
   def errorIndex(i: Int): Bottom = abort ("invalid index for list " + i)
 
-  class ListIterator[T](l: List[T])
-    var i: Int = 0
-    def hasNext: Bool = l.size > i
+  //[ Assemble `leafCount` leaves followed by `tail`, holding `n` elements in
+    ! all, into a list.
+    !
+    ! The last leaf is passed on its own because a builder's leaf in progress
+    ! does not live in its spine array: without a tail parameter the builder
+    ! would have to copy the whole spine to make room for it. `leaves` may be
+    ! longer than `leafCount`; only the first `leafCount` entries are read.
+  //]
+  def fromLeaves[T](leaves: Array[Node[T]], leafCount: Int, tail: Node[T], n: Int): List[T] =
+    //  Construct list Trie bottom up from primitive leaf list with each layer has at most 32 nodes, stop when the top layer has only one node left.
+    // `last` is the node holding the tail at the current level: it sits one
+    // past `level` on the first pass and inside it on every pass after.
+    var level = leaves
+    var count = leafCount + 1
+    var last = tail
+    var depth = 0
+
+    while count > 1 do
+      val parentCount = (count + 31) >> 5
+      val parents = Array.create[Node[T]](parentCount)
+      var p = 0
+      while p < parentCount do
+        val from = p << 5
+        val width = if count - from > 32 then 32 else count - from
+        val children = Array.create[Node[T]](width)
+        var j = 0
+        while j < width do
+          children[j] = if from + j == count - 1 then last else level[from + j]
+          j = j + 1
+        end
+        parents[p] = Internal(children)
+        p = p + 1
+      end
+
+      level = parents
+      count = parentCount
+      last = parents[parentCount - 1]
+      depth = depth + 1
+    end
+
+    new List(last, n, depth)
+
+  //[ Build a list of `n` elements by filling each leaf straight from `f`.
+    !
+    ! No intermediate array is materialised: the elements go directly into the
+    ! leaves that make up the trie.
+  //]
+  def fromGenerator[T](n: Int, f: Int => T): List[T] =
+    if n <= 32 then
+      // A single leaf: no spine array and no grouping pass are needed.
+      val size = if n > 0 then n else 0
+      val values = Array.create[T](size)
+      var i = 0
+      while i < size do
+        values[i] = f i
+        i = i + 1
+      end
+      new List(Leaf(values), size, 0)
+
+    else
+      val leafCount = (n + 31) >> 5
+      val leaves = Array.create[Node[T]](leafCount)
+      var i = 0
+      while i < leafCount do
+        val from = i << 5
+        val width = if n - from > 32 then 32 else n - from
+        val values = Array.create[T](width)
+        var j = 0
+        while j < width do
+          values[j] = f (from + j)
+          j = j + 1
+        end
+        leaves[i] = Leaf(values)
+        i = i + 1
+      end
+
+      fromLeaves(leaves, leafCount - 1, leaves[leafCount - 1], n)
+
+  //[ The leaf array holding index `i`. //]
+  def leafAt[T](node: Node[T], i: Int, depth: Int): Array[T] =
+    match node
+    case Leaf values =>
+      values
+
+    case Internal children =>
+      val idx = (i >> (5 * depth)) & 31
+      leafAt(children[idx], i, depth - 1)
+
+  //[ Walks the trie one leaf at a time.
+    !
+    ! Fetching the leaf costs one root-to-leaf walk per 32 elements rather than
+    ! one per element, so a full traversal is O(n) instead of O(n log₃₂ n).
+    !
+    ! Note: the starting index is not necessarily 0, it can be any valid index.
+  //]
+  class ListIterator[T]
+    private val list: List[T]
+    private val count: Int
+    private var i: Int
+
+    def ListIterator(l: List[T], startIndex: Int) =
+      this.list = l
+      this.count = l.size
+      this.i = startIndex
+
+    // The leaf holding index `i`, and the index just past the elements it
+    // covers. `limit` starts at 0 so the first `next` loads a leaf.
+    var leaf: Array[T] = Array.create[T](0)
+    var limit: Int = 0
+
+    def hasNext: Bool = i < count
+
     def next: T =
-      val item = l.get(i)
+      if i >= limit then
+        // Only reached once per leaf, so bounds-checking here is free.
+        if i >= count then errorIndex i
+
+        leaf = list.leafAt(i)
+        limit = i - (i & 31) + leaf.size
+
+      val item = leaf[i & 31]
       i = i + 1
       item
 

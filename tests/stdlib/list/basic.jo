@@ -172,6 +172,9 @@ class Item(id: Int, label: String)
 
 def testDistinct =
   println "--- list.distinct ---"
+  // `distinct` hashes, and `Item` defines `==` without a `hashCode`; a type
+  // need not be changed for that, the instance can come from here instead
+  auto itemHash: Hash[Item] = item => item.id
   val empty: List[Int] = []
   val ints = [1, 2, 1, 3, 2, 4, 4]
   val strings = ["a", "b", "a", "c", "b"]

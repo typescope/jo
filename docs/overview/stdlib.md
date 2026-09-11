@@ -44,11 +44,12 @@ Create: `"hello"`, `"hello \{name}"` (interpolation), `"""` for multi-line (cont
 
 ## List[T]
 Create: `[1, 2, 3]`, `List.empty[T]`, `List.fill(n, value)`, `List.tabulate(n, f)`.
+Build one element at a time with `List.builder[T](capacity)` — see `ListBuilder`;
+prefer it to `acc = acc + v` in a loop.
 - `.size`: Int
 - `.isEmpty`: Bool
 - `.get(i)`: T — element at index
 - `.+(v)`: List[T] — append
-- `.prepend(v)`: List[T]
 - `.++(other)`: List[T] — concatenate
 - `.updated(i, value)`: List[T]
 - `.slice(from, len)`: List[T]
@@ -66,7 +67,7 @@ Create: `[1, 2, 3]`, `List.empty[T]`, `List.fill(n, value)`, `List.tabulate(n, f
 - `.join(separator)`: String
 - `.sort`: List[T] — sort (elements need `.compareTo`)
 - `.sortBy(f)`: List[T] — sort by key function
-- `.distinct`: List[T]
+- `.distinct`: List[T] — drop duplicates, keep the first (elements need `.==` and `.hashCode`)
 - `.groupBy(f)`: Map[K, List[T]]
 - `.zip(other)`: List[T ~ S]
 - `.zipWithIndex`: List[T ~ Int]
@@ -79,6 +80,21 @@ Create: `[1, 2, 3]`, `List.empty[T]`, `List.fill(n, value)`, `List.tabulate(n, f
 `Some(value)` or `None` (singleton object).
 - `.isEmpty`: Bool
 - `.getOrElse(default)`: T
+
+## ListBuilder[T]
+Collects elements into a `List` without rebuilding the trie on every element —
+prefer it to `acc = acc + v` in a loop. Create with `List.builder[T]()`.
+- `.add(v)`: ListBuilder[T] — append one element, returns the builder
+- `.addAll(it: Iterator[T])`: ListBuilder[T] — append everything `it` yields
+- `.addList(l: List[T])`: ListBuilder[T] — append every element of `l`
+- `.size`: Int — elements added so far
+- `.result`: List[T] — the list of everything added; does not consume the builder
+
+`add`, `addAll` and `addList` return the builder, so a list can be collected in
+one expression: `List.builder[Int]().add(1).addList([2, 3]).result`.
+
+`addAll` takes an iterator, so any collection can be appended:
+`b.addAll(someMap.iterator)`.
 
 ## Map[K, V]
 Create: `Map("key" ~ value, ...)`, `Map.empty[K, V]`.

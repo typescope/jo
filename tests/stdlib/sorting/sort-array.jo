@@ -1,0 +1,105 @@
+// `Sorting.sortArray` sorts one stretch of an array in place. The sizes here
+// straddle the 8-element runs it insertion sorts and the pairings above them,
+// where a run can be left without a partner.
+
+def rand(seed: Int): Int = (seed * 1103515245 + 12345) % 100000
+
+def intOrd: Ord[Int] = (a, b) => a.compareTo(b)
+
+def filled(n: Int, seed: Int): Array[Int] =
+  val arr = Array.create[Int](n)
+  var s = seed
+  var i = 0
+  while i < n do
+    s = rand s
+    arr[i] = s % 1000
+    i = i + 1
+  arr
+
+def sortedBetween(arr: Array[Int], from: Int, to: Int): Bool =
+  var ok = true
+  var i = from + 1
+  while i <= to do
+    if arr[i - 1] > arr[i] then ok = false
+    i = i + 1
+  ok
+
+def sum(arr: Array[Int], from: Int, to: Int): Int =
+  var total = 0
+  var i = from
+  while i <= to do
+    total = total + arr[i]
+    i = i + 1
+  total
+
+def check(n: Int): Int =
+  var bad = 0
+
+  val arr = filled(n, n + 3)
+  val before = sum(arr, 0, n - 1)
+  Sorting.sortArray(arr, 0, n - 1, intOrd)
+  if !sortedBetween(arr, 0, n - 1) then bad = bad + 1
+  if sum(arr, 0, n - 1) != before then bad = bad + 1
+
+  // sorting an already sorted stretch leaves it sorted
+  Sorting.sortArray(arr, 0, n - 1, intOrd)
+  if !sortedBetween(arr, 0, n - 1) then bad = bad + 1
+
+  // a stretch in the middle: everything outside it must be untouched
+  val padded = Array.create[Int](n + 6)
+  var i = 0
+  while i < padded.size do
+    padded[i] = -1
+    i = i + 1
+  end
+
+  val inner = filled(n, n + 11)
+  var j = 0
+  while j < n do
+    padded[3 + j] = inner[j]
+    j = j + 1
+  end
+
+  Sorting.sortArray(padded, 3, 3 + n - 1, intOrd)
+  if !sortedBetween(padded, 3, 3 + n - 1) then bad = bad + 1
+  if sum(padded, 3, 3 + n - 1) != sum(inner, 0, n - 1) then bad = bad + 1
+
+  var k = 0
+  while k < padded.size do
+    if (k < 3 || k >= 3 + n) && padded[k] != -1 then bad = bad + 1
+    k = k + 1
+  end
+
+  if bad > 0 then 1 else 0
+
+// equal elements must keep the order they came in
+def stable(n: Int): Int =
+  val pairs = Array.create[Int ~ Int](n)
+  var i = 0
+  while i < n do
+    pairs[i] = (i % 4) ~ i
+    i = i + 1
+  end
+
+  val byKey: Ord[Int ~ Int] = (a, b) => a.fst.compareTo(b.fst)
+  Sorting.sortArray(pairs, 0, n - 1, byKey)
+
+  var bad = 0
+  var j = 1
+  while j < n do
+    val prev = pairs[j - 1]
+    val cur = pairs[j]
+    if prev.fst > cur.fst then bad = bad + 1
+    if prev.fst == cur.fst && prev.snd > cur.snd then bad = bad + 1
+    j = j + 1
+  end
+  if bad > 0 then 1 else 0
+
+def main =
+  var bad = 0
+
+  for n in [1, 2, 3, 7, 8, 9, 16, 17, 31, 32, 33, 40, 65, 127, 129, 1025] do
+    bad = bad + (check n)
+    bad = bad + (stable n)
+
+  println ("failures: " + bad)

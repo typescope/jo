@@ -81,7 +81,7 @@ section Impl
         val entries: py.List = builtins.sorted(os.listdir(safePath)).cast[py.List]
         val count = entries.size
 
-        var result: List[FileEntry] = []
+        var builder = List.builder[FileEntry]
         var i = count - 1
         while i >= 0 do
           val name: String = entries.get(i).asString
@@ -90,10 +90,10 @@ section Impl
           var size = 0
           if !isDir then
             size = os.path.getsize(fullPath)
-          result = result.prepend(new FileEntry(name, isDir, size))
+          builder += new FileEntry(name, isDir, size)
           i = i - 1
 
-        DirEntries(result)
+        DirEntries(builder.result)
 
       case None =>
         DirAccessDenied("Path outside sandbox: " + userPath)

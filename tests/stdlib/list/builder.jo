@@ -1,0 +1,91 @@
+// ListBuilder invariants: `result` must not disturb the builder, and a leaf
+// handed to a list must never be written again. Violations read back fine and
+// only surface on a later append, so every check appends afterwards too.
+
+// `l` must hold 0..count-1, and stay sound when appended to
+def sound(l: List[Int], count: Int): Bool =
+  var acc = l
+  var i = 0
+  while i < 8 do
+    acc = acc + (1000 + i)
+    i = i + 1
+
+  var ok = acc.size == count + 8
+  var j = 0
+  while j < acc.size do
+    val want = if j < count then j else 1000 + (j - count)
+    if acc.get(j) != want then ok = false
+    j = j + 1
+  ok
+
+def filled(count: Int, capacity: Int): ListBuilder[Int] =
+  val b = ListBuilder[Int](capacity)
+  var i = 0
+  while i < count do
+    val _ = b.add i
+    i = i + 1
+  b
+
+// calling `result` twice gives equal, independently sound lists
+def repeatable(count: Int, capacity: Int): Bool =
+  val b = filled(count, capacity)
+  val first = b.result
+  val second = b.result
+  first.size == count && second.size == count && sound(first, count) && sound(second, count)
+
+// adding after a `result` extends the builder, not the list already returned
+def resumable(count: Int): Bool =
+  val b = filled(count, 0)
+  val early = b.result
+  var j = count
+  while j < count + 40 do
+    val _ = b.add j
+    j = j + 1
+
+  val late = b.result
+  early.size == count && late.size == count + 40 &&
+    sound(early, count) && sound(late, count + 40)
+
+def check(n: Int): Int =
+  var bad = 0
+  if !repeatable(n, 0) then bad = bad + 1
+  if !repeatable(n, n) then bad = bad + 1
+  if !repeatable(n, 4) then bad = bad + 1
+  if !resumable(n) then bad = bad + 1
+  bad
+
+def main =
+  var bad = 0
+  // leaf and depth boundaries, where a stale or short leaf would show up
+  for n in [0, 1, 2, 31, 32, 33, 63, 64, 65, 1023, 1024, 1025] do
+    bad = bad + (check n)
+
+  println ("failures: " + bad)
+
+  println [1, 2, 3]
+  println List.builder[Int]().add(1).add(2).add(3).result
+  println List.builder[Int]().add(1).addList([2, 3]).add(4).result
+  println List.builder[Int]().result.isEmpty
+
+  // addAll takes a raw iterator, or anything that can hand one over
+  println List.builder[Int]().addAll((1 until 4).iterator).result
+  println List.builder[Int]().addAll(Set(3, 1, 2).iterator).result
+  println List.builder[Int]().addList([9]).addAll([8, 7].iterator).result
+  println List.builder[Int]().addAll([1, 2]).addAll(Set(3)).result
+  println List.builder[Int]().addAll(1 until 4).result
+
+  // `+=` and `++=` are the statement forms: they mutate and yield nothing, so
+  // they fill a builder exactly as `add` and `addAll` do
+  val viaOps = List.builder[Int]()
+  var i = 0
+  while i < 70 do
+    viaOps += i
+    i = i + 1
+  println (sound(viaOps.result, 70))
+
+  // `++=` takes anything iterable, a list included
+  val spliced = List.builder[Int]()
+  spliced ++= [0, 1, 2]
+  spliced ++= [3, 4].iterator
+  println (sound(spliced.result, 5))
+  println spliced.result

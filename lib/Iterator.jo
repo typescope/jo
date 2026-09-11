@@ -48,11 +48,7 @@ interface Iterator[T]
 
   //[ Collect the remaining values into a `List`, consuming the iterator. //]
   def toList: List[T] =
-    var acc: List[T] = []
-    while this.hasNext do
-      acc = acc + this.next
-    end
-    acc
+    List.builder[T]().addAll(this).result
 end
 
 private section Iterator

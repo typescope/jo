@@ -174,26 +174,16 @@ class List[T]
 
   //[ Copy all elements into a new immutable `List`. //]
   def toList: jo.List[T] =
-    var list: jo.List[T] = []
-    var i = 0
-    while i < _size do
-      list = list + _data[i]
-      i = i + 1
-    end
-    list
+    // The backing array cannot be handed over, since this list keeps mutating
+    // it, but the elements can go straight into the leaves of the new trie.
+    jo.List.tabulate(_size, i => _data[i])
 
   //[ Copy a subrange into a new immutable `List`. Returns empty if `from >= size` or `len <= 0`. //]
   def slice(from: Int, len: Int): jo.List[T] =
     if from >= _size || len <= 0 then jo.List.empty[T]
     else
-      var list: jo.List[T] = []
-      var i = from
       val limit = if from + len > _size then _size else from + len
-      while i < limit do
-        list = list + _data[i]
-        i = i + 1
-      end
-      list
+      jo.List.tabulate(limit - from, i => _data[from + i])
 
   //[ Return a string representation, e.g. `[1, 2, 3]`. Shows at most 100 elements. //]
   def toString(auto elementShow: Show[T] with [[T].toString]): String =

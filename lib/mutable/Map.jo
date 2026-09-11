@@ -219,15 +219,14 @@ class Map[K, V]
 
   //[ Copy all key-value pairs into a new immutable `List`, in unspecified order. //]
   def toList: jo.List[K ~ V] =
-    // Convert all buckets to a single list
-    var pairs: jo.List[K ~ V] = []
+    // Collect all buckets into a single list
+    val pairs = jo.List.builder[K ~ V]()
     var i = 0
     while i < capacity do
-      val bucket = buckets[i]
-      pairs = pairs ++ bucket
+      pairs ++= buckets[i]
       i = i + 1
     end
-    pairs
+    pairs.result
 
   //[ Return an iterator over the key-value pairs, in unspecified order. //]
   def iterator: Iterator[K ~ V] = toList.iterator

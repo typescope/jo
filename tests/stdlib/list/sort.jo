@@ -1,0 +1,84 @@
+// Sorting a list happens in the leaves the list will be made of, so the sizes
+// here straddle the boundaries that shape those leaves: the 8-element runs the
+// base pass sorts, the 32-element leaves, and the run pairings above them that
+// leave an odd run without a partner.
+
+// pseudo-random, deterministic
+def rand(seed: Int): Int = (seed * 1103515245 + 12345) % 100000
+
+def sortedOk(l: List[Int], n: Int): Bool =
+  var ok = l.size == n
+  var i = 1
+  while i < l.size do
+    if l.get(i - 1) > l.get(i) then ok = false
+    i = i + 1
+  ok
+
+// same multiset? compare sums and sorted-twice identity via counts of a few buckets
+def sameBag(a: List[Int], b: List[Int]): Bool =
+  var ok = a.size == b.size
+  var sum = 0
+  var xor = 0
+  var i = 0
+  while i < a.size do
+    sum = sum + a.get(i) - b.get(i)
+    xor = xor ^ a.get(i) ^ b.get(i)
+    i = i + 1
+  ok && sum == 0 && xor == 0
+
+def check(n: Int): Int =
+  var bad = 0
+  val b = List.builder[Int]
+  var seed = n + 7
+  var i = 0
+  while i < n do
+    seed = rand seed
+    val _ = b.add (seed % 1000)
+    i = i + 1
+  val data = b.result
+  val sorted = data.sort
+  if !sortedOk(sorted, n) then bad = bad + 1
+  if !sameBag(sorted, data.sort.sort) then bad = bad + 1
+  if !sortedOk(sorted.sort, n) then bad = bad + 1
+
+  // already sorted and reverse sorted inputs
+  val asc = List.tabulate(n, x => x)
+  val desc = asc.reverse
+  val ascSorted = asc.sort
+  val descSorted = desc.sort
+  if !sortedOk(ascSorted, n) then bad = bad + 1
+  if !sortedOk(descSorted, n) then bad = bad + 1
+  var j = 0
+  while j < n do
+    if ascSorted.get(j) != j then bad = bad + 1
+    if descSorted.get(j) != j then bad = bad + 1
+    j = j + 1
+  end
+
+  // all equal
+  val same = List.fill(n, 5)
+  if !sortedOk(same.sort, n) then bad = bad + 1
+
+  // stability: sort pairs by key, values must keep their original order
+  val pairs = List.tabulate(n, x => (x % 4) ~ x)
+  val byKey = pairs.sortBy(p => p.fst)
+  var k = 1
+  while k < byKey.size do
+    val prev = byKey.get(k - 1)
+    val cur = byKey.get(k)
+    if prev.fst == cur.fst && prev.snd > cur.snd then bad = bad + 1
+    if prev.fst > cur.fst then bad = bad + 1
+    k = k + 1
+  end
+
+  // a sorted list must still accept appends and reads
+  val grown = sorted + 99999
+  if grown.size != n + 1 || grown.get(n) != 99999 then bad = bad + 1
+  if n > 0 && grown.get(0) != sorted.get(0) then bad = bad + 1
+  if bad > 0 then 1 else 0
+
+def main =
+  var bad = 0
+  for n in [0, 1, 2, 3, 7, 8, 9, 17, 31, 32, 33, 40, 65, 127, 129, 1025] do
+    bad = bad + (check n)
+  println ("failures: " + bad)

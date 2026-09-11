@@ -1,0 +1,11 @@
+---------- Warning at tests/warn/discardable-result.jo:56:3 ---------------
+|   box.peek
+|   ^^^^^^^^
+|   value of type Int is silently dropped; use `val _ = ...` to make the intent explicit
+
+---------- Warning at tests/warn/discardable-result.jo:57:3 ---------------
+|   double 21
+|   ^^^^^^^^^
+|   value of type Int is silently dropped; use `val _ = ...` to make the intent explicit
+
+0 error(s), 2 warning(s)

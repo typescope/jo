@@ -124,6 +124,7 @@ class JSRuntime(using defn: Definitions):
       strSym.termMember("indexOf")   -> List(String_indexOf),
       strSym.termMember("iterator")  -> List(String_iterator),
       listSym.termMember("++")       -> List(js_array),
+      defn.ListBuilder_addList -> List(js_array),
       js_try -> List(jo_Ok, jo_Ok.termMember(Names.Constructor),
                      jo_Err, jo_Err.termMember(Names.Constructor)),
     )
