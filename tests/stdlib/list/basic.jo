@@ -168,6 +168,9 @@ def testSortBy =
 
 class Item(id: Int, label: String)
   def ==(that: Item): Bool = this.id == that.id
+  // `distinct` hashes, so a type that defines `==` needs a `hashCode` that
+  // agrees with it: equality is on `id` alone, so the hash is too
+  def hashCode: Int = id
   def toString: String = "Item(\{id}, \{label})"
 
 def testDistinct =
