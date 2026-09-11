@@ -52,6 +52,14 @@ object PythonRuntime:
   def isValidIdentifier(name: String): Boolean =
     hasIdentifierShape(name) && !keywords.contains(name)
 
+  /** Can `name` be written as the module path of an `import <name> as <alias>`?
+    *
+    * Dotted paths are allowed: `import os.path as _m` binds the submodule,
+    * exactly like `importlib.import_module("os.path")`.
+    */
+  def isImportableModuleName(name: String): Boolean =
+    name.nonEmpty && name.split("\\.", -1).forall(isValidMemberName)
+
 /** Functions to support Python platform at runtime
   *
   * Run-time symbols are only available to the compiler.
@@ -63,6 +71,10 @@ class PythonRuntime(using defn: Definitions):
   // Map from singleton object symbol to unique global variable name
   val singletonIds: mutable.Map[Symbol, String] = mutable.Map.empty
 
+  // Map from Python module name to the global alias it is imported under.
+  // Insertion-ordered so generated imports are stable across runs.
+  val moduleIds: mutable.LinkedHashMap[String, String] = mutable.LinkedHashMap.empty
+
   val runtimeNames = List("print", "sys")
 
   /** Get or create a unique global name for a context parameter */
@@ -71,6 +83,19 @@ class PythonRuntime(using defn: Definitions):
       // Generate unique global name: _param_jo_IO_stdout
       val safeName = sym.fullName.replace('.', '_')
       s"_param_$safeName"
+    })
+
+  /** Get or create the global alias a Python module is imported under.
+    *
+    * The encoding doubles `_` before turning `.` into `_`, which keeps it
+    * injective: `importlib.metadata` and `importlib_metadata` are distinct
+    * modules and must not collapse onto one alias.
+    */
+  def getOrCreateModuleId(name: String): String =
+    moduleIds.getOrElseUpdate(name, {
+      // os.path -> _pymodule_os_path, os_path -> _pymodule_os__path
+      val safeName = name.replace("_", "__").replace('.', '_')
+      s"_pymodule_$safeName"
     })
 
   /** Get or create a unique global name for a singleton object */

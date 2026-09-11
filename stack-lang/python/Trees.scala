@@ -164,10 +164,18 @@ object Trees:
     base: Option[String] = None     // Optional base class name
   ) extends Def
 
+  /** Module import: import <module> as <alias>
+    *
+    * Emitted at the top of the file, one per distinct module named by a
+    * `py.module("...")` call site, so that call sites are plain global reads.
+    */
+  case class Import(module: String, alias: String)
+
   /** Complete Python program */
   case class Program(
     defs: List[Def],               // Function and class definitions
-    mainCall: Stat                 // Entry point (initialization + start call in a Block)
+    mainCall: Stat,                // Entry point (initialization + start call in a Block)
+    imports: List[Import] = Nil    // Hoisted Python module imports
   )
 
 end Trees

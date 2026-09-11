@@ -190,9 +190,15 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     // Combine everything: global init + singleton init + start call
     val mainBlock = P.Block(globalInit ++ singletonInits :+ startCall)
 
+    // Hoisted `import <module> as <alias>` lines, one per module named by a
+    // `py.module("...")` call site reached during compilation above.
+    val imports = runtime.moduleIds.toList.map: (name, alias) =>
+      P.Import(name, alias)
+
     P.Program(
       defs = defs.toList,
-      mainCall = mainBlock
+      mainCall = mainBlock,
+      imports = imports
     )
 
   /** Compile a function definition */
@@ -769,16 +775,24 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           compileExpr(receiver, enforcePurity)
 
         else if sym == runtime.py_module then
-          // importModule(name) → importlib.import_module(name)
+          // module(name) → a global bound by a hoisted `import name as alias`.
+          // The import runs once at module load, so the call site is a plain
+          // global read instead of an importlib round-trip (~890ns each).
           val pkg :: Nil = args: @unchecked
-          val (pkgStats, pkgExpr) = compileExpr(pkg, enforcePurity = false)
-          val importlib = P.Call(None, "__import__", List(P.StringLit("importlib")))
-          val call = P.Call(Some(importlib), "import_module", List(pkgExpr))
-          if enforcePurity then
-            val tempName = freshTemp()
-            (pkgStats :+ P.Assign(tempName, call), P.Ident(tempName))
-          else
-            (pkgStats, call)
+          pkg match
+            case Literal(Constant.String(name)) if PythonRuntime.isImportableModuleName(name) =>
+              (Nil, P.Ident(runtime.getOrCreateModuleId(name)))
+
+            case _ =>
+              // Non-literal (or non-importable) name: fall back to importlib
+              val (pkgStats, pkgExpr) = compileExpr(pkg, enforcePurity = false)
+              val importlib = P.Call(None, "__import__", List(P.StringLit("importlib")))
+              val call = P.Call(Some(importlib), "import_module", List(pkgExpr))
+              if enforcePurity then
+                val tempName = freshTemp()
+                (pkgStats :+ P.Assign(tempName, call), P.Ident(tempName))
+              else
+                (pkgStats, call)
 
         else if sym == runtime.py_call then
           // py.call(f, args...) → f(*args, **kwargs)
