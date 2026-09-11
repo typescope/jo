@@ -102,6 +102,7 @@ class ListBuilder[T]
       this += source.next
 
   //[ Append one element and return this builder. //]
+  @discardableResult
   def add(v: T): ListBuilder[T] =
     this += v
     this
@@ -113,6 +114,7 @@ class ListBuilder[T]
     !
     !     b.addAll someMap
   //]
+  @discardableResult
   def addAll(source: Iterator[T] :- [.iterator]): ListBuilder[T] =
     this ++= source
     this
@@ -122,6 +124,7 @@ class ListBuilder[T]
     ! `addAll` covers this and more; the typer calls this one when it lowers a
     ! spliced vararg, where the argument is known to be a list.
   //]
+  @discardableResult
   def addList(l: List[T]): ListBuilder[T] =
     addAll l
 

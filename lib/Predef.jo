@@ -128,3 +128,19 @@ def assert(cond: Bool, error: () => String): Unit =
   !   end
 //]
 annotation shadow
+
+//[ Mark a definition whose result may be discarded without a warning
+  !
+  ! Dropping a value is usually a mistake, so the compiler warns about it. A
+  ! method that returns its own receiver, so that calls can be chained, has
+  ! nothing to say when the result is ignored: the caller already holds it.
+  !
+  ! Example:
+  !
+  !   @discardableResult
+  !   def add(v: T): ListBuilder[T] = ...
+  !
+  !     builder.add 1          // a statement on its own, and no warning
+  !     builder.add(1).add 2   // still chains
+//]
+annotation discardableResult

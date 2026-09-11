@@ -91,6 +91,7 @@ final class Definitions(private var _index: SymbolIndex) extends Definitions.Laz
   val compile_namedArg = compile.termMember("namedArg")
   val intrinsic        = compile.annotationMember("intrinsic")
   val shadow           = jo.annotationMember("shadow")
+  val discardableResult = jo.annotationMember("discardableResult")
 
   // Regex
   val regex = resolveContainer("jo.regex")
