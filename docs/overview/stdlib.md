@@ -50,7 +50,6 @@ prefer it to `acc = acc + v` in a loop.
 - `.isEmpty`: Bool
 - `.get(i)`: T — element at index
 - `.+(v)`: List[T] — append
-- `.prepend(v)`: List[T]
 - `.++(other)`: List[T] — concatenate
 - `.updated(i, value)`: List[T]
 - `.slice(from, len)`: List[T]

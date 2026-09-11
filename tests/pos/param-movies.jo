@@ -9,7 +9,7 @@ def moviesDirectedBy(arg: String): List[Movie] =
     match movies
       case [] => List.empty
       case [m, ..rest] =>
-        if m.director == arg then (filter rest).prepend(m)
+        if m.director == arg then [m] ++ (filter rest)
         else filter rest
     end
   end

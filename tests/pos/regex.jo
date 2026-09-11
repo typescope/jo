@@ -90,7 +90,8 @@ class Parser(scanner: Scanner)
       List.empty
     else
       val head = parseComposite()
-      parseSequence().prepend(head)
+      val rest = parseSequence()
+      [head] ++ rest
 
   def parseComposite(): Reg =
     val atom = parseAtom()

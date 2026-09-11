@@ -17,7 +17,7 @@ section Text
 
     private def push(frame: Text.IterFrame): Unit =
       if frame.len > 0 then
-        stack = stack.prepend(frame)
+        stack = [frame] ++ stack
 
     private def pop: Text.IterFrame | None =
       if stack.isEmpty then None

@@ -15,7 +15,7 @@ def check(n: Int): Int =
   val l = List.tabulate(n, i => i)
   var bad = 0
 
-  bad = bad + expect(l.prepend(-1), n + 1, i => i - 1)
+  bad = bad + expect([-1] ++ l, n + 1, i => i - 1)
   bad = bad + expect(l ++ l, n * 2, i => if i < n then i else i - n)
   // a right side much shorter than the left appends element by element instead
   bad = bad + expect(l ++ [7], n + 1, i => if i < n then i else 7)

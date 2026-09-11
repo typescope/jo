@@ -116,10 +116,6 @@ class List[T]
       case Some newRoot => new List(newRoot, _size + 1, _depth)
       case None => abort ("List: unexpected full trie")
 
-  //[ Prepend one element at the front. O(n). //]
-  def prepend(v: T): List[T] =
-    List.builder[T](_size + 1).add(v).addAll(this.iterator).result
-
   //[ Concatenate two lists. O(min(n + m, m log₃₂ n)) for n = `size`, m = `l.size`. //]
   def ++(l: List[T]): List[T] =
     // Appending element by element costs O(32) per element of `l`, so it only
