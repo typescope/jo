@@ -269,6 +269,7 @@ export default defineConfig({
             { text: 'Is Expression', link: '/language/expressions/is-expression' },
             { text: 'Regular Expressions', link: '/language/expressions/regular-expressions' },
             { text: 'String Literals', link: '/language/expressions/string' },
+            { text: 'Dropping Values', link: '/language/expressions/drop-values' },
           ]
         },
         {
