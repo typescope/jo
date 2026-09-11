@@ -34,6 +34,13 @@ end
 
 private def builtins: BuiltIn = py.module("builtins").cast[BuiltIn]
 
+// Python `list * n`, which repeats the list n times in one C-level operation.
+@py.interop
+private interface ListRepeat
+  @py.targetName("__mul__")
+  def repeat(n: Int): py.List
+end
+
 //------------------------------------------------------------------------------
 //
 // Bytes operations (Bytes.Repr is Python `bytes`)
@@ -65,12 +72,13 @@ end
 
 private section RefArray
   def create[T](size: Int): Array[T] =
-    val result: py.List = builtins.list()
-    var i = 0
-    while i < size do
-      result.append(py.none)
-      i = i + 1
-    end
+    // A Python list has no unfilled slots: every index must already exist
+    // before `set` can write to it, so the None fill is not optional. `[None]
+    // * size` performs it in C, where appending one at a time costs a Python
+    // loop iteration and a method call per element.
+    val seed: py.List = builtins.list()
+    seed.append(py.none)
+    val result: py.List = py.dynamic(seed).cast[ListRepeat].repeat(size)
     py.dynamic(result).cast[Array[T]]
 
   def get[T](arr: Any, i: Int): T = py.dynamic(arr)[i].cast[T]
