@@ -441,7 +441,7 @@ private[jo] section ListImpl
     ! longer than `leafCount`; only the first `leafCount` entries are read.
   //]
   def fromLeaves[T](leaves: Array[Node[T]], leafCount: Int, tail: Node[T], n: Int): List[T] =
-    // Group each level into parents of at most 32 children until one is left.
+    //  Construct list Trie bottom up from primitive leaf list with each layer has at most 32 nodes, stop when the top layer has only one node left.
     // `last` is the node holding the tail at the current level: it sits one
     // past `level` on the first pass and inside it on every pass after.
     var level = leaves
