@@ -90,6 +90,13 @@ object Printer:
     emit("# Generated Python code")
     emitBlankLine()
 
+    // Hoisted module imports
+    if program.imports.nonEmpty then
+      program.imports.foreach: imp =>
+        emitLine("import ", imp.module, " as ", imp.alias)
+
+      emitNewline()
+
     // Definitions
     program.defs.foreach: defn =>
       emitDef(defn)
