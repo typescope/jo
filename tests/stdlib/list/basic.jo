@@ -168,13 +168,13 @@ def testSortBy =
 
 class Item(id: Int, label: String)
   def ==(that: Item): Bool = this.id == that.id
-  // `distinct` hashes, so a type that defines `==` needs a `hashCode` that
-  // agrees with it: equality is on `id` alone, so the hash is too
-  def hashCode: Int = id
   def toString: String = "Item(\{id}, \{label})"
 
 def testDistinct =
   println "--- list.distinct ---"
+  // `distinct` hashes, and `Item` defines `==` without a `hashCode`; a type
+  // need not be changed for that, the instance can come from here instead
+  auto itemHash: Hash[Item] = item => item.id
   val empty: List[Int] = []
   val ints = [1, 2, 1, 3, 2, 4, 4]
   val strings = ["a", "b", "a", "c", "b"]

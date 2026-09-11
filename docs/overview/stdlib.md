@@ -67,7 +67,7 @@ prefer it to `acc = acc + v` in a loop.
 - `.join(separator)`: String
 - `.sort`: List[T] — sort (elements need `.compareTo`)
 - `.sortBy(f)`: List[T] — sort by key function
-- `.distinct`: List[T]
+- `.distinct`: List[T] — drop duplicates, keep the first (elements need `.==` and `.hashCode`)
 - `.groupBy(f)`: Map[K, List[T]]
 - `.zip(other)`: List[T ~ S]
 - `.zipWithIndex`: List[T ~ Int]

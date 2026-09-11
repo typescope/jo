@@ -355,6 +355,16 @@ class List[T]
     !
     ! O(n). Hashing is what keeps it linear: comparing each element against the
     ! ones already kept would be quadratic.
+    !
+    ! The elements need a `hashCode` that agrees with their `==`. A type that
+    ! defines one without the other, or that you cannot change, needs no edit:
+    ! the instance may come from the call site instead.
+    !
+    !     class Item(id: Int, label: String)
+    !       def ==(that: Item): Bool = this.id == that.id
+    !
+    !     auto itemHash: Hash[Item] = item => item.id
+    !     items.distinct
   //]
   def distinct(auto eq: Eq[T] with [[T].==], hash: Hash[T] with [[T].hashCode]): List[T] =
     val seen = mutable.Set.empty[T]
