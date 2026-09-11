@@ -220,8 +220,8 @@ section Impl
   =
     // Build WHERE clause with condition
     val condParts = condToSQL(condition)
-    val whereClause = "owner_id = ? AND (" + condParts.sql + ")"
-    val params = condParts.params.prepend(IntValue(userId))
+    val whereClause = "(" + condParts.sql + ")  AND owner_id = ?"
+    val params = condParts.params + IntValue(userId)
 
     // Build ORDER BY clause
     val orderByClause = buildOrderByClause(ordering)
@@ -240,8 +240,8 @@ section Impl
   // Unified count implementation with optional filtering
   def countImpl(userId: Int, condition: Cond): Int receives connection =
     val condParts = condToSQL(condition)
-    val whereClause = "owner_id = ? AND (" + condParts.sql + ")"
-    val params = condParts.params.prepend(IntValue(userId))
+    val whereClause = "(" + condParts.sql + ") AND owner_id = ?"
+    val params = condParts.params + IntValue(userId)
 
     val sql = "SELECT COUNT(*) as cnt FROM documents WHERE " + whereClause
 
