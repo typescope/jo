@@ -271,14 +271,20 @@ class List[T]
 
   //[ Return a new list with elements in reverse order. //]
   def reverse: List[T] =
-    val arr = Array.create[T](_size)
-    var i = 0
-    val iter = this.iterator
-    while iter.hasNext do
-      arr[_size - 1 - i] = iter.next
-      i = i + 1
+    // Walked leaf by leaf from the end, so the descent through the trie costs
+    // one walk per 32 elements, as a forward traversal does.
+    val out = List.builder[T](_size)
+    var i = _size - 1
+    while i >= 0 do
+      val leaf = this.leafAt(i)
+      var j = i & 31
+      while j >= 0 do
+        val _ = out.add leaf[j]
+        j = j - 1
+      end
+      i = i - (i & 31) - 1
     end
-    ListImpl.fromOwnedArray(arr)
+    out.result
 
   //[ Split into two lists: elements satisfying `pred` and those that don't. //]
   def partition(pred: T => Bool): List[T] ~ List[T] =
