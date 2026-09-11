@@ -81,6 +81,7 @@ final class Definitions(private var _index: SymbolIndex) extends Definitions.Laz
   // Lazy: resolving a member of ListBuilder forces the class's info, which
   // itself needs Definitions. Forcing that here would deadlock initialization.
   lazy val ListBuilder_type = jo.typeMember("ListBuilder")
+  val ListBuilder_fun = jo.termMember("ListBuilder")
   lazy val ListBuilder_addList = ListBuilder_type.termMember("addList")
 
   // Compile utilities

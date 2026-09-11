@@ -81,7 +81,7 @@ section Impl
         val entries: py.List = builtins.sorted(os.listdir(safePath)).cast[py.List]
         val count = entries.size
 
-        var builder = List.builder[FileEntry]()
+        var builder = List.builder[FileEntry]
         var i = count - 1
         while i >= 0 do
           val name: String = entries.get(i).asString

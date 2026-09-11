@@ -361,8 +361,8 @@ trait Applications extends DynamicTyper:
     // Every vararg pack is collected the same way, whatever the callee:
     //
     //     []            ~>  List.empty[T]
-    //     [a, b, c]     ~>  List.builder[T](3).add(a).add(b).add(c).result
-    //     [a, ..xs, b]  ~>  List.builder[T](0).add(a).addList(xs).add(b).result
+    //     [a, b, c]     ~>  ListBuilder[T](3).add(a).add(b).add(c).result
+    //     [a, ..xs, b]  ~>  ListBuilder[T](0).add(a).addList(xs).add(b).result
     //
     // `add`/`addAll` return the builder, so the pack stays a single expression
     // and needs no local binding. The capacity is the number of plain elements,
@@ -411,15 +411,17 @@ trait Applications extends DynamicTyper:
   private def intLiteral(value: Int, span: Span)(using defn: Definitions): Word =
     Literal(Constant.Int(value))(defn.IntType, span)
 
-  /** Start a vararg pack: `List.builder[T](capacity)`.
+  /** Start a vararg pack: `ListBuilder[T](capacity)`.
     *
-    * `capacity` is what the caller expects to add; an inaccurate value only
-    * costs the builder a little extra work.
+    * The capacity-taking factory rather than `List.builder`, which takes none:
+    * a caller filling a builder by hand does not know the final length, but a
+    * literal does. An inaccurate value only costs the builder a little extra
+    * work.
     */
   private def newPack(capacity: Int, elementType: Type, span: Span)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
   : Word =
-    val newBuilder = Ident(defn.List_builder)(span).appliedToTypes(elementType)
+    val newBuilder = Ident(defn.ListBuilder_fun)(span).appliedToTypes(elementType)
     applyTypedArgs(newBuilder, intLiteral(capacity, span) :: Nil, span)
 
   /** Close a vararg pack: `.result`. */

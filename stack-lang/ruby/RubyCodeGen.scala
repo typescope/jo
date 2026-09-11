@@ -411,7 +411,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
       case Apply(Ident(sym), Nil, _) if sym == defn.List_empty => Nil
 
-      case Apply(fun, List(_), _) if fun.refers(defn.List_builder) => Nil
+      case Apply(fun, List(_), _) if fun.refers(defn.ListBuilder_fun) => Nil
 
       case Apply(Select(prev, "add"), List(item), _) =>
         val compiled = item match

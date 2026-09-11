@@ -596,7 +596,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case Apply(Ident(sym), Nil, _) if sym == defn.List_empty =>
         (Nil, Nil)
 
-      case Apply(fun, List(_), _) if fun.refers(defn.List_builder) =>
+      case Apply(fun, List(_), _) if fun.refers(defn.ListBuilder_fun) =>
         (Nil, Nil)
 
       case Apply(Select(prev, "add"), List(item), _) =>

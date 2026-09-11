@@ -26,13 +26,9 @@ section List
   //[ Start building a list one element at a time.
     !
     ! See `ListBuilder` for when to prefer this over `+`, `fill` or `tabulate`.
-    !
-    ! `capacity` matters only when the final length is already known to be under
-    ! 32, where it saves the builder a copy; the typer passes it when lowering a
-    ! list literal. For anything longer the default is what you want.
   //]
-  def builder[T](capacity: Int = 32): ListBuilder[T] =
-    new ListBuilder(capacity)
+  def builder[T]: ListBuilder[T] =
+    new ListBuilder(capacity = 32)
 
 
   //[ Create a list of `n` copies of `value`. //]
@@ -128,7 +124,7 @@ class List[T]
         result = result + iter.next
       result
     else
-      List.builder[T](_size + l.size).addAll(this.iterator).addAll(l.iterator).result
+      new ListBuilder[T](_size + l.size).addAll(this.iterator).addAll(l.iterator).result
 
   //[ Return a sublist starting at index `from` with at most `len` elements. //]
   def slice(from: Int, len: Int): List[T] receives none =
@@ -139,7 +135,7 @@ class List[T]
       // Walking from `from` costs one trie descent per leaf, where `get` per
       // element would cost one per element.
       val iter = this.iteratorFrom(from)
-      val out = List.builder[T](n)
+      val out = new ListBuilder[T](n)
       var i = 0
       while i < n do
         out += iter.next
@@ -179,7 +175,7 @@ class List[T]
 
   //[ Apply `f` to each element and return the resulting list. //]
   def map[S](f: T => S): List[S] =
-    val out = List.builder[S](_size)
+    val out = new ListBuilder[S](_size)
     val iter = this.iterator
     while iter.hasNext do
       out += f(iter.next)
@@ -261,7 +257,7 @@ class List[T]
   def reverse: List[T] =
     // Walked leaf by leaf from the end, so the descent through the trie costs
     // one walk per 32 elements, as a forward traversal does.
-    val out = List.builder[T](_size)
+    val out = new ListBuilder[T](_size)
     var i = _size - 1
     while i >= 0 do
       val leaf = this.leafAt(i)
@@ -292,7 +288,7 @@ class List[T]
   //[ Pair up elements from two lists; stops at the shorter one. //]
   def zip[S](other: List[S]): List[T ~ S] =
     val n = if _size < other.size then _size else other.size
-    val out = List.builder[T ~ S](n)
+    val out = new ListBuilder[T ~ S](n)
     val left = this.iterator
     val right = other.iterator
     while left.hasNext && right.hasNext do
@@ -302,7 +298,7 @@ class List[T]
 
   //[ Pair each element with its 0-based index. //]
   def zipWithIndex: List[T ~ Int] =
-    val out = List.builder[T ~ Int](_size)
+    val out = new ListBuilder[T ~ Int](_size)
     var i = 0
     val iter = this.iterator
     while iter.hasNext do
@@ -317,7 +313,7 @@ class List[T]
     else
       // The list is not empty, so the first element goes in before the loop
       // and every element after it brings a separator along.
-      val out = List.builder[T](_size * 2 - 1)
+      val out = new ListBuilder[T](_size * 2 - 1)
       val iter = this.iterator
       out += iter.next
       while iter.hasNext do
@@ -368,7 +364,7 @@ class List[T]
   //]
   def distinct(auto eq: Eq[T] with [[T].==], hash: Hash[T] with [[T].hashCode]): List[T] =
     val seen = mutable.Set.empty[T]
-    val out = List.builder[T](_size)
+    val out = new ListBuilder[T](_size)
     val iter = this.iterator
     while iter.hasNext do
       val v = iter.next

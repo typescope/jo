@@ -62,6 +62,19 @@ namespace jo
   ! Breaking (1) or (2) does not fail loudly: the list reads back correctly and
   ! only corrupts later, when an append walks into a stale leaf.
 //]
+//[ A builder sized for `capacity` elements.
+  !
+  ! Reach for `List.builder` instead unless the final length is already known:
+  ! a caller filling a builder by hand does not know it, and a wrong guess only
+  ! costs the builder a copy.
+  !
+  ! The typer starts the chain it lowers a list literal to here, where the
+  ! length *is* known. That call lands in the user's own namespace, so this
+  ! cannot be `private[jo]`.
+//]
+def ListBuilder[T](capacity: Int = 32): ListBuilder[T] =
+  new ListBuilder(capacity)
+
 class ListBuilder[T]
   // The leaf being filled. A full leaf is 32 wide, so that is the default; a
   // caller that already knows the final length may size it exactly instead,
