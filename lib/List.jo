@@ -479,18 +479,25 @@ private[jo] section ListImpl
         i = i + 1
       end
 
-      fromLeaves(level, leafCount, n)
+      fromLeaves(level, leafCount - 1, level[leafCount - 1], n)
 
-  //[ Assemble `leafCount` leaves holding `n` elements into a list.
+  //[ Assemble `leafCount` leaves followed by `tail`, holding `n` elements in
+    ! all, into a list.
     !
-    ! `leaves` may be longer than `leafCount`; only the first `leafCount`
-    ! entries are read, so a builder can pass its partly filled spine.
+    ! The last leaf is passed on its own because a builder's leaf in progress
+    ! does not live in its spine array: without a tail parameter the builder
+    ! would have to copy the whole spine to make room for it. `leaves` may be
+    ! longer than `leafCount`; only the first `leafCount` entries are read.
   //]
-  def fromLeaves[T](leaves: Array[Node[T]], leafCount: Int, n: Int): List[T] =
+  def fromLeaves[T](leaves: Array[Node[T]], leafCount: Int, tail: Node[T], n: Int): List[T] =
     // Group each level into parents of at most 32 children until one is left.
+    // `last` is the node holding the tail at the current level: it sits one
+    // past `level` on the first pass and inside it on every pass after.
     var level = leaves
-    var count = leafCount
+    var count = leafCount + 1
+    var last = tail
     var depth = 0
+
     while count > 1 do
       val parentCount = (count + 31) >> 5
       val parents = Array.create[Node[T]](parentCount)
@@ -501,7 +508,7 @@ private[jo] section ListImpl
         val children = Array.create[Node[T]](width)
         var j = 0
         while j < width do
-          children[j] = level[from + j]
+          children[j] = if from + j == count - 1 then last else level[from + j]
           j = j + 1
         end
         parents[p] = Internal(children)
@@ -510,10 +517,11 @@ private[jo] section ListImpl
 
       level = parents
       count = parentCount
+      last = parents[parentCount - 1]
       depth = depth + 1
     end
 
-    new List(level[0], n, depth)
+    new List(last, n, depth)
 
   //[ Build a list of `n` elements by filling each leaf straight from `f`.
     !
@@ -549,7 +557,7 @@ private[jo] section ListImpl
         i = i + 1
       end
 
-      fromLeaves(leaves, leafCount, n)
+      fromLeaves(leaves, leafCount - 1, leaves[leafCount - 1], n)
 
   //[ Like `fromArray`, but the array becomes the list's own storage when it
     ! fits in a single leaf, so no copy is made. The caller must not touch `arr`

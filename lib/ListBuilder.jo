@@ -130,34 +130,23 @@ class ListBuilder[T]
     ! more elements may be added afterwards and `result` called again.
   //]
   def result: List[T] =
-    // Not `[]`: an empty literal is lowered to a builder, which would recur.
-    if total == 0 then ListImpl.fromOwnedArray(Array.create[T](0))
-    else if leafCount == 0 && fill == leaf.size then
-      // Everything fits one exactly filled leaf: hand the array over as is.
-      ListImpl.fromOwnedArray(leaf)
+    // The trie requires a leaf array to be exactly as long as its fill, and
+    // `result` must leave the builder alone, so a partly filled leaf is copied
+    // rather than handed over. An exactly filled one is shared: invariant (2)
+    // says `add` never writes it again.
+    val lastLeaf =
+      if fill == leaf.size then leaf
+      else
+        val trimmed = Array.create[T](fill)
+        var i = 0
+        while i < fill do
+          trimmed[i] = leaf[i]
+          i = i + 1
+        end
+        trimmed
 
-    else
-      // The trie requires a leaf array to be exactly as long as its fill, and
-      // `result` must leave the builder alone, so the final spine is assembled
-      // in a copy rather than by parking into `leaves`.
-      val lastLeaf =
-        if fill == leaf.size then leaf
-        else
-          val trimmed = Array.create[T](fill)
-          var i = 0
-          while i < fill do
-            trimmed[i] = leaf[i]
-            i = i + 1
-          end
-          trimmed
-
-      val spine = Array.create[ListImpl.Node[T]](leafCount + 1)
-      var i = 0
-      while i < leafCount do
-        spine[i] = leaves[i]
-        i = i + 1
-      end
-      spine[leafCount] = ListImpl.Leaf(lastLeaf)
-
-      ListImpl.fromLeaves(spine, leafCount + 1, total)
+    // The leaf in progress is the tail, so `leaves` goes over untouched: the
+    // completed leaves need no copy, and an empty builder needs no special
+    // case, since a lone empty tail is already the empty list.
+    ListImpl.fromLeaves(leaves, leafCount, ListImpl.Leaf(lastLeaf), total)
 end
