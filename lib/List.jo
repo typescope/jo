@@ -146,7 +146,7 @@ class List[T]
       val out = List.builder[T](n)
       var i = 0
       while i < n do
-        val _ = out.add iter.next
+        out += iter.next
         i = i + 1
       end
       out.result
@@ -168,7 +168,7 @@ class List[T]
     val kept = List.builder[T]()
 
     for v in this if pred v do
-      val _ = kept.add v
+      kept += v
 
     kept.result
 
@@ -177,7 +177,7 @@ class List[T]
     val kept = List.builder[T]()
 
     for v in this if !(pred v) do
-      val _ = kept.add v
+      kept += v
 
     kept.result
 
@@ -186,7 +186,7 @@ class List[T]
     val out = List.builder[S](_size)
     val iter = this.iterator
     while iter.hasNext do
-      val _ = out.add(f(iter.next))
+      out += f(iter.next)
     end
     out.result
 
@@ -271,7 +271,7 @@ class List[T]
       val leaf = this.leafAt(i)
       var j = i & 31
       while j >= 0 do
-        val _ = out.add leaf[j]
+        out += leaf[j]
         j = j - 1
       end
       i = i - (i & 31) - 1
@@ -287,9 +287,9 @@ class List[T]
       val v = iter.next
 
       if pred v then
-        val _ = accepted.add v
+        accepted += v
       else
-        val _ = rejected.add v
+        rejected += v
     end
     accepted.result ~ rejected.result
 
@@ -300,7 +300,7 @@ class List[T]
     val left = this.iterator
     val right = other.iterator
     while left.hasNext && right.hasNext do
-      val _ = out.add(left.next ~ right.next)
+      out += (left.next ~ right.next)
     end
     out.result
 
@@ -310,7 +310,7 @@ class List[T]
     var i = 0
     val iter = this.iterator
     while iter.hasNext do
-      val _ = out.add(iter.next ~ i)
+      out += (iter.next ~ i)
       i = i + 1
     end
     out.result
@@ -323,10 +323,10 @@ class List[T]
       // and every element after it brings a separator along.
       val out = List.builder[T](_size * 2 - 1)
       val iter = this.iterator
-      val _ = out.add iter.next
+      out += iter.next
       while iter.hasNext do
-        val _ = out.add sep
-        val _ = out.add iter.next
+        out += sep
+        out += iter.next
       end
       out.result
 

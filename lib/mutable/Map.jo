@@ -223,7 +223,7 @@ class Map[K, V]
     val pairs = jo.List.builder[K ~ V]()
     var i = 0
     while i < capacity do
-      val _ = pairs.addList buckets[i]
+      pairs ++= buckets[i]
       i = i + 1
     end
     pairs.result

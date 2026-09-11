@@ -7,7 +7,7 @@ namespace jo
   !     val evens = List.builder[Int]()
   !     for v in source do
   !       if v % 2 == 0 then
-  !         val _ = evens.add v
+  !         evens += v
   !     evens.result
   !
   ! The obvious alternative, `acc = acc + v` in a loop, is much more expensive
@@ -27,10 +27,10 @@ namespace jo
   ! Invariants
   ! ----------
   !
-  ! 1. `result` does not mutate the builder. Only `add`, `addAll` and `addList`
-  !    change its state, so `result` may be called any number of times,
-  !    interleaved with further additions, and each call returns the elements
-  !    added so far.
+  ! 1. `result` does not mutate the builder. Only `+=`, `++=`, `add`, `addAll`
+  !    and `addList` change its state, so `result` may be called any number of
+  !    times, interleaved with further additions, and each call returns the
+  !    elements added so far.
   !
   ! 2. A leaf array handed to a list is never written again. Every operation on
   !    `List` that would change an element copies the array first, so a leaf may
@@ -69,8 +69,13 @@ class ListBuilder[T]
   //[ Number of elements added so far. //]
   def size: Int = total
 
-  //[ Append one element and return this builder. //]
-  def add(v: T): ListBuilder[T] =
+  //[ Append one element.
+    !
+    ! This is the form to reach for in a loop, where the builder is a statement
+    ! rather than part of an expression. `add` is the same thing for a caller
+    ! that wants the builder back to go on chaining.
+  //]
+  def +=(v: T): Unit =
     if fill == leaf.size then
       if fill < 32 then
         // More elements arrived than `capacity` promised: a leaf may only be
@@ -84,23 +89,41 @@ class ListBuilder[T]
     leaf[fill] = v
     fill = fill + 1
     total = total + 1
+
+  //[ Append every element of `source`, which is consumed.
+    !
+    ! Anything the language can iterate can be added this way, since
+    ! collections all provide an `iterator`:
+    !
+    !     b ++= someMap
+  //]
+  def ++=(source: Iterator[T] :- [.iterator]): Unit =
+    while source.hasNext do
+      this += source.next
+
+  //[ Append one element and return this builder. //]
+  def add(v: T): ListBuilder[T] =
+    this += v
     this
 
-  //[ Append every remaining element of `source` and return this builder.
+  //[ Append every element of `source` and return this builder.
     !
     ! `source` is consumed. Anything the language can iterate can be added this
     ! way, since collections all provide an `iterator`:
     !
-    !     b.addAll(someMap.iterator)
+    !     b.addAll someMap
   //]
-  def addAll(source: Iterator[T]): ListBuilder[T] =
-    while source.hasNext do
-      val _ = add source.next
+  def addAll(source: Iterator[T] :- [.iterator]): ListBuilder[T] =
+    this ++= source
     this
 
-  //[ Append every element of `l` and return this builder. //]
+  //[ Append every element of `l` and return this builder.
+    !
+    ! `addAll` covers this and more; the typer calls this one when it lowers a
+    ! spliced vararg, where the argument is known to be a list.
+  //]
   def addList(l: List[T]): ListBuilder[T] =
-    addAll l.iterator
+    addAll l
 
   private def widen: Unit =
     val wider = Array.create[T](32)

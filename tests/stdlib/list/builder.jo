@@ -67,7 +67,25 @@ def main =
   println List.builder[Int]().add(1).addList([2, 3]).add(4).result
   println List.builder[Int]().result.isEmpty
 
-  // addAll takes any iterator, not just a list's
+  // addAll takes a raw iterator, or anything that can hand one over
   println List.builder[Int]().addAll((1 until 4).iterator).result
   println List.builder[Int]().addAll(Set(3, 1, 2).iterator).result
   println List.builder[Int]().addList([9]).addAll([8, 7].iterator).result
+  println List.builder[Int]().addAll([1, 2]).addAll(Set(3)).result
+  println List.builder[Int]().addAll(1 until 4).result
+
+  // `+=` and `++=` are the statement forms: they mutate and yield nothing, so
+  // they fill a builder exactly as `add` and `addAll` do
+  val viaOps = List.builder[Int]()
+  var i = 0
+  while i < 70 do
+    viaOps += i
+    i = i + 1
+  println (sound(viaOps.result, 70))
+
+  // `++=` takes anything iterable, a list included
+  val spliced = List.builder[Int]()
+  spliced ++= [0, 1, 2]
+  spliced ++= [3, 4].iterator
+  println (sound(spliced.result, 5))
+  println spliced.result

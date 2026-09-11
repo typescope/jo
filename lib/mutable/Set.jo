@@ -198,7 +198,7 @@ class Set[T]
     val elements = jo.List.builder[T]()
     var i = 0
     while i < capacity do
-      val _ = elements.addList buckets[i]
+      elements ++= buckets[i]
       i = i + 1
     end
     elements.result
