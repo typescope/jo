@@ -24,6 +24,22 @@ namespace jo
   !   - a builder for everything else,
   !   - `+` only to append to a list that already exists.
   !
+  ! Why `add` hands the builder back
+  ! --------------------------------
+  !
+  ! `add`, `addAll` and `addList` return the builder and are marked
+  ! `@discardableResult`, so they chain and still read as statements. That shape
+  ! is here for the typer, which lowers a vararg pack to a single expression:
+  !
+  !     [a, ..xs, b]  ~>  List.builder[T]().add(a).addList(xs).add(b).result
+  !
+  ! It needs no local binding only because each call returns the builder.
+  !
+  ! This is not a template to copy. An ordinary mutating method should return
+  ! `Unit`, as `mutable.Set.add` and `mutable.List.append` do: a method that
+  ! returns `this` reads at the call site exactly like the pure operation of the
+  ! same name. In a loop, prefer `+=` and `++=` here too.
+  !
   ! Invariants
   ! ----------
   !

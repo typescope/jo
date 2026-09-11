@@ -159,9 +159,4 @@ def main =
     case _ => pass
   end
 
-  // `append`/`appendAll` hand the list back, so calls chain
-  val chained = mutable.List.empty[Int].append(1).append(2).appendAll([3, 4])
-  println chained.size
-  println chained.get(3)
-
   println "done"

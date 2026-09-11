@@ -360,11 +360,12 @@ trait Applications extends DynamicTyper:
 
     // Every vararg pack is collected the same way, whatever the callee:
     //
-    //     [a, ..xs, b]  ~>  List.builder[T](2).add(a).addList(xs).add(b).result
+    //     [a, b, c]     ~>  List.builder[T](3).add(a).add(b).add(c).result
+    //     [a, ..xs, b]  ~>  List.builder[T](0).add(a).addList(xs).add(b).result
     //
     // `add`/`addAll` return the builder, so the pack stays a single expression
     // and needs no local binding. The capacity is the number of plain elements,
-    // which is exact unless the pack also splices.
+    // and 0 once the pack splices, since the final length is then unknown.
     if argsFlex.isEmpty then
       // An empty pack is just the empty list.
       val tapply = Ident(defn.List_empty)(flexSpan).appliedToTypes(elementType)

@@ -39,6 +39,25 @@ val agent= builder
   .build
 ```
 
+::: warning Ordinary mutation should still return `Unit`
+
+`@discardableResult` earns its place where chaining is the point of the API, as
+in the builder above. A method that merely mutates a collection should return
+`Unit` instead:
+
+```jo
+s.add 1     // `mutable.Set.add` returns Unit
+s += 1      // the operator form, for the same job
+```
+
+Returning `this` from a mutating method makes the call site read exactly like
+the pure operation of the same name. `val s2 = s.add 1` binds the *same* set
+when `s` is a `mutable.Set`, but a *new* one when `s` is the immutable `Set` —
+and nothing at the call site shows which. Leaving mutation at `Unit` keeps that
+difference visible in the types.
+
+:::
+
 ::: info The exceptions for silently dropping a value
 
 The rule allows the following exceptions:

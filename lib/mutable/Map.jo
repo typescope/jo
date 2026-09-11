@@ -147,23 +147,15 @@ class Map[K, V]
       buckets[index] = oldBucket + (k ~ v)
       _size = _size + 1
 
-  //[ Bind `k` to `v` and return the map (alias for `update`). //]
-  @discardableResult
-  def add(k: K, v: V): Map[K, V] =
-    update k v
-    this
+  //[ Bind `k` to `v` (alias for `update`). //]
+  def add(k: K, v: V): Unit = update k v
 
-  //[ Add all key-value pairs from `pairs`, replacing existing bindings, and
-    ! return the map.
-  //]
-  @discardableResult
-  def addAll(pairs: Iterator[K ~ V] :- [.iterator]): Map[K, V] =
+  //[ Add all key-value pairs from `pairs`, replacing existing bindings. //]
+  def addAll(pairs: Iterator[K ~ V] :- [.iterator]): Unit =
     while pairs.hasNext do
       val p = pairs.next()
       update p.fst p.snd
     end
-
-    this
 
   //[ Add all key-value pairs from `pairs` (alias for `addAll`). //]
   def ++=(pairs: Iterator[K ~ V] :- [.iterator]): Unit = addAll pairs

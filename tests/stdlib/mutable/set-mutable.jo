@@ -162,12 +162,4 @@ def main receives IO.stdout =
   println "contains 200: \{s5.contains 200}"
   println ""
 
-  println "=== chaining ==="
-  // `add`/`addAll` hand the set back, so calls chain; dropping the result of
-  // either is fine too, which is what the statement forms above rely on
-  val s7 = mutable.Set.empty[Int].add(1).add(2).addAll([3, 4]).add(2)
-  println "size: \{s7.size}"
-  println "contains 3: \{s7.contains 3}"
-  println ""
-
   println "=== All tests completed ==="

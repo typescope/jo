@@ -167,11 +167,4 @@ def main receives IO.stdout =
   println "get 20: \{m5.get 20}"
   println ""
 
-  println "=== chaining ==="
-  // `add`/`addAll` hand the map back, so calls chain
-  val m7 = mutable.Map.empty[Int, String].add(1, "one").add(2, "two").addAll([3 ~ "three"])
-  println "size: \{m7.size}"
-  println "get 2: \{m7.get 2}"
-  println ""
-
   println "=== All tests completed ==="
