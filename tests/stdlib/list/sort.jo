@@ -28,7 +28,7 @@ def sameBag(a: List[Int], b: List[Int]): Bool =
 
 def check(n: Int): Int =
   var bad = 0
-  val b = List.builder[Int](n)
+  val b = List.builder[Int]
   var seed = n + 7
   var i = 0
   while i < n do

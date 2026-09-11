@@ -19,7 +19,7 @@ def sound(l: List[Int], count: Int): Bool =
   ok
 
 def filled(count: Int, capacity: Int): ListBuilder[Int] =
-  val b = List.builder[Int](capacity)
+  val b = ListBuilder[Int](capacity)
   var i = 0
   while i < count do
     val _ = b.add i
