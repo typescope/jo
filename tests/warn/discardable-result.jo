@@ -1,0 +1,58 @@
+// `@discardableResult` lets a definition say its result is safe to ignore, so a
+// method that returns its receiver for chaining needs no `val _ =` when it is
+// called as a statement. Anything else still warns.
+
+@discardableResult
+def counter(n: Int): Int = n
+
+// parameterless, so the source selects it rather than applying it
+@discardableResult
+def touch: Int = 7
+
+class Box(n: Int)
+  //[ A member, where the call carries a prefix. //]
+  @discardableResult
+  def bump(k: Int): Int = n + k
+
+  //[ Prefixed and parameterless. //]
+  @discardableResult
+  def touched: Int = n
+
+  //[ Prefixed with type arguments, so the callee sits under a type application. //]
+  @discardableResult
+  def tagged[T](t: T): Box = this
+
+  //[ Returns the receiver, so chains of it drop their result too. //]
+  @discardableResult
+  def twice: Box = this
+
+  //[ Not annotated: dropping this one must still be warned about. //]
+  def peek: Int = n
+end
+
+def double(x: Int): Int = x * 2
+
+def main =
+  // the builder's chaining methods carry the annotation
+  val b = List.builder[Int]()
+  b.add 1
+  b.add(2).add 3
+  b.addAll [4, 5]
+  b.addList [6]
+  println b.result
+
+  // plain functions, with and without arguments
+  counter 7
+  touch
+
+  // members, with and without arguments, with type arguments, and chained
+  val box = Box 1
+  box.bump 2
+  box.touched
+  box.tagged[String] "x"
+  box.twice.tagged(1).bump 3
+
+  // neither an annotated definition nor a meaningless type: both still warn
+  box.peek
+  double 21
+  println "done"
