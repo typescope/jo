@@ -360,6 +360,7 @@ trait Applications extends DynamicTyper:
 
     // Every vararg pack is collected the same way, whatever the callee:
     //
+    //     []            ~>  List.empty[T]
     //     [a, b, c]     ~>  List.builder[T](3).add(a).add(b).add(c).result
     //     [a, ..xs, b]  ~>  List.builder[T](0).add(a).addList(xs).add(b).result
     //
