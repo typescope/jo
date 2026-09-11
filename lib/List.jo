@@ -72,15 +72,7 @@ class List[T]
   def isEmpty: Bool = _size == 0
 
   //[ Returns an iterator over the elements in order. //]
-  def iterator: Iterator[T] = new ListImpl.ListIterator(this)
-
-  // An iterator positioned at `start`. The iterator loads its leaf on the
-  // first `next`, since its `limit` starts at 0, so moving the cursor before
-  // then is all it takes.
-  private def iteratorFrom(start: Int): ListImpl.ListIterator[T] =
-    val iter = new ListImpl.ListIterator(this)
-    iter.i = start
-    iter
+  def iterator: Iterator[T] = new ListImpl.ListIterator(this, 0)
 
   //[ Return the element at index `i` (0-based). Aborts if out of bounds. //]
   def get(i: Int): T receives none =
@@ -134,7 +126,7 @@ class List[T]
       val n = to - from
       // Walking from `from` costs one trie descent per leaf, where `get` per
       // element would cost one per element.
-      val iter = this.iteratorFrom(from)
+      val iter = new ListImpl.ListIterator(this, from)
       val out = new ListBuilder[T](n)
       var i = 0
       while i < n do
@@ -524,10 +516,18 @@ private[jo] section ListImpl
     !
     ! Fetching the leaf costs one root-to-leaf walk per 32 elements rather than
     ! one per element, so a full traversal is O(n) instead of O(n log₃₂ n).
+    !
+    ! Note: the starting index is not necessarily 0, it can be any valid index.
   //]
-  class ListIterator[T](l: List[T])
-    val count: Int = l.size
-    var i: Int = 0
+  class ListIterator[T]
+    private val list: List[T]
+    private val count: Int
+    private var i: Int
+
+    def ListIterator(l: List[T], startIndex: Int) =
+      this.list = l
+      this.count = l.size
+      this.i = startIndex
 
     // The leaf holding index `i`, and the index just past the elements it
     // covers. `limit` starts at 0 so the first `next` loads a leaf.
@@ -541,7 +541,7 @@ private[jo] section ListImpl
         // Only reached once per leaf, so bounds-checking here is free.
         if i >= count then errorIndex i
 
-        leaf = l.leafAt(i)
+        leaf = list.leafAt(i)
         limit = i - (i & 31) + leaf.size
 
       val item = leaf[i & 31]
