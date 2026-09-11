@@ -78,6 +78,14 @@ class List[T]
   //[ Returns an iterator over the elements in order. //]
   def iterator: Iterator[T] = new ListImpl.ListIterator(this)
 
+  // An iterator positioned at `start`. The iterator loads its leaf on the
+  // first `next`, since its `limit` starts at 0, so moving the cursor before
+  // then is all it takes.
+  private def iteratorFrom(start: Int): ListImpl.ListIterator[T] =
+    val iter = new ListImpl.ListIterator(this)
+    iter.i = start
+    iter
+
   // Copy all elements into `arr`, starting at index `start`.
   private def copyInto(arr: Array[T], start: Int): Unit =
     var i = start
@@ -118,10 +126,7 @@ class List[T]
 
   //[ Prepend one element at the front. O(n). //]
   def prepend(v: T): List[T] =
-    val arr = Array.create[T](_size + 1)
-    arr[0] = v
-    copyInto(arr, 1)
-    ListImpl.fromOwnedArray(arr)
+    List.builder[T](_size + 1).add(v).addAll(this.iterator).result
 
   //[ Concatenate two lists. O(min(n + m, m log₃₂ n)) for n = `size`, m = `l.size`. //]
   def ++(l: List[T]): List[T] =
@@ -135,16 +140,7 @@ class List[T]
         result = result + iter.next
       result
     else
-      val n = _size + l.size
-      val arr = Array.create[T](n)
-      copyInto(arr, 0)
-      var i = _size
-      val iter = l.iterator
-      while iter.hasNext do
-        arr[i] = iter.next
-        i = i + 1
-      end
-      ListImpl.fromOwnedArray(arr)
+      List.builder[T](_size + l.size).addAll(this.iterator).addAll(l.iterator).result
 
   //[ Return a sublist starting at index `from` with at most `len` elements. //]
   def slice(from: Int, len: Int): List[T] receives none =
@@ -152,13 +148,16 @@ class List[T]
     else
       val to = if _size - from > len then from + len else _size
       val n = to - from
-      val arr = Array.create[T](n)
+      // Walking from `from` costs one trie descent per leaf, where `get` per
+      // element would cost one per element.
+      val iter = this.iteratorFrom(from)
+      val out = List.builder[T](n)
       var i = 0
       while i < n do
-        arr[i] = this.get(from + i)
+        val _ = out.add iter.next
         i = i + 1
       end
-      ListImpl.fromOwnedArray(arr)
+      out.result
 
   //[ Return the first `n` elements. //]
   def take(n: Int): List[T] receives none =
@@ -192,14 +191,12 @@ class List[T]
 
   //[ Apply `f` to each element and return the resulting list. //]
   def map[S](f: T => S): List[S] =
-    val arr = Array.create[S](_size)
-    var i = 0
+    val out = List.builder[S](_size)
     val iter = this.iterator
     while iter.hasNext do
-      arr[i] = f(iter.next)
-      i = i + 1
+      val _ = out.add(f(iter.next))
     end
-    ListImpl.fromOwnedArray(arr)
+    out.result
 
   //[ Reduce the list to a single value using a left fold. //]
   def fold[S](zero: S, f: (S, T) => S): S =
@@ -301,44 +298,39 @@ class List[T]
   //[ Pair up elements from two lists; stops at the shorter one. //]
   def zip[S](other: List[S]): List[T ~ S] =
     val n = if _size < other.size then _size else other.size
-    val arr = Array.create[T ~ S](n)
-    var i = 0
+    val out = List.builder[T ~ S](n)
     val left = this.iterator
     val right = other.iterator
     while left.hasNext && right.hasNext do
-      arr[i] = left.next ~ right.next
-      i = i + 1
+      val _ = out.add(left.next ~ right.next)
     end
-    ListImpl.fromOwnedArray(arr)
+    out.result
 
   //[ Pair each element with its 0-based index. //]
   def zipWithIndex: List[T ~ Int] =
-    val arr = Array.create[T ~ Int](_size)
+    val out = List.builder[T ~ Int](_size)
     var i = 0
     val iter = this.iterator
     while iter.hasNext do
-      arr[i] = iter.next ~ i
+      val _ = out.add(iter.next ~ i)
       i = i + 1
     end
-    ListImpl.fromOwnedArray(arr)
+    out.result
 
   //[ Insert `sep` between every pair of adjacent elements. //]
   def intersperse(sep: T): List[T] =
     if _size == 0 then []
     else
-      val n = _size * 2 - 1
-      val arr = Array.create[T](n)
-      var i = 0
+      // The list is not empty, so the first element goes in before the loop
+      // and every element after it brings a separator along.
+      val out = List.builder[T](_size * 2 - 1)
       val iter = this.iterator
+      val _ = out.add iter.next
       while iter.hasNext do
-        if i > 0 then
-          arr[i] = sep
-          i = i + 1
-
-        arr[i] = iter.next
-        i = i + 1
+        val _ = out.add sep
+        val _ = out.add iter.next
       end
-      ListImpl.fromOwnedArray(arr)
+      out.result
 
   //[ Group elements by key, returning a map from key to list of elements. //]
   def groupBy[K](f: T => K)(auto ord: Ord[K] with [[K].compareTo]) : Map[K, List[T]] =
