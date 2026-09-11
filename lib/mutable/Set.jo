@@ -99,8 +99,11 @@ class Set[T]
     val bucket = buckets[index]
     bucket.exists(e => eq.equal(e, x))
 
-  //[ Add `x` to the set. Does nothing if it is already present. Amortized O(1). //]
-  def add(x: T): Unit =
+  //[ Add `x` to the set and return it. Does nothing if `x` is already present.
+    ! Amortized O(1).
+  //]
+  @discardableResult
+  def add(x: T): Set[T] =
     var index = bucketIndex x
     var oldBucket = buckets[index]
 
@@ -116,6 +119,8 @@ class Set[T]
       // Add new element
       buckets[index] = oldBucket + x
       _size = _size + 1
+
+    this
 
   //[ Add `x` to the set (alias for `add`). //]
   def +=(x: T): Unit = add x
@@ -133,11 +138,14 @@ class Set[T]
   //[ Remove `x` from the set (alias for `remove`). //]
   def -=(x: T): Unit = remove x
 
-  //[ Add all elements from `xs`. //]
-  def addAll(xs: Iterator[T] :- [.iterator]): Unit =
+  //[ Add all elements from `xs` and return the set. //]
+  @discardableResult
+  def addAll(xs: Iterator[T] :- [.iterator]): Set[T] =
     for x in xs do
       add x
     end
+
+    this
 
   //[ Add all elements from `xs` (alias for `addAll`). //]
   def ++=(xs: Iterator[T] :- [.iterator]): Unit = addAll xs

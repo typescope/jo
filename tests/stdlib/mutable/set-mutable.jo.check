@@ -91,4 +91,8 @@ size: 2
 contains 100: true
 contains 200: true
 
+=== chaining ===
+size: 4
+contains 3: true
+
 === All tests completed ===

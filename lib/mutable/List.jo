@@ -76,11 +76,13 @@ class List[T]
       abort "index out of bounds"
     _data[i] = v
 
-  //[ Add `x` to the end. Amortized O(1). //]
-  def append(x: T): Unit =
+  //[ Add `x` to the end and return the list. Amortized O(1). //]
+  @discardableResult
+  def append(x: T): List[T] =
     ensureCapacity(_size + 1)
     _data[_size] = x
     _size = _size + 1
+    this
 
   //[ Add `x` to the end (alias for `append`). //]
   def +=(x: T): Unit = append x
@@ -129,11 +131,14 @@ class List[T]
   def clear: Unit =
     _size = 0
 
-  //[ Append all elements from `iter`. //]
-  def appendAll(iter: Iterator[T] :- [.iterator]): Unit =
+  //[ Append all elements from `iter` and return the list. //]
+  @discardableResult
+  def appendAll(iter: Iterator[T] :- [.iterator]): List[T] =
     while iter.hasNext do
       append iter.next()
     end
+
+    this
 
   //[ Append all elements from `iter` (alias for `appendAll`). //]
   def ++=(iter: Iterator[T] :- [.iterator]): Unit = appendAll iter

@@ -80,4 +80,8 @@ size: 2
 contains 10: true
 get 20: twenty
 
+=== chaining ===
+size: 3
+get 2: two
+
 === All tests completed ===
