@@ -2,48 +2,111 @@ namespace jo
 
 //[ In-place sorting routines. //]
 section Sorting
-  //[ Sort arr[from..to] (inclusive) in-place using recursive merge sort.
+  //[ Sort arr[from..to] (inclusive) in-place, bottom up.
     !
     ! Time: O(n log n), Space: O(n) auxiliary. Stable sort.
   //]
   def sortArray[T](arr: Array[T], from: Int, to: Int, ord: Ord[T]): Unit =
-    if from < to then
-      val mid = from + (to - from) / 2
-      sortArray(arr, from, mid, ord)
-      sortArray(arr, mid + 1, to, ord)
-      merge(arr, from, mid, to, ord)
+    if from >= to then return
 
-  // Merge arr[from..mid] and arr[mid+1..to] into a single sorted run in-place.
-  private def merge[T](arr: Array[T], from: Int, mid: Int, to: Int, ord: Ord[T]): Unit =
     val n = to - from + 1
-    val temp = Array.create[T](n)
-    var li = from
+
+    // Short runs first, insertion sorted in place. Eight is small enough
+    // that insertion sort spends fewer compares than merging the run would.
+    var start = from
+    while start <= to do
+      val last = start + 7
+      insertionSort(arr, start, if last < to then last else to, ord)
+      start = start + 8
+    end
+
+    if n > 8 then
+      // One scratch array for the whole sort: each pass merges from one of
+      // the two into the other, so no pass has to copy its result back.
+      // Positions below are relative to `from`, whichever side they land in.
+      val scratch = Array.create[T](n)
+      var inScratch = false
+      var width = 8
+
+      while width < n do
+        var lo = 0
+
+        while lo < n do
+          val last = lo + 2 * width - 1
+          val hi = if last < n - 1 then last else n - 1
+          // A run past the end of the data has no partner: clamped this way
+          // the merge below finds its right side empty and moves the run
+          // across as it is, which is what an unpaired run needs.
+          val split = lo + width - 1
+          val mid = if split < hi then split else hi
+
+          if inScratch then
+            mergeRun(scratch, 0, arr, from, lo, mid, hi, ord)
+          else
+            mergeRun(arr, from, scratch, 0, lo, mid, hi, ord)
+
+          lo = lo + 2 * width
+        end
+
+        inScratch = !inScratch
+        width = width * 2
+      end
+
+      if inScratch then
+        var i = 0
+        while i < n do
+          arr[from + i] = scratch[i]
+          i = i + 1
+
+  //[ Sort arr[from..to] (inclusive) in place by insertion. //]
+  private def insertionSort[T](arr: Array[T], from: Int, to: Int, ord: Ord[T]): Unit =
+    var i = from + 1
+    while i <= to do
+      val v = arr[i]
+      var j = i - 1
+
+      // Strictly greater, so equal elements keep their order.
+      while j >= from && ord.compare(arr[j], v) > 0 do
+        arr[j + 1] = arr[j]
+        j = j - 1
+      end
+
+      arr[j + 1] = v
+      i = i + 1
+
+  // Merge src[lo..mid] and src[mid+1..hi] into dst[lo..hi], with each side's
+  // positions taken from its own base. A run past the end of the data has no
+  // partner to merge with and is moved across as it is.
+  private def mergeRun[T](src: Array[T], srcBase: Int, dst: Array[T], dstBase: Int, lo: Int, mid: Int, hi: Int, ord: Ord[T]): Unit =
+    var li = lo
     var ri = mid + 1
-    var k = 0
-    while li <= mid && ri <= to do
-      if ord.compare(arr[li], arr[ri]) <= 0 then
-        temp[k] = arr[li]
+    var k = lo
+
+    while li <= mid && ri <= hi do
+      val left = src[srcBase + li]
+      val right = src[srcBase + ri]
+
+      if ord.compare(left, right) <= 0 then
+        dst[dstBase + k] = left
         li = li + 1
       else
-        temp[k] = arr[ri]
+        dst[dstBase + k] = right
         ri = ri + 1
+
       k = k + 1
     end
+
     while li <= mid do
-      temp[k] = arr[li]
+      dst[dstBase + k] = src[srcBase + li]
       li = li + 1
       k = k + 1
     end
-    while ri <= to do
-      temp[k] = arr[ri]
+
+    while ri <= hi do
+      dst[dstBase + k] = src[srcBase + ri]
       ri = ri + 1
       k = k + 1
     end
-    // Copy merged result back into the original array
-    var i = 0
-    while i < n do
-      arr[from + i] = temp[i]
-      i = i + 1
 
   //[ Sort `l`, returning a new list. Time: O(n log n), Space: O(n) auxiliary.
     ! Stable sort.
@@ -114,7 +177,9 @@ section Sorting
       var from = 0
       while from < count do
         val last = from + 7
-        insertionSort(from, if last < count - 1 then last else count - 1, ord)
+        // The run lies in one leaf, so it sorts as a stretch of that array.
+        val to = if last < count - 1 then last else count - 1
+        insertionSort(leaves[from >> 5], from & 31, (from & 31) + to - from, ord)
         from = from + 8
       end
 
@@ -158,25 +223,6 @@ section Sorting
           i = i + 1
         end
         ListImpl.fromLeaves(spine, leafCount - 1, ListImpl.Leaf(leaves[leafCount - 1]), count)
-
-    // Sort `from..to`, which lie in a single leaf, on that leaf's own array.
-    private def insertionSort(from: Int, to: Int, ord: Ord[T]): Unit =
-      val leaf = leaves[from >> 5]
-      val base = from & 31
-      val n = to - from
-      var i = 1
-      while i <= n do
-        val v = leaf[base + i]
-        var j = i - 1
-
-        // Strictly greater, so equal elements keep their order.
-        while j >= 0 && ord.compare(leaf[base + j], v) > 0 do
-          leaf[base + j + 1] = leaf[base + j]
-          j = j - 1
-        end
-
-        leaf[base + j + 1] = v
-        i = i + 1
 
     // Merge src[from..mid] and src[mid+1..to] into dst[from..to].
     //
