@@ -311,18 +311,19 @@ Conflicts with direct members, synthetic view forwarders, or concrete methods
 inherited through views therefore produce errors under that rule; synthesis
 does not skip or replace conflicting members.
 
-## Compiler translation
+## Pattern translation
 
-Translation operates on the elaborated patterns. Product expansion is already
-complete. It eliminates pattern definitions and their uses: definitions become
-functions, and elaborated matches become calls, assignments, and control flow. Replace the Boolean return and mutable output array with a typed
-return:
+Pattern translation operates on the elaborated patterns.
+It eliminates pattern definitions and their uses: definitions become
+functions, and elaborated matches become calls, assignments, and control flow.
 
-| Pattern outputs | Irrefutable implementation returns | Refutable implementation returns |
+Pattern definitions now follow the scheme below:
+
+| Pattern outputs | Irrefutable returns | Refutable returns |
 |---|---|---|
-| No outputs | `Bool` (always `true`) | `Bool` |
+| No outputs | `Bool` | `Bool` |
 | One output `T` | `T` | `Option[T]` |
-| Multiple outputs `A`, `B`, `C` | `A ~ B ~ C` | `(A ~ B ~ C) \| None` |
+| Multiple outputs `A`, `B`, `C` | `Array[Any]` | `Array[Any] \| None` |
 
 For example:
 
@@ -330,108 +331,12 @@ For example:
 pattern Pat(x: A, y: B, z: C): Partial[T] = ...
 
 // Translates to:
-def Pat$impl(scrut: T): (A ~ B ~ C) | None = ...
+def Pat$impl(scrut: T): Array[Any] | None = ...
 ```
 
-With no outputs, `Bool` reports success directly. For refutable patterns with
-outputs, `None` represents failure. A single output is wrapped in `Some`, while
-multiple outputs are returned directly in a product without a `Some` wrapper.
-The product container is distinct from `None`, even when its components include
-`None`. These return
-representations and `$impl` functions are compiler implementation details.
-
-The table specifies a schematic typed representation, not a required runtime
-layout. A successful multi-output result needs only the output container, with
-no separate `Some` allocation. For example,
-an array-or-sentinel representation can use one output-container allocation on
-Python and Ruby. Heterogeneous outputs may use `Array[Any]` internally, with the
-compiler preserving each output's static type. An unwrapped typed product is
-another possible representation. Any sentinel representation must distinguish
-failure from every valid successful output, including an output that is itself
-`None`.
-
-#### Generated class pattern
-
-The identity pattern produced by class desugaring translates to:
-
-```jo
-def Point$impl(p: Point): Point = p
-```
-
-The call site passes through both steps:
-
-```jo
-def first(p: Point): Int =
-  match p
-  case Point x y => x
-
-// 1. Elaboration inserts ApplyPattern(Point, ProductPattern(x, y)).
-
-// 2. Translation: patterns are eliminated.
-def first(p: Point): Int =
-  val q = Point$impl(p)
-  val x = q._1
-  val y = q._2
-  x
-```
-
-`q` is the original point: no output array, new product, or transport-induced
-boxing is needed.
-
-#### User-defined patterns
-
-Users can expose an existing product instead of extracting its fields separately:
-
-```jo
-class Located(position: Point)
-
-@product
-pattern Position(p: Point): Located =
-  case obj then p = obj.position
-
-// Translates to:
-def Position$impl(obj: Located): Point = obj.position
-```
-
-`case Position x y` calls the implementation once and projects `_1` and `_2`
-from the returned point. A refutable pattern benefits in the same way:
-
-```jo
-@product
-pattern PositivePosition(p: Point): Partial[Located] =
-  case obj if obj.position.x > 0 then p = obj.position
-
-// Translates to:
-def PositivePosition$impl(obj: Located): Option[Point] =
-  if obj.position.x > 0 then Some(obj.position)
-  else None
-```
-
-Its call-site translation is schematically:
-
-```text
-case PositivePosition x y => body
-
-// 1. Elaboration (pattern tree):
-ApplyPattern(PositivePosition, ProductPattern(x, y))
-
-// 2. Translation:
-result = PositivePosition$impl(obj)
-if result is None:
-    try the next case
-else:
-    p = the Some payload
-    x = p._1
-    y = p._2
-    execute body
-```
-
-Decomposition adds no container. A refutable single-output pattern may allocate
-`Some`; a multi-output pattern may allocate its product container but needs no
-additional success wrapper. On native or a future JVM backend,
-generic components may require boxing; inlining and escape analysis may eliminate
-temporary allocations. These are optimization opportunities, not guarantees of
-the protocol.
+- With no outputs, `Bool` reports match result directly.
+- For single output: irrefutable patterns return the value directly, while refutable patterns return `Option[T]`.
+- For multiple outputs: irrefutable patterns return `Array[Any]`, while refutable patterns return `Array[Any] | None`.
 
 ## Compatibility
 
