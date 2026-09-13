@@ -92,7 +92,7 @@ A pattern opts into product expansion with `@product`:
 pattern Point(p: Point): Point = case p
 ```
 
-A pattern definition annotated with `@prodeuct` must have exactly one output.
+A pattern definition annotated with `@product` must have exactly one output.
 The annotation identifies the pattern's single output as a product that supports
 positional or named component matching:
 
