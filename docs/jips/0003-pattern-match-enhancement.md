@@ -198,6 +198,13 @@ case Point(z = a) => ...            // Error: Point has no member z.
 
 ### Exhaustiveness and reachability
 
+An irrefutable pattern definition must be exhaustive for its declared input type.
+If exhaustiveness checking finds an incomplete definition without `Partial`, the
+compiler issues an error instead of the current warning. The author must make the
+definition exhaustive or declare `Partial[T]`. This applies regardless of the
+number of outputs and ensures that irrefutable implementations need no failure
+representation.
+
 For coverage checking, `ProductPattern` is a special apply pattern: its input is
 the successful output type of the enclosing extractor, and its arguments are the
 selected component sub-patterns. Its projections always supply component values
@@ -305,13 +312,6 @@ inherited through views therefore produce errors under that rule; synthesis
 does not skip or replace conflicting members.
 
 ## Compiler translation
-
-An irrefutable pattern definition must be exhaustive for its declared input type.
-If exhaustiveness checking finds an incomplete definition without `Partial`, the
-compiler issues an error instead of the current warning. The author must make the
-definition exhaustive or declare `Partial[T]`. This applies regardless of the
-number of outputs and ensures that irrefutable implementations need no failure
-representation.
 
 Translation operates on the elaborated patterns. Product expansion is already
 complete. It eliminates pattern definitions and their uses: definitions become
