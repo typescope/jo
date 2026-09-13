@@ -2,6 +2,67 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.13.3] - 2026-09-13
+
+### Added
+
+- `ListBuilder[T]`, created with `List.builder[T](capacity)`, collects elements
+  into a `List` without rebuilding the trie on every append. It provides `add`,
+  `addAll`, `addList`, `+=`, `++=`, `size` and `result`. Prefer it to
+  `acc = acc + v` in a loop. ([#112])
+- The `@discardableResult` annotation marks a definition whose result may be
+  dropped without the "value is silently dropped" warning. It is intended for
+  chainable builder APIs. Mutating collection methods such as `mutable.Set.add`
+  keep returning `Unit`. See [Dropping Values]. ([#112])
+
+### Changed
+
+- `List` construction and bulk operations are substantially faster. List
+  literals `[a, b, c]` now desugar to a `ListBuilder`. `List.fill`,
+  `List.tabulate`, `map`, `reverse`, `sort`, `slice`, `zip`, `++` and `.toList`
+  on `Range`, `Map`, `Set` and the mutable collections build the trie bottom up
+  instead of appending element by element. Speedups on the JavaScript backend
+  range from 3x to 20x. ([#112])
+- `List.distinct` runs in O(n) using hashing instead of O(n²). ([#112])
+- Programs compiled to Python import modules named by a literal
+  `py.module("...")` once at program start instead of at each call site. Module
+  access and list literals are about 10x faster. ([#113])
+
+### Removed
+
+- `List.prepend`. Use `[v] ++ list` instead. ([#112])
+
+### Fixed
+
+- The parser no longer crashes during error recovery on a malformed assignment
+  target or on a union type with a missing branch. ([#111])
+
+### Security
+
+- No security-relevant changes.
+
+### Compatibility
+
+- Code that calls `List.prepend` no longer compiles. Replace `list.prepend(v)`
+  with `[v] ++ list`. ([#112])
+- `List.distinct` now also requires `.hashCode` on the element type, consistent
+  with its `==`. A type without a suitable `hashCode` can supply one at the call
+  site with an `auto` `Hash[T]` instance. ([#112])
+- Code compiled against this standard library may use APIs such as
+  `ListBuilder` that earlier standard libraries lack. Old code continues to work
+  with the new standard library. ([#112])
+- Python programs import every module named by a literal `py.module("...")`
+  at startup, so a missing module is reported when the program starts rather
+  than at first use. Modules named by a computed string are still imported at
+  the call site. ([#113])
+- No library recompilation is required. `.sast` files remain compatible in both
+  directions.
+
+[#111]: https://github.com/typescope/jo/pull/111
+[#112]: https://github.com/typescope/jo/pull/112
+[#113]: https://github.com/typescope/jo/pull/113
+[Dropping Values]: https://jo-lang.org/language/expressions/drop-values
+
 ## [0.13.2] - 2026-09-08
 
 ### Changed
