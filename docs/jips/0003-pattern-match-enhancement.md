@@ -67,9 +67,9 @@ into it, and reads the bindings back. On a backend with native integers, the
 `Int` values are boxed when stored in `Any` and unboxed when retrieved.
 A direct field read, `p.x`, needs none of this intermediate storage.
 
-## Proposal
+## Proposal Overview
 
-The proposal consists of three parts:
+This proposal consists of three parts:
 
 1. **Product pattern protocol.** `@product` enables component matching.
    Elaboration inserts a typed product-pattern node for the sub-patterns.
@@ -79,12 +79,11 @@ The proposal consists of three parts:
    results. Translation eliminates all patterns into calls, assignments, and
    control flow.
 
-The product pattern protocol is user-visible. Class desugaring supplies it
+The product pattern protocol is user-visible. Class desugaring plays into the protocol
 automatically, while the generated functions and return representations are
-compiler implementation details. Elaboration introduces product-pattern nodes
-before translation eliminates them.
+compiler implementation details.
 
-### Elaboration: product pattern protocol
+## Elaboration: product pattern protocol
 
 A pattern opts into product expansion with `@product`:
 
@@ -93,6 +92,7 @@ A pattern opts into product expansion with `@product`:
 pattern Point(p: Point): Point = case p
 ```
 
+A pattern definition annotated with `@prodeuct` must have exactly one output.
 The annotation identifies the pattern's single output as a product that supports
 positional or named component matching:
 
@@ -121,15 +121,13 @@ their sub-patterns from left to right, stopping at the first failure. Component
 reads complete before any sub-pattern is tested. Effects in a sub-pattern cannot
 change which values were already read for later components.
 
-Users can supply projection methods manually. Unannotated patterns retain
-ordinary output binding, even when an output type has projections.
+### Positional product patterns
 
-Positional projections must be parameterless methods. Fields and methods with
-parameter lists do not qualify as positional projections. Positional projection
-methods must have no context parameter requirements, whether explicitly declared
-or inferred. A method requiring context parameters cannot serve as a positional
-projection. Positional projection methods must also have no method type
-parameters; generic methods do not qualify. The output type itself may be generic.
+Positional projections must be parameterless methods or a field.
+
+- They must have no context parameter requirements.
+- They must have no method type parameters.
+
 Projection methods supplied through views qualify under the same rules as direct
 members, subject to ordinary member resolution. These restrictions are
 intentionally strict initially.
@@ -143,11 +141,27 @@ Arity is determined by the consecutive methods
 | `_1`, `_3` | 1 |
 | `_2` without `_1` | Positional matching unsupported |
 
-An annotated pattern must have exactly one output. Positional matching requires
+Positional matching requires
 at least `_1`; zero-component positional products are unsupported. Its positional
 argument count must match the product arity. Each positional sub-pattern is
 checked against the corresponding method's result type. Named-only matching
 requires no positional projections on the output type.
+
+`@product` requires component matching and disallows matching its whole output.
+There is no fallback to ordinary output binding:
+
+```jo
+case Point x y => ...  // Matches the two components.
+case Point p => ...    // Error: two component patterns required.
+```
+
+For an annotated one-component pattern `Box`, `case Box x` matches `_1`, never
+the whole output. Decomposition applies once at the annotated boundary and does
+not recursively flatten product-valued components. Ordinary patterns with no
+outputs remain supported and are unrelated to zero-component products.
+
+
+### Named product patterns
 
 Named component matching uses `Pattern(member = subpattern, ...)` and obeys
 the following rules:
@@ -181,19 +195,6 @@ case Point(x = a, b) => ...         // Error: mixed named and positional argumen
 case Point(x = a, x = b) => ...     // Error: duplicate member selection.
 case Point(z = a) => ...            // Error: Point has no member z.
 ```
-
-`@product` requires component matching and disallows matching its whole output.
-There is no fallback to ordinary output binding:
-
-```jo
-case Point x y => ...  // Matches the two components.
-case Point p => ...    // Error: two component patterns required.
-```
-
-For an annotated one-component pattern `Box`, `case Box x` matches `_1`, never
-the whole output. Decomposition applies once at the annotated boundary and does
-not recursively flatten product-valued components. Ordinary patterns with no
-outputs remain supported and are unrelated to zero-component products.
 
 ### Exhaustiveness and reachability
 
@@ -264,7 +265,7 @@ between components or stability of repeated projection calls. Coverage results
 do not authorize caching, reordering, or omitting projection calls or case tests;
 translation must preserve the specified evaluation order and effects.
 
-### Class desugaring
+## Class desugaring
 
 A class with class parameters supplies the product protocol automatically:
 
@@ -307,7 +308,7 @@ Generated patterns for nonempty class-parameter lists carry `@product`.
 Existing rules allowing a user-defined pattern to replace the generated pattern
 continue to apply. Such a definition opts into product matching explicitly.
 
-### Compiler translation
+## Compiler translation
 
 An irrefutable pattern definition must be exhaustive for its declared input type.
 If exhaustiveness checking finds an incomplete definition without `Partial`, the
