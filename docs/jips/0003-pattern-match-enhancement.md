@@ -61,22 +61,11 @@ def first(p: Point): Int =
     abort("Unhandled match")
 ```
 
-No input type test is needed here because `p` already has type `Point`. The
-Boolean result and output array remain part of the current pattern implementation
-even though this generated pattern always succeeds on that type. These examples
-show the lowering before later optimizations.
-
 The two coordinates already reside in `p`. Nevertheless, the current lowering
 allocates an `Array[Any]`, calls the generated extractor to copy both coordinates
-into it, and reads the bindings back. On a backend with unboxed integers, the
+into it, and reads the bindings back. On a backend with native integers, the
 `Int` values are boxed when stored in `Any` and unboxed when retrieved.
-A direct field read, `p.x`, needs none of this
-intermediate storage.
-
-Python and Ruby are currently the officially supported backends. Their value
-representations do not introduce this additional boxing cost; the current
-motivation is eliminating intermediate containers and copying. Boxing is relevant
-to native compilation and a future JVM backend.
+A direct field read, `p.x`, needs none of this intermediate storage.
 
 ## Proposal
 
