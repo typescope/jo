@@ -300,10 +300,7 @@ preserves component matching at call sites such as `case Point x y`.
 
 Projection methods are synthesized unconditionally in class-parameter declaration order,
 including when a user-defined pattern replaces the generated pattern.
-Additional class-body fields do not participate. An existing member with the
-same name conflicts and produces a compile-time error, even if its type or
-implementation is identical. This keeps projection types and order fixed by
-the class declaration.
+This keeps projection types and order fixed by the class declaration.
 
 Synthesized projections participate in the existing
 [member uniqueness check](../language/definitions/class-definitions.md#member-uniqueness).
