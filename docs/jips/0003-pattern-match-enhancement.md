@@ -339,8 +339,8 @@ def Pat$impl(scrut: T): Array[Any] | None = ...
 - For multiple outputs: irrefutable patterns return `Array[Any]`, while refutable patterns return `Array[Any] | None`.
 
 We expect highly-optimized language runtimes can effectively optimize away the
-allocation of containers for multiple outputs and refutable single output after
-inlining.
+allocation of containers for multiple outputs and refutable single output,
+e.g., based on inlining and escape analysis.
 
 ## Compatibility
 
