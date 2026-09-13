@@ -310,6 +310,14 @@ does not skip or replace conflicting members.
 
 ## Pattern translation
 
+::: info Compilation Internals
+Pattern translation is compiler internals, which does not affect compatibility thanks to
+the SAST standard intermediate format and whole-program compilation.
+
+It is documented here to illustrate how the performance improvement is actually implemented.
+The concrete details can change without notice.
+:::
+
 Pattern translation operates on the elaborated patterns.
 It eliminates pattern definitions and their uses: definitions become
 functions, and elaborated matches become calls, assignments, and control flow.
@@ -335,9 +343,23 @@ def Pat$impl(scrut: T): Array[Any] | None = ...
 - For single output: irrefutable patterns return the value directly, while refutable patterns return `Option[T]`.
 - For multiple outputs: irrefutable patterns return `Array[Any]`, while refutable patterns return `Array[Any] | None`.
 
+::: info Language runtime optimization
 We expect highly-optimized language runtimes can effectively optimize away the
 allocation of containers for multiple outputs and refutable single output,
 e.g., based on inlining and escape analysis.
+:::
+
+Irrefutable product patterns now do not need to allocate containers in the
+translation:
+
+```jo
+@product
+pattern Point(p: Point): Point = case p
+
+// Translates to
+def Point$impl(p: Point): Point = p
+```
+
 
 ## Compatibility
 
