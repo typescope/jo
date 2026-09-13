@@ -347,15 +347,10 @@ e.g., based on inlining and escape analysis.
 The following breaking changes are intentional:
 
 - Incomplete pattern definitions without `Partial` become compile-time errors.
-- Synthesized positional projection names can conflict with existing class
-  members, as specified above.
-- A product's consecutive positional projections define its public pattern
-  arity. Adding a projection or filling a gap can change that arity and invalidate
-  existing positional matches.
+- Synthesized positional projection names `_1, _2, ...` can conflict with existing class
+  members.
 
-Existing class component matching syntax is preserved when no projection-name
-conflict occurs. The compatibility costs above are accepted as part of adopting
-the product protocol.
+The compatibility costs above are accepted as part of adopting the product protocol.
 
 ## Related documentation
 
