@@ -304,10 +304,6 @@ Conflicts with direct members, synthetic view forwarders, or concrete methods
 inherited through views therefore produce errors under that rule; synthesis
 does not skip or replace conflicting members.
 
-Generated patterns for nonempty class-parameter lists carry `@product`.
-Existing rules allowing a user-defined pattern to replace the generated pattern
-continue to apply. Such a definition opts into product matching explicitly.
-
 ## Compiler translation
 
 An irrefutable pattern definition must be exhaustive for its declared input type.
