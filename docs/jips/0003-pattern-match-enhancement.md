@@ -364,8 +364,9 @@ The compatibility cost above is accepted as part of adopting the product protoco
 ## Future extension: named component patterns
 
 ::: info Not part of this proposal
-This section sketches a direction compatible with the product protocol. It is
-not normative, and its details are left to a future proposal.
+This section is not normative, and its details are left to a future proposal.
+It is included to show that the product protocol does not block the extension,
+and that the protocol anticipates it.
 :::
 
 A named component pattern matches members of the scrutinee by name:
@@ -392,6 +393,15 @@ form extends the type pattern from `name: type` to `{ ... }: type`. In
 `Some({ .x, .y })`, the members are resolved on the component type of `Some`.
 Because member selection does not depend on a pattern definition, no `@product`
 annotation is needed: any scrutinee type with qualifying members can be matched.
+
+The two features stay separate. A pattern marked with `@product` only accepts
+positional component patterns. Nothing is lost: to match members by name, users
+write a typed pattern instead of applying the product pattern:
+
+```jo
+case Point x y => ...          // Positional, through @product.
+case { .x, .y }: Point => ...  // Named, through a typed pattern.
+```
 
 The leading `.` selects a member, as in member adapters, and `is` matches the
 member against a sub-pattern, as in `is` expressions. When a component only
