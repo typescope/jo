@@ -10,9 +10,9 @@ title: Pattern match enhancement
 <JipMeta />
 
 Pattern matching is one of the most powerful features of Jo. This proposal
-extends pattern matching with a product pattern protocol to make it
-possible to both optimize translation of pattern matches, as well as for users
-to micro-optimize pattern definitions by following the protocol.
+extends pattern matching with a product pattern protocol. The protocol lets the
+compiler translate pattern matches efficiently, and lets users write pattern
+definitions that follow the same protocol to avoid unnecessary allocation.
 
 ## Motivation
 
@@ -101,8 +101,8 @@ case Point pat1 pat2 => ...
 case Point(x = pat1, y = pat2) => ...
 ```
 
-Elaboration resolves the projections on the successful output type and inserts
-the same kind of internal product-pattern node for either form:
+Elaboration resolves the component members on the successful output type and
+inserts the same kind of internal product-pattern node for either form:
 
 ```text
 // Positional:
@@ -116,23 +116,43 @@ This applies to both irrefutable and refutable patterns. Positional binding
 names are arbitrary: `Point a b` reads `_1` and `_2`. In the named form, `x` and
 `y` select members, while `pat1` and `pat2` determine the bindings and tests.
 
-On success, first read all selected components in written order. Then test
-their sub-patterns from left to right, stopping at the first failure. Component
-reads complete before any sub-pattern is tested. Effects in a sub-pattern cannot
-change which values were already read for later components.
+### Component members
+
+A component member, whether a positional projection or a named selection, must
+be a field or a parameterless method:
+
+- It must have no method type parameters.
+- It must have no context parameter requirements, explicit or inferred.
+
+Each selected member must resolve to an accessible member on the successful
+output type under ordinary member-access rules. Members supplied through views
+qualify under the same rules as direct members. These restrictions are
+intentionally strict initially.
+
+Each sub-pattern is checked against the selected field's type or method's
+result type.
+
+By convention, component members are **stable**: reading a component has no
+observable side effects, and reading it again during a match yields the same
+value. This is the same convention that other languages with extensible pattern
+matching adopt. The compiler does not check it. Exhaustiveness and reachability
+checking assume it, so a match that is statically exhaustive can fail at run
+time if a component breaks the convention.
+
+### Evaluation order
+
+When the extractor succeeds, the sub-patterns are tested from left to right,
+stopping at the first failure, as in other patterns.
+
+The language does not specify when components are read. An implementation may
+read all selected components before testing any sub-pattern, interleave reads
+with tests, or skip reads after a sub-pattern fails. Programs must not depend on
+the order or number of component reads. This follows from the stability
+convention above.
 
 ### Positional product patterns
 
-Positional projections must be parameterless methods or a field.
-
-- They must have no context parameter requirements.
-- They must have no method type parameters.
-
-Projection methods supplied through views qualify under the same rules as direct
-members, subject to ordinary member resolution. These restrictions are
-intentionally strict initially.
-
-Arity is determined by the consecutive methods
+Arity is determined by the consecutive projection methods
 `_1`, `_2`, and so on, starting at `_1` and stopping at the first gap:
 
 | Projection methods present | Product arity |
@@ -141,11 +161,10 @@ Arity is determined by the consecutive methods
 | `_1`, `_3` | 1 |
 | `_2` without `_1` | Positional matching unsupported |
 
-Positional matching requires
-at least `_1`; zero-component positional products are unsupported. Its positional
-argument count must match the product arity. Each positional sub-pattern is
-checked against the corresponding method's result type. Named-only matching
-requires no positional projections on the output type.
+Positional matching requires at least `_1`; zero-component positional products
+are unsupported. Its positional argument count must match the product arity.
+Each projection must qualify as a [component member](#component-members).
+Named-only matching requires no positional projections on the output type.
 
 `@product` requires component matching and disallows matching its whole output.
 There is no fallback to ordinary output binding:
@@ -160,7 +179,6 @@ the whole output. Decomposition applies once at the annotated boundary and does
 not recursively flatten product-valued components. Ordinary patterns with no
 outputs remain supported and are unrelated to zero-component products.
 
-
 ### Named product patterns
 
 Named component matching uses `Pattern(member = subpattern, ...)` and obeys
@@ -168,29 +186,21 @@ the following rules:
 
 - The applied pattern must be annotated with `@product`. Named arguments on an
   unannotated pattern are an error.
-- At least one named selection is required. Empty selections are errors;
+- At least one named selection is required. Empty selections are errors.
   `Pattern()` is not a valid component match for an annotated pattern.
 - All arguments must be named. Mixing positional and named arguments is an error.
 - Each member name may occur at most once. Duplicate selections are errors,
   regardless of the sub-patterns or bindings used.
-- Each selected name must resolve to an accessible member on the successful
-  output type under ordinary member-access rules. A missing or inaccessible
-  member is an error.
-- The selected member must be a field or a parameterless method. Methods with
-  parameter lists, method type parameters, or context parameter requirements
-  (explicit or inferred) do not qualify. Members supplied through views qualify
-  under the same rules as direct members.
-- Each sub-pattern is checked against the selected field's type or method's
-  result type.
+- Each selected member must qualify as a [component member](#component-members).
+  A missing or inaccessible member is an error.
 
 Named matching selects a subset of members. Unmentioned members are neither
 read nor matched. It does not use positional arity and requires no correspondence
-between a named member and `_1`, `_2`, etc. Selected members are read in written
-order before their sub-patterns are tested, as specified above.
+between a named member and `_1`, `_2`, etc.
 
 ```jo
 case Point(x = Positive & x) => ...  // Selects only x. Does not read y.
-case Point(y = b, x = a) => ...     // Reads y, then x; tests b, then a.
+case Point(y = b, x = a) => ...     // Tests b, then a.
 case Point(x = a, b) => ...         // Error: mixed named and positional arguments.
 case Point(x = a, x = b) => ...     // Error: duplicate member selection.
 case Point(z = a) => ...            // Error: Point has no member z.
@@ -198,18 +208,17 @@ case Point(z = a) => ...            // Error: Point has no member z.
 
 ### Exhaustiveness and reachability
 
-**Missing Partial[T] now is an error**.
-An irrefutable pattern definition must be exhaustive for its declared input type.
-If exhaustiveness checking finds an incomplete definition without `Partial`, the
-compiler issues an error instead of the current warning. The author must make the
-definition exhaustive or declare `Partial[T]`.
-
 Positional product patterns and named product patterns are unified as
 `ProductPattern` during elaboration, thus handled the same way.
 
 For exhaustivity and reachability checking, the specification follows the
-intuitive pattern matching semantics.  We do not specify the algorithm here to
-reserve room for flexible implementation.
+intuitive pattern matching semantics, assuming stable component members. We do
+not specify the algorithm here to reserve room for flexible implementation.
+
+The rules for irrefutable pattern definitions do not change. An irrefutable
+pattern definition should be exhaustive for its declared input type. If
+exhaustiveness checking finds an incomplete definition without `Partial`, the
+compiler issues a warning. An irrefutable pattern that fails at run time aborts.
 
 ## Class desugaring
 
@@ -237,6 +246,21 @@ pattern Point(x: Int, y: Int): Point =
 The new pattern exposes the original object as its single output. `@product`
 preserves component matching at call sites such as `case Point x y`.
 
+For a generic class, the projections use the class type parameters, and the
+synthesized pattern takes the same type parameters:
+
+```jo
+class Pair[A, B](first: A, second: B)
+
+// Desugars to (showing the product-related additions):
+class Pair[A, B](first: A, second: B)
+  def _1: A = this.first
+  def _2: B = this.second
+
+@product
+pattern Pair[A, B](p: Pair[A, B]): Pair[A, B] = case p
+```
+
 Projection methods are synthesized unconditionally in class-parameter declaration order,
 including when a user-defined pattern replaces the generated pattern.
 This keeps projection types and order fixed by the class declaration.
@@ -244,7 +268,7 @@ This keeps projection types and order fixed by the class declaration.
 Synthesized projections participate in the existing
 [member uniqueness check](../language/definitions/class-definitions.md#member-uniqueness).
 Conflicts with direct members, synthetic view forwarders, or concrete methods
-inherited through views therefore produce errors under that rule; synthesis
+inherited through views therefore produce errors under that rule. Synthesis
 does not skip or replace conflicting members.
 
 ## Pattern translation
@@ -282,6 +306,9 @@ def Pat$impl(scrut: T): Array[Any] | None = ...
 - For single output: irrefutable patterns return the value directly, while refutable patterns return `Option[T]`.
 - For multiple outputs: irrefutable patterns return `Array[Any]`, while refutable patterns return `Array[Any] | None`.
 
+Irrefutable pattern functions have no failure value. If an irrefutable pattern
+fails at run time, its function aborts.
+
 ::: info Language runtime optimization
 We expect highly-optimized language runtimes can effectively optimize away the
 allocation of containers for multiple outputs and refutable single output,
@@ -299,16 +326,73 @@ pattern Point(p: Point): Point = case p
 def Point$impl(p: Point): Point = p
 ```
 
+The call site in `first` from the motivation translates schematically to:
+
+```jo
+def first(p: Point): Int =
+  val result = Point$impl(p)
+  val x = result._1
+  val y = result._2
+  x
+```
+
+Generic classes translate the same way, with type arguments passed to the
+pattern function:
+
+```jo
+@product
+pattern Pair[A, B](p: Pair[A, B]): Pair[A, B] = case p
+
+// Translates to
+def Pair$impl[A, B](p: Pair[A, B]): Pair[A, B] = p
+
+// A call site
+def sum(pair: Pair[Int, Int]): Int =
+  match pair
+  case Pair a b => a + b
+
+// Translates schematically to
+def sum(pair: Pair[Int, Int]): Int =
+  val result = Pair$impl[Int, Int](pair)
+  val a = result._1
+  val b = result._2
+  a + b
+```
+
+## Alternatives considered
+
+**Specialize synthesized class patterns.** The compiler could recognize the
+patterns synthesized for classes and read class parameters directly, with no
+user-visible protocol. Rejected because only compiler-generated patterns would
+benefit: user-defined patterns could not play into the protocol and would keep
+paying for the output container.
+
+**Treat every single-output pattern as a product.** This would avoid the
+annotation. Rejected because it is ambiguous with ordinary single-output
+patterns: `case Name n` could mean either binding the whole output or matching
+its first component. `@product` makes the intent explicit at the definition.
+
+**Name positional projections after class parameters.** Positional matching
+needs an order on the members of the output type. Class-parameter names carry
+no position once a pattern is decoupled from the class, as in
+`@product pattern Position(p: Point): Box[Point]`, and classes without class
+parameters have no parameter list at all. The `_1`, `_2` convention supplies the
+order uniformly and lets any class play into the protocol by defining projection
+methods.
+
+Defining `_1`, `_2` by hand in a class without class parameters may be obscure,
+and is arguably poor style. But positional matching for classes with class
+parameters needs some order-carrying convention, and this proposal finds no
+alternative to such a convention.
 
 ## Compatibility
 
-The following breaking changes are intentional:
+The following breaking change is intentional:
 
-- Incomplete pattern definitions without `Partial` become compile-time errors.
 - Synthesized positional projection names `_1, _2, ...` can conflict with existing class
   members.
 
-The compatibility costs above are accepted as part of adopting the product protocol.
+The compatibility cost above is accepted as part of adopting the product protocol.
 
 ## Related documentation
 
