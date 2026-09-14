@@ -58,7 +58,7 @@ def first(p: Point): Int =
     val y = cast[Int](result[1])
     x
   else
-    abort("Unhandled match")
+    abort("Unhandled match")  // Unreachable: the extractor always returns true.
 ```
 
 The two coordinates already reside in `p`. Nevertheless, the current lowering
@@ -81,7 +81,7 @@ This proposal consists of three parts:
    results. Translation eliminates all patterns into calls, assignments, and
    control flow.
 
-The product pattern protocol is user-visible. Class desugaring plays into the protocol
+The product pattern protocol is user-visible. Class desugaring participates in the protocol
 automatically, while the generated functions and return representations are
 compiler implementation details.
 
@@ -122,7 +122,23 @@ The output type of a `@product` pattern must be a class type, possibly applied
 to type arguments, as in `Box[Point]`. Union types, interface types, and type
 parameters are errors.
 
-The components are determined by the class constructor:
+The output type is the type of the pattern's output parameter, which may differ
+from the type being matched. The components come from the output type:
+
+```jo
+class Box[T](value: T)
+
+@product
+pattern Content(p: Point): Box[Point] = case box then p = box.value
+
+match box
+case Content x y => ...  // Matches a Box[Point], reads the fields x and y of its Point.
+```
+
+Here the scrutinee has type `Box[Point]`, while the components are the fields
+`x` and `y` of the output type `Point`.
+
+A class has exactly one constructor. The components are determined by it:
 
 - The arity is the number of constructor parameters.
 - The component names are the constructor parameter names, in declaration order.
@@ -143,9 +159,10 @@ checks the [arity](#arity), and checks each sub-pattern against the type of the
 corresponding field, with the class type arguments substituted.
 
 A class with class parameters satisfies these rules automatically, because class
-parameters desugar to a constructor and fields of the same names. A class with an
-explicit constructor plays into the protocol by declaring fields named after the
-constructor parameters:
+parameters desugar to a constructor and fields of the same names, and class
+parameters are always accessible. A class with an explicit constructor
+participates in the protocol by declaring fields named after the constructor
+parameters:
 
 ```jo
 class Temperature
@@ -250,6 +267,9 @@ The new pattern exposes the original object as its single output. `@product`
 preserves component matching at call sites such as `case Point x y`. No members
 are added to the class.
 
+A class with an empty class parameter list, such as `class Unit()`, has no
+components. Its synthesized pattern is not annotated with `@product`.
+
 For a generic class, the synthesized pattern takes the class type parameters:
 
 ```jo
@@ -266,7 +286,7 @@ synthesized pattern.
 ## Pattern translation
 
 ::: info Compilation Internals
-Pattern translation is compiler internals, which does not affect compatibility thanks to
+Pattern translation is an implementation detail. It does not affect compatibility, thanks to
 the SAST standard intermediate format and whole-program compilation.
 
 It is documented here to illustrate how the performance improvement is actually implemented.
@@ -294,9 +314,14 @@ pattern Pat(x: A, y: B, z: C): Partial[T] = ...
 def Pat$impl(scrut: T): Array[Any] | None = ...
 ```
 
-- With no outputs, `Bool` reports match result directly.
+- With no outputs, `Bool` reports the match result directly.
 - For single output: irrefutable patterns return the value directly, while refutable patterns return `Option[T]`.
 - For multiple outputs: irrefutable patterns return `Array[Any]`, while refutable patterns return `Array[Any] | None`.
+
+The asymmetry between `Option[T]` and `Array[Any] | None` comes from union types.
+Each branch of a union must be a class. `Array[Any]` and `None` are both classes,
+so `Array[Any] | None` is valid. An arbitrary output type `T` may be an interface
+or a type parameter, so `T | None` is not valid in general.
 
 Irrefutable pattern functions have no failure value. If an irrefutable pattern
 fails at run time, its function aborts.
@@ -307,8 +332,7 @@ allocation of containers for multiple outputs and refutable single output,
 e.g., based on inlining and escape analysis.
 :::
 
-Irrefutable product patterns now do not need to allocate containers in the
-translation:
+Irrefutable product patterns do not allocate any container in the translation:
 
 ```jo
 @product
@@ -351,12 +375,30 @@ def sum(pair: Pair[Int, Int]): Int =
   a + b
 ```
 
+A refutable product pattern has a single output, so its function returns
+`Option[T]`. On success it allocates one `Some` to wrap the output, and the call
+site reads the fields from the wrapped value. This replaces the `Array[Any]` of
+the previous lowering and avoids boxing the components, but it is not free of
+allocation:
+
+```jo
+@product
+pattern PositiveContent(p: Point): Partial[Box[Point]] =
+  case box if box.value.x > 0 then p = box.value
+
+// Translates schematically to
+def PositiveContent$impl(box: Box[Point]): Option[Point] =
+  if box.value.x > 0 then Some(box.value) else None
+```
+
+Removing this allocation is left to the runtime, as described above.
+
 ## Alternatives considered
 
 **Specialize synthesized class patterns.** The compiler could recognize the
 patterns synthesized for classes and read class parameters directly, with no
 user-visible protocol. Rejected because only compiler-generated patterns would
-benefit: user-defined patterns could not play into the protocol and would keep
+benefit: user-defined patterns could not participate in the protocol and would keep
 paying for the output container.
 
 **Treat every single-output pattern as a product.** This would avoid the
@@ -381,11 +423,15 @@ each would need its own rule. Fields have none of these concerns.
 
 ## Compatibility
 
-The following breaking change is intentional:
+The following breaking changes are intentional:
 
 - The SAST format gains a product pattern node.
+- The pattern synthesized for a class with class parameters changes signature.
+  `pattern Point(x: Int, y: Int): Point` becomes
+  `@product pattern Point(p: Point): Point`. Call sites such as `case Point x y`
+  keep their meaning.
 
-The compatibility cost above is accepted as part of adopting the product protocol.
+These costs are accepted as part of adopting the product protocol.
 
 ## Future extension: named component patterns
 
