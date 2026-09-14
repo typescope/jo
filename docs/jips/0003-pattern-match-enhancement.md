@@ -397,9 +397,9 @@ Removing this allocation is left to the runtime, as described above.
 
 **Specialize synthesized class patterns.** The compiler could recognize the
 patterns synthesized for classes and read class parameters directly, with no
-user-visible protocol. Rejected because only compiler-generated patterns would
-benefit: user-defined patterns could not participate in the protocol and would keep
-paying for the output container.
+user-visible protocol. Rejected because it would give synthesized patterns
+behavior that no user-written pattern definition can express, while patterns form
+a name universe populated only by pattern definitions.
 
 **Treat every single-output pattern as a product.** This would avoid the
 annotation. Rejected because it is ambiguous with ordinary single-output
