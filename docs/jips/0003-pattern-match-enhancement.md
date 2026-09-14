@@ -354,12 +354,13 @@ alternative to such a convention.
 
 ## Compatibility
 
-The following breaking change is intentional:
+The following breaking changes are intentional:
 
 - Synthesized positional projection names `_1, _2, ...` can conflict with existing class
   members.
+- The SAST format gains a product pattern node.
 
-The compatibility cost above is accepted as part of adopting the product protocol.
+The compatibility costs above are accepted as part of adopting the product protocol.
 
 ## Future extension: named component patterns
 
