@@ -98,7 +98,7 @@ positional or named component matching:
 
 ```jo
 case Point pat1 pat2 => ...
-case Point(x = pat1, y = pat2) => ...
+case Point(.x is pat1, .y is pat2) => ...
 ```
 
 Elaboration resolves the component members on the successful output type and
@@ -113,8 +113,8 @@ ApplyPattern(Point, ProductPattern([(x, pat1), (y, pat2)]))
 ```
 
 This applies to both irrefutable and refutable patterns. Positional binding
-names are arbitrary: `Point a b` reads `_1` and `_2`. In the named form, `x` and
-`y` select members, while `pat1` and `pat2` determine the bindings and tests.
+names are arbitrary: `Point a b` reads `_1` and `_2`. In the named form, `.x` and
+`.y` select members, while `pat1` and `pat2` determine the bindings and tests.
 
 ### Component members
 
@@ -181,14 +181,24 @@ outputs remain supported and are unrelated to zero-component products.
 
 ### Named product patterns
 
-Named component matching uses `Pattern(member = subpattern, ...)` and obeys
-the following rules:
+Named component matching uses `Pattern(.member is subpattern, ...)`. The
+leading `.` selects a member of the output, as in member adapters, and `is`
+matches the member against the sub-pattern, as in `is` expressions. The
+sub-pattern is a full pattern that extends to the next comma or closing
+parenthesis, so `Point(.x is Positive & a)` needs no parentheses.
 
-- The applied pattern must be annotated with `@product`. Named arguments on an
+When a component only binds a variable of the same name, `is subpattern` may be
+omitted: `.x` is shorthand for `.x is x` and follows the rules of the variable
+pattern `x`.
+
+Named component matching obeys the following rules:
+
+- The applied pattern must be annotated with `@product`. Named components on an
   unannotated pattern are an error.
 - At least one named selection is required. Empty selections are errors.
   `Pattern()` is not a valid component match for an annotated pattern.
-- All arguments must be named. Mixing positional and named arguments is an error.
+- All arguments must be named components. Mixing positional and named arguments
+  is an error.
 - Each member name may occur at most once. Duplicate selections are errors,
   regardless of the sub-patterns or bindings used.
 - Each selected member must qualify as a [component member](#component-members).
@@ -199,12 +209,20 @@ read nor matched. It does not use positional arity and requires no correspondenc
 between a named member and `_1`, `_2`, etc.
 
 ```jo
-case Point(x = Positive & x) => ...  // Selects only x. Does not read y.
-case Point(y = b, x = a) => ...     // Tests b, then a.
-case Point(x = a, b) => ...         // Error: mixed named and positional arguments.
-case Point(x = a, x = b) => ...     // Error: duplicate member selection.
-case Point(z = a) => ...            // Error: Point has no member z.
+case Point(.x is Positive & x) => ...  // Selects only x. Does not read y.
+case Point(.y is b, .x is a) => ...    // Tests b, then a.
+case Point(.x, .y) => ...              // Binds x and y.
+case Point(.x is 0, .y) => ...         // Tests x, then binds y.
+case Point(.x is a, b) => ...          // Error: mixed named and positional arguments.
+case Point(.x is a, .x is b) => ...    // Error: duplicate member selection.
+case Point(.z is a) => ...             // Error: Point has no member z.
 ```
+
+The `=` form, `Point(x = pat)`, is deliberately not used. Inside patterns,
+`then x = e` assigns to the name on the left, while a member selection reads
+from it; and in calls, `f(x = e)` names a parameter of `f`, not a member of its
+result. Keeping `name = ...` free leaves room for naming pattern parameters in
+the future.
 
 ### Exhaustiveness and reachability
 
