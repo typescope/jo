@@ -43,8 +43,8 @@ The pattern definition translates schematically to:
 def Point$impl(p: Point, result: Array[Any]): Bool =
   val x = p.x
   val y = p.y
-  result.set(0, x)  // Box Int into Any.
-  result.set(1, y)
+  result[0] = x  // Box Int into Any.
+  result[1] = y
   true
 ```
 
@@ -54,8 +54,8 @@ The call site in `first` translates schematically to:
 def first(p: Point): Int =
   val result = Array.create[Any](2)
   if Point$impl(p, result) then
-    val x = cast[Int](result.get(0))  // Unbox Any to Int.
-    val y = cast[Int](result.get(1))
+    val x = cast[Int](result[0])  // Unbox Any to Int.
+    val y = cast[Int](result[1])
     x
   else
     abort("Unhandled match")
