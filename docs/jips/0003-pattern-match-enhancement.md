@@ -71,8 +71,9 @@ A direct field read, `p.x`, needs none of this intermediate storage.
 
 This proposal consists of three parts:
 
-1. **Product pattern protocol.** `@product` enables component matching.
-   Elaboration inserts a typed product-pattern node for the sub-patterns.
+1. **Product pattern protocol.** `@product` enables positional component
+   matching. Elaboration inserts a typed product-pattern node for the
+   sub-patterns.
 2. **Class desugaring.** Classes with class parameters synthesize positional
    projection methods and an annotated pattern exposing the original object.
 3. **Compiler translation.** Pattern definitions become functions with typed
@@ -82,6 +83,9 @@ This proposal consists of three parts:
 The product pattern protocol is user-visible. Class desugaring plays into the protocol
 automatically, while the generated functions and return representations are
 compiler implementation details.
+
+Matching components by member name is a natural companion to the protocol, but
+it is delayed as a [future extension](#future-extension-named-component-patterns).
 
 ## Elaboration: product pattern protocol
 
@@ -93,64 +97,46 @@ pattern Point(p: Point): Point = case p
 ```
 
 A pattern definition annotated with `@product` must have exactly one output.
-The annotation identifies the pattern's single output as a product that supports
-positional or named component matching:
+The annotation identifies the pattern's single output as a product whose
+components are matched positionally:
 
 ```jo
 case Point pat1 pat2 => ...
-case Point(.x is pat1, .y is pat2) => ...
 ```
 
-Elaboration resolves the component members on the successful output type and
-inserts the same kind of internal product-pattern node for either form:
+Elaboration resolves the projections on the successful output type and inserts
+an internal product-pattern node:
 
 ```text
-// Positional:
 ApplyPattern(Point, ProductPattern([(_1, pat1), (_2, pat2)]))
-
-// Named:
-ApplyPattern(Point, ProductPattern([(x, pat1), (y, pat2)]))
 ```
 
-This applies to both irrefutable and refutable patterns. Positional binding
-names are arbitrary: `Point a b` reads `_1` and `_2`. In the named form, `.x` and
-`.y` select members, while `pat1` and `pat2` determine the bindings and tests.
+This applies to both irrefutable and refutable patterns. Binding names are
+arbitrary: `Point a b` reads `_1` and `_2`.
 
-### Component members
+### Projections
 
-A component member, whether a positional projection or a named selection, must
-be a field or a parameterless method:
+A projection must be a field or a parameterless method:
 
 - It must have no method type parameters.
 - It must have no context parameter requirements, explicit or inferred.
 
-Each selected member must resolve to an accessible member on the successful
-output type under ordinary member-access rules. Members supplied through views
+Each projection must resolve to an accessible member on the successful output
+type under ordinary member-access rules. Projections supplied through views
 qualify under the same rules as direct members. These restrictions are
 intentionally strict initially.
 
-Each sub-pattern is checked against the selected field's type or method's
+Each sub-pattern is checked against the corresponding field's type or method's
 result type.
 
-By convention, component members are **stable**: reading a component has no
+By convention, projections are **stable**: reading a projection has no
 observable side effects, and reading it again during a match yields the same
 value. This is the same convention that other languages with extensible pattern
 matching adopt. The compiler does not check it. Exhaustiveness and reachability
 checking assume it, so a match that is statically exhaustive can fail at run
-time if a component breaks the convention.
+time if a projection breaks the convention.
 
-### Evaluation order
-
-When the extractor succeeds, the sub-patterns are tested from left to right,
-stopping at the first failure, as in other patterns.
-
-The language does not specify when components are read. An implementation may
-read all selected components before testing any sub-pattern, interleave reads
-with tests, or skip reads after a sub-pattern fails. Programs must not depend on
-the order or number of component reads. This follows from the stability
-convention above.
-
-### Positional product patterns
+### Arity
 
 Arity is determined by the consecutive projection methods
 `_1`, `_2`, and so on, starting at `_1` and stopping at the first gap:
@@ -161,10 +147,8 @@ Arity is determined by the consecutive projection methods
 | `_1`, `_3` | 1 |
 | `_2` without `_1` | Positional matching unsupported |
 
-Positional matching requires at least `_1`; zero-component positional products
-are unsupported. Its positional argument count must match the product arity.
-Each projection must qualify as a [component member](#component-members).
-Named-only matching requires no positional projections on the output type.
+Positional matching requires at least `_1`. Zero-component products are
+unsupported. The number of sub-patterns must match the product arity.
 
 `@product` requires component matching and disallows matching its whole output.
 There is no fallback to ordinary output binding:
@@ -179,59 +163,24 @@ the whole output. Decomposition applies once at the annotated boundary and does
 not recursively flatten product-valued components. Ordinary patterns with no
 outputs remain supported and are unrelated to zero-component products.
 
-### Named product patterns
+### Evaluation order
 
-Named component matching uses `Pattern(.member is subpattern, ...)`. The
-leading `.` selects a member of the output, as in member adapters, and `is`
-matches the member against the sub-pattern, as in `is` expressions. The
-sub-pattern is a full pattern that extends to the next comma or closing
-parenthesis, so `Point(.x is Positive & a)` needs no parentheses.
+When the extractor succeeds, the sub-patterns are tested from left to right,
+stopping at the first failure, as in other patterns.
 
-When a component only binds a variable of the same name, `is subpattern` may be
-omitted: `.x` is shorthand for `.x is x` and follows the rules of the variable
-pattern `x`.
-
-Named component matching obeys the following rules:
-
-- The applied pattern must be annotated with `@product`. Named components on an
-  unannotated pattern are an error.
-- At least one named selection is required. Empty selections are errors.
-  `Pattern()` is not a valid component match for an annotated pattern.
-- All arguments must be named components. Mixing positional and named arguments
-  is an error.
-- Each member name may occur at most once. Duplicate selections are errors,
-  regardless of the sub-patterns or bindings used.
-- Each selected member must qualify as a [component member](#component-members).
-  A missing or inaccessible member is an error.
-
-Named matching selects a subset of members. Unmentioned members are neither
-read nor matched. It does not use positional arity and requires no correspondence
-between a named member and `_1`, `_2`, etc.
-
-```jo
-case Point(.x is Positive & x) => ...  // Selects only x. Does not read y.
-case Point(.y is b, .x is a) => ...    // Tests b, then a.
-case Point(.x, .y) => ...              // Binds x and y.
-case Point(.x is 0, .y) => ...         // Tests x, then binds y.
-case Point(.x is a, b) => ...          // Error: mixed named and positional arguments.
-case Point(.x is a, .x is b) => ...    // Error: duplicate member selection.
-case Point(.z is a) => ...             // Error: Point has no member z.
-```
-
-The `=` form, `Point(x = pat)`, is deliberately not used. Inside patterns,
-`then x = e` assigns to the name on the left, while a member selection reads
-from it; and in calls, `f(x = e)` names a parameter of `f`, not a member of its
-result. Keeping `name = ...` free leaves room for naming pattern parameters in
-the future.
+The language does not specify when projections are read. An implementation may
+read all projections before testing any sub-pattern, interleave reads with
+tests, or skip reads after a sub-pattern fails. Programs must not depend on the
+order or number of projection reads. This follows from the stability convention
+above.
 
 ### Exhaustiveness and reachability
 
-Positional product patterns and named product patterns are unified as
-`ProductPattern` during elaboration, thus handled the same way.
-
-For exhaustivity and reachability checking, the specification follows the
-intuitive pattern matching semantics, assuming stable component members. We do
-not specify the algorithm here to reserve room for flexible implementation.
+A product pattern is checked like an applied pattern whose arguments are its
+components. For exhaustivity and reachability checking, the specification
+follows the intuitive pattern matching semantics, assuming stable projections.
+We do not specify the algorithm here to reserve room for flexible
+implementation.
 
 The rules for irrefutable pattern definitions do not change. An irrefutable
 pattern definition should be exhaustive for its declared input type. If
@@ -411,6 +360,57 @@ The following breaking change is intentional:
   members.
 
 The compatibility cost above is accepted as part of adopting the product protocol.
+
+## Future extension: named component patterns
+
+::: info Not part of this proposal
+This section sketches a direction compatible with the product protocol. It is
+not normative, and its details are left to a future proposal.
+:::
+
+A named component pattern matches members of the scrutinee by name:
+
+```jo
+{ .member is subpattern, ... }
+```
+
+It is a standalone pattern rather than an argument form of an applied pattern,
+so it can appear wherever a pattern can:
+
+```jo
+match shape
+case { .x, .y }: Point => ...
+
+val { .x, .y } = point
+
+if point is Some({ .x, .y }) then ...
+```
+
+Members are resolved on the static type of the scrutinee at that position. In
+`{ .x, .y }: Point`, the type test refines the scrutinee to `Point` first. This
+form extends the type pattern from `name: type` to `{ ... }: type`. In
+`Some({ .x, .y })`, the members are resolved on the component type of `Some`.
+Because member selection does not depend on a pattern definition, no `@product`
+annotation is needed: any scrutinee type with qualifying members can be matched.
+
+The leading `.` selects a member, as in member adapters, and `is` matches the
+member against a sub-pattern, as in `is` expressions. When a component only
+binds a variable of the same name, `is subpattern` may be omitted: `.x` is
+shorthand for `.x is x`.
+
+```jo
+case { .x is Positive & x } => ...  // Selects only x. Does not read y.
+case { .y is b, .x is a } => ...    // Tests b, then a.
+case { .x is 0, .y } => ...         // Tests x, then binds y.
+```
+
+The rules for projections carry over: selected members must be accessible
+fields or parameterless methods without method type parameters or context
+requirements, and are expected to be stable. Unmentioned members are not read.
+
+The form `Point(x = pat)` is deliberately avoided. Inside patterns, `then x = e`
+assigns to the name on the left, while a member selection reads from it. In
+calls, `f(x = e)` names a parameter of `f`, not a member of its result.
 
 ## Related documentation
 
