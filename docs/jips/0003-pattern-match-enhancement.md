@@ -72,10 +72,11 @@ A direct field read, `p.x`, needs none of this intermediate storage.
 This proposal consists of three parts:
 
 1. **Product pattern protocol.** `@product` enables positional component
-   matching. Elaboration inserts a typed product-pattern node for the
-   sub-patterns.
-2. **Class desugaring.** Classes with class parameters synthesize positional
-   projection methods and an annotated pattern exposing the original object.
+   matching on an output of class type. The components are the fields named by
+   the class constructor's parameters. Elaboration inserts a typed
+   product-pattern node for the sub-patterns.
+2. **Class desugaring.** Classes with class parameters synthesize an annotated
+   pattern exposing the original object.
 3. **Compiler translation.** Pattern definitions become functions with typed
    results. Translation eliminates all patterns into calls, assignments, and
    control flow.
@@ -84,8 +85,9 @@ The product pattern protocol is user-visible. Class desugaring plays into the pr
 automatically, while the generated functions and return representations are
 compiler implementation details.
 
-Matching components by member name is a natural companion to the protocol, but
-it is delayed as a [future extension](#future-extension-named-component-patterns).
+Positional product patterns are intended for the simple and common case. Matching
+components by member name serves the complex cases better, and it is delayed as a
+[future extension](#future-extension-named-component-patterns).
 
 ## Elaboration: product pattern protocol
 
@@ -104,51 +106,80 @@ components are matched positionally:
 case Point pat1 pat2 => ...
 ```
 
-Elaboration resolves the projections on the successful output type and inserts
-an internal product-pattern node:
+Elaboration resolves the components on the output type and inserts an internal
+product-pattern node:
 
 ```text
-ApplyPattern(Point, ProductPattern([(_1, pat1), (_2, pat2)]))
+ApplyPattern(Point, ProductPattern([(x, pat1), (y, pat2)]))
 ```
 
 This applies to both irrefutable and refutable patterns. Binding names are
-arbitrary: `Point a b` reads `_1` and `_2`.
+arbitrary: `Point a b` reads the fields `x` and `y`.
 
-### Projections
+### Components
 
-A projection must be a field or a parameterless method:
+The output type of a `@product` pattern must be a class type, possibly applied
+to type arguments, as in `Box[Point]`. Union types, interface types, and type
+parameters are errors.
 
-- It must have no method type parameters.
-- It must have no context parameter requirements, explicit or inferred.
+The components are determined by the class constructor:
 
-Each projection must resolve to an accessible member on the successful output
-type under ordinary member-access rules. Projections supplied through views
-qualify under the same rules as direct members. These restrictions are
-intentionally strict initially.
+- The arity is the number of constructor parameters.
+- The component names are the constructor parameter names, in declaration order.
+- For each constructor parameter, the class must have a field with the same
+  name. Methods, including parameterless methods and members supplied through
+  views, do not qualify.
 
-Each sub-pattern is checked against the corresponding field's type or method's
-result type.
+Zero-component products are unsupported: the class constructor must have at
+least one parameter.
 
-By convention, projections are **stable**: reading a projection has no
-observable side effects, and reading it again during a match yields the same
-value. This is the same convention that other languages with extensible pattern
-matching adopt. The compiler does not check it. Exhaustiveness and reachability
-checking assume it, so a match that is statically exhaustive can fail at run
-time if a projection breaks the convention.
+Each field must be accessible at the pattern definition, under ordinary
+member-access rules. As with an ordinary pattern that reads fields in its body,
+the pattern author decides what to expose.
+
+These rules depend only on the declared output type, so they are checked at the
+`@product` pattern definition, not where the pattern is applied. The use site
+checks the [arity](#arity), and checks each sub-pattern against the type of the
+corresponding field, with the class type arguments substituted.
+
+A class with class parameters satisfies these rules automatically, because class
+parameters desugar to a constructor and fields of the same names. A class with an
+explicit constructor plays into the protocol by declaring fields named after the
+constructor parameters:
+
+```jo
+class Temperature
+  val celsius: Float
+
+  def Temperature(celsius: Float): Temperature =
+    this.celsius = celsius
+
+@product
+pattern Temp(t: Temperature): Temperature = case t
+
+match temperature
+case Temp c => ...  // Reads the field celsius.
+```
+
+A class whose fields are named differently from its constructor parameters does
+not qualify:
+
+```jo
+class Rectangle
+  val w: Int
+  val h: Int
+
+  def Rectangle(width: Int, height: Int): Rectangle =
+    this.w = width
+    this.h = height
+
+@product
+pattern Rect(r: Rectangle): Rectangle = case r  // Error: Rectangle has no field width.
+```
 
 ### Arity
 
-Arity is determined by the consecutive projection methods
-`_1`, `_2`, and so on, starting at `_1` and stopping at the first gap:
-
-| Projection methods present | Product arity |
-|---|---|
-| `_1`, `_2` | 2 |
-| `_1`, `_3` | 1 |
-| `_2` without `_1` | Positional matching unsupported |
-
-Positional matching requires at least `_1`. Zero-component products are
-unsupported. The number of sub-patterns must match the product arity.
+The number of sub-patterns must match the product arity.
 
 `@product` requires component matching and disallows matching its whole output.
 There is no fallback to ordinary output binding:
@@ -158,29 +189,30 @@ case Point x y => ...  // Matches the two components.
 case Point p => ...    // Error: two component patterns required.
 ```
 
-For an annotated one-component pattern `Box`, `case Box x` matches `_1`, never
-the whole output. Decomposition applies once at the annotated boundary and does
-not recursively flatten product-valued components. Ordinary patterns with no
-outputs remain supported and are unrelated to zero-component products.
+For an annotated one-component pattern `Box`, `case Box x` matches the single
+field, never the whole output. Decomposition applies once at the annotated
+boundary and does not recursively flatten product-valued components. Ordinary
+patterns with no outputs remain supported and are unrelated to zero-component
+products.
 
 ### Evaluation order
 
 When the extractor succeeds, the sub-patterns are tested from left to right,
 stopping at the first failure, as in other patterns.
 
-The language does not specify when projections are read. An implementation may
-read all projections before testing any sub-pattern, interleave reads with
-tests, or skip reads after a sub-pattern fails. Programs must not depend on the
-order or number of projection reads. This follows from the stability convention
-above.
+The language does not specify when component fields are read. An implementation
+may read all fields before testing any sub-pattern, interleave reads with tests,
+or skip reads after a sub-pattern fails. Reading a field has no side effects, so
+the difference is observable only if a sub-pattern mutates a `var` field of the
+object being matched. Programs must not depend on it.
 
 ### Exhaustiveness and reachability
 
 A product pattern is checked like an applied pattern whose arguments are its
 components. For exhaustivity and reachability checking, the specification
-follows the intuitive pattern matching semantics, assuming stable projections.
-We do not specify the algorithm here to reserve room for flexible
-implementation.
+follows the intuitive pattern matching semantics, assuming component fields are
+not mutated during the match. We do not specify the algorithm here to reserve
+room for flexible implementation.
 
 The rules for irrefutable pattern definitions do not change. An irrefutable
 pattern definition should be exhaustive for its declared input type. If
@@ -194,10 +226,14 @@ A class with class parameters supplies the product protocol automatically:
 ```jo
 class Point(x: Int, y: Int)
 
-// Desugars to (showing the product-related additions):
-class Point(x: Int, y: Int)
-  def _1: Int = this.x
-  def _2: Int = this.y
+// Desugars to (showing the pattern-related parts):
+class Point
+  val x: Int
+  val y: Int
+
+  def Point(x: Int, y: Int): Point =
+    this.x = x
+    this.y = y
 
 @product
 pattern Point(p: Point): Point = case p
@@ -211,32 +247,21 @@ pattern Point(x: Int, y: Int): Point =
 ```
 
 The new pattern exposes the original object as its single output. `@product`
-preserves component matching at call sites such as `case Point x y`.
+preserves component matching at call sites such as `case Point x y`. No members
+are added to the class.
 
-For a generic class, the projections use the class type parameters, and the
-synthesized pattern takes the same type parameters:
+For a generic class, the synthesized pattern takes the class type parameters:
 
 ```jo
 class Pair[A, B](first: A, second: B)
 
-// Desugars to (showing the product-related additions):
-class Pair[A, B](first: A, second: B)
-  def _1: A = this.first
-  def _2: B = this.second
-
+// Synthesizes:
 @product
 pattern Pair[A, B](p: Pair[A, B]): Pair[A, B] = case p
 ```
 
-Projection methods are synthesized unconditionally in class-parameter declaration order,
-including when a user-defined pattern replaces the generated pattern.
-This keeps projection types and order fixed by the class declaration.
-
-Synthesized projections participate in the existing
-[member uniqueness check](../language/definitions/class-definitions.md#member-uniqueness).
-Conflicts with direct members, synthetic view forwarders, or concrete methods
-inherited through views therefore produce errors under that rule. Synthesis
-does not skip or replace conflicting members.
+A user-defined pattern with the same name as the class still replaces the
+synthesized pattern.
 
 ## Pattern translation
 
@@ -298,8 +323,8 @@ The call site in `first` from the motivation translates schematically to:
 ```jo
 def first(p: Point): Int =
   val result = Point$impl(p)
-  val x = result._1
-  val y = result._2
+  val x = result.x
+  val y = result.y
   x
 ```
 
@@ -321,8 +346,8 @@ def sum(pair: Pair[Int, Int]): Int =
 // Translates schematically to
 def sum(pair: Pair[Int, Int]): Int =
   val result = Pair$impl[Int, Int](pair)
-  val a = result._1
-  val b = result._2
+  val a = result.first
+  val b = result.second
   a + b
 ```
 
@@ -339,28 +364,28 @@ annotation. Rejected because it is ambiguous with ordinary single-output
 patterns: `case Name n` could mean either binding the whole output or matching
 its first component. `@product` makes the intent explicit at the definition.
 
-**Name positional projections after class parameters.** Positional matching
-needs an order on the members of the output type. Class-parameter names carry
-no position once a pattern is decoupled from the class, as in
-`@product pattern Position(p: Point): Box[Point]`, and classes without class
-parameters have no parameter list at all. The `_1`, `_2` convention supplies the
-order uniformly and lets any class play into the protocol by defining projection
-methods.
+**Positional projection methods `_1`, `_2`, ...** Classes would synthesize
+projection methods, and any type defining them could be matched positionally,
+including interfaces. Rejected because positional matching does not scale and is
+brittle. A positional API decoupled from the constructor can silently drift from
+it, and hand-written projections on types without a constructor lead to code
+that is hard to understand. Tying components to the constructor keeps matching the mirror
+image of construction: `Point(3, 4)` and `case Point x y` change together, and
+the compiler reports both. Complex cases are better served by named component
+patterns, which are more stable as code evolves.
 
-Defining `_1`, `_2` by hand in a class without class parameters may be obscure,
-and is arguably poor style. But positional matching for classes with class
-parameters needs some order-carrying convention, and this proposal finds no
-alternative to such a convention.
+**Allow methods as components.** Parameterless methods could serve as
+components alongside fields. Rejected to keep the simple case simple. Methods
+may have side effects, context parameter requirements, or type parameters, and
+each would need its own rule. Fields have none of these concerns.
 
 ## Compatibility
 
-The following breaking changes are intentional:
+The following breaking change is intentional:
 
-- Synthesized positional projection names `_1, _2, ...` can conflict with existing class
-  members.
 - The SAST format gains a product pattern node.
 
-The compatibility costs above are accepted as part of adopting the product protocol.
+The compatibility cost above is accepted as part of adopting the product protocol.
 
 ## Future extension: named component patterns
 
@@ -393,7 +418,8 @@ Members are resolved on the static type of the scrutinee at that position. In
 form extends the type pattern from `name: type` to `{ ... }: type`. In
 `Some({ .x, .y })`, the members are resolved on the component type of `Some`.
 Because member selection does not depend on a pattern definition, no `@product`
-annotation is needed: any scrutinee type with qualifying members can be matched.
+annotation is needed: any scrutinee type with qualifying members can be matched,
+including interface types and classes whose fields do not mirror the constructor.
 
 The two features stay separate. A pattern marked with `@product` only accepts
 positional component patterns. Nothing is lost: to match members by name, users
@@ -415,9 +441,8 @@ case { .y is b, .x is a } => ...    // Tests b, then a.
 case { .x is 0, .y } => ...         // Tests x, then binds y.
 ```
 
-The rules for projections carry over: selected members must be accessible
-fields or parameterless methods without method type parameters or context
-requirements, and are expected to be stable. Unmentioned members are not read.
+Selected members may be fields or parameterless methods. Unmentioned members are
+not read.
 
 The form `Point(x = pat)` is deliberately avoided. Inside patterns, `then x = e`
 assigns to the name on the left, while a member selection reads from it. In
