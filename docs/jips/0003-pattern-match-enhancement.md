@@ -198,79 +198,18 @@ case Point(z = a) => ...            // Error: Point has no member z.
 
 ### Exhaustiveness and reachability
 
+**Missing Partial[T] now is an error**.
 An irrefutable pattern definition must be exhaustive for its declared input type.
 If exhaustiveness checking finds an incomplete definition without `Partial`, the
 compiler issues an error instead of the current warning. The author must make the
-definition exhaustive or declare `Partial[T]`. This applies regardless of the
-number of outputs and ensures that irrefutable implementations need no failure
-representation.
+definition exhaustive or declare `Partial[T]`.
 
-For coverage checking, `ProductPattern` is a special apply pattern: its input is
-the successful output type of the enclosing extractor, and its arguments are the
-selected component sub-patterns. Its projections always supply component values
-when they return normally; only the component sub-patterns can reject those
-values. An irrefutable extractor does not by itself make the complete application
-irrefutable.
+Positional product patterns and named product patterns are unified as
+`ProductPattern` during elaboration, thus handled the same way.
 
-The checker represents a product shape by its instantiated output type and
-ordered list of resolved projection members. Each argument space is obtained by
-checking the corresponding sub-pattern against the projection's result type.
-For the same shape, use the ordinary apply-pattern rules for component-wise
-space subtraction and disjointness. A product space is empty if any component
-space is empty. It covers the entire output type if every selected component
-covers its corresponding type. Unselected members impose no restriction.
-
-The following rules apply to the enclosing annotated pattern application:
-
-- The input type test retains its existing coverage behavior. Coverage of the
-  extractor's input type does not cover other branches of a wider scrutinee type.
-- For an irrefutable extractor, the nested product space determines component
-  coverage. Applications of the same extractor, with the same instantiated types
-  and product shape, can collectively cover that shape using the ordinary
-  apply-pattern rules.
-- For a `Partial` extractor, retain the existing conservative partial-pattern
-  treatment. Covering every possible successful output does not establish that
-  the extractor succeeds for every input.
-- Guards, refutable nested extractors, Boolean pattern composition, and bindings
-  retain their existing coverage rules. Product expansion does not make an
-  unknown guard or a partial component test exhaustive.
-
-Named and positional syntax have the same coverage meaning when they resolve to
-the same ordered members. For example, `Point(a, b)` and
-`Point(_1 = a, _2 = b)` have the same product shape. The checker does not infer
-that `x` and `_1` are equivalent by inspecting their implementations. Different
-member selections or orders are compared conservatively using output-type
-coverage; component-wise subtraction requires the same shape. In particular, a
-named subset with irrefutable sub-patterns still covers the whole output type.
-
-```jo
-class Flag(value: Bool)
-
-match flag: Flag
-case Flag(value = true) => ...
-case Flag(value = false) => ...  // Exhaustive: both values of the component.
-
-match flag: Flag
-case Flag(value = true) => ...  // Non-exhaustive: false is missing.
-
-match flag: Flag
-case Flag(value = _) => ...
-case Flag(value = true) => ...  // Unreachable: the preceding case covers Flag.
-```
-
-Exhaustiveness and reachability diagnostics use the existing sequential process:
-start with the scrutinee's type space, diagnose a case disjoint from the remaining
-space as unreachable, and subtract each case's coverage. A nonempty remainder
-produces the existing non-exhaustive-match diagnostic. In a pattern definition
-without `Partial`, incomplete coverage is an error as specified below. These
-rules apply in all existing pattern contexts, including pattern value definitions
-and `is` expressions where coverage information is used.
-
-As with ordinary apply patterns, this analysis reasons about declared types and
-component spaces, not arbitrary method bodies. It does not prove correlations
-between components or stability of repeated projection calls. Coverage results
-do not authorize caching, reordering, or omitting projection calls or case tests;
-translation must preserve the specified evaluation order and effects.
+For exhaustivity and reachability checking, the specification follows the
+intuitive pattern matching semantics.  We do not specify the algorithm here to
+reserve room for flexible implementation.
 
 ## Class desugaring
 
