@@ -10,7 +10,7 @@ title: Pattern match enhancement
 <JipMeta />
 
 Pattern matching is one of the most powerful features of Jo. This proposal
-extends pattern matching with a product pattern protocol. The protocol lets the
+extends pattern matching with a deconstruction protocol. The protocol lets the
 compiler translate pattern matches efficiently, and lets users write pattern
 definitions that follow the same protocol to avoid unnecessary allocation.
 
@@ -71,56 +71,102 @@ A direct field read, `p.x`, needs none of this intermediate storage.
 
 This proposal consists of three parts:
 
-1. **Product pattern protocol.** `@product` enables positional component
-   matching on an output of class type. The components are the fields named by
-   the class constructor's parameters. Elaboration inserts a typed
-   product-pattern node for the sub-patterns.
+1. **Deconstruction protocol.** `@deconstruct` enables positional deconstruction
+   of an output of class type. The components are the fields named by the class
+   constructor's parameters. Elaboration turns the sub-patterns into a member
+   pattern.
 2. **Class desugaring.** Classes with class parameters synthesize an annotated
    pattern exposing the original object.
 3. **Compiler translation.** Pattern definitions become functions with typed
    results. Translation eliminates all patterns into calls, assignments, and
    control flow.
 
-The product pattern protocol is user-visible. Class desugaring participates in the protocol
-automatically, while the generated functions and return representations are
-compiler implementation details.
+The deconstruction protocol is user-visible. Class desugaring participates in
+the protocol automatically, while the generated functions and return
+representations are compiler implementation details.
 
-Positional product patterns are intended for the simple and common case. Matching
-components by member name serves the complex cases better, and it is delayed as a
-[future extension](#future-extension-named-component-patterns).
+The proposal separates surface syntax from semantics. Semantically, a
+deconstruction is a [member pattern](#semantics-member-patterns): it selects
+members of a value by name and matches each against a sub-pattern. On the
+surface, positional deconstruction is the only form in this proposal, and its
+member names come from the class constructor. Named deconstruction elaborates to
+the same member patterns, and it is delayed as a
+[future extension](#future-extension-named-deconstruction).
 
-## Elaboration: product pattern protocol
+## Semantics: member patterns
 
-A pattern opts into product expansion with `@product`:
+A member pattern is an internal, elaborated pattern:
+
+```text
+MemberPattern([(member1, pat1), ..., (memberN, patN)])
+```
+
+It matches a value by selecting the listed members of that value and matching
+each member against the corresponding sub-pattern. The member names are
+distinct, and there is at least one of them. The type of each sub-pattern is
+the type of the selected member, with the type arguments of the value's type
+substituted. In this proposal, member patterns only arise from positional
+deconstruction, so every selected member is a field.
+
+### Evaluation order
+
+The sub-patterns are tested from left to right, stopping at the first failure,
+as in other patterns.
+
+The language does not specify when member fields are read. An implementation
+may read all fields before testing any sub-pattern, interleave reads with tests,
+or skip reads after a sub-pattern fails. Reading a field has no side effects, so
+the difference is observable only if a sub-pattern mutates a `var` field of the
+object being matched. Programs must not depend on it.
+
+### Exhaustiveness and reachability
+
+A member pattern is checked like an applied pattern whose arguments are the
+selected members. For exhaustivity and reachability checking, the specification
+follows the intuitive pattern matching semantics, assuming member fields are
+not mutated during the match. We do not specify the algorithm here to reserve
+room for flexible implementation.
+
+The rules for irrefutable pattern definitions do not change. An irrefutable
+pattern definition should be exhaustive for its declared input type. If
+exhaustiveness checking finds an incomplete definition without `Partial`, the
+compiler issues a warning. An irrefutable pattern that fails at run time aborts.
+
+## Surface syntax: positional deconstruction
+
+A pattern opts into deconstruction with `@deconstruct`:
 
 ```jo
-@product
+@deconstruct
 pattern Point(p: Point): Point = case p
 ```
 
-A pattern definition annotated with `@product` must have exactly one output.
-The annotation identifies the pattern's single output as a product whose
-components are matched positionally:
+A pattern definition annotated with `@deconstruct` must have exactly one output.
+At use sites, the output is deconstructed into its components, which are
+matched positionally:
 
 ```jo
 case Point pat1 pat2 => ...
 ```
 
-Elaboration resolves the components on the output type and inserts an internal
-product-pattern node:
+Elaboration resolves the component names on the output type and produces a
+member pattern on the output:
 
 ```text
-ApplyPattern(Point, ProductPattern([(x, pat1), (y, pat2)]))
+ApplyPattern(Point, MemberPattern([(x, pat1), (y, pat2)]))
 ```
 
-This applies to both irrefutable and refutable patterns. Binding names are
-arbitrary: `Point a b` reads the fields `x` and `y`.
+Binding names are arbitrary: `Point a b` reads the fields `x` and `y`.
+
+The name reflects the rule for components. A deconstruction mirrors a
+construction: `Point(3, 4)` and `case Point x y` take the same components in the
+same order.
 
 ### Components
 
-The output type of a `@product` pattern must be a class type, possibly applied
-to type arguments, as in `Box[Point]`. Union types, interface types, and type
-parameters are errors.
+The output type of a `@deconstruct` pattern must be a class type, possibly
+applied to type arguments, as in `Box[Point]`. Union types, interface types, and
+type parameters are errors.
 
 The output type is the type of the pattern's output parameter, which may differ
 from the type being matched. The components come from the output type:
@@ -128,7 +174,7 @@ from the type being matched. The components come from the output type:
 ```jo
 class Box[T](value: T)
 
-@product
+@deconstruct
 pattern Content(p: Point): Box[Point] = case box then p = box.value
 
 match box
@@ -140,23 +186,23 @@ Here the scrutinee has type `Box[Point]`, while the components are the fields
 
 A class has exactly one constructor. The components are determined by it:
 
-- The arity is the number of constructor parameters.
+- The number of components is the number of constructor parameters.
 - The component names are the constructor parameter names, in declaration order.
 - For each constructor parameter, the class must have a field with the same
   name. Methods, including parameterless methods and members supplied through
   views, do not qualify.
 
-Zero-component products are unsupported: the class constructor must have at
-least one parameter.
+Classes whose constructor has no parameters are unsupported: the class
+constructor must have at least one parameter.
 
 Each field must be accessible at the pattern definition, under ordinary
 member-access rules. As with an ordinary pattern that reads fields in its body,
 the pattern author decides what to expose.
 
 These rules depend only on the declared output type, so they are checked at the
-`@product` pattern definition, not where the pattern is applied. The use site
-checks the [arity](#arity), and checks each sub-pattern against the type of the
-corresponding field, with the class type arguments substituted.
+`@deconstruct` pattern definition, not where the pattern is applied. The use
+site checks the [arity](#arity), and checks each sub-pattern against the type of
+the corresponding field, with the class type arguments substituted.
 
 A class with class parameters satisfies these rules automatically, because class
 parameters desugar to a constructor and fields of the same names, and class
@@ -171,7 +217,7 @@ class Temperature
   def Temperature(celsius: Float): Temperature =
     this.celsius = celsius
 
-@product
+@deconstruct
 pattern Temp(t: Temperature): Temperature = case t
 
 match temperature
@@ -190,16 +236,15 @@ class Rectangle
     this.w = width
     this.h = height
 
-@product
+@deconstruct
 pattern Rect(r: Rectangle): Rectangle = case r  // Error: Rectangle has no field width.
 ```
 
 ### Arity
 
-The number of sub-patterns must match the product arity.
+The number of sub-patterns must match the number of components.
 
-`@product` requires component matching and disallows matching its whole output.
-There is no fallback to ordinary output binding:
+`@deconstruct` requires deconstruction and disallows matching its output as a single value:
 
 ```jo
 case Point x y => ...  // Matches the two components.
@@ -207,38 +252,37 @@ case Point p => ...    // Error: two component patterns required.
 ```
 
 For an annotated one-component pattern `Box`, `case Box x` matches the single
-field, never the whole output. Decomposition applies once at the annotated
-boundary and does not recursively flatten product-valued components. Ordinary
-patterns with no outputs remain supported and are unrelated to zero-component
-products.
+field, never the output as a single value. Deconstruction applies once at the annotated
+boundary and does not recursively deconstruct components. Ordinary patterns
+with no outputs remain supported and are unrelated to classes without
+components.
 
-### Evaluation order
+### Refutable deconstruction
 
-When the extractor succeeds, the sub-patterns are tested from left to right,
-stopping at the first failure, as in other patterns.
+Both irrefutable and refutable patterns may be annotated. A refutable
+deconstructing pattern names a refinement once and deconstructs the refined
+value in the same step:
 
-The language does not specify when component fields are read. An implementation
-may read all fields before testing any sub-pattern, interleave reads with tests,
-or skip reads after a sub-pattern fails. Reading a field has no side effects, so
-the difference is observable only if a sub-pattern mutates a `var` field of the
-object being matched. Programs must not depend on it.
+```jo
+@deconstruct
+pattern PositivePoint(p: Point): Partial[Point] = case p if p.x > 0 && p.y > 0
 
-### Exhaustiveness and reachability
+match p
+case PositivePoint x y => ...
+case Point x y => ...
+```
 
-A product pattern is checked like an applied pattern whose arguments are its
-components. For exhaustivity and reachability checking, the specification
-follows the intuitive pattern matching semantics, assuming component fields are
-not mutated during the match. We do not specify the algorithm here to reserve
-room for flexible implementation.
-
-The rules for irrefutable pattern definitions do not change. An irrefutable
-pattern definition should be exhaustive for its declared input type. If
-exhaustiveness checking finds an incomplete definition without `Partial`, the
-compiler issues a warning. An irrefutable pattern that fails at run time aborts.
+Without it, the condition is either repeated as a guard at every use site, as
+in `case Point x y if x > 0 && y > 0`, or written as an ordinary pattern whose
+output is deconstructed in a second step. Whether an extractor can fail is
+independent of how its output is deconstructed. Restricting the annotation to
+irrefutable patterns would couple the two properties without gain, because the
+translation handles the refutable case through `Option[T]`.
 
 ## Class desugaring
 
-A class with class parameters supplies the product protocol automatically:
+A class with class parameters supplies the deconstruction protocol
+automatically:
 
 ```jo
 class Point(x: Int, y: Int)
@@ -252,7 +296,7 @@ class Point
     this.x = x
     this.y = y
 
-@product
+@deconstruct
 pattern Point(p: Point): Point = case p
 ```
 
@@ -263,12 +307,12 @@ pattern Point(x: Int, y: Int): Point =
   case p then x = p.x, y = p.y
 ```
 
-The new pattern exposes the original object as its single output. `@product`
-preserves component matching at call sites such as `case Point x y`. No members
-are added to the class.
+The new pattern exposes the original object as its single output.
+`@deconstruct` preserves positional matching at call sites such as
+`case Point x y`. No members are added to the class.
 
 A class with an empty class parameter list, such as `class Unit()`, has no
-components. Its synthesized pattern is not annotated with `@product`.
+components. Its synthesized pattern is not annotated with `@deconstruct`.
 
 For a generic class, the synthesized pattern takes the class type parameters:
 
@@ -276,7 +320,7 @@ For a generic class, the synthesized pattern takes the class type parameters:
 class Pair[A, B](first: A, second: B)
 
 // Synthesizes:
-@product
+@deconstruct
 pattern Pair[A, B](p: Pair[A, B]): Pair[A, B] = case p
 ```
 
@@ -295,7 +339,8 @@ The concrete details can change without notice.
 
 Pattern translation operates on the elaborated patterns.
 It eliminates pattern definitions and their uses: definitions become
-functions, and elaborated matches become calls, assignments, and control flow.
+functions, and elaborated matches, including member patterns, become calls,
+assignments, and control flow.
 
 Pattern definitions now follow the scheme below:
 
@@ -324,7 +369,7 @@ so `Array[Any] | None` is valid. An arbitrary output type `T` may be an interfac
 or a type parameter, so `T | None` is not valid in general.
 
 Irrefutable pattern functions have no failure value. If an irrefutable pattern
-fails at run time, its function aborts.
+fails at run time, the program aborts.
 
 ::: info Language runtime optimization
 We expect highly-optimized language runtimes can effectively optimize away the
@@ -332,10 +377,11 @@ allocation of containers for multiple outputs and refutable single output,
 e.g., based on inlining and escape analysis.
 :::
 
-Irrefutable product patterns do not allocate any container in the translation:
+Irrefutable deconstructing patterns do not allocate any container in the
+translation:
 
 ```jo
-@product
+@deconstruct
 pattern Point(p: Point): Point = case p
 
 // Translates to
@@ -356,7 +402,7 @@ Generic classes translate the same way, with type arguments passed to the
 pattern function:
 
 ```jo
-@product
+@deconstruct
 pattern Pair[A, B](p: Pair[A, B]): Pair[A, B] = case p
 
 // Translates to
@@ -375,20 +421,19 @@ def sum(pair: Pair[Int, Int]): Int =
   a + b
 ```
 
-A refutable product pattern has a single output, so its function returns
+A refutable deconstructing pattern has a single output, so its function returns
 `Option[T]`. On success it allocates one `Some` to wrap the output, and the call
 site reads the fields from the wrapped value. This replaces the `Array[Any]` of
 the previous lowering and avoids boxing the components, but it is not free of
 allocation:
 
 ```jo
-@product
-pattern PositiveContent(p: Point): Partial[Box[Point]] =
-  case box if box.value.x > 0 then p = box.value
+@deconstruct
+pattern PositivePoint(p: Point): Partial[Point] = case p if p.x > 0 && p.y > 0
 
 // Translates schematically to
-def PositiveContent$impl(box: Box[Point]): Option[Point] =
-  if box.value.x > 0 then Some(box.value) else None
+def PositivePoint$impl(p: Point): Option[Point] =
+  if p.x > 0 && p.y > 0 then Some(p) else None
 ```
 
 Removing this allocation is left to the runtime, as described above.
@@ -401,10 +446,17 @@ user-visible protocol. Rejected because it would give synthesized patterns
 behavior that no user-written pattern definition can express, while patterns form
 a name universe populated only by pattern definitions.
 
-**Treat every single-output pattern as a product.** This would avoid the
+**Treat every single-output pattern as deconstructing.** This would avoid the
 annotation. Rejected because it is ambiguous with ordinary single-output
-patterns: `case Name n` could mean either binding the whole output or matching
-its first component. `@product` makes the intent explicit at the definition.
+patterns: `case Name n` could mean either binding the output as a single value or matching
+its first component. `@deconstruct` makes the intent explicit at the definition.
+
+**Other annotation names.** `@product` suggests tuple-like projections, which
+this proposal does not use. `@member` names the elaborated member pattern, but
+reads like a class member and says nothing about positional matching.
+`@positional` does not distinguish the annotation from ordinary patterns, whose
+outputs are also positional. `@deconstruct` states that the use site takes the
+output apart, and that it does so by mirroring the constructor.
 
 **Positional projection methods `_1`, `_2`, ...** Classes would synthesize
 projection methods, and any type defining them could be matched positionally,
@@ -413,8 +465,8 @@ brittle. A positional API decoupled from the constructor can silently drift from
 it, and hand-written projections on types without a constructor lead to code
 that is hard to understand. Tying components to the constructor keeps matching the mirror
 image of construction: `Point(3, 4)` and `case Point x y` change together, and
-the compiler reports both. Complex cases are better served by named component
-patterns, which are more stable as code evolves.
+the compiler reports both. Complex cases are better served by named
+deconstruction, which is more stable as code evolves.
 
 **Allow methods as components.** Parameterless methods could serve as
 components alongside fields. Rejected to keep the simple case simple. Methods
@@ -425,55 +477,27 @@ each would need its own rule. Fields have none of these concerns.
 
 The following breaking changes are intentional:
 
-- The SAST format gains a product pattern node.
+- The SAST format gains a member pattern node.
 - The pattern synthesized for a class with class parameters changes signature.
   `pattern Point(x: Int, y: Int): Point` becomes
-  `@product pattern Point(p: Point): Point`. Call sites such as `case Point x y`
-  keep their meaning.
+  `@deconstruct pattern Point(p: Point): Point`. Call sites such as
+  `case Point x y` keep their meaning.
 
-These costs are accepted as part of adopting the product protocol.
+These costs are accepted as part of adopting the deconstruction protocol.
 
-## Future extension: named component patterns
+## Future extension: named deconstruction
 
 ::: info Not part of this proposal
 This section is not normative, and its details are left to a future proposal.
-It is included to show that the product protocol does not block the extension,
-and that the protocol anticipates it.
+It is included to show that the deconstruction protocol does not block the
+extension, and that the protocol anticipates it.
 :::
 
-A named component pattern matches members of the scrutinee by name:
+Named deconstruction selects members of the output by name, through the same
+`@deconstruct` pattern that enables positional deconstruction:
 
 ```jo
-{ .member is subpattern, ... }
-```
-
-It is a standalone pattern rather than an argument form of an applied pattern,
-so it can appear wherever a pattern can:
-
-```jo
-match shape
-case { .x, .y }: Point => ...
-
-val { .x, .y } = point
-
-if point is Some({ .x, .y }) then ...
-```
-
-Members are resolved on the static type of the scrutinee at that position. In
-`{ .x, .y }: Point`, the type test refines the scrutinee to `Point` first. This
-form extends the type pattern from `name: type` to `{ ... }: type`. In
-`Some({ .x, .y })`, the members are resolved on the component type of `Some`.
-Because member selection does not depend on a pattern definition, no `@product`
-annotation is needed: any scrutinee type with qualifying members can be matched,
-including interface types and classes whose fields do not mirror the constructor.
-
-The two features stay separate. A pattern marked with `@product` only accepts
-positional component patterns. Nothing is lost: to match members by name, users
-write a typed pattern instead of applying the product pattern:
-
-```jo
-case Point x y => ...          // Positional, through @product.
-case { .x, .y }: Point => ...  // Named, through a typed pattern.
+case Point(.x is Pos, .y is Pos) => ...
 ```
 
 The leading `.` selects a member, as in member adapters, and `is` matches the
@@ -482,13 +506,38 @@ binds a variable of the same name, `is subpattern` may be omitted: `.x` is
 shorthand for `.x is x`.
 
 ```jo
-case { .x is Positive & x } => ...  // Selects only x. Does not read y.
-case { .y is b, .x is a } => ...    // Tests b, then a.
-case { .x is 0, .y } => ...         // Tests x, then binds y.
+case Point(.x is Positive & x) => ...  // Selects only x. Does not read y.
+case Point(.y is b, .x is a) => ...    // Tests b, then a.
+case Point(.x is 0, .y) => ...         // Tests x, then binds y.
 ```
 
-Selected members may be fields or parameterless methods. Unmentioned members are
-not read.
+Named deconstruction requires parentheses. Positional and named sub-patterns
+cannot be mixed in one application. Selected members may be fields or
+parameterless methods, and unmentioned members are not read.
+
+Both forms elaborate to member patterns, so the extension adds surface syntax
+without changing the semantics:
+
+```jo
+case Point x y => ...               // Positional, names from the constructor.
+case Point(.x is x, .y is y) => ... // Named, the same member pattern.
+```
+
+Named deconstruction goes through the explicit annotation for readability.
+A `@deconstruct` pattern establishes a common pattern vocabulary for use sites,
+so every deconstruction names its head, including in nested positions:
+
+```jo
+if opt is Some(Point(.x is Pos)) then ...
+```
+
+A standalone form such as `{ .x is Pos }: Point` was considered. It needs no
+pattern definition, so it composes with any type, including interfaces. It is
+not adopted because a nested `Some({ .x is Pos })` does not say what is being
+deconstructed. The cost is that types without a synthesized pattern, such as
+interfaces, need a user-written `@deconstruct` pattern. The future proposal will
+decide which output types and definition-site checks apply to named
+deconstruction.
 
 The form `Point(x = pat)` is deliberately avoided. Inside patterns, `then x = e`
 assigns to the name on the left, while a member selection reads from it. In
