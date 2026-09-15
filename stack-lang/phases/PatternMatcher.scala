@@ -243,7 +243,7 @@ class PatternMatcher(using defn: Definitions) extends Phase:
     params match
       case param :: Nil =>
         val value = Ident(param)(span)
-        if isPartial then Ident(defn.Some_fun)(span).appliedToTypes(param.info).appliedTo(value)
+        if isPartial then Ident(defn.Some_fun)(span).appliedToTypes(param.info.asType).appliedTo(value)
         else value
 
       case _ =>
@@ -251,11 +251,15 @@ class PatternMatcher(using defn: Definitions) extends Phase:
         val resultIdent = Ident(resultSym)(span)
 
         val arrayCreate = Ident(defn.Array_create)(span).appliedToTypes(AnyType).appliedTo(IntLit(params.size)(span))
+        val buf = new mutable.ArrayBuffer[Word]
+        buf += Assign(resultIdent, arrayCreate)
 
-        val assigns = params.zipWithIndex.map: (param, i) =>
-          resultIdent.select("set").appliedTo(IntLit(i)(span), Ident(param)(span)).dropValue
+        params.zipWithIndex.foreach: (param, i) =>
+          buf += resultIdent.select("set").appliedTo(IntLit(i)(span), Ident(param)(span)).dropValue
 
-        Block(Assign(resultIdent, arrayCreate) :: assigns :+ resultIdent)(span)
+        buf += resultIdent
+
+        Block(buf.toList)(span)
 
   /** The value returned by a refutable pattern function on failure */
   private def noneValue(span: Span): Word =
