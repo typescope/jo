@@ -465,8 +465,9 @@ brittle. A positional API decoupled from the constructor can silently drift from
 it, and hand-written projections on types without a constructor lead to code
 that is hard to understand. Tying components to the constructor keeps matching the mirror
 image of construction: `Point(3, 4)` and `case Point x y` change together, and
-the compiler reports both. Complex cases are better served by named
-deconstruction, which is more stable as code evolves.
+the compiler reports both. Where positional matching is brittle, named
+deconstruction is more stable as code evolves. Types that do not mirror a
+constructor are better served by ordinary pattern definitions.
 
 **Allow methods as components.** Parameterless methods could serve as
 components alongside fields. Rejected to keep the simple case simple. Methods
@@ -493,34 +494,43 @@ It is included to show that the deconstruction protocol does not block the
 extension, and that the protocol anticipates it.
 :::
 
-Named deconstruction selects members of the output by name, through the same
-`@deconstruct` pattern that enables positional deconstruction:
+Named deconstruction matches components by constructor parameter name, through
+the same `@deconstruct` pattern that enables positional deconstruction. It
+mirrors named arguments in constructor calls:
 
 ```jo
-case Point(.x is Pos, .y is Pos) => ...
+val p = Point(x = 3, y = 4)
+
+match p
+case Point(x = Pos, y = Pos) => ...
 ```
 
-The leading `.` selects a member, as in member adapters, and `is` matches the
-member against a sub-pattern, as in `is` expressions. When a component only
-binds a variable of the same name, `is subpattern` may be omitted: `.x` is
-shorthand for `.x is x`.
+`@deconstruct` expands the output into the fields named by the constructor
+parameters, and the user matches them either by position or by name. Names are
+restricted to constructor parameter names. The definition-site checks of
+positional deconstruction therefore cover named deconstruction unchanged: every
+name denotes an accessible field of the output class. Methods and other fields
+cannot be selected.
+
+Unlike a call, a named deconstruction may select any non-empty subset of the
+components, in any order. Each name appears at most once. Unmentioned fields are
+not read, and sub-patterns are tested in written order:
 
 ```jo
-case Point(.x is Positive & x) => ...  // Selects only x. Does not read y.
-case Point(.y is b, .x is a) => ...    // Tests b, then a.
-case Point(.x is 0, .y) => ...         // Tests x, then binds y.
+case Point(x = Positive & a) => ...  // Selects only x. Does not read y.
+case Point(y = b, x = a) => ...      // Tests b, then a.
 ```
 
-Named deconstruction requires parentheses. Positional and named sub-patterns
-cannot be mixed in one application. Selected members may be fields or
-parameterless methods, and unmentioned members are not read.
+Positional and named sub-patterns cannot be mixed in one application, so
+`Point(a, y = b)` is an error. Named deconstruction requires parentheses. No
+shorthand for `x = x` is proposed, as calls have none.
 
 Both forms elaborate to member patterns, so the extension adds surface syntax
 without changing the semantics:
 
 ```jo
-case Point x y => ...               // Positional, names from the constructor.
-case Point(.x is x, .y is y) => ... // Named, the same member pattern.
+case Point a b => ...            // MemberPattern([(x, a), (y, b)])
+case Point(x = a, y = b) => ...  // MemberPattern([(x, a), (y, b)])
 ```
 
 Named deconstruction goes through the explicit annotation for readability.
@@ -528,20 +538,12 @@ A `@deconstruct` pattern establishes a common pattern vocabulary for use sites,
 so every deconstruction names its head, including in nested positions:
 
 ```jo
-if opt is Some(Point(.x is Pos)) then ...
+if opt is Some(Point(x = Pos)) then ...
 ```
 
-A standalone form such as `{ .x is Pos }: Point` was considered. It needs no
-pattern definition, so it composes with any type, including interfaces. It is
-not adopted because a nested `Some({ .x is Pos })` does not say what is being
-deconstructed. The cost is that types without a synthesized pattern, such as
-interfaces, need a user-written `@deconstruct` pattern. The future proposal will
-decide which output types and definition-site checks apply to named
-deconstruction.
-
-The form `Point(x = pat)` is deliberately avoided. Inside patterns, `then x = e`
-assigns to the name on the left, while a member selection reads from it. In
-calls, `f(x = e)` names a parameter of `f`, not a member of its result.
+Named components keep matches stable as classes evolve. Reordering or adding
+constructor parameters does not affect them, and renaming a parameter is
+reported at each use, as for named arguments in calls.
 
 ## Related documentation
 
