@@ -150,9 +150,16 @@ package pickle
   */
 object Format:
   // Version information
+  //
   // Format: MAJOR.MINOR
+  //
   // - Increment MAJOR for breaking changes (incompatible format)
   // - Increment MINOR for backward-compatible changes
+  //
+  // The MAJOR version change should never happen for minor compiler releases (except pre-1.0 releases).
+  // Post-1.0 releases must ensure major-version backward compatibility.
+  //
+  // In another word, SAST major version must align compiler major version.
   final val MAJOR_VERSION: Byte = 1
   final val MINOR_VERSION: Byte = 1
 

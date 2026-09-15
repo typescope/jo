@@ -104,7 +104,7 @@ object Imports:
           rp.error(s"`$originalName` cannot be found", qualid.pos)
 
     def importAll(nameTable: NameTable): Unit =
-      def qualify(sym: Symbol) = !sym.isSynthetic & sym.visibleIn(importScope.owner)
+      def qualify(sym: Symbol) = sym.visibleIn(importScope.owner)
 
       for sym <- nameTable.terms if qualify(sym) do importSymbol(sym.name, sym)
 
