@@ -1,6 +1,6 @@
 ---
 author: Fengyun Liu
-status: Draft
+status: Rejected
 created: 2026-09-12
 title: Pattern match enhancement
 ---
@@ -8,6 +8,19 @@ title: Pattern match enhancement
 # JIP 0003 — Pattern match enhancement
 
 <JipMeta />
+
+::: info Decision
+The rationale for rejection are the following:
+
+- The first principle of engineering is simplicity.
+  This proposal is adding a new pattern shape, which complicates the pattern implementation, in particular exhaustivity check.
+
+- There are alternatives to achieve the same performance optimization goal in the motivation, e.g. pattern inlining and shortcut translation.
+  There is no evidence that the added expressivity of the proposal is useful.
+  In contrast, there is worry that they lead to readability problems in spite of the extra caution in the design to restrict its usage.
+
+Lesson: Inventing a new feature to address performance concern is a common trap in language design.
+:::
 
 Pattern matching is one of the most powerful features of Jo. This proposal
 extends pattern matching with a deconstruction protocol. The protocol lets the
