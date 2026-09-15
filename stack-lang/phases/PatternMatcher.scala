@@ -23,6 +23,11 @@ class PatternMatcher(using defn: Definitions) extends Phase:
   /** The type for holding successful matched values in a PatDef */
   val ResultArrayType = AppliedType(defn.Array_class, AnyType :: Nil)
 
+  /** The type for the failure of a refutable pattern function */
+  val NoneType = StaticRef(defn.None_class)
+
+  private def someType(tpe: Type): Type = AppliedType(defn.Some_class, tpe :: Nil)
+
   /** Extract a constant boolean result and the prefix effects needed to compute it.
     *
     * This recognizes shapes produced by pattern translation such as:
@@ -131,40 +136,29 @@ class PatternMatcher(using defn: Definitions) extends Phase:
     *
     *     pattern Foo[T](a: T, b: S): U[T] = ...
     *
-    * We transform it to
+    * We transform it to a function on the scrutinee
     *
-    *     def Foo$impl[T](scrutinee: U[T], result: Array[Any]): Boolean =
-    *       val success: Boolean = ...
+    *     def Foo$impl[T](scrutinee: U[T]): R = ...
     *
-    *       if success then
-    *         result[0] = a
-    *         result[1] = b
+    * where the result type `R` depends on the outputs of the pattern:
     *
-    *       success
+    *     | Pattern outputs  | Irrefutable returns | Refutable returns  |
+    *     |------------------|---------------------|--------------------|
+    *     | No outputs       | Bool                | Bool               |
+    *     | One output `T`   | T                   | Option[T]          |
+    *     | Multiple outputs | Array[Any]          | Array[Any] | None  |
     *
-    * The caller must allocate the size of the array correctly to hold all the
-    * result values.
-    *
-    * If the pattern does not have parameters, then there is no `result`
-    * parameter in the translation.
+    * An irrefutable pattern function aborts if the match fails at runtime.
     */
   private def createImplFunSymbol(predSym: Symbol): Symbol =
     val predType = predSym.tpe.asProcType
 
-    val needsResultArray = predType.params.nonEmpty
-
-    val scrutType = NamedInfo("scrutinee", predType.resultType.stripPartial)
-    val params =
-      if needsResultArray then
-        val resultType = NamedInfo("result", ResultArrayType)
-        scrutType :: resultType :: Nil
-      else
-        scrutType :: Nil
+    val params = NamedInfo("scrutinee", predType.resultType.stripPartial) :: Nil
 
     val autos = predType.autos
     val cands = autos.map(_ => Nil)
 
-    val resultType = defn.BoolType
+    val resultType = implResultType(predType)
 
     val funType = ProcType(predType.tparams, params, autos, cands, resultType, predType.receives, preParamCount = 0, preTypeParamCount = 0)()
     TermSymbol.create(predSym.name + "$impl", funType, Flags.Fun | Flags.Synthetic, Visibility.Default, predSym.owner, predSym.sourcePos)
@@ -178,6 +172,22 @@ class PatternMatcher(using defn: Definitions) extends Phase:
         val implSym = createImplFunSymbol(predSym)
         implMap(predSym) = implSym
         implSym
+
+  /** The result type of a pattern function, see `createImplFunSymbol` */
+  private def implResultType(predType: ProcType): Type =
+    val isPartial = predType.resultType.isPartial
+
+    predType.params match
+      case Nil =>
+        BoolType
+
+      case param :: Nil =>
+        if isPartial then UnionType(someType(param.info) :: NoneType :: Nil)
+        else param.info
+
+      case _ =>
+        if isPartial then UnionType(ResultArrayType :: NoneType :: Nil)
+        else ResultArrayType
 
   /** See the translation scheme in `createImplFunSymbol` */
   private def implementPatDef(pdef: PatDef)(using Context): FunDef =
@@ -193,44 +203,63 @@ class PatternMatcher(using defn: Definitions) extends Phase:
     val scrutIdent = Ident(scrutSym)(symSpan)
 
     // TODO: rebind pattern param symbols
-    val resultType = defn.BoolType
+    val resultType = procType.resultType
     val tpt = TypeTree(resultType)(pdef.resultType.span)
     val autos = Nil
     val cands = autos.map(_ => Nil)
 
     val patternTranslated = simplify(transformPattern(scrutIdent, pdef.body))
 
-    // If no result is needed, return early
-    if pdef.params.isEmpty then
-      val body = patternTranslated
-      return FunDef(implSym, pdef.tparams, scrutSym :: Nil, autos, cands, tpt, Effects.Policy.Infer, body)(annots = Nil, span = pdef.span)
-
-    val resultSym = TermSymbol.create("result", ResultArrayType, Flags.Param, Visibility.Default, implSym, implSym.sourcePos)
-    val resultIdent = Ident(resultSym)(symSpan)
-
-    val successSym = TermSymbol.create("success", defn.BoolType, Flags.empty, Visibility.Default, implSym, implSym.sourcePos)
-    val successIdent = Ident(successSym)(symSpan)
-
-    val params = scrutSym :: resultSym :: Nil
-
-    val endSpan = pdef.body.span.endPoint
-
-    val assigns = pdef.params.zipWithIndex.map: (param, i) =>
-      val value = Ident(param)(endSpan)
-      resultIdent.select("set").appliedTo(IntLit(i)(endSpan), value).dropValue
-
     val body =
-      splitConstBool(patternTranslated) match
-        case Some((prefix, true)) =>
-          mkBlock(prefix ++ assigns :+ BoolLit(true)(endSpan), pdef.body.span)
+      if pdef.params.isEmpty then
+        patternTranslated
 
-        case _ =>
-          val successAssign = Assign(successIdent, patternTranslated)
-          val assignBlock = mkBlock(assigns, endSpan)
-          val condAssign = If(successIdent, assignBlock, Block(Nil)(endSpan))(VoidType, endSpan)
-          mkBlock(successAssign :: condAssign :: successIdent :: Nil, pdef.body.span)
+      else
+        val span = pdef.body.span
+        val endSpan = span.endPoint
+        val isPartial = pdef.symbol.tpe.asProcType.resultType.isPartial
 
-    FunDef(implSym, pdef.tparams, params, autos, cands, tpt, Effects.Policy.Infer, body)(annots = Nil, span = pdef.span)
+        val success = successValue(pdef.params, isPartial, implSym, endSpan)
+
+        val failure =
+          if isPartial then
+            noneValue(endSpan)
+
+          else
+            val abort = Ident(abortSym)(endSpan)
+            abort.appliedTo(StringLit("Irrefutable pattern " + pdef.symbol.name + " failed")(endSpan))
+
+        splitConstBool(patternTranslated) match
+          case Some((prefix, true)) =>
+            mkBlock(prefix :+ success, span)
+
+          case _ =>
+            simplify(If(patternTranslated, success, failure)(resultType, span))
+
+    FunDef(implSym, pdef.tparams, scrutSym :: Nil, autos, cands, tpt, Effects.Policy.Infer, body)(annots = Nil, span = pdef.span)
+
+  /** The value returned by a pattern function with outputs on success */
+  private def successValue(params: List[Symbol], isPartial: Boolean, owner: Symbol, span: Span): Word =
+    params match
+      case param :: Nil =>
+        val value = Ident(param)(span)
+        if isPartial then Ident(defn.Some_fun)(span).appliedToTypes(param.info).appliedTo(value)
+        else value
+
+      case _ =>
+        val resultSym = TermSymbol.create("result", ResultArrayType, Flags.empty, Visibility.Default, owner, owner.sourcePos)
+        val resultIdent = Ident(resultSym)(span)
+
+        val arrayCreate = Ident(defn.Array_create)(span).appliedToTypes(AnyType).appliedTo(IntLit(params.size)(span))
+
+        val assigns = params.zipWithIndex.map: (param, i) =>
+          resultIdent.select("set").appliedTo(IntLit(i)(span), Ident(param)(span)).dropValue
+
+        Block(Assign(resultIdent, arrayCreate) :: assigns :+ resultIdent)(span)
+
+  /** The value returned by a refutable pattern function on failure */
+  private def noneValue(span: Span): Word =
+    TreeOps.smartApply(Ident(defn.None_obj)(span), Nil, Nil)(span)
 
   override def transformLocalPatDef(pdef: PatDef)(using Context): Word =
     implementPatDef(pdef)
@@ -423,56 +452,86 @@ class PatternMatcher(using defn: Definitions) extends Phase:
 
     val noNeedTypeTest = Subtyping.conforms(scrut.tpe, scrutParamType)
 
-    if hasReturnValue then
-      val owner = Phase.owner.value
-      val resultArray = TermSymbol.create("resArray", ResultArrayType, Flags.Synthetic, Visibility.Default, owner, pred.pos)
-      val resultArrayIdent = Ident(resultArray)(span)
-
-      // TODO: if parameters are all numeric types, optimization is possible
-      //
-      // Or create a class with mutable fields as transport to avoid boxing.
-      val sizeArg = IntLit(procType.paramCount)(span)
-      val arrayCreate = Ident(defn.Array_create)(span)
-      val arrayAlloc = Assign(resultArrayIdent, arrayCreate.appliedToTypes(AnyType).appliedTo(sizeArg))
-
-      val args =
-        if noNeedTypeTest then scrut :: resultArrayIdent :: Nil
-        else Encoded(scrut)(scrutParamType) :: resultArrayIdent :: Nil
-
-      val app = Apply(implFun, args, autos = Nil)(span)
-
-      val assigns =
-        for (param, i) <- procType.params.zipWithIndex
-        yield
-          val owner = Phase.owner.value
-          val valueSym = TermSymbol.create(param.name, param.info, Flags.Synthetic, Visibility.Default, owner, pred.pos)
-          val valueIdent = Ident(valueSym)(span)
-          val rhs = resultArrayIdent.select("get").appliedTo(IntLit(i)(span))
-          Assign(valueIdent, Encoded(rhs)(param.info))
-
-      val nestedConds =
-        assert(assigns.size == nested.size, "nested.size = " + nested.size + ", assigns.size = " + assigns.size)
-
-        for (pattern, Assign(id, _, _)) <- nested.zip(assigns)
-        yield transformPattern(id, pattern)
-
-      val head :: rest = nestedConds: @unchecked
-
-      // Match semantics go from left to right and stop on failure
-      val nestedCond =
-        rest.foldLeft(head): (acc, cond) =>
-          If(acc, cond, BoolLit(false)(span))(BoolType, span)
-
-      val nestedBlock = Block(assigns :+ nestedCond)(span)
-      val cond = If(app, nestedBlock, BoolLit(false)(span))(BoolType, span)
-      val block = Block(arrayAlloc :: cond :: Nil)(span)
-
+    def withTypeTest(block: Word): Word =
       if noNeedTypeTest then
         block
 
       else
         val typeTest = transformTypeTest(scrut, scrutParamType, span)
         If(typeTest, block, BoolLit(false)(span))(BoolType, span)
+
+    if hasReturnValue && applyPattern.symbol.isSynthetic then
+      // A synthesized class pattern
+      //
+      //     pattern C(x1: T1, ...): C = case o then x1 = o.x1, ...
+      //
+      // reads the fields directly without calling the pattern function.
+      val owner = Phase.owner.value
+      val objSym = TermSymbol.create("obj", scrutParamType, Flags.Synthetic, Visibility.Default, owner, pred.pos)
+      val objIdent = Ident(objSym)(span)
+      val objValue = if noNeedTypeTest then scrut else scrut.encodedAs(scrutParamType)
+      val objAssign = Assign(objIdent, objValue)
+
+      val assigns =
+        for param <- procType.params
+        yield
+          val valueSym = TermSymbol.create(param.name, param.info, Flags.Synthetic, Visibility.Default, owner, pred.pos)
+          Assign(Ident(valueSym)(span), objIdent.select(param.name))
+
+      withTypeTest(Block(objAssign :: matchComponents(assigns, nested, span) :: Nil)(span))
+
+    else if hasReturnValue then
+      val owner = Phase.owner.value
+      val arg = if noNeedTypeTest then scrut else Encoded(scrut)(scrutParamType)
+      val app = Apply(implFun, arg :: Nil, autos = Nil)(span)
+      val isPartial = procType.resultType.isPartial
+
+      def local(name: String, tpe: Type): Ident =
+        val sym = TermSymbol.create(name, tpe, Flags.Synthetic, Visibility.Default, owner, pred.pos)
+        Ident(sym)(span)
+
+      val block =
+        procType.params match
+          case param :: Nil =>
+            val valueIdent = local(param.name, param.info)
+
+            if isPartial then
+              //     val res = Foo$impl(scrut)
+              //     res is Some && { val x = res.value; nested }
+              val resIdent = local("res", app.tpe)
+              val value = Select(Encoded(resIdent)(someType(param.info)), "value")(span)
+              val components = matchComponents(Assign(valueIdent, value) :: Nil, nested, span)
+              val isSome = ClassTest(resIdent, defn.Some_class)(span)
+              val cond = If(isSome, components, BoolLit(false)(span))(BoolType, span)
+              Block(Assign(resIdent, app) :: cond :: Nil)(span)
+
+            else
+              matchComponents(Assign(valueIdent, app) :: Nil, nested, span)
+
+          case params =>
+            val arrayIdent = local("resArray", ResultArrayType)
+
+            val assigns =
+              for (param, i) <- params.zipWithIndex
+              yield
+                val rhs = arrayIdent.select("get").appliedTo(IntLit(i)(span))
+                Assign(local(param.name, param.info), Encoded(rhs)(param.info))
+
+            val components = matchComponents(assigns, nested, span)
+
+            if isPartial then
+              //     val res = Foo$impl(scrut)
+              //     !(res is None) && { val resArray = res; ...; nested }
+              val resIdent = local("res", app.tpe)
+              val arrayAssign = Assign(arrayIdent, Encoded(resIdent)(ResultArrayType))
+              val isNone = ClassTest(resIdent, defn.None_class)(span)
+              val cond = If(isNone, BoolLit(false)(span), Block(arrayAssign :: components :: Nil)(span))(BoolType, span)
+              Block(Assign(resIdent, app) :: cond :: Nil)(span)
+
+            else
+              Block(Assign(arrayIdent, app) :: components :: Nil)(span)
+
+      withTypeTest(block)
 
     else
       if noNeedTypeTest then
@@ -483,6 +542,29 @@ class PatternMatcher(using defn: Definitions) extends Phase:
         val app = Apply(implFun, args, autos = Nil)(implFun.span)
         val typeTest = transformTypeTest(scrut, scrutParamType, span)
         If(typeTest, app, BoolLit(false)(span))(BoolType, span)
+
+  /** Match the extracted components against the nested patterns
+    *
+    * Match semantics go from left to right and stop on failure.
+    */
+  private def matchComponents
+      (assigns: List[Assign], nested: List[Pattern], span: Span)
+      (using ctx: Context, source: Source)
+  : Word =
+
+    assert(assigns.size == nested.size, "nested.size = " + nested.size + ", assigns.size = " + assigns.size)
+
+    val nestedConds =
+      for (pattern, Assign(id, _, _)) <- nested.zip(assigns)
+      yield transformPattern(id, pattern)
+
+    val head :: rest = nestedConds: @unchecked
+
+    val nestedCond =
+      rest.foldLeft(head): (acc, cond) =>
+        If(acc, cond, BoolLit(false)(span))(BoolType, span)
+
+    Block(assigns :+ nestedCond)(span)
 
   private def transformTypeTest
       (scrut: Ident, patternType: Type, span: Span)
