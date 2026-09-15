@@ -734,13 +734,14 @@ object Decoder:
 
     val id = decodeNat()
     val name = decodeString()
+    val flags = decodeFlags() | Flags.Fun
     val visibility = decodeVisibility(owner)
 
     val symStartDelta = decodeInt()
     val symSpanLength = decodeNat()
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
-    val symbol = PatternSymbol.create(name, Flags.Fun, visibility, owner, symSpan.toPos)
+    val symbol = PatternSymbol.create(name, flags, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
     given defn: Definitions = defnLazy.value

@@ -353,8 +353,12 @@ object Desugaring:
           AssignPattern(o, assignments)(cdef.span)
 
       val body = Case(pat, Block(Nil)(id.span))(cdef.span) :: Nil
-      PatDef(id, cdef.tparams, cdef.params, tp, body, preParamCount = 0)(cdef.span)
+      val pdef = PatDef(id, cdef.tparams, cdef.params, tp, body, preParamCount = 0)(cdef.span)
           .copyAttachments(cdef)
+
+      // Pattern translation short-cuts synthesized class patterns to field reads
+      pdef.addKey(ExtraFlags, Flags.Synthetic)
+      pdef
 
     var res: List[Def] = Nil
 

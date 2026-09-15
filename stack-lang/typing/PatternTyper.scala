@@ -23,7 +23,7 @@ class PatternTyper(namer: Namer)(using Config):
   def transformPatDef(patDef: Ast.PatDef)
       (using lazyDefn: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source, checks: Checks)
   : LazyDef[PatDef] =
-    val flags = Checker.checkModifiers(patDef) | Flags.Fun
+    val flags = Checker.checkModifiers(patDef) | Flags.Fun | patDef.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
 
     val annotationsLazy = Namer.lazyValue:
       given Scope = sc

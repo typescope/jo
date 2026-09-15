@@ -580,6 +580,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
+      encodeFlags(defSym.flags & Flags.Synthetic)
       encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
