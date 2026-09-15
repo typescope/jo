@@ -68,6 +68,12 @@ final class Definitions(private var _index: SymbolIndex) extends Definitions.Laz
   // Pair
   val jo_Pair_def      =  jo.termMember("Pair")
 
+  // Option
+  val Some_class  =  jo.typeMember("Some")
+  val Some_fun    =  jo.termMember("Some")
+  val None_class  =  jo.typeMember("None")
+  val None_obj    =  jo.termMember("None")
+
   val Array_class     =  jo.typeMember("Array")
   val Array_sec       =  jo.containerMember("Array")
   val Array_create    =  Array_sec.termMember("create")
