@@ -2,6 +2,36 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.13.4] - 2026-09-16
+
+### Added
+
+- JIP-0003, a rejected proposal for a `@deconstruct` annotation on pattern
+  definitions, kept for the record. ([#115])
+
+### Changed
+
+- Pattern matching is faster. A pattern generated for a class now reads the
+  fields directly. Other pattern definitions return their outputs instead of
+  filling a result array allocated by the caller. ([#116])
+
+### Security
+
+- No security-relevant changes.
+
+### Compatibility
+
+- Existing source code continues to compile, and the standard library and
+  runtime libraries remain compatible in both directions. ([#116])
+- Libraries must be recompiled. Pattern definitions in `.sast` files now carry
+  flags, so `.sast` files produced by earlier compilers are not loadable by this
+  release, and files produced by this release are not loadable by earlier
+  compilers. The SAST format version is unchanged, so loading a mismatched file
+  is not reported as a version mismatch. ([#116])
+
+[#115]: https://github.com/typescope/jo/pull/115
+[#116]: https://github.com/typescope/jo/pull/116
+
 ## [0.13.3] - 2026-09-13
 
 ### Added
