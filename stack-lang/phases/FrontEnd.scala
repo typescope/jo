@@ -18,8 +18,15 @@ object FrontEnd:
 
   val rewireMap: InternalSetting[Map[Symbol, Symbol]] = InternalSetting(Map.empty, "mapping for rewiring functions")
 
+  /** Runtime definitions of a backend required by the frontend phases
+    *
+    * @param arrayOpsSection the full name of the section for array operations
+    * @param isLambdaValue   the full name of the intrinsic `isLambdaValue(v: Any): Bool`
+    */
+  case class RuntimeConfig(arrayOpsSection: String, isLambdaValue: String)
+
   def run
-      (defaultRuntimePackages: List[String], sources: List[String], defaultMappings: Map[String, String], arrayOpsSection: String)
+      (defaultRuntimePackages: List[String], sources: List[String], defaultMappings: Map[String, String], runtimeConfig: RuntimeConfig)
       (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)
   : List[FileUnit] =
     val (nss, nssDelayed) = sources |> Typer.parseStep |> Typer.typeStep
@@ -27,7 +34,7 @@ object FrontEnd:
     locally:
       given Definitions = defnLazy.value
 
-      nss |> linkStep(nssDelayed, defaultRuntimePackages, defaultMappings) |> translateStep(arrayOpsSection)
+      nss |> linkStep(nssDelayed, defaultRuntimePackages, defaultMappings) |> translateStep(runtimeConfig)
 
   def linkStep
       (lazyLibs: pickle.LazyFileUnits, defaultRuntimePackages: List[String], defaultMappings: Map[String, String])
@@ -99,10 +106,10 @@ object FrontEnd:
           linkData.resolve()
 
 
-  def translateStep(arrayOpsSection: String)(using defn: Definitions, rp: Reporter, cf: Config): ProcessStep =
+  def translateStep(runtimeConfig: RuntimeConfig)(using defn: Definitions, rp: Reporter, cf: Config): ProcessStep =
     Step("Normalize", (units: List[FileUnit]) => {
-      val liftPrim    = new phases.LiftPrimitiveMethods(arrayOpsSection)
-      val patmat      = new phases.PatternMatcher
+      val liftPrim    = new phases.LiftPrimitiveMethods(runtimeConfig.arrayOpsSection)
+      val patmat      = new phases.PatternMatcher(defn.resolveTerm(runtimeConfig.isLambdaValue))
       val tailcallopt = new phases.TailCallOpt
       units        |>
       patmat       |>

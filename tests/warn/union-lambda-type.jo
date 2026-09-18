@@ -1,5 +1,34 @@
-// Test object type in union type - object types not allowed
+// Test restrictions on lambda types in union types
 
 class Simple(name: String)
 
-type Handler = Simple | (Int => Unit)
+// At most one lambda branch
+type Two = Simple | (Int => Unit) | (String => Unit)
+
+type Handler = Simple | (Int => Int)
+
+// Also after flattening
+type Handler2 = Handler | (Bool => Bool)
+
+// A lambda type pattern requires a union scrutinee with a lambda branch
+def testAny(x: Any): Int =
+  match x
+    case f: (Int => Int) => f(1)
+    case _ => 0
+
+// The lambda branch must conform to the pattern type
+def testWrongLambda(h: Handler): Int =
+  match h
+    case f: (String => Int) => 1
+    case _ => 0
+
+// Exhaustivity takes the lambda branch into account
+def testMissing(h: Handler): Int =
+  match h
+    case s: Simple => 1
+
+def testRedundant(h: Handler): Int =
+  match h
+    case s: Simple => 1
+    case f: (Int => Int) => 2
+    case g: (Int => Int) => 3

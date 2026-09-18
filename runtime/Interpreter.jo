@@ -15,6 +15,10 @@ private def platformCall3(fn: String, arg1: Any, arg2: Any, arg3: Any): Bottom =
 
 private def abort(s: String): Bottom = platformCall1("abort", s)
 
+// Whether a value is a lambda. Used by pattern matching to test the lambda
+// branch of a union type.
+private def isLambdaValue(v: Any): Bool = platformCall1("isLambdaValue", v)
+
 // Bytes operations (Bytes.Repr is a JVM byte[])
 private section RawBytes
   def size(repr: Bytes.Repr): Int = platformCall1("bytesSize", repr)

@@ -36,6 +36,12 @@ object Compiler:
     "jo.regex.Engine.execPatternAt"  -> "jo.js.runtime.RegexEngine.execPatternAt",
   )
 
+  // Runtime definitions for the frontend
+  val runtimeConfig = FrontEnd.RuntimeConfig(
+    arrayOpsSection = "jo.js.runtime.RefArray",
+    isLambdaValue   = "jo.js.runtime.isLambdaValue",
+  )
+
   def main(args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
 
@@ -74,7 +80,7 @@ object Compiler:
         if Config.useRuntimeApi.value.contains("js") then Nil
         else Config.JSRuntimePath :: Nil
 
-      val units = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, "jo.js.runtime.RefArray") <| "Frontend"
+      val units = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, runtimeConfig) <| "Frontend"
 
       locally {
         given Definitions = lazyDefn.value

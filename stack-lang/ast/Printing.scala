@@ -476,7 +476,10 @@ object Printing:
         showWord(value)
 
       case TypePattern(id, tpt) =>
-        id ~ ": " ~ tpt
+        if tpt.isInstanceOf[LambdaType] then
+          id ~ ": (" ~ tpt ~ ")"
+        else
+          id ~ ": " ~ tpt
 
       case BindPattern(id, pattern) =>
         id ~ " @ " ~ showPattern(pattern)
@@ -530,7 +533,7 @@ object Printing:
         // A function-type branch must be parenthesized: `=>` binds looser than
         // `|`, so `Simple | Int => Unit` would parse as `(Simple | Int) => Unit`.
         def branchText(b: TypeTree): Text = b match
-          case _: FunctionType => "(" ~ showType(b) ~ ")"
+          case _: LambdaType => "(" ~ showType(b) ~ ")"
           case _               => showType(b)
 
         "(" ~ branches.map(branchText).join(" | ") ~ ")"
@@ -545,7 +548,7 @@ object Printing:
       case AppliedType(tpeCtor, targs) =>
         tpeCtor ~ "[" ~ targs.join(", ") ~ "]"
 
-      case FunctionType(paramTypes, resultType, receives) =>
+      case LambdaType(paramTypes, resultType, receives) =>
         val params = paramTypes match
           case one :: Nil => showType(one)
           case many       => "(" ~ many.join(", ") ~ ")"

@@ -13,7 +13,16 @@ import scala.collection.mutable
 
 import PatternMatcher.implMap
 
-class PatternMatcher(using defn: Definitions) extends Phase:
+/** Lower pattern matching to conditionals
+  *
+  * Backend/runtime contract required by this phase:
+  *
+  *   def isLambdaValue(v: Any): Bool = ...
+  *
+  * It tests whether a value is a lambda, which is used for the lambda branch of
+  * union types. A union type has at most one lambda branch.
+  */
+class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions) extends Phase:
   val IntType = defn.IntType
   val BoolType = defn.BoolType
   val StringType = defn.StringType
@@ -584,20 +593,30 @@ class PatternMatcher(using defn: Definitions) extends Phase:
     else if patternType.isClassType then
       ClassTest(scrut, patternType.classSymbol)(span)
 
+    else if patternType.isLambdaType then
+      transformLambdaTest(scrut, span)
+
     else if patternType.isUnionType then
       val unionType = patternType.asUnionType
 
-      val conds: List[Word] =
-        for classType <- unionType.classTypes
-        yield ClassTest(scrut, classType.classSymbol)(span)
+      val classTests: List[Word] =
+        for cls <- unionType.classes
+        yield ClassTest(scrut, cls)(span)
 
-      val cond :: rest = conds: @unchecked
+      val lambdaTests: List[Word] =
+        if unionType.lambdaTypes.isEmpty then Nil
+        else transformLambdaTest(scrut, span) :: Nil
+
+      val cond :: rest = classTests ++ lambdaTests: @unchecked
 
       rest.foldLeft(cond): (acc, cond) =>
         acc.select("||").appliedTo(cond)
 
     else
       throw new Exception("Unexpected type pattern, scrutee type = " + scrut.tpe.show + ", type test = " + patternType.show)
+
+  private def transformLambdaTest(scrut: Ident, span: Span): Word =
+    Ident(isLambdaValue)(span).appliedTo(scrut)
 
   private def transformSeqPattern(scrut: Ident, seqPattern: SeqPattern)
       (using ctx: Context, source: Source)

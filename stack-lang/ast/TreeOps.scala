@@ -24,7 +24,7 @@ object TreeOps:
           for targ <- targs do
             this(targ)
 
-        case FunctionType(paramTypes, resultType, _) =>
+        case LambdaType(paramTypes, resultType, _) =>
           this(resultType)
           for paramType <- paramTypes do
             this(paramType)

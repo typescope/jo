@@ -481,6 +481,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         else if sym == defn.jo_pass then
           R.Nil
 
+        else if sym == runtime.isLambdaValue then
+          R.InstanceOf(compileExpr(args.head), "Proc")
+
         else if sym.is(Flags.Object) then
           // Object accessor: replace call with direct access
           val funType = sym.tpe.asProcType

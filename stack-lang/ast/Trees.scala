@@ -367,7 +367,7 @@ object Trees:
   extends TypeTree:
     assert(targs.nonEmpty)
 
-  case class FunctionType
+  case class LambdaType
     (paramTypes: List[TypeTree], resultType: TypeTree, receives: List[RefTree])
     (val span: Span)
   extends TypeTree:

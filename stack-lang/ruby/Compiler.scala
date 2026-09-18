@@ -36,6 +36,12 @@ object Compiler:
     "jo.regex.Engine.execPatternAt"  -> "jo.rb.runtime.RegexEngine.execPatternAt",
   )
 
+  // Runtime definitions for the frontend
+  val runtimeConfig = FrontEnd.RuntimeConfig(
+    arrayOpsSection = "jo.rb.runtime.RefArray",
+    isLambdaValue   = "jo.rb.runtime.isLambdaValue",
+  )
+
   def main(args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
 
@@ -73,7 +79,7 @@ object Compiler:
         if Config.useRuntimeApi.value.contains("ruby") then Nil
         else Config.RubyRuntimePath :: Nil
 
-      val units = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, "jo.rb.runtime.RefArray") <| "Frontend"
+      val units = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, runtimeConfig) <| "Frontend"
 
       locally {
         given Definitions = lazyDefn.value

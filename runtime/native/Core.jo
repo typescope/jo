@@ -67,6 +67,22 @@ private def debug(s: String): Unit receives none =
 @intrinsic
 private def getInterfaceTable(classId: Int): Addr receives none = ...
 
+//[ Whether a value is a lambda
+  !
+  ! Used by pattern matching to test the lambda branch of a union type. The
+  ! backend lowers this call to a test on the class id of `ClosureTag`.
+//]
+@intrinsic
+private def isLambdaValue(v: Any): Bool receives none = ...
+
+//[ The class id tag of closures
+  !
+  ! A closure is encoded as `{ cid, apply, underlying }`, where `cid` is the
+  ! class id of this class. It distinguishes closures from class instances at
+  ! runtime. The class is never instantiated.
+//]
+private class ClosureTag
+
 //[ Find a method pointer in an interface table
   !
   ! Interface table structure:

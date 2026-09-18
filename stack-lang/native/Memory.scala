@@ -25,9 +25,12 @@ import scala.collection.mutable
   * A lambda closure is encoded as follows:
   *
   *     {
+  *         cid = ...,
   *         apply = ...,
   *         underlying = ...
   *     }
+  *
+  * The class id of a closure is that of `ClosureTag` in the native runtime.
   *
   * The encoding is implementation details and is subject to change.
   */
@@ -90,10 +93,11 @@ object Memory:
 
     RecordType(memberTypes.toList)
 
-  def encodeLambdaType(lambdaType: LambdaType): RecordType =
+  def encodeLambdaType(lambdaType: LambdaType)(using defn: Definitions): RecordType =
+    val classId = NamedInfo(Memory.ClassID, defn.IntType)
     val apply = NamedInfo(Memory.Apply, lambdaType.toProcType)
     val underlying = NamedInfo(Memory.Underlying, AnyType)
-    RecordType(apply :: underlying :: Nil)
+    RecordType(classId :: apply :: underlying :: Nil)
 
   /** Size of the recrod in bytes */
   def size(recordType: RecordType): Int =

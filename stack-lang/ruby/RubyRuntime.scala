@@ -51,6 +51,7 @@ class RubyRuntime(using defn: Definitions):
 
   val start  = Ruby.termMember("start")
   val rb_raw = Ruby.termMember("rbRaw")
+  val isLambdaValue = Ruby.termMember("isLambdaValue")
 
   val StringOps      = Ruby.containerMember("StringOps")
   val String_iterator = StringOps.termMember("iterator")

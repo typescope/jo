@@ -84,6 +84,7 @@ class JSRuntime(using defn: Definitions):
   val js_init        = jo_js.termMember("init")
   val js_array       = jo_js.termMember("array")
   val js_raw         = JS.termMember("jsRaw")
+  val isLambdaValue  = JS.termMember("isLambdaValue")
 
   def jsTargetName(sym: Symbol): Option[String] =
     sym.annotation(annot_targetName).map:

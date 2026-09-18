@@ -1,0 +1,66 @@
+// Lambda types as union branches
+
+type Handler = String | (Int => Int)
+
+def run(h: Handler): Int =
+  match h
+    case s: String => s.size
+    case f: (Int => Int) => f(3)
+
+// Numeric branch together with a lambda branch
+type Lazy = Int | (() => Int)
+
+def force(v: Lazy): Int =
+  match v
+    case n: Int => n
+    case f: (() => Int) => f()
+
+// Nested union aliases are flattened
+type Prim = Int | String
+type Action = Prim | (String => String)
+
+def describe(a: Action): String =
+  match a
+    case n: Int => "int " + n
+    case s: String => "str " + s
+    case f: (String => String) => "fun " + f("x")
+
+// Union type pattern containing the lambda branch
+def isNotInt(a: Action): Bool =
+  match a
+    case _: (String | (String => String)) => true
+    case _ => false
+
+// Subsumption: the lambda branch goes along with the union
+def widen(h: Handler): String | Bool | (Int => Int) = h
+
+def inc(x: Int): Int = x + 1
+
+def main =
+  println(run("abc"))
+  println(run((x: Int) => x * 10))
+
+  val base = 5
+  println(run((x: Int) => x + base))
+
+  println(force(7))
+  println(force(() => 42))
+
+  println(describe(1))
+  println(describe("a"))
+  println(describe((s: String) => s + s))
+
+  println(isNotInt(1))
+  println(isNotInt("a"))
+  println(isNotInt((s: String) => s))
+
+  val w = widen((x: Int) => x - 1)
+  match w
+    case f: (Int => Int) => println(f(1))
+    case _ => println("other")
+
+  val h: Handler = (x: Int) => x + 100
+  if h is (f: (Int => Int)) then println(f(1)) else println("no")
+
+  val g: Handler = "hello"
+  if g is (f: (Int => Int)) then println(f(1)) else println("no")

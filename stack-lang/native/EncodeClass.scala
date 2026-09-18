@@ -124,7 +124,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
   override def transformEncoded(encoded: Encoded)(using ctx: Context): Word =
     val Encoded(repr) = encoded
 
-    // Encode closure as { apply = ..., underlying = ... }
+    // Encode closure as { cid = ..., apply = ..., underlying = ... }
     if encoded.tpe.isLambdaType && repr.tpe.isClassType then
       val repr2 = super.transform(repr)
 
@@ -133,10 +133,11 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
       val applySym = classSym.termMember(Memory.Apply)
       val liftedApplySym = getLiftedFunSymbol(applySym)
 
+      val classId = Memory.ClassID -> IntLit(getClassId(runtime.Core_ClosureTag))(repr.span)
       val underlying = Memory.Underlying -> repr2
       val apply = Memory.Apply -> Ident(liftedApplySym)(repr.span)
 
-      val repr3 = RecordLit(apply :: underlying :: Nil)(repr.span)
+      val repr3 = RecordLit(classId :: apply :: underlying :: Nil)(repr.span)
       Encoded(repr3)(encoded.tpe)
     else
       super.transformEncoded(encoded)
@@ -259,6 +260,13 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
 
     fun match
+      case Ident(sym) if sym == runtime.Core_isLambdaValue =>
+        val arg :: Nil = args: @unchecked
+        val classIdRecordType = RecordType(NamedInfo(Memory.ClassID, defn.IntType) :: Nil)
+        val valueClassId = Encoded(arg)(classIdRecordType).select(Memory.ClassID)
+        val classId = IntLit(getClassId(runtime.Core_ClosureTag))(apply.span)
+        transform(valueClassId.isEqualTo(classId))
+
       case lambda if lambda.tpe.isLambdaType =>
         val encodedType = Memory.encodeLambdaType(lambda.tpe.asLambdaType)
 
