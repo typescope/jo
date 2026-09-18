@@ -218,6 +218,7 @@ export default defineConfig({
             { text: 'JIP-0001: Regularize expression syntax', link: '/jips/0001-expression-contexts' },
             { text: 'JIP-0002: Drop optional context parameters', link: '/jips/0002-drop-optional-context-params' },
             { text: 'JIP-0003: Pattern match enhancement', link: '/jips/0003-pattern-match-enhancement' },
+            { text: 'JIP-0004: Lambda types in union types', link: '/jips/0004-lambda-union-branch' },
           ]
         }
       ],
