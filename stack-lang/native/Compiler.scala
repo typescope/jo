@@ -48,6 +48,12 @@ object Compiler:
     "jo.runtime.native.GC.alloc" -> "jo.runtime.native.BumpAllocator.alloc",
   )
 
+  // Runtime definitions for the frontend
+  val runtimeConfig = FrontEnd.RuntimeConfig(
+    arrayOpsSection = "jo.runtime.native.RefArray",
+    isLambdaValue   = "jo.runtime.native.isLambdaValue",
+  )
+
   def compile(backendBuilder: BackendBuilder, args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
 
@@ -81,7 +87,7 @@ object Compiler:
         if Config.useRuntimeApi.value.contains("native") then Nil
         else Config.NativeRuntimePath :: Nil
 
-      val namespacesSAST = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, "jo.runtime.native.RefArray") <| "Frontend"
+      val namespacesSAST = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, runtimeConfig) <| "Frontend"
 
       locally {
         given defn: Definitions = lazyDefn.value
