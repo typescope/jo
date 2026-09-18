@@ -2333,26 +2333,52 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
       case Ast.UnionType(branches) =>
         val branchTypes = new mutable.ArrayBuffer[Type]
         val classes = mutable.Set.empty[Symbol]
+        var lambdaType: Type | Null = null
+
         for branch <- branches do
           val branchType = transformValueType(branch).tpe
-          val branchClasses =
+          val validBranch =
             if branchType.isClassType then
-              branchType.classSymbol :: Nil
+              val cls = branchType.classSymbol
+              if classes.exists(_ == cls) then
+                Reporter.error("Branch " + cls + " already defined", branch.pos)
+                false
+              else
+                classes += cls
+                true
+
+            else if branchType.isLambdaType then
+              if lambdaType != null then
+                Reporter.error(s"Union type cannot contain multiple lambda types: (${lambdaType.show}, ${branchType.show})", branch.pos)
+                false
+              else
+                lambdaType = branchType
+                true
 
             else if branchType.isUnionType then
-              branchType.asUnionType.classes
+              val unionType = branchType.asUnionType
+              var validBranch = true
+              for tp <- unionType.lambdaTypes do
+                if lambdaType != null then
+                  Reporter.error(s"Union type cannot contain multiple lambda types: (${lambdaType.show}, ${tp.show})", branch.pos)
+                  validBranch = false
+                else
+                  lambdaType = tp
+              end for
+
+              for cls <- unionType.classes do
+                if classes.exists(_ == cls) then
+                  Reporter.error("Branch " + cls + " already defined", branch.pos)
+                  validBranch = false
+                else
+                  classes += cls
+              end for
+
+              validBranch
 
             else
-              Reporter.error("Only class type or union type allowed inside a union type, found = " + branchType.show, branch.pos)
-              Nil
-
-          var validBranch = branchClasses.nonEmpty
-          for cls <- branchClasses do
-            if classes.exists(_ == cls) then
-              Reporter.error("Branch " + cls + " already defined", branch.pos)
-              validBranch = false
-            else
-              classes += cls
+              Reporter.error("Only class type, lambda type or union type allowed inside a union type, found = " + branchType.show, branch.pos)
+              false
 
           if validBranch then
             branchTypes += branchType
