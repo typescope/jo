@@ -17,7 +17,7 @@ Class types, interface types, type aliases, and type parameters. Covers subtypin
 views, generic invariance, and alias transparency.
 
 ### [Union Types](union-types.md)
-Values that can be one of several class type alternatives, enabling algebraic data types.
+Values that can be one of several class type alternatives (plus at most one lambda type), enabling algebraic data types.
 
 ### [Extension Types](extension-types.md)
 Types enriched with a fixed set of extension methods, enabling dot syntax on types

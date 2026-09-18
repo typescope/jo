@@ -3,6 +3,7 @@
 ## Overview
 
 Union types enable a value to be one of several possible class types, with the ability to distinguish between alternatives at runtime through pattern matching.
+In addition, a union type may contain at most one lambda type as a branch.
 
 Unlike traditional sum types or tagged unions found in functional languages, Jo's union types are based on **class identity** rather than explicit tags or constructors.
 
@@ -31,6 +32,9 @@ type Value = Number | String  // Equivalent to: Int | Float | String
 def parse(s: String): Int | Error =
   if isValid(s) then parseToInt(s)
   else new Error("Invalid input")
+
+// Union with a lambda branch
+type Handler = String | (Int => Int)
 
 // Union as parameter type
 def describe(shape: Circle | Rectangle): String =
@@ -76,15 +80,49 @@ The compiler:
 2. Generates code to test the runtime type against each case
 3. Binds the scrutinee to the appropriate type in each branch
 
+### Lambda Branches
+
+A lambda branch is matched with a type pattern on the lambda type:
+
+```jo
+type Lazy = Int | (() => Int)
+
+def force(v: Lazy): Int =
+  match v
+    case n: Int => n
+    case f: (() => Int) => f()
+  end
+end
+
+force(42)          // 42
+force(() => 42)    // 42
+```
+
+At runtime, the type test only checks whether the value is a lambda. Parameter
+and result types of lambdas cannot be checked at runtime. Therefore, a lambda
+type pattern is only allowed when the scrutinee type is a union type whose
+lambda branch conforms to the pattern type, or when the scrutinee type already
+conforms to the pattern type:
+
+```jo
+def run(h: String | (Int => Int)): Int =
+  match h
+    case f: (String => Int) => 1   // Error: Int => Int does not conform to String => Int
+    case _ => 0
+  end
+end
+```
+
 ## Type Checking
 
 ### Well-Formed Union Types
 
 A union type `T1 | T2 | ... | Tn` is well-formed if:
 
-1. **Each branch is a class type or union type**: `Ti` must be:
+1. **Each branch is a class type, lambda type or union type**: `Ti` must be:
 
     - A class type: `C[T1, ..., Tm]` where `C` is a class definition
+    - A lambda type: `(A1, ..., Am) => R`
     - Another union type (which will be flattened)
 
 2. **No type parameters**: Branches cannot contain type parameters:
@@ -126,6 +164,19 @@ A union type `T1 | T2 | ... | Tn` is well-formed if:
     union NumericValue =
       IntValue(n: Int) |
       DoubleValue(d: Float)
+    ```
+
+7. **No multiple lambda branches**. After flattening, a union type contains at most one lambda type.
+
+    ```jo
+    // ❌ Invalid - multiple lambda types
+    type BadHandler = (Int => Int) | (String => Int)   // Compile error
+
+    type Handler = String | (Int => Int)
+    type BadHandler2 = Handler | (Bool => Bool)        // Compile error
+
+    // ✓ Valid - single lambda type
+    type Lazy = Int | (() => Int)                      // OK
     ```
 
 
@@ -188,9 +239,9 @@ end
 
 ## Design Decisions
 
-### Why Restrict to Class Types Only?
+### Why Restrict to Class Types?
 
-Union types only allow class types (not interfaces or type parameters).
+Apart from a single lambda branch, union types only allow class types (not interfaces or type parameters).
 
 A value can implement multiple interfaces simultaneously, so there is no way to
 guarantee that interface branches are mutually exclusive. Pattern matching would
@@ -211,6 +262,14 @@ end
 
 type LoggerUnion = ConsoleLoggerImpl | FileLoggerImpl
 ```
+
+### Why At Most One Lambda Branch?
+
+At runtime, it is only possible to tell whether a value is a lambda. The
+parameter and result types of a lambda are not available. Two lambda branches
+such as `(Int => Int) | (String => Int)` cannot be distinguished at runtime, so
+pattern matching would be ambiguous. This is the same reason as the restriction
+to one numeric branch.
 
 ### Why No Member Access on Union Types?
 
