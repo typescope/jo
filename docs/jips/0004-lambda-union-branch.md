@@ -1,6 +1,6 @@
 ---
 author: Fengyun Liu
-status: Draft
+status: Accepted
 created: 2026-09-18
 title: Lambda types in union types
 ---
