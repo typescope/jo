@@ -2443,7 +2443,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
             Reporter.error("A type reference expected, found = " + tp.show, tctor.pos)
             TypeTree(ErrorType)(tpt.span)
 
-      case Ast.FunctionType(paramTypes, resType, receives) =>
+      case Ast.LambdaType(paramTypes, resType, receives) =>
         val paramTypes2 =
           for paramType <- paramTypes yield transformValueType(paramType).tpe
 

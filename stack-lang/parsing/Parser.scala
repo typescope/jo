@@ -1929,7 +1929,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           val resType = typ()
           val params = optReceiveParams().getOrElse(Nil)
           val endSpan = if params.isEmpty then resType.span else params.last.span
-          FunctionType(tp :: Nil, resType, params)(tp.span | endSpan)
+          LambdaType(tp :: Nil, resType, params)(tp.span | endSpan)
 
         case Token.Operator("|") =>
           val branches = mutable.ArrayBuffer[TypeTree](tp)
@@ -2001,7 +2001,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           val resType = typ()
           val params = optReceiveParams().getOrElse(Nil)
           val endSpan = if params.isEmpty then resType.span else params.last.span
-          FunctionType(tps, resType, params)(lparen.span | endSpan)
+          LambdaType(tps, resType, params)(lparen.span | endSpan)
         else
           if tps.size == 0 || tps.size > 1 then
             error("`=>` expected, found = " + token, item.span.toPos)
