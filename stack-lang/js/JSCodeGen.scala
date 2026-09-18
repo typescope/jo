@@ -776,6 +776,10 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         else if sym == defn.jo_pass then
           (Nil, JS.NullLit)
 
+        else if sym == runtime.isLambdaValue then
+          val (argStats, argExpr) = compileExpr(args.head, enforcePurity)
+          (argStats, JS.BinOp(JS.UnaryOp("typeof", argExpr), "==", JS.StringLit("function")))
+
         else
           val (argStats, argExprs) = compileExprList(args, enforcePurity = false)
           val call = JS.Call(None, jsName(sym), argExprs)

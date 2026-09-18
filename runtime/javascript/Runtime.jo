@@ -39,6 +39,12 @@ private def abort(msg: String): Bottom =
 private def jsRaw(code: String): js.Dynamic =
   abort "jsRaw: intrinsified by the JavaScript backend"
 
+// Whether a value is a lambda. Used by pattern matching to test the lambda
+// branch of a union type.
+@intrinsic
+private def isLambdaValue(v: Any): Bool =
+  abort "isLambdaValue: intrinsified by the JavaScript backend"
+
 //------------------------------------------------------------------------------
 //
 // Array support
