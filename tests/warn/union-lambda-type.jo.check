@@ -1,6 +1,31 @@
----------- Error at tests/warn/union-lambda-type.jo:5:26 ---------------
-| type Handler = Simple | (Int => Unit)
-|                          ^^^^^^^^^^^
-|                          Only class type or union type allowed inside a union type, found = Int => Unit receives none
+---------- Error at tests/warn/union-lambda-type.jo:6:38 ---------------
+| type Two = Simple | (Int => Unit) | (String => Unit)
+|                                      ^^^^^^^^^^^^^^
+|                                      Union type cannot contain multiple lambda types: (Int => Unit receives none, String => Unit receives none)
 
-1 error(s), 0 warning(s)
+---------- Error at tests/warn/union-lambda-type.jo:11:28 ---------------
+| type Handler2 = Handler | (Bool => Bool)
+|                            ^^^^^^^^^^^^
+|                            Union type cannot contain multiple lambda types: (Int => Int receives none, Bool => Bool receives none)
+
+---------- Error at tests/warn/union-lambda-type.jo:16:14 ---------------
+|     case f: (Int => Int) => f(1)
+|              ^^^^^^^^^^
+|              The type Int => Int receives none does not match the scrutinee type Any
+
+---------- Error at tests/warn/union-lambda-type.jo:22:14 ---------------
+|     case f: (String => Int) => 1
+|              ^^^^^^^^^^^^^
+|              The lambda branch Int => Int receives none of the scrutinee type does not conform to the type String => Int receives none
+
+---------- Warning at tests/warn/union-lambda-type.jo:27:9 ---------------
+|   match h
+|         ^
+|         The match will fail for the case: Int => Int receives none
+
+---------- Warning at tests/warn/union-lambda-type.jo:34:10 ---------------
+|     case g: (Int => Int) => 3
+|          ^^^^^^^^^^^^^^
+|          The case is not reachable
+
+4 error(s), 2 warning(s)
