@@ -64,17 +64,21 @@ object Subtyping:
     else if tp1.is[ProxyType] || tp2.is[ProxyType] then
       checkConformsProxyType(tp1, tp2)
 
+    else if tp1.is[LambdaType] && tp2.is[LambdaType] then
+      checkConformsLambdaType(tp1.as[LambdaType], tp2.as[LambdaType])
+
+    else if tp2.is[UnionType] then
+      if tp1.is[UnionType] then
+        checkConformsUnionType(tp1.as[UnionType], tp2.as[UnionType])
+      else
+        val unionType = tp2.as[UnionType]
+        unionType.branches.exists(branch => recur(tp1, branch))
+
     else if tp1.is[RecordType] && tp2.is[RecordType] then
       checkConformsRecordType(tp1.as[RecordType], tp2.as[RecordType])
 
-    else if tp1.is[UnionType] && tp2.is[UnionType] then
-     checkConformsUnionType(tp1.as[UnionType], tp2.as[UnionType])
-
     else if tp1.is[ProcType] && tp2.is[ProcType] then
       checkConformsProcType(tp1.as[ProcType], tp2.as[ProcType])
-
-    else if tp1.is[LambdaType] && tp2.is[LambdaType] then
-      checkConformsLambdaType(tp1.as[LambdaType], tp2.as[LambdaType])
 
     else if !TypeOps.isGrounded(tp1) then
       // extension type, duck type, annotation type
@@ -238,12 +242,21 @@ object Subtyping:
 
   private def checkConformsUnionType(tp1: UnionType, tp2: UnionType)(using Context, Definitions): Boolean =
     // The ordering of the tags does not matter
-    tp1.classes.forall: cls =>
+    val classMatch = tp1.classes.forall: cls =>
       val classType1 = tp1.classType(cls)
       tp2.hasClass(cls) && {
         val classType2 = tp2.classType(cls)
         recur(classType1, classType2)
       }
+
+    if !classMatch then return false
+
+    if tp1.lambdaTypes.isEmpty then return true
+
+    if tp2.lambdaTypes.isEmpty then return false
+
+    tp1.lambdaTypes.zip(tp2.lambdaTypes).forall: (lam1, lam2) =>
+      recur(lam1, lam2)
 
   private def checkConformsClassTypeToUnionType(tp1: Type, tp2: UnionType)(using ctx: Context, defn: Definitions): Boolean =
     def check(cls: Symbol): Boolean =

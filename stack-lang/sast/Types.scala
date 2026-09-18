@@ -473,33 +473,58 @@ object Types:
     def fieldType(name: String): Type =
       getFieldType(name).get
 
+  /** A union type
+    *
+    * Each branch is a class type, a lambda type or a union type. After
+    * flattening, each class appears at most once, and there is at most one
+    * lambda branch.
+    */
   case class UnionType(branches: List[Type])(using Definitions) extends Type:
-    private val classMap: Map[Symbol, Type] =
-      branches.foldLeft(Map.empty): (acc, branch) =>
+    /** The flattened branches: a map from classes to class types and the lambda branch */
+    private val flattened: (Map[Symbol, Type], List[Type]) =
+      var classMap: Map[Symbol, Type] = Map.empty
+      var lambdaTypes: List[Type] = List.empty
+
+      def addClass(cls: Symbol, classType: Type): Unit =
+        assert(!classMap.contains(cls), "duplicate class " + cls + " in " + this.show)
+        classMap = classMap.updated(cls, classType)
+
+      def addLambda(lambdaType: Type): Unit =
+        assert(lambdaTypes.isEmpty, "duplicate lambda branch in " + this.show)
+        lambdaTypes = lambdaType :: Nil
+
+      branches.foreach: branch =>
         if branch.isClassType then
           val cls = branch.classSymbol
-          assert(!acc.contains(cls), "duplicate class " + cls + " in " + this.show)
-          acc.updated(cls, branch)
+          addClass(cls, branch)
+
+        else if branch.isLambdaType then
+          addLambda(branch)
 
         else if branch.isUnionType then
           val unionType = branch.asUnionType
-          unionType.classTypes.foldLeft(acc): (acc, classType) =>
-            val cls = classType.classSymbol
-            assert(!acc.contains(cls), "duplicate class " + cls + " in " + this.show)
-            acc.updated(cls, classType)
+          unionType.classMap.foreach: (cls, tp) =>
+            addClass(cls, tp)
+
+          unionType.lambdaTypes.foreach: tp =>
+            addLambda(tp)
 
         else
-          throw new Exception("Expect union type or class type, found = " + branch.show)
+          throw new Exception("Expect union type, class type or lambda type, found = " + branch.show)
+
+      (classMap, lambdaTypes)
+
+    private def classMap: Map[Symbol, Type] = flattened._1
 
     val classes: List[Symbol] = classMap.keys.toList
 
-    val classTypes: List[Type] = classMap.values.toList
+    val lambdaTypes: List[Type] = flattened._2
+
+    def classType(cls: Symbol): Type = classMap(cls)
 
     def getClassType(cls: Symbol): Option[Type] = classMap.get(cls)
 
     def hasClass(cls: Symbol): Boolean = classMap.contains(cls)
-
-    def classType(cls: Symbol): Type = classMap(cls)
 
   /** Adapters for duck types */
   enum ParamAdapter:
