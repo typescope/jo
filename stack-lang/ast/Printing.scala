@@ -476,7 +476,10 @@ object Printing:
         showWord(value)
 
       case TypePattern(id, tpt) =>
-        id ~ ": " ~ tpt
+        if tpt.isInstanceOf[LambdaType] then
+          id ~ ": (" ~ tpt ~ ")"
+        else
+          id ~ ": " ~ tpt
 
       case BindPattern(id, pattern) =>
         id ~ " @ " ~ showPattern(pattern)
