@@ -31,6 +31,12 @@ object Interpreter:
     "jo.regex.Engine.execPatternAt"  -> "jo.runtime.interpreter.RegexEngine.execPatternAt",
   )
 
+  // Runtime definitions for the frontend
+  val runtimeConfig = FrontEnd.RuntimeConfig(
+    arrayOpsSection = "jo.runtime.interpreter.RefArray",
+    isLambdaValue   = "jo.runtime.interpreter.isLambdaValue",
+  )
+
   //----------------------------------------------------------------------------
 
   /** Runtime intrinsic functions */
@@ -181,6 +187,11 @@ object Interpreter:
   private val UnitValue: List[Value] = IntVal(0) :: Nil
 
   val platformCalls: Map[String, List[Value] => List[Value]] = Map(
+      "isLambdaValue" -> { (args: List[Value]) =>
+        val v :: Nil = args: @unchecked
+        BoolVal(v.isInstanceOf[ClosureVal]) :: Nil
+      },
+
       "createRefArray" -> { (args: List[Value]) =>
         val IntVal(size) :: Nil = args: @unchecked
         ArrayVal(new Array[Value](size)) :: Nil
@@ -531,6 +542,9 @@ object Interpreter:
           case _: LongVal => BoolVal(cls == defn.Long_type) :: Nil
 
           case objVal: ObjectVal => BoolVal(cls == objVal.self.owner) :: Nil
+
+          // A lambda in a union type fails the tests for the class branches
+          case _: ClosureVal => BoolVal(false) :: Nil
 
           case _ => throw new Exception("Unxpected value in type test: " + value.show)
 
@@ -1023,7 +1037,7 @@ object Interpreter:
 
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      val nss = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, "jo.runtime.interpreter.RefArray") <| "FrontEnd"
+      val nss = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, runtimeConfig) <| "FrontEnd"
       locally:
         given defn: Definitions = lazyDefn.value
         given Runtime = new Runtime(defn)
