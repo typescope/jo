@@ -38,6 +38,12 @@ object Compiler:
     "jo.regex.Engine.execPatternAt"  -> "jo.py.runtime.RegexEngine.execPatternAt",
   )
 
+  // Runtime definitions for the frontend
+  val runtimeConfig = FrontEnd.RuntimeConfig(
+    arrayOpsSection = "jo.py.runtime.RefArray",
+    isLambdaValue   = "jo.py.runtime.isLambdaValue",
+  )
+
   def main(args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
 
@@ -77,7 +83,7 @@ object Compiler:
         if Config.useRuntimeApi.value.contains("python") then Nil
         else Config.PythonRuntimePath :: Nil
 
-      val units = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, "jo.py.runtime.RefArray") <| "Frontend"
+      val units = FrontEnd.run(defaultRuntimePackages, sources, defaultLinkMappings, runtimeConfig) <| "Frontend"
 
       locally {
         given Definitions = lazyDefn.value

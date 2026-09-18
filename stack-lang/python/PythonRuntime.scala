@@ -107,6 +107,7 @@ class PythonRuntime(using defn: Definitions):
     })
 
   val Python = defn.resolveContainer("jo.py.runtime")
+  val isLambdaValue = Python.termMember("isLambdaValue")
 
   val ParamSupport = Python.containerMember("ParamSupport")
   val emptyCtx = ParamSupport.termMember("emptyCtx")

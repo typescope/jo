@@ -764,6 +764,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         else if sym == defn.jo_pass then
           (Nil, P.NoneLit)
 
+        else if sym == runtime.isLambdaValue then
+          val (argStats, argExpr) = compileExpr(args.head, enforcePurity)
+          (argStats, P.Call(None, "callable", argExpr :: Nil))
+
         else if sym == runtime.py_none then
           (Nil, P.NoneLit)
 
