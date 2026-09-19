@@ -2,6 +2,32 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.13.5] - 2026-09-19
+
+### Added
+
+- A union type may now contain one lambda type as a branch, as in
+  `Int | (() => Int)`. The lambda branch is matched with a type pattern such as
+  `case f: (() => Int) => f()`. Since only the fact that a value is a lambda can
+  be checked at runtime, a union type has at most one lambda branch, and a
+  lambda type pattern must be implied by the scrutinee type. See [Union Types]
+  and [JIP-0004]. ([#118])
+
+### Security
+
+- No security-relevant changes.
+
+### Compatibility
+
+- Existing source code continues to compile, and the standard library and
+  runtime libraries remain compatible in both directions. ([#118])
+- No library recompilation is required. `.sast` files remain compatible in both
+  directions.
+
+[#118]: https://github.com/typescope/jo/pull/118
+[Union Types]: https://jo-lang.org/language/types/union-types
+[JIP-0004]: https://jo-lang.org/jips/0004-lambda-union-branch
+
 ## [0.13.4] - 2026-09-16
 
 ### Added
