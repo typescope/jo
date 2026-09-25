@@ -117,11 +117,11 @@ object Project:
       catch case _: IllegalArgumentException => project.toString
 
   private[tool] def validateModuleAcyclic(root: Project, roots: List[ModuleId]): Result[Unit] =
-    val visited = mutable.Set.empty[(Path, ModuleId)]
+    val visited = mutable.Set.empty[ModuleKey]
     val stack = mutable.ArrayBuffer.empty[(Project, ModuleId)]
 
     def walk(project: Project, module: ModuleId): Result[Unit] =
-      val key = project.specPath -> module
+      val key = ModuleKey(project.specPath, module)
       val cycleStart = stack.indexWhere(sameModule(_, project, module))
       if cycleStart >= 0 then
         return Result.Err(formatModuleCycle(root, stack.drop(cycleStart).toList :+ ((project, module))))

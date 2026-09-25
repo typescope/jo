@@ -82,6 +82,10 @@ import tool.template.{GithubTemplateProvider, LocalTemplateProvider, TemplateArc
   failed :::= runHttpPackageProviderTests()
   println()
 
+  println("=== Runner ===")
+  failed :::= runRunnerTests()
+  println()
+
   println("=== New (name validation) ===")
   failed :::= runNewNameValidationTests()
   println()
@@ -360,6 +364,56 @@ private def runHttpPackageProviderTests(): List[Path] =
     server.stop(0)
 
   if failed then List(Paths.get("HttpPackageProvider")) else Nil
+
+// ---- Runner suite -----------------------------------------------------------
+
+private def runRunnerTests(): List[Path] =
+  var failed = false
+
+  def check(label: String)(body: => Boolean): Unit =
+    val ok =
+      try body
+      catch
+        case e: Exception =>
+          println(s"  threw: ${e.getMessage}")
+          false
+
+    if ok then println(s"  ok: $label")
+    else
+      println(s"FAIL: $label")
+      failed = true
+
+  check("a shared dependency in a diamond is built and logged only once"):
+    val root = Files.createTempDirectory("jo-runner-diamond-test-")
+    val joBin = Paths.get("/bin/true")
+
+    def libPlan(name: String, deps: List[ModulePlan]): ModulePlan =
+      ModulePlan(
+        ModuleKey(root.resolve("jo.toml"), ModuleId(name)),
+        s"[$name]",
+        joBin,
+        CompileTask.LibTask(Nil, Nil, root.resolve(name), root),
+        deps,
+      )
+
+    val api = libPlan("api", Nil)
+    // Deliberately use a distinct plan object for the second edge. Deduplication
+    // must follow module identity, not reference identity or case-class equality.
+    val apiViaRuntime = libPlan("api", Nil)
+    val runtime = libPlan("runtime", List(apiViaRuntime))
+    val guest = libPlan("guest", List(api, runtime))
+    val messages = new mutable.ArrayBuffer[String]
+    given Logger = new Logger:
+      protected def write(msg: String, level: LogLevel): Unit = messages += msg
+
+    Runner.run(guest) == Result.unit &&
+      messages.filter(_.startsWith("[build]")).toList == List(
+        "[build] [api]\n",
+        "[build] [runtime]\n",
+        "[build] [guest]\n",
+      )
+
+  if failed then List(Paths.get("Runner")) else Nil
 
 // ---- New name-validation suite ---------------------------------------------------
 

@@ -16,15 +16,6 @@ object Planner:
   private case class EffectiveLink(to: String, source: String)
   private case class EffectiveAppLinks(linkLibs: List[Path], links: Map[String, EffectiveLink])
 
-  /** Identifies a module by its owning project's spec path rather than the `Project` value itself.
-   *
-   *  The same spec file can be loaded into more than one `Project` instance while walking
-   *  cross-project module deps, and those must still be treated as the same module.
-   */
-  private case class ModuleKey(specPath: Path, id: ModuleId)
-  private object ModuleKey:
-    def apply(project: Project, id: ModuleId): ModuleKey = ModuleKey(project.specPath, id)
-
   def plan(project: Project, selected: List[ModuleId], registryPackages: RegistryPackages): Result[ProjectPlan] =
     Project.validateModuleAcyclic(project, selected).flatMap: _ =>
       PlanBuilder(project, registryPackages).plan(selected)
@@ -42,7 +33,7 @@ object Planner:
       .map(ProjectPlan(_))
 
     private def makePlan(project0: Project, id: ModuleId): Result[ModulePlan] =
-      val key = ModuleKey(project0, id)
+      val key = ModuleKey(project0.specPath, id)
       memo.get(key) match
         case Some(plan) =>
           Result.Ok(plan)
@@ -97,7 +88,7 @@ object Planner:
                               )
 
                   task.map: task =>
-                    ModulePlan(moduleLabel(project0, id), id, project0.joBin, task, depPlans)
+                    ModulePlan(key, moduleLabel(project0, id), project0.joBin, task, depPlans)
 
             stack.remove(stack.length - 1)
             result.map: plan =>
@@ -118,7 +109,7 @@ object Planner:
      *  paths in the dependency graph.
      */
     private def checkLibsOf(project0: Project, id: ModuleId): List[Path] =
-      checkLibsCache.getOrElseUpdate(ModuleKey(project0, id), computeCheckLibs(project0, id))
+      checkLibsCache.getOrElseUpdate(ModuleKey(project0.specPath, id), computeCheckLibs(project0, id))
 
     private def computeCheckLibs(project0: Project, id: ModuleId): List[Path] =
       val moduleClosure = checkModuleClosure(project0, id)
@@ -141,7 +132,7 @@ object Planner:
       def walk(currentProject: Project, current: ModuleId): Unit =
         for dep <- currentProject.moduleDepsOf(current) do
           val depProject = dep.project.getOrElse(currentProject)
-          val key = ModuleKey(depProject, dep.module)
+          val key = ModuleKey(depProject.specPath, dep.module)
           if dep.link == DepLink.Check && seen.add(key) then
             out += ((depProject, dep.module))
             walk(depProject, dep.module)
@@ -192,7 +183,7 @@ object Planner:
         val seen = mutable.Set.empty[ModuleKey]
 
         def walk(currentProject: Project, current: ModuleId): Result[Unit] =
-          val key = ModuleKey(currentProject, current)
+          val key = ModuleKey(currentProject.specPath, current)
           if !seen.add(key) then Result.unit
           else
             currentProject.requireModule(current).flatMap: spec =>
@@ -213,7 +204,7 @@ object Planner:
     private val stack = mutable.Set.empty[ModuleKey]
 
     def resolve(project: Project, id: ModuleId): Result[EffectiveAppLinks] =
-      val key = ModuleKey(project, id)
+      val key = ModuleKey(project.specPath, id)
       memo.get(key) match
         case Some(value) =>
           Result.Ok(value)

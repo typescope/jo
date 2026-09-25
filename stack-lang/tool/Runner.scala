@@ -1,7 +1,7 @@
 package tool
 
 import java.nio.file.{Files, Path}
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, Set}
 import scala.jdk.CollectionConverters.*
 
 /** Executes build plans by invoking `jo compile` subprocesses. */
@@ -11,10 +11,15 @@ object Runner:
 
   /** Build a module: recursively build deps, then compile this module's task. */
   def run(plan: ModulePlan, action: String = "build")(using Logger): Result[Unit] =
+    runOnce(plan, action, Set.empty)
+
+  private def runOnce(plan: ModulePlan, action: String, visited: Set[ModuleKey])(using Logger): Result[Unit] =
+    if !visited.add(plan.key) then return Result.unit
+
     val jo = plan.joBin.toString
     val it = plan.deps.iterator
     while it.hasNext do
-      run(it.next()) match
+      runOnce(it.next(), "build", visited) match
         case Result.Err(msg) => return Result.Err(msg)
         case _ =>
     plan.task match
@@ -36,10 +41,15 @@ object Runner:
 
   /** Type-check only: compile everything as libs (--sast), skip app link step. */
   def check(plan: ModulePlan, action: String)(using Logger): Result[Unit] =
+    checkOnce(plan, action, Set.empty)
+
+  private def checkOnce(plan: ModulePlan, action: String, visited: Set[ModuleKey])(using Logger): Result[Unit] =
+    if !visited.add(plan.key) then return Result.unit
+
     val jo = plan.joBin.toString
     val it = plan.deps.iterator
     while it.hasNext do
-      check(it.next(), action) match
+      checkOnce(it.next(), action, visited) match
         case Result.Err(msg) => return Result.Err(msg)
         case _ =>
     info(s"[$action] ${moduleLabel(plan)}\n")
@@ -55,9 +65,10 @@ object Runner:
 
   def doc(plan: ModulePlan, outDir: Path)(using Logger): Result[Unit] =
     val jo = plan.joBin.toString
+    val visited = Set.empty[ModuleKey]
     val it = plan.deps.iterator
     while it.hasNext do
-      check(it.next(), "check") match
+      checkOnce(it.next(), "check", visited) match
         case Result.Err(msg) => return Result.Err(msg)
         case _ =>
     info(s"[doc] ${moduleLabel(plan)}\n")

@@ -2,6 +2,13 @@ package tool
 
 import java.nio.file.Path
 
+/** Stable identity of a source module in the build graph.
+ *
+ *  Module names are only unique within a project, so both the canonical
+ *  project spec path and module id are required.
+ */
+case class ModuleKey(specPath: Path, module: ModuleId)
+
 /** A resource file after expanding a module's resource mappings.
  *
  *  @param inputFile the concrete file on disk to copy from
@@ -38,8 +45,8 @@ enum CompileTask:
 
 /** Build plan for a single module: execute dep modules first, then compile this module's task. */
 case class ModulePlan(
+  key: ModuleKey,
   moduleLabel: String,
-  module: ModuleId,
   joBin: Path,
   task: CompileTask,
   deps: List[ModulePlan],
