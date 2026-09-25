@@ -78,6 +78,10 @@ import tool.template.{GithubTemplateProvider, LocalTemplateProvider, TemplateArc
   failed :::= runReleaseJsonTests()
   println()
 
+  println("=== HttpPackageProvider ===")
+  failed :::= runHttpPackageProviderTests()
+  println()
+
   println("=== New (name validation) ===")
   failed :::= runNewNameValidationTests()
   println()
@@ -301,6 +305,61 @@ private def runReleaseJsonTests(): List[Path] =
       case Left(_)    => false
 
   if failed then List(Paths.get("ReleaseJson")) else Nil
+
+// ---- HttpPackageProvider suite ----------------------------------------------
+
+private def runHttpPackageProviderTests(): List[Path] =
+  import com.sun.net.httpserver.{HttpExchange, HttpServer}
+  import java.net.InetSocketAddress
+
+  var failed = false
+
+  def check(label: String)(body: => Boolean): Unit =
+    val ok =
+      try body
+      catch
+        case e: Exception =>
+          println(s"  threw: ${e.getMessage}")
+          false
+
+    if ok then println(s"  ok: $label")
+    else
+      println(s"FAIL: $label")
+      failed = true
+
+  def respond(exchange: HttpExchange, status: Int): Unit =
+    exchange.sendResponseHeaders(status, -1)
+    exchange.close()
+
+  val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+  server.createContext("/missing.jsonl", (ex: HttpExchange) => respond(ex, 404))
+  server.createContext("/unavailable.jsonl", (ex: HttpExchange) => respond(ex, 503))
+  server.start()
+
+  try
+    val baseUrl = s"http://127.0.0.1:${server.getAddress.getPort}"
+    val provider = HttpPackageProvider(baseUrl, Files.createTempDirectory("jo-package-http-test-"))
+
+    check("a 404 is reported as a missing package"):
+      provider.versions("missing") == Result.Err("package not found: missing")
+
+    check("a non-404 HTTP error is preserved, not reported as a missing package"):
+      provider.versions("unavailable") match
+        case Result.Err(msg) => msg == s"HTTP 503: $baseUrl/unavailable.jsonl"
+        case Result.Ok(_)    => false
+
+    check("a network failure is preserved, not reported as a missing package"):
+      val deadProvider = HttpPackageProvider(
+        "http://127.0.0.1:1",
+        Files.createTempDirectory("jo-package-http-test-"),
+      )
+      deadProvider.versions("harpe") match
+        case Result.Err(msg) => msg.startsWith("failed to fetch http://127.0.0.1:1/harpe.jsonl:")
+        case Result.Ok(_)    => false
+  finally
+    server.stop(0)
+
+  if failed then List(Paths.get("HttpPackageProvider")) else Nil
 
 // ---- New name-validation suite ---------------------------------------------------
 
