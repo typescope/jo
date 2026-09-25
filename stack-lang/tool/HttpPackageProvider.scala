@@ -22,6 +22,14 @@ private case class ReleaseRecord(
   yanked: Boolean,
 )
 
+private enum FetchTextError:
+  case Http(status: Int, url: String)
+  case Transport(detail: String)
+
+  def message: String = this match
+    case Http(status, url) => s"HTTP $status: $url"
+    case Transport(detail) => detail
+
 /** Fetches packages from the Jo registry and caches artifacts locally.
  *
  *  Resolution uses the JSONL release index at:
@@ -123,8 +131,11 @@ case class HttpPackageProvider(
   private def refreshIndex(name: String, diskPath: Path): Result[String] =
     val url = s"$registryUrl/$name.jsonl"
     fetchText(url) match
-      case Result.Err(_) => Result.Err(s"package not found: $name")
-      case Result.Ok(text) =>
+      case Left(FetchTextError.Http(404, _)) =>
+        Result.Err(s"package not found: $name")
+      case Left(error) =>
+        Result.Err(error.message)
+      case Right(text) =>
         Files.createDirectories(diskPath.getParent)
         Files.writeString(diskPath, text)
         Result.Ok(text)
@@ -155,14 +166,14 @@ case class HttpPackageProvider(
 
     outDir
 
-  private def fetchText(url: String): Result[String] =
+  private def fetchText(url: String): Either[FetchTextError, String] =
     try
       val req = HttpRequest.newBuilder(URI.create(url)).build()
       val res = http.send(req, HttpResponse.BodyHandlers.ofString())
-      if res.statusCode() == 200 then Result.Ok(res.body())
-      else Result.Err(s"HTTP ${res.statusCode()}: $url")
+      if res.statusCode() == 200 then Right(res.body())
+      else Left(FetchTextError.Http(res.statusCode(), url))
     catch
-      case e: Exception => Result.Err(s"failed to fetch $url: ${e.getMessage}")
+      case e: Exception => Left(FetchTextError.Transport(s"failed to fetch $url: ${e.getMessage}"))
 
   private def download(url: String, dest: Path, expectedSha512: String): Result[Unit] =
     try
