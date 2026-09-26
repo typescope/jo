@@ -1,0 +1,5 @@
+namespace Diamond.runtime
+
+import Diamond.api.answer
+
+def doubled: Int = answer * 2

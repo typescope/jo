@@ -1,0 +1,4 @@
+import Diamond.api.answer
+import Diamond.runtime.doubled
+
+def main(): Unit = println(answer + doubled)

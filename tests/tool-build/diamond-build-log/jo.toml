@@ -1,0 +1,17 @@
+jo = "1.0"
+default = "guest"
+
+[module.api]
+kind = "lib"
+src = ["api/"]
+
+[module.runtime]
+kind = "lib"
+src = ["runtime/"]
+modules = ["api"]
+
+[module.guest]
+kind = "app"
+platform = "python"
+src = ["guest/"]
+modules = ["api", "runtime"]
