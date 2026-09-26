@@ -9,7 +9,12 @@ mkdir -p repo/greeter-pkg/1.0.0
 cp dep/.build/lib/release/greeter-pkg-v1.0.0.joy repo/greeter-pkg/1.0.0/
 
 jo lock
-: ''
+: '
+[package] [lib]
+[build] [lib]
+[artifact] dep/.build/lib/release/greeter-pkg-v1.0.0.joy
+[artifact] dep/.build/lib/release/greeter-pkg-v1.0.0-sources.zip
+'
 
 sed -n 's/^\(greeter-pkg = { version = "1.0.0", sha512 = "\)[0-9a-f]\+\(" }$\)/\1PLACEHOLDER\2/p' jo.lock
 : '

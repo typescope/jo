@@ -12,6 +12,14 @@ jo package
 
 unzip -Z1 .build/lib/release/release-lib-v1.0.0.joy | LC_ALL=C sort
 : '
+[package] [lib]
+[build] [lib]
+[artifact] dep/.build/lib/release/jo-core-v1.0.0.joy
+[artifact] dep/.build/lib/release/jo-core-v1.0.0-sources.zip
+[package] [lib]
+[build] [lib]
+[artifact] .build/lib/release/release-lib-v1.0.0.joy
+[artifact] .build/lib/release/release-lib-v1.0.0-sources.zip
 Greeter/Greeter.sast
 meta.toml
 '

@@ -5,7 +5,10 @@ rm -rf .build
 cp jo-legacy.lock jo.lock
 
 jo build
-: ''
+: '
+[build] [app]
+[output] .build/app/jo-1.0/target/app.py
+'
 
 cat jo.lock
 : '

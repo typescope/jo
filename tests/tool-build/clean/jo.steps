@@ -6,14 +6,18 @@ printf app > .build/app/marker
 : ''
 
 jo clean api
-: ''
+: '
+[clean] removed .build/api
+'
 
 test ! -e .build/api
 test -e .build/app/marker
 : ''
 
 jo clean
-: ''
+: '
+[clean] removed .build
+'
 
 test ! -e .build
 : ''

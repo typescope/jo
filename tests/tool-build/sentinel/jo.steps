@@ -20,6 +20,7 @@ found
 # Verify the option is effective through jo build
 jo build --spec jo-with-explicit-return.toml
 : '
+[build] [app]
 ---------- Error at tests/tool-build/sentinel/src-no-explicit/Main.jo:1:5 ---------------
 | def main = println "Sentinel test"
 |     ^^^^

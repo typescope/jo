@@ -1,4 +1,7 @@
 rm -rf .build; rm -f jo.lock
 jo build
 cat jo.lock
-: ''
+: '
+[build] [app]
+[output] .build/app/jo-1.0/target/app.py
+'

@@ -1,7 +1,9 @@
 rm -rf .build
 
 jo build
-: ''
+: '
+[build] [lib]
+'
 
 test "$(grep -c -x -- '--source-root' .build/lib/jo-1.0/sast.done)" -eq 1
 : ''

@@ -12,6 +12,14 @@ jo package --spec dep/jo.toml
 
 unzip -Z1 dep/.build/lib/release/resource-lib-v1.0.0.joy | LC_ALL=C sort
 : '
+[package] [lib]
+[build] [lib]
+[artifact] core/.build/lib/release/resource-core-v1.0.0.joy
+[artifact] core/.build/lib/release/resource-core-v1.0.0-sources.zip
+[package] [lib]
+[build] [lib]
+[artifact] dep/.build/lib/release/resource-lib-v1.0.0.joy
+[artifact] dep/.build/lib/release/resource-lib-v1.0.0-sources.zip
 ResourceLib/Dep.sast
 meta.toml
 resources/metadata/notice.txt

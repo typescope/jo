@@ -4,7 +4,7 @@ rm -f invalid/jo.lock duplicate/jo.lock duplicate-dir/jo.lock symlink-file/jo.lo
 
 jo build --spec invalid/jo.toml backslash
 : '
-error: in tests/tool-build/resources-validation/invalid/jo.toml: module.backslash.resources[0]: resource path 'bad\path.txt' uses backslash; use '/' separators
+error: in invalid/jo.toml: module.backslash.resources[0]: resource path 'bad\path.txt' uses backslash; use '/' separators
 '
 
 rm -f symlink-file/link.txt
@@ -12,7 +12,9 @@ ln -s target.txt symlink-file/link.txt
 
 jo package --spec symlink-file/jo.toml
 : '
-error: resource path must not be a symlink: tests/tool-build/resources-validation/symlink-file/link.txt
+[package] [lib]
+[build] [lib]
+error: resource path must not be a symlink: symlink-file/link.txt
 '
 
 rm -f symlink-dir/assets/link.txt
@@ -20,25 +22,33 @@ ln -s nested-target.txt symlink-dir/assets/link.txt
 
 jo package --spec symlink-dir/jo.toml
 : '
-error: resource path must not be a symlink: tests/tool-build/resources-validation/symlink-dir/assets/link.txt
+[package] [lib]
+[build] [lib]
+error: resource path must not be a symlink: symlink-dir/assets/link.txt
 '
 
 jo package --spec missing-package/jo.toml
 : '
-error: resource path not found: tests/tool-build/resources-validation/missing-package/missing.txt
+[package] [lib]
+[build] [lib]
+error: resource path not found: missing-package/missing.txt
 '
 
 jo build --spec missing-app/jo.toml
 : '
-error: resource path not found: tests/tool-build/resources-validation/missing-app/missing.txt
+error: resource path not found: missing-app/missing.txt
 '
 
 jo package --spec duplicate/jo.toml
 : '
+[package] [lib]
+[build] [lib]
 error: duplicate resource target: out.txt
 '
 
 jo package --spec duplicate-dir/jo.toml
 : '
+[package] [lib]
+[build] [lib]
 error: duplicate resource target: out/a.txt
 '

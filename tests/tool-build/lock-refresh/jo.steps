@@ -13,7 +13,16 @@ cp dep/.build/lib/release/greeter-pkg-v1.0.0.joy repo/greeter-pkg/1.0.0/
 cp dep2/.build/lib/release/alpha-pkg-v1.0.0.joy repo/alpha-pkg/1.0.0/
 
 jo lock
-: ''
+: '
+[package] [lib]
+[build] [lib]
+[artifact] dep/.build/lib/release/greeter-pkg-v1.0.0.joy
+[artifact] dep/.build/lib/release/greeter-pkg-v1.0.0-sources.zip
+[package] [lib]
+[build] [lib]
+[artifact] dep2/.build/lib/release/alpha-pkg-v1.0.0.joy
+[artifact] dep2/.build/lib/release/alpha-pkg-v1.0.0-sources.zip
+'
 
 cp jo.lock jo-old.lock
 : ''
@@ -46,10 +55,15 @@ greeter-pkg = { version = "1.0.0", sha512 = "PLACEHOLDER" }
 '
 
 jo build
-: ''
+: '
+[build] [app]
+[output] .build/app/jo-1.0/target/app.py
+'
 
 jo check
-: ''
+: '
+[check] [app]
+'
 
 jo run
 : '
@@ -57,7 +71,10 @@ Hello, Lock!
 '
 
 jo doc
-: ''
+: '
+[doc] [app]
+[output] .build/app/doc
+'
 
 cp jo-old.lock jo.lock
 : ''
