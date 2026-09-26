@@ -163,7 +163,7 @@ object Main:
    *  already ruled out); when false this is the `jo <name>` fallthrough, so a miss
    *  reports an unknown command. Exits with the command's status.
    */
-  private def runProjectCommand(name: String, extra: Array[String], forced: Boolean): Unit =
+  private def runProjectCommand(name: String, extra: Array[String], forced: Boolean)(using tool.Logger): Unit =
     tool.Project.loadSpec(Paths.get("").toAbsolutePath) match
       case tool.Result.Ok(spec) =>
         spec.commands.get(name) match
@@ -213,7 +213,7 @@ object Main:
 
   case class CompileFlags(backend: Option[Backend], args: Array[String])
 
-  private def loadProject(specFile: String): tool.Result[tool.Project] =
+  private def loadProject(specFile: String)(using tool.Logger): tool.Result[tool.Project] =
     val specPath = Paths.get(specFile).toAbsolutePath
     tool.Project.load(specPath)
 
