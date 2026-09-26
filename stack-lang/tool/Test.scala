@@ -82,10 +82,6 @@ import tool.template.{GithubTemplateProvider, LocalTemplateProvider, TemplateArc
   failed :::= runHttpPackageProviderTests()
   println()
 
-  println("=== Runner ===")
-  failed :::= runRunnerTests()
-  println()
-
   println("=== New (name validation) ===")
   failed :::= runNewNameValidationTests()
   println()
@@ -364,56 +360,6 @@ private def runHttpPackageProviderTests(): List[Path] =
     server.stop(0)
 
   if failed then List(Paths.get("HttpPackageProvider")) else Nil
-
-// ---- Runner suite -----------------------------------------------------------
-
-private def runRunnerTests(): List[Path] =
-  var failed = false
-
-  def check(label: String)(body: => Boolean): Unit =
-    val ok =
-      try body
-      catch
-        case e: Exception =>
-          println(s"  threw: ${e.getMessage}")
-          false
-
-    if ok then println(s"  ok: $label")
-    else
-      println(s"FAIL: $label")
-      failed = true
-
-  check("a shared dependency in a diamond is built and logged only once"):
-    val root = Files.createTempDirectory("jo-runner-diamond-test-")
-    val joBin = Paths.get("/bin/true")
-
-    def libPlan(name: String, deps: List[ModulePlan]): ModulePlan =
-      ModulePlan(
-        ModuleKey(root.resolve("jo.toml"), ModuleId(name)),
-        s"[$name]",
-        joBin,
-        CompileTask.LibTask(Nil, Nil, root.resolve(name), root),
-        deps,
-      )
-
-    val api = libPlan("api", Nil)
-    // Deliberately use a distinct plan object for the second edge. Deduplication
-    // must follow module identity, not reference identity or case-class equality.
-    val apiViaRuntime = libPlan("api", Nil)
-    val runtime = libPlan("runtime", List(apiViaRuntime))
-    val guest = libPlan("guest", List(api, runtime))
-    val messages = new mutable.ArrayBuffer[String]
-    given Logger = new Logger:
-      protected def write(msg: String, level: LogLevel): Unit = messages += msg
-
-    Runner.run(guest) == Result.unit &&
-      messages.filter(_.startsWith("[build]")).toList == List(
-        "[build] [api]\n",
-        "[build] [runtime]\n",
-        "[build] [guest]\n",
-      )
-
-  if failed then List(Paths.get("Runner")) else Nil
 
 // ---- New name-validation suite ---------------------------------------------------
 
@@ -957,12 +903,12 @@ private def matchesFilter(path: Path, filters: List[String]): Boolean =
 
 // ---- jo.steps DSL ------------------------------------------------------------
 
-/** A group of commands whose combined stdout may be checked.
- *
- *  expected = None  → run for side effects only (exit 0 required)
- *  expected = Some  → compare combined stdout to expected string
- */
-private case class Step(cmds: List[String], expected: Option[String])
+private enum StepExpectation:
+  case Output(value: String)
+  case Logs(value: String)
+
+/** A group of commands whose combined output or Jo progress log may be checked. */
+private case class Step(cmds: List[String], expected: Option[StepExpectation])
 
 /** Parse a jo.steps file into a list of Steps.
  *
@@ -971,8 +917,9 @@ private case class Step(cmds: List[String], expected: Option[String])
  *    - Lines starting with `#` are comments
  *    - `: ''` is a compact form asserting empty output
  *    - `: '` opens a multi-line expected-output block; a lone `'` closes it
+ *    - `: logs '` opens a multi-line expected Jo progress-log block
  *      (null-command string literals in bash — content is taken literally)
- *    - Commands before a `: ''` or `: '` block belong to that step
+ *    - Commands before an expectation block belong to that step
  *    - Commands without a following block form a step with no expected output
  *    - `{{JO_VERSION}}` in an expected block expands to the current major.minor
  *      version, so scaffolding output survives version bumps
@@ -986,17 +933,20 @@ private def parseSteps(content: String): List[Step] =
   while i < lines.length do
     val line = lines(i)
     if line == ": ''" then
-      steps += Step(cmds.reverse, Some(""))
+      steps += Step(cmds.reverse, Some(StepExpectation.Output("")))
       cmds = Nil
       i += 1
-    else if line == ": '" then
+    else if line == ": '" || line == ": logs '" then
+      val expectLogs = line == ": logs '"
       i += 1
       val buf = new mutable.ArrayBuffer[String]
       while i < lines.length && lines(i) != "'" do
         buf += lines(i)
         i += 1
       if i < lines.length then i += 1   // skip closing '
-      steps += Step(cmds.reverse, Some(buf.mkString("\n") + "\n"))
+      val value = buf.mkString("\n") + "\n"
+      val expected = if expectLogs then StepExpectation.Logs(value) else StepExpectation.Output(value)
+      steps += Step(cmds.reverse, Some(expected))
       cmds = Nil
     else if line.trim.isEmpty || line.startsWith("#") then
       i += 1
@@ -1018,9 +968,15 @@ private def runStepsFile(stepsFile: Path, specDir: Path)(using Logger): List[Pat
 
   for step <- steps do
     var stepOk = true
+    val captureLogs = step.expected.exists:
+      case StepExpectation.Logs(_) => true
+      case _                       => false
     val outputs = step.cmds.map: cmd =>
       if cmd.startsWith("jo ") then
-        runJoCmd(cmd.drop(3).trim, specDir) match
+        val result =
+          if captureLogs then runJoCmdCapturingLogs(cmd.drop(3).trim, specDir)
+          else runJoCmd(cmd.drop(3).trim, specDir)
+        result match
           case Result.Ok(out)  => out
 
           case Result.Err(out) =>
@@ -1045,9 +1001,12 @@ private def runStepsFile(stepsFile: Path, specDir: Path)(using Logger): List[Pat
             println(actual)
           failed ::= stepsFile
 
-      case Some(expectedRaw) =>
+      case Some(expectation) =>
         // `{{JO_VERSION}}` expands to the current major.minor, so scaffolding
         // expectations (e.g. the generated jo.toml) survive version bumps.
+        val expectedRaw = expectation match
+          case StepExpectation.Output(value) => value
+          case StepExpectation.Logs(value)   => value
         val expected = expectedRaw.replace("{{JO_VERSION}}", joVersionShort)
         if actual == expected then
           println(s"  ok: $stepsFile [${step.cmds.mkString("; ")}]")
@@ -1062,6 +1021,15 @@ private def runStepsFile(stepsFile: Path, specDir: Path)(using Logger): List[Pat
   failed
 
 // ---- Command runners ---------------------------------------------------------
+
+private def runJoCmdCapturingLogs(subcmd: String, specDir: Path): Result[String] =
+  val output = StringBuilder()
+  given Logger = new Logger:
+    protected def write(msg: String, level: LogLevel): Unit = output.append(msg)
+
+  runJoCmd(subcmd, specDir) match
+    case Result.Ok(_)  => Result.Ok(output.result())
+    case Result.Err(_) => Result.Err(output.result())
 
 private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String] =
   val parts = subcmd.trim.split("\\s+").toList.filter(_.nonEmpty)
