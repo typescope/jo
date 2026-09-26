@@ -41,11 +41,11 @@ object Release:
                       val sourceSha = Digest.sha512Hex(sourcesPath)
                       Files.writeString(archiveDigestPath, s"$archiveSha  $archiveName\n")
                       Files.writeString(sourcesDigestPath, s"$sourceSha  $sourcesName\n")
-                      Logger.info(s"[artifact] ${LogFormat.path(archivePath)}\n")
-                      Logger.info(s"[artifact] ${LogFormat.path(sourcesPath)}\n")
+                      Logger.info(s"[artifact] ${Logger.relativize(archivePath)}\n")
+                      Logger.info(s"[artifact] ${Logger.relativize(sourcesPath)}\n")
                 finally deleteDir(tempDir)
 
-  private def validatePackageDependencies(project: Project, module: ModuleId)(using PackageProvider): Result[Map[String, VersionSpec]] =
+  private def validatePackageDependencies(project: Project, module: ModuleId)(using PackageProvider, Logger): Result[Map[String, VersionSpec]] =
     packageDependencies(project, module).flatMap: dependencies =>
       DependencyResolver.resolveProject(project, List(module)).flatMap: resolved =>
         resolved.packages.find(_.meta.platform != Platform.Pure) match
@@ -56,7 +56,7 @@ object Release:
           case None =>
             Result.Ok(dependencies)
 
-  private def packageDependencies(project: Project, module: ModuleId): Result[Map[String, VersionSpec]] =
+  private def packageDependencies(project: Project, module: ModuleId)(using Logger): Result[Map[String, VersionSpec]] =
     project.requireModule(module).flatMap: spec =>
       val dependencies = mutable.LinkedHashMap.empty[String, VersionSpec]
 
@@ -104,7 +104,7 @@ object Release:
     dependencies: Map[String, VersionSpec],
     sastDir: Path,
     stageDir: Path,
-  ): Result[Unit] =
+  )(using Logger): Result[Unit] =
     if !Files.isDirectory(sastDir) then
       return Result.Err(s"sast output not found: $sastDir")
 
@@ -154,7 +154,7 @@ object Release:
     ResourcePaths.expand(spec.resources, project.dir).flatMap: resources =>
       ResourcePaths.copyFiles(resources, stageDir.resolve("resources"))
 
-  private def stageSources(project: Project, spec: ModuleSpec, stageDir: Path): Result[Unit] =
+  private def stageSources(project: Project, spec: ModuleSpec, stageDir: Path)(using Logger): Result[Unit] =
     SourcePaths.expand(spec.src, project.dir).flatMap: sources =>
       if sources.isEmpty then
         Result.Err(s"no source files found for package '${spec.pkg.get.name}'")

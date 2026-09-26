@@ -61,17 +61,17 @@ object DependencyResolver:
    *  Error behavior is explicit: failures are returned as Result.Err rather
    *  than being used for control flow via exceptions.
    */
-  def resolveProject(project: Project, modules: List[ModuleId])(using provider: PackageProvider): Result[ResolutionResult] =
+  def resolveProject(project: Project, modules: List[ModuleId])(using provider: PackageProvider, logger: Logger): Result[ResolutionResult] =
     resolve(project, modules, Map.empty)
 
-  def resolveProject(project: Project, modules: List[ModuleId], lock: LockFile)(using provider: PackageProvider): Result[ResolutionResult] =
+  def resolveProject(project: Project, modules: List[ModuleId], lock: LockFile)(using provider: PackageProvider, logger: Logger): Result[ResolutionResult] =
     resolve(project, modules, lock.packages.map(pkg => pkg.name -> pkg).toMap)
 
   private def resolve(
     project: Project,
     modules: List[ModuleId],
     locked: Map[String, LockedPackage],
-  )(using provider: PackageProvider): Result[ResolutionResult] =
+  )(using provider: PackageProvider, logger: Logger): Result[ResolutionResult] =
     val selectedModules = modules.distinct
     val missingModule = selectedModules.iterator
       .map(project.requireModule)

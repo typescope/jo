@@ -16,11 +16,11 @@ object Planner:
   private case class EffectiveLink(to: String, source: String)
   private case class EffectiveAppLinks(linkLibs: List[Path], links: Map[String, EffectiveLink])
 
-  def plan(project: Project, selected: List[ModuleId], registryPackages: RegistryPackages): Result[ProjectPlan] =
+  def plan(project: Project, selected: List[ModuleId], registryPackages: RegistryPackages)(using Logger): Result[ProjectPlan] =
     Project.validateModuleAcyclic(project, selected).flatMap: _ =>
       PlanBuilder(project, registryPackages).plan(selected)
 
-  private final class PlanBuilder(root: Project, registryPackages: RegistryPackages):
+  private final class PlanBuilder(root: Project, registryPackages: RegistryPackages)(using Logger):
     private val memo = mutable.Map.empty[ModuleKey, ModulePlan]
     private val stack = mutable.ArrayBuffer.empty[(Project, ModuleId)]
     private val checkLibsCache = mutable.Map.empty[ModuleKey, List[Path]]
@@ -199,7 +199,7 @@ object Planner:
     private def sourceResourceOwner(project0: Project, id: ModuleId): String =
       project0.pkg(id).map(_.name).getOrElse(id.value)
 
-  private final class LinkResolver(root: Project, registryPackages: RegistryPackages, checkLibsOf: (Project, ModuleId) => List[Path]):
+  private final class LinkResolver(root: Project, registryPackages: RegistryPackages, checkLibsOf: (Project, ModuleId) => List[Path])(using Logger):
     private val memo = mutable.Map.empty[ModuleKey, EffectiveAppLinks]
     private val stack = mutable.Set.empty[ModuleKey]
 

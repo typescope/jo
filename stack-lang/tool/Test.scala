@@ -117,7 +117,6 @@ private def runBuildTests(filters: List[String]): List[Path] =
     return Nil
 
   var failed = List.empty[Path]
-  given Logger = Logger(LogLevel.Log)
   for stepsFile <- findFiles("tests/tool-build/*/jo.steps").filter(matchesFilter(_, filters)) do
     failed :::= runStepsFile(stepsFile, stepsFile.getParent)
   failed
@@ -148,7 +147,6 @@ private def runVersionsTests(filters: List[String]): List[Path] =
     return Nil
 
   var failed = List.empty[Path]
-  given Logger = Logger(LogLevel.Log)
   for stepsFile <- findFiles("tests/tool-versions/*/jo.steps").filter(matchesFilter(_, filters)) do
     failed :::= runStepsFile(stepsFile, stepsFile.getParent)
   failed
@@ -903,12 +901,11 @@ private def matchesFilter(path: Path, filters: List[String]): Boolean =
 
 // ---- jo.steps DSL ------------------------------------------------------------
 
-private enum StepExpectation:
-  case Output(value: String)
-  case Logs(value: String)
-
-/** A group of commands whose combined output or Jo progress log may be checked. */
-private case class Step(cmds: List[String], expected: Option[StepExpectation])
+/** A group of commands whose combined user-visible output may be checked.
+ *
+ *  For Jo commands this includes both progress logs and command/program output.
+ */
+private case class Step(cmds: List[String], expected: Option[String])
 
 /** Parse a jo.steps file into a list of Steps.
  *
@@ -917,7 +914,6 @@ private case class Step(cmds: List[String], expected: Option[StepExpectation])
  *    - Lines starting with `#` are comments
  *    - `: ''` is a compact form asserting empty output
  *    - `: '` opens a multi-line expected-output block; a lone `'` closes it
- *    - `: logs '` opens a multi-line expected Jo progress-log block
  *      (null-command string literals in bash — content is taken literally)
  *    - Commands before an expectation block belong to that step
  *    - Commands without a following block form a step with no expected output
@@ -933,20 +929,17 @@ private def parseSteps(content: String): List[Step] =
   while i < lines.length do
     val line = lines(i)
     if line == ": ''" then
-      steps += Step(cmds.reverse, Some(StepExpectation.Output("")))
+      steps += Step(cmds.reverse, Some(""))
       cmds = Nil
       i += 1
-    else if line == ": '" || line == ": logs '" then
-      val expectLogs = line == ": logs '"
+    else if line == ": '" then
       i += 1
       val buf = new mutable.ArrayBuffer[String]
       while i < lines.length && lines(i) != "'" do
         buf += lines(i)
         i += 1
       if i < lines.length then i += 1   // skip closing '
-      val value = buf.mkString("\n") + "\n"
-      val expected = if expectLogs then StepExpectation.Logs(value) else StepExpectation.Output(value)
-      steps += Step(cmds.reverse, Some(expected))
+      steps += Step(cmds.reverse, Some(buf.mkString("\n") + "\n"))
       cmds = Nil
     else if line.trim.isEmpty || line.startsWith("#") then
       i += 1
@@ -957,7 +950,7 @@ private def parseSteps(content: String): List[Step] =
   if cmds.nonEmpty then steps += Step(cmds.reverse, None)
   steps.toList
 
-private def runStepsFile(stepsFile: Path, specDir: Path)(using Logger): List[Path] =
+private def runStepsFile(stepsFile: Path, specDir: Path): List[Path] =
   val steps   = parseSteps(Files.readString(stepsFile))
   var failed  = List.empty[Path]
   println(s"\n--- ${specDir.getFileName} ---")
@@ -968,15 +961,9 @@ private def runStepsFile(stepsFile: Path, specDir: Path)(using Logger): List[Pat
 
   for step <- steps do
     var stepOk = true
-    val captureLogs = step.expected.exists:
-      case StepExpectation.Logs(_) => true
-      case _                       => false
     val outputs = step.cmds.map: cmd =>
       if cmd.startsWith("jo ") then
-        val result =
-          if captureLogs then runJoCmdCapturingLogs(cmd.drop(3).trim, specDir)
-          else runJoCmd(cmd.drop(3).trim, specDir)
-        result match
+        runJoCmdWithOutput(cmd.drop(3).trim, specDir) match
           case Result.Ok(out)  => out
 
           case Result.Err(out) =>
@@ -1001,12 +988,9 @@ private def runStepsFile(stepsFile: Path, specDir: Path)(using Logger): List[Pat
             println(actual)
           failed ::= stepsFile
 
-      case Some(expectation) =>
+      case Some(expectedRaw) =>
         // `{{JO_VERSION}}` expands to the current major.minor, so scaffolding
         // expectations (e.g. the generated jo.toml) survive version bumps.
-        val expectedRaw = expectation match
-          case StepExpectation.Output(value) => value
-          case StepExpectation.Logs(value)   => value
         val expected = expectedRaw.replace("{{JO_VERSION}}", joVersionShort)
         if actual == expected then
           println(s"  ok: $stepsFile [${step.cmds.mkString("; ")}]")
@@ -1022,14 +1006,20 @@ private def runStepsFile(stepsFile: Path, specDir: Path)(using Logger): List[Pat
 
 // ---- Command runners ---------------------------------------------------------
 
-private def runJoCmdCapturingLogs(subcmd: String, specDir: Path): Result[String] =
+private def runJoCmdWithOutput(subcmd: String, specDir: Path): Result[String] =
   val output = StringBuilder()
   given Logger = new Logger:
+    override val minLevel =
+      val args = subcmd.split("\\s+").toList
+      if args.contains("--verbose") || args.contains("-v") then LogLevel.Log
+      else if args.headOption.contains("run") then LogLevel.Warn
+      else LogLevel.Info
+    override protected val cwd = specDir
     protected def write(msg: String, level: LogLevel): Unit = output.append(msg)
 
   runJoCmd(subcmd, specDir) match
-    case Result.Ok(_)  => Result.Ok(output.result())
-    case Result.Err(_) => Result.Err(output.result())
+    case Result.Ok(out)  => Result.Ok(output.result() + out)
+    case Result.Err(out) => Result.Err(output.result() + out)
 
 private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String] =
   val parts = subcmd.trim.split("\\s+").toList.filter(_.nonEmpty)
@@ -1212,6 +1202,7 @@ private def printResolved(specFile: String): Unit =
 
   val provider = YamlPackageProvider(repoFile, specDir.resolve(".cache"))
   given PackageProvider = provider
+  given Logger = Logger.stderr
   Project.load(specPath, resolveJo).flatMap(project => DependencyResolver.resolveProject(project, project.moduleIds)) match
     case Result.Ok(resolved) =>
       resolved.unusedPins.foreach: (name, version) =>
@@ -1236,6 +1227,7 @@ private def lockCheck(specFile: String): String =
 
   val provider = YamlPackageProvider(repoFile, specDir.resolve(".cache"))
   given PackageProvider = provider
+  given Logger = Logger.stderr
 
   val resolved = Project.load(specPath, resolveJo).flatMap: project =>
     LockFile.load(lockPath).flatMap:

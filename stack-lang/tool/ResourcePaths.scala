@@ -7,7 +7,7 @@ import scala.jdk.CollectionConverters.*
 
 object ResourcePaths:
   /** Expand resource paths relative to baseDir. Directories include regular files recursively. */
-  def expand(entries: List[ResourceMapping], baseDir: Path): Result[List[ResourceFile]] =
+  def expand(entries: List[ResourceMapping], baseDir: Path)(using Logger): Result[List[ResourceFile]] =
     val base = baseDir.toAbsolutePath.normalize()
     val files = ArrayBuffer.empty[ResourceFile]
 
@@ -15,15 +15,15 @@ object ResourcePaths:
       acc.flatMap(_ => expandEntry(mapping, base, files))
     .flatMap(_ => finishExpansion(files))
 
-  def fromModule(owner: String, entries: List[ResourceMapping], baseDir: Path): Result[Option[ResourceGroup]] =
+  def fromModule(owner: String, entries: List[ResourceMapping], baseDir: Path)(using Logger): Result[Option[ResourceGroup]] =
     expand(entries, baseDir).map: files =>
       if files.isEmpty then None else Some(ResourceGroup(owner, files))
 
-  def fromPackage(owner: String, unpackedDir: Path): Result[Option[ResourceGroup]] =
+  def fromPackage(owner: String, unpackedDir: Path)(using Logger): Result[Option[ResourceGroup]] =
     val root = unpackedDir.resolve("resources").normalize()
     if !Files.exists(root) then Result.Ok(None)
     else if !Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS) then
-      Result.Err(s"package resource root is not a directory: ${LogFormat.path(root)}")
+      Result.Err(s"package resource root is not a directory: ${Logger.relativize(root)}")
     else
       val files = ArrayBuffer.empty[ResourceFile]
       expandDir(root, root, Path.of(""), files).flatMap(_ => finishExpansion(files)).map: expandedFiles =>
@@ -151,7 +151,7 @@ object ResourcePaths:
     else
       Files.deleteIfExists(path)
 
-  private def expandEntry(mapping: ResourceMapping, base: Path, files: ArrayBuffer[ResourceFile]): Result[Unit] =
+  private def expandEntry(mapping: ResourceMapping, base: Path, files: ArrayBuffer[ResourceFile])(using Logger): Result[Unit] =
     val raw = Path.of(mapping.source)
     if raw.isAbsolute then
       return Result.Err(s"resource path must be relative: ${mapping.source}")
@@ -161,9 +161,9 @@ object ResourcePaths:
       return Result.Err(s"resource path escapes project directory: ${mapping.source}")
 
     if !Files.exists(path, LinkOption.NOFOLLOW_LINKS) then
-      Result.Err(s"resource path not found: ${LogFormat.path(path)}")
+      Result.Err(s"resource path not found: ${Logger.relativize(path)}")
     else if Files.isSymbolicLink(path) then
-      Result.Err(s"resource path must not be a symlink: ${LogFormat.path(path)}")
+      Result.Err(s"resource path must not be a symlink: ${Logger.relativize(path)}")
     else if Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS) then
       expandDir(path, base, Path.of(mapping.dest), files)
     else if Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS) then
@@ -171,14 +171,14 @@ object ResourcePaths:
         files += file
         ()
     else
-      Result.Err(s"resource path is not a file or directory: ${LogFormat.path(path)}")
+      Result.Err(s"resource path is not a file or directory: ${Logger.relativize(path)}")
 
   private def expandDir(
     path: Path,
     base: Path,
     targetBase: Path,
     files: ArrayBuffer[ResourceFile],
-  ): Result[Unit] =
+  )(using Logger): Result[Unit] =
     val root = path.toAbsolutePath.normalize()
     val relBase = base.toAbsolutePath.normalize()
     try
@@ -189,7 +189,7 @@ object ResourcePaths:
         while error.isEmpty && iter.hasNext do
           val file = iter.next()
           if Files.isSymbolicLink(file) then
-            error = Some(s"resource path must not be a symlink: ${LogFormat.path(file)}")
+            error = Some(s"resource path must not be a symlink: ${Logger.relativize(file)}")
           else if Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS) then
             val nested = root.relativize(file)
             makeResourceFile(file, relBase, targetBase.resolve(nested.toString)) match
@@ -202,7 +202,7 @@ object ResourcePaths:
           case None      => Result.unit
       finally stream.close()
     catch case e: IOException =>
-      Result.Err(s"could not read resource directory ${LogFormat.path(path)}: ${e.getMessage}")
+      Result.Err(s"could not read resource directory ${Logger.relativize(path)}: ${e.getMessage}")
 
   private def makeResourceFile(inputFile: Path, base: Path, resourcePath: Path): Result[ResourceFile] =
     val sourceArchivePath = base.relativize(inputFile)

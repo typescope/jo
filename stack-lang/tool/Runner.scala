@@ -37,7 +37,7 @@ object Runner:
           case _ =>
             runApp(app, jo).flatMap: _ =>
               syncResources(app).map: _ =>
-                info(s"[output] ${LogFormat.path(app.outFile)}\n")
+                info(s"[output] ${Logger.relativize(app.outFile)}\n")
 
   /** Type-check only: compile everything as libs (--sast), skip app link step. */
   def check(plan: ModulePlan, action: String)(using Logger): Result[Unit] =
