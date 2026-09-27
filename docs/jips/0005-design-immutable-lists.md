@@ -176,49 +176,30 @@ private[jo] section ListImpl
 taken slots end. After it returns `true`, the caller is the only one that
 ever writes those slots.
 
-### Threads
+### Thread Safety
 
-Jo has no concurrency primitives, but some backends let threads started
-through the FFI reach Jo values. There, two threads could run `tryExtend` on
-the same claim at once, both see the slot free and both write it. Each runtime
-therefore defines the claim for its own threading model:
+Two threads could run `tryExtend` on the same claim at once, both see the slot
+free and both write it. Each runtime therefore defines the claim for its own
+threading model:
 
 | Runtime | Claim |
 |---|---|
 | JavaScript | compare and bump. Workers share no objects. |
-| Native, interpreter | compare and bump. They run a single thread. |
 | Python, Ruby | compare and bump, only on the thread that created the claim |
 
-On Python and Ruby, the claim records the thread that created it, from
-`threading.get_ident()` and `Thread.current.object_id`. Only that thread
-extends the array in place. Every other thread copies and then owns the copy,
-so it too appends in O(1) amortized from then on. As one thread writes each
-array's free slots, no synchronization is needed. Reading needs none either:
-a list only reads slots that were written before the list existed.
+In the current implementation, the claim on Python and Ruby records the thread
+that created it, from `threading.get_ident()` and `Thread.current.object_id`.
+Only that thread extends the array in place. Every other thread copies and then
+owns the copy, so it too appends in O(1) amortized from then on.
 
-If Jo gains concurrency primitives, these runtimes can switch to a
-compare-and-swap on the claim without any change to `List`.
+This is one choice among several. A claim guarded by a lock would let any
+thread extend the array in place, at the cost of taking the lock on every
+append.
 
-### Builders
-
-`ListBuilder` keeps its API. It fills an array directly, and `result` hands
-that array to the list it returns, with a fresh claim. If less than half of
-the array is used, `result` copies the elements into an array of the exact
-size instead, so that a short list does not hold a long array.
-
-Because the list may then append into the free slots itself, `result`
-consumes the builder. Adding after `result`, or calling `result` again, lets
-two lists write the same slots. The builder does not check this. A builder is
-a local, mutable helper, and keeping to one result is up to its user. List
-literals and varargs, which the typer lowers to builder chains, call `result`
-once.
-
-### `updated`
-
-On an array, `updated` has to copy the whole list, where the trie copied one
-path. It stays, so that existing code keeps compiling, and its documentation
-says that it is O(n) and points to `mutable.List` for changing elements by
-index.
+The design is flexible enough to support any runtime platform. A runtime only
+has to provide `newClaim` and `tryExtend` for its own threading model, and
+`List` does not change. If Jo gains concurrency primitives, for example, a
+runtime can switch to a compare-and-swap on the claim.
 
 ## Evaluation
 
