@@ -309,7 +309,7 @@ extends Phase:
 
     val capturedCtxOpt =
       given Source = Phase.source.value
-      val ambientNeeds = defn.index.effectEngine.effects(body).keySet -- receives.toSet
+      val ambientNeeds = defn.index.effectEngine.specEffectsForCapture(body) -- receives.toSet
       if ambientNeeds.nonEmpty then
         assert(currentCtxSym.exists, "Missing ambient context for captured lambda: " + lam.show)
         currentCtxSym.getOpt

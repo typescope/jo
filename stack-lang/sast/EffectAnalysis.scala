@@ -87,6 +87,18 @@ class EffectAnalysis:
        assert(!stableBodyEffects.contains(sym), sym.fullName)
        stableBodyEffects(sym) = effs
 
+  /** Compute ambient effects for lambda capture analysis using function specs.
+    *
+    * Unlike effects(word), this uses ProcType.receives for ALL functions
+    * (not just Defer/Loaded ones), ensuring consistency with LowerContextParams
+    * which uses pt.receives to decide whether to pass ctx at call sites.
+    *
+    * This matters when a function has an explicit 'receives X' spec but its body
+    * does not directly use X (so inferred body effects would omit X).
+    */
+  def specEffectsForCapture(word: Word)(using defn: Definitions, source: Source): Set[Symbol] =
+    EffectAnalysis.specEffectsForWord(word)
+
 /** Effect inference with caching
   *
   * The usage of ProcType.receives is strictly forbidden during effect inference
@@ -408,3 +420,112 @@ object EffectAnalysis:
           case _: Def =>
             acc
     end apply
+
+  /** Get spec-declared effects for a function symbol for capture analysis.
+    * Uses ProcType.receives for Defer/Loaded and explicit effectPolicy.bound for others.
+    * Falls back to stable body effects if no explicit spec is present.
+    */
+  private def getSpecEffectsSet(sym: Symbol)(using defn: Definitions): Set[Symbol] =
+    if sym.isOneOf(Flags.Defer | Flags.Loaded) then
+      sym.tpe.asProcType.receives.toSet
+    else
+      defn.index.getCodeOpt(sym).flatMap(_.effectPolicy.bound) match
+        case Some(effs) => effs.toSet
+        case None =>
+          defn.index.effectEngine.getStableBodyEffects(sym)
+            .map(_.keySet)
+            .getOrElse(Set.empty)
+
+  /** Compute ambient effects for a word using function specs.
+    *
+    * Mirrors EffectAnalyzer.apply but uses getSpecEffectsSet for Select/Ident
+    * function references so that explicitly declared 'receives' propagate even
+    * when the function's inferred body effects are empty.
+    */
+  private def specEffectsForWord(word: Word, acc: Set[Symbol] = Set.empty)
+      (using defn: Definitions, source: Source): Set[Symbol] =
+    word match
+      case Ident(sym) if sym.is(Flags.Context) =>
+        acc + sym
+
+      case Ident(sym) if sym.isFunction =>
+        acc ++ getSpecEffectsSet(sym)
+
+      case Apply(fun, args, autos) =>
+        val acc1 = specEffectsForWord(fun, acc)
+        val acc2 = args.foldLeft(acc1)((a, w) => specEffectsForWord(w, a))
+        val acc3 = autos.foldLeft(acc2)((a, w) => specEffectsForWord(w, a))
+        // LambdaType receives are added at call-site (mirrors EffectAnalyzer)
+        fun.tpe match
+          case lt: LambdaType => acc3 ++ lt.receives
+          case _              => acc3
+
+      case TypeApply(fun, _) =>
+        specEffectsForWord(fun, acc)
+
+      case Select(qual, _) =>
+        val acc1 = specEffectsForWord(qual, acc)
+        if word.tpe.isProcType then
+          assert(word.tpe.is[Types.RefType], "Ref type expected: " + word.tpe)
+          val sym = word.tpe.as[Types.RefType].symbol
+          acc1 ++ getSpecEffectsSet(sym)
+        else
+          acc1
+
+      case Lambda(_, _, receives, body) =>
+        val bodyEffects = specEffectsForWord(body)
+        acc ++ (bodyEffects -- receives.toSet)
+
+      case Block(words) =>
+        words.foldLeft(acc)((a, w) => specEffectsForWord(w, a))
+
+      case If(cond, thenp, elsep) =>
+        specEffectsForWord(elsep, specEffectsForWord(thenp, specEffectsForWord(cond, acc)))
+
+      case With(expr, args) =>
+        val effsInner = specEffectsForWord(expr)
+        val masked    = args.map(_.symbol).toSet
+        val unmasked  = effsInner -- masked
+        args.foldLeft(acc ++ unmasked)((a, arg) => specEffectsForWord(arg.rhs, a))
+
+      case Allow(expr, params) =>
+        val effsInner = specEffectsForWord(expr)
+        val allowed   = params.map(_.symbol).toSet
+        acc ++ effsInner.filter(allowed.contains)
+
+      case Assign(_, rhs, _) =>
+        specEffectsForWord(rhs, acc)
+
+      case FieldAssign(_, rhs) =>
+        specEffectsForWord(rhs, acc)
+
+      case While(cond, body) =>
+        specEffectsForWord(body, specEffectsForWord(cond, acc))
+
+      case Labeled(_, _, body) =>
+        specEffectsForWord(body, acc)
+
+      case Return(_, value) =>
+        specEffectsForWord(value, acc)
+
+      case IsExpr(scrutinee, _) =>
+        specEffectsForWord(scrutinee, acc)
+
+      case ClassTest(value, _) =>
+        specEffectsForWord(value, acc)
+
+      case Match(scrut, cases) =>
+        val acc1 = specEffectsForWord(scrut, acc)
+        cases.foldLeft(acc1)((a, c) => specEffectsForWord(c.body, a))
+
+      case PatValDef(_, rhs) =>
+        specEffectsForWord(rhs, acc)
+
+      case RecordLit(fields) =>
+        fields.foldLeft(acc)((a, field) => specEffectsForWord(field._2, a))
+
+      case Encoded(repr) =>
+        specEffectsForWord(repr, acc)
+
+      case _ =>
+        acc
