@@ -2,6 +2,40 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+
+- `List` is backed by a flat array instead of a 32-way trie. `get` is O(1)
+  with no tree walk. `slice`, `take` and `drop` share the elements in O(1),
+  and copy only a slice too small to be worth keeping the array alive.
+  Appending with `+` or `++` writes into free space at the end of the shared
+  array, so `acc = acc + v` in a loop is O(1) amortized per element. Only the
+  first of `l + a` and `l + b` extends `l` in place. The second copies `l`.
+- `ListBuilder.result` consumes the builder, which hands its array to the
+  list it returns. Adding to a builder after `result`, or calling `result`
+  again, is no longer supported and is not checked.
+- On the Python and Ruby backends, a list is extended in place only by the
+  thread that created its array. Other threads copy, so lists stay immutable
+  when threads started through the FFI share them.
+
+### Removed
+
+- `List.updated`. Use `mutable.List` for a sequence that changes in place.
+
+### Security
+
+- No security-relevant changes.
+
+### Compatibility
+
+- Source code that calls `List.updated`, or that uses a `ListBuilder` after
+  calling `result`, must be changed.
+- Every runtime must link two new deferred functions, `jo.ListImpl.newClaim`
+  and `jo.ListImpl.tryExtend`. The bundled runtimes provide them. A custom
+  runtime supplied with `--link` must provide them too.
+- Libraries must be recompiled against this standard library.
+
 ## [0.13.6] - 2026-09-27
 
 ### Fixed
