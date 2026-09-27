@@ -20,8 +20,7 @@ pattern List[T](elems: List[T]): List[T] = case elems
 section List
   //[ An empty list. //]
   def empty[T]: List[T] =
-    val arr = Array.create[T](0)
-    new List(ListImpl.Leaf(arr), 0, 0)
+    ListImpl.wrap(Array.create[T](0), 0)
 
   //[ Start building a list one element at a time.
     !
@@ -40,27 +39,34 @@ section List
     ListImpl.fromGenerator(n, f)
 end
 
-//[ An immutable indexed sequence backed by a 32-way trie.
+//[ An immutable indexed sequence backed by a flat array.
   !
-  ! All operations are O(log₃₂ n) ≈ effectively O(1):
-  !   - `get(i)`, `updated(i, v)`: O(log₃₂ n)
-  !   - `+` (append one element): O(log₃₂ n) amortized
-  !   - `++` (concatenate): O(min(n + m, m log₃₂ n)) where m = size of argument
+  !   - `get(i)`: O(1)
+  !   - `slice`, `take`, `drop`: O(1) by sharing the elements, or O(k) for a
+  !     result of k elements too small to be worth keeping the array alive
+  !   - `+` (append one element): O(1) amortized
+  !   - `++` (concatenate): O(m) amortized, where m = size of the argument
   !
-  ! Build a list with `[]` literal or by appending with `+`. `fill`, `tabulate`
-  ! and `map` build the trie bottom up in O(n) instead, and `tabulate` is the
-  ! way to turn an `Array` into a `List` in one pass.
+  ! Appending is O(1) only while each list is extended once: of `l + a` and
+  ! `l + b`, the second copies all of `l`. Build a list with the `[]` literal,
+  ! with `fill`, `tabulate` or `map`, with a `ListBuilder`, or by appending with
+  ! `+`. For a sequence that changes in place, use `mutable.List`.
   ! Use `for v in list` or `iterator` for O(n) traversal.
 //]
 class List[T]
-  private val root: ListImpl.Node[T]
+  // The elements are `arr[start]` to `arr[start + _size - 1]`. Other lists may
+  // share `arr` and see more of it; `claim` decides which of them may write
+  // the free slots past the end. See `ListImpl.Claim`.
+  private val arr: Array[T]
+  private val start: Int
   private val _size: Int
-  private val _depth: Int
+  private val claim: ListImpl.Claim
 
-  private[jo] def List(root: ListImpl.Node[T], size: Int, depth: Int) =
-    this.root = root
+  private[jo] def List(arr: Array[T], start: Int, size: Int, claim: ListImpl.Claim) =
+    this.arr = arr
+    this.start = start
     this._size = size
-    this._depth = depth
+    this.claim = claim
 
   //[ Number of elements. //]
   def size: Int receives none = _size
@@ -72,68 +78,71 @@ class List[T]
   def isEmpty: Bool = _size == 0
 
   //[ Returns an iterator over the elements in order. //]
-  def iterator: Iterator[T] = new ListImpl.ListIterator(this, 0)
+  def iterator: Iterator[T] = new ListImpl.ListIterator(arr, start, start + _size)
 
   //[ Return the element at index `i` (0-based). Aborts if out of bounds. //]
   def get(i: Int): T receives none =
     if i < 0 || i >= _size then errorIndex i
-    lookup(root, i, _depth)
+    arr[start + i]
 
-  // The leaf array holding index `i`. Used by `ListIterator` to walk the trie
-  // one leaf at a time instead of once per element.
-  private[jo] def leafAt(i: Int): Array[T] receives none =
-    ListImpl.leafAt(root, i, _depth)
-
-  //[ Return a new list with the element at index `i` replaced by `value`. Aborts if out of bounds. //]
-  def updated(i: Int, value: T): List[T] =
-    if i < 0 || i >= _size then errorIndex i
-    new List(updateAt(root, i, _depth, value), _size, _depth)
+  // Copy the elements into `dest`, starting at index `at`.
+  private[jo] def copyTo(dest: Array[T], at: Int): Unit receives none =
+    var i = 0
+    while i < _size do
+      dest[at + i] = arr[start + i]
+      i = i + 1
 
   //[ Append one element to the end. //]
   def +(v: T): List[T] =
-    // The trie at depth d has capacity 32^(d+1). Overflow when:
-    //   _size >> (5 * (_depth + 1)) > 0
-    if (_size >> (5 * (_depth + 1))) > 0 then
-      val newBranch = newPath(_depth, v)
-      val newChildren = Array.create[Node[T]](2)
-      newChildren[0] = root
-      newChildren[1] = newBranch
-      new List(Internal(newChildren), _size + 1, _depth + 1)
-    else
-      match tryInsert(root, _size, _depth, v)
-      case Some newRoot => new List(newRoot, _size + 1, _depth)
-      case None => abort ("List: unexpected full trie")
+    val stop = start + _size
 
-  //[ Concatenate two lists. O(min(n + m, m log₃₂ n)) for n = `size`, m = `l.size`. //]
+    if stop < arr.size && tryExtend(claim, stop, 1) then
+      arr[stop] = v
+      new List(arr, start, _size + 1, claim)
+    else
+      val grown = Array.create[T](grownCapacity(_size + 1, _size))
+      this.copyTo(grown, 0)
+      grown[_size] = v
+      new List(grown, 0, _size + 1, newClaim(_size + 1))
+
+  //[ Concatenate two lists. O(m) amortized for m = `l.size`. //]
   def ++(l: List[T]): List[T] =
-    // Appending element by element costs O(32) per element of `l`, so it only
-    // beats rebuilding the whole trie while `l` is much shorter than `this`.
-    if l.size == 0 then this
-    else if _size > l.size * 32 then
-      var result = this
-      val iter = l.iterator
-      while iter.hasNext do
-        result = result + iter.next
-      result
-    else
-      new ListBuilder[T](_size + l.size).addAll(this.iterator).addAll(l.iterator).result
+    val m = l.size
+    val stop = start + _size
 
-  //[ Return a sublist starting at index `from` with at most `len` elements. //]
-  def slice(from: Int, len: Int): List[T] receives none =
-    if from >= _size || len <= 0 then []
+    if m == 0 then this
+    else if _size == 0 then l
+    else if stop + m <= arr.size && tryExtend(claim, stop, m) then
+      l.copyTo(arr, stop)
+      new List(arr, start, _size + m, claim)
     else
-      val to = if _size - from > len then from + len else _size
-      val n = to - from
-      // Walking from `from` costs one trie descent per leaf, where `get` per
-      // element would cost one per element.
-      val iter = new ListImpl.ListIterator(this, from)
-      val out = new ListBuilder[T](n)
-      var i = 0
-      while i < n do
-        out += iter.next
-        i = i + 1
-      end
-      out.result
+      val grown = Array.create[T](grownCapacity(_size + m, _size))
+      this.copyTo(grown, 0)
+      l.copyTo(grown, _size)
+      new List(grown, 0, _size + m, newClaim(_size + m))
+
+  //[ Return a sublist starting at index `from` with at most `len` elements.
+    !
+    ! The sublist shares the elements with this list, unless it is small enough
+    ! that holding on to the whole array would waste more than it saves.
+  //]
+  def slice(from: Int, len: Int): List[T] receives none =
+    val first = if from > 0 then from else 0
+
+    if first >= _size || len <= 0 then []
+    else
+      val n = if _size - first > len then len else _size - first
+
+      if n == _size then this
+      else if n * 4 >= arr.size then new List(arr, start + first, n, claim)
+      else
+        val out = Array.create[T](n)
+        var i = 0
+        while i < n do
+          out[i] = arr[start + first + i]
+          i = i + 1
+        end
+        wrap(out, n)
 
   //[ Return the first `n` elements. //]
   def take(n: Int): List[T] receives none =
@@ -167,12 +176,13 @@ class List[T]
 
   //[ Apply `f` to each element and return the resulting list. //]
   def map[S](f: T => S): List[S] =
-    val out = new ListBuilder[S](_size)
-    val iter = this.iterator
-    while iter.hasNext do
-      out += f(iter.next)
+    val out = Array.create[S](_size)
+    var i = 0
+    while i < _size do
+      out[i] = f(arr[start + i])
+      i = i + 1
     end
-    out.result
+    wrap(out, _size)
 
   //[ Reduce the list to a single value using a left fold. //]
   def fold[S](zero: S, f: (S, T) => S): S =
@@ -247,20 +257,13 @@ class List[T]
 
   //[ Return a new list with elements in reverse order. //]
   def reverse: List[T] =
-    // Walked leaf by leaf from the end, so the descent through the trie costs
-    // one walk per 32 elements, as a forward traversal does.
-    val out = new ListBuilder[T](_size)
-    var i = _size - 1
-    while i >= 0 do
-      val leaf = this.leafAt(i)
-      var j = i & 31
-      while j >= 0 do
-        out += leaf[j]
-        j = j - 1
-      end
-      i = i - (i & 31) - 1
+    val out = Array.create[T](_size)
+    var i = 0
+    while i < _size do
+      out[i] = arr[start + _size - 1 - i]
+      i = i + 1
     end
-    out.result
+    wrap(out, _size)
 
   //[ Split into two lists: elements satisfying `pred` and those that don't. //]
   def partition(pred: T => Bool): List[T] ~ List[T] =
@@ -418,230 +421,79 @@ class List[T]
 end // List
 
 private[jo] section ListImpl
-  union Node[T] =
-      Internal(children: Array[Node[T]])
-    | Leaf(values: Array[T])
-
   def errorIndex(i: Int): Bottom = abort ("invalid index for list " + i)
 
-  //[ Assemble `leafCount` leaves followed by `tail`, holding `n` elements in
-    ! all, into a list.
+  //[ Who may write the free slots at the end of an array that lists share.
     !
-    ! The last leaf is passed on its own because a builder's leaf in progress
-    ! does not live in its spine array: without a tail parameter the builder
-    ! would have to copy the whole spine to make room for it. `leaves` may be
-    ! longer than `leafCount`; only the first `leafCount` entries are read.
-  //]
-  def fromLeaves[T](leaves: Array[Node[T]], leafCount: Int, tail: Node[T], n: Int): List[T] =
-    //  Construct list Trie bottom up from primitive leaf list with each layer has at most 32 nodes, stop when the top layer has only one node left.
-    // `last` is the node holding the tail at the current level: it sits one
-    // past `level` on the first pass and inside it on every pass after.
-    var level = leaves
-    var count = leafCount + 1
-    var last = tail
-    var depth = 0
-
-    while count > 1 do
-      val parentCount = (count + 31) >> 5
-      val parents = Array.create[Node[T]](parentCount)
-      var p = 0
-      while p < parentCount do
-        val from = p << 5
-        val width = if count - from > 32 then 32 else count - from
-        val children = Array.create[Node[T]](width)
-        var j = 0
-        while j < width do
-          children[j] = if from + j == count - 1 then last else level[from + j]
-          j = j + 1
-        end
-        parents[p] = Internal(children)
-        p = p + 1
-      end
-
-      level = parents
-      count = parentCount
-      last = parents[parentCount - 1]
-      depth = depth + 1
-    end
-
-    new List(last, n, depth)
-
-  //[ Build a list of `n` elements by filling each leaf straight from `f`.
+    ! Lists share one array, so that appending to a list does not copy it: the
+    ! new element goes into the first free slot past the end, and the new list
+    ! covers one more slot of the same array. Older lists never look past their
+    ! own end, so they do not see it.
     !
-    ! No intermediate array is materialised: the elements go directly into the
-    ! leaves that make up the trie.
+    ! That only works for one list per slot. Of `l + a` and `l + b`, the first
+    ! takes the slot and the second must copy. A claim records how far the
+    ! array has been taken, and a list may extend in place only if it ends
+    ! exactly there.
+    !
+    ! Each runtime defines the claim. Where threads can reach Jo values
+    ! through the FFI, two of them could take the same slot at once, so there
+    ! the claim must also keep them apart.
   //]
+  type Claim
+
+  //[ A claim for a new array whose first `used` slots are taken. //]
+  defer def newClaim(used: Int): Claim receives none
+
+  //[ Take the `count` slots from `stop` on for the caller, if `stop` is still
+    ! where the taken slots end and the caller may write past it.
+    !
+    ! After `true`, the caller is the only one that ever writes those slots.
+    ! The caller checks that the array is large enough.
+  //]
+  defer def tryExtend(claim: Claim, stop: Int, count: Int): Bool receives none
+
+  //[ A list of the first `size` elements of `arr`, which nothing else holds. //]
+  def wrap[T](arr: Array[T], size: Int): List[T] receives none =
+    new List(arr, 0, size, newClaim(size))
+
+  //[ The capacity of a new array for `needed` elements, when a list of `size`
+    ! elements outgrows its own: doubling keeps repeated appends O(1) amortized.
+  //]
+  def grownCapacity(needed: Int, size: Int): Int receives none =
+    val doubled = if size * 2 > 8 then size * 2 else 8
+    if needed > doubled then needed else doubled
+
+  //[ Build a list of `n` elements by applying `f` to each index. //]
   def fromGenerator[T](n: Int, f: Int => T): List[T] =
-    if n <= 32 then
-      // A single leaf: no spine array and no grouping pass are needed.
-      val size = if n > 0 then n else 0
-      val values = Array.create[T](size)
-      var i = 0
-      while i < size do
-        values[i] = f i
-        i = i + 1
-      end
-      new List(Leaf(values), size, 0)
+    val size = if n > 0 then n else 0
+    val values = Array.create[T](size)
+    var i = 0
+    while i < size do
+      values[i] = f i
+      i = i + 1
+    end
+    wrap(values, size)
 
-    else
-      val leafCount = (n + 31) >> 5
-      val leaves = Array.create[Node[T]](leafCount)
-      var i = 0
-      while i < leafCount do
-        val from = i << 5
-        val width = if n - from > 32 then 32 else n - from
-        val values = Array.create[T](width)
-        var j = 0
-        while j < width do
-          values[j] = f (from + j)
-          j = j + 1
-        end
-        leaves[i] = Leaf(values)
-        i = i + 1
-      end
-
-      fromLeaves(leaves, leafCount - 1, leaves[leafCount - 1], n)
-
-  //[ The leaf array holding index `i`. //]
-  def leafAt[T](node: Node[T], i: Int, depth: Int): Array[T] =
-    match node
-    case Leaf values =>
-      values
-
-    case Internal children =>
-      val idx = (i >> (5 * depth)) & 31
-      leafAt(children[idx], i, depth - 1)
-
-  //[ Walks the trie one leaf at a time.
-    !
-    ! Fetching the leaf costs one root-to-leaf walk per 32 elements rather than
-    ! one per element, so a full traversal is O(n) instead of O(n log₃₂ n).
-    !
-    ! Note: the starting index is not necessarily 0, it can be any valid index.
-  //]
+  //[ Walks the elements `arr[from]` to `arr[until - 1]`. //]
   class ListIterator[T]
-    private val list: List[T]
-    private val count: Int
+    private val arr: Array[T]
     private var i: Int
+    private val until: Int
 
-    def ListIterator(l: List[T], startIndex: Int) =
-      this.list = l
-      this.count = l.size
-      this.i = startIndex
+    def ListIterator(arr: Array[T], from: Int, until: Int) =
+      this.arr = arr
+      this.i = from
+      this.until = until
 
-    // The leaf holding index `i`, and the index just past the elements it
-    // covers. `limit` starts at 0 so the first `next` loads a leaf.
-    var leaf: Array[T] = Array.create[T](0)
-    var limit: Int = 0
-
-    def hasNext: Bool = i < count
+    def hasNext: Bool = i < until
 
     def next: T =
-      if i >= limit then
-        // Only reached once per leaf, so bounds-checking here is free.
-        if i >= count then errorIndex i
-
-        leaf = list.leafAt(i)
-        limit = i - (i & 31) + leaf.size
-
-      val item = leaf[i & 31]
+      // The array may go on past `until`, with elements of other lists.
+      if i >= until then errorIndex i
+      val item = arr[i]
       i = i + 1
       item
 
     view Iterator[T]
   end
-
-  def lookup[T](node: Node[T], i: Int, depth: Int): T =
-    match node
-    case Leaf values =>
-      values[i & 31]
-    case Internal children =>
-      val idx = (i >> (5 * depth)) & 31
-      lookup(children[idx], i, depth - 1)
-
-  def copyAppendT[T](arr: Array[T], value: T): Array[T] =
-    val n = arr.size
-    val res = Array.create[T](n + 1)
-    var i = 0
-    while i < n do
-      res[i] = arr[i]
-      i = i + 1
-    res[n] = value
-    res
-
-  def copyAppendNode[T](arr: Array[Node[T]], value: Node[T]): Array[Node[T]] =
-    val n = arr.size
-    val res = Array.create[Node[T]](n + 1)
-    var i = 0
-    while i < n do
-      res[i] = arr[i]
-      i = i + 1
-    res[n] = value
-    res
-
-  def copySetT[T](arr: Array[T], idx: Int, value: T): Array[T] =
-    val n = arr.size
-    val res = Array.create[T](n)
-    var i = 0
-    while i < n do
-      res[i] = arr[i]
-      i = i + 1
-    res[idx] = value
-    res
-
-  def copySetNode[T](arr: Array[Node[T]], idx: Int, value: Node[T]): Array[Node[T]] =
-    val n = arr.size
-    val res = Array.create[Node[T]](n)
-    var i = 0
-    while i < n do
-      res[i] = arr[i]
-      i = i + 1
-    res[idx] = value
-    res
-
-  def newPath[T](depth: Int, value: T): Node[T] =
-    if depth == 0 then
-      val arr = Array.create[T](1)
-      arr[0] = value
-      Leaf(arr)
-    else
-      val child = newPath(depth - 1, value)
-      val arr = Array.create[Node[T]](1)
-      arr[0] = child
-      Internal(arr)
-
-  def updateAt[T](node: Node[T], i: Int, depth: Int, value: T): Node[T] =
-    match node
-    case Leaf values =>
-      Leaf(copySetT(values, i & 31, value))
-    case Internal children =>
-      val idx = (i >> (5 * depth)) & 31
-      val newChild = updateAt(children[idx], i, depth - 1, value)
-      Internal(copySetNode(children, idx, newChild))
-
-  // Precondition: root-level overflow check has already been done.
-  def tryInsert[T](node: Node[T], newIdx: Int, depth: Int, value: T): Option[Node[T]] =
-    match node
-    case Leaf values =>
-      if values.size < 32 then
-        Some(Leaf(copyAppendT(values, value)))
-      else
-        None
-
-    case Internal children =>
-      val branchIdx = (newIdx >> (5 * depth)) & 31
-      if branchIdx < children.size then
-        match tryInsert(children[branchIdx], newIdx, depth - 1, value)
-        case Some newChild =>
-          Some(Internal(copySetNode(children, branchIdx, newChild)))
-        case None =>
-          if children.size < 32 then
-            val sibling = newPath(depth - 1, value)
-            Some(Internal(copyAppendNode(children, sibling)))
-          else
-            None
-      else
-        val newBranch = newPath(depth - 1, value)
-        Some(Internal(copyAppendNode(children, newBranch)))
-
 end // ListImpl

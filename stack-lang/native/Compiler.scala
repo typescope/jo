@@ -43,6 +43,10 @@ object Compiler:
     "jo.regex.Engine.compilePattern" -> "jo.runtime.native.regex.Regex.compilePattern",
     "jo.regex.Engine.execPatternAt"  -> "jo.runtime.native.regex.Regex.execPatternAt",
 
+    // Lists sharing an array
+    "jo.ListImpl.newClaim"  -> "jo.runtime.native.ListClaim.newClaim",
+    "jo.ListImpl.tryExtend" -> "jo.runtime.native.ListClaim.tryExtend",
+
     // GC API wiring can be controlled via options
     "jo.runtime.native.GC.init" -> "jo.runtime.native.BumpAllocator.init",
     "jo.runtime.native.GC.alloc" -> "jo.runtime.native.BumpAllocator.alloc",

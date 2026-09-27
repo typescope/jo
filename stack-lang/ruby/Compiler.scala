@@ -34,6 +34,10 @@ object Compiler:
     // Regex engine hooks
     "jo.regex.Engine.compilePattern" -> "jo.rb.runtime.RegexEngine.compilePattern",
     "jo.regex.Engine.execPatternAt"  -> "jo.rb.runtime.RegexEngine.execPatternAt",
+
+    // Lists sharing an array
+    "jo.ListImpl.newClaim"  -> "jo.rb.runtime.ListClaim.newClaim",
+    "jo.ListImpl.tryExtend" -> "jo.rb.runtime.ListClaim.tryExtend",
   )
 
   // Runtime definitions for the frontend

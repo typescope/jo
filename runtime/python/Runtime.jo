@@ -76,6 +76,47 @@ private section RawBytes
     py.module("builtins").callDynamic("bytes", ba).cast[Bytes]
 end
 
+//------------------------------------------------------------------------------
+//
+// List claims (see `jo.ListImpl.Claim`)
+//
+// Python threads, started through the FFI, can reach the same list. A claim
+// belongs to the thread that made it: only that thread extends the array in
+// place, and every other thread copies, so no two threads write one slot.
+//
+//------------------------------------------------------------------------------
+
+@py.interop
+private interface Threading
+  def get_ident(): Int
+end
+
+private def threading: Threading = py.module("threading").cast[Threading]
+
+// How far a shared array is taken, and the thread that may take more.
+private class ClaimState
+  var used: Int
+  val owner: Int
+
+  def ClaimState(used: Int, owner: Int) =
+    this.used = used
+    this.owner = owner
+end
+
+private section ListClaim
+  def newClaim(used: Int): ListImpl.Claim receives none =
+    py.dynamic(new ClaimState(used, threading.get_ident())).cast[ListImpl.Claim]
+
+  def tryExtend(claim: ListImpl.Claim, stop: Int, count: Int): Bool receives none =
+    val state = py.dynamic(claim).cast[ClaimState]
+
+    if state.used == stop && state.owner == threading.get_ident() then
+      state.used = stop + count
+      true
+    else
+      false
+end
+
 private section RefArray
   def create[T](size: Int): Array[T] =
     // A Python list has no unfilled slots: every index must already exist

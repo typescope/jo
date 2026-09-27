@@ -15,9 +15,39 @@ private def platformCall3(fn: String, arg1: Any, arg2: Any, arg3: Any): Bottom =
 
 private def abort(s: String): Bottom = platformCall1("abort", s)
 
+// Reinterpret `v` as a `T`, without any check.
+private def cast[T](v: Any): T = platformCall1("cast", v)
+
 // Whether a value is a lambda. Used by pattern matching to test the lambda
 // branch of a union type.
 private def isLambdaValue(v: Any): Bool = platformCall1("isLambdaValue", v)
+
+// List claims (see `jo.ListImpl.Claim`)
+//
+// The interpreter runs a single thread.
+//
+
+// How far a shared array is taken.
+private class ClaimState
+  var used: Int
+
+  def ClaimState(used: Int) =
+    this.used = used
+end
+
+private section ListClaim
+  def newClaim(used: Int): ListImpl.Claim receives none =
+    cast[ListImpl.Claim](new ClaimState(used))
+
+  def tryExtend(claim: ListImpl.Claim, stop: Int, count: Int): Bool receives none =
+    val state = cast[ClaimState](claim)
+
+    if state.used == stop then
+      state.used = stop + count
+      true
+    else
+      false
+end
 
 // Bytes operations (Bytes.Repr is a JVM byte[])
 private section RawBytes
