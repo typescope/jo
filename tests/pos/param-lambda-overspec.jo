@@ -1,0 +1,23 @@
+// Regression test for LowerContextParams crash:
+// A lambda captures context from a function whose 'receives' spec lists a param
+// that its body does not directly use (over-specified receives).
+//
+// Before the fix, LowerContextParams.transformLambda computed ambient context using
+// inferred body effects (which were empty because getResult's body doesn't access
+// `env`), so no ctx was captured. But transformApply still tried to pass ctx for
+// getResult() because getResult.receives = {env}, triggering the assertion:
+//   "Missing current context at: ..."
+
+param env: String
+
+// over-specified: body does not access `env`, but spec declares receives env
+def getResult(): String receives env =
+  "hello"
+
+// wrapper that accepts a no-arg lambda and calls it
+def withEnv(handler: () => String): String receives env =
+  handler()
+
+def main =
+  println:
+    with env = "test" in withEnv(() => getResult())
