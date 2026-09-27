@@ -271,6 +271,15 @@ deferred to the backends. But that would only remove the indirection. The trie
 would still copy a path on every append and copy on every slice, so the
 problems in the motivation would remain.
 
+**A finger tree.** Haskell's `Data.Sequence` is a 2-3 finger tree annotated
+with sizes, after Hinze and Paterson, [Finger Trees][finger-trees]. It adds at
+either end in O(1), and indexes, splits and concatenates in logarithmic time,
+so it has no weak operation. But it is a tree of small nodes, which puts
+several indirections and a tag test on every access, and it is more complex
+than the trie to be replaced.
+
+[finger-trees]: https://www.staff.city.ac.uk/~ross/papers/FingerTree.html
+
 **A flat array copied on every append.** This is the simplest design, but it
 makes `acc = acc + v` in a loop quadratic, which is the usability problem this
 proposal sets out to fix.
