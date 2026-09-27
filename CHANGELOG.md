@@ -4,6 +4,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.13.7] - 2026-09-27
+
 ### Changed
 
 - `List` is backed by a flat array instead of a 32-way trie. `get` is O(1)
