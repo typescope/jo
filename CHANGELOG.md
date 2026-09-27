@@ -18,10 +18,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - On the Python and Ruby backends, a list is extended in place only by the
   thread that created its array. Other threads copy, so lists stay immutable
   when threads started through the FFI share them.
-
-### Removed
-
-- `List.updated`. Use `mutable.List` for a sequence that changes in place.
+- `List.updated` copies the whole list and is O(n), where it was O(log n). Use
+  `mutable.List` to change elements by index.
 
 ### Security
 
@@ -29,8 +27,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Compatibility
 
-- Source code that calls `List.updated`, or that uses a `ListBuilder` after
-  calling `result`, must be changed.
+- Source code that uses a `ListBuilder` after calling `result` must be
+  changed.
 - Every runtime must link two new deferred functions, `jo.ListImpl.newClaim`
   and `jo.ListImpl.tryExtend`. The bundled runtimes provide them. A custom
   runtime supplied with `--link` must provide them too.

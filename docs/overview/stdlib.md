@@ -51,7 +51,8 @@ prefer it to `acc = acc + v` in a loop.
 - `.get(i)`: T — element at index
 - `.+(v)`: List[T] — append
 - `.++(other)`: List[T] — concatenate
-- `.updated(i, value)`: List[T]
+- `.updated(i, value)`: List[T] — O(n), copies the list; use `mutable.List` to
+  change elements by index
 - `.slice(from, len)`: List[T]
 - `.take(n)`, `.drop(n)`: List[T]
 - `.reverse`: List[T]
@@ -82,13 +83,14 @@ prefer it to `acc = acc + v` in a loop.
 - `.getOrElse(default)`: T
 
 ## ListBuilder[T]
-Collects elements into a `List` without rebuilding the trie on every element —
-prefer it to `acc = acc + v` in a loop. Create with `List.builder[T]()`.
+Collects elements into a `List`, writing each one straight into the array the
+list will use. Prefer it to `acc = acc + v` in a loop. Create with `List.builder[T]()`.
 - `.add(v)`: ListBuilder[T] — append one element, returns the builder
 - `.addAll(it: Iterator[T])`: ListBuilder[T] — append everything `it` yields
 - `.addList(l: List[T])`: ListBuilder[T] — append every element of `l`
 - `.size`: Int — elements added so far
-- `.result`: List[T] — the list of everything added; does not consume the builder
+- `.result`: List[T] — the list of everything added; consumes the builder, so
+  do not add to it or call `result` again
 
 `add`, `addAll` and `addList` return the builder, so a list can be collected in
 one expression: `List.builder[Int]().add(1).addList([2, 3]).result`.

@@ -42,6 +42,7 @@ end
 //[ An immutable indexed sequence backed by a flat array.
   !
   !   - `get(i)`: O(1)
+  !   - `updated(i, v)`: O(n), as it copies the list
   !   - `slice`, `take`, `drop`: O(1) by sharing the elements, or O(k) for a
   !     result of k elements too small to be worth keeping the array alive
   !   - `+` (append one element): O(1) amortized
@@ -91,6 +92,18 @@ class List[T]
     while i < _size do
       dest[at + i] = arr[start + i]
       i = i + 1
+
+  //[ Return a new list with the element at index `i` replaced by `value`. Aborts if out of bounds.
+    !
+    ! This copies the whole list, so it is O(n). To change elements by index,
+    ! use `mutable.List` instead.
+  //]
+  def updated(i: Int, value: T): List[T] =
+    if i < 0 || i >= _size then errorIndex i
+    val out = Array.create[T](_size)
+    this.copyTo(out, 0)
+    out[i] = value
+    wrap(out, _size)
 
   //[ Append one element to the end. //]
   def +(v: T): List[T] =

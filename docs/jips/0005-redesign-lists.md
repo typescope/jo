@@ -26,7 +26,7 @@ class List[T]
 Appending writes into free space at the end of the array, which lists share.
 A small runtime object, the *claim*, makes sure each free slot is taken by one
 list only. `slice`, `take` and `drop` share the array instead of copying.
-`List.updated` is removed.
+`List.updated` stays, but copies the list.
 
 ## Motivation
 
@@ -196,11 +196,12 @@ a local, mutable helper, and keeping to one result is up to its user. List
 literals and varargs, which the typer lowers to builder chains, call `result`
 once.
 
-### Removing `updated`
+### `updated`
 
 On an array, `updated` has to copy the whole list, where the trie copied one
-path. Code that changes elements by index is better served by `mutable.List`,
-so `updated` is removed rather than kept at O(n).
+path. It stays, so that existing code keeps compiling, and its documentation
+says that it is O(n) and points to `mutable.List` for changing elements by
+index.
 
 ## Costs
 
@@ -208,6 +209,8 @@ so `updated` is removed rather than kept at O(n).
   `l`. Code that extends one list many times, such as `base + x` in a loop over
   `x`, is O(n) per append where the trie was O(log n). Such code is rare. Most
   appends extend the newest list.
+- **`updated` copies.** Replacing one element is O(n) where the trie was
+  O(log n).
 - **Spare capacity.** An array grown by appending may be up to twice as large
   as its longest list. Arrays built by `map`, `fill`, `tabulate`, `sort` and
   exactly sized builders have no spare capacity.
@@ -298,7 +301,7 @@ without them, and the switch can be made inside the runtimes later.
 
 ## Compatibility
 
-- Source code that calls `List.updated` must change.
+- `List.updated` keeps its signature but becomes O(n).
 - Source code that uses a `ListBuilder` after calling `result` must change.
 - Every runtime must link `jo.ListImpl.newClaim` and `jo.ListImpl.tryExtend`.
   The bundled runtimes provide them. A custom runtime supplied with `--link`
