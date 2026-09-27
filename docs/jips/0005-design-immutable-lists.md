@@ -1,6 +1,6 @@
 ---
 author: Fengyun Liu
-status: Draft
+status: Accepted
 created: 2026-09-27
 title: Redesign immutable lists
 ---
