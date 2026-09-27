@@ -5,7 +5,7 @@ created: 2026-09-27
 title: Redesign immutable lists
 ---
 
-# JIP 0005 — Design immutable lists
+# JIP 0005 — Redesign immutable lists
 
 <JipMeta />
 
