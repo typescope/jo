@@ -203,17 +203,6 @@ runtime can switch to a compare-and-swap on the claim.
 
 ## Evaluation
 
-Reading an element takes two loads, the list and the array, and no tag test,
-whatever the size of the list. `+` writes one slot and allocates one `List`,
-and growing the array is amortized by doubling. `++` copies only its argument.
-So `acc = acc + v` in a loop is O(1) amortized per element, and the code people
-write first is the code that performs well.
-
-`slice` shares the elements, so the `while list is [head, ..tail]` loop above
-is O(n). A slice smaller than a quarter of its array is copied instead, so
-that a short sublist does not keep a long array alive. The copies shrink
-geometrically, so they add up to O(n).
-
 Measured on the JavaScript backend (Node 22), in whole-process time, best of
 three runs, with the same compiler and each version of the standard library:
 
@@ -225,11 +214,9 @@ three runs, with the same compiler and each version of the standard library:
 | `[i, i + 1, i + 2]` then `l[1]`, 1,000,000 times | 512 ms | 413 ms | 1.2× |
 | 10,000,000 scattered `l[i]` on 1,000,000 elements | 2813 ms | 511 ms | 5.5× |
 
-The implementation also shrinks, from about 1,160 lines to about 780, and the
-mental model becomes simple: a list is a slice of an array, like in Go, except
-that it never changes.
+The implementation also shrinks, from about 1,160 lines to about 780.
 
-## Costs
+The design has costs too:
 
 - **Branching appends copy.** Of `l + a` and `l + b`, the second copies all of
   `l`. Code that extends one list many times, such as `base + x` in a loop over
@@ -240,11 +227,9 @@ that it never changes.
 - **Spare capacity.** An array grown by appending may be up to twice as large
   as its longest list. Arrays built by `map`, `fill`, `tabulate`, `sort` and
   exactly sized builders have no spare capacity.
-- **A claim per array.** Each new array comes with a claim object, so a small
-  list costs three objects, as it did with the trie. This is why the
-  small-list benchmark gains least.
-- **Sharing keeps arrays alive.** A slice keeps its array alive. The
-  quarter rule bounds the waste to four times the slice.
+- **Sharing keeps arrays alive.** A slice keeps its array alive. A slice
+  smaller than a quarter of its array is copied instead, which bounds the
+  waste to four times the slice.
 
 ## Prior art
 
