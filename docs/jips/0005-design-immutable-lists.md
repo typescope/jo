@@ -81,7 +81,7 @@ A list holds an array, a start index, a size and a claim. Its elements are
 and the array may be larger than any of them. A list never reads past its own
 end, so what lies beyond it does not concern it.
 
-<svg viewBox="0 0 720 262" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Three lists sharing one array" style="display:block;margin:1.5rem auto;max-width:100%;height:auto;font-family:system-ui,sans-serif">
+<svg viewBox="0 0 720 308" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Four lists sharing one array" style="display:block;margin:1.5rem auto;max-width:100%;height:auto;font-family:system-ui,sans-serif">
   <text x="78" y="77" text-anchor="end" font-size="14" font-family="ui-monospace,monospace" style="fill:var(--vp-c-text-1,#213547)">arr</text>
   <text x="115.0" y="40" text-anchor="middle" font-size="11" style="fill:var(--vp-c-text-2,#476582)">0</text>
   <rect x="90" y="50" width="50" height="44" style="fill:var(--vp-c-brand-soft,rgba(4,120,87,.12));stroke:var(--vp-c-brand-1,#047857);stroke-width:1.5"/>
@@ -122,16 +122,16 @@ end, so what lies beyond it does not concern it.
   <text x="93" y="150" font-size="12" style="fill:var(--vp-c-text-1,#213547)"><tspan font-family="ui-monospace,monospace" font-weight="600">l</tspan>  start 0, size 8</text>
   <path d="M93,170 L93,178 L237,178 L237,170" style="fill:none;stroke:var(--vp-c-text-2,#476582);stroke-width:1.5"/>
   <text x="93" y="196" font-size="12" style="fill:var(--vp-c-text-1,#213547)"><tspan font-family="ui-monospace,monospace" font-weight="600">l.take(3)</tspan>  start 0, size 3</text>
-  <path d="M343,216 L343,224 L487,224 L487,216" style="fill:none;stroke:var(--vp-c-text-2,#476582);stroke-width:1.5"/>
-  <text x="343" y="242" font-size="12" style="fill:var(--vp-c-text-1,#213547)"><tspan font-family="ui-monospace,monospace" font-weight="600">l.drop(5)</tspan>  start 5, size 3</text>
+  <path d="M193,216 L193,224 L387,224 L387,216" style="fill:none;stroke:var(--vp-c-text-2,#476582);stroke-width:1.5"/>
+  <text x="193" y="242" font-size="12" style="fill:var(--vp-c-text-1,#213547)"><tspan font-family="ui-monospace,monospace" font-weight="600">l.slice(2, 4)</tspan>  start 2, size 4</text>
+  <path d="M343,262 L343,270 L487,270 L487,262" style="fill:none;stroke:var(--vp-c-text-2,#476582);stroke-width:1.5"/>
+  <text x="343" y="288" font-size="12" style="fill:var(--vp-c-text-1,#213547)"><tspan font-family="ui-monospace,monospace" font-weight="600">l.drop(5)</tspan>  start 5, size 3</text>
 </svg>
 
-In the picture, three lists share one array. `l` and `l.drop(5)` both end at
-the claim, so either may take slot 8 when it appends. `l.take(3)` ends before
-the claim, so it copies when it appends.
-
-`get` checks the index against the size and reads `arr[start + i]`. Iteration
-walks the same range.
+In the picture, four lists share one array, and none of them copied an
+element. `l` and `l.drop(5)` both end at the claim, so either may take slot 8
+when it appends. `l.take(3)` and `l.slice(2, 4)` end before the claim, so they
+copy when they append.
 
 ### Appending in place
 
