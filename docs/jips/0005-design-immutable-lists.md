@@ -2,7 +2,7 @@
 author: Fengyun Liu
 status: Draft
 created: 2026-09-27
-title: Design immutable lists
+title: Redesign immutable lists
 ---
 
 # JIP 0005 — Design immutable lists
@@ -279,10 +279,6 @@ several indirections and a tag test on every access, and it is more complex
 than the trie to be replaced.
 
 [finger-trees]: https://www.staff.city.ac.uk/~ross/papers/FingerTree.html
-
-**A flat array copied on every append.** This is the simplest design, but it
-makes `acc = acc + v` in a loop quadratic, which is the usability problem this
-proposal sets out to fix.
 
 ## Compatibility
 
