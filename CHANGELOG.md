@@ -2,6 +2,33 @@
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.13.6] - 2026-09-27
+
+### Fixed
+
+- Package resolution now reports server and network failures directly instead
+  of misreporting every registry index failure as a missing package. An HTTP
+  404 remains a `package not found` error. ([#120])
+- `jo build`, `jo check` and `jo doc` process a shared dependency only once in
+  diamond-shaped module graphs. Their progress output no longer repeats the
+  shared module, and output paths are consistently relative to the command's
+  working directory. ([#121])
+
+### Security
+
+- No security-relevant changes.
+
+### Compatibility
+
+- Existing source code and libraries remain compatible in both directions.
+- Scripts that match command output may observe more accurate registry errors,
+  relative paths, and the removal of duplicate progress lines. ([#120], [#121])
+- No library recompilation is required. `.sast` files remain compatible in both
+  directions.
+
+[#120]: https://github.com/typescope/jo/pull/120
+[#121]: https://github.com/typescope/jo/pull/121
+
 ## [0.13.5] - 2026-09-19
 
 ### Added
