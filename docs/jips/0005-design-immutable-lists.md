@@ -231,22 +231,16 @@ The design has costs too:
   smaller than a quarter of its array is copied instead, which bounds the
   waste to four times the slice.
 
-## Prior art
+## Related work
 
-The design is not new in its parts. It combines ideas from several languages.
+The design takes inspiration from several languages.
 
 - **Appending at the frontier comes from D.** A D slice may append in place
   only if it ends where the used part of its memory block ends. The runtime
   records that used length with the block, and a slice that ends earlier
   reallocates instead of overwriting what another slice appended. The claim
-  plays the role of that used length. D slices are mutable, and the rule
-  there prevents one slice from stomping on another. Here it is what keeps
-  shared lists immutable. See Steven Schveighoffer, [D Slices][d-slices].
-- **Erlang uses the same trick for an immutable value.** Only the binary
-  returned by the latest append can be extended cheaply, in place. Appending
-  to an older one copies it, so that earlier variables keep their values. See
-  the Erlang efficiency guide,
-  [Constructing and Matching Binaries][erlang-binaries].
+  plays the role of that used length. See Steven Schveighoffer,
+  [D Slices][d-slices].
 - **The mental model is Go's slice.** A Go slice is a window onto an array,
   given by a pointer, a length and a capacity, and `append` writes into the
   spare capacity. See [Go Slices: usage and internals][go-slices]. Unlike in Go,
@@ -256,36 +250,21 @@ The design is not new in its parts. It combines ideas from several languages.
   tries and Rich Hickey's `PersistentVector` in Clojure. The fixed-depth trie
   with tails, considered below, follows Scala's `Vector` as redesigned by
   Stefan Zeiger for Scala 2.13.
+- **Linked lists of `Nil` and `Cons` cells** are the list of Lisp, ML,
+  Haskell and Scala. They make `[head, ..tail]` O(1), but indexing and
+  appending O(n).
+- **In-place updates through reference counting.** Roc, Lean 4 and Koka update
+  a value in place when its reference count shows that nothing else refers to
+  it. See Ullrich and de Moura, [Counting Immutable Beans][beans], and Reinking
+  et al., [Perceus][perceus]. Here, a list is extended in place even when it is
+  shared, as long as no other list has taken the next slot.
 
 [d-slices]: https://dlang.org/articles/d-array-article.html
-[erlang-binaries]: https://www.erlang.org/doc/system/binaryhandling.html
 [go-slices]: https://go.dev/blog/slices-intro
-
-## Alternatives considered
-
-**A linked list of `Nil` and `Cons` cells.** This is the list of Lisp, ML,
-Haskell and Scala, and it is the simplest immutable sequence there is.
-Prepending and splitting off the head are O(1), and the tail is shared rather
-than copied, so `[head, ..tail]` costs nothing. But Jo's list is indexed:
-sequence patterns are defined in terms of `size`, `get` and `slice`, and
-patterns such as `[.., last]` or `[x, y, ..rest]` read by index. On a linked
-list, `get`, `size` and appending at the end are all O(n), so each of those
-patterns becomes a walk, and `acc = acc + v` in a loop becomes quadratic. The
-idiomatic workaround is to build in reverse with `::` and reverse at the end,
-which is the kind of ceremony this proposal removes. A linked list also
-allocates one cell per element and scatters the elements across memory, where
-an array keeps them together.
-
-**In-place updates through reference counting.** Roc, Lean 4 and Koka update a
-value in place when its reference count shows that nothing else refers to it.
-See Ullrich and de Moura, [Counting Immutable Beans][beans], and Reinking et
-al., [Perceus][perceus]. This needs exact reference counts, and no Jo backend
-keeps them. A runtime that did could still use them for appending, inside its
-own claim. The claim goes further for appending: a list is extended in place
-even when it is shared, as long as no other list has taken the next slot.
-
 [beans]: https://arxiv.org/abs/1908.05647
 [perceus]: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf
+
+## Alternatives considered
 
 **Keep the trie without wrappers.** The wrappers exist because the type of a
 node depends on its depth. An unsafe cast would remove them, but a cast in the
