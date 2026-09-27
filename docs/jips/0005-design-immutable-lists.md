@@ -266,7 +266,7 @@ The design takes inspiration from several languages.
 
 **Keep the trie without wrappers.** The wrappers exist because the type of a
 node depends on its depth. Jo's safe language mode does not allow type casts.
-We could define backend support for the cast, similar to how the claims are
+We could define backend support for perform a specific safe cast, similar to how the claims are
 deferred to the backends. But that would only remove the indirection. The trie
 would still copy a path on every append and copy on every slice, so the
 problems in the motivation would remain.
