@@ -247,9 +247,7 @@ The design takes inspiration from several languages.
   a list never sees another list's appends, because the claim hands each spare
   slot to one list only.
 - **The trie this proposal replaces** follows Phil Bagwell's hash array mapped
-  tries and Rich Hickey's `PersistentVector` in Clojure. The fixed-depth trie
-  with tails, considered below, follows Scala's `Vector` as redesigned by
-  Stefan Zeiger for Scala 2.13.
+  tries and Rich Hickey's `PersistentVector` in Clojure.
 - **Linked lists of `Nil` and `Cons` cells** are the list of Lisp, ML,
   Haskell and Scala. They make `[head, ..tail]` O(1), but indexing and
   appending O(n).
@@ -267,27 +265,15 @@ The design takes inspiration from several languages.
 ## Alternatives considered
 
 **Keep the trie without wrappers.** The wrappers exist because the type of a
-node depends on its depth. An unsafe cast would remove them, but a cast in the
-standard library undermines the type safety of the language. A union with one
-case per depth (`T0(Array[T])`, `T1(Array[Array[T]])`, …) is type-safe and
-leaves one tag test per list, not per node. It still needs a six-way match in
-every operation, and it keeps all the costs of the trie other than the
-indirection.
-
-**A trie of fixed depth.** If every list has the same depth, the root has a
-known type and needs no tag. With tails for the last leaf and the last
-interior node, as in Scala's `Vector`, reads take two to four loads and appends
-are cheap. This is a good design, but it keeps a tree, is more complex than an
-array and does not make `slice` O(1).
+node depends on its depth. Jo's safe language mode does not allow type casts.
+We could define backend support for the cast, similar to how the claims are
+deferred to the backends. But that would only remove the indirection. The trie
+would still copy a path on every append and copy on every slice, so the
+problems in the motivation would remain.
 
 **A flat array copied on every append.** This is the simplest design, but it
 makes `acc = acc + v` in a loop quadratic, which is the usability problem this
 proposal sets out to fix.
-
-**Claims with compare-and-swap.** A claim updated atomically would let any
-thread append in place. This needs concurrency primitives in the standard
-library, which deserve their own design. The thread-owned claim is safe
-without them, and the switch can be made inside the runtimes later.
 
 ## Compatibility
 
