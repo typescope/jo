@@ -2,10 +2,10 @@
 author: Fengyun Liu
 status: Draft
 created: 2026-09-27
-title: Redesign lists
+title: Design immutable lists
 ---
 
-# JIP 0005 — Redesign lists
+# JIP 0005 — Design immutable lists
 
 <JipMeta />
 
@@ -30,45 +30,31 @@ list only. `slice`, `take` and `drop` share the array instead of copying.
 
 ## Motivation
 
-`List` is the sequence type of the language. List literals, varargs and
+`List` is the most important data structure in Jo. List literals, varargs and
 sequence patterns all produce or consume one, so its design shapes both what
-programs cost and how people write them. The trie serves none of the three
-concerns below well.
+programs cost and how people write them. The trie implementation has several
+problems.
 
 ### Simplicity
 
-A trie is a tree of nodes, each a class instance wrapping an array:
+A trie is a tree of nodes, and every operation walks or rebuilds it. The
+implementation takes about 1,160 lines across `List.jo`, `ListBuilder.jo` and
+`Sorting.jo`.
 
-```
-List ─► Internal ─► Array ─► Internal ─► Array ─► … ─► Leaf ─► Array ─► element
-```
-
-Every operation walks or rebuilds this tree. Appending copies a path of nodes,
-and building a list bottom up needs its own code, repeated in `ListBuilder`
-and in a leaf-aware merge sort in `Sorting`. The implementation is about 1,160
-lines across `List.jo`, `ListBuilder.jo` and `Sorting.jo`. The array version
-is about 780. The internal `ListImpl` section shrinks from 228 lines to 77,
-and the sort becomes a call to the existing `Sorting.sortArray`.
-
-The mental model gets simpler too. A list is a slice of an array, like a slice
-in Go, except that it never changes. Programmers can predict what an operation
-costs without knowing how a trie is balanced.
+Programmers should also have a simple mental model of the list, so that they
+can tell what an operation costs. With a trie, that takes knowing how the tree
+is laid out: how deep it is, where the leaves end and which path an update
+copies.
 
 ### Performance
 
 **Small lists are common.** Most lists in practice are short: arguments,
 fields, results of a `select`, the elements of a literal. The trie gives them
-no advantage and adds an indirection. Reading an element of a list of at most
-32 elements takes three loads (the list, the `Leaf`, the array) and a tag test
-on the node. The array takes two loads and no test. Larger lists add two loads
-and a test per level of the trie, and none with the array.
+no advantage and adds an indirection.
 
 **Users do use `+` and `++`.** Building a list with `acc = acc + v` is the
-obvious way to write it, and the library does it too, for example in
-`List.groupBy`. On the trie, every `+` copies the last leaf, of up to 32
-elements, and one array per level, and allocates a node per level. On the
-array, `+` writes one slot and allocates one `List`. Growing the array is
-amortized by doubling. `++` copies only its argument.
+obvious way to write it. On the trie, every `+` involves new allocations and
+copying.
 
 **`slice` is common in sequence patterns.** A rest pattern binds a sublist,
 which the pattern matcher computes with `slice`:
@@ -79,30 +65,12 @@ while list is [head, ..tail] do
   list = tail
 ```
 
-On the trie, `slice` copies the sublist, so this loop is O(n²). On the array,
-`slice` shares the elements and the loop is O(n). A slice smaller than a
-quarter of its array is copied instead, so that a short sublist does not keep
-a long array alive. The copies shrink geometrically, so they add up to O(n).
-
-Measured on the JavaScript backend (Node 22), in whole-process time, best of
-three runs, with the same compiler and each version of the standard library:
-
-| Benchmark | Trie | Array | Speedup |
-|---|---:|---:|---:|
-| `l = l + i`, 1,000,000 times | 1311 ms | 311 ms | 4.2× |
-| `l = l ++ [i, i + 1, i + 2]`, 200,000 times | 1015 ms | 313 ms | 3.2× |
-| `while l is [h, ..t]` over 20,000 elements | 3917 ms | 210 ms | 18.7× |
-| `[i, i + 1, i + 2]` then `l[1]`, 1,000,000 times | 512 ms | 413 ms | 1.2× |
-| 10,000,000 scattered `l[i]` on 1,000,000 elements | 2813 ms | 511 ms | 5.5× |
+On the trie, `slice` copies the sublist, so this loop is O(n²).
 
 ### Usability
 
-With the trie, the natural way to build a list is also the slow way. The
-documentation of `ListBuilder` warns that `acc = acc + v` in a loop "is much
-more expensive than it looks" and sends users to a builder, or to
-`mutable.List`. Both are mutable objects that a functional program must thread
-through a loop and then convert. With the array, `+` is O(1) amortized, and
-the code people write first is the code that performs well.
+To address performance with list construction, programmers are asked to use
+`ListBuilder`, which is more cognitive overhead than `acc = acc + v`.
 
 ## Design
 
@@ -112,6 +80,55 @@ A list holds an array, a start index, a size and a claim. Its elements are
 `arr[start]` to `arr[start + size - 1]`. Several lists may share one array,
 and the array may be larger than any of them. A list never reads past its own
 end, so what lies beyond it does not concern it.
+
+<svg viewBox="0 0 720 262" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Three lists sharing one array" style="display:block;margin:1.5rem auto;max-width:100%;height:auto;font-family:system-ui,sans-serif">
+  <text x="78" y="77" text-anchor="end" font-size="14" font-family="ui-monospace,monospace" style="fill:var(--vp-c-text-1,#213547)">arr</text>
+  <text x="115.0" y="40" text-anchor="middle" font-size="11" style="fill:var(--vp-c-text-2,#476582)">0</text>
+  <rect x="90" y="50" width="50" height="44" style="fill:var(--vp-c-brand-soft,rgba(4,120,87,.12));stroke:var(--vp-c-brand-1,#047857);stroke-width:1.5"/>
+  <text x="115.0" y="77" text-anchor="middle" font-size="14" font-family="ui-monospace,monospace" style="fill:var(--vp-c-text-1,#213547)">a</text>
+  <text x="165.0" y="40" text-anchor="middle" font-size="11" style="fill:var(--vp-c-text-2,#476582)">1</text>
+  <rect x="140" y="50" width="50" height="44" style="fill:var(--vp-c-brand-soft,rgba(4,120,87,.12));stroke:var(--vp-c-brand-1,#047857);stroke-width:1.5"/>
+  <text x="165.0" y="77" text-anchor="middle" font-size="14" font-family="ui-monospace,monospace" style="fill:var(--vp-c-text-1,#213547)">b</text>
+  <text x="215.0" y="40" text-anchor="middle" font-size="11" style="fill:var(--vp-c-text-2,#476582)">2</text>
+  <rect x="190" y="50" width="50" height="44" style="fill:var(--vp-c-brand-soft,rgba(4,120,87,.12));stroke:var(--vp-c-brand-1,#047857);stroke-width:1.5"/>
+  <text x="215.0" y="77" text-anchor="middle" font-size="14" font-family="ui-monospace,monospace" style="fill:var(--vp-c-text-1,#213547)">c</text>
+  <text x="265.0" y="40" text-anchor="middle" font-size="11" style="fill:var(--vp-c-text-2,#476582)">3</text>
+  <rect x="240" y="50" width="50" height="44" style="fill:var(--vp-c-brand-soft,rgba(4,120,87,.12));stroke:var(--vp-c-brand-1,#047857);stroke-width:1.5"/>
+  <text x="265.0" y="77" text-anchor="middle" font-size="14" font-family="ui-monospace,monospace" style="fill:var(--vp-c-text-1,#213547)">d</text>
+  <text x="315.0" y="40" text-anchor="middle" font-size="11" style="fill:var(--vp-c-text-2,#476582)">4</text>
+  <rect x="290" y="50" width="50" height="44" style="fill:var(--vp-c-brand-soft,rgba(4,120,87,.12));stroke:var(--vp-c-brand-1,#047857);stroke-width:1.5"/>
+  <text x="315.0" y="77" text-anchor="middle" font-size="14" font-family="ui-monospace,monospace" style="fill:var(--vp-c-text-1,#213547)">e</text>
+  <text x="365.0" y="40" text-anchor="middle" font-size="11" style="fill:var(--vp-c-text-2,#476582)">5</text>
+  <rect x="340" y="50" width="50" height="44" style="fill:var(--vp-c-brand-soft,rgba(4,120,87,.12));stroke:var(--vp-c-brand-1,#047857);stroke-width:1.5"/>
+  <text x="365.0" y="77" text-anchor="middle" font-size="14" font-family="ui-monospace,monospace" style="fill:var(--vp-c-text-1,#213547)">f</text>
+  <text x="415.0" y="40" text-anchor="middle" font-size="11" style="fill:var(--vp-c-text-2,#476582)">6</text>
+  <rect x="390" y="50" width="50" height="44" style="fill:var(--vp-c-brand-soft,rgba(4,120,87,.12));stroke:var(--vp-c-brand-1,#047857);stroke-width:1.5"/>
+  <text x="415.0" y="77" text-anchor="middle" font-size="14" font-family="ui-monospace,monospace" style="fill:var(--vp-c-text-1,#213547)">g</text>
+  <text x="465.0" y="40" text-anchor="middle" font-size="11" style="fill:var(--vp-c-text-2,#476582)">7</text>
+  <rect x="440" y="50" width="50" height="44" style="fill:var(--vp-c-brand-soft,rgba(4,120,87,.12));stroke:var(--vp-c-brand-1,#047857);stroke-width:1.5"/>
+  <text x="465.0" y="77" text-anchor="middle" font-size="14" font-family="ui-monospace,monospace" style="fill:var(--vp-c-text-1,#213547)">h</text>
+  <text x="515.0" y="40" text-anchor="middle" font-size="11" style="fill:var(--vp-c-text-2,#476582)">8</text>
+  <rect x="490" y="50" width="50" height="44" stroke-dasharray="4,3" style="fill:none;stroke:var(--vp-c-text-3,#9ca3af);stroke-width:1.5"/>
+  <text x="565.0" y="40" text-anchor="middle" font-size="11" style="fill:var(--vp-c-text-2,#476582)">9</text>
+  <rect x="540" y="50" width="50" height="44" stroke-dasharray="4,3" style="fill:none;stroke:var(--vp-c-text-3,#9ca3af);stroke-width:1.5"/>
+  <text x="615.0" y="40" text-anchor="middle" font-size="11" style="fill:var(--vp-c-text-2,#476582)">10</text>
+  <rect x="590" y="50" width="50" height="44" stroke-dasharray="4,3" style="fill:none;stroke:var(--vp-c-text-3,#9ca3af);stroke-width:1.5"/>
+  <text x="665.0" y="40" text-anchor="middle" font-size="11" style="fill:var(--vp-c-text-2,#476582)">11</text>
+  <rect x="640" y="50" width="50" height="44" stroke-dasharray="4,3" style="fill:none;stroke:var(--vp-c-text-3,#9ca3af);stroke-width:1.5"/>
+  <text x="590" y="112" text-anchor="middle" font-size="12" style="fill:var(--vp-c-text-2,#476582)">free slots</text>
+  <line x1="490" y1="2" x2="490" y2="100" style="stroke:var(--vp-c-brand-1,#047857);stroke-width:3"/>
+  <text x="498" y="14" font-size="12" font-family="ui-monospace,monospace" style="fill:var(--vp-c-brand-1,#047857)">claim: used = 8</text>
+  <path d="M93,124 L93,132 L487,132 L487,124" style="fill:none;stroke:var(--vp-c-text-2,#476582);stroke-width:1.5"/>
+  <text x="93" y="150" font-size="12" style="fill:var(--vp-c-text-1,#213547)"><tspan font-family="ui-monospace,monospace" font-weight="600">l</tspan>  start 0, size 8</text>
+  <path d="M93,170 L93,178 L237,178 L237,170" style="fill:none;stroke:var(--vp-c-text-2,#476582);stroke-width:1.5"/>
+  <text x="93" y="196" font-size="12" style="fill:var(--vp-c-text-1,#213547)"><tspan font-family="ui-monospace,monospace" font-weight="600">l.take(3)</tspan>  start 0, size 3</text>
+  <path d="M343,216 L343,224 L487,224 L487,216" style="fill:none;stroke:var(--vp-c-text-2,#476582);stroke-width:1.5"/>
+  <text x="343" y="242" font-size="12" style="fill:var(--vp-c-text-1,#213547)"><tspan font-family="ui-monospace,monospace" font-weight="600">l.drop(5)</tspan>  start 5, size 3</text>
+</svg>
+
+In the picture, three lists share one array. `l` and `l.drop(5)` both end at
+the claim, so either may take slot 8 when it appends. `l.take(3)` ends before
+the claim, so it copies when it appends.
 
 `get` checks the index against the size and reads `arr[start + i]`. Iteration
 walks the same range.
@@ -202,6 +219,34 @@ On an array, `updated` has to copy the whole list, where the trie copied one
 path. It stays, so that existing code keeps compiling, and its documentation
 says that it is O(n) and points to `mutable.List` for changing elements by
 index.
+
+## Evaluation
+
+Reading an element takes two loads, the list and the array, and no tag test,
+whatever the size of the list. `+` writes one slot and allocates one `List`,
+and growing the array is amortized by doubling. `++` copies only its argument.
+So `acc = acc + v` in a loop is O(1) amortized per element, and the code people
+write first is the code that performs well.
+
+`slice` shares the elements, so the `while list is [head, ..tail]` loop above
+is O(n). A slice smaller than a quarter of its array is copied instead, so
+that a short sublist does not keep a long array alive. The copies shrink
+geometrically, so they add up to O(n).
+
+Measured on the JavaScript backend (Node 22), in whole-process time, best of
+three runs, with the same compiler and each version of the standard library:
+
+| Benchmark | Trie | Array | Speedup |
+|---|---:|---:|---:|
+| `l = l + i`, 1,000,000 times | 1311 ms | 311 ms | 4.2× |
+| `l = l ++ [i, i + 1, i + 2]`, 200,000 times | 1015 ms | 313 ms | 3.2× |
+| `while l is [h, ..t]` over 20,000 elements | 3917 ms | 210 ms | 18.7× |
+| `[i, i + 1, i + 2]` then `l[1]`, 1,000,000 times | 512 ms | 413 ms | 1.2× |
+| 10,000,000 scattered `l[i]` on 1,000,000 elements | 2813 ms | 511 ms | 5.5× |
+
+The implementation also shrinks, from about 1,160 lines to about 780, and the
+mental model becomes simple: a list is a slice of an array, like in Go, except
+that it never changes.
 
 ## Costs
 
