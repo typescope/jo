@@ -34,6 +34,10 @@ object Compiler:
     // Regex engine hooks
     "jo.regex.Engine.compilePattern" -> "jo.js.runtime.RegexEngine.compilePattern",
     "jo.regex.Engine.execPatternAt"  -> "jo.js.runtime.RegexEngine.execPatternAt",
+
+    // Lists sharing an array
+    "jo.ListImpl.newClaim"  -> "jo.js.runtime.ListClaim.newClaim",
+    "jo.ListImpl.tryExtend" -> "jo.js.runtime.ListClaim.tryExtend",
   )
 
   // Runtime definitions for the frontend

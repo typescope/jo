@@ -635,6 +635,33 @@ private def floatToStr(f: Float): String =
 // The class id (cid) makes it possible to tell an array value from class
 // instances.
 
+// List claims (see `jo.ListImpl.Claim`)
+//
+// The native runtime runs a single thread.
+//
+
+// How far a shared array is taken.
+private class ClaimState
+  var used: Int
+
+  def ClaimState(used: Int) =
+    this.used = used
+end
+
+private section ListClaim
+  def newClaim(used: Int): ListImpl.Claim receives none =
+    cast[ListImpl.Claim](new ClaimState(used))
+
+  def tryExtend(claim: ListImpl.Claim, stop: Int, count: Int): Bool receives none =
+    val state = cast[ClaimState](claim)
+
+    if state.used == stop then
+      state.used = stop + count
+      true
+    else
+      false
+end
+
 // Bytes operations. Bytes.Repr is an Addr to a `[cid: Int(4)][size: Int(4)][bytes...]`
 // block. The leading `cid` word is reserved for layout uniformity with other heap
 // objects (arrays lead with ArrayClassId); the bump allocator never reads it, so it

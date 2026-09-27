@@ -36,6 +36,10 @@ object Compiler:
     // Regex engine hooks
     "jo.regex.Engine.compilePattern" -> "jo.py.runtime.RegexEngine.compilePattern",
     "jo.regex.Engine.execPatternAt"  -> "jo.py.runtime.RegexEngine.execPatternAt",
+
+    // Lists sharing an array
+    "jo.ListImpl.newClaim"  -> "jo.py.runtime.ListClaim.newClaim",
+    "jo.ListImpl.tryExtend" -> "jo.py.runtime.ListClaim.tryExtend",
   )
 
   // Runtime definitions for the frontend

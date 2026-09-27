@@ -10,10 +10,10 @@ namespace jo
   ! length *is* known. That call lands in the user's own namespace, so this
   ! cannot be `private[jo]`.
 //]
-def ListBuilder[T](capacity: Int = 32): ListBuilder[T] =
+def ListBuilder[T](capacity: Int = 8): ListBuilder[T] =
   new ListBuilder(capacity)
 
-//[ Incrementally builds a `List`, filling one leaf of the trie at a time.
+//[ Incrementally builds a `List`, filling the array it will use.
   !
   ! Reach for a builder whenever the elements of a list arrive one at a time:
   !
@@ -23,17 +23,16 @@ def ListBuilder[T](capacity: Int = 32): ListBuilder[T] =
   !         evens += v
   !     evens.result
   !
-  ! The obvious alternative, `acc = acc + v` in a loop, is much more expensive
-  ! than it looks: `List` is a 32-way trie, so every `+` copies a leaf and one
-  ! interior array per level of depth, and allocates a fresh node for each.
-  ! A builder instead writes each element into the leaf it will live in, so an
-  ! element costs one array store plus one leaf allocation per 32 elements.
+  ! The alternative, `acc = acc + v` in a loop, is O(1) amortized as well, but
+  ! it allocates a new `List` for every element and, on some backends, asks the
+  ! runtime whether it may write the next slot. A builder writes each element
+  ! straight into the array the list will use.
   !
   ! Prefer, in order:
   !
   !   - `[a, b, c]` when the elements are written out literally,
   !   - `List.fill` / `List.tabulate` when the length is known up front and the
-  !     elements are a function of the index, since they size every leaf exactly,
+  !     elements are a function of the index, since they size the array exactly,
   !   - a builder for everything else,
   !   - `+` only to append to a list that already exists.
   !
@@ -53,50 +52,30 @@ def ListBuilder[T](capacity: Int = 32): ListBuilder[T] =
   ! returns `this` reads at the call site exactly like the pure operation of the
   ! same name. In a loop, prefer `+=` and `++=` here too.
   !
-  ! Invariants
-  ! ----------
+  ! One result per builder
+  ! -----------------------
   !
-  ! 1. `result` does not mutate the builder. Only `+=`, `++=`, `add`, `addAll`
-  !    and `addList` change its state, so `result` may be called any number of
-  !    times, interleaved with further additions, and each call returns the
-  !    elements added so far.
-  !
-  ! 2. A leaf array handed to a list is never written again. Every operation on
-  !    `List` that would change an element copies the array first, so a leaf may
-  !    safely be shared between the builder and every list `result` returned.
-  !    Together with (1) this is what makes repeated `result` calls independent
-  !    of one another: earlier results keep working, including under `+`.
-  !
-  ! 3. A leaf array is exactly as long as the number of elements in it, and only
-  !    the last leaf of a list may hold fewer than 32. This is why `add` widens
-  !    a short leaf instead of parking it, and why `result` trims a partly
-  !    filled last leaf rather than handing over the working array.
-  !
-  ! Breaking (1) or (2) does not fail loudly: the list reads back correctly and
-  ! only corrupts later, when an append walks into a stale leaf.
+  ! `result` hands the builder's array to the list it returns, and that list
+  ! may later append into the free slots past its end. So a builder is done
+  ! once `result` is called. Adding to it afterwards aborts. Calling `result`
+  ! again returns a list that cannot append in place, so no two lists ever
+  ! write the same slots.
 //]
 class ListBuilder[T]
-  // The leaf being filled. A full leaf is 32 wide, so that is the default; a
-  // caller that already knows the final length may size it exactly instead,
-  // which lets `result` hand this array over without copying it.
-  private var leaf: Array[T]
-  private var fill: Int
+  // The elements are `arr[0]` to `arr[count - 1]`.
+  private var arr: Array[T]
+  private var count: Int
 
-  // Completed leaves, allocated on the first spill and grown by doubling.
-  private var leaves: Array[ListImpl.Node[T]]
-  private var leafCount: Int
-
-  private var total: Int
+  // Whether `result` has been called.
+  private var finished: Bool
 
   private[jo] def ListBuilder(capacity: Int) =
-    this.leaf = Array.create[T](if capacity > 0 && capacity < 32 then capacity else 32)
-    this.fill = 0
-    this.leaves = Array.create[ListImpl.Node[T]](0)
-    this.leafCount = 0
-    this.total = 0
+    this.arr = Array.create[T](if capacity > 0 then capacity else 8)
+    this.count = 0
+    this.finished = false
 
   //[ Number of elements added so far. //]
-  def size: Int = total
+  def size: Int = count
 
   //[ Append one element.
     !
@@ -105,19 +84,9 @@ class ListBuilder[T]
     ! that wants the builder back to go on chaining.
   //]
   def +=(v: T): Unit =
-    if fill == leaf.size then
-      if fill < 32 then
-        // More elements arrived than `capacity` promised: a leaf may only be
-        // short if it is the last one, so widen this one to a full leaf.
-        widen()
-      else
-        park leaf
-        leaf = Array.create[T](32)
-        fill = 0
-
-    leaf[fill] = v
-    fill = fill + 1
-    total = total + 1
+    reserve 1
+    arr[count] = v
+    count = count + 1
 
   //[ Append every element of `source`, which is consumed.
     !
@@ -155,53 +124,50 @@ class ListBuilder[T]
   //]
   @discardableResult
   def addList(l: List[T]): ListBuilder[T] =
-    addAll l
+    reserve l.size
+    l.copyTo(arr, count)
+    count = count + l.size
+    this
 
-  private def widen: Unit =
-    val wider = Array.create[T](32)
-    var i = 0
-    while i < fill do
-      wider[i] = leaf[i]
-      i = i + 1
-    end
-    leaf = wider
+  // Make room for `n` more elements. Every addition comes through here, so
+  // this is also where a finished builder refuses more.
+  private def reserve(n: Int): Unit =
+    if finished then
+      abort "ListBuilder: cannot add after `result`"
 
-  private def park(values: Array[T]): Unit =
-    if leafCount == leaves.size then
-      val bigger = Array.create[ListImpl.Node[T]](if leaves.size == 0 then 8 else leaves.size * 2)
+    if count + n > arr.size then
+      val grown = Array.create[T](ListImpl.grownCapacity(count + n, count))
       var i = 0
-      while i < leafCount do
-        bigger[i] = leaves[i]
+      while i < count do
+        grown[i] = arr[i]
         i = i + 1
       end
-      leaves = bigger
+      arr = grown
 
-    leaves[leafCount] = ListImpl.Leaf(values)
-    leafCount = leafCount + 1
-
-  //[ The list of everything added so far.
+  //[ The list of everything added.
     !
-    ! This does not consume the builder: it leaves the builder untouched, so
-    ! more elements may be added afterwards and `result` called again.
+    ! This finishes the builder: adding to it afterwards aborts. Calling
+    ! `result` again returns a list of the same elements.
   //]
   def result: List[T] =
-    // The trie requires a leaf array to be exactly as long as its fill, and
-    // `result` must leave the builder alone, so a partly filled leaf is copied
-    // rather than handed over. An exactly filled one is shared: invariant (2)
-    // says `add` never writes it again.
-    val lastLeaf =
-      if fill == leaf.size then leaf
-      else
-        val trimmed = Array.create[T](fill)
+    if finished then
+      // The first result may append into the free slots past `count`, so this
+      // one must not: its claim starts full, and it copies when it appends.
+      new List(arr, 0, count, ListImpl.newClaim(arr.size))
+
+    else
+      finished = true
+
+      // Hand over `arr` unless most of it is still free: a short list would
+      // otherwise hold on to a long array for good.
+      if count * 2 < arr.size then
+        val exact = Array.create[T](count)
         var i = 0
-        while i < fill do
-          trimmed[i] = leaf[i]
+        while i < count do
+          exact[i] = arr[i]
           i = i + 1
         end
-        trimmed
-
-    // The leaf in progress is the tail, so `leaves` goes over untouched: the
-    // completed leaves need no copy, and an empty builder needs no special
-    // case, since a lone empty tail is already the empty list.
-    ListImpl.fromLeaves(leaves, leafCount, ListImpl.Leaf(lastLeaf), total)
+        ListImpl.wrap(exact, count)
+      else
+        ListImpl.wrap(arr, count)
 end

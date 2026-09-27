@@ -89,6 +89,42 @@ end
 
 //------------------------------------------------------------------------------
 //
+// List claims (see `jo.ListImpl.Claim`)
+//
+// Ruby threads, started through the FFI, can reach the same list. A claim
+// belongs to the thread that made it: only that thread extends the array in
+// place, and every other thread copies, so no two threads write one slot.
+// A thread's `object_id` is never reused, even after the thread is gone.
+//
+
+private def currentThread: Int = rbRaw("Thread.current.object_id").cast[Int]
+
+// How far a shared array is taken, and the thread that may take more.
+private class ClaimState
+  var used: Int
+  val owner: Int
+
+  def ClaimState(used: Int, owner: Int) =
+    this.used = used
+    this.owner = owner
+end
+
+private section ListClaim
+  def newClaim(used: Int): ListImpl.Claim receives none =
+    rb.dynamic(new ClaimState(used, currentThread)).cast[ListImpl.Claim]
+
+  def tryExtend(claim: ListImpl.Claim, stop: Int, count: Int): Bool receives none =
+    val state = rb.dynamic(claim).cast[ClaimState]
+
+    if state.used == stop && state.owner == currentThread then
+      state.used = stop + count
+      true
+    else
+      false
+end
+
+//------------------------------------------------------------------------------
+//
 // String support
 //
 

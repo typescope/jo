@@ -1,0 +1,102 @@
+// Lists share one array, and an append writes into the free slot past the
+// end. Only one list may take each slot: the others must copy. A list that
+// wrongly writes a shared slot reads back fine itself, so every check reads
+// the lists that were there before as well.
+
+def show(l: List[Int]): String = l.toString
+
+def main =
+  println "--- branching appends ---"
+  // `base` has spare room, so the first `+` extends it in place and the
+  // second must not overwrite that slot.
+  val base = [1, 2, 3] + 4
+  val a = base + 10
+  val b = base + 20
+  println (show base)
+  println (show a)
+  println (show b)
+
+  // Extending each branch again keeps them apart.
+  val a2 = a + 11
+  val b2 = b + 21
+  println (show a2)
+  println (show b2)
+  println (show a)
+  println (show b)
+
+  println "--- append after concat ---"
+  val c = base ++ [5, 6]
+  val d = base ++ [7]
+  val e = base + 8
+  println (show c)
+  println (show d)
+  println (show e)
+  println (show base)
+
+  println "--- self concat ---"
+  val s = [1, 2] + 3
+  println (show (s ++ s))
+  println (show (s + 4))
+
+  println "--- append to a taken prefix ---"
+  // `take` ends before the array's taken slots, so it may not extend in place.
+  val long = [1, 2, 3, 4, 5, 6, 7, 8] + 9
+  val front = long.take(6)
+  val f2 = front + 100
+  println (show f2)
+  println (show long)
+
+  println "--- append to a dropped suffix ---"
+  // `drop` ends where `long` ends: they compete for the same slot.
+  val back = long.drop(2)
+  val g = back + 200
+  val h = long + 300
+  println (show g)
+  println (show h)
+  println (show back)
+  println (show long)
+
+  println "--- slices do not see past their end ---"
+  val mid = long.slice(2, 5)
+  println mid.size
+  println (show mid)
+  var seen = 0
+  for v in mid do
+    seen = seen + 1
+  println seen
+
+  println "--- append in a loop ---"
+  var acc: List[Int] = []
+  var i = 0
+  while i < 1000 do
+    acc = acc + i
+    i = i + 1
+  var sum = 0
+  for v in acc do
+    sum = sum + v
+  println acc.size
+  println sum
+  println acc[999]
+
+  println "--- many appends to one list ---"
+  // Every append after the first copies; each result must still be its own.
+  val root = [0] + 1
+  var total = 0
+  var k = 0
+  while k < 50 do
+    val child = root + k
+    total = total + child[2]
+    if child.size != 3 then println "wrong size"
+    k = k + 1
+  println total
+  println (show root)
+
+  println "--- updated copies ---"
+  // `updated` must not write the shared array, which `base` and its
+  // extensions still read.
+  val u = base.updated(0, 99)
+  val u2 = u + 5
+  println (show u)
+  println (show u2)
+  println (show base)
+  println (show a)

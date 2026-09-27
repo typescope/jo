@@ -1,6 +1,6 @@
-// ListBuilder invariants: `result` must not disturb the builder, and a leaf
-// handed to a list must never be written again. Violations read back fine and
-// only surface on a later append, so every check appends afterwards too.
+// A builder's result must hold what was added, sized right around the
+// builder's capacity, and stay sound when appended to, since it takes over the
+// builder's array and may append into its free slots.
 
 // `l` must hold 0..count-1, and stay sound when appended to
 def sound(l: List[Int], count: Int): Bool =
@@ -26,37 +26,31 @@ def filled(count: Int, capacity: Int): ListBuilder[Int] =
     i = i + 1
   b
 
-// calling `result` twice gives equal, independently sound lists
-def repeatable(count: Int, capacity: Int): Bool =
+// one `result`, from a builder sized at `capacity`
+def built(count: Int, capacity: Int): Bool =
+  val l = filled(count, capacity).result
+  l.size == count && sound(l, count)
+
+// calling `result` twice gives two lists that both stay sound when appended to
+def repeated(count: Int, capacity: Int): Bool =
   val b = filled(count, capacity)
   val first = b.result
   val second = b.result
-  first.size == count && second.size == count && sound(first, count) && sound(second, count)
-
-// adding after a `result` extends the builder, not the list already returned
-def resumable(count: Int): Bool =
-  val b = filled(count, 0)
-  val early = b.result
-  var j = count
-  while j < count + 40 do
-    val _ = b.add j
-    j = j + 1
-
-  val late = b.result
-  early.size == count && late.size == count + 40 &&
-    sound(early, count) && sound(late, count + 40)
+  sound(first, count) && sound(second, count)
 
 def check(n: Int): Int =
   var bad = 0
-  if !repeatable(n, 0) then bad = bad + 1
-  if !repeatable(n, n) then bad = bad + 1
-  if !repeatable(n, 4) then bad = bad + 1
-  if !resumable(n) then bad = bad + 1
+  if !built(n, 0) then bad = bad + 1
+  if !built(n, n) then bad = bad + 1
+  if !built(n, 4) then bad = bad + 1
+  if !built(n, 2 * n + 1) then bad = bad + 1
+  if !repeated(n, 0) then bad = bad + 1
+  if !repeated(n, n) then bad = bad + 1
   bad
 
 def main =
   var bad = 0
-  // leaf and depth boundaries, where a stale or short leaf would show up
+  // around the default capacity and the doubling steps
   for n in [0, 1, 2, 31, 32, 33, 63, 64, 65, 1023, 1024, 1025] do
     bad = bad + (check n)
 

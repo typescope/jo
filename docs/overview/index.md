@@ -69,8 +69,8 @@ Jo's capability model is grounded in [λCC](https://github.com/typescope/context
 
 We welcome feedback from language designers, security engineers, compiler
 engineers, and developers building agentic systems. For concrete bugs or issues,
-open an issue on [GitHub](https://github.com/typescope/jo). For community
-discussion, join [r/jolang](https://www.reddit.com/r/jolang/). Security reports
+open an issue on [GitHub](https://github.com/typescope/jo). For general
+discussion, use [Github discussions](https://github.com/typescope/jo/discussions). Security reports
 should follow the process in the repository's
 [SECURITY.md](https://github.com/typescope/jo/blob/main/SECURITY.md).
 

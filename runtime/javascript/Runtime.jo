@@ -72,6 +72,35 @@ end
 
 //------------------------------------------------------------------------------
 //
+// List claims (see `jo.ListImpl.Claim`)
+//
+// Workers share no objects, so a list is only ever seen by one thread.
+//
+
+// How far a shared array is taken.
+private class ClaimState
+  var used: Int
+
+  def ClaimState(used: Int) =
+    this.used = used
+end
+
+private section ListClaim
+  def newClaim(used: Int): ListImpl.Claim receives none =
+    js.dynamic(new ClaimState(used)).cast[ListImpl.Claim]
+
+  def tryExtend(claim: ListImpl.Claim, stop: Int, count: Int): Bool receives none =
+    val state = js.dynamic(claim).cast[ClaimState]
+
+    if state.used == stop then
+      state.used = stop + count
+      true
+    else
+      false
+end
+
+//------------------------------------------------------------------------------
+//
 // Bytes operations (Bytes.Repr is a Uint8Array)
 //
 //------------------------------------------------------------------------------

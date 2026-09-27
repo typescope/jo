@@ -29,6 +29,10 @@ object Interpreter:
     "jo.Bytes.fill"     -> "jo.runtime.interpreter.RawBytes.fill",
     "jo.regex.Engine.compilePattern" -> "jo.runtime.interpreter.RegexEngine.compilePattern",
     "jo.regex.Engine.execPatternAt"  -> "jo.runtime.interpreter.RegexEngine.execPatternAt",
+
+    // Lists sharing an array
+    "jo.ListImpl.newClaim"  -> "jo.runtime.interpreter.ListClaim.newClaim",
+    "jo.ListImpl.tryExtend" -> "jo.runtime.interpreter.ListClaim.tryExtend",
   )
 
   // Runtime definitions for the frontend
@@ -247,6 +251,11 @@ object Interpreter:
         val PlatformVal(bytes: Array[Byte]) :: IntVal(index) :: IntVal(value) :: Nil = args: @unchecked
         bytes(index) = value.toByte
         UnitValue
+      },
+
+      "cast" -> { (args: List[Value]) =>
+        val v :: Nil = args: @unchecked
+        v :: Nil
       },
 
       "abort" -> { (args: List[Value]) =>
