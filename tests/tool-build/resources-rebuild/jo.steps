@@ -12,6 +12,8 @@ jo build --spec jo.toml app
 
 cat .build/app/jo-1.0/target/resources/app/live/msg.txt
 : '
+[build] [app]
+[output] .build/app/jo-1.0/target/app.py
 one
 '
 
@@ -22,7 +24,10 @@ jo build --spec jo.toml app
 
 python3 -c 'import os; print(os.stat(".build/app/jo-1.0/target/resources/app/live/msg.txt").st_mtime_ns)' > mtime-after.txt
 cmp mtime-before.txt mtime-after.txt
-: ''
+: '
+[build] [app]
+[output] .build/app/jo-1.0/target/app.py
+'
 
 printf 'two\n' > live/msg.txt
 rm -f live/stale.txt
@@ -32,6 +37,8 @@ jo build --spec jo.toml app
 cat .build/app/jo-1.0/target/resources/app/live/msg.txt
 test ! -e .build/app/jo-1.0/target/resources/app/live/stale.txt
 : '
+[build] [app]
+[output] .build/app/jo-1.0/target/app.py
 two
 '
 
@@ -48,7 +55,10 @@ cp empty-resources.toml jo.toml
 jo build --spec jo.toml app
 
 test ! -e .build/app/jo-1.0/target/resources
-: ''
+: '
+[build] [app]
+[output] .build/app/jo-1.0/target/app.py
+'
 
 rm -rf .build live gen
 

@@ -1,4 +1,5 @@
 jo package
 : '
+[package] [lib]
 error: 'jo package' only allows published packages to depend on pure packages; dependency 'runtime-helper' requires runtime=python
 '

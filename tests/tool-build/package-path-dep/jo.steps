@@ -1,5 +1,11 @@
 jo package
-: ''
+: '
+[package] [lib]
+[build] helper [lib]
+[build] [lib]
+[artifact] .build/lib/release/package-path-dep-v1.0.0.joy
+[artifact] .build/lib/release/package-path-dep-v1.0.0-sources.zip
+'
 
 unzip -p .build/lib/release/package-path-dep-v1.0.0.joy meta.toml
 : '

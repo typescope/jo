@@ -35,10 +35,10 @@ final class Project private (
 
   def module(id: ModuleId): Option[ModuleSpec] = spec.module(id)
 
-  def requireModule(id: ModuleId): Result[ModuleSpec] =
+  def requireModule(id: ModuleId)(using Logger): Result[ModuleSpec] =
     module(id) match
       case Some(spec) => Result.Ok(spec)
-      case None       => Result.Err(s"module '${id.value}' is not defined in ${LogFormat.path(specPath)}")
+      case None       => Result.Err(s"module '${id.value}' is not defined in ${Logger.relativize(specPath)}")
 
   def moduleDepsOf(id: ModuleId): List[ModuleDep] =
     moduleDeps.getOrElse(id, Nil)
@@ -117,11 +117,11 @@ object Project:
       catch case _: IllegalArgumentException => project.toString
 
   private[tool] def validateModuleAcyclic(root: Project, roots: List[ModuleId]): Result[Unit] =
-    val visited = mutable.Set.empty[(Path, ModuleId)]
+    val visited = mutable.Set.empty[ModuleKey]
     val stack = mutable.ArrayBuffer.empty[(Project, ModuleId)]
 
     def walk(project: Project, module: ModuleId): Result[Unit] =
-      val key = project.specPath -> module
+      val key = ModuleKey(project.specPath, module)
       val cycleStart = stack.indexWhere(sameModule(_, project, module))
       if cycleStart >= 0 then
         return Result.Err(formatModuleCycle(root, stack.drop(cycleStart).toList :+ ((project, module))))
@@ -148,10 +148,10 @@ object Project:
   private def sameModule(entry: (Project, ModuleId), project: Project, module: ModuleId): Boolean =
     entry._1.specPath == project.specPath && entry._2 == module
 
-  def load(specPath: Path): Result[Project] =
+  def load(specPath: Path)(using Logger): Result[Project] =
     load(specPath, JoResolver.resolve)
 
-  def load(specPath: Path, resolveJo: VersionSpec => Result[(Version, Path)]): Result[Project] =
+  def load(specPath: Path, resolveJo: VersionSpec => Result[(Version, Path)])(using Logger): Result[Project] =
     val resolved = mutable.Map.empty[Path, Project]
     val inProgress = mutable.Set.empty[Path]
     val stack = mutable.ArrayBuffer.empty[Path]
@@ -159,12 +159,12 @@ object Project:
     def loadAt(path: Path, inheritedCompiler: Option[(Version, Path)] = None): Result[Project] =
       val specPath = path.toAbsolutePath.normalize()
       if !Files.exists(specPath) then
-        return Result.Err(s"spec file not found: ${LogFormat.path(specPath)}")
+        return Result.Err(s"spec file not found: ${Logger.relativize(specPath)}")
 
       val canonicalSpecPath =
         try specPath.toRealPath()
         catch case e: IOException =>
-          return Result.Err(s"spec file not found: ${LogFormat.path(specPath)}: ${e.getMessage}")
+          return Result.Err(s"spec file not found: ${Logger.relativize(specPath)}: ${e.getMessage}")
       val specDir = canonicalSpecPath.getParent
 
       resolved.get(canonicalSpecPath) match
@@ -173,7 +173,7 @@ object Project:
 
       if inProgress.contains(canonicalSpecPath) then
         val cycle = (stack.dropWhile(_ != canonicalSpecPath) :+ canonicalSpecPath)
-          .map(p => LogFormat.path(p))
+          .map(Logger.relativize)
           .mkString(" -> ")
         return Result.Err(s"circular project dependency detected: $cycle")
 
@@ -189,7 +189,7 @@ object Project:
                   Result.Ok(version -> joBin)
                 else
                   Result.Err(
-                    s"source project ${LogFormat.path(canonicalSpecPath)} requires Jo ${spec.jo.show}, but the root project selected Jo $version"
+                    s"source project ${Logger.relativize(canonicalSpecPath)} requires Jo ${spec.jo.show}, but the root project selected Jo $version"
                   )
 
               case None =>
@@ -214,7 +214,7 @@ object Project:
     specPath: Path,
     spec: BuildSpec,
     loadAt: Path => Result[Project],
-  ): Result[Map[ModuleId, List[ModuleDep]]] =
+  )(using Logger): Result[Map[ModuleId, List[ModuleDep]]] =
     spec.modules.foldLeft(Result.Ok(Map.empty[ModuleId, List[ModuleDep]]): Result[Map[ModuleId, List[ModuleDep]]]): (acc, moduleDef) =>
       acc.flatMap: byModule =>
         val deps = new mutable.ArrayBuffer[ModuleDep]
@@ -225,7 +225,7 @@ object Project:
             existing.module == dep.module && existing.projectSpecPath == dep.projectSpecPath
           if duplicate then
             val label = dep.projectSpecPath match
-              case Some(specPath) => s"${LogFormat.path(specPath)} [${dep.module.value}]"
+              case Some(specPath) => s"${Logger.relativize(specPath)} [${dep.module.value}]"
               case None           => dep.module.value
             Result.Err(s"duplicate module dependency '$label' in module.${module.value}.modules")
           else
@@ -237,7 +237,7 @@ object Project:
             depSpec.path match
               case None =>
                 if spec.module(depSpec.id).isEmpty then
-                  Result.Err(s"in ${LogFormat.path(specPath)}: module '${module.value}' depends on undefined module '${depSpec.id.value}'")
+                  Result.Err(s"in ${Logger.relativize(specPath)}: module '${module.value}' depends on undefined module '${depSpec.id.value}'")
                 else
                   addModuleDep(ModuleDep(depSpec.id, depSpec.link, None, None))
 
@@ -249,7 +249,7 @@ object Project:
                         addModuleDep(ModuleDep(depSpec.id, depSpec.link, Some(depProject), Some(depProject.specPath)))
                       case None =>
                         Result.Err(
-                          s"in ${LogFormat.path(specPath)}: module '${module.value}' depends on undefined module '${depSpec.id.value}' from ${LogFormat.path(depProject.specPath)}"
+                          s"in ${Logger.relativize(specPath)}: module '${module.value}' depends on undefined module '${depSpec.id.value}' from ${Logger.relativize(depProject.specPath)}"
                         )
 
         result.map(_ => byModule + (module -> deps.toList))
@@ -262,17 +262,17 @@ object Project:
       try Result.Ok(depSpecPath.toAbsolutePath.toRealPath())
       catch case e: IOException => Result.Err(s"module dependency not found: $depSpecPath: ${e.getMessage}")
 
-  def loadSpec(dir: Path, tomlFile: String = "jo.toml"): Result[BuildSpec] =
+  def loadSpec(dir: Path, tomlFile: String = "jo.toml")(using Logger): Result[BuildSpec] =
     val file = dir.resolve(tomlFile)
 
     if !Files.exists(file) then
-      return Result.Err(s"spec file not found: ${LogFormat.path(file)}")
+      return Result.Err(s"spec file not found: ${Logger.relativize(file)}")
 
     val src = Files.readString(file)
 
     try Result.Ok(BuildSpec.decode(TomlParser.parse(src)))
     catch case e: TomlError =>
-      Result.Err(s"in ${LogFormat.path(file)}: ${e.getMessage}")
+      Result.Err(s"in ${Logger.relativize(file)}: ${e.getMessage}")
 
   private def populatePlatformCache(project: Project): Result[Unit] =
     val memo = project.platformByModule

@@ -7,11 +7,7 @@ import scala.collection.mutable.{ArrayBuffer, Set}
 object PlanPrinter:
   def print(plans: ProjectPlan, baseDir: Path): String =
     val sb      = new StringBuilder
-    val visited = Set.empty[Path]
-
-    def outKey(task: CompileTask): Path = task match
-      case lib: CompileTask.LibTask => lib.outDir
-      case app: CompileTask.AppTask => app.outFile
+    val visited = Set.empty[ModuleKey]
 
     def appendCmd(label: String, task: CompileTask): Unit =
       sb.append(s"# $label\n")
@@ -22,12 +18,7 @@ object PlanPrinter:
 
     def traverse(plan: ModulePlan, isRoot: Boolean): Unit =
       for dep <- plan.deps do traverse(dep, isRoot = false)
-      val key = outKey(plan.task)
-      if !visited.contains(key) then
-        visited += key
-        plan.task match
-          case app: CompileTask.AppTask => visited += app.sastDir
-          case _ =>
+      if visited.add(plan.key) then
         val label =
           if isRoot then
             plan.task match

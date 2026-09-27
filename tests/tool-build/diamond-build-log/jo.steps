@@ -1,0 +1,7 @@
+jo build
+: '
+[build] [api]
+[build] [runtime]
+[build] [guest]
+[output] .build/guest/jo-1.0/target/guest.py
+'

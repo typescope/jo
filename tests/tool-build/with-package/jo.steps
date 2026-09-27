@@ -10,6 +10,10 @@ cp dep/.build/lib/release/greeter-pkg-v1.0.0.joy repo/greeter-pkg/1.0.0/
 
 jo run
 : '
+[package] [lib]
+[build] [lib]
+[artifact] dep/.build/lib/release/greeter-pkg-v1.0.0.joy
+[artifact] dep/.build/lib/release/greeter-pkg-v1.0.0-sources.zip
 Hello, Package!
 '
 

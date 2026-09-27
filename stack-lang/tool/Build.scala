@@ -26,7 +26,7 @@ object Build:
     try
       if java.nio.file.Files.exists(buildDir) then
         deleteDir(buildDir)
-        Logger.info(s"[clean] removed ${LogFormat.path(buildDir)}\n")
+        Logger.info(s"[clean] removed ${Logger.relativize(buildDir)}\n")
         Result.unit
       else
         Logger.info(s"[clean] nothing to clean\n")
@@ -55,7 +55,7 @@ object Build:
               )
         )
         Runner.doc(withDoc, outDir).map: _ =>
-          Logger.info(s"[output] ${LogFormat.path(outDir)}\n")
+          Logger.info(s"[output] ${Logger.relativize(outDir)}\n")
 
   def deps(project: Project, module: ModuleId)(using Logger, PackageProvider): Result[Unit] =
     depsResult(project, module).map: output =>
@@ -140,7 +140,7 @@ object Build:
     project: Project,
     modules: List[ModuleId],
     lockPath: Path,
-  )(using PackageProvider): Result[ResolutionResult] =
+  )(using PackageProvider, Logger): Result[ResolutionResult] =
     loadLock(lockPath).flatMap:
       case Some(lock) =>
         DependencyResolver.resolveProject(project, modules, lock).flatMap: resolved =>
@@ -159,7 +159,7 @@ object Build:
     lockPath: Path,
     useExistingLock: Boolean,
     requireLockCoverage: Boolean = false,
-  )(using PackageProvider): Result[ResolutionResult] =
+  )(using PackageProvider, Logger): Result[ResolutionResult] =
     if !useExistingLock then
       DependencyResolver.resolveProject(project, modules)
     else

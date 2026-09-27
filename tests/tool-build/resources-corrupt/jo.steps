@@ -6,5 +6,5 @@ python3 -c 'import pathlib, zipfile; p = pathlib.Path("repo/corrupt-resources/1.
 
 jo build --spec corrupt-app/jo.toml app
 : '
-error: package resource root is not a directory: tests/tool-build/resources-corrupt/.cache/packages/corrupt-resources/1.0.0/unpacked/resources
+error: package resource root is not a directory: .cache/packages/corrupt-resources/1.0.0/unpacked/resources
 '

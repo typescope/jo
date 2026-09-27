@@ -1,10 +1,26 @@
 package tool
 
+import java.nio.file.{Path, Paths}
+
 enum LogLevel:
   case Log, Info, Warn, Error
 
 trait Logger:
   def minLevel: LogLevel = LogLevel.Info
+
+  /** Logical working directory of the command whose output this logger renders.
+   *
+   *  Implementations must keep this value stable for the logger's lifetime.
+   *  It is used only to relativize user-facing paths. It does not change the
+   *  process working directory or affect filesystem operations.
+   */
+  protected def cwd: Path = Paths.get("").toAbsolutePath
+
+  def relativize(path: Path): String =
+    val absolute = path.toAbsolutePath.normalize()
+    val base = cwd.toAbsolutePath.normalize()
+    if absolute.startsWith(base) then base.relativize(absolute).toString
+    else absolute.toString
   protected def write(msg: String, level: LogLevel): Unit
 
   final def log(msg: String): Unit   = if LogLevel.Log.ordinal  >= minLevel.ordinal then write(msg, LogLevel.Log)
@@ -13,8 +29,9 @@ trait Logger:
   final def error(msg: String): Unit = write(msg, LogLevel.Error)
 
 object Logger:
-  def apply(level: LogLevel = LogLevel.Info): Logger = new Logger:
+  def apply(level: LogLevel = LogLevel.Info, workingDir: Path = Paths.get("").toAbsolutePath): Logger = new Logger:
     override val minLevel = level
+    override protected val cwd = workingDir
     protected def write(msg: String, level: LogLevel) =
       Console.err.print(colorize(msg, level))
 
@@ -24,6 +41,7 @@ object Logger:
   def info(msg: String)(using l: Logger): Unit  = l.info(msg)
   def warn(msg: String)(using l: Logger): Unit  = l.warn(msg)
   def error(msg: String)(using l: Logger): Unit = l.error(msg)
+  def relativize(path: Path)(using l: Logger): String = l.relativize(path)
 
   private def colorize(msg: String, level: LogLevel): String =
     if !Ansi.enabled then msg
