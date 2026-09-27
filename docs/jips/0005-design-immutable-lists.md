@@ -279,18 +279,3 @@ proposal sets out to fix.
 
 - `List.updated` keeps its signature but becomes O(n).
 - Source code that uses a `ListBuilder` after calling `result` must change.
-- Every runtime must link `jo.ListImpl.newClaim` and `jo.ListImpl.tryExtend`.
-  The bundled runtimes provide them. A custom runtime supplied with `--link`
-  must provide them too.
-- Libraries must be recompiled against the new standard library.
-
-## Future work
-
-- **Remove `ListBuilder`.** With `+` O(1) amortized, the builder mostly serves
-  the typer's lowering of list literals and varargs. That lowering could fill
-  an array and wrap it directly, after which the builder could be removed.
-- **Avoid allocating claims.** A list whose array is full can never extend in
-  place, so it could share one claim with every other such list. Small lists
-  built by literals would then cost two objects.
-- **Compare-and-swap claims** on the Python, Ruby and JVM backends, once Jo has
-  concurrency primitives.
