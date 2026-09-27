@@ -283,4 +283,5 @@ than the trie to be replaced.
 ## Compatibility
 
 - `List.updated` keeps its signature but becomes O(n).
-- Source code that uses a `ListBuilder` after calling `result` must change.
+- Source code that adds to a `ListBuilder` after calling `result` must change,
+  as it now aborts.

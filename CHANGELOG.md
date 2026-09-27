@@ -12,9 +12,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Appending with `+` or `++` writes into free space at the end of the shared
   array, so `acc = acc + v` in a loop is O(1) amortized per element. Only the
   first of `l + a` and `l + b` extends `l` in place. The second copies `l`.
-- `ListBuilder.result` consumes the builder, which hands its array to the
-  list it returns. Adding to a builder after `result`, or calling `result`
-  again, is no longer supported and is not checked.
+- `ListBuilder.result` finishes the builder and hands its array to the list
+  it returns. Adding to a builder after `result` aborts. Calling `result`
+  again returns a list of the same elements that copies when appended to.
+- `List.builder` starts with room for 8 elements instead of 32.
 - On the Python and Ruby backends, a list is extended in place only by the
   thread that created its array. Other threads copy, so lists stay immutable
   when threads started through the FFI share them.
@@ -27,8 +28,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Compatibility
 
-- Source code that uses a `ListBuilder` after calling `result` must be
-  changed.
+- Source code that adds to a `ListBuilder` after calling `result` must be
+  changed, as it now aborts.
 - Every runtime must link two new deferred functions, `jo.ListImpl.newClaim`
   and `jo.ListImpl.tryExtend`. The bundled runtimes provide them. A custom
   runtime supplied with `--link` must provide them too.

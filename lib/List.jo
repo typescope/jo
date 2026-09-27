@@ -27,7 +27,7 @@ section List
     ! See `ListBuilder` for when to prefer this over `+`, `fill` or `tabulate`.
   //]
   def builder[T]: ListBuilder[T] =
-    new ListBuilder(capacity = 32)
+    new ListBuilder(capacity = 8)
 
 
   //[ Create a list of `n` copies of `value`. //]

@@ -44,8 +44,8 @@ Create: `"hello"`, `"hello \{name}"` (interpolation), `"""` for multi-line (cont
 
 ## List[T]
 Create: `[1, 2, 3]`, `List.empty[T]`, `List.fill(n, value)`, `List.tabulate(n, f)`.
-Build one element at a time with `List.builder[T](capacity)` — see `ListBuilder`;
-prefer it to `acc = acc + v` in a loop.
+Build one element at a time with `acc = acc + v`, which is O(1) amortized, or
+with `List.builder[T]()` — see `ListBuilder`.
 - `.size`: Int
 - `.isEmpty`: Bool
 - `.get(i)`: T — element at index
@@ -84,13 +84,14 @@ prefer it to `acc = acc + v` in a loop.
 
 ## ListBuilder[T]
 Collects elements into a `List`, writing each one straight into the array the
-list will use. Prefer it to `acc = acc + v` in a loop. Create with `List.builder[T]()`.
+list will use. Unlike `acc = acc + v`, it allocates no `List` per element.
+Create with `List.builder[T]()`.
 - `.add(v)`: ListBuilder[T] — append one element, returns the builder
 - `.addAll(it: Iterator[T])`: ListBuilder[T] — append everything `it` yields
 - `.addList(l: List[T])`: ListBuilder[T] — append every element of `l`
 - `.size`: Int — elements added so far
-- `.result`: List[T] — the list of everything added; consumes the builder, so
-  do not add to it or call `result` again
+- `.result`: List[T] — the list of everything added; finishes the builder, so
+  adding to it afterwards aborts
 
 `add`, `addAll` and `addList` return the builder, so a list can be collected in
 one expression: `List.builder[Int]().add(1).addList([2, 3]).result`.

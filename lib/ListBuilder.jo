@@ -10,7 +10,7 @@ namespace jo
   ! length *is* known. That call lands in the user's own namespace, so this
   ! cannot be `private[jo]`.
 //]
-def ListBuilder[T](capacity: Int = 32): ListBuilder[T] =
+def ListBuilder[T](capacity: Int = 8): ListBuilder[T] =
   new ListBuilder(capacity)
 
 //[ Incrementally builds a `List`, filling the array it will use.
@@ -57,18 +57,22 @@ def ListBuilder[T](capacity: Int = 32): ListBuilder[T] =
   !
   ! `result` hands the builder's array to the list it returns, and that list
   ! may later append into the free slots past its end. So a builder is done
-  ! once `result` is called: calling `result` again, or adding more, lets two
-  ! lists write the same slots. Keeping to one result is up to the caller; the
-  ! builder does not check.
+  ! once `result` is called. Adding to it afterwards aborts. Calling `result`
+  ! again returns a list that cannot append in place, so no two lists ever
+  ! write the same slots.
 //]
 class ListBuilder[T]
   // The elements are `arr[0]` to `arr[count - 1]`.
   private var arr: Array[T]
   private var count: Int
 
+  // Whether `result` has been called.
+  private var finished: Bool
+
   private[jo] def ListBuilder(capacity: Int) =
     this.arr = Array.create[T](if capacity > 0 then capacity else 8)
     this.count = 0
+    this.finished = false
 
   //[ Number of elements added so far. //]
   def size: Int = count
@@ -125,8 +129,12 @@ class ListBuilder[T]
     count = count + l.size
     this
 
-  // Make room for `n` more elements.
+  // Make room for `n` more elements. Every addition comes through here, so
+  // this is also where a finished builder refuses more.
   private def reserve(n: Int): Unit =
+    if finished then
+      abort "ListBuilder: cannot add after `result`"
+
     if count + n > arr.size then
       val grown = Array.create[T](ListImpl.grownCapacity(count + n, count))
       var i = 0
@@ -138,19 +146,28 @@ class ListBuilder[T]
 
   //[ The list of everything added.
     !
-    ! This consumes the builder: do not add to it or call `result` again.
+    ! This finishes the builder: adding to it afterwards aborts. Calling
+    ! `result` again returns a list of the same elements.
   //]
   def result: List[T] =
-    // Hand over `arr` unless most of it is still free: a short list would
-    // otherwise hold on to a long array for good.
-    if count * 2 < arr.size then
-      val exact = Array.create[T](count)
-      var i = 0
-      while i < count do
-        exact[i] = arr[i]
-        i = i + 1
-      end
-      ListImpl.wrap(exact, count)
+    if finished then
+      // The first result may append into the free slots past `count`, so this
+      // one must not: its claim starts full, and it copies when it appends.
+      new List(arr, 0, count, ListImpl.newClaim(arr.size))
+
     else
-      ListImpl.wrap(arr, count)
+      finished = true
+
+      // Hand over `arr` unless most of it is still free: a short list would
+      // otherwise hold on to a long array for good.
+      if count * 2 < arr.size then
+        val exact = Array.create[T](count)
+        var i = 0
+        while i < count do
+          exact[i] = arr[i]
+          i = i + 1
+        end
+        ListImpl.wrap(exact, count)
+      else
+        ListImpl.wrap(arr, count)
 end
