@@ -1,0 +1,14 @@
+// Preserve right operand grouping for Int and Float subtraction.
+def subtractFloatSum(a: Float, b: Float, c: Float): Float = a - (b + c)
+def subtractIntSum(a: Int, b: Int, c: Int): Int = a - (b + c)
+def subtractFloatDifference(a: Float, b: Float, c: Float): Float = a - (b - c)
+def subtractIntDifference(a: Int, b: Int, c: Int): Int = a - (b - c)
+
+def main =
+  println: subtractFloatSum(8.0, 2.0, 4.0).toInt.toString
+  println: subtractIntSum(8, 2, 4).toString
+  println (subtractFloatSum(-8.0, 2.0, 4.0) == -14.0)
+  println (subtractIntSum(-8, 2, 4))
+  println (subtractFloatSum(8.5, 2.25, 4.0) == 2.25)
+  println (subtractFloatDifference(8.0, 2.0, 4.0) == 10.0)
+  println (subtractIntDifference(8, 2, 4))
