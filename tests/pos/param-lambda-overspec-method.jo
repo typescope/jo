@@ -1,0 +1,13 @@
+param env: String
+
+class Provider
+  def get(): String receives env =
+    "method"
+
+def withEnv(handler: () => String): String receives env =
+  handler()
+
+def main =
+  val provider = new Provider
+  println:
+    with env = "test" in withEnv(() => provider.get())

@@ -1,0 +1,11 @@
+param env: String
+
+def getResult(): String receives env =
+  "hello"
+
+def withEnv(handler: () => String): String receives env =
+  handler()
+
+def main =
+  println:
+    with env = "test" in withEnv(() => getResult())
