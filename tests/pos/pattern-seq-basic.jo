@@ -29,7 +29,6 @@ def testGuardedRepeat =
   val list = [1, 2, 3, 4, 5, 6]
   match list
     case [.. while (x if x < 4), ..rest] => println rest
-    case _ => pass
   end
 
 // Test 4: Anonymous repeat pattern
@@ -55,7 +54,6 @@ def testEmptyRepeat =
   val list = [10, 20]
   match list
     case [.. while (x if x < 5), ..rest] => println rest
-    case _ => pass
   end
 
 // Test 7: Named repeat with guard
@@ -64,8 +62,6 @@ def testNamedGuarded =
   match list
     case [..small while (x if x < 4), ..rest] =>
       println "small = \{small}, rest = \{rest}"
-    case _ =>
-      pass
   end
 
 // Test 8: Just a repeat pattern
