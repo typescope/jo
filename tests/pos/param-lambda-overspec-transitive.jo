@@ -1,0 +1,14 @@
+param env: String
+
+def leaf(): String receives env =
+  "leaf"
+
+def relay(): String receives env =
+  leaf()
+
+def withEnv(handler: () => String): String receives env =
+  handler()
+
+def main =
+  println:
+    with env = "test" in withEnv(() => relay())
