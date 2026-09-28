@@ -39,9 +39,6 @@ class EffectAnalysis:
 
   /** Compute effects of the given word
     *
-     * This API reports call requirements using known function contracts
-     * (explicit effect bounds / receives when available).
-     *
     * It should only be called from outside. Internally, `EffectAnalyzer.apply`
     * should be called.
     */
