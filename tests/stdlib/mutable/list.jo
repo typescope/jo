@@ -1,6 +1,6 @@
 def main =
-  // Test empty and append
-  val buf = mutable.List.empty[Int]
+  // Test the constructor's default capacity
+  val buf = new mutable.List[Int]
   buf.append(1)
   buf.append(2)
   buf.append(3)
@@ -103,8 +103,8 @@ def main =
   buf3.clear()
   println buf3.size      // 0
 
-  // Test growth (append many elements)
-  val buf4 = mutable.List.empty[Int]
+  // Test a supplied zero capacity and growth
+  val buf4 = new mutable.List[Int](0)
   var i = 0
   while i < 100 do
     buf4.append(i)
