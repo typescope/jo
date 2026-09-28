@@ -83,9 +83,11 @@ object Exhaustivity:
 
       case ValuePattern(value) => false
 
-      case ApplyPattern(pred, nested) =>
+      case app @ ApplyPattern(pred, nested) =>
         assert(pred.tpe.isProcType, pred.tpe)
         !pred.tpe.asProcType.resultType.isPartial
+        && Subtyping.isEqualType(app.valueType, app.scrutineeType)
+        && nested.forall(isIrrefutable)
 
       case _: OrPattern => false
 
