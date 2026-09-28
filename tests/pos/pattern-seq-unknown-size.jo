@@ -1,0 +1,27 @@
+def testGuarded(s: String): String =
+  match s
+    case [..spaces while ' ', first, ..rest] =>
+      "after spaces, first non-space: " + first
+    case [.. while ' '] => "all spaces"
+    case _ => "no leading spaces"
+
+def onlySpaces(s: String): Bool =
+  match s
+    case [.. while ' '] => true
+    case _ => false
+
+def requiredAtom(s: String): Bool =
+  match s
+    case [first, .. while ' '] => true
+    case _ => false
+
+def main =
+  println testGuarded("")
+  println testGuarded("   ")
+  println testGuarded("  abc")
+  println testGuarded("abc")
+  println onlySpaces("  x")
+  println onlySpaces("   ")
+  println requiredAtom("")
+  println requiredAtom("x  ")
+  println requiredAtom("xy")
