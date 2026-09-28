@@ -35,10 +35,13 @@ class EffectAnalysis:
     * called.
     */
   def effects(fun: Symbol)(using defn: Definitions): TracedEffects =
-    fixpoint(this)(getEffects(fun, ignoreSpec = false))
+    fixpoint(this)(getEffects(fun, detailedTrace = false))
 
   /** Compute effects of the given word
     *
+     * This API reports call requirements using known function contracts
+     * (explicit effect bounds / receives when available).
+     *
     * It should only be called from outside. Internally, `EffectAnalyzer.apply`
     * should be called.
     */
@@ -173,8 +176,12 @@ object EffectAnalysis:
 
   end TempCache
 
-  /** Produce a list of transitively reachabe param symbols for the function */
-  private def getEffects(fun: Symbol, ignoreSpec: Boolean)(using temp: TempCache, defn: Definitions): TracedEffects =
+  /** Produce a list of transitively reachable param symbols for the function.
+    *
+    * When `detailedTrace` is enabled, explicit effect specs are still respected,
+    * but body-derived traces are preferred where available.
+    */
+  private def getEffects(fun: Symbol, detailedTrace: Boolean)(using temp: TempCache, defn: Definitions): TracedEffects =
   Debug.trace("effects for " + fun.fullName, enable = false):
     // Usage of stable cache has to be part of the computation for speed
 
@@ -183,33 +190,42 @@ object EffectAnalysis:
       procType.receives.map(_ -> Vector.empty).toMap
 
     else
-      // prefer body effects for better error diagnosis
-      defn.index.effectEngine.getStableBodyEffects(fun) match
-        case Some(res) => res
+      // Must have code for non-loaded functions
+      val fdef = defn.index.getCodeOpt(fun) match
+        case Some(code) => code
+        case None => throw new Exception("No code for " + fun)
 
-        case None =>
-          // Must have code for non-loaded functions
-          val fdef = defn.index.getCodeOpt(fun) match
-            case Some(code) => code
-            case None => throw new Exception("No code for " + fun)
+      def getBodyDerivedEffects: TracedEffects =
+        // Prefer the already-computed body effects for better error diagnosis.
+        defn.index.effectEngine.getStableBodyEffects(fun) match
+          case Some(res) => res
 
-          fdef.effectPolicy.bound match
-            case Some(effs) if !ignoreSpec =>
-              effs.map(_ -> Vector.empty).toMap
+          case None =>
+            // Read from out cache to make sure the computation is performed once.
+            //
+            // Make sure cache only stores effects for computed effects of body
+            //
+            // Otherwise, getBodyEffects will have wrong semantics.
+            temp.getOrElse(fun):
+              given Source = fun.sourcePos.source
+              temp.init(fun)
+              val body = fdef.body
+              val effects = EffectAnalyzer.apply(body)
+              temp.update(fun, effects)
+              effects
 
-            case _ =>
-              // Read from out cache to make sure the computation is performed once.
-              //
-              // Make sure cache only stores effects for computed effects of body
-              //
-              // Otherwise, getBodyEffects will have wrong semantics.
-              temp.getOrElse(fun):
-                given Source = fun.sourcePos.source
-                temp.init(fun)
-                val body = fdef.body
-                val effects = EffectAnalyzer.apply(body)
-                temp.update(fun, effects)
-                effects
+      fdef.effectPolicy.bound match
+        case Some(effs) =>
+          if !detailedTrace then
+            effs.map(_ -> Vector.empty).toMap
+
+          else
+            val bodyEffects = getBodyDerivedEffects
+            effs.foldLeft(bodyEffects): (acc, eff) =>
+              if acc.contains(eff) then acc else acc.updated(eff, Vector.empty)
+
+        case _ =>
+          getBodyDerivedEffects
 
   private object EffectAnalyzer:
     val zero = Map.empty[Symbol, Trace]
@@ -296,7 +312,7 @@ object EffectAnalysis:
 
             else if sym.isFunction then
               val effs =
-                for (eff, trace) <- getEffects(sym, ignoreSpec = true) yield
+                for (eff, trace) <- getEffects(sym, detailedTrace = true) yield
                   eff -> (word.pos +: trace)
               merge(acc, effs)
 
@@ -309,8 +325,7 @@ object EffectAnalysis:
               val callEffs =
                   assert(word.tpe.is[Types.RefType], "Ref type expected, found = " + word.tpe + ", word = " + word.show)
                   val sym = word.tpe.as[Types.RefType].symbol
-
-                  for (eff, trace) <- getEffects(sym, ignoreSpec = !sym.is(Flags.Defer)) yield
+                  for (eff, trace) <- getEffects(sym, detailedTrace = true) yield
                      eff -> (word.pos +: trace)
 
               merge(acc1, callEffs.toMap)
