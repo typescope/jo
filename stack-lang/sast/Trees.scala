@@ -446,6 +446,7 @@ object Trees:
 
     val totalSize: SeqPattern.Size =
       if patterns.isEmpty then SeqPattern.Size.Exact(0)
+      else if patterns.size == 1 then patterns.head.size
       else distanceToEnd(0) + patterns(0).size
 
     def apply(i: Int): SeqPartPattern = patterns(i)
@@ -489,12 +490,13 @@ object Trees:
             that match
               case GreatEq(n) => GreatEq(m + n)
               case Exact(n)   => Exact(m + n)
-              case Unknown    => Unknown
+              case Unknown    => GreatEq(m)
 
           case Unknown =>
             that match
               case GreatEq(n) => GreatEq(n)
-              case _ => Unknown
+              case Exact(n)   => GreatEq(n)
+              case Unknown    => Unknown
 
       def -(that: Size): List[Size] =
         this match
@@ -538,7 +540,10 @@ object Trees:
 
         while i > 0 do
           i = i - 1
-          distanceToEnd(i) = distanceToEnd(i + 1) + sizeOf(patterns(i + 1))
+          // Start with the actual suffix: Exact(0) + Unknown is not Unknown.
+          distanceToEnd(i) =
+            if i == patterns.size - 2 then sizeOf(patterns(i + 1))
+            else distanceToEnd(i + 1) + sizeOf(patterns(i + 1))
         end while
       end if
       distanceToEnd.toSeq
