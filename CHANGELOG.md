@@ -4,6 +4,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.13.8] - 2026-09-28
+
+### Fixed
+
+- The JavaScript and Python backends preserve grouping on the right-hand side
+  of left-associative arithmetic operators. The Python backend also emits the
+  correct precedence for unary arithmetic operators. ([#127])
+
+### Security
+
+- No security-relevant changes.
+
+### Compatibility
+
+- Existing source code and libraries remain compatible in both directions.
+- No library recompilation is required. `.sast` files remain compatible in both
+  directions.
+
+[#127]: https://github.com/typescope/jo/pull/127
+
 ## [0.13.7] - 2026-09-27
 
 ### Changed
