@@ -13,9 +13,20 @@ section Map
       )
     : Map[K, V] =
 
-    val buckets = Array.create[jo.List[K ~ V]](Map.initialCapacity)
+    withCapacity(Map.initialCapacity)
+
+  //[ Create an empty map with the given initial bucket capacity. //]
+  def withCapacity[K, V](initialCapacity: Int)
+      (auto
+        eq: Eq[K] with [[K].==],
+        hash: Hash[K] with [[K].hashCode]
+      )
+    : Map[K, V] =
+
+    val capacity = if initialCapacity > 0 then initialCapacity else 1
+    val buckets = Array.create[jo.List[K ~ V]](capacity)
     var i = 0
-    while i < Map.initialCapacity do
+    while i < capacity do
       buckets[i] = jo.List.empty[K ~ V]
       i = i + 1
     end

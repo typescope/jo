@@ -12,9 +12,19 @@ section Set
         hash: Hash[T] with [[T].hashCode])
     : Set[T] =
 
-    val buckets = Array.create[jo.List[T]](initialCapacity)
+    withCapacity(Set.initialCapacity)
+
+  //[ Create an empty set with the given initial bucket capacity. //]
+  def withCapacity[T](initialCapacity: Int)
+      (auto
+        eq: Eq[T] with [[T].==],
+        hash: Hash[T] with [[T].hashCode])
+    : Set[T] =
+
+    val capacity = if initialCapacity > 0 then initialCapacity else 1
+    val buckets = Array.create[jo.List[T]](capacity)
     var i = 0
-    while i < initialCapacity do
+    while i < capacity do
       buckets[i] = jo.List.empty[T]
       i = i + 1
     end
