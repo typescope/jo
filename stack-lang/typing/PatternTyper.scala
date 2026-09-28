@@ -115,6 +115,7 @@ class PatternTyper(namer: Namer)(using Config):
         Reporter.warn("The case is not reachable", pattern.pos)
       else
         rest = Exhaustivity.subtract(rest, space)
+
     end for
 
     val cases = Exhaustivity.flatten(rest)
@@ -210,16 +211,23 @@ class PatternTyper(namer: Namer)(using Config):
   private def checkExhaustivity(patmat: Match)(using Definitions, Reporter, Source): Unit =
     import Exhaustivity.Space
     var rest = Space.TypeSpace(patmat.scrutinee.tpe.widenTermRef)
+    var hasExhaustivePattern = false
     for Case(pat, _) <- patmat.cases do
       val space = Exhaustivity.project(pat)
       if Exhaustivity.isDisjoint(rest, space) then
         Reporter.warn("The case is not reachable", pat.pos)
       else
         rest = Exhaustivity.subtract(rest, space)
+
+      pat match
+        case seq: SeqPattern if Exhaustivity.isExhaustive(seq) =>
+          hasExhaustivePattern = true
+
+        case _ =>
     end for
 
     val cases = Exhaustivity.flatten(rest)
-    if !cases.isEmpty then
+    if !cases.isEmpty && !hasExhaustivePattern then
       val five = cases.take(5)
       val examples = five.map(_.show).mkString(", ")
       val word = if five.size > 1 then "cases" else "case"

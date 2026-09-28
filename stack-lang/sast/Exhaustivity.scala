@@ -113,6 +113,19 @@ object Exhaustivity:
       case AtomPattern(pat) => isIrrefutable(pat)
       case RepeatPattern(_, guard) => guard.forall(isIrrefutable)
 
+  /** Whether a sequence pattern can match every sequence by leaving all
+    * repeat segments before its final unguarded repeat empty.
+    */
+  def isExhaustive(pat: SeqPattern): Boolean =
+    if pat.patterns.isEmpty then
+      false
+    else
+      pat.patterns.last match
+        case RepeatPattern(_, None) =>
+          pat.patterns.dropRight(1).forall(_.isInstanceOf[RepeatPattern])
+
+        case _ => false
+
   def project(pattern: Pattern)(using defn: Definitions): Space =
     pattern match
       case BindPattern(id, nested) => project(nested)

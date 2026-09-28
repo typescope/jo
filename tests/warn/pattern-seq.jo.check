@@ -3,11 +3,6 @@
 |         ^
 |         The match will fail for the case: List[Int]
 
----------- Warning at tests/warn/pattern-seq.jo:12:9 ---------------
-|   match a
-|         ^
-|         The match will fail for the case: List[Int]
-
 ---------- Warning at tests/warn/pattern-seq.jo:15:9 ---------------
 |   match a
 |         ^
@@ -18,4 +13,4 @@
 |              ^^^^
 |              Unguarded repeat pattern must be the last pattern or followed only by atom patterns
 
-1 error(s), 3 warning(s)
+1 error(s), 2 warning(s)
