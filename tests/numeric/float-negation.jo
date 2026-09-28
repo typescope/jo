@@ -2,9 +2,23 @@
 // JS backend (it used to print `-(-1.5)` as the invalid `--1.5`). Native has no
 // floating point, so this lives in tests/numeric (eval/js/ruby/python).
 
+def negateSum(b: Float, c: Float): Float = -(b + c)
+def negateDifference(b: Float, c: Float): Float = -(b - c)
+
 def main =
   println (-(-1.5))         // 1.5
   println (-(-(-2.25)))     // -2.25
 
   val f: Float = 0.0 - 2.5
   println (-f)              // 2.5
+
+  // Unary minus must preserve grouping around arithmetic expressions.
+  println: negateSum(2.0, 4.0).toInt.toString        // -6
+  println: negateDifference(2.0, 4.0).toInt.toString // 2
+  println (negateSum(2.5, 4.25) == -6.75)            // true
+  println ((2.0 * -(2.0 + 4.0)).toInt)               // -12
+  println ((-(2.0 + 4.0) * 2.0).toInt)               // -12
+
+  // Chained unary minus operators keep their nested operands grouped.
+  println ((-(-(-3.0 + 5.0))).toInt)                 // 2
+  println ((-(-(-(2.0 + 4.0)))).toInt)               // -6

@@ -79,8 +79,13 @@ object Printer:
     case ">>"|"<<" => 8
     case "+"|"-" => 9
     case "*"|"/"|"//"|"%" => 10
-    case "**" => 11
+    case "**" => 12
     case _ => 100  // Atomic expressions (no parens needed)
+
+  private def unaryPrecedence(op: String): Int = op match
+    case "not" => precedence(op)
+    case "+"|"-"|"~" => 11
+    case _ => 100
 
   /** Print a complete Python program */
   def print(program: Program, pw: java.io.PrintWriter): Unit =
@@ -224,9 +229,9 @@ object Printer:
 
   /** Emit an expression with precedence context */
   def emitExpr(expr: Expr, parentPrec: Int = 0)(using ctx: Context): Unit =
-    def withParenthesisOpt(op: String)(work: Int => Unit): Unit =
-      val myPrec = precedence(op)
+    def withParenthesisOpt(myPrec: Int)(work: Int => Unit): Unit =
       val needsParens = myPrec < parentPrec
+
       if needsParens then
         emitInline("(")
         work(myPrec)
@@ -243,15 +248,15 @@ object Printer:
       case Ident(name) => emitInline(name)
 
       case BinOp(left, op, right) =>
-        withParenthesisOpt(op): myPrec =>
+        withParenthesisOpt(precedence(op)): myPrec =>
           emitExpr(left, myPrec)
           emitInline(" ", op, " ")
-          // Right-associative operators need special handling
-          val rightPrec = if op == "**" then myPrec - 1 else myPrec
+          // Preserve right operand grouping for left-associative operators.
+          val rightPrec = if op == "**" then myPrec - 1 else myPrec + 1
           emitExpr(right, rightPrec)
 
       case UnaryOp(op, operand) =>
-        withParenthesisOpt(op): myPrec =>
+        withParenthesisOpt(unaryPrecedence(op)): myPrec =>
           emitInline(op, " ")
           emitExpr(operand, myPrec)
 

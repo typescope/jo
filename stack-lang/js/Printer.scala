@@ -311,8 +311,8 @@ object Printer:
         withParenthesisOpt(op): myPrec =>
           emitExpr(left, myPrec)
           emitInline(" ", op, " ")
-          // Right-associative operators need special handling
-          val rightPrec = if op == "**" then myPrec - 1 else myPrec
+          // Preserve right operand grouping for left-associative operators.
+          val rightPrec = if op == "**" then myPrec - 1 else myPrec + 1
           emitExpr(right, rightPrec)
 
       case UnaryOp(op, operand) =>
