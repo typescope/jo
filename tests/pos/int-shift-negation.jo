@@ -24,3 +24,12 @@ def main =
   println (-a)            // -5
   println (-b)            // 7
   println (-(-a))         // 5
+
+  // Unary minus keeps sums and differences grouped, including in products.
+  println (-(a + b))       // 2
+  println (-(a - b))       // -12
+  println (2 * -(a + b))   // 4
+
+  val left: Long = 2
+  val right: Long = 4
+  println (-(left + right)) // -6
