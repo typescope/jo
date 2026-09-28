@@ -13,7 +13,8 @@ println "Player \{name} scored \{score} points!"
 
 val x = 3
 val y = 4
-println "Hypotenuse: \{(x*x + y*y).sqrt}"
+println "Squared distance: \{x * x + y * y}"
+// Squared distance: 25
 ```
 
 To include a literal `\{`, escape it with `\\{`:
