@@ -10,3 +10,15 @@ def main() =
   println ((0 - 7) % (0 - 2))   // -1
   println (7 / 2)               //  3
   println (7 % 2)               //  1
+
+  // Preserve grouping when division/modulo are lowered by a backend.
+  val n = 5
+  val a = 2
+  println: "\{n % (a * a)}"     //  1
+  println: 10 - 171 % 10        //  9
+  println (n / (a * a))         //  1
+  println (n % (a * (a + 1)))   //  5
+  println ((0 - n) % (a * a))   // -1
+  println (n % (0 - a * a))     //  1
+  println (10 - (3 + 2))        //  5
+  println (10 - (3 - 2))        //  9
