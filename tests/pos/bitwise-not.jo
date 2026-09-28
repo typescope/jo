@@ -27,6 +27,16 @@ def main =
   // ~x == -x - 1
   println ((0 - a) - 1)    // -6
 
+  // Mix complement and negation around both values and grouped sums.
+  println (~(-a))             // 4
+  println (-(~a))             // 6
+  println (~(-(~a)))          // -7
+  println (-(~(-a)))          // -4
+  println (~(-(a + 2)))       // 6
+  println (-((~a) + 2))       // 4
+  println ((~(-a)) * 2)       // 8
+  println (-(~(-(~(a + 2))))) // 9
+
   // --- Long ---
   val la: Long = 5
   println ~la              // -6
@@ -43,3 +53,13 @@ def main =
   val lonce = ~la
   val ltwice = ~lonce
   println ltwice           // 5
+
+  // The same mixed chains on 64-bit integers.
+  println (~(-la))             // 4
+  println (-(~la))             // 6
+  println (~(-(~la)))          // -7
+  println (-(~(-la)))          // -4
+  println (~(-(la + 2)))       // 6
+  println (-((~la) + 2))       // 4
+  println ((~(-la)) * 2)       // 8
+  println (-(~(-(~(la + 2))))) // 9

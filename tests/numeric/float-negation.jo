@@ -18,3 +18,7 @@ def main =
   println (negateSum(2.5, 4.25) == -6.75)            // true
   println ((2.0 * -(2.0 + 4.0)).toInt)               // -12
   println ((-(2.0 + 4.0) * 2.0).toInt)               // -12
+
+  // Chained unary minus operators keep their nested operands grouped.
+  println ((-(-(-3.0 + 5.0))).toInt)                 // 2
+  println ((-(-(-(2.0 + 4.0)))).toInt)               // -6

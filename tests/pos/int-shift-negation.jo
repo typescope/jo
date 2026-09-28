@@ -33,3 +33,8 @@ def main =
   val left: Long = 2
   val right: Long = 4
   println (-(left + right)) // -6
+
+  // Chained negations of sums, including a negative literal in the sum.
+  println (-(-(-3 + 5)))          // 2
+  println (-(-(-(a + b))))        // 2
+  println (-(-(-(left + right)))) // -6
