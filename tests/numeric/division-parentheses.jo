@@ -1,0 +1,14 @@
+// Keep the divisor grouped for Int and Float division. Compare Float values
+// directly because their string formatting differs between backends.
+def divideFloatByProduct(a: Float, b: Float, c: Float): Float = a / (b * c)
+def divideIntByProduct(a: Int, b: Int, c: Int): Int = a / (b * c)
+def divideFloatByQuotient(a: Float, b: Float, c: Float): Float = a / (b / c)
+def divideIntByQuotient(a: Int, b: Int, c: Int): Int = a / (b / c)
+
+def main =
+  println (divideFloatByProduct(8.0, 2.0, 4.0) == 1.0)
+  println (divideIntByProduct(8, 2, 4))
+  println (divideFloatByProduct(-8.0, 2.0, 4.0) == -1.0)
+  println (divideIntByProduct(-8, 2, 4))
+  println (divideFloatByQuotient(8.0, 4.0, 2.0) == 4.0)
+  println (divideIntByQuotient(8, 4, 2))
