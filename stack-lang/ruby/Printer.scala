@@ -333,8 +333,11 @@ object Printer:
         emitIndented("next")
 
       case Return(value) =>
-        emitIndented("return ")
+        // Keep multiline expressions attached to return: a bare newline
+        // after the keyword would return nil before evaluating the value.
+        emitIndented("return(")
         emitTree(value, 0)(using ctx.indented)
+        emitInline(")")
 
       case Catch(tag, body) =>
         emitLine("catch(")
