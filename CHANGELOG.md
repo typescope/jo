@@ -4,6 +4,39 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.13.9] - 2026-09-29
+
+### Fixed
+
+- Sequence patterns correctly distinguish union cases and track guarded repeat
+  coverage, avoiding spurious unreachable and incomplete-match warnings while
+  preserving required-element length checks. Wildcard repeats (`.._`) no longer
+  create a binding or call `slice` for discarded elements. Generated Ruby names
+  avoid reserved numbered parameters. ([#131])
+- Effect analysis respects declared `receives` bounds when determining lambda
+  captures and call-site context arguments, including transitive calls. ([#129])
+- The Ruby backend correctly evaluates multiline return expressions. The native
+  stack backend releases loop-condition registers before compiling loop bodies,
+  avoiding unnecessary register exhaustion in nested loops. ([#133])
+
+### Security
+
+- No security-relevant changes.
+
+### Compatibility
+
+- Source syntax and library interfaces are unchanged. Corrected sequence-pattern
+  diagnostics can report previously accepted redundant fallbacks as unreachable;
+  builds treating warnings as errors may need those fallbacks removed.
+- Wildcard repeats no longer invoke `slice` for discarded elements.
+- No library recompilation is required. `.sast` files, standard and runtime
+  libraries remain compatible in both directions. Build specifications and
+  `.joy` package formats are unchanged.
+
+[#129]: https://github.com/typescope/jo/pull/129
+[#131]: https://github.com/typescope/jo/pull/131
+[#133]: https://github.com/typescope/jo/pull/133
+
 ## [0.13.8] - 2026-09-28
 
 ### Fixed
