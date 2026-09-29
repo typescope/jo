@@ -219,10 +219,10 @@ extends Backend(runtime):
       pop(r, Size.B32)
       cb.add(Instr.JZero(Reg(r), labelEnd))
 
-      compile(whileDo.body)
+    compile(whileDo.body)
 
-      cb.add(Instr.Jump(labelBegin))
-      cb.mark(labelEnd)
+    cb.add(Instr.Jump(labelBegin))
+    cb.mark(labelEnd)
 
   def compile(encoded: Encoded)(using FunctionContext, CodeBuffer): Unit =
     compile(encoded.repr)
