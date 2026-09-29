@@ -48,6 +48,10 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   // Make keywords unavailable
   for word <- keywords do reservedNames.freshName(word)
 
+  // Ruby reserves _1 through _9 for numbered block parameters, including
+  // names introduced by uniquifying wildcard bindings.
+  for index <- 1 to 9 do reservedNames.freshName(s"_$index")
+
   // Make built-in constants unavailable
   for name <- builtinConstants do reservedNames.freshName(name)
 
