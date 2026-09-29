@@ -663,7 +663,8 @@ class PatternTyper(namer: Namer)(using Config):
               partPatterns += AtomPattern(pattern)
 
             case Ast.RepeatPattern(nameOpt, guardOpt) =>
-              val bindIdOpt: Option[Symbol | Ident] = nameOpt.flatMap: id =>
+              // A wildcard repeat discards its slice without introducing a binding.
+              val bindIdOpt: Option[Symbol | Ident] = nameOpt.filter(_.name != "_").flatMap: id =>
                sc.resolvePatternVariable(id.name) match
                  case Some(sym) =>
                    sc.promote(sym, id.pos)

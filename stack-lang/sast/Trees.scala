@@ -446,6 +446,7 @@ object Trees:
 
     val totalSize: SeqPattern.Size =
       if patterns.isEmpty then SeqPattern.Size.Exact(0)
+      else if patterns.size == 1 then patterns.head.size
       else distanceToEnd(0) + patterns(0).size
 
     def apply(i: Int): SeqPartPattern = patterns(i)
@@ -456,6 +457,8 @@ object Trees:
     enum Size:
       case GreatEq(n: Int)
       case Exact(n: Int)
+      // A guarded repeat has no definite length coverage.
+      case Unknown
 
       def isExact: Boolean = this.isInstanceOf[Exact]
 
@@ -465,11 +468,15 @@ object Trees:
             that match
               case GreatEq(n) => false
               case Exact(n)   => n < m
+              case Unknown    => false
 
           case Exact(m) =>
             that match
               case GreatEq(n) => m < n
               case Exact(n)   => m != n
+              case Unknown    => false
+
+          case Unknown => false
 
       def +(that: Size): Size =
         this match
@@ -477,11 +484,19 @@ object Trees:
             that match
               case GreatEq(n) => GreatEq(m + n)
               case Exact(n)   => GreatEq(m + n)
+              case Unknown    => GreatEq(m)
 
           case Exact(m) =>
             that match
               case GreatEq(n) => GreatEq(m + n)
               case Exact(n)   => Exact(m + n)
+              case Unknown    => GreatEq(m)
+
+          case Unknown =>
+            that match
+              case GreatEq(n) => GreatEq(n)
+              case Exact(n)   => GreatEq(n)
+              case Unknown    => Unknown
 
       def -(that: Size): List[Size] =
         this match
@@ -496,6 +511,8 @@ object Trees:
                 else if n == m then GreatEq(m + 1) :: Nil
                 else GreatEq(n + 1) :: (m until n).toList.map(Exact.apply)
 
+              case Unknown => this :: Nil
+
           case Exact(m) =>
             that match
               case GreatEq(n) =>
@@ -504,10 +521,16 @@ object Trees:
               case Exact(n) =>
                 if m == n then Nil else this :: Nil
 
+              case Unknown => this :: Nil
+
+          case Unknown =>
+            if that == GreatEq(0) then Nil else this :: Nil
+
       override def toString: String =
         this match
           case GreatEq(n) => "size >= " + n
           case Exact(n)   => "size = " + n
+          case Unknown    => "unknown size"
 
     def computeDistanceToEnd(patterns: Seq[SeqPartPattern]): Seq[Size] =
       val distanceToEnd = new Array[Size](patterns.size)
@@ -517,7 +540,10 @@ object Trees:
 
         while i > 0 do
           i = i - 1
-          distanceToEnd(i) = distanceToEnd(i + 1) + patterns(i + 1).size
+          // Start with the actual suffix: Exact(0) + Unknown is not Unknown.
+          distanceToEnd(i) =
+            if i == patterns.size - 2 then patterns(i + 1).size
+            else distanceToEnd(i + 1) + patterns(i + 1).size
         end while
       end if
       distanceToEnd.toSeq
@@ -532,11 +558,12 @@ object Trees:
         case RepeatPattern(_, None) => WildcardPattern()(AnyType, this.span)
         case RepeatPattern(_, Some(guard)) => guard
 
-    /** The number of items the pattern consumes when the match is successful */
+    /** Length coverage used by exhaustivity analysis. */
     def size: SeqPattern.Size =
       this match
         case AtomPattern(_) => SeqPattern.Size.Exact(1)
-        case RepeatPattern(_, _) => SeqPattern.Size.GreatEq(0)
+        case RepeatPattern(_, None) => SeqPattern.Size.GreatEq(0)
+        case RepeatPattern(_, Some(_)) => SeqPattern.Size.Unknown
 
   /** Atom pattern: matches a single element in the sequence */
   case class AtomPattern

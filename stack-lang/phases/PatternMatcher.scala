@@ -624,6 +624,8 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions) extends Pha
 
     val conds = new mutable.ArrayBuffer[Word]
 
+    val distances = seqPattern.distanceToEnd
+
     // var index = 0
     val owner = Phase.owner.value
     val indexSym = TermSymbol.create("index", IntType, Flags.Mutable | Flags.Synthetic, Visibility.Default, owner, seqPattern.pos)
@@ -668,6 +670,9 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions) extends Pha
           val lhs = Select(indexIdent, "+")(span).appliedTo(distLit)
           Select(lhs, "==")(span).appliedTo(sizeIdent)
 
+        case Size.Unknown =>
+          distanceToEndCheck(Size.GreatEq(0), span)
+
     def totalSizeCheck(): Word =
       val span = seqPattern.span
 
@@ -682,10 +687,13 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions) extends Pha
           val distLit = IntLit(m)(span)
           Select(distLit, "==")(span).appliedTo(sizeIdent)
 
+        case Size.Unknown =>
+          BoolLit(true)(span)
+
     for (pat, i) <- seqPattern.patterns.zipWithIndex do
       val increment = indexIncrement(pat.span)
-      val distanceOK = distanceToEndCheck(seqPattern.distanceToEnd(i), pat.span)
-      val distanceAllowMore = distanceToEndCheck(seqPattern.distanceToEnd(i) + Size.GreatEq(1), pat.span)
+      val distanceOK = distanceToEndCheck(distances(i), pat.span)
+      val distanceAllowMore = distanceToEndCheck(distances(i) + Size.GreatEq(1), pat.span)
 
       pat match
         case AtomPattern(pattern) =>
@@ -713,10 +721,10 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions) extends Pha
           // index = size - distanceFromEnd
           // distanceOK
 
-          val distSize = seqPattern.distanceToEnd(i)
+          val distSize = distances(i)
           val distValue = distSize match
             case Size.Exact(n) => n
-            case Size.GreatEq(n) => throw new Exception("Unguarded repeat pattern should have exact distance to end")
+            case _ => throw new IllegalStateException("Unguarded repeat pattern should have exact distance to end")
 
           val stats = new mutable.ArrayBuffer[Word]
           bindSymOpt match

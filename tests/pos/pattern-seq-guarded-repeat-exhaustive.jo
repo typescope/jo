@@ -1,0 +1,6 @@
+// A trailing unguarded repeat makes this sequence pattern exhaustive.
+
+def main =
+  val xs = [1, 2, 5, 3]
+  match xs
+    case [..small while (x if x < 3), ..] => println(small)

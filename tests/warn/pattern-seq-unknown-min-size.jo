@@ -1,0 +1,11 @@
+def leadingAtom(s: String): Bool =
+  match s
+    case [first, .. while ' '] => true
+
+def trailingAtom(s: String): Bool =
+  match s
+    case [.. while ' ', last] => true
+
+def twoAtoms(s: String): Bool =
+  match s
+    case [first, second, .. while ' '] => true

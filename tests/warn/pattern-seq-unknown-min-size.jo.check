@@ -1,0 +1,16 @@
+---------- Warning at tests/warn/pattern-seq-unknown-min-size.jo:2:9 ---------------
+|   match s
+|         ^
+|         The match will fail for the case: String of size = 0
+
+---------- Warning at tests/warn/pattern-seq-unknown-min-size.jo:6:9 ---------------
+|   match s
+|         ^
+|         The match will fail for the case: String of size = 0
+
+---------- Warning at tests/warn/pattern-seq-unknown-min-size.jo:10:9 ---------------
+|   match s
+|         ^
+|         The match will fail for the cases: String of size = 0, String of size = 1
+
+0 error(s), 3 warning(s)

@@ -1,0 +1,24 @@
+// Wildcard repeats must not bind or slice the discarded elements.
+class Unsliceable(values: List[Int])
+  def size: Int = values.size
+  def get(i: Int): Int = values[i]
+  def slice(from: Int, len: Int): Unsliceable = abort "wildcard repeat called slice"
+end
+
+def unguarded(xs: Unsliceable): Int =
+  match xs
+    case [0, ..] => 0
+    case [1, ..] => 1
+    case _ => -1
+
+def guarded(xs: Unsliceable): Int =
+  match xs
+    case [.._ while (x if x < 3), 3, .._] => 3
+    case _ => -1
+
+def main =
+  println unguarded(new Unsliceable([1, 2, 3, 4]))
+  println unguarded(new Unsliceable([1]))
+  println guarded(new Unsliceable([1, 2, 3, 4]))
+  println guarded(new Unsliceable([3]))
+  println guarded(new Unsliceable([1, 2]))

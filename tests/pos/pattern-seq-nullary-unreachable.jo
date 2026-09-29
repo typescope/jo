@@ -1,0 +1,12 @@
+// A sequence pattern must retain the element pattern when checking reachability.
+
+union T = A | B
+
+def f(ts: List[T]): Int =
+  match ts
+    case [A, .._] => 1
+    case [B, .._] => 2
+    case _ => 3
+
+def main =
+  println: f([B])

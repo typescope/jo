@@ -79,13 +79,16 @@ object Exhaustivity:
 
       case WildcardPattern() => true
 
-      case seqPat: SeqPattern => isIrrefutable(seqPat)
+      case seqPat: SeqPattern =>
+        seqPat.totalSize == Size.GreatEq(0) && atomsIrrefutable(seqPat)
 
       case ValuePattern(value) => false
 
-      case ApplyPattern(pred, nested) =>
+      case app @ ApplyPattern(pred, nested) =>
         assert(pred.tpe.isProcType, pred.tpe)
         !pred.tpe.asProcType.resultType.isPartial
+        && Subtyping.isEqualType(app.valueType, app.scrutineeType)
+        && nested.forall(isIrrefutable)
 
       case _: OrPattern => false
 
@@ -108,10 +111,11 @@ object Exhaustivity:
       case _ => false
 
 
-  def isIrrefutable(pat: SeqPattern)(using Definitions): Boolean =
+  /** Check element constraints; sequence length is handled separately. */
+  def atomsIrrefutable(pat: SeqPattern)(using Definitions): Boolean =
     pat.patterns.forall:
       case AtomPattern(pat) => isIrrefutable(pat)
-      case RepeatPattern(_, guard) => guard.forall(isIrrefutable)
+      case RepeatPattern(_, _) => true
 
   def project(pattern: Pattern)(using defn: Definitions): Space =
     pattern match
@@ -123,7 +127,7 @@ object Exhaustivity:
 
       case seqPat: SeqPattern =>
 
-        if isIrrefutable(seqPat) then
+        if atomsIrrefutable(seqPat) then
           SeqSpace(seqPat.valueType, seqPat.totalSize)
         else
           PartialSpace(SeqSpace(seqPat.valueType, seqPat.totalSize))
