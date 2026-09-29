@@ -15,6 +15,12 @@ def requiredAtom(s: String): Bool =
     case [first, .. while ' '] => true
     case _ => false
 
+def adjacentRepeats(s: String): String =
+  match s
+    case [..spaces while ' ', ..dots while '.'] =>
+      "[" + spaces + "][" + dots + "]"
+    case _ => "no match"
+
 def main =
   println testGuarded("")
   println testGuarded("   ")
@@ -25,3 +31,9 @@ def main =
   println requiredAtom("")
   println requiredAtom("x  ")
   println requiredAtom("xy")
+  println adjacentRepeats("")
+  println adjacentRepeats("  ..")
+  println adjacentRepeats("..")
+  println adjacentRepeats("  ")
+  println adjacentRepeats(". ")
+  println adjacentRepeats("x")

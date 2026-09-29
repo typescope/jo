@@ -624,16 +624,7 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions) extends Pha
 
     val conds = new mutable.ArrayBuffer[Word]
 
-    // Runtime bounds reserve space for required atoms even when a guarded
-    // repeat has unknown coverage during exhaustivity analysis.
-    def sizeBound(part: SeqPartPattern): Size = part match
-      case AtomPattern(_) => Size.Exact(1)
-      case RepeatPattern(_, _) => Size.GreatEq(0)
-
-    val distances = SeqPattern.computeDistanceToEnd(seqPattern.patterns, sizeBound)
-    val totalBound =
-      if seqPattern.patterns.isEmpty then Size.Exact(0)
-      else distances(0) + sizeBound(seqPattern.patterns.head)
+    val distances = seqPattern.distanceToEnd
 
     // var index = 0
     val owner = Phase.owner.value
@@ -680,12 +671,12 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions) extends Pha
           Select(lhs, "==")(span).appliedTo(sizeIdent)
 
         case Size.Unknown =>
-          throw new IllegalStateException("Runtime sequence bounds must be known")
+          distanceToEndCheck(Size.GreatEq(0), span)
 
     def totalSizeCheck(): Word =
       val span = seqPattern.span
 
-      totalBound match
+      seqPattern.totalSize match
         case Size.GreatEq(m) =>
           // m <= size
           val distLit = IntLit(m)(span)
@@ -697,7 +688,7 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions) extends Pha
           Select(distLit, "==")(span).appliedTo(sizeIdent)
 
         case Size.Unknown =>
-          throw new IllegalStateException("Runtime sequence bounds must be known")
+          BoolLit(true)(span)
 
     for (pat, i) <- seqPattern.patterns.zipWithIndex do
       val increment = indexIncrement(pat.span)
@@ -733,8 +724,7 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions) extends Pha
           val distSize = distances(i)
           val distValue = distSize match
             case Size.Exact(n) => n
-            case Size.GreatEq(n) => throw new Exception("Unguarded repeat pattern should have exact distance to end")
-            case Size.Unknown => throw new IllegalStateException("Runtime sequence bounds must be known")
+            case _ => throw new IllegalStateException("Unguarded repeat pattern should have exact distance to end")
 
           val stats = new mutable.ArrayBuffer[Word]
           bindSymOpt match

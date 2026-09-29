@@ -532,7 +532,7 @@ object Trees:
           case Exact(n)   => "size = " + n
           case Unknown    => "unknown size"
 
-    def computeDistanceToEnd(patterns: Seq[SeqPartPattern], sizeOf: SeqPartPattern => Size = _.size): Seq[Size] =
+    def computeDistanceToEnd(patterns: Seq[SeqPartPattern]): Seq[Size] =
       val distanceToEnd = new Array[Size](patterns.size)
       if patterns.nonEmpty then
         var i = patterns.size - 1
@@ -542,8 +542,8 @@ object Trees:
           i = i - 1
           // Start with the actual suffix: Exact(0) + Unknown is not Unknown.
           distanceToEnd(i) =
-            if i == patterns.size - 2 then sizeOf(patterns(i + 1))
-            else distanceToEnd(i + 1) + sizeOf(patterns(i + 1))
+            if i == patterns.size - 2 then patterns(i + 1).size
+            else distanceToEnd(i + 1) + patterns(i + 1).size
         end while
       end if
       distanceToEnd.toSeq
