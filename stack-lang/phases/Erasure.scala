@@ -493,18 +493,16 @@ object Erasure:
 
           val params2 =
             for param <- procType.params
-            yield param.copy(info = this(param.info))
+            yield param.copy(info = this(param.info), candidates = Nil)
 
           val autos2 =
             for auto <- procType.autos
             yield auto.copy(info = this(auto.info))
 
-          val candidates2 = procType.candidates.map(_ => Nil)
-
           val resType2 = this(procType.resultType)
-          // DefaultValue contains no Types to map; thread defaultsFun through unchanged
+
           ProcType(
-            tparams2, params2, autos2, candidates2, resType2, procType.receives,
+            tparams2, params2, autos2, resType2, procType.receives,
             procType.preParamCount, preTypeParamCount2
           )
 
