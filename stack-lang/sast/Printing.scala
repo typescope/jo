@@ -443,7 +443,14 @@ object Printing:
             "[" ~ tparams.join(Text(", ")) ~ "]"
 
         def showParam(param: ParamInfo): Text =
-          param.name ~ ": " ~ param.info
+          val base = param.name ~ ": " ~ param.info
+          param.default match
+            case Constant.Bool(v)   => base ~ " = " ~ v.toString
+            case Constant.Int(v)    => base ~ " = " ~ v.toString
+            case Constant.Float(v)  => base ~ " = " ~ v.toString
+            case Constant.String(v) => base ~ " = " ~ "\"" + v + "\""
+            case sym: Symbol        => base ~ " = " ~ sym.name
+            case None => base
 
         val preText =
           if n > 0 then
@@ -452,23 +459,7 @@ object Printing:
             Text.Empty
 
         val postParams = params.drop(n)
-        val defaults = procType.defaults
-        val postParamTexts =
-          if defaults.isEmpty then
-            postParams.map(showParam)
-          else
-            val split = postParams.size - defaults.size
-            val noDefault = postParams.take(split).map(showParam)
-            val withDefault = postParams.drop(split).zip(defaults).map: (param, dv) =>
-              val dvText = dv match
-                case DefaultValue.Lit(const) => const match
-                  case Constant.Bool(v)   => v.toString
-                  case Constant.Int(v)    => v.toString
-                  case Constant.Float(v)  => v.toString
-                  case Constant.String(v) => "\"" + v + "\""
-                case DefaultValue.Ref(sym) => sym.name
-              showParam(param) ~ " = " ~ dvText
-            noDefault ++ withDefault
+        val postParamTexts = postParams.map(showParam)
 
         val postText =
           "(" ~ postParamTexts.join(", ") ~ ")"
