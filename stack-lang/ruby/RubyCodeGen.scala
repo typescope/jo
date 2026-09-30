@@ -4,7 +4,7 @@ import sast.*
 import sast.Trees.*
 import sast.Symbols.*
 import sast.Types
-import sast.Types.{NamedInfo, Type}
+import sast.Types.{ParamInfo, Type}
 
 import ruby.Trees as R
 
@@ -459,7 +459,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     * Keyword args (`@rb.keyword`) are emitted as `key: value` and collected
     * at the end so positional args always precede them.
     */
-  private def compileCallArgListWithTypes(args: List[Word], params: List[NamedInfo[Type]])
+  private def compileCallArgListWithTypes(args: List[Word], params: List[ParamInfo])
       (using scope: UniqueName, ctx: Context): List[R.Tree] =
     val positional = new mutable.ArrayBuffer[R.Tree]()
     val keyword    = new mutable.ArrayBuffer[R.Tree]()

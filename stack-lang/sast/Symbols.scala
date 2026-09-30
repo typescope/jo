@@ -289,7 +289,8 @@ object Symbols:
         this.ownersIterator.foldLeft(this.name):
           (acc, owner) => owner.name + "." + acc
 
-    def toNamedInfo(using Definitions): NamedInfo[Type] = NamedInfo(name, info.asType)
+    def toParamInfo(using Definitions): ParamInfo =
+      ParamInfo(name, info.asType)
 
     def span: Span = sourcePos.span
 

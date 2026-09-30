@@ -442,7 +442,7 @@ object Printing:
           else
             "[" ~ tparams.join(Text(", ")) ~ "]"
 
-        def showParam(param: NamedInfo[Type]): Text =
+        def showParam(param: ParamInfo): Text =
           param.name ~ ": " ~ param.info
 
         val preText =

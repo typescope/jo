@@ -162,7 +162,7 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions) extends Pha
   private def createImplFunSymbol(predSym: Symbol): Symbol =
     val predType = predSym.tpe.asProcType
 
-    val params = NamedInfo("scrutinee", predType.resultType.stripPartial) :: Nil
+    val params = ParamInfo("scrutinee", predType.resultType.stripPartial) :: Nil
 
     val autos = predType.autos
     val cands = autos.map(_ => Nil)

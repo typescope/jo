@@ -1424,7 +1424,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
     def computeInfo() = withDefn:
       ProcType(
         tparams = Nil,
-        params = paramSymsLazy.value.map(_.toNamedInfo),
+        params = paramSymsLazy.value.map(_.toParamInfo),
         autos = Nil,
         candidates = Nil,
         resultType = VoidType,

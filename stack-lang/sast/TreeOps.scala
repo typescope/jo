@@ -183,11 +183,11 @@ object TreeOps:
     assert(procType.tparams.isEmpty, "Only monomorphic functions supported: " + procType.show)
 
     val paramSyms =
-      for NamedInfo(name, paramType) <- procType.params yield
+      for ParamInfo(name, paramType, _) <- procType.params yield
         TermSymbol.create(name, paramType, Flags.Param, Visibility.Default, sym, sym.sourcePos)
 
     val autoSyms =
-      for NamedInfo(name, paramType) <- procType.autos yield
+      for AutoInfo(name, paramType, _) <- procType.autos yield
         TermSymbol.create(name, paramType, Flags.Param | Flags.Auto, Visibility.Default, sym, sym.sourcePos)
 
     // Generate parameter idents and call the body function

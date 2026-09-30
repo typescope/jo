@@ -4,7 +4,7 @@ import sast.*
 import sast.Trees.*
 import sast.Symbols.Symbol
 import sast.Types
-import sast.Types.{Type, NamedInfo}
+import sast.Types.{Type, ParamInfo}
 
 import python.Trees as P
 
@@ -662,7 +662,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       compileExpr(valueWord, enforcePurity)
 
   /** Like compileCallArgList but each argument is compiled with param-type awareness. */
-  private def compileCallArgListWithTypes(args: List[Word], params: List[NamedInfo[Type]], enforcePurity: Boolean)
+  private def compileCallArgListWithTypes(args: List[Word], params: List[ParamInfo], enforcePurity: Boolean)
       (using scope: UniqueName, ctx: Context): (List[P.Stat], List[P.Expr]) =
     var stats: List[P.Stat] = Nil
     var exprs: List[P.Expr] = Nil
