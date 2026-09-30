@@ -13,24 +13,7 @@ section Map
       )
     : Map[K, V] =
 
-    withCapacity(Map.initialCapacity)
-
-  //[ Create an empty map with the given initial bucket capacity. //]
-  def withCapacity[K, V](initialCapacity: Int)
-      (auto
-        eq: Eq[K] with [[K].==],
-        hash: Hash[K] with [[K].hashCode]
-      )
-    : Map[K, V] =
-
-    val capacity = if initialCapacity > 0 then initialCapacity else 1
-    val buckets = Array.create[jo.List[K ~ V]](capacity)
-    var i = 0
-    while i < capacity do
-      buckets[i] = jo.List.empty[K ~ V]
-      i = i + 1
-    end
-    new Map(buckets, 0, eq, hash)
+    new Map[K, V]()
 end
 
 //[ Create a `mutable.Map` from the given key-value pairs. //]
@@ -59,9 +42,21 @@ class Map[K, V]
   var buckets: Array[jo.List[K ~ V]]
   var _size: Int
 
-  def Map(buckets: Array[jo.List[K ~ V]], size: Int, eq: Eq[K], hash: Hash[K]) =
+  //[ Create an empty map. Non-positive capacities use one bucket. //]
+  def Map(initialCapacity: Int = Map.initialCapacity)
+      (auto
+        eq: Eq[K] with [[K].==],
+        hash: Hash[K] with [[K].hashCode]) =
+
+    val capacity = if initialCapacity > 0 then initialCapacity else 1
+    val buckets = Array.create[jo.List[K ~ V]](capacity)
+    var i = 0
+    while i < capacity do
+      buckets[i] = jo.List.empty[K ~ V]
+      i = i + 1
+    end
     this.buckets = buckets
-    this._size = size
+    this._size = 0
     this.eq = eq
     this.hash = hash
 

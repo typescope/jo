@@ -3,7 +3,7 @@ def main receives IO.stdout =
   println ""
 
   // Create an empty map with a supplied zero capacity
-  val m = mutable.Map.withCapacity[Int, String](0)
+  val m = new mutable.Map[Int, String](0)
   println "Empty map size: \{m.size}"
   println ""
 

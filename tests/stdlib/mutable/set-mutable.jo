@@ -3,7 +3,7 @@ def main receives IO.stdout =
   println ""
 
   // Create an empty set with a supplied zero capacity
-  val s = mutable.Set.withCapacity[Int](0)
+  val s = new mutable.Set[Int](0)
   println "Empty set size: \{s.size}"
   println ""
 
