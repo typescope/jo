@@ -506,7 +506,7 @@ object Erasure:
           ProcType(
             tparams2, params2, autos2, candidates2, resType2, procType.receives,
             procType.preParamCount, preTypeParamCount2
-          )(procType.defaultsLazy)
+          )
 
         case _ =>
           recur(tp)
