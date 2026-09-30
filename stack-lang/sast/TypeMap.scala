@@ -86,16 +86,14 @@ abstract class TypeMap(using Definitions):
       yield param.copy(info = this(param.info))
 
     val autos2 =
-      for auto <- autos
-      yield auto.copy(info = this(auto.info))
-
-    val candidates2 =
-      for candidateList <- candidates
-      yield candidateList.map {
-        case MemberCandidate(tp, name) => MemberCandidate(this(tp), name)
-        case sym => sym  // Symbol case (no transformation needed)
-      }
+      for auto <- autos yield
+        auto.copy(
+          info = this(auto.info),
+          candidates = auto.candidates.map:
+            case MemberCandidate(tp, name) => MemberCandidate(this(tp), name)
+            case sym => sym  // Symbol case (no transformation needed)
+        )
 
     val resType2 = this(resType)
-    // DefaultValue contains no Types to map; thread defaultsFun through unchanged
-    ProcType(tparams, params2, autos2, candidates2, resType2, receives, preParamCount, preTypeParamCount)(procType.defaultsLazy)
+
+    ProcType(tparams, params2, autos2, candidates2, resType2, receives, preParamCount, preTypeParamCount)

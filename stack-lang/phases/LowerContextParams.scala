@@ -264,11 +264,11 @@ extends Phase:
     val candidates2 = procType.candidates.map(_ => Nil)
 
     val resType2 = this.typeMap(procType.resultType)(using ())
-    // DefaultValue contains no Types to map; thread defaultsFun through unchanged
+
     ProcType(
       procType.tparams, params2, autos2, candidates2, resType2, procType.receives,
       procType.preParamCount, procType.preTypeParamCount
-    )(procType.defaultsLazy)
+    )
 
 
   override def transformFunDef(fdef: FunDef)(using Context): FunDef = try

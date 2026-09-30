@@ -50,12 +50,11 @@ class LiftPrimitiveMethods(arrayOpsSection: String)(using defn: Definitions) ext
           tparams = classInfo.tparams,
           params = ParamInfo("this", thisInfo) :: oldProcType.params,
           autos = oldProcType.autos,
-          candidates = oldProcType.candidates,
           resultType = oldProcType.resultType,
           receivesInfo = oldProcType.receivesInfo,
           preParamCount = 1,
           preTypeParamCount = classInfo.tparams.size
-        )(oldProcType.defaultsLazy)
+        )
 
         val liftedSym = TermSymbol.create(
           classSym.name + "$" + methodSym.name,
