@@ -599,7 +599,7 @@ object Types:
   /** either the fun symbol or a list of effects */
   type ReceivesInfo = Symbol | List[Symbol]
 
-  case class ParamInfo(name: String, info: Type, default: Constant | Symbol | None.type)
+  case class ParamInfo(name: String, info: Type, default: Constant | Symbol | None.type = None)
   case class AutoInfo(name: String, info: Type, candidates: List[Symbol | MemberCandidate])
 
   /** The type of a function, method or pattern predicates */
@@ -665,10 +665,10 @@ object Types:
         preTypeParamCount = 0
       )
 
-    def prepend(paramsToAdd: List[NamedInfo[Type]]): ProcType =
+    def prepend(paramsToAdd: List[ParamInfo]): ProcType =
       this.copy(params = paramsToAdd ++ params)
 
-    def append(paramsToAdd: List[NamedInfo[Type]]): ProcType =
+    def append(paramsToAdd: List[ParamInfo]): ProcType =
       this.copy(params = params ++ paramsToAdd)
 
     def postParamCount = params.size - preParamCount

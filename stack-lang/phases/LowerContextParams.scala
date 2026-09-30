@@ -252,7 +252,7 @@ extends Phase:
         yield param.copy(info = this.typeMap(param.info)(using ()))
 
       if procType.receives.nonEmpty || funSym.isMethod && implementedDefersReceives(funSym) then
-        paramsTransformed :+ NamedInfo("__ctx", CtxType)
+        paramsTransformed :+ ParamInfo("__ctx", CtxType)
 
       else
         paramsTransformed

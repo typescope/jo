@@ -58,8 +58,7 @@ object AutoResolution:
     val count = procType.autos.size
     var i = 0
     while i < count do
-      val NamedInfo(name, autoInfo) = procType.autos(i)
-      val cands = procType.candidates(i)
+      val AutoInfo(name, autoInfo, cands) = procType.autos(i)
 
       val choice = new SearchNode.Choice(autoInfo, new mutable.ArrayBuffer)
       all.children += choice

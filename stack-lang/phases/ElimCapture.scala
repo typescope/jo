@@ -66,7 +66,7 @@ object ElimCapture:
       if !owner.isContainer then owner.name + "$" + acc else acc
 
   def createLiftedFunSym
-      (fdef: FunDef, prependParams: List[NamedInfo[Type]], appendParams: List[NamedInfo[Type]])
+      (fdef: FunDef, prependParams: List[ParamInfo], appendParams: List[ParamInfo])
       (using defn: Definitions)
   : Symbol =
 
@@ -288,7 +288,7 @@ object ElimCapture:
 
       defn.index.add(ctorSym, ProcType(
         tparams = Nil,
-        params = ctorParams.map(_.toNamedInfo).toList,
+        params = ctorParams.map(_.toParamInfo).toList,
         autos = Nil,
         candidates = Nil,
         resultType = StaticRef(classSym),
@@ -299,7 +299,7 @@ object ElimCapture:
 
       defn.index.add(applySym, ProcType(
         tparams = Nil,
-        params = params.map(_.toNamedInfo),
+        params = params.map(_.toParamInfo),
         autos = Nil,
         candidates = Nil,
         resultType = lambdaType.resultType,
@@ -474,7 +474,7 @@ object ElimCapture:
         captures.size == captures.map(_.name).toSet.size,
         "[Internal error] captured different variables with same name in " + fdef.symbol)
 
-      val paramCaptures = captures.map(_.toNamedInfo)
+      val paramCaptures = captures.map(_.toParamxInfo)
 
       val funSym = createLiftedFunSym(fdef, prependParams = Nil, appendParams = paramCaptures)
       LiftInfo(funSym, captures)

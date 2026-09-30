@@ -71,8 +71,8 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     val classSym = methodSym.owner
     val oldProcType = methodSym.tpe.asProcType
     val thisInfo = classSym.classInfo.self.tpe
-    val paramInfos = NamedInfo("this", thisInfo)
-    val funType = oldProcType.prepend(paramInfos :: Nil)
+    val paramInfo = ParamInfo("this", thisInfo)
+    val funType = oldProcType.prepend(paramInfo :: Nil)
 
     TermSymbol.create(
       classSym.name + "$" + methodSym.name,
@@ -253,7 +253,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         else
           Ident(getLiftedFunSymbol(memberRef.symbol))(fun.span)
 
-      val liftedProcType = procType.prepend(NamedInfo("this", receiverRef.tpe.widen) :: Nil)
+      val liftedProcType = procType.prepend(ParamInfo("this", receiverRef.tpe.widen) :: Nil)
       val liftedFunEncoded = Encoded(liftedFun)(liftedProcType)
 
       Apply(liftedFunEncoded, receiverRef :: args2, autos2)(apply.span)
@@ -262,7 +262,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     fun match
       case Ident(sym) if sym == runtime.Core_isLambdaValue =>
         val arg :: Nil = args: @unchecked
-        val classIdRecordType = RecordType(NamedInfo(Memory.ClassID, defn.IntType) :: Nil)
+        val classIdRecordType = RecordType(ParamInfo(Memory.ClassID, defn.IntType) :: Nil)
         val valueClassId = Encoded(arg)(classIdRecordType).select(Memory.ClassID)
         val classId = IntLit(getClassId(runtime.Core_ClosureTag))(apply.span)
         transform(valueClassId.isEqualTo(classId))
@@ -281,7 +281,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
           val liftedProcType =
               // The `this` of an abstract interface method is the implementation class
-              procType.prepend(NamedInfo("this", AnyType) :: Nil)
+              procType.prepend(ParamInfo("this", AnyType) :: Nil)
 
           val liftedFunEncoded = Encoded(liftedFun)(liftedProcType)
 

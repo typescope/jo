@@ -48,7 +48,7 @@ class LiftPrimitiveMethods(arrayOpsSection: String)(using defn: Definitions) ext
 
         val funType = ProcType(
           tparams = classInfo.tparams,
-          params = NamedInfo("this", thisInfo) :: oldProcType.params,
+          params = ParamInfo("this", thisInfo) :: oldProcType.params,
           autos = oldProcType.autos,
           candidates = oldProcType.candidates,
           resultType = oldProcType.resultType,
