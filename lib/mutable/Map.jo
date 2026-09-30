@@ -37,10 +37,10 @@ def Map[K, V](elems: ..Pair[K, V])
   ! Iteration order is unspecified.
 //]
 class Map[K, V]
-  val eq: Eq[K]
-  val hash: Hash[K]
-  var buckets: Array[jo.List[K ~ V]]
-  var _size: Int
+  private val eq: Eq[K]
+  private val hash: Hash[K]
+  private var buckets: Array[jo.List[K ~ V]]
+  private var _size: Int
 
   //[ Create an empty map. Non-positive capacities use one bucket. //]
   def Map(initialCapacity: Int = Map.initialCapacity)

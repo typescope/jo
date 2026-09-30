@@ -37,8 +37,8 @@ def List[T](elems: ..T): List[T] =
   ! and remove are O(n).
 //]
 class List[T]
-  var _data: Array[T]
-  var _size: Int
+  private var _data: Array[T]
+  private var _size: Int
 
   def List(initialCapacity: Int = List.initialCapacity) =
     this._data = Array.create(initialCapacity)

@@ -36,10 +36,10 @@ def Set[T](elems: ..T)
   ! Iteration order is unspecified.
 //]
 class Set[T]
-  val eq: Eq[T]
-  val hash: Hash[T]
-  var buckets: Array[jo.List[T]]
-  var _size: Int
+  private val eq: Eq[T]
+  private val hash: Hash[T]
+  private var buckets: Array[jo.List[T]]
+  private var _size: Int
 
   //[ Create an empty set. Non-positive capacities use one bucket. //]
   def Set(initialCapacity: Int = Set.initialCapacity)
