@@ -262,7 +262,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     fun match
       case Ident(sym) if sym == runtime.Core_isLambdaValue =>
         val arg :: Nil = args: @unchecked
-        val classIdRecordType = RecordType(ParamInfo(Memory.ClassID, defn.IntType) :: Nil)
+        val classIdRecordType = RecordType(NamedInfo(Memory.ClassID, defn.IntType) :: Nil)
         val valueClassId = Encoded(arg)(classIdRecordType).select(Memory.ClassID)
         val classId = IntLit(getClassId(runtime.Core_ClosureTag))(apply.span)
         transform(valueClassId.isEqualTo(classId))

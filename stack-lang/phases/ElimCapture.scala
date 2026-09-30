@@ -74,7 +74,7 @@ object ElimCapture:
 
     val oldProcType = oldFunSym.info.as[ProcType]
     val paramInfos = prependParams ++ oldProcType.params ++ appendParams
-    val funType = oldProcType.copy(params = paramInfos)(LazyValue.eager(Nil))
+    val funType = oldProcType.copy(params = paramInfos)
 
     val funName = flatName(fdef.symbol)
     TermSymbol.create(funName, funType, Flags.Fun | Flags.Synthetic, Visibility.Default, oldFunSym.enclosingContainer, oldFunSym.sourcePos)
@@ -290,7 +290,6 @@ object ElimCapture:
         tparams = Nil,
         params = ctorParams.map(_.toParamInfo).toList,
         autos = Nil,
-        candidates = Nil,
         resultType = StaticRef(classSym),
         receivesInfo = Nil,
         preParamCount = 0,
@@ -301,7 +300,6 @@ object ElimCapture:
         tparams = Nil,
         params = params.map(_.toParamInfo),
         autos = Nil,
-        candidates = Nil,
         resultType = lambdaType.resultType,
         receivesInfo = receives,
         preParamCount = 0,
@@ -474,7 +472,7 @@ object ElimCapture:
         captures.size == captures.map(_.name).toSet.size,
         "[Internal error] captured different variables with same name in " + fdef.symbol)
 
-      val paramCaptures = captures.map(_.toParamxInfo)
+      val paramCaptures = captures.map(_.toParamInfo)
 
       val funSym = createLiftedFunSym(fdef, prependParams = Nil, appendParams = paramCaptures)
       LiftInfo(funSym, captures)
