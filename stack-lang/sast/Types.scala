@@ -598,8 +598,12 @@ object Types:
   /** either the fun symbol or a list of effects */
   type ReceivesInfo = Symbol | List[Symbol]
 
-  case class ParamInfo(name: String, info: Type, default: Constant | Symbol | None.type = None)
-  case class AutoInfo(name: String, info: Type, candidates: List[Symbol | MemberCandidate])
+  trait NamedParam:
+    def name: String
+    def info: Type
+
+  case class ParamInfo(name: String, info: Type, default: Constant | Symbol | None.type = None) extends NamedParam
+  case class AutoInfo(name: String, info: Type, candidates: List[Symbol | MemberCandidate]) extends NamedParam
 
   /** The type of a function, method or pattern predicates */
   case class ProcType
