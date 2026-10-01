@@ -71,7 +71,13 @@ section Array
 
   //[ Create an array containing `size` copies of `value`. //]
   def fill[T](size: Int, value: T): Array[T] =
-    tabulate(size, _ => value)
+    val arr = create[T](size)
+    var i = 0
+    while i < size do
+      arr[i] = value
+      i = i + 1
+    end
+    arr
 
   //[ Create an array by applying `values` to each index. //]
   def tabulate[T](size: Int, values: Int => T): Array[T] =
