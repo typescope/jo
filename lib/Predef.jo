@@ -72,21 +72,36 @@ type ..[T] = List[T]
 // Utility functions
 //
 
-//[ Write `s` to standard output, with no trailing newline
+//[ Write each item to standard output, with no trailing newline
   !
   ! Accepts anything printable, so `print 42` needs no conversion. Requires the
   ! `IO.stdout` capability.
+  !
+  ! It allows multiple arguments to support indented syntax and avoid string concatenation.
+  !
+  !     print:
+  !       "gcd(\{a}, \{b}) = "
+  !       gcd(a, b)
+  !
 //]
-def print(s: StringLike): Unit = IO.stdout s
+def print(items: ..StringLike): Unit =
+  for item in items do IO.stdout item
 
-//[ Write `s` to standard output, followed by a newline
+//[ Write each item to standard output, followed by a newline
   !
   ! Accepts anything printable, so `println list` needs no conversion. Requires
   ! the `IO.stdout` capability.
+  !
+  ! It allows multiple arguments to support indented syntax and avoid string concatenation.
+  !
+  !     println:
+  !       "gcd(\{a}, \{b}) = "
+  !       gcd(a, b)
+  !
 //]
-def println(s: StringLike): Unit =
-  print s
-  print '\n'
+def println(items: ..StringLike): Unit =
+  for item in items do IO.stdout item
+  IO.stdout "\n"
 
 //[ Placeholder for an unwritten body; aborts with "not implemented" if reached
   !
