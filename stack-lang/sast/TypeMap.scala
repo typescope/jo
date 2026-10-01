@@ -79,7 +79,7 @@ abstract class TypeMap(using Definitions):
         RecordType(fields2)
 
   private def recurProcType(procType: ProcType)(using Context): ProcType =
-    val ProcType(tparams, params, autos, candidates, resType, receives, preParamCount, preTypeParamCount) = procType
+    val ProcType(tparams, params, autos, resType, receives, preParamCount, preTypeParamCount) = procType
 
     val params2 =
       for param <- params
@@ -96,4 +96,4 @@ abstract class TypeMap(using Definitions):
 
     val resType2 = this(resType)
 
-    ProcType(tparams, params2, autos2, candidates2, resType2, receives, preParamCount, preTypeParamCount)
+    ProcType(tparams, params2, autos2, resType2, receives, preParamCount, preTypeParamCount)

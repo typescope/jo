@@ -583,18 +583,17 @@ object Types:
 
     def toProcType: ProcType =
       val paramInfos = params.zipWithIndex.map:
-        case (paramType, i) => NamedInfo("p" + i, paramType)
+        case (paramType, i) => ParamInfo("p" + i, paramType)
 
       ProcType(
         tparams = Nil,
         params = paramInfos,
         autos = Nil,
-        candidates = Nil,
         resultType = resultType,
         receivesInfo = receives,
         preParamCount = 0,
         preTypeParamCount = 0
-      )()
+      )
 
   /** either the fun symbol or a list of effects */
   type ReceivesInfo = Symbol | List[Symbol]
@@ -683,7 +682,6 @@ object Types:
         tparams = tparams,  // instantiatePreTypeParams already removed pre-type-params
         params = params.drop(preParamCount),
         autos = autos,
-        candidates = candidates,
         resultType = resultType,
         receivesInfo = receivesInfo,
         preParamCount = 0,

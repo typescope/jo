@@ -434,7 +434,7 @@ object Printing:
           else "@" ~ annot.symbol.fullName ~ "(" ~ annot.args.map(showConstant).join(", ") ~ ")"
         base ~ " " ~ annotText
 
-      case procType @ ProcType(tparams, params, autos, candidates, resType, _, n, _) =>
+      case procType @ ProcType(tparams, params, autos, resType, _, n, _) =>
         val tparamText =
           if tparams.isEmpty then
             Text.Empty
@@ -448,7 +448,7 @@ object Printing:
             case Constant.Bool(v)   => base ~ " = " ~ v.toString
             case Constant.Int(v)    => base ~ " = " ~ v.toString
             case Constant.Float(v)  => base ~ " = " ~ v.toString
-            case Constant.String(v) => base ~ " = " ~ "\"" + v + "\""
+            case Constant.String(v) => base ~ " = " ~ "\"" ~ v.toString ~ "\""
             case sym: Symbol        => base ~ " = " ~ sym.name
             case None => base
 
