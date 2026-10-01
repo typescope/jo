@@ -90,3 +90,18 @@ object Denotations:
     def instantiate(targs: List[Type])(using Definitions): Type =
       assert(tparams.size == targs.size, "expect " + tparams.size + ", found = " + targs.size)
       TypeOps.substSymbols(body, tparams, targs)
+
+
+  /** The denotation of a normal parameter
+    *
+    * The name field is duplicated such that ParamInfo can be used in ProcType directly
+    */
+  case class ParamInfo(name: String, info: Type, default: Constant | Symbol | None.type = None) extends Denotation
+
+  case class MemberCandidate(tp: Type, name: String)
+
+  /** The denotation of an auto parameter
+    *
+    * The name field is duplicated such that AutoInfo can be used in ProcType directly
+    */
+  case class AutoInfo(name: String, info: Type, candidates: List[Symbol | MemberCandidate]) extends Denotation

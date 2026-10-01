@@ -88,8 +88,12 @@ object Symbols:
         case container: ContainerSymbol if !this.isAlias => container.nameTable
         case _ => defn.index.info(this)
 
-    /** The type of this symbol, as a Type. Throws if the symbol is a container. */
-    def tpe(using Definitions): Type = info.asType
+    /** The type of this symbol. Throws if the symbol does not have a type */
+    def tpe(using Definitions): Type =
+      info match
+        case tpe: Type => tpe
+        case param: NamedParam => param.info
+        case _ => throw new Exception("Symbol " + this + " des not have a type")
 
     /** All symbols that have a ProcType are functions, including top-level
       * functions, methods and pattern predicates
