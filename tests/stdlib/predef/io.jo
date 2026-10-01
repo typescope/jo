@@ -1,0 +1,9 @@
+def main =
+  print "print-one"
+  print:
+    "print-"
+    2
+  println "println-one"
+  println:
+    "println-"
+    2
