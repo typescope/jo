@@ -4,6 +4,7 @@ def main =
   testBoolArray()
   testCharArray()
   testRefArray()
+  testFillArray()
 
 def testIntArray =
   val arr: Array[Int] = Array.create[Int] 3
@@ -68,3 +69,11 @@ def testRefArray =
   println arr[1]
 
   println arr[2]
+
+def testFillArray =
+  val arr = Array.fill[Int]: 4, i => i * 2
+
+  println arr.size
+  println arr[0]
+  println arr[1]
+  println arr[3]

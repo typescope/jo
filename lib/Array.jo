@@ -61,6 +61,21 @@ end
 
 //[ Operations on `Array` that are not methods. //]
 section Array
-  //[ create an object Array   //]
+  //[ Create an array with `size` elements.
+    !
+    ! The elements are uninitialized. Code must not depend on any particular
+    ! default value; platforms only guarantee memory safety. Initialize each
+    ! element before reading it, or use `Array.fill`.
+  //]
   defer def create[T](size: Int): Array[T]
+
+  //[ Create an array by applying `values` to each index. //]
+  def fill[T](size: Int, values: Int => T): Array[T] =
+    val arr = create[T](size)
+    var i = 0
+    while i < size do
+      arr[i] = values(i)
+      i = i + 1
+    end
+    arr
 end
