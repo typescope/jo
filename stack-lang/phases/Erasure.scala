@@ -493,11 +493,11 @@ object Erasure:
 
           val params2 =
             for param <- procType.params
-            yield param.copy(info = this(param.info), candidates = Nil)
+            yield param.copy(info = this(param.info))
 
           val autos2 =
             for auto <- procType.autos
-            yield auto.copy(info = this(auto.info))
+            yield auto.copy(info = this(auto.info), candidates = Nil)
 
           val resType2 = this(procType.resultType)
 

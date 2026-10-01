@@ -261,12 +261,10 @@ extends Phase:
       for auto <- procType.autos
       yield auto.copy(info = this.typeMap(auto.info)(using ()))
 
-    val candidates2 = procType.candidates.map(_ => Nil)
-
     val resType2 = this.typeMap(procType.resultType)(using ())
 
     ProcType(
-      procType.tparams, params2, autos2, candidates2, resType2, procType.receives,
+      procType.tparams, params2, autos2, resType2, procType.receives,
       procType.preParamCount, procType.preTypeParamCount
     )
 

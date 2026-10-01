@@ -294,7 +294,7 @@ object ElimCapture:
         receivesInfo = Nil,
         preParamCount = 0,
         preTypeParamCount = 0
-      )())
+      ))
 
       defn.index.add(applySym, ProcType(
         tparams = Nil,
@@ -304,7 +304,7 @@ object ElimCapture:
         receivesInfo = receives,
         preParamCount = 0,
         preTypeParamCount = 0
-      )())
+      ))
 
       // Register the ClassInfo with the method symbols
       defn.index.add(classSym, new ClassInfo(

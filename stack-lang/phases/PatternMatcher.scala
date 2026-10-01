@@ -165,11 +165,10 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions) extends Pha
     val params = ParamInfo("scrutinee", predType.resultType.stripPartial) :: Nil
 
     val autos = predType.autos
-    val cands = autos.map(_ => Nil)
 
     val resultType = implResultType(predType)
 
-    val funType = ProcType(predType.tparams, params, autos, cands, resultType, predType.receives, preParamCount = 0, preTypeParamCount = 0)()
+    val funType = ProcType(predType.tparams, params, autos, resultType, predType.receives, preParamCount = 0, preTypeParamCount = 0)
     TermSymbol.create(predSym.name + "$impl", funType, Flags.Fun | Flags.Synthetic, Visibility.Default, predSym.owner, predSym.sourcePos)
 
   private def getImplFunSymbol(predSym: Symbol, implMap: mutable.Map[Symbol, Symbol]): Symbol =
