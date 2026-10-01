@@ -69,8 +69,12 @@ section Array
   //]
   defer def create[T](size: Int): Array[T]
 
+  //[ Create an array containing `size` copies of `value`. //]
+  def fill[T](size: Int, value: T): Array[T] =
+    tabulate(size, _ => value)
+
   //[ Create an array by applying `values` to each index. //]
-  def fill[T](size: Int, values: Int => T): Array[T] =
+  def tabulate[T](size: Int, values: Int => T): Array[T] =
     val arr = create[T](size)
     var i = 0
     while i < size do
