@@ -12,13 +12,7 @@ section Set
         hash: Hash[T] with [[T].hashCode])
     : Set[T] =
 
-    val buckets = Array.create[jo.List[T]](initialCapacity)
-    var i = 0
-    while i < initialCapacity do
-      buckets[i] = jo.List.empty[T]
-      i = i + 1
-    end
-    new Set(buckets, 0, eq, hash)
+    new Set[T]()
 end
 
 //[ Create a `mutable.Set` from the given elements. Duplicates are discarded. //]
@@ -42,14 +36,26 @@ def Set[T](elems: ..T)
   ! Iteration order is unspecified.
 //]
 class Set[T]
-  val eq: Eq[T]
-  val hash: Hash[T]
-  var buckets: Array[jo.List[T]]
-  var _size: Int
+  private val eq: Eq[T]
+  private val hash: Hash[T]
+  private var buckets: Array[jo.List[T]]
+  private var _size: Int
 
-  def Set(buckets: Array[jo.List[T]], size: Int, eq: Eq[T], hash: Hash[T]) =
+  //[ Create an empty set. Non-positive capacities use one bucket. //]
+  def Set(initialCapacity: Int = Set.initialCapacity)
+      (auto
+        eq: Eq[T] with [[T].==],
+        hash: Hash[T] with [[T].hashCode]) =
+
+    val capacity = if initialCapacity > 0 then initialCapacity else 1
+    val buckets = Array.create[jo.List[T]](capacity)
+    var i = 0
+    while i < capacity do
+      buckets[i] = jo.List.empty[T]
+      i = i + 1
+    end
     this.buckets = buckets
-    this._size = size
+    this._size = 0
     this.eq = eq
     this.hash = hash
 

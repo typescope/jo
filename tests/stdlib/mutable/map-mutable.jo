@@ -2,8 +2,8 @@ def main receives IO.stdout =
   println "=== Mutable Map (Hash Table) ==="
   println ""
 
-  // Create empty map
-  val m = mutable.Map.empty[Int, String]
+  // Create an empty map with a supplied zero capacity
+  val m = new mutable.Map[Int, String](0)
   println "Empty map size: \{m.size}"
   println ""
 

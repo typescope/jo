@@ -37,11 +37,11 @@ def List[T](elems: ..T): List[T] =
   ! and remove are O(n).
 //]
 class List[T]
-  var _data: Array[T]
-  var _size: Int
+  private var _data: Array[T]
+  private var _size: Int
 
-  def List() =
-    this._data = Array.create(List.initialCapacity)
+  def List(initialCapacity: Int = List.initialCapacity) =
+    this._data = Array.create(initialCapacity)
     this._size = 0
 
   //[ Number of elements. //]
@@ -52,7 +52,7 @@ class List[T]
   // Ensure capacity for at least n elements
   private def ensureCapacity(n: Int): Unit =
     if n > capacity then
-      var newCapacity = capacity
+      var newCapacity = if capacity > 0 then capacity else 1
       while newCapacity < n do
         newCapacity = newCapacity * 2
       end
