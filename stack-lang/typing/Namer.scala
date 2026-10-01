@@ -1415,7 +1415,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
     val paramSymsLazy = lazyValue:
       transformParams(adef.params)
 
-    Defaults.validatePostDefaultShape(adef.params)
+    Defaults.checkDefaultSuffix(adef.params)
     val defaultsLazy = lazyValue:
       Defaults.checkPostDefaults(adef.params, paramSymsLazy.value, this)
 
@@ -1426,12 +1426,11 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
         tparams = Nil,
         params = paramSymsLazy.value.map(_.toParamInfo),
         autos = Nil,
-        candidates = Nil,
         resultType = VoidType,
         receivesInfo = Nil,
         preParamCount = 0,
         preTypeParamCount = 0
-      )(defaultsLazy)
+      )
 
     val index = lazyDefn.index
     index.addLazy(funSym, computeInfo, () => computeInfo())
@@ -1631,7 +1630,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
 
     // Eagerly validate post-parameter default shape (syntax-only check)
     val astPostParams = funDef.params.drop(funDef.preParamCount)
-    Defaults.validatePostDefaultShape(astPostParams)
+    Defaults.checkDefaultSuffix(astPostParams)
 
     def computeInfo(resultType: Type) = withDefn:
       val candidates = candidatesLazy.value.map(_._2)
@@ -1686,7 +1685,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
       Reporter.error("Constructor may not take type parameters", funDef.tparams.head.pos)
 
     val astPostParams = funDef.params  // constructors have no pre-params
-    Defaults.validatePostDefaultShape(astPostParams)
+    Defaults.checkDefaultSuffix(astPostParams)
 
     val paramSymsLazy = lazyValue:
       transformParams(funDef.params)

@@ -16,7 +16,7 @@ object Defaults:
   /** Eagerly validate post-parameter section shape (syntax-only):
     *  - defaults must form a trailing suffix (no non-default after a defaulted param)
     */
-  def validatePostDefaultShape(postParams: List[Ast.Param])
+  def checkDefaultSuffix(postParams: List[Ast.Param])
       (using rp: Reporter, so: Source)
   : Unit =
     var seenDefault = false
