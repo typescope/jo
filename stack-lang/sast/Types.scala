@@ -458,8 +458,6 @@ object Types:
   /** A part of a type with a specific name */
   case class NamedInfo[+T](name: String, info: T)
 
-  case class MemberCandidate(tp: Type, name: String)
-
   /** A record type --- named tuples
     *
     */
@@ -526,7 +524,10 @@ object Types:
 
     def hasClass(cls: Symbol): Boolean = classMap.contains(cls)
 
-  /** Adapters for duck types */
+  /** Adapters for duck types
+    *
+    * TODO: rename to TypeAdapter
+    */
   enum ParamAdapter:
     case Function(symbol: Symbol)
     case Member(name: String)
@@ -597,13 +598,6 @@ object Types:
 
   /** either the fun symbol or a list of effects */
   type ReceivesInfo = Symbol | List[Symbol]
-
-  trait NamedParam:
-    def name: String
-    def info: Type
-
-  case class ParamInfo(name: String, info: Type, default: Constant | Symbol | None.type = None) extends NamedParam
-  case class AutoInfo(name: String, info: Type, candidates: List[Symbol | MemberCandidate]) extends NamedParam
 
   /** The type of a function, method or pattern predicates */
   case class ProcType
