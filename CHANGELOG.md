@@ -4,6 +4,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.13.10] - 2026-10-01
+
+### Changed
+
+- Mutable `List`, `Map`, and `Set` constructors accept an optional initial
+  capacity. Mutable collection internals are now private, and non-positive
+  capacities are handled safely.
+
+### Security
+
+- No security-relevant changes.
+
+### Compatibility
+
+- Mutable `Map` and `Set` constructor signatures changed from internal bucket
+  arguments to an optional initial capacity. Existing source using the public
+  empty factories remains compatible; code constructing these classes with the
+  old internal arguments must use the new constructor API.
+- SAST files, runtime libraries, build specifications, and `.joy` packages are
+  compatible in both directions. Standard library recompilation is not required
+  for existing projects.
+
 ## [0.13.9] - 2026-09-29
 
 ### Fixed
