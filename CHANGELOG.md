@@ -4,6 +4,35 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.13.11] - 2026-10-02
+
+### Added
+
+- `Array.fill` creates an array containing copies of a value, and
+  `Array.tabulate` initializes each element from its index. ([#136])
+
+### Changed
+
+- CLI help aligns command descriptions and keeps `run` and `package`
+  descriptions on the same line as their commands. ([#138])
+- `Array.create` documentation clarifies that elements must be initialized
+  before reading them. ([#136])
+
+### Security
+
+- No security-relevant changes.
+
+### Compatibility
+
+- Existing source code remains compatible. Code using `Array.fill` or
+  `Array.tabulate` requires the new standard library.
+- SAST files and runtime libraries remain compatible in both directions.
+  Existing libraries do not require recompilation. Build specifications and
+  `.joy` package formats are unchanged.
+
+[#136]: https://github.com/typescope/jo/pull/136
+[#138]: https://github.com/typescope/jo/pull/138
+
 ## [0.13.10] - 2026-10-01
 
 ### Changed

@@ -4,7 +4,7 @@
   <p>For the joy of secure programming</p>
 
   [![CI](https://github.com/typescope/jo/actions/workflows/ci.yml/badge.svg)](https://github.com/typescope/jo/actions/workflows/ci.yml)
-  [![Release](https://img.shields.io/badge/release-v0.13.10-blue.svg)](https://github.com/typescope/jo/releases/tag/v0.13.10)
+  [![Release](https://img.shields.io/badge/release-v0.13.11-blue.svg)](https://github.com/typescope/jo/releases/tag/v0.13.11)
   [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
   [![Docs](https://img.shields.io/badge/docs-jo--lang.org-teal.svg)](https://jo-lang.org)
 </div>
