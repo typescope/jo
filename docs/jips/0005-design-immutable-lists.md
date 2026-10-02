@@ -198,8 +198,7 @@ append.
 
 The design is flexible enough to support any runtime platform. A runtime only
 has to provide `newClaim` and `tryExtend` for its own threading model, and
-`List` does not change. If Jo gains concurrency primitives, for example, a
-runtime can switch to a compare-and-swap on the claim.
+`List` does not change.
 
 ## Evaluation
 
