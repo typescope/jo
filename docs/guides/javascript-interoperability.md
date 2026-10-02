@@ -4,7 +4,7 @@
 The JavaScript backend is experimental. APIs documented here are subject to change in future releases. The `jo build` tool does not support JavaScript — use `jo compile --js` directly.
 :::
 
-Jo compiles to JavaScript and provides a typed FFI layer for calling JavaScript libraries from Jo code. This guide covers the full interoperability API.
+Jo compiles to JavaScript and provides a typed FFI library for calling JavaScript libraries from Jo code. This guide covers the full interoperability API.
 
 ::: warning
 **JavaScript FFI must be explicitly enabled.** The FFI API (`js.*`) is only available when the compiler flag `--use-runtime-api js` is passed at compile time. Without it, any reference to `js.*` will fail to resolve.

@@ -4,7 +4,7 @@
 The Ruby FFI API is experimental. All APIs documented here are subject to change in future releases.
 :::
 
-Jo compiles to Ruby and provides a typed FFI layer for calling Ruby libraries from Jo code. This guide covers the full interoperability API.
+Jo compiles to Ruby and provides a typed FFI library for calling Ruby libraries from Jo code. This guide covers the full interoperability API.
 
 ::: warning
 **Ruby FFI must be explicitly enabled.** The FFI API (`rb.*`) is only available when the compiler flag `--use-runtime-api ruby` is passed at compile time. Without it, any reference to `rb.*` will fail to resolve.

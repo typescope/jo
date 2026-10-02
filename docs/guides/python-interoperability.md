@@ -1,6 +1,6 @@
 # Python Interoperability
 
-Jo compiles to Python and provides a typed FFI layer for calling Python libraries from Jo code. This guide covers the full interoperability API.
+Jo compiles to Python and provides a typed FFI library for calling Python libraries from Jo code. This guide covers the full interoperability API.
 
 ::: warning
 **Python FFI must be explicitly enabled.** The FFI API (`py.*`) is only available when the compiler flag `--use-runtime-api python` is passed at compile time. Without it, any reference to `py.*` will fail to resolve.

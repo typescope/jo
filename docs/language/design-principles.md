@@ -81,10 +81,8 @@ The danger with equality comes from the very different semantics in different co
 It is extremely dangerous to have a universal `==` to compare two arbitrary values.
 Compiler synthesized equality makes equality implicit thus should be avoided.
 :::
-**Benefits**:
 
-- Simple and predictable type inference
-- Long-term maintainability
+By this principle, the compiler should avoid complex type guessing, which leads to simple and predictable type inference.
 
 ## 5. Naming Discipline
 

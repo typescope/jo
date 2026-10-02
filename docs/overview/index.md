@@ -32,19 +32,10 @@ boilerplate, or moving essential reasoning into deployment configuration. The
 goal is to make secure programming feel natural, expressive, and auditable — in
 short, to make secure programming a joy.
 
-Jo is designed for both programmers and security reviewers. Capability
-boundaries are expressed in interfaces and types, so the authority a program
-receives is visible at the API boundary rather than scattered through
-implementation details or deployment configuration. This makes security auditing
-simpler: reviewers can inspect what capabilities are granted, where they flow,
-and where they are deliberately restricted.
-
 ## Project Status
 
 Jo is early-stage software, but it is already substantial: the compiler has an
-extensive test suite, and the core capability model is ready for serious
-experimentation. The language design, standard library, and tooling are still
-evolving.
+extensive test suite, is ready for serious experimentation.
 
 We encourage security-focused teams to evaluate Jo for new projects,
 prototypes, internal tools, and constrained production use cases where existing
