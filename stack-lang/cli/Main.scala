@@ -272,23 +272,21 @@ object Main:
   def printUsage(): Unit =
     println("""Usage:
       |  jo <source.jo>                         Run program (defaults to 'eval')
-      |  jo new <name>                           Create a new project
+      |  jo new <name>                          Create a new project
       |  jo new --template <ref> <name>         Create a new project from a template repo (e.g. 'gh:owner/repo')
       |  jo new --template <ref> --list         List templates declared by a template repo
-      |  jo clean [module]                       Remove build artifacts (default: all modules)
-      |  jo build [module]                       Build a module (default module if omitted)
-      |  jo check [module]                       Type-check and compile to sast, skip executable
-      |  jo run   [module] [-- ...]
-      |                                           Build and run an app module
-      |  jo package [module]
-      |                                           Build a distributable package for a module
+      |  jo clean [module]                      Remove build artifacts (default: all modules)
+      |  jo build [module]                      Build a module (default module if omitted)
+      |  jo check [module]                      Type-check and compile to sast, skip executable
+      |  jo run   [module] [-- ...]             Build and run an app module
+      |  jo package [module]                    Build a distributable package for a module
       |  jo deps [module]                       Print the resolved dependency tree
       |  jo lock                                Resolve dependencies and rewrite the lock file
       |  jo info <pkg>[@<version>]              Show package metadata and available versions
       |  jo eval <source.jo>                    Run program with interpreter
       |  jo <name> [args...]                    Run a project command from [commands] (builtins win)
       |  jo exec <name> [args...]               Run a [commands] entry, bypassing builtins
-      |  jo versions                             List installed and available compiler versions
+      |  jo versions                            List installed and available compiler versions
       |  jo versions install <version>          Download and install a compiler version
       |  jo versions use <version>              Switch the active compiler version
       |  jo versions remove <version>           Remove an installed compiler version
@@ -302,10 +300,10 @@ object Main:
       |  --spec <file.toml>  Use a build spec other than jo.toml
       |
       |Compile options (application — default backend is Ruby):
-      |  --ruby          Compile Ruby application (default)
-      |  --python        Compile Python application
-      |  --js            Compile JavaScript application (experimental, no build tool support)
-      |  -o <out>        Output file path
+      |  --ruby           Compile Ruby application (default)
+      |  --python         Compile Python application
+      |  --js             Compile JavaScript application (experimental, no build tool support)
+      |  -o <out>         Output file path
       |  --lib <dir>      Use a precompiled library (can be specified multiple times)
       |                   Example: --lib build/core --lib build/utils
       |  --link-lib <dir> Use a link library (resolved at link time, can be specified multiple times)
@@ -318,11 +316,11 @@ object Main:
       |                   (js is experimental)
       |
       |Compile options (library):
-      |  --sast <dir>    Compile to .sast files; if no backend flag, this is the only output
+      |  --sast <dir>         Compile to .sast files; if no backend flag, this is the only output
       |  --source-root <dir>  Store source paths relative to this root in generated artifacts
-      |  --lib <dir>     Use a precompiled library (can be specified multiple times)
+      |  --lib <dir>          Use a precompiled library (can be specified multiple times)
       |  --use-runtime-api <python|ruby|js>
-      |                   Make a runtime API available as a check library (js is experimental)
+      |                        Make a runtime API available as a check library (js is experimental)
       |
       |Doc options for 'jo compile --doc':
       |  --out <dir>           Output directory (default: docs)
