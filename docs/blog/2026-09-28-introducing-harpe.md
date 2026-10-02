@@ -9,7 +9,7 @@ description: Harpe is an agent framework with fine-grained permissions enforced 
 
 *September 28, 2026 · The Jo Team*
 
-Today we are introducing **[Harpe](https://harpe.typescope.ai/)**, an open-source
+Today we are introducing **[Harpe](https://harpe.jo-lang.org/)**, an open-source
 agent framework for sensitive data and critical infrastructure, with
 fine-grained permissions enforced through compile-time sandboxing.
 
@@ -19,4 +19,4 @@ rejected by the compiler, while credentials and sensitive resources remain
 behind narrow, typed interfaces.
 
 Harpe 0.13.0 is available now as a developer preview. Learn more, see examples,
-and build your first agent at **[harpe.typescope.ai](https://harpe.typescope.ai/)**.
+and build your first agent at **[harpe.jo-lang.org](https://harpe.jo-lang.org/)**.
