@@ -76,6 +76,8 @@ section Array
     !
     ! The designated slot becomes uninitialized. Code must not depend on any
     ! particular default value. Platforms only guarantee memory safety and security.
+    !
+    ! Out of bound index will be runtime error/abort.
   //]
   defer def clear[T](arr: Array[T], at: Int): Unit
 
