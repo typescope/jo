@@ -423,6 +423,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
       handlePrefix(sym, oob)
 
     def handlePrefix(sym: Symbol, oob: OutOfBand): Word =
+      Checker.checkAccess(sym, sc.owner, id.span)
       oob.testKey(Scope.PrefixKey) match
         case Some(prefix) =>
           checkExplicitThis(prefix, sym, id.pos)
@@ -444,7 +445,9 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
 
           case _ =>
             sc.resolveContainerOpt(name) match
-              case Some(sym) => Ident(sym)(id.span).adapt
+              case Some(sym) =>
+                Checker.checkAccess(sym, sc.owner, id.span)
+                Ident(sym)(id.span).adapt
 
               case None =>
                 tryTermName().adapt

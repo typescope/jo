@@ -1,0 +1,3 @@
+def main: Unit = abortImpl("not public")
+
+def qualified: Bottom = jo.abortImpl("not public")
