@@ -151,12 +151,14 @@ Create: `1 to 10` (inclusive), `1 until 10` (exclusive).
 Create: `mutable.List.empty[T]`, `mutable.List(1, 2, 3)`, `val xs: mutable.List[Int] = [1, 2, 3]`.
 Import: `import jo.mutable`
 - `.size`: Int
+- `.isEmpty`: Bool
 - `.get(i)`: T — element at index
 - `.set(i, v)`: Unit — update element at index
-- `.append(x)` / `.+=(x)`: Unit — add to end
+- `.append(x)` / `push(x)` / `.+=(x)`: Unit — add to end
 - `.prepend(x)`: Unit — add to front
 - `.insert(i, x)`: Unit — insert at index
 - `.remove(i)`: T — remove at index, returns removed element
+- `.pop`: T — return and remove the last element
 - `.clear`: Unit — remove all elements
 - `.appendAll(iter)` / `.++=(iter)`: Unit — append all elements from an iterator or any iterable (e.g. another `mutable.List`)
 - `.fold(zero, f)`: S — left fold with `f: (S, T) => S`
