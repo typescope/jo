@@ -34,6 +34,10 @@ def main =
   println removed        // 15
   println buf2.size      // 4
 
+  // Test push/pop
+  buf2.push 100
+  println buf2.pop       // 100
+
   // Test iterator
   val buf3 = mutable.List(1, 2, 3)
   var sum = 0

@@ -25,7 +25,7 @@ end
 
 //[ Create a `mutable.List` from the given elements. //]
 def List[T](elems: ..T): List[T] =
-  val buf = List.empty[T]
+  val buf = new List[T](initialCapacity = elems.size)
   for elem in elems do
     buf.append(elem)
   end
@@ -124,6 +124,15 @@ class List[T]
     end
     _size = _size - 1
     removed
+
+  //[ Add `x` to the end. Amortized O(1).
+    !
+    ! Same as `append`.
+  //]
+  def push(x: T): Unit = append x
+
+  //[ Remove and return the last element. O(1) //]
+  def pop: T = remove(this._size - 1)
 
   //[ Remove all elements. //]
   def clear: Unit =
