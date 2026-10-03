@@ -130,19 +130,19 @@ private section RefArray
 
   //[ Bounds check required because Python accept negative index //]
   def get[T](arr: Array[T], i: Int): T =
-    assert: i >= 0 && i < arr.size, "Index \{i} of out bounds, size = \{arr.size}"
+    assert: i >= 0 && i < arr.size, "Index \{i} out of bounds, size = \{arr.size}"
     py.dynamic(arr)[i].cast[T]
 
   def size[T](arr: Array[T]): Int = builtins.len(arr)
 
   //[ Bounds check required because Python accept negative index //]
   def clear[T](arr: Array[T], i: Int): Unit =
-    assert: i >= 0 && i < arr.size, "Index \{i} of out bounds, size = \{arr.size}"
+    assert: i >= 0 && i < arr.size, "Index \{i} out of bounds, size = \{arr.size}"
     py.dynamic(arr)[i] = py.none
 
   //[ Bounds check required because Python accept negative index //]
   def set[T](arr: Array[T], i: Int, elem: T): Unit =
-    assert: i >= 0 && i < arr.size, "Index \{i} of out bounds, size = \{arr.size}"
+    assert: i >= 0 && i < arr.size, "Index \{i} out of bounds, size = \{arr.size}"
     py.dynamic(arr)[i] = elem
 
   def clone[T](arr: Array[T]): Array[T] =
