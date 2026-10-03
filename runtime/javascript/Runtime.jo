@@ -59,17 +59,17 @@ private section RefArray
 
   //[ Bound check required because JS accept get beyond index //]
   def get[T](array: Array[T], index: Int): T =
-    assert: index >= 0 && index < array.size, "Index \{index} of out bound, size = \{array.size}"
+    assert: index >= 0 && index < array.size, "Index \{index} of out bounds, size = \{array.size}"
     js.dynamic(array)[index].cast[T]
 
   //[ Bound check required because JS accept setting beyond index //]
   def clear[T](array: Array[T], index: Int): Unit =
-    assert: index >= 0 && index < array.size, "Index \{index} of out bound, size = \{array.size}"
+    assert: index >= 0 && index < array.size, "Index \{index} of out bounds, size = \{array.size}"
     js.dynamic(array)[index] = js.null
 
   //[ Bound check required because JS accept setting beyond index //]
   def set[T](array: Array[T], index: Int, value: T): Unit =
-    assert: index >= 0 && index < array.size, "Index \{index} of out bound, size = \{array.size}"
+    assert: index >= 0 && index < array.size, "Index \{index} of out bounds, size = \{array.size}"
     js.dynamic(array)[index] = value
 
   def size[T](array: Array[T]): Int =

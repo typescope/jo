@@ -47,13 +47,17 @@ private section RefArray
     rb.const("Array").cast[RbArrayClass].arrayNew(size, rb.nil).cast[Array[T]]
 
   def get[T](arr: Array[T], i: Int): T =
+    assert: i >= 0 && i < arr.size, "Index \{i} of out bounds, size = \{arr.size}"
     rb.dynamic(arr)[i].cast[T]
 
+  //[ Needs bound check because Ruby allow set beyond bound //]
   def clear[T](arr: Array[T], i: Int): Unit =
-    assert: i >= 0 && i < arr.size, "Index \{i} of out bound, size = \{arr.size}"
+    assert: i >= 0 && i < arr.size, "Index \{i} of out bounds, size = \{arr.size}"
     rb.dynamic(arr)[i] = rb.nil
 
+  //[ Needs bound check because Ruby allow set beyond bound //]
   def set[T](arr: Array[T], i: Int, v: T): Unit =
+    assert: i >= 0 && i < arr.size, "Index \{i} of out bounds, size = \{arr.size}"
     rb.dynamic(arr)[i] = v
 
   def size[T](arr: Array[T]): Int =
