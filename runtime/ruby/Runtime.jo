@@ -50,7 +50,7 @@ private section RefArray
     rb.dynamic(arr)[i].cast[T]
 
   def clear[T](arr: Array[T], i: Int): Unit =
-    assert: i < arr.size, "Index \{i} of out bound, size = \{arr.size}"
+    assert: i >= 0 && i < arr.size, "Index \{i} of out bound, size = \{arr.size}"
     rb.dynamic(arr)[i] = rb.nil
 
   def set[T](arr: Array[T], i: Int, v: T): Unit =

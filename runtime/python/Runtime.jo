@@ -132,7 +132,9 @@ private section RefArray
 
   def size[T](arr: Any): Int = builtins.len(arr)
 
-  def clear[T](arr: Any, i: Int): Unit = py.dynamic(arr)[i] = py.none
+  def clear[T](arr: Any, i: Int): Unit =
+    assert: i >= 0 && i < arr.size, "Index \{i} of out bound, size = \{arr.size}"
+    py.dynamic(arr)[i] = py.none
 
   def set[T](arr: Any, i: Int, elem: T): Unit = py.dynamic(arr)[i] = elem
 
