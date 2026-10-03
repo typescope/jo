@@ -60,6 +60,9 @@ private section RefArray
   def get[T](array: Array[T], index: Int): T =
     js.dynamic(array)[index].cast[T]
 
+  def clear[T](array: Array[T], index: Int): T =
+    js.dynamic(array)[index] = js.null
+
   def set[T](array: Array[T], index: Int, value: T): Unit =
     js.dynamic(array)[index] = value
 
