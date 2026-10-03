@@ -154,7 +154,7 @@ Import: `import jo.mutable`
 - `.isEmpty`: Bool
 - `.get(i)`: T — element at index
 - `.set(i, v)`: Unit — update element at index
-- `.append(x)` / `push(x)` / `.+=(x)`: Unit — add to end
+- `.append(x)` / `.push(x)` / `.+=(x)`: Unit — add to end
 - `.prepend(x)`: Unit — add to front
 - `.insert(i, x)`: Unit — insert at index
 - `.remove(i)`: T — remove at index, returns removed element
