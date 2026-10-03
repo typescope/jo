@@ -126,6 +126,10 @@ class List[T]
       j = j + 1
     end
     _size = _size - 1
+
+    // respect backend GC
+    Array.clear(_data, _size)
+
     removed
 
   //[ Add `x` to the end. Amortized O(1).
