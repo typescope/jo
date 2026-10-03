@@ -19,12 +19,7 @@ import jo.compile.intrinsic
 class Array[T]
   private def Array() = abort("Invalid Array creation")
 
-  //[ The element at index `i`, 0-based.
-    !
-    ! The index is not bounds-checked. An out-of-range access fails with a
-    ! backend-level error rather than a Jo `abort`, so prefer `mutable.List`
-    ! where the index is not already known to be valid.
-  //]
+  //[ The element at index `i`, 0-based, bound-checked. //]
   @intrinsic
   def get(i: Int): T = ...
 
@@ -32,7 +27,7 @@ class Array[T]
   @intrinsic
   def size: Int = ...
 
-  //[ Store `value` at index `i`, 0-based. The index is not bounds-checked. //]
+  //[ Store `value` at index `i`, 0-based, bound-checked. //]
   @intrinsic
   def set(i: Int, value: T): Unit = ...
 
