@@ -25,7 +25,7 @@ end
 
 //[ Create a `mutable.List` from the given elements. //]
 def List[T](elems: ..T): List[T] =
-  val buf = List.empty[T]
+  val buf = new List[T](initialCapacity = elems.size)
   for elem in elems do
     buf.append(elem)
   end
@@ -46,6 +46,9 @@ class List[T]
 
   //[ Number of elements. //]
   def size: Int = _size
+
+  //[ Is the list empty //]
+  def isEmpty: Bool = this._size == 0
 
   private def capacity: Int = _data.size
 
@@ -123,11 +126,29 @@ class List[T]
       j = j + 1
     end
     _size = _size - 1
+
+    // respect backend GC
+    Array.clear(_data, _size)
+
     removed
+
+  //[ Add `x` to the end. Amortized O(1).
+    !
+    ! Same as `append`.
+  //]
+  def push(x: T): Unit = append x
+
+  //[ Remove and return the last element. O(1) //]
+  def pop: T = remove(this._size - 1)
 
   //[ Remove all elements. //]
   def clear: Unit =
-    _size = 0
+   var i = 0
+   while i < _size do
+     Array.clear(_data, i)
+     i = i + 1
+   end
+   _size = 0
 
   //[ Append all elements from `iter`. //]
   def appendAll(iter: Iterator[T] :- [.iterator]): Unit =

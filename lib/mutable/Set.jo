@@ -65,6 +65,9 @@ class Set[T]
   //[ Number of elements (alias for `size`). //]
   def length: Int = _size
 
+  //[ Is the set empty //]
+  def isEmpty: Bool = this._size == 0
+
   private def capacity: Int = buckets.size
 
   private def bucketIndexFor(x: T, cap: Int): Int =

@@ -66,6 +66,9 @@ class Map[K, V]
   //[ Number of key-value pairs (alias for `size`). //]
   def length: Int = _size
 
+  //[ Is the map empty //]
+  def isEmpty: Bool = this._size == 0
+
   private def capacity: Int = buckets.size
 
   private def bucketIndexFor(k: K, cap: Int): Int =

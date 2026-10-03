@@ -12,19 +12,14 @@ import jo.compile.intrinsic
   ! The boxing behavior of primitive values is platform-dependent. Such boxing
   ! behavior only matters for performance, not for type safety.
   !
-  ! Applications can use FFI to access more efficient primitive arrays if they
+  ! Trusted code can use FFI to access more efficient primitive arrays if they
   ! are available for the particular platform.
 //]
 @intrinsic
 class Array[T]
   private def Array() = abort("Invalid Array creation")
 
-  //[ The element at index `i`, 0-based.
-    !
-    ! The index is not bounds-checked. An out-of-range access fails with a
-    ! backend-level error rather than a Jo `abort`, so prefer `mutable.List`
-    ! where the index is not already known to be valid.
-  //]
+  //[ The element at index `i`, 0-based, bound-checked. //]
   @intrinsic
   def get(i: Int): T = ...
 
@@ -32,11 +27,14 @@ class Array[T]
   @intrinsic
   def size: Int = ...
 
-  //[ Store `value` at index `i`, 0-based. The index is not bounds-checked. //]
+  //[ Store `value` at index `i`, 0-based, bound-checked. //]
   @intrinsic
   def set(i: Int, value: T): Unit = ...
 
-  //[ A new array with the same length and the same elements. Shallow: elements are not copied. //]
+  //[ Return a new array with the same length and the same elements.
+    !
+    ! The copy is shallow: elements themselves are not copied.
+  //]
   @intrinsic
   def clone: Array[T] = ...
 
@@ -64,10 +62,19 @@ section Array
   //[ Create an array with `size` elements.
     !
     ! The elements are uninitialized. Code must not depend on any particular
-    ! default value; platforms only guarantee memory safety. Initialize each
+    ! default value. Platforms only guarantee memory safety and security. Initialize each
     ! element before reading it, or use `Array.fill`.
   //]
   defer def create[T](size: Int): Array[T]
+
+  //[ Clear the designated slot of the given array
+    !
+    ! The designated slot becomes uninitialized. Code must not depend on any
+    ! particular default value. Platforms only guarantee memory safety and security.
+    !
+    ! Out of bound index will be runtime error/abort.
+  //]
+  defer def clear[T](arr: Array[T], at: Int): Unit
 
   //[ Create an array containing `size` copies of `value`. //]
   def fill[T](size: Int, value: T): Array[T] =

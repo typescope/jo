@@ -7,6 +7,10 @@ def main receives IO.stdout =
   println "Empty map size: \{m.size}"
   println ""
 
+  // Test isEmpty
+  assert: mutable.Map.empty[Int, String].isEmpty, "mutable.Map.isEmpty"
+  assert: !mutable.Map(3 ~ "three").isEmpty, "mutable.Map.isEmpty"
+
   // Add elements
   println "=== Adding elements ==="
   m.update(1, "one")

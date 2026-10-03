@@ -72,6 +72,9 @@ private section RefArray
   def get[T](arr: Array[T], i: Int): T =
     platformCall2("getRefArray", arr, i)
 
+  def clear[T](arr: Array[T], i: Int): Unit =
+    platformCall2("clearRefArray", arr, i)
+
   def set[T](arr: Array[T], i: Int, value: T): Unit =
     platformCall3("setRefArray", arr, i, value)
 

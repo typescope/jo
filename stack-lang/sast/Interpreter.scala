@@ -22,6 +22,7 @@ object Interpreter:
   val defaultLinkMappings = Map(
     "jo.abort" -> "jo.runtime.interpreter.abort",
     "jo.Array.create" -> "jo.runtime.interpreter.RefArray.create",
+    "jo.Array.clear"  -> "jo.runtime.interpreter.RefArray.clear",
     "jo.Bytes.size"     -> "jo.runtime.interpreter.RawBytes.size",
     "jo.Bytes.get"      -> "jo.runtime.interpreter.RawBytes.get",
     "jo.Bytes.slice"    -> "jo.runtime.interpreter.RawBytes.slice",
@@ -205,6 +206,13 @@ object Interpreter:
         val (arrayVal: ArrayVal) :: IntVal(index) :: Nil = args: @unchecked
         arrayVal.content(index).asInstanceOf[Value] :: Nil
       },
+
+      "clearRefArray" -> { (args: List[Value]) =>
+        val (arrayVal: ArrayVal) :: IntVal(index) :: Nil = args: @unchecked
+        arrayVal.content.asInstanceOf[Array[Value]](index) = null
+        UnitValue
+      },
+
 
       "setRefArray" -> { (args: List[Value]) =>
         val (arrayVal: ArrayVal) :: IntVal(index) :: v :: Nil = args: @unchecked

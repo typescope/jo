@@ -749,6 +749,7 @@ private section RefArray
     cast[Array[T]] arr
 
   def get[T](arr: Array[T], i: Int): T =
+    assert: i >= 0 && i < arr.size, "Index \{i} out of bounds, size = \{arr.size}"
     val addr = intToAddr:
       readInt:
         addAddr:
@@ -757,7 +758,16 @@ private section RefArray
 
     cast[T]: addr
 
+  def clear[T](arr: Array[T], i: Int): Unit =
+    assert: i >= 0 && i < arr.size, "Index \{i} out of bounds, size = \{arr.size}"
+    writeInt:
+      addAddr:
+        cast[Addr] arr
+        i * 4 + 8
+      0
+
   def set[T](arr: Array[T], i: Int, value: T): Unit =
+    assert: i >= 0 && i < arr.size, "Index \{i} out of bounds, size = \{arr.size}"
     writeInt:
       addAddr:
         cast[Addr] arr
