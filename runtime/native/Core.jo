@@ -757,6 +757,13 @@ private section RefArray
 
     cast[T]: addr
 
+  def clear[T](arr: Array[T], i: Int): Unit =
+    writeInt:
+      addAddr:
+        cast[Addr] arr
+        i * 4 + 8
+      0
+
   def set[T](arr: Array[T], i: Int, value: T): Unit =
     writeInt:
       addAddr:
