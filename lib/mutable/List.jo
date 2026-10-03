@@ -47,6 +47,9 @@ class List[T]
   //[ Number of elements. //]
   def size: Int = _size
 
+  //[ Is the list empty //]
+  def isEmpty: Bool = this._size == 0
+
   private def capacity: Int = _data.size
 
   // Ensure capacity for at least n elements

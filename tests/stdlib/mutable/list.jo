@@ -38,6 +38,10 @@ def main =
   buf2.push 100
   println buf2.pop       // 100
 
+  // Test isEmpty
+  assert: mutable.List.empty[Int].isEmpty, "mutable.List.isEmpty"
+  assert: !mutable.List(1, 2).isEmpty, "mutable.List.isEmpty"
+
   // Test iterator
   val buf3 = mutable.List(1, 2, 3)
   var sum = 0

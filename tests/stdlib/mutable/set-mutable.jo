@@ -7,6 +7,11 @@ def main receives IO.stdout =
   println "Empty set size: \{s.size}"
   println ""
 
+  // Test isEmpty
+  assert: mutable.Set.empty[Int].isEmpty, "mutable.Set.isEmpty"
+  assert: !mutable.Set(3, 5).isEmpty, "mutable.Set.isEmpty"
+
+
   // Add elements
   println "=== Adding elements ==="
   s.add 1
