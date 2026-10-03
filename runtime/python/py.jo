@@ -12,6 +12,7 @@ namespace jo.py
 import jo.compile.Mixed
 import jo.compile.namedArg
 import jo.compile.intrinsic
+import jo.compile.SourceLocation
 
 //[ Mark an interface as a Python typed wrapper.
   !
@@ -203,28 +204,28 @@ interface Dynamic
     ! Use `toString` instead when you need a human-readable representation of
     ! an arbitrary Python value.
   //]
-  def asString: String =
+  def asString(auto location: SourceLocation): String =
     val actual = builtins.callDynamic("type", this)
     if !py.isIdentical(actual, builtins.str) then
       abort("py.Dynamic.asString: expected Python str, got " + actual.__name__.cast[String])
     cast[String]
 
   //[ Return this Python value as a Jo Int, aborting unless it is exactly a Python `int`.   //]
-  def asInt: Int =
+  def asInt(auto location: SourceLocation): Int =
     val actual = builtins.callDynamic("type", this)
     if !py.isIdentical(actual, builtins.int) then
       abort("py.Dynamic.asInt: expected Python int, got " + actual.__name__.cast[String])
     cast[Int]
 
   //[ Return this Python value as a Jo Float, aborting unless it is exactly a Python `float`.   //]
-  def asFloat: Float =
+  def asFloat(auto location: SourceLocation): Float =
     val actual = builtins.callDynamic("type", this)
     if !py.isIdentical(actual, builtins.float) then
       abort("py.Dynamic.asFloat: expected Python float, got " + actual.__name__.cast[String])
     cast[Float]
 
   //[ Return this Python value as a Jo Bool, aborting unless it is exactly a Python `bool`.   //]
-  def asBool: Bool =
+  def asBool(auto location: SourceLocation): Bool =
     val actual = builtins.callDynamic("type", this)
     if !py.isIdentical(actual, builtins.bool) then
       abort("py.Dynamic.asBool: expected Python bool, got " + actual.__name__.cast[String])

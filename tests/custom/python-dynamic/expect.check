@@ -27,8 +27,10 @@ capwords = Jo-Ffi
 --- callDynamic + splice ---
 max(*[1,7,3]) = 7
 --- checked accessors ---
-py.Dynamic.asInt: expected Python int, got str
-py.Dynamic.asFloat: expected Python float, got int
-py.Dynamic.asInt: expected Python int, got bool
-py.Dynamic.asBool: expected Python bool, got int
-py.Dynamic.asString: expected Python str, got int
+py.Dynamic.asInt: expected Python int, got str (tests/custom/python-dynamic/app.jo:146)
+py.Dynamic.asFloat: expected Python float, got int (tests/custom/python-dynamic/app.jo:150)
+py.Dynamic.asInt: expected Python int, got bool (tests/custom/python-dynamic/app.jo:154)
+py.Dynamic.asBool: expected Python bool, got int (tests/custom/python-dynamic/app.jo:158)
+py.Dynamic.asString: expected Python str, got int (tests/custom/python-dynamic/app.jo:162)
+py.Dynamic.asInt: expected Python int, got str (tests/custom/python-dynamic/app.jo:169)
+py.Dynamic.asInt: expected Python int, got str (generated.jo:99)

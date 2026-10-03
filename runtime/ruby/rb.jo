@@ -1,6 +1,7 @@
 namespace jo.rb
 
 import jo.compile.intrinsic
+import jo.compile.SourceLocation
 
 //[ Mark an interface as a Ruby typed wrapper.
   !
@@ -160,28 +161,28 @@ interface Dynamic
     ! Use `toString` instead when you need a human-readable representation of
     ! an arbitrary Ruby value.
   //]
-  def asString: String =
+  def asString(auto location: SourceLocation): String =
     val actual = rb.dynamic(this).callDynamic("class")
     if !rb.isIdentical(actual, rb.const("String")) then
       abort("rb.Dynamic.asString: expected Ruby String, got " + actual.callDynamic("name").cast[String])
     cast[String]
 
   //[ Return this Ruby value as a Jo Int, aborting unless it is exactly a Ruby `Integer`.   //]
-  def asInt: Int =
+  def asInt(auto location: SourceLocation): Int =
     val actual = rb.dynamic(this).callDynamic("class")
     if !rb.isIdentical(actual, rb.const("Integer")) then
       abort("rb.Dynamic.asInt: expected Ruby Integer, got " + actual.callDynamic("name").cast[String])
     cast[Int]
 
   //[ Return this Ruby value as a Jo Float, aborting unless it is exactly a Ruby `Float`.   //]
-  def asFloat: Float =
+  def asFloat(auto location: SourceLocation): Float =
     val actual = rb.dynamic(this).callDynamic("class")
     if !rb.isIdentical(actual, rb.const("Float")) then
       abort("rb.Dynamic.asFloat: expected Ruby Float, got " + actual.callDynamic("name").cast[String])
     cast[Float]
 
   //[ Return this Ruby value as a Jo Bool, aborting unless it is Ruby `true` or `false`.   //]
-  def asBool: Bool =
+  def asBool(auto location: SourceLocation): Bool =
     val actual = rb.dynamic(this).callDynamic("class")
     if !rb.isIdentical(actual, rb.const("TrueClass")) && !rb.isIdentical(actual, rb.const("FalseClass")) then
       abort("rb.Dynamic.asBool: expected Ruby boolean, got " + actual.callDynamic("name").cast[String])

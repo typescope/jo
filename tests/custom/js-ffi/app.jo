@@ -261,3 +261,15 @@ def testCheckedAccessors =
   match js.try(js.dynamic(1).asString)
     case Ok(_)  => println "asString unexpectedly accepted number"
     case Err(e) => println e.asString
+
+  def readInt(value: js.Dynamic)(auto source: jo.compile.SourceLocation): Int =
+    value.asInt
+
+  match js.try(readInt(js.dynamic("not an int")))
+    case Ok(_)  => println "forwarded asInt unexpectedly accepted string"
+    case Err(e) => println e.asString
+
+  auto location: jo.compile.SourceLocation = new jo.compile.SourceLocation("generated.jo", 99)
+  match js.try(readInt(js.dynamic("not an int")))
+    case Ok(_)  => println "overridden asInt unexpectedly accepted string"
+    case Err(e) => println e.asString
