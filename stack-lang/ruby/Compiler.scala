@@ -24,6 +24,7 @@ object Compiler:
     "jo.abort"      -> "jo.rb.runtime.abort",
 
     "jo.Array.create" -> "jo.rb.runtime.RefArray.create",
+    "jo.Array.clear"  -> "jo.rb.runtime.RefArray.clear",
 
     "jo.Bytes.size"     -> "jo.rb.runtime.RawBytes.size",
     "jo.Bytes.get"      -> "jo.rb.runtime.RawBytes.get",
