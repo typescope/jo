@@ -27,7 +27,7 @@ toString(42) = 42
 json parse answer = 42
 json roundtrip contains answer = true
 --- checked accessors ---
-rb.Dynamic.asInt: expected Ruby Integer, got String
-rb.Dynamic.asFloat: expected Ruby Float, got Integer
-rb.Dynamic.asBool: expected Ruby boolean, got Integer
-rb.Dynamic.asString: expected Ruby String, got Integer
+rb.Dynamic.asInt: expected Ruby Integer, got String (runtime/ruby/rb.jo:173)
+rb.Dynamic.asFloat: expected Ruby Float, got Integer (runtime/ruby/rb.jo:180)
+rb.Dynamic.asBool: expected Ruby boolean, got Integer (runtime/ruby/rb.jo:187)
+rb.Dynamic.asString: expected Ruby String, got Integer (runtime/ruby/rb.jo:166)

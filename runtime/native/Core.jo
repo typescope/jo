@@ -532,7 +532,7 @@ private def finish: Unit receives none =
 //
 
 private def abortImpl(msg: String): Bottom receives none =
-  writeString: 0, cast[StringRepr] msg
+  writeString: 2, cast[StringRepr] msg
   Syscall.sys_exit 1
 
 //------------------------------------------------------------------------------

@@ -12,7 +12,7 @@ private interface RbKernelModule
   def raise(msg: String): Bottom
 end
 
-def abort(msg: String): Bottom =
+private def abort(msg: String): Bottom =
   rb.const("Kernel").cast[RbKernelModule].raise(msg)
 
 // Typed wrapper for Ruby IO objects (STDOUT, STDERR) — fixed-arity print.

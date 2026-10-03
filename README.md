@@ -11,17 +11,21 @@
 
 ---
 
-Jo is a statically typed language that enables **compile-time sandboxing**. Instead of confining a running program from the outside, Jo proves — before the code runs — that it can only use the capabilities it was explicitly granted. Jo compiles to Ruby and Python.
+Jo is a statically typed language that enables **compile-time sandboxing**. Instead of confining a running program from the outside, Jo proves that it can only use the capabilities it was explicitly granted.
+
+Jo compiles to Ruby and Python. The JavaScript backend is experimental.
 
 > **Project status:** Early-stage. The compiler, standard library, and toolchain are ready for serious experimentation. APIs and language details may still change.
 
+
+
 ## Why compile-time sandboxing?
 
-AI agents now generate code that runs inside your platform. That code can — unless you stop it — reach for the network, read arbitrary files, or query other users' data.
+AI agents now generate code that runs inside your platform. That code can reach for the network, read arbitrary files, or query other users' data.
 
 The usual defense is a **runtime sandbox**: a container, VM, or seccomp filter that wraps the running program and polices it from the outside. But runtime sandboxes operate at the *wrong level*. They can block a syscall or a filesystem path, but they cannot express "access only *this* user's rows" — that is application logic, invisible to the OS.
 
-Jo moves the sandbox into the type system. A capability a function never received is one it cannot use, and the compiler proves this transitively across the entire call graph — before the program runs. The boundary is visible right in the code, there is nothing to escape at runtime, and "only this user's data" becomes an ordinary, checkable type.
+Jo moves the sandbox into the type system. For untrusted code, there is no ambient authority to produce side effects, except through explicitly provided service objects. The compiler proves that a function may only use explicitly granted capabilities, transitively.
 
 <div align="center">
   <img alt="Compile-time sandboxing = API gating in the language. A confined function has no ambient authority — reflection, globals, network, files, type casts, and control effects are all rejected by the compiler — while its typed parameters are the only door to the outside world." src="./docs/public/img/compile-time-sandboxing.svg" width="100%">

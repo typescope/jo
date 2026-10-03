@@ -74,14 +74,25 @@ location where the outermost helper was called:
 ```jo
 import jo.compile.SourceLocation
 
-def fail(message: String)(auto location: SourceLocation): Unit =
-  abort(location.file + ":" + location.line.toString + ": " + message)
-
 def check(cond: Bool)(auto location: SourceLocation): Unit =
-  if !cond then fail("check failed") // forwards location
+  if !cond then
+    assert(false, "check failed (" + location + ")")
 
 check(answer == 42) // synthesis occurs here
 ```
+
+`compile.location` requests a `SourceLocation` on demand, and its `toString`
+returns `file:line`. `abort` takes an auto location and appends `(file:line)` to
+its message. `assert` does not request a location automatically.
+Put the request inside an assertion's lazy message to construct and format it
+only on failure:
+
+```jo
+assert(cond, "check failed (" + compile.location + ")")
+```
+
+The `...` placeholder still takes an auto location.
+Helpers with auto location parameters receive their locations eagerly.
 
 The synthesized file is relative to `--source-root` when the source is beneath
 that root. For a source outside the root, only its filename is published.
