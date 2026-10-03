@@ -58,6 +58,7 @@ private section RefArray
     arr.cast[Array[T]]
 
   def get[T](array: Array[T], index: Int): T =
+    assert: index >= 0 && index < array.size, "Index \{index} of out bound, size = \{array.size}"
     js.dynamic(array)[index].cast[T]
 
   def clear[T](array: Array[T], index: Int): Unit =
@@ -65,6 +66,7 @@ private section RefArray
     js.dynamic(array)[index] = js.null
 
   def set[T](array: Array[T], index: Int, value: T): Unit =
+    assert: index >= 0 && index < array.size, "Index \{index} of out bound, size = \{array.size}"
     js.dynamic(array)[index] = value
 
   def size[T](array: Array[T]): Int =

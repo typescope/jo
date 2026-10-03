@@ -128,7 +128,9 @@ private section RefArray
     val result: py.List = py.dynamic(seed).cast[ListRepeat].repeat(size)
     py.dynamic(result).cast[Array[T]]
 
-  def get[T](arr: Any, i: Int): T = py.dynamic(arr)[i].cast[T]
+  def get[T](arr: Any, i: Int): T =
+    assert: i >= 0 && i < arr.size, "Index \{i} of out bound, size = \{arr.size}"
+    py.dynamic(arr)[i].cast[T]
 
   def size[T](arr: Any): Int = builtins.len(arr)
 
@@ -136,7 +138,9 @@ private section RefArray
     assert: i >= 0 && i < arr.size, "Index \{i} of out bound, size = \{arr.size}"
     py.dynamic(arr)[i] = py.none
 
-  def set[T](arr: Any, i: Int, elem: T): Unit = py.dynamic(arr)[i] = elem
+  def set[T](arr: Any, i: Int, elem: T): Unit =
+    assert: i >= 0 && i < arr.size, "Index \{i} of out bound, size = \{arr.size}"
+    py.dynamic(arr)[i] = elem
 
   def clone[T](arr: Any): Array[T] =
     py.dynamic(arr).callDynamic("copy").cast[Array[T]]
