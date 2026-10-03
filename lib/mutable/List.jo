@@ -143,7 +143,12 @@ class List[T]
 
   //[ Remove all elements. //]
   def clear: Unit =
-    _size = 0
+   var i = 0
+   while i < _size do
+     Array.clear(_data, i)
+     i = i + 1
+   end
+   _size = 0
 
   //[ Append all elements from `iter`. //]
   def appendAll(iter: Iterator[T] :- [.iterator]): Unit =
