@@ -16,7 +16,9 @@ check_cases() {
     local name message line expected
     while IFS='|' read -r name message line; do
         expected="$message (tests/custom/abort-source-location/app.jo:$line)"
-        if [[ "$name" == override ]]; then
+        if [[ "$line" == none ]]; then
+            expected="$message"
+        elif [[ "$name" == override ]]; then
             expected="$message (generated.jo:99)"
         fi
         if "$@" "$name" > "$WORK/actual" 2>&1; then
@@ -28,6 +30,10 @@ check_cases() {
             cat "$WORK/actual"
             exit 1
         fi
+        if [[ "$line" == none ]] && grep -Eq "$message \([^)]*:[0-9]+\)" "$WORK/actual"; then
+            echo "[error] $backend/$name unexpectedly added a location"
+            exit 1
+        fi
     done <<'CASES'
 abort|direct abort|23
 assert|direct assertion|24
@@ -37,6 +43,8 @@ override|forwarded assertion|99
 placeholder|not implemented|28
 forward-placeholder|not implemented|29
 tailrec|tailrec abort|30
+plain-abort|plain abort|31
+plain-assert|plain assertion|none
 CASES
     "$@" lazy > "$WORK/actual" 2>&1
     printf 'passed\n' > "$WORK/expected"

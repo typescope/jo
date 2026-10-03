@@ -118,15 +118,3 @@ def testCheckedAccessors: Unit =
   match rb.try(rb.dynamic(1).asString)
     case Ok(_)  => println "asString unexpectedly accepted Integer"
     case Err(e) => println e.message
-
-  def readInt(value: rb.Dynamic)(auto source: jo.compile.SourceLocation): Int =
-    value.asInt
-
-  match rb.try(readInt(rb.dynamic("not an int")))
-    case Ok(_)  => println "forwarded asInt unexpectedly accepted string"
-    case Err(e) => println e.message
-
-  auto location: jo.compile.SourceLocation = new jo.compile.SourceLocation("generated.jo", 99)
-  match rb.try(readInt(rb.dynamic("not an int")))
-    case Ok(_)  => println "overridden asInt unexpectedly accepted string"
-    case Err(e) => println e.message

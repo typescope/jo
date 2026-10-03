@@ -4,7 +4,7 @@ def fail()(auto location: SourceLocation): Bottom =
   abort("forwarded abort")
 
 def check()(auto location: SourceLocation): Unit =
-  assert(false, "forwarded assertion")
+  assert(false, "forwarded assertion (" + location + ")")
 
 def nestedCheck()(auto location: SourceLocation): Unit = check()
 
@@ -21,13 +21,15 @@ def countdown(n: Int)(auto location: SourceLocation): Bottom =
 def main: Unit =
   match IO.args[0]
     case "abort" => abort("direct abort")
-    case "assert" => assert(false, "direct assertion")
+    case "assert" => assert(false, "direct assertion (" + jo.compile.location + ")")
     case "forward-abort" => fail()
     case "forward-assert" => nestedCheck()
     case "override" => overridden()
     case "placeholder" => ...
     case "forward-placeholder" => missing()
     case "tailrec" => countdown(3)
+    case "plain-abort" => abort("plain abort")
+    case "plain-assert" => assert(false, "plain assertion")
     case "lazy" =>
       assert(true, () => abort("message evaluated"))
       println("passed")

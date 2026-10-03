@@ -75,10 +75,8 @@ call isArray(42) = false
 toString 42 = 42
 toString [1,2,3] = 1,2,3
 --- checked accessors ---
-js.Dynamic.asInt: expected JavaScript integer number, got string (tests/custom/js-ffi/app.jo:245)
-js.Dynamic.asInt: expected JavaScript integer number, got number (tests/custom/js-ffi/app.jo:249)
-js.Dynamic.asFloat: expected JavaScript number, got string (tests/custom/js-ffi/app.jo:253)
-js.Dynamic.asBool: expected JavaScript boolean, got number (tests/custom/js-ffi/app.jo:257)
-js.Dynamic.asString: expected JavaScript string, got number (tests/custom/js-ffi/app.jo:261)
-js.Dynamic.asInt: expected JavaScript integer number, got string (tests/custom/js-ffi/app.jo:268)
-js.Dynamic.asInt: expected JavaScript integer number, got string (generated.jo:99)
+js.Dynamic.asInt: expected JavaScript integer number, got string (runtime/javascript/js.jo:171)
+js.Dynamic.asInt: expected JavaScript integer number, got number (runtime/javascript/js.jo:171)
+js.Dynamic.asFloat: expected JavaScript number, got string (runtime/javascript/js.jo:178)
+js.Dynamic.asBool: expected JavaScript boolean, got number (runtime/javascript/js.jo:185)
+js.Dynamic.asString: expected JavaScript string, got number (runtime/javascript/js.jo:164)

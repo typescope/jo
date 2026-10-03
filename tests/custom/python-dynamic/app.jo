@@ -162,15 +162,3 @@ def testCheckedAccessors =
   match py.try(builtins.int(1).asString)
     case Ok(_)  => println "asString unexpectedly accepted int"
     case Err(e) => println e.message
-
-  def readInt(value: py.Dynamic)(auto source: jo.compile.SourceLocation): Int =
-    value.asInt
-
-  match py.try(readInt(py.dynamic("not an int")))
-    case Ok(_)  => println "forwarded asInt unexpectedly accepted string"
-    case Err(e) => println e.message
-
-  auto location: jo.compile.SourceLocation = new jo.compile.SourceLocation("generated.jo", 99)
-  match py.try(readInt(py.dynamic("not an int")))
-    case Ok(_)  => println "overridden asInt unexpectedly accepted string"
-    case Err(e) => println e.message

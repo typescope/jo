@@ -109,15 +109,17 @@ private defer def abortImpl(s: String): Bottom
   ! enclosing auto `SourceLocation` parameter.
 //]
 def abort(s: String)(auto location: SourceLocation): Bottom =
-  abortImpl(s + " (" + location.file + ":" + location.line.toString + ")")
+  abortImpl(s + " (" + location + ")")
 
 //[ Abort with the message from `error` unless `cond` holds
   !
-  ! `error` is only called when the check fails, so building the message costs
-  ! nothing on the passing path. The failure reports the caller's source location.
+  ! `error` is only called when the check fails. A location requested inside
+  ! the message is therefore constructed only on failure:
+  !
+  !     assert(cond, "check failed (" + jo.compile.location + ")")
 //]
-def assert(cond: Bool, error: () => String)(auto location: SourceLocation): Unit =
-  if !cond then abort error()
+def assert(cond: Bool, error: () => String): Unit =
+  if !cond then abortImpl(error())
 
 //------------------------------------------------------------------------------
 //
