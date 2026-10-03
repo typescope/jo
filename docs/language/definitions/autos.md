@@ -75,13 +75,17 @@ location where the outermost helper was called:
 import jo.compile.SourceLocation
 
 def fail(message: String)(auto location: SourceLocation): Unit =
-  abort(location.file + ":" + location.line.toString + ": " + message)
+  abort(message)
 
 def check(cond: Bool)(auto location: SourceLocation): Unit =
   if !cond then fail("check failed") // forwards location
 
 check(answer == 42) // synthesis occurs here
 ```
+
+`abort`, `assert`, and `...` take an auto `SourceLocation`. Their failure
+messages end with `(file:line)`, so helpers can forward a caller's location
+without formatting it themselves.
 
 The synthesized file is relative to `--source-root` when the source is beneath
 that root. For a source outside the root, only its filename is published.

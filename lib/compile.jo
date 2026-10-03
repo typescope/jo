@@ -10,7 +10,7 @@ namespace jo.compile
   !
   !     def check(cond: Bool)(auto location: SourceLocation): Unit =
   !       if !cond then
-  !         abort(location.file + ":" + location.line.toString + ": check failed")
+  !         abort("check failed")
   !
   !     check(answer == 42)
   !

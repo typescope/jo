@@ -4,11 +4,25 @@ import Trees.*
 import Symbols.*
 import Types.*
 
-import ast.Positions.Span
+import ast.Positions.{Source, Span}
+import reporting.Config
 
 import scala.collection.mutable
 
 object TreeOps:
+  /** Construct the canonical source location for a call or generated failure. */
+  def sourceLocation(span: Span)(using defn: Definitions, source: Source, config: Config): Word =
+    val targetType = StaticRef(defn.SourceLocation_class)
+    val newLocation = New(TypeTree(targetType)(span.point))(span.point)
+    newLocation.select(Names.Constructor).appliedTo(
+      StringLit(Config.publishedSourcePath(source.file))(span.point),
+      IntLit(span.toPos.startLine + 1)(span.point),
+    )
+
+  /** Generated failures bypass auto resolution, so supply their location explicitly. */
+  def abortCall(message: String, span: Span)(using defn: Definitions, source: Source, config: Config): Word =
+    Apply(Ident(defn.abort)(span), List(StringLit(message)(span)), List(sourceLocation(span)))(span)
+
   def instantiatePoly(polyType: ProcType, fun: Word)(using Definitions, TypeVars): Word =
     assert(polyType.tparams.nonEmpty, polyType.show)
 
