@@ -25,7 +25,7 @@ AI agents now generate code that runs inside your platform. That code can reach 
 
 The usual defense is a **runtime sandbox**: a container, VM, or seccomp filter that wraps the running program and polices it from the outside. But runtime sandboxes operate at the *wrong level*. They can block a syscall or a filesystem path, but they cannot express "access only *this* user's rows" — that is application logic, invisible to the OS.
 
-Jo moves the sandbox into the type system. For untrusted code, there are no ambient authority to produce side effects, except through explicitly provided service objects. The compiler proves that a function may only use explicitly granted capabilities, transitively.
+Jo moves the sandbox into the type system. For untrusted code, there is no ambient authority to produce side effects, except through explicitly provided service objects. The compiler proves that a function may only use explicitly granted capabilities, transitively.
 
 <div align="center">
   <img alt="Compile-time sandboxing = API gating in the language. A confined function has no ambient authority — reflection, globals, network, files, type casts, and control effects are all rejected by the compiler — while its typed parameters are the only door to the outside world." src="./docs/public/img/compile-time-sandboxing.svg" width="100%">

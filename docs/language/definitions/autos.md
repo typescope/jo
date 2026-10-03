@@ -81,14 +81,14 @@ def check(cond: Bool)(auto location: SourceLocation): Unit =
 check(answer == 42) // synthesis occurs here
 ```
 
-`jo.compile.location` requests a `SourceLocation` on demand, and its `toString`
+`compile.location` requests a `SourceLocation` on demand, and its `toString`
 returns `file:line`. `abort` takes an auto location and appends `(file:line)` to
 its message. `assert` does not request a location automatically.
 Put the request inside an assertion's lazy message to construct and format it
 only on failure:
 
 ```jo
-assert(cond, "check failed (" + jo.compile.location + ")")
+assert(cond, "check failed (" + compile.location + ")")
 ```
 
 The `...` placeholder still takes an auto location.

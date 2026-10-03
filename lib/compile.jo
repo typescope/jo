@@ -33,7 +33,7 @@ end
   ! Use this inside a lazy assertion message to construct and format a location
   ! only when the assertion fails:
   !
-  !     assert(cond, "check failed (" + jo.compile.location + ")")
+  !     assert(cond, "check failed (" + compile.location + ")")
 //]
 def location(auto loc: SourceLocation): SourceLocation = loc
 

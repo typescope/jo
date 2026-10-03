@@ -116,7 +116,7 @@ def abort(s: String)(auto location: SourceLocation): Bottom =
   ! `error` is only called when the check fails. A location requested inside
   ! the message is therefore constructed only on failure:
   !
-  !     assert(cond, "check failed (" + jo.compile.location + ")")
+  !     assert(cond, "check failed (" + compile.location + ")")
 //]
 def assert(cond: Bool, error: () => String): Unit =
   if !cond then abortImpl(error())
