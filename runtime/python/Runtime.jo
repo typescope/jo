@@ -132,6 +132,8 @@ private section RefArray
 
   def size[T](arr: Any): Int = builtins.len(arr)
 
+  def clear[T](arr: Any, i: Int): Unit = py.dynamic(arr)[i] = py.none
+
   def set[T](arr: Any, i: Int, elem: T): Unit = py.dynamic(arr)[i] = elem
 
   def clone[T](arr: Any): Array[T] =

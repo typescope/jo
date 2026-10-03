@@ -25,6 +25,7 @@ object Compiler:
     "jo.abort"      -> "jo.py.runtime.abort",
 
     "jo.Array.create" -> "jo.py.runtime.RefArray.create",
+    "jo.Array.clear"  -> "jo.py.runtime.RefArray.clear",
 
     // Bytes operations
     "jo.Bytes.size"     -> "jo.py.runtime.RawBytes.size",
