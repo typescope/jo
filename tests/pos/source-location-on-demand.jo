@@ -1,0 +1,20 @@
+import jo.compile.SourceLocation
+import jo.compile.location
+
+def forwarded()(auto source: SourceLocation): String = location.toString
+
+def main: Unit =
+  println location.toString
+  println forwarded()
+  println (new SourceLocation("generated.jo", 42)).toString
+
+  assert(true, location.toString)
+  assert(true, () =>
+    println location.toString
+    abort("message evaluated")
+  )
+
+  auto overridden: SourceLocation = new SourceLocation("overridden.jo", 99)
+  println location.toString
+  println forwarded()
+  println "passed"

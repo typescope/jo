@@ -1,0 +1,6 @@
+tests/pos/source-location-on-demand.jo:7
+tests/pos/source-location-on-demand.jo:8
+generated.jo:42
+overridden.jo:99
+overridden.jo:99
+passed
