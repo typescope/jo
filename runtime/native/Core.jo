@@ -758,6 +758,7 @@ private section RefArray
     cast[T]: addr
 
   def clear[T](arr: Array[T], i: Int): Unit =
+    assert: i < arr.size, "Index \{i} of out bound, size = \{arr.size}"
     writeInt:
       addAddr:
         cast[Addr] arr
