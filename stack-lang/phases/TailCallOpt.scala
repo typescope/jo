@@ -2,6 +2,8 @@ package phases
 
 import ast.Positions.*
 
+import reporting.Config
+
 import sast.*
 import sast.Trees.*
 import sast.Symbols.*
@@ -13,7 +15,7 @@ import scala.collection.mutable
   *
   * Recognizes tail-recursive calls and rewrites them to while loops.
   */
-class TailCallOpt(using defn: Definitions) extends Phase:
+class TailCallOpt(using defn: Definitions, config: Config) extends Phase:
 
   override def transformFunDef(fdef: FunDef)(using Context): FunDef =
     val sym = fdef.symbol
@@ -176,9 +178,7 @@ class TailCallOpt(using defn: Definitions) extends Phase:
       if needsResultAccumulator then
         initStmts.toList :+ whileLoop :+ resultIdent
       else
-        val abortFun = Ident(defn.abort)(span)
-        val abortArg = StringLit("Unreachable path in tailrec optimization")(span)
-        val unreachable = abortFun.appliedTo(abortArg).dropIfVoid(resultType)
+        val unreachable = TreeOps.abortCall("Unreachable path in tailrec optimization", span).dropIfVoid(resultType)
         initStmts.toList :+ whileLoop :+ unreachable
     val newBody = Block(finalWords)(span)
 

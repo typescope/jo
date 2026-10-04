@@ -30,7 +30,8 @@ check_lines "js" /tmp/test_fact.js 185
 
 echo "  - Compiling with Ruby backend"
 "$PROJECT_ROOT/bin/jo" compile --ruby "$SRC" -o /tmp/test_fact.rb
-check_lines "ruby" /tmp/test_fact.rb 220
+# Includes the location-aware abort wrapper and SourceLocation class.
+check_lines "ruby" /tmp/test_fact.rb 235
 
 echo "  - Compiling with Python backend"
 "$PROJECT_ROOT/bin/jo" compile --python "$SRC" -o /tmp/test_fact.py

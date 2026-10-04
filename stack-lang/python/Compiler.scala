@@ -22,7 +22,7 @@ object Compiler:
   // Default link mappings for Python runtime
   val defaultLinkMappings = Map(
 
-    "jo.abort"      -> "jo.py.runtime.abort",
+    "jo.abortImpl"      -> "jo.py.runtime.abort",
 
     "jo.Array.create" -> "jo.py.runtime.RefArray.create",
     "jo.Array.clear"  -> "jo.py.runtime.RefArray.clear",

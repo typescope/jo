@@ -1,0 +1,11 @@
+---------- Error at tests/warn/abort-impl-private.jo:1:18 ---------------
+| def main: Unit = abortImpl("not public")
+|                  ^^^^^^^^^
+|                  Cannot access the private member abortImpl, limit = jo, site = main
+
+---------- Error at tests/warn/abort-impl-private.jo:3:25 ---------------
+| def qualified: Bottom = jo.abortImpl("not public")
+|                         ^^^^^^^^^^^^
+|                         Cannot access the private member abortImpl, limit = jo, site = qualified
+
+2 error(s), 0 warning(s)

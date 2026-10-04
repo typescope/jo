@@ -2,6 +2,8 @@ package phases
 
 import ast.Positions.*
 
+import reporting.Config
+
 import sast.*
 import sast.Trees.*
 import sast.Symbols.*
@@ -22,12 +24,10 @@ import PatternMatcher.implMap
   * It tests whether a value is a lambda, which is used for the lambda branch of
   * union types. A union type has at most one lambda branch.
   */
-class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions) extends Phase:
+class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions, config: Config) extends Phase:
   val IntType = defn.IntType
   val BoolType = defn.BoolType
   val StringType = defn.StringType
-
-  val abortSym = defn.abort
 
   /** The type for holding successful matched values in a PatDef */
   val ResultArrayType = AppliedType(defn.Array_class, AnyType :: Nil)
@@ -235,8 +235,7 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions) extends Pha
             noneValue(endSpan)
 
           else
-            val abort = Ident(abortSym)(endSpan)
-            abort.appliedTo(StringLit("Irrefutable pattern " + pdef.symbol.name + " failed")(endSpan))
+            TreeOps.abortCall("Irrefutable pattern " + pdef.symbol.name + " failed", endSpan)
 
         splitConstBool(patternTranslated) match
           case Some((prefix, true)) =>
@@ -307,9 +306,7 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions) extends Pha
         case Nil =>
           // No need to abort if we issue error for non-exhaustive cases.
           // It is needed for code generation.
-          val abort = Ident(abortSym)(scrutIdent.span)
-          val arg = StringLit("Unhandled match at line " + (scrutIdent.pos.startLine + 1))(scrutIdent.span)
-          abort.appliedTo(arg).dropIfVoid(patmat.tpe)
+          TreeOps.abortCall("Unhandled match", scrutIdent.span).dropIfVoid(patmat.tpe)
       end match
 
     val body = transformCases(cases)
@@ -348,9 +345,7 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions) extends Pha
     val test = simplify(transformPatternGeneric(patValDef.rhs, patValDef.pattern, patValDef.span))
 
     val abortState =
-      val abortFun = Ident(abortSym)(patValDef.span)
-      val arg = StringLit("Unhandled match at line " + (patValDef.pos.startLine + 1))(patValDef.span)
-      abortFun.appliedTo(arg).dropValue
+      TreeOps.abortCall("Unhandled match", patValDef.span).dropValue
 
     simplify(If(test, Block(Nil)(patValDef.span), abortState)(VoidType, patValDef.span))
 

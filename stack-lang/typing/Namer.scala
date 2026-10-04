@@ -423,6 +423,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
       handlePrefix(sym, oob)
 
     def handlePrefix(sym: Symbol, oob: OutOfBand): Word =
+      Checker.checkAccess(sym, sc.owner, id.span)
       oob.testKey(Scope.PrefixKey) match
         case Some(prefix) =>
           checkExplicitThis(prefix, sym, id.pos)
@@ -444,7 +445,9 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
 
           case _ =>
             sc.resolveContainerOpt(name) match
-              case Some(sym) => Ident(sym)(id.span).adapt
+              case Some(sym) =>
+                Checker.checkAccess(sym, sc.owner, id.span)
+                Ident(sym)(id.span).adapt
 
               case None =>
                 tryTermName().adapt
@@ -1587,9 +1590,10 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
       autoSymsLazy.value
 
       if flags.is(Flags.Defer) && !flags.is(Flags.Default) then
-        // Dummy body deferred function without default implementation
+        // Dummy body for a deferred function without a default implementation.
+        // Use the primitive: this placeholder has no user call site.
         val span = funDef.body.span
-        Ident(defn.abort)(span).appliedTo(StringLit("deferred " + funSym.fullName)(span))
+        Ident(defn.abortImpl)(span).appliedTo(StringLit("deferred " + funSym.fullName)(span))
       else
         val targetType =
           if !funDef.resultType.isEmpty then

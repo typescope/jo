@@ -1,6 +1,7 @@
 namespace jo
 
 import jo.compile.intrinsic
+import jo.compile.SourceLocation
 
 //------------------------------------------------------------------------------
 // Basic types
@@ -93,23 +94,32 @@ def println(s: StringLike): Unit =
   ! Its type is `Bottom`, so it type-checks wherever a value is expected:
   !
   !     def area(shape: Shape): Float = ...
+  !
+  ! The diagnostic includes the source location of the placeholder.
 //]
-def ... : Bottom = abort("not implemented")
+def ...(auto location: SourceLocation): Bottom = abort("not implemented")
 
-//[ Terminate the program with the message `s`
+private defer def abortImpl(s: String): Bottom
+
+//[ Terminate the program with the message `s`, followed by `(file:line)`
   !
   ! Returns `Bottom`, so a call can stand in for a value of any type. This is
   ! an unrecoverable exit, not an exception: there is nothing to catch.
+  ! The auto location is supplied at the call site, or forwarded from an
+  ! enclosing auto `SourceLocation` parameter.
 //]
-defer def abort(s: String): Bottom
+def abort(s: String)(auto location: SourceLocation): Bottom =
+  abortImpl(s + " (" + location + ")")
 
 //[ Abort with the message from `error` unless `cond` holds
   !
-  ! `error` is only called when the check fails, so building the message costs
-  ! nothing on the passing path.
+  ! `error` is only called when the check fails. A location requested inside
+  ! the message is therefore constructed only on failure:
+  !
+  !     assert(cond, "check failed (" + compile.location + ")")
 //]
 def assert(cond: Bool, error: () => String): Unit =
-  if !cond then abort error()
+  if !cond then abortImpl(error())
 
 //------------------------------------------------------------------------------
 //

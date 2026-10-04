@@ -422,12 +422,7 @@ object AutoResolution:
   private def trySynthesizeSourceLocation(targetType: Type, span: Span)(using defn: Definitions, source: Source, config: Config): Option[Word] =
     if !Subtyping.isEqualType(targetType, StaticRef(defn.SourceLocation_class)) then return None
 
-    val newLocation = New(TypeTree(targetType)(span.point))(span.point)
-    val constructor = newLocation.select(Names.Constructor)
-    Some(constructor.appliedTo(
-      StringLit(Config.publishedSourcePath(source.file))(span.point),
-      IntLit(span.toPos.startLine + 1)(span.point),
-    ))
+    Some(TreeOps.sourceLocation(span))
 
   /** Format search tree as error message */
   def formatSearchTree(all: AutoResolution.SearchNode.All, baseIndent: String = "")(using Definitions): String =

@@ -21,7 +21,7 @@ import scala.language.implicitConversions
 object Compiler:
   // Default link mappings for JS runtime
   val defaultLinkMappings = Map(
-    "jo.abort"      -> "jo.js.runtime.abort",
+    "jo.abortImpl"      -> "jo.js.runtime.abort",
 
     "jo.Array.create" -> "jo.js.runtime.RefArray.create",
     "jo.Array.clear"  -> "jo.js.runtime.RefArray.clear",
