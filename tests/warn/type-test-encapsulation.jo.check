@@ -1,0 +1,66 @@
+---------- Error at tests/warn/type-test-encapsulation.jo:15:11 ---------------
+|   case _: Thinker => true
+|           ^^^^^^^
+|           Type tests on Any are not allowed. The scrutinee must have a class, union, or lambda type
+
+---------- Error at tests/warn/type-test-encapsulation.jo:20:11 ---------------
+|   case _: Helper => true
+|           ^^^^^^
+|           Type tests on Any are not allowed. The scrutinee must have a class, union, or lambda type
+
+---------- Error at tests/warn/type-test-encapsulation.jo:25:12 ---------------
+|   case _: (() => String) => true
+|            ^^^^^^^^^^^^
+|            Type tests on Any are not allowed. The scrutinee must have a class, union, or lambda type
+
+---------- Error at tests/warn/type-test-encapsulation.jo:30:11 ---------------
+|   case _: Thinker => true
+|           ^^^^^^^
+|           Type tests on Thing are not allowed. The scrutinee must have a class, union, or lambda type
+
+---------- Error at tests/warn/type-test-encapsulation.jo:35:11 ---------------
+|   case _: Helper => true
+|           ^^^^^^
+|           Type tests on Thing are not allowed. The scrutinee must have a class, union, or lambda type
+
+---------- Error at tests/warn/type-test-encapsulation.jo:40:12 ---------------
+|   case _: (() => String) => true
+|            ^^^^^^^^^^^^
+|            Type tests on Thing are not allowed. The scrutinee must have a class, union, or lambda type
+
+---------- Error at tests/warn/type-test-encapsulation.jo:44:42 ---------------
+| def aliasAny(x: Opaque): Bool = x is (_: Thinker)
+|                                          ^^^^^^^
+|                                          Type tests on Opaque are not allowed. The scrutinee must have a class, union, or lambda type
+
+---------- Error at tests/warn/type-test-encapsulation.jo:45:52 ---------------
+| def aliasInterface(x: ThingAlias): Bool = x is (_: Thinker)
+|                                                    ^^^^^^^
+|                                                    Type tests on ThingAlias are not allowed. The scrutinee must have a class, union, or lambda type
+
+---------- Error at tests/warn/type-test-encapsulation.jo:47:44 ---------------
+| def genericClass[T](x: T): Bool = x is (_: Thinker)
+|                                            ^^^^^^^
+|                                            Type tests on T are not allowed. The scrutinee must have a class, union, or lambda type
+
+---------- Error at tests/warn/type-test-encapsulation.jo:48:44 ---------------
+| def genericUnion[T](x: T): Bool = x is (_: Helper)
+|                                            ^^^^^^
+|                                            Type tests on T are not allowed. The scrutinee must have a class, union, or lambda type
+
+---------- Error at tests/warn/type-test-encapsulation.jo:49:46 ---------------
+| def genericLambda[T](x: T): Bool = x is (_: (() => String))
+|                                              ^^^^^^^^^^^^
+|                                              Type tests on T are not allowed. The scrutinee must have a class, union, or lambda type
+
+---------- Error at tests/warn/type-test-encapsulation.jo:52:37 ---------------
+| def anyLiteral(x: Any): Bool = x is 1
+|                                     ^
+|                                     Type tests on Any are not allowed. The scrutinee must have a class, union, or lambda type
+
+---------- Error at tests/warn/type-test-encapsulation.jo:53:42 ---------------
+| def genericLiteral[T](x: T): Bool = x is 1
+|                                          ^
+|                                          Expect type T, found = Int
+
+13 error(s), 0 warning(s)

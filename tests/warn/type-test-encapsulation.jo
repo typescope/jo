@@ -1,0 +1,53 @@
+interface Thing
+  def thing: String
+
+class Thinker(name: String)
+  view Thing
+  def thing: String = name
+
+class Plain(name: String)
+type Helper = Plain | Thinker
+type Opaque = Any
+type ThingAlias = Thing
+
+def anyClass(x: Any): Bool =
+  match x
+  case _: Thinker => true
+  case _ => false
+
+def anyUnion(x: Any): Bool =
+  match x
+  case _: Helper => true
+  case _ => false
+
+def anyLambda(x: Any): Bool =
+  match x
+  case _: (() => String) => true
+  case _ => false
+
+def interfaceClass(x: Thing): Bool =
+  match x
+  case _: Thinker => true
+  case _ => false
+
+def interfaceUnion(x: Thing): Bool =
+  match x
+  case _: Helper => true
+  case _ => false
+
+def interfaceLambda(x: Thing): Bool =
+  match x
+  case _: (() => String) => true
+  case _ => false
+
+// The same restriction applies to `is` expressions and aliases.
+def aliasAny(x: Opaque): Bool = x is (_: Thinker)
+def aliasInterface(x: ThingAlias): Bool = x is (_: Thinker)
+
+def genericClass[T](x: T): Bool = x is (_: Thinker)
+def genericUnion[T](x: T): Bool = x is (_: Helper)
+def genericLambda[T](x: T): Bool = x is (_: (() => String))
+
+// Literal patterns also introduce a runtime type test.
+def anyLiteral(x: Any): Bool = x is 1
+def genericLiteral[T](x: T): Bool = x is 1
