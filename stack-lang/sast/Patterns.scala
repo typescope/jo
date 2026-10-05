@@ -5,11 +5,16 @@ import Types.*
 object Patterns:
   /** Whether a type pattern is valid with respect to a scrutinee type
     *
-    * In a type pattern, we need to make sure that the type arguments can be
-    * determined by class identity.
+    * The scrutinee must expose a class, union, or lambda type so that type
+    * tests cannot inspect values hidden by Any, interfaces, or type parameters.
+    * Type arguments must be determined by class identity.
     */
   def isValidTypePattern(patternType: Type, scrutType: Type)(using explain: StringBuilder, defn: Definitions): Boolean =
-    if patternType.isClassType then isValidClassTypePattern(patternType, scrutType)
+    if !scrutType.isClassType && !scrutType.isUnionType && !scrutType.isLambdaType then
+      explain.append("Type tests on " + scrutType.show + " are not allowed. The scrutinee must have a class, union, or lambda type")
+      false
+
+    else if patternType.isClassType then isValidClassTypePattern(patternType, scrutType)
     else if patternType.isUnionType then isValidUnionTypePattern(patternType.asUnionType, scrutType)
     else if patternType.isLambdaType then isValidLambdaTypePattern(patternType, scrutType)
     else

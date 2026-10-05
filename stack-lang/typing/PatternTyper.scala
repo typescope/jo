@@ -929,7 +929,13 @@ class PatternTyper(namer: Namer)(using Config):
           valuePattern
 
         else
-          TypePattern(TypeTree(literal.tpe)(pat.span), valuePattern)(scrutType)
+          val explain = new StringBuilder
+
+          if Patterns.isValidTypePattern(literal.tpe, scrutType)(using explain) then
+            TypePattern(TypeTree(literal.tpe)(pat.span), valuePattern)(scrutType)
+          else
+            Reporter.error(explain.toString, pat.pos)
+            WildcardPattern()(ErrorType, pat.span)
 
       // TypePattern: x: Type
       case Ast.TypePattern(id, tpt) =>
