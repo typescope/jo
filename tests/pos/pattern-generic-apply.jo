@@ -1,0 +1,39 @@
+// A class pattern remains valid when its type arguments are generic.
+pattern Present[T](value: T): Some[T] = case Some(value)
+
+// Ordinary generic patterns are valid when instantiated to concrete types.
+pattern Identity[T](value: T): T = case value
+pattern Both[T](lhs: T, rhs: T): T = case lhs @ rhs
+pattern Positive: Partial[Int] = case x if x > 0
+pattern Even: Partial[Int] = case x if x % 2 == 0
+
+def identityInt(x: Int): Int =
+  match x
+  case Identity(value) => value
+
+def identityString(x: String): String =
+  match x
+  case Identity(value) => value
+
+def both(x: Int): Bool = x is Both(Positive, Even)
+
+def getOrElse[T](x: Option[T], default: T): T =
+  match x
+  case Some(value) => value
+  case None => default
+
+def getPresent[T](x: Option[T], default: T): T =
+  match x
+  case Present(value) => value
+  case None => default
+
+def main =
+  println(getOrElse(Some(42), 0))
+  println(getOrElse(None, "default"))
+  println(getPresent(Some("hello"), "default"))
+  println(getPresent(None, 7))
+  println(identityInt(123))
+  println(identityString("generic"))
+  println(both(10))
+  println(both(-2))
+  println(both(11))
