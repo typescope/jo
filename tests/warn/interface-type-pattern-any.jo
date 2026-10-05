@@ -1,0 +1,15 @@
+// An interface pattern on Any must report a type error before pattern lowering.
+interface Thing
+  def thing: String
+
+class Thinker(name: String)
+  view Thing
+  def thing: String = "delegate implementation"
+
+def check(x: Any): String =
+  match x
+  case t: Thing => t.thing
+  case _ => "default"
+
+def main =
+  println(check(Thinker("a")))
