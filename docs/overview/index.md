@@ -16,7 +16,7 @@ You already know **runtime sandboxes** — containers, VMs, seccomp, gVisor. The
 
 This is the fundamental problem Jo set out to solve:
 
-> How do you safely execute untrusted code — with the guarantee that it only does what it is permitted to do, at any level of granularity? For example: access only a specific directory, make API requests to a single host, or query only the database rows belonging to the current user.
+> How do you safely execute untrusted code — with the guarantee that it only does what it is permitted to do, at any level of granularity? For example: make requests to a subset of REST APIs, or query only the database rows belonging to the current user.
 
 Jo moves the sandbox into the type system, so the boundary is checked before the program runs rather than enforced from the outside while it runs. It uses capability-contracted authority based on its type system:
 
