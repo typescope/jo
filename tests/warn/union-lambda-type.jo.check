@@ -11,7 +11,7 @@
 ---------- Error at tests/warn/union-lambda-type.jo:16:14 ---------------
 |     case f: (Int => Int) => f(1)
 |              ^^^^^^^^^^
-|              The type Int => Int receives none does not match the scrutinee type Any
+|              Type tests on Any are not allowed. The scrutinee must have a class, union, or lambda type
 
 ---------- Error at tests/warn/union-lambda-type.jo:22:14 ---------------
 |     case f: (String => Int) => 1
