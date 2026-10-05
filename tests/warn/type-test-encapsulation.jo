@@ -62,3 +62,18 @@ pattern Named(name: String): Thinker = case Thinker(name)
 def anyApply(x: Any): Bool = x is Named(_)
 def interfaceApply(x: Thing): Bool = x is Named(_)
 def genericApply[T](x: T): Bool = x is Named(_)
+
+// Combinators must also reject opaque scrutinee types.
+def anyNot(x: Any): Bool = x is !Thinker(_)
+def interfaceAnd(x: Thing): Bool = x is (Thinker(_) & _)
+def genericOr[T](x: T): Bool = x is (Thinker(_) | Plain(_))
+
+// Conformance does not exempt a generic application from the whitelist.
+pattern Identity[T](value: T): T = case value
+
+def genericIdentity[T](x: T): T =
+  match x
+  case Identity(value) => value
+
+def anyIdentity(x: Any): Bool = x is Identity(_)
+def interfaceIdentity(x: Thing): Bool = x is Identity(_)

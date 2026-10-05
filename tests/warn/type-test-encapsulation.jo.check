@@ -93,4 +93,34 @@
 |                                        ^^^^^
 |                                        The pattern result type Thinker is invalid with respect to the scrutinee type T. Type tests on T are not allowed. The scrutinee must have a class, union, or lambda type
 
-19 error(s), 0 warning(s)
+---------- Error at tests/warn/type-test-encapsulation.jo:67:33 ---------------
+| def anyNot(x: Any): Bool = x is !Thinker(_)
+|                                 ^
+|                                 The pattern result type Any is invalid with respect to the scrutinee type Any. Type tests on Any are not allowed. The scrutinee must have a class, union, or lambda type
+
+---------- Error at tests/warn/type-test-encapsulation.jo:68:53 ---------------
+| def interfaceAnd(x: Thing): Bool = x is (Thinker(_) & _)
+|                                                     ^
+|                                                     The pattern result type Thing is invalid with respect to the scrutinee type Thing. Type tests on Thing are not allowed. The scrutinee must have a class, union, or lambda type
+
+---------- Error at tests/warn/type-test-encapsulation.jo:69:49 ---------------
+| def genericOr[T](x: T): Bool = x is (Thinker(_) | Plain(_))
+|                                                 ^
+|                                                 The pattern result type T is invalid with respect to the scrutinee type T. Type tests on T are not allowed. The scrutinee must have a class, union, or lambda type
+
+---------- Error at tests/warn/type-test-encapsulation.jo:76:8 ---------------
+|   case Identity(value) => value
+|        ^^^^^^^^
+|        The pattern result type T is invalid with respect to the scrutinee type T. Type tests on T are not allowed. The scrutinee must have a class, union, or lambda type
+
+---------- Error at tests/warn/type-test-encapsulation.jo:78:38 ---------------
+| def anyIdentity(x: Any): Bool = x is Identity(_)
+|                                      ^^^^^^^^
+|                                      The pattern result type Any is invalid with respect to the scrutinee type Any. Type tests on Any are not allowed. The scrutinee must have a class, union, or lambda type
+
+---------- Error at tests/warn/type-test-encapsulation.jo:79:46 ---------------
+| def interfaceIdentity(x: Thing): Bool = x is Identity(_)
+|                                              ^^^^^^^^
+|                                              The pattern result type Thing is invalid with respect to the scrutinee type Thing. Type tests on Thing are not allowed. The scrutinee must have a class, union, or lambda type
+
+25 error(s), 0 warning(s)
