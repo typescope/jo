@@ -282,42 +282,38 @@ class PatternTyper(namer: Namer)(using Config):
       if fun.tpe.isPolyType then
         fun = TreeOps.instantiatePoly(fun.tpe.asProcType, fun)
 
-      val funType = fun.tpe
-
-      val procType = funType.asProcType
+      val procType = fun.tpe.asProcType
       val paramSize = procType.paramTypes.size
       val resType = procType.resultType.stripPartial
-
       val explain = new StringBuilder
+
+      // Infer type arguments before validating the pattern and scrutinee types.
+      val scrutConforms = Subtyping.conforms(scrutType, resType)
+
       if Patterns.isValidTypePattern(resType, scrutType)(using explain) then
-        if !Subtyping.conforms(resType, scrutType) && !Subtyping.conforms(scrutType, resType) then
+        if !scrutConforms && !Subtyping.conforms(resType, scrutType) then
           Reporter.error(s"The pattern has different type from the scrutinee type, scrutinee = ${scrutType.show}, pattern = ${resType.show}", id.pos)
 
         if args.size != paramSize then
           Reporter.error(s"The pattern predicate expects $paramSize arguments, found = ${args.size}", id.pos)
           WildcardPattern()(ErrorType, patSpan)
 
+        else if sym == defn.orPattern then
+          transformOrPattern(args(0), args(1), scrutType)
+
+        else if sym == defn.andPattern then
+          transformAndPattern(args(0), args(1), scrutType)
+
+        else if sym == defn.notPattern then
+          transformNotPattern(args(0), scrutType, patSpan)
+
         else
-          if sym == defn.orPattern then
-            assert(args.size == 2, "args.size = " + args.size)
-            transformOrPattern(args(0), args(1), scrutType)
+          val argsTyped =
+            for (arg, paramType) <- args.zip(procType.paramTypes) yield
+              transformPattern(arg, paramType)
 
-          else if sym == defn.andPattern then
-            assert(args.size == 2, "args.size = " + args.size)
-            transformAndPattern(args(0), args(1), scrutType)
+          ApplyPattern(fun, argsTyped)(scrutType, patSpan)
 
-          else if sym == defn.notPattern then
-            assert(args.size == 1, "args.size = " + args.size)
-            transformNotPattern(args(0), scrutType, patSpan)
-
-          else
-            val argsTyped =
-              for (arg, paramType) <- args.zip(procType.paramTypes) yield
-                transformPattern(arg, paramType)
-
-            ApplyPattern(fun, argsTyped)(scrutType, patSpan)
-
-        end if
       else
         if !scrutType.isError then
           Reporter.error(s"The pattern result type ${resType.show} is invalid with respect to the scrutinee type ${scrutType.show}. " + explain, id.pos)
