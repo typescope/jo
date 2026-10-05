@@ -1,0 +1,6 @@
+---------- Error at tests/warn/interface-type-pattern-any.jo:11:11 ---------------
+|   case t: Thing => t.thing
+|           ^^^^^
+|           Type tests on Any are not allowed. The scrutinee must have a class, union, or lambda type
+
+1 error(s), 0 warning(s)

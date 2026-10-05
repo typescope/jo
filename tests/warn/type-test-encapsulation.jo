@@ -1,0 +1,79 @@
+interface Thing
+  def thing: String
+
+class Thinker(name: String)
+  view Thing
+  def thing: String = name
+
+class Plain(name: String)
+type Helper = Plain | Thinker
+type Opaque = Any
+type ThingAlias = Thing
+
+def anyClass(x: Any): Bool =
+  match x
+  case _: Thinker => true
+  case _ => false
+
+def anyUnion(x: Any): Bool =
+  match x
+  case _: Helper => true
+  case _ => false
+
+def anyLambda(x: Any): Bool =
+  match x
+  case _: (() => String) => true
+  case _ => false
+
+def interfaceClass(x: Thing): Bool =
+  match x
+  case _: Thinker => true
+  case _ => false
+
+def interfaceUnion(x: Thing): Bool =
+  match x
+  case _: Helper => true
+  case _ => false
+
+def interfaceLambda(x: Thing): Bool =
+  match x
+  case _: (() => String) => true
+  case _ => false
+
+// The same restriction applies to `is` expressions and aliases.
+def aliasAny(x: Opaque): Bool = x is (_: Thinker)
+def aliasInterface(x: ThingAlias): Bool = x is (_: Thinker)
+
+def genericClass[T](x: T): Bool = x is (_: Thinker)
+def genericUnion[T](x: T): Bool = x is (_: Helper)
+def genericLambda[T](x: T): Bool = x is (_: (() => String))
+
+// Literal patterns also introduce a runtime type test.
+def anyLiteral(x: Any): Bool = x is 1
+def genericLiteral[T](x: T): Bool = x is 1
+
+// Apply patterns insert type tests during lowering too.
+def anyConstructor(x: Any): Bool = x is Thinker(_)
+def interfaceConstructor(x: Thing): Bool = x is Thinker(_)
+def genericConstructor[T](x: T): Bool = x is Thinker(_)
+
+pattern Named(name: String): Thinker = case Thinker(name)
+
+def anyApply(x: Any): Bool = x is Named(_)
+def interfaceApply(x: Thing): Bool = x is Named(_)
+def genericApply[T](x: T): Bool = x is Named(_)
+
+// Combinators must also reject opaque scrutinee types.
+def anyNot(x: Any): Bool = x is !Thinker(_)
+def interfaceAnd(x: Thing): Bool = x is (Thinker(_) & _)
+def genericOr[T](x: T): Bool = x is (Thinker(_) | Plain(_))
+
+// Conformance does not exempt a generic application from the whitelist.
+pattern Identity[T](value: T): T = case value
+
+def genericIdentity[T](x: T): T =
+  match x
+  case Identity(value) => value
+
+def anyIdentity(x: Any): Bool = x is Identity(_)
+def interfaceIdentity(x: Thing): Bool = x is Identity(_)

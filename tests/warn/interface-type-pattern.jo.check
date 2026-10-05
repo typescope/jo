@@ -1,0 +1,11 @@
+---------- Error at tests/warn/interface-type-pattern.jo:16:11 ---------------
+|   case t: Thing => t.thing
+|           ^^^^^
+|           The type Thing cannot be used as a pattern type. Only class, union, and lambda types are allowed
+
+---------- Error at tests/warn/interface-type-pattern.jo:25:11 ---------------
+|   case t: Thing => t.thing
+|           ^^^^^
+|           Type tests on Thing are not allowed. The scrutinee must have a class, union, or lambda type
+
+2 error(s), 0 warning(s)

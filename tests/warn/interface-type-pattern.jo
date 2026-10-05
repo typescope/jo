@@ -1,0 +1,26 @@
+// An interface pattern on a class union must report a nonempty diagnostic,
+// even when a branch declares a view of the interface.
+interface Thing
+  def thing: String
+
+class Thinker(name: String)
+  view Thing
+  def thing: String = "delegate implementation"
+
+class Plain(name: String)
+
+type Helper = Plain | Thinker
+
+def check(x: Helper): String =
+  match x
+  case t: Thing => t.thing
+  case _ => "default"
+
+def main =
+  println(check(Thinker("a")))
+
+// Conformance alone must not make an interface a valid pattern type.
+def checkInterface(x: Thing): String =
+  match x
+  case t: Thing => t.thing
+  case _ => "default"
