@@ -7,6 +7,7 @@ import sast.*
 import sast.Trees.*
 import sast.Types.*
 import sast.Symbols.*
+import sast.Denotations.*
 
 import reporting.Reporter
 import reporting.Config
@@ -57,7 +58,9 @@ object Autos:
             case None =>
 
         case member @ Ast.AutoCandidate.Member(tpt, memberName) =>
-          val typedTpt = namer.transformValueType(tpt, allowPackType = false)
+          val typedTpt =
+              Checks.eager:
+                namer.transformValueType(tpt, allowPackType = false)
           val memberType = typedTpt.tpe
 
           trees += AutoCandidate.Member(typedTpt, memberName)(member.span)
@@ -143,9 +146,9 @@ object Autos:
     // Check the auto arguments and member candidate are fully initialized
     var fullyInstantiated = true
     for auto <- procType.autos do
-      if !auto.info.isFullyInstantiated then
+      if !auto.tpe.isFullyInstantiated then
         fullyInstantiated = false
-        Reporter.error("The auto type is not fully instantiated: " + auto.info.show, span.endPoint.toPos)
+        Reporter.error("The auto type is not fully instantiated: " + auto.tpe.show, span.endPoint.toPos)
 
       for cand <- auto.candidates do
         cand match
