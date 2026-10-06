@@ -32,11 +32,12 @@ object Defaults:
   def synthesizeDefault(paramInfo: ParamInfo, span: Span)
       (using defn: Definitions, rp: Reporter, source: Source)
   : Word =
-    paramInfo match
+    paramInfo.default match
       case None =>
         Reporter.error(s"Missing required parameter '${paramInfo.name}'", span.toPos)
+        errorWord(span)
 
-      case const: Const => Literal(const)(tpe, span)
+      case const: Constant => Literal(const)(paramInfo.tpe, span)
 
       case sym: Symbol =>
         if sym.tpe.isValueType then
@@ -51,9 +52,9 @@ object Defaults:
   /** Type-check a single default value expression against the declared param type. */
   def transformDefault(default: Ast.Word, paramType: Type, namer: Namer)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
-  : None | Symbol | Constant =
+  : None.type | Symbol | Constant =
     if paramType.isVararg then
-      Reporter.error("Vararg parameter cannot have a default value", param.span.toPos)
+      Reporter.error("Vararg parameter cannot have a default value", default.pos)
       return None
 
     default match
