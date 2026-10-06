@@ -1,6 +1,7 @@
 package sast
 
 import Types.*
+import Denotations.*
 
 abstract class TypeMap(using Definitions):
   type Context
@@ -83,12 +84,12 @@ abstract class TypeMap(using Definitions):
 
     val params2 =
       for param <- params
-      yield param.copy(info = this(param.info))
+      yield param.copy(tpe = this(param.tpe))
 
     val autos2 =
       for auto <- autos yield
         auto.copy(
-          info = this(auto.info),
+          tpe = this(auto.tpe),
           candidates = auto.candidates.map:
             case MemberCandidate(tp, name) => MemberCandidate(this(tp), name)
             case sym => sym  // Symbol case (no transformation needed)
