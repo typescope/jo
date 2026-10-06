@@ -92,7 +92,8 @@ object Symbols:
     def tpe(using Definitions): Type =
       info match
         case tpe: Type => tpe
-        case param: NamedParam => param.info
+        case param: ParamInfo => param.tpe
+        case param: AutoInfo => auto.tpe
         case _ => throw new Exception("Symbol " + this + " des not have a type")
 
     /** All symbols that have a ProcType are functions, including top-level
@@ -154,6 +155,16 @@ object Symbols:
 
       this.info match
         case info: ClassInfo => info
+        case tp => throw new Exception("Unexpected type " + tp)
+
+    def paramInfo(using Definitions): ParamInfo =
+      this.info match
+        case info: ParamInfo => info
+        case tp => throw new Exception("Unexpected type " + tp)
+
+    def autoInfo(using Definitions): AutoInfo =
+      this.info match
+        case info: AutoInfo => info
         case tp => throw new Exception("Unexpected type " + tp)
 
     def typeOperatorInfo(using Definitions): TypeOperatorInfo =
@@ -292,9 +303,6 @@ object Symbols:
       else
         this.ownersIterator.foldLeft(this.name):
           (acc, owner) => owner.name + "." + acc
-
-    def toParamInfo(using Definitions): ParamInfo =
-      ParamInfo(name, info.asType)
 
     def span: Span = sourcePos.span
 

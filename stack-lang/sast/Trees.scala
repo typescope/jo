@@ -81,6 +81,7 @@ object Trees:
         case Encoded(expr) => expr.strip
         case _ => this
 
+  /** TODO: remove tpe */
   case class Literal
     (constant: Constant)
     (val tpe: Type, val span: Span)
