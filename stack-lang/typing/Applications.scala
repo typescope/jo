@@ -152,10 +152,10 @@ trait Applications extends DynamicTyper:
           Some:
             val providedArgs = transformArgs(positional, invokeType.paramTypes.take(numProvided))
             val defaultArgs = invokeType match
-              case proc: ProcType =>
+              case procType: ProcType =>
                 val numNeeded = procType.paramCount - numProvided
 
-                for paramInfo <- proc.params.takeRight(numNeeded) yield
+                for paramInfo <- procType.params.takeRight(numNeeded) yield
                   Defaults.synthesizeDefault(paramInfo, applySpan)
               case _ => Nil
 
