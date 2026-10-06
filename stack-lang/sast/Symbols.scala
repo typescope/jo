@@ -93,7 +93,7 @@ object Symbols:
       info match
         case tpe: Type => tpe
         case param: ParamInfo => param.tpe
-        case param: AutoInfo => auto.tpe
+        case auto: AutoInfo => auto.tpe
         case _ => throw new Exception("Symbol " + this + " des not have a type")
 
     /** All symbols that have a ProcType are functions, including top-level
