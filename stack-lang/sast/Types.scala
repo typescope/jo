@@ -611,17 +611,17 @@ object Types:
   extends InvokableType:
     assert(preTypeParamCount >= 0 && preTypeParamCount <= tparams.size, s"preTypeParamCount = $preTypeParamCount, tparam.size = ${tparams.size}")
 
-    val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
-    val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
+    val preParamTypes: List[Type] = params.take(preParamCount).map(_.tpe)
+    val postParamTypes: List[Type] = params.drop(preParamCount).map(_.tpe)
 
-    val paramTypes: List[Type] = params.map(_.info)
+    val paramTypes: List[Type] = params.map(_.tpe)
 
     val paramCount: Int = params.size
     val tparamCount: Int = tparams.size
     val preTparams: List[Symbol] = tparams.take(preTypeParamCount)
     val postTparams: List[Symbol] = tparams.drop(preTypeParamCount)
 
-    val autoTypes: List[Type] = autos.map(_.info)
+    val autoTypes: List[Type] = autos.map(_.tpe)
 
     val allParamTypes: List[Type] = paramTypes ++ autoTypes
     val allParamCount: Int = allParamTypes.size
