@@ -109,15 +109,6 @@ trait Applications extends DynamicTyper:
         fun1.pos)
       return errorWord(applySpan)
 
-    if args.size < invokeType.minimumArgs || !invokeType.hasVararg && args.size > paramSize then
-      val mod = if invokeType.hasVararg then "at least " else ""
-      val size = if invokeType.hasVararg then invokeType.minimumArgs else paramSize
-      Reporter.error(
-        s"The function expects $mod$size argument(s), found = ${args.size}",
-        applySpan.toPos)
-
-      return errorWord(applySpan)
-
     val hasNamed = args.exists(_.isInstanceOf[Ast.NamedArg])
     val argsTypedOpt =
       if hasNamed then
@@ -456,7 +447,6 @@ trait Applications extends DynamicTyper:
     val postParams = procType.params.drop(procType.preParamCount)
     val postParamTypes = procType.postParamTypes
     val postParamCount = procType.postParamCount
-    val minPostArgs = procType.minimumPostArgs
 
     val positional = mutable.ArrayBuffer.empty[Ast.Word]
     val named = mutable.ArrayBuffer.empty[Ast.NamedArg]

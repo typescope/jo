@@ -1160,7 +1160,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
     scrutType.getTermMember("success") match
       case Some(StaticRef(sym)) =>
         val procType = sym.tpe.asProcType
-        if procType.minimumPostArgs > 0 || procType.autos.nonEmpty then
+        if procType.postParamCount > 0 || procType.autos.nonEmpty then
           Reporter.error(
             "rescue: .success must be an extension method with no post-parameters and no auto parameters",
             rescue.scrutinee.pos)
