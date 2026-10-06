@@ -644,6 +644,7 @@ object Trees:
     : UnionDef =
       UnionDef(ident, tparams, branches, funs)(span).copyAttachments(this)
 
+  /** TODO: rename to Adapter or DuckAdapter*/
   enum ParamAdapter extends Tree:
     case Function(ref: RefTree)(val span: Span)
     case Member(name: String)(val span: Span)

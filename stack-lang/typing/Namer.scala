@@ -1363,7 +1363,23 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
 
     for (param, i) <- params.zipWithIndex yield
       val tpt = transformValueType(param.tpt, allowPackType = i == params.size - 1)
-      val paramSym = TermSymbol.create(param.name, tpt.tpe, Flags.Param, Visibility.Default, sc.owner, param.pos)
+      val defautValue = param.default match
+        case None => None
+        case Some(expr) =>
+          Defaults.transformDefaultValue(expr, tpt, this) match
+          case None => None
+          case Some(word) =>
+            // Delay check to avoid triggering cycles
+            Checks.add:
+              Defaults.checkDefaultValue(word, paramType)
+
+            word match
+              case lit: Literal => lit.constant
+              case id: Ident => id.symbol
+
+      val paramInfo = new ParamInfo(param.name, tpt.tpe, defaultValue)
+
+      val paramSym = TermSymbol.create(param.name, paramInfo, Flags.Param, Visibility.Default, sc.owner, param.pos)
       sc.define(paramSym)
       paramSym
 
@@ -1416,15 +1432,11 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
       transformParams(adef.params)
 
     Defaults.checkDefaultSuffix(adef.params)
-    val defaultsLazy = lazyValue:
-      Defaults.checkPostDefaults(adef.params, paramSymsLazy.value, this)
-
-    Checks.add { defaultsLazy.value }
 
     def computeInfo() = withDefn:
       ProcType(
         tparams = Nil,
-        params = paramSymsLazy.value.map(_.toParamInfo),
+        params = paramSymsLazy.value.map(_.paramInfo),
         autos = Nil,
         resultType = VoidType,
         receivesInfo = Nil,
@@ -1628,16 +1640,11 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
       else
         transformReceives(funDef.receives, policy)
 
-    // Eagerly validate post-parameter default shape (syntax-only check)
-    val astPostParams = funDef.params.drop(funDef.preParamCount)
-    Defaults.checkDefaultSuffix(astPostParams)
+    // Eagerly validate parameter default shape (syntax-only check)
+    Defaults.checkDefaultSuffix(funDef.params)
 
     def computeInfo(resultType: Type) = withDefn:
-      val candidates = candidatesLazy.value.map(_._2)
       val postParamSyms = paramSymsLazy.value.drop(funDef.preParamCount)
-      val defaults = lazyValue:
-        Defaults.checkPostDefaults(astPostParams, postParamSyms, this)
-      Checks.add { defaults.value }
 
       // Keep inferred receives lazy through the effect engine; store explicit
       // bounds directly when the source provided a receives clause.
@@ -1647,10 +1654,10 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
           case None => funSym
 
       ProcType(
-        tparamSymsLazy.value, paramSymsLazy.value.map(_.toNamedInfo),
-        autoSymsLazy.value.map(_.toNamedInfo), candidates,
+        tparamSymsLazy.value, paramSymsLazy.value.map(_.paramInfo),
+        autoSymsLazy.value.map(_.autoInfo), candidates,
         resultType, receivesInfo, funDef.preParamCount, funDef.preTypeParamCount
-      )(defaults)
+      )
 
     val index = lazyDefn.index
     index.addLazy(funSym, () => computeInfo(resultTypeLazy.value), () => computeInfo(ErrorType))
@@ -1684,8 +1691,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
     if funDef.tparams.nonEmpty then
       Reporter.error("Constructor may not take type parameters", funDef.tparams.head.pos)
 
-    val astPostParams = funDef.params  // constructors have no pre-params
-    Defaults.checkDefaultSuffix(astPostParams)
+    Defaults.checkDefaultSuffix(funDef.params)
 
     val paramSymsLazy = lazyValue:
       transformParams(funDef.params)
@@ -1774,13 +1780,10 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
     val tparamSyms = Nil
     def computeInfo(resultType: Type) = withDefn:
       val candidateSymbols = candidatesLazy.value.map(_._2)
-      val defaultsLazy = lazyValue:
-        Defaults.checkPostDefaults(astPostParams, paramSymsLazy.value, this)
-      Checks.add { defaultsLazy.value }
 
       ProcType(
-        tparamSyms, paramSymsLazy.value.map(_.toNamedInfo), autoSymsLazy.value.map(_.toNamedInfo), candidateSymbols,
-        resultType, funSym, funDef.preParamCount, funDef.preTypeParamCount)(defaultsLazy)
+        tparamSyms, paramSymsLazy.value.map(_.paramInfo), autoSymsLazy.value.map(_.toNamedInfo), candidateSymbols,
+        resultType, funSym, funDef.preParamCount, funDef.preTypeParamCount)
 
     val index = lazyDefn.index
     index.addLazy(funSym, () => computeInfo(resultTypeLazy.value), () => computeInfo(ErrorType))

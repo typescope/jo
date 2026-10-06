@@ -29,34 +29,6 @@ object Defaults:
           param.span.toPos
         )
 
-  /** Lazily type-check default values for post-parameters that carry defaults.
-    * Returns a list of DefaultValues corresponding to the trailing defaulted params.
-    * Returns Nil if any error is encountered.
-    */
-  def checkPostDefaults(
-      postParams: List[Ast.Param],
-      postParamSyms: List[Symbol],
-      namer: Namer
-  )(using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
-  : List[DefaultValue] =
-    val results = new mutable.ArrayBuffer[DefaultValue]
-    var hasError = false
-
-    for (param, sym) <- postParams.zip(postParamSyms) do
-      param.default match
-        case None => // no default for this param
-        case Some(default) =>
-          val paramType = sym.tpe
-          if paramType.isVararg then
-            Reporter.error("Vararg parameter cannot have a default value", param.span.toPos)
-            hasError = true
-          else
-            checkDefaultValue(default, paramType, namer) match
-              case Some(dv) => results += dv
-              case None     => hasError = true
-
-    if hasError then Nil else results.toList
-
   /** Synthesize SAST words for default arguments missing from a call.
     *
     * @param procType   the proc type of the callee
@@ -86,92 +58,98 @@ object Defaults:
   // ---------------------------------------------------------------------------
 
   /** Type-check a single default value expression against the declared param type. */
-  private def checkDefaultValue(
-      default: Ast.Word,
-      paramType: Type,
-      namer: Namer
-  )(using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
-  : Option[DefaultValue] =
+  def transformDefaultValue(default: Ast.Word, paramType: Type, namer: Namer)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+  : Option[Ident | Literal] =
+    if paramType.isVararg then
+      Reporter.error("Vararg parameter cannot have a default value", param.span.toPos)
+      return None
+
     default match
       case lit: Ast.IntLit =>
-        val sasLit = NumericTyper.typeIntLit(lit)(using Inference.TargetType.Known(paramType), defn, rp, so)
-        checkConformsLit(sasLit, paramType)
+        NumericTyper.typeIntLit(lit)(using Inference.TargetType.Known(paramType), defn, rp, so)
 
       case lit: Ast.FloatLit =>
-        val sasLit = NumericTyper.typeFloatLit(lit)(using defn, rp, so)
-        checkConformsLit(sasLit, paramType)
+        NumericTyper.typeFloatLit(lit)(using defn, rp, so)
 
       case lit: Ast.BoolLit =>
-        val sasLit = Literal(Constant.Bool(lit.value))(defn.BoolType, lit.span)
-        checkConformsLit(sasLit, paramType)
+        Literal(Constant.Bool(lit.value))(defn.BoolType, lit.span)
 
       case lit: Ast.CharLit =>
-        val sasLit = NumericTyper.typeCharLit(lit)(using Inference.TargetType.Known(paramType), defn, rp, so)
-        checkConformsLit(sasLit, paramType)
+        NumericTyper.typeCharLit(lit)(using Inference.TargetType.Known(paramType), defn, rp, so)
 
       case lit: Ast.StringLit =>
-        val sasLit = Literal(Constant.String(lit.value))(defn.StringType, lit.span)
-        checkConformsLit(sasLit, paramType)
+        Literal(Constant.String(lit.value))(defn.StringType, lit.span)
 
       case ref: Ast.RefTree =>
         namer.resolveQualid(ref, SymbolKind.Term) match
-          case Some(sym) => checkRefDefault(sym, paramType, ref.span)
+          case Some(sym) => Ident(sym)(ref.span)
           case None      => None   // resolveQualid already reported the error
 
       case _ =>
         Reporter.error("Default value must be a literal or a qualified identifier", default.span.toPos)
         None
 
-  /** Verify that the literal type conforms to the expected parameter type. */
-  private def checkConformsLit(lit: Literal, paramType: Type)
+  def checkDefaultValue((default: Ident | Literal, paramType: Type)
       (using defn: Definitions, rp: Reporter, so: Source)
-  : Option[DefaultValue] =
+  : Unit =
+    default match
+      case lit: Literal => checkConformsLit(lit, paramType)
+      case id: Ident => checkRefDefault(id, paramType)
+
+  /** Verify that the literal type conforms to the expected parameter type. */
+  private
+  def checkConformsLit(lit: Literal, paramType: Type)
+      (using defn: Definitions, rp: Reporter, so: Source)
+  : Boolean =
     if !Subtyping.conforms(lit.tpe, paramType) then
       Reporter.error(
         s"Default value type ${lit.tpe.show} does not conform to parameter type ${paramType.show}",
         lit.span.toPos
       )
-      None
+      false
     else
-      Some(DefaultValue.Lit(lit.constant))
+      true
 
   /** Verify that a symbol reference is a valid default: a value or a parameterless,
     * non-polymorphic, auto-free function whose result type conforms to the param type.
     */
-  private def checkRefDefault(sym: Symbol, paramType: Type, span: Span)
+  private
+  def checkRefDefault(id: Ident, paramType: Type)
       (using defn: Definitions, rp: Reporter, so: Source)
-  : Option[DefaultValue] =
+  : Boolean =
+    val sym = id.symbol
+    val span = id.span
+
     if !sym.isTopLevel then
       Reporter.error("Default value must refer to a top-level definition", span.toPos)
-      return None
+      return false
 
-    val resultTypeOpt: Option[Type] =
-      if sym.tpe.isValueType then
-        Some(sym.tpe)
-      else
-        sym.info match
-          case proc: ProcType =>
-            if proc.tparams.nonEmpty then
-              Reporter.error("Default value cannot refer to a polymorphic function", span.toPos)
-              None
-            else if proc.params.nonEmpty then
-              Reporter.error("Default value cannot refer to a function with parameters", span.toPos)
-              None
-            else if proc.autos.nonEmpty then
-              Reporter.error("Default value cannot refer to a function with auto parameters", span.toPos)
-              None
-            else
-              Some(proc.resultType)
-          case _ =>
-            Reporter.error("Default value must be a value or a parameterless function", span.toPos)
-            None
+    sym.info match
+      case proc: ProcType =>
+        if proc.tparams.nonEmpty then
+          Reporter.error("Default value cannot refer to a polymorphic function", span.toPos)
+          false
 
-    resultTypeOpt.flatMap: resType =>
-      if !Subtyping.conforms(resType, paramType) then
-        Reporter.error(
-          s"Default value type ${resType.show} does not conform to parameter type ${paramType.show}",
-          span.toPos
-        )
-        None
-      else
-        Some(DefaultValue.Ref(sym))
+        else if proc.params.nonEmpty then
+          Reporter.error("Default value cannot refer to a function with parameters", span.toPos)
+          false
+
+        else if proc.autos.nonEmpty then
+          Reporter.error("Default value cannot refer to a function with auto parameters", span.toPos)
+          false
+
+        else
+          val resType = proc.resultType
+          if Subtyping.conforms(resType, paramType) then
+            true
+          else
+            Reporter.error(
+              s"Default value type ${resType.show} does not conform to parameter type ${paramType.show}",
+              span.toPos
+            )
+            false
+
+      case _ =>
+        Reporter.error("Default value must be a value or a parameterless function", span.toPos)
+        false
