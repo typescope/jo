@@ -3,6 +3,7 @@ package sast
 import Trees.*
 import Symbols.*
 import Types.*
+import Denotations.*
 
 import ast.Positions.Span
 
@@ -156,7 +157,7 @@ object TreeOps:
     assert(procType.autos.isEmpty, "Autos not supported in etaExpand: " + fun)
 
     // Create lambda type from function's parameter and result types
-    val lambdaType = LambdaType(procType.params.map(_.info), procType.resultType, receives)
+    val lambdaType = LambdaType(procType.params.map(_.tpe), procType.resultType, receives)
 
     createLambda(lambdaType, owner, span) { paramIdents =>
       // Build the body: call the original function with the parameters
@@ -183,12 +184,12 @@ object TreeOps:
     assert(procType.tparams.isEmpty, "Only monomorphic functions supported: " + procType.show)
 
     val paramSyms =
-      for ParamInfo(name, paramType, _) <- procType.params yield
-        TermSymbol.create(name, paramType, Flags.Param, Visibility.Default, sym, sym.sourcePos)
+      for paramInfo <- procType.params yield
+        TermSymbol.create(paramInfo.name, paramInfo, Flags.Param, Visibility.Default, sym, sym.sourcePos)
 
     val autoSyms =
-      for AutoInfo(name, paramType, _) <- procType.autos yield
-        TermSymbol.create(name, paramType, Flags.Param | Flags.Auto, Visibility.Default, sym, sym.sourcePos)
+      for autoInfo <- procType.autos yield
+        TermSymbol.create(autoInfo.name, autoInfo, Flags.Param | Flags.Auto, Visibility.Default, sym, sym.sourcePos)
 
     // Generate parameter idents and call the body function
     val paramRefs = paramSyms.map(sym => Ident(sym)(sym.span))
