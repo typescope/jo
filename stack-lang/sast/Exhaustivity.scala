@@ -240,7 +240,7 @@ object Exhaustivity:
 
       case (TypeSpace(tp), PredSpace(pred, procType, _)) =>
         if Subtyping.conforms(tp, procType.resultType) then
-          val s1 = PredSpace(pred, procType, procType.params.map(param => TypeSpace(param.info)))
+          val s1 = PredSpace(pred, procType, procType.params.map(param => TypeSpace(param.tpe)))
           subtract(s1, s2)
 
         else if tp.isUnionType then
