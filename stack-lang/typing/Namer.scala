@@ -1428,7 +1428,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
 
     given funScope: Scope = sc.fresh(funSym)
 
-    val paramSymsLazy = lazyValue:
+    val paramSyms =
       transformParams(adef.params)
 
     Defaults.checkDefaultSuffix(adef.params)
@@ -1456,7 +1456,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
             s"Annotation definitions are currently restricted to the namespace `${defn.jo.fullName}`",
             adef.ident.pos
           )
-        for (paramSym, astParam) <- paramSymsLazy.value.zip(adef.params) do
+        for (paramSym, astParam) <- paramSyms.zip(adef.params) do
           val tpe = paramSym.tpe
           if tpe != defn.IntType && tpe != defn.BoolType && tpe != defn.StringType then
             Reporter.error(
@@ -1571,27 +1571,21 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
       given Scope = sc
       transformAnnotations(funDef.annotations)
 
-    val tparamSymsLazy = lazyValue:
+    val tparamSyms =
       transformTypeParams(funDef.tparams)
 
-    val paramSymsLazy = lazyValue:
-      tparamSymsLazy.value
+    val paramSyms =
       transformParams(funDef.params)
 
-    val autoSymsLazy = lazyValue:
-      tparamSymsLazy.value
+    val autoSyms =
       transformAutos(funDef.autos)
 
     val givenResultTypeLazy = lazyValue:
-      tparamSymsLazy.value
-
       assert(!funDef.resultType.isEmpty)
       transformValueType(funDef.resultType).tpe
 
     val typedBodyLazy = lazyValue:
       val defn = summon[Definitions]
-      paramSymsLazy.value
-      autoSymsLazy.value
 
       if flags.is(Flags.Defer) && !flags.is(Flags.Default) then
         // Dummy body for a deferred function without a default implementation.
@@ -1641,8 +1635,6 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
     Defaults.checkDefaultSuffix(funDef.params)
 
     def computeInfo(resultType: Type) = withDefn:
-      val postParamSyms = paramSymsLazy.value.drop(funDef.preParamCount)
-
       // Keep inferred receives lazy through the effect engine; store explicit
       // bounds directly when the source provided a receives clause.
       val receivesInfo: Symbol | List[Symbol] =
@@ -1651,8 +1643,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
           case None => funSym
 
       ProcType(
-        tparamSymsLazy.value, paramSymsLazy.value.map(_.paramInfo),
-        autoSymsLazy.value.map(_.autoInfo),
+        tparamSyms, paramSyms.map(_.paramInfo), autoSyms.map(_.autoInfo),
         resultType, receivesInfo, funDef.preParamCount, funDef.preTypeParamCount
       )
 
@@ -1664,7 +1655,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
     lazyDef(funSym):
       val tpt = TypeTree(resultTypeLazy.value)(funDef.resultType.span)
       FunDef(
-        funSym, tparamSymsLazy.value, paramSymsLazy.value, autoSymsLazy.value,
+        funSym, tparamSyms, paramSyms, autoSyms,
         tpt, effectPolicyLazy.value, typedBodyLazy.value
       )(annotationsLazy.value, funDef.span)
 
@@ -1689,10 +1680,10 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
 
     Defaults.checkDefaultSuffix(funDef.params)
 
-    val paramSymsLazy = lazyValue:
+    val paramSyms =
       transformParams(funDef.params)
 
-    val autoSymsLazy = lazyValue:
+    val autoSyms =
       transformAutos(funDef.autos)
 
     val resultTypeLazy = lazyValue:
@@ -1772,7 +1763,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
     val tparamSyms = Nil
     def computeInfo(resultType: Type) = withDefn:
       ProcType(
-        tparamSyms, paramSymsLazy.value.map(_.paramInfo), autoSymsLazy.value.map(_.autoInfo),
+        tparamSyms, paramSyms.map(_.paramInfo), autoSyms.map(_.autoInfo),
         resultType, funSym, funDef.preParamCount, funDef.preTypeParamCount)
 
     val index = lazyDefn.index
@@ -1814,13 +1805,11 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
     val typeSym = TypeSymbol.create(kind, tdef.name, flags, Checker.visibility(tdef, sc.owner), sc.owner, tdef.ident.pos)
 
     given sc2: Scope = sc.fresh(typeSym)
-    val tparamSymsLazy = lazyValue:
+    val tparamSyms =
       transformTypeParams(tdef.tparams)
 
     val rhsTypeLazy = lazyValue:
       val defn = summon[Definitions]
-      // force creation of symbols for type parameters
-      tparamSymsLazy.value
 
       if tdef.rhs.isEmpty then
         if sc.owner == defn.jo then
@@ -1846,7 +1835,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
       if tdef.tparams.isEmpty then
         rhsTypeLazy.value
       else
-        TypeOperatorInfo(tparamSymsLazy.value, rhsTypeLazy.value, tdef.preParamCount)
+        TypeOperatorInfo(tparamSyms, rhsTypeLazy.value, tdef.preParamCount)
 
     val errorType = () =>
       if tdef.tparams.isEmpty then ErrorType
@@ -1860,7 +1849,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
     // check type symbols after completion to allow cycles, type A = A
     lazyDef(typeSym):
       val tpt = TypeTree(rhsTypeLazy.value)(tdef.rhs.span)
-      TypeDef(typeSym, tparamSymsLazy.value, tpt)(annotationsLazy.value, tdef.span)
+      TypeDef(typeSym, tparamSyms, tpt)(annotationsLazy.value, tdef.span)
 
   private def synthesizeForwarder
       (fwdSym: Symbol, typedRef: Word, abstractSym: Symbol, viewSpan: Span)
@@ -2023,7 +2012,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
 
     given paramScope: Scope = sc.fresh(classSym)
 
-    val tparamSymsLazy = lazyValue:
+    val tparamSyms =
       transformTypeParams(cdef.tparams)
 
     // including inherited concrete interface methods
@@ -2051,7 +2040,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
       val methods = delayedDefs.map(_.symbol).toList
       new ClassInfo(
         classSym,
-        tparamSymsLazy.value,
+        tparamSyms,
         thisSym,
         fields,
         methods,
@@ -2064,8 +2053,8 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
 
     val thisInfoLazy = lazyValue:
       val classRef = StaticRef(classSym)
-      if tparamSymsLazy.value.isEmpty then classRef
-      else AppliedType(classSym, tparamSymsLazy.value.map(StaticRef.apply))
+      if tparamSyms.isEmpty then classRef
+      else AppliedType(classSym, tparamSyms.map(StaticRef.apply))
 
     index.addLazy(thisSym, () => thisInfoLazy.value)
 
@@ -2156,7 +2145,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
       ClassDef(
-        classSym, thisSym, tparamSymsLazy.value, fields, funs,
+        classSym, thisSym, tparamSyms, fields, funs,
         viewTypeTreesLazy.value
       )(classAnnotationsLazy.value, cdef.span)
 
@@ -2177,7 +2166,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
 
     given paramScope: Scope = sc.fresh(interfaceSym)
 
-    val tparamSymsLazy = lazyValue:
+    val tparamSyms =
       transformTypeParams(idef.tparams)
 
     val methods = new mutable.ArrayBuffer[Symbol]
@@ -2187,7 +2176,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
       // Reuse ClassInfo but with empty fields
       new ClassInfo(
         interfaceSym,
-        tparamSymsLazy.value,
+        tparamSyms,
         selfSym,
         fields = Nil,
         methods.toList,
@@ -2206,8 +2195,8 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
 
     val selfInfoLazy = lazyValue:
       val interfaceRef = StaticRef(interfaceSym)
-      if tparamSymsLazy.value.isEmpty then interfaceRef
-      else AppliedType(interfaceSym, tparamSymsLazy.value.map(StaticRef.apply))
+      if tparamSyms.isEmpty then interfaceRef
+      else AppliedType(interfaceSym, tparamSyms.map(StaticRef.apply))
 
     index.addLazy(selfSym, () => selfInfoLazy.value)
 
@@ -2237,7 +2226,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
       val methodDefs: List[FunDef] =
         for delayedDef <- delayedDefs.toList yield delayedDef.force()
 
-      InterfaceDef(interfaceSym, selfSym, tparamSymsLazy.value, methodDefs)(annotationsLazy.value, idef.span)
+      InterfaceDef(interfaceSym, selfSym, tparamSyms, methodDefs)(annotationsLazy.value, idef.span)
 
   private def transformSection
       (section: Ast.Section)
