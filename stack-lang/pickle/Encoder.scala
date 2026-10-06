@@ -6,6 +6,7 @@ import sast.*
 import sast.Trees.*
 import sast.Types.*
 import sast.Symbols.*
+import sast.Denotations.*
 
 import reporting.Reporter
 import reporting.Config
@@ -347,20 +348,6 @@ object Encoder:
 
       encodeKind(tparam.asTypeSymbol.kind)
 
-
-  private def encodeParams(params: List[Symbol], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
-    // Assume param section is small such that the delta is small even for the same base offset
-    repeated(params): param =>
-      encodeNat(state.getId(param))
-      encodeString(param.name)
-
-      val symSpan = param.sourcePos.span
-      val startDelta = symSpan.start - prevOffset
-      encodeInt(startDelta)
-      encodeNat(symSpan.length)
-
-      encodeType(param.tpe)
-
   private def encodeDef(defn: Def)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     defn match
       case pdef: ParamDef => encodeParamDef(pdef)
@@ -511,7 +498,29 @@ object Encoder:
 
       encodeTypeParams(fdef.tparams, absoluteStart)
 
-      encodeParams(fdef.params, absoluteStart)
+      // Assume param section is small such that the delta is small even for the same base offset
+      repeated(fdef.params): param =>
+        encodeNat(state.getId(param))
+        encodeString(param.name)
+
+        val symSpan = param.sourcePos.span
+        val startDelta = symSpan.start - absoluteStart
+        encodeInt(startDelta)
+        encodeNat(symSpan.length)
+
+        encodeType(param.tpe)
+
+        param.paramInfo.default match
+          case None =>
+            encodeByte(0)
+
+          case const: Constant =>
+            encodeByte(1) // Lit tag
+            encodeConstant(const)
+
+          case sym: Symbol =>
+            encodeByte(2) // Ref tag
+            encodeSymbolRef(sym)
 
       repeated(fdef.autos): auto =>
         encodeNat(state.getId(auto))
@@ -522,26 +531,18 @@ object Encoder:
         encodeInt(startDelta)
         encodeNat(symSpan.length)
 
-        encodeType(auto.tpe)
+        encodeType(auto.autoInfo.tpe)
 
-      // Encode candidates for each auto parameter
-      repeated(fdef.candidates): candidateList =>
-        repeated(candidateList): candidate =>
+        repeated(auto.autoInfo.candidates): candidate =>
           candidate match
-            case AutoCandidate.Value(sym) =>
+            case sym: Symbol =>
               encodeByte(0) // Tag for function candidate
               encodeSymbolRef(sym)
-              val symSpan = sym.sourcePos.span
-              encodeInt(symSpan.start - absoluteStart)
-              encodeNat(symSpan.length)
 
-            case AutoCandidate.Member(tpt, name) =>
+            case MemberCandidate(tpe, name) =>
               encodeByte(1) // Tag for member candidate
-              encodeType(tpt.tpe)
+              encodeType(tpe)
               encodeString(name)
-              val tptSpan = tpt.span
-              encodeInt(tptSpan.start - absoluteStart)
-              encodeNat(tptSpan.length)
 
       encodeTypeTree(fdef.resultType, absoluteStart)
 
@@ -551,16 +552,6 @@ object Encoder:
       val procType = defSym.info.as[ProcType]
       encodeNat(procType.preParamCount)
       encodeNat(procType.preTypeParamCount)
-
-      // Encode default values for trailing post-parameters
-      repeated(procType.defaults): default =>
-        default match
-          case DefaultValue.Lit(const) =>
-            encodeByte(0) // Lit tag
-            encodeConstant(const)
-          case DefaultValue.Ref(sym) =>
-            encodeByte(1) // Ref tag
-            encodeSymbolRef(sym)
 
       encodeWord(fdef.body, fdef.resultType.span.endOffset)
 
@@ -955,7 +946,19 @@ object Encoder:
         encodeInt(symbol.sourcePos.span.start - word.span.start)
         encodeNat(symbol.sourcePos.span.length)
 
-        encodeParams(params, word.span.start)
+        val lambdaStart = word.span.start
+
+        // Assume param section is small such that the delta is small even for the same base offset
+        repeated(params): param =>
+          encodeNat(state.getId(param))
+          encodeString(param.name)
+
+          val symSpan = param.sourcePos.span
+          val startDelta = symSpan.start - lambdaStart
+          encodeInt(startDelta)
+          encodeNat(symSpan.length)
+
+          encodeType(param.tpe)
 
         repeated(receives): eff =>
           encodeSymbolRef(eff)

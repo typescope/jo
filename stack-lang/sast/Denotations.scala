@@ -98,7 +98,7 @@ object Denotations:
     */
   case class ParamInfo(name: String, tpe: Type, default: Constant | Symbol | None.type = None) extends Denotation
 
-  case class MemberCandidate(tp: Type, name: String)
+  case class MemberCandidate(tpe: Type, name: String)
 
   /** The denotation of an auto parameter
     *
