@@ -3,6 +3,7 @@ package sast
 import Trees.*
 import Types.*
 import Symbols.*
+import Denotations.*
 
 import ast.Naming
 
@@ -443,7 +444,7 @@ object Printing:
             "[" ~ tparams.join(Text(", ")) ~ "]"
 
         def showParam(param: ParamInfo): Text =
-          val base = param.name ~ ": " ~ param.info
+          val base = param.name ~ ": " ~ param.tpe
           param.default match
             case Constant.Bool(v)   => base ~ " = " ~ v.toString
             case Constant.Int(v)    => base ~ " = " ~ v.toString
@@ -466,7 +467,7 @@ object Printing:
 
         val autoText =
           if autos.isEmpty then Text.Empty
-          else "(" ~ autos.map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
+          else "(" ~ autos.map(auto => auto.name ~ ": " ~ auto.tpe).join(", ") ~ ")"
 
         def showEffects(effs: List[Symbol]): Text =
           if effs.isEmpty then Text(" receives none")
