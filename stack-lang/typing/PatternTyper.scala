@@ -32,24 +32,21 @@ class PatternTyper(namer: Namer)(using Config):
     val patSym = PatternSymbol.create(patDef.name, flags, Checker.visibility(patDef, sc.owner), sc.owner, patDef.ident.pos)
     given patScope: Scope = sc.fresh(patSym)
 
-    val tparamSymsLazy = Namer.lazyValue:
+    val tparamSyms =
       namer.transformTypeParams(patDef.tparams)
 
-    val paramSymsLazy = Namer.lazyValue:
-      tparamSymsLazy.value
+    val paramSyms =
       for param <- patDef.params yield
-        val tpt = namer.transformValueType(param.tpt)
-        val paramSym = PatternSymbol.create(param.name, tpt.tpe, Flags.Param, Visibility.Default, patSym, param.pos)
+        val paramSym = PatternSymbol.create(param.name, Flags.Param, Visibility.Default, patSym, param.pos)
+        lazyDefn.index.addLazy(paramSym, () => namer.transformValueType(param.tpt).tpe)
         paramSym
 
     val resultTypeTreeLazy = Namer.lazyValue:
       assert(!patDef.resultType.isEmpty, "result type of pattern predicates is mandatory")
 
-      tparamSymsLazy.value
       namer.transformValueType(patDef.resultType)
 
     val typedBodyLazy = Namer.lazyValue:
-      paramSymsLazy.value
       val scrutType = resultTypeTreeLazy.value.tpe.stripPartial
 
       val reporterTemp = rp.fresh(buffer = true)
@@ -87,7 +84,7 @@ class PatternTyper(namer: Namer)(using Config):
     def computeInfo(resultType: Type) = Namer.withDefn:
       val autoTypes = Nil
       ProcType(
-        tparamSymsLazy.value, paramSymsLazy.value.map(_.toParamInfo), autoTypes,
+        tparamSyms, paramSyms.map(_.paramInfo), autoTypes,
         resultType, receivesInfo = Nil, patDef.preParamCount,
         preTypeParamCount = 0
       )
@@ -98,7 +95,7 @@ class PatternTyper(namer: Namer)(using Config):
     index.setDocComment(patSym, patDef.docComment)
 
     Namer.lazyDef(patSym):
-      PatDef(patSym, tparamSymsLazy.value, paramSymsLazy.value, resultTypeTreeLazy.value, typedBodyLazy.value)(annotationsLazy.value, patDef.span)
+      PatDef(patSym, tparamSyms, paramSyms, resultTypeTreeLazy.value, typedBodyLazy.value)(annotationsLazy.value, patDef.span)
 
   private def checkExhaustivity(patterns: List[Pattern], coveredTypeTree: TypeTree)
       (using defn: Definitions, rp: Reporter, so: Source): Unit =
