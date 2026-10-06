@@ -635,7 +635,6 @@ object Trees:
       tparams: List[Symbol],
       params: List[Symbol],
       autos: List[Symbol],
-      candidates: List[List[AutoCandidate]],
       resultType: TypeTree,
       effectPolicy: Effects.Policy,
       body: Word)

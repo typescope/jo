@@ -29,7 +29,7 @@ object Defaults:
           param.span.toPos
         )
 
-  private def synthesizeDefault(paramInfo: ParamInfo, span: Span)
+  def synthesizeDefault(paramInfo: ParamInfo, span: Span)
       (using defn: Definitions, rp: Reporter, source: Source)
   : Word =
     paramInfo match
@@ -51,7 +51,7 @@ object Defaults:
   /** Type-check a single default value expression against the declared param type. */
   def transformDefault(default: Ast.Word, paramType: Type, namer: Namer)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
-  : Option[Symbol | Constant] =
+  : None | Symbol | Constant =
     if paramType.isVararg then
       Reporter.error("Vararg parameter cannot have a default value", param.span.toPos)
       return None

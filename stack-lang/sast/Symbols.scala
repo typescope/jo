@@ -368,7 +368,7 @@ object Symbols:
       new TermSymbol(name, flags, visibility, owner, pos)
 
     def create
-        (name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
+        (name: String, info: Denotation, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
         (using defn: Definitions)
     : Symbol =
       val sym = new TermSymbol(name, flags, visibility, owner, pos)
