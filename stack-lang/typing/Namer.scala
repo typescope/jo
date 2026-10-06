@@ -1349,16 +1349,17 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
     Assign(Ident(sym)(adef.ident.span), rhs, isDefine = true)
 
   def transformTypeParams(tparams: List[Ast.TypeParam])
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+      (using defnLazy: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
   : List[TypeSymbol] =
     for tparam <- tparams yield
       // Only support simple-kinded type parameters
-      val sym = TypeSymbol.create(Kind.Simple, tparam.name, AnyType, Flags.Param, Visibility.Default, sc.owner, tparam.pos)
+      val sym = TypeSymbol.create(Kind.Simple, tparam.name, Flags.Param, Visibility.Default, sc.owner, tparam.pos)
+      defnLazy.index.add(sym, AnyType)
       sc.define(sym)
       sym
 
   def transformParams(params: List[Ast.Param])
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+      (using defnLazy: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
   : List[Symbol] =
 
     for (param, i) <- params.zipWithIndex yield
@@ -1366,7 +1367,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
       val paramSym = TermSymbol.create(param.name, Flags.Param, Visibility.Default, sc.owner, param.pos)
       sc.define(paramSym)
 
-      defn.index.addLazy(paramSym, () => {
+      defnLazy.index.addLazy(paramSym, () => {
         val default = param.default match
           case None => None
           case Some(expr) => Defaults.transformDefault(expr, tpt, this)
@@ -1378,14 +1379,14 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
 
 
   def transformAutos(autos: List[Ast.Auto])
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+      (using defnLazy: Definitions.Lazy, sc: Scope, rp: Reporter, so: Source)
   : List[Symbol] =
 
     for auto <- autos yield
       val tpt = transformValueType(auto.tpt)
       val autoSym = TermSymbol.create(auto.name, Flags.Param | Flags.Auto, Visibility.Default, sc.owner, auto.pos)
       sc.define(autoSym)
-      defn.index.addLazy(autoSym, () => {
+      defnLazy.index.addLazy(autoSym, () => {
         val cands = Autos.transformCandidates(auto.candidates, tpt, this)
         AutoInfo(auto.name, tpt, cands)
       })
