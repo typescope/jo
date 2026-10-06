@@ -765,6 +765,7 @@ object Encoder:
       case Literal(const) =>
         encodeByte(Format.Literal)
         encodeConstant(const)
+        // TODO: remove type
         encodeType(word.tpe)
         encodeInt(startDelta)
         encodeNat(word.span.length)
