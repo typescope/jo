@@ -98,7 +98,6 @@ trait Applications extends DynamicTyper:
       fun1 = TreeOps.instantiatePoly(funType.asProcType, fun1)
 
     val invokeType = fun1.tpe.asInvokableType
-    val paramSize = invokeType.paramTypes.size
 
     Inference.conditionalInstantiate(invokeType.resultType, tt)
 

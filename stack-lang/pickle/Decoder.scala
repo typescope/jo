@@ -346,7 +346,20 @@ object Decoder:
         val paramSpanLength = decodeNat()
         val paramSpan = Span(absoluteStart + paramStartDelta, paramSpanLength)
 
-        val paramInfo = decodeType()
+        val paramType = decodeType()
+
+        val tag = decodeByte()
+        val default = tag match
+          case 0 => // None
+            None
+
+          case 1 => // Lit
+            decodeConstant()
+
+          case 2 => // Ref
+            decodeSymbolRef()
+
+        val paramInfo = ParamInfo(paramName, paramType, default)
 
         val param = TermSymbol.create(paramName, paramInfo, Flags.Param, Visibility.Default, symbol, paramSpan.toPos)
         state.registerInternalSymbol(paramId, param)
@@ -362,38 +375,25 @@ object Decoder:
         val autoSpanLength = decodeNat()
         val autoSpan = Span(absoluteStart + autoStartDelta, autoSpanLength)
 
-        val autoInfo = decodeType()
+        val autoType = decodeType()
 
-        val auto = TermSymbol.create(autoName, autoInfo, Flags.Param | Flags.Auto, Visibility.Default, symbol, autoSpan.toPos)
-        state.registerInternalSymbol(autoId, auto)
-
-        auto
-
-      // Decode auto candidates
-      val candidatesWithTrees = repeated {
-        repeated {
+        val cands = repeated:
           val tag = decodeByte()
           tag match
             case 0 => // Function candidate
               val candidateSym = decodeSymbolRef()
-              val candidateStartDelta = decodeInt()
-              val candidateSpanLength = decodeNat()
-              val candidateSpan = Span(absoluteStart + candidateStartDelta, candidateSpanLength)
-              (AutoCandidate.Value(candidateSym)(candidateSpan), candidateSym)
+              candidateSym
 
             case 1 => // Member candidate
               val tpe = decodeType()
               val memberName = decodeString()
-              val tptStartDelta = decodeInt()
-              val tptSpanLength = decodeNat()
-              val tptSpan = Span(absoluteStart + tptStartDelta, tptSpanLength)
-              val tpt = TypeTree(tpe)(tptSpan)
-              (AutoCandidate.Member(tpt, memberName)(tptSpan), MemberCandidate(tpe, memberName))
-        }
-      }
+              MemberCandidate(tpe, memberName)
 
-      val candidateTrees = candidatesWithTrees.map(_.map(_._1))
-      val candidateSymbols = candidatesWithTrees.map(_.map(_._2))
+        val autoInfo = AutoInfo(autoName, autoType, cands)
+        val auto = TermSymbol.create(autoName, autoInfo, Flags.Param | Flags.Auto, Visibility.Default, symbol, autoSpan.toPos)
+        state.registerInternalSymbol(autoId, auto)
+
+        auto
 
       val resultType = decodeTypeTree(absoluteStart)
 
@@ -401,16 +401,6 @@ object Decoder:
 
       val preParamCount = decodeNat()
       val preTypeParamCount = decodeNat()
-
-      // Decode default values for trailing post-parameters
-      val defaults: List[DefaultValue] = repeated:
-        val tag = decodeByte()
-        tag match
-          case 0 => // Lit
-            DefaultValue.Lit(decodeConstant())
-          case 1 => // Ref
-            val sym = decodeSymbolRef()
-            DefaultValue.Ref(sym)
 
       val signatureEndPos = sigBuf.position
     end sig
@@ -420,10 +410,10 @@ object Decoder:
       val receives = sig.receives
 
       ProcType(
-        sig.tparams, sig.params.map(_.toNamedInfo), sig.autos.map(_.toNamedInfo),
-        sig.candidateSymbols, sig.resultType.tpe, receives, sig.preParamCount,
+        sig.tparams, sig.params.map(_.paramInfo), sig.autos.map(_.autoInfo),
+        sig.resultType.tpe, receives, sig.preParamCount,
         sig.preTypeParamCount
-      )(LazyValue.eager(sig.defaults))
+      )
 
     val index = defnLazy.index
     index.addLazy(symbol, () => funInfo)
@@ -441,7 +431,7 @@ object Decoder:
       val span = Span(absoluteStart, body.span.endOffset + endDelta - absoluteStart)
       val policy = Effects.Policy.CheckBound(sig.receives)
 
-      FunDef(symbol, sig.tparams, sig.params, sig.autos, sig.candidateTrees, sig.resultType, policy, body)(sig.annots, span)
+      FunDef(symbol, sig.tparams, sig.params, sig.autos, sig.resultType, policy, body)(sig.annots, span)
     })
 
   private def decodeClassDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): LazyDef[ClassDef] =
@@ -799,8 +789,9 @@ object Decoder:
     lazy val patInfo: ProcType =
       val receives = sig.receives
       ProcType(
-        sig.tparams, sig.params.map(_.toNamedInfo), Nil, Nil,
-        sig.resultType.tpe, receives, sig.preParamCount, sig.preTypeParamCount)()
+        sig.tparams, sig.params.map(_.paramInfo), Nil,
+        sig.resultType.tpe, receives, sig.preParamCount, sig.preTypeParamCount
+      )
 
     val index = defnLazy.index
     index.addLazy(symbol, () => patInfo)
