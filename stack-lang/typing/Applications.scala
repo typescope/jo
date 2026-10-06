@@ -124,7 +124,7 @@ trait Applications extends DynamicTyper:
         invokeType match
           case proc: ProcType =>
             if proc.hasVararg then
-              val elementType = proc.postParamTypes.last.stripVarargs
+              val elementType = proc.paramTypes.last.stripVarargs
               if elementType.isMixedType then
                 transformVarargsMixed(args, proc, applySpan)
               else if elementType.isNamedType then
@@ -144,7 +144,7 @@ trait Applications extends DynamicTyper:
         val numProvided = positional.size
         if invokeType.hasVararg then
           invokeType match
-            case proc: ProcType if proc.postParamTypes.last.stripVarargs.isNamedType =>
+            case proc: ProcType if proc.paramTypes.last.stripVarargs.isNamedType =>
               transformVarargsNamed(positional, proc, applySpan)
             case _ =>
               Some(transformVarargs(positional, invokeType.paramTypes, applySpan))
@@ -152,8 +152,13 @@ trait Applications extends DynamicTyper:
           Some:
             val providedArgs = transformArgs(positional, invokeType.paramTypes.take(numProvided))
             val defaultArgs = invokeType match
-              case proc: ProcType => Defaults.synthesizePostDefaults(proc, numProvided, applySpan)
+              case proc: ProcType =>
+                val numNeeded = procType.paramCount - numProvided
+
+                for paramInfo <- proc.params.takeRight(numNeeded) yield
+                  Defaults.synthesizeDefault(paramInfo, applySpan)
               case _ => Nil
+
             providedArgs ++ defaultArgs
 
     if argsTypedOpt.isEmpty then
@@ -509,20 +514,17 @@ trait Applications extends DynamicTyper:
 
     val typed = mutable.ArrayBuffer.empty[Word]
     var i = 0
-    while ok && i < postParamCount do
+    while i < postParamCount do
       slots(i) match
         case Some((arg, nameOpt)) =>
           val argTyped = transformArg(arg, postParamTypes(i))
           typed += nameOpt.fold(argTyped)(name => wrapNamedArg(name, argTyped))
+
         case None =>
-          if i >= minPostArgs then
-            typed += synthesizePostDefaultAt(procType, i, callSpan)
-          else
-            Reporter.error(s"Missing required parameter '${postParams(i).name}'", callSpan.toPos)
-            ok = false
+          typed += Defaults.synthesizeDefault(postParams(i), callSpan)
       i += 1
 
-    if ok then Some(typed.toList) else None
+    Some(typed.toList)
 
   /** Wrap a named argument value in a `namedArg("key", value)` call.
     *
@@ -679,20 +681,3 @@ trait Applications extends DynamicTyper:
         case _ =>
 
     Some(fixedTyped :+ finishPack(lastFlexArg, flexSpan))
-
-  private def synthesizePostDefaultAt(procType: ProcType, postIndex: Int, span: Span)
-      (using defn: Definitions)
-  : Word =
-    val minPostArgs = procType.minimumPostArgs
-    assert(postIndex >= minPostArgs, s"postIndex = $postIndex, minimumPostArgs = $minPostArgs")
-    val defaultIndex = postIndex - minPostArgs
-    val defaultValue = procType.defaults(defaultIndex)
-    val tpe = procType.postParamTypes(postIndex)
-
-    defaultValue match
-      case DefaultValue.Lit(const) => Literal(const)(tpe, span)
-      case DefaultValue.Ref(sym) =>
-        if sym.tpe.isValueType then
-          Ident(sym)(span)
-        else
-          Apply(Ident(sym)(span), Nil, Nil)(span)

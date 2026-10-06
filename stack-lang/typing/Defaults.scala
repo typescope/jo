@@ -29,28 +29,19 @@ object Defaults:
           param.span.toPos
         )
 
-  /** Synthesize SAST words for default arguments missing from a call.
-    *
-    * @param procType   the proc type of the callee
-    * @param numPostProvided  number of post-arguments actually provided at the call site
-    * @param span       source span used for the synthesized nodes
-    * @return list of synthesized default words for the missing trailing post-params
-    */
-  def synthesizePostDefaults(procType: ProcType, numPostProvided: Int, span: Span)
-      (using defn: Definitions)
-  : List[Word] =
-    val numNeeded = procType.postParamCount - numPostProvided
-    if numNeeded <= 0 then return Nil
+  private def synthesizeDefault(paramInfo: ParamInfo, span: Span)
+      (using defn: Definitions, rp: Reporter, source: Source)
+  : Word =
+    paramInfo match
+      case None =>
+        Reporter.error(s"Missing required parameter '${paramInfo.name}'", span.toPos)
 
-    val defaultsNeeded = procType.defaults.takeRight(numNeeded)
-    val paramTypesNeeded = procType.postParamTypes.takeRight(numNeeded)
-    defaultsNeeded.zip(paramTypesNeeded).map:
-      case (DefaultValue.Lit(const), tpe) => Literal(const)(tpe, span)
-      case (DefaultValue.Ref(sym), _) =>
+      case const: Const => Literal(const)(tpe, span)
+
+      case sym: Symbol =>
         if sym.tpe.isValueType then
           Ident(sym)(span)
         else
-          // Parameterless, auto-free proc – call it
           Apply(Ident(sym)(span), Nil, Nil)(span)
 
   // ---------------------------------------------------------------------------
