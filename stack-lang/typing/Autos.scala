@@ -14,14 +14,12 @@ import reporting.Config
 import scala.collection.mutable
 
 object Autos:
-  def check(candidates: List[Ast.AutoCandidate], autoType: Type, namer: Namer)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, checks: Checks)
-  : (List[AutoCandidate], List[Symbol | MemberCandidate]) =
+  def transformCandidates(candidates: List[Ast.AutoCandidate], autoType: Type, namer: Namer)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+  : List[Symbol | MemberCandidate] =
+    val trees = new mutable.ArrayBuffer[AutoCandidate]
+    val cands = new mutable.ArrayBuffer[Symbol | MemberCandidate]
 
-    val validTrees = new mutable.ArrayBuffer[AutoCandidate]
-    val validSymbols = new mutable.ArrayBuffer[Symbol | MemberCandidate]
-
-    /** Type conformance check could be delayed */
     def checkTypeConform(valueType: Type, span: Span) =
       // instantiate type parameters with type vars and do subtype check
       given tvars: TypeVars = new UnificationSolver(defn.uniqs.unification.next())
@@ -33,36 +31,25 @@ object Autos:
     for candidate <- candidates do
       candidate match
         case value @ Ast.AutoCandidate.Value(ref) =>
-
           namer.resolveQualid(ref, SymbolKind.Term) match
             case Some(sym) =>
               if sym.is(Flags.Fun) then
-                // must be delayed after all symbols are forced
-                Checks.add:
-                  val procType = sym.tpe.asProcType
+                val procType = sym.tpe.asProcType
 
-                  // Check: must have no regular parameters (only auto parameters allowed)
-                  if procType.params.nonEmpty then
-                    Reporter.error(s"Auto candidate must have no regular parameters, found ${procType.params.size} parameters", value.span.toPos)
+                // Check: must have no regular parameters (only auto parameters allowed)
+                if procType.params.nonEmpty then
+                  Reporter.error(s"Auto candidate must have no regular parameters, found ${procType.params.size} parameters", value.span.toPos)
 
-                  // Check: must have no type parameters
-                  else if procType.tparams.nonEmpty then
-                    Reporter.error(s"Auto candidate cannot have type parameters, found ${procType.tparams.size} type parameters", value.span.toPos)
+                // Check: must have no type parameters
+                else if procType.tparams.nonEmpty then
+                  Reporter.error(s"Auto candidate cannot have type parameters, found ${procType.tparams.size} type parameters", value.span.toPos)
 
-                  // Check: result type must conform to auto type
-                  else
-                    checkTypeConform(procType.resultType, value.span)
+                // Check: result type must conform to auto type
+                else
+                  checkTypeConform(procType.resultType, value.span)
 
-                validTrees += AutoCandidate.Value(sym)(value.span)
-                validSymbols += sym
-
-              else if sym.tpe.isValueType then
-                Checks.add:
-                  checkTypeConform(sym.tpe, value.span)
-
-                validTrees += AutoCandidate.Value(sym)(value.span)
-                validSymbols += sym
-
+                trees += AutoCandidate.Value(sym)(value.span)
+                cands += sym
 
               else
                 Reporter.error("A reference to a value candidate expected, found = " + sym.tpe.show, value.span.toPos)
@@ -73,19 +60,18 @@ object Autos:
           val typedTpt = namer.transformValueType(tpt, allowPackType = false)
           val memberType = typedTpt.tpe
 
-          validTrees += AutoCandidate.Member(typedTpt, memberName)(member.span)
-          validSymbols += MemberCandidate(memberType, memberName)
-
+          trees += AutoCandidate.Member(typedTpt, memberName)(member.span)
+          cands += MemberCandidate(memberType, memberName)
     end for
 
-    // Check for shadowed candidates
-    checkShadowing(validTrees.toList)
+    // Check validity of candidates
+    checkShadowing(trees.toList)
 
-    (validTrees.toList, validSymbols.toList)
+    cands.toList
 
   /** Check for shadowed candidates - later candidates shadowed by earlier ones */
   def checkShadowing(candidates: List[AutoCandidate])
-      (using defn: Definitions, rp: Reporter, so: Source, checks: Checks)
+      (using defn: Definitions, rp: Reporter, so: Source)
   : Unit =
     var i = 0
     while i < candidates.size do
@@ -95,53 +81,51 @@ object Autos:
       while j < candidates.size do
         val cj = candidates(j)
 
-        // Use Checks.add to make the check lazy (avoid cycles)
-        Checks.add:
-          (ci, cj) match
-            case (AutoCandidate.Value(symI), AutoCandidate.Value(symJ)) =>
-              // Value candidate shadowing value candidate
-              // Check if typeJ conforms to typeI (making cj unreachable)
-              val typeI = symI.tpe
-              val typeJ = symJ.tpe
-              if Subtyping.conforms(typeJ, typeI) then
+        (ci, cj) match
+          case (AutoCandidate.Value(symI), AutoCandidate.Value(symJ)) =>
+            // Value candidate shadowing value candidate
+            // Check if typeJ conforms to typeI (making cj unreachable)
+            val typeI = symI.tpe
+            val typeJ = symJ.tpe
+            if Subtyping.conforms(typeJ, typeI) then
+              Reporter.error(
+                s"Auto candidate $symJ is shadowed by the ealier candidate $symI\n" +
+                s"- Shadowed candidate $symJ: ${typeJ.show}\n" +
+                s"- Earlier candidate $symI: ${typeI.show}",
+                cj.span.toPos
+              )
+
+          case (AutoCandidate.Member(tpI, nameI), AutoCandidate.Member(tpJ, nameJ)) =>
+            // Member candidate shadowing member candidate
+            // Same member name means they're redundant
+            if nameI == nameJ && Subtyping.conforms(tpI.tpe, tpJ.tpe) then
+              if Subtyping.conforms(tpJ.tpe, tpI.tpe) then
                 Reporter.error(
-                  s"Auto candidate $symJ is shadowed by the ealier candidate $symI\n" +
-                  s"- Shadowed candidate $symJ: ${typeJ.show}\n" +
-                  s"- Earlier candidate $symI: ${typeI.show}",
+                  s"Member candidate ${cj.show} appears multiple times in candidate list",
+                  cj.span.toPos
+                )
+              else
+                Reporter.error(
+                  s"Member candidate ${cj.show} is shadowed by the ealier candidate ${ci.show}",
                   cj.span.toPos
                 )
 
-            case (AutoCandidate.Member(tpI, nameI), AutoCandidate.Member(tpJ, nameJ)) =>
-              // Member candidate shadowing member candidate
-              // Same member name means they're redundant
-              if nameI == nameJ && Subtyping.conforms(tpI.tpe, tpJ.tpe) then
-                if Subtyping.conforms(tpJ.tpe, tpI.tpe) then
-                  Reporter.error(
-                    s"Member candidate ${cj.show} appears multiple times in candidate list",
-                    cj.span.toPos
-                  )
-                else
-                  Reporter.error(
-                    s"Member candidate ${cj.show} is shadowed by the ealier candidate ${ci.show}",
-                    cj.span.toPos
-                  )
 
+          case (AutoCandidate.Member(memberTpt, memberName), AutoCandidate.Value(symJ)) =>
+            memberTpt.tpe.getTermMember(memberName) match
+              case Some(tpI) =>
+                 val tpJ = symJ.tpe.effectiveResultType
+                 if Subtyping.conforms(tpI.effectiveResultType, tpJ) then
+                    Reporter.error(
+                      s"Member candidate ${cj.show} is shadowed by the ealier candidate ${ci.show}",
+                      cj.span.toPos
+                    )
 
-            case (AutoCandidate.Member(memberTpt, memberName), AutoCandidate.Value(symJ)) =>
-              memberTpt.tpe.getTermMember(memberName) match
-                case Some(tpI) =>
-                   val tpJ = symJ.tpe.effectiveResultType
-                   if Subtyping.conforms(tpI.effectiveResultType, tpJ) then
-                      Reporter.error(
-                        s"Member candidate ${cj.show} is shadowed by the ealier candidate ${ci.show}",
-                        cj.span.toPos
-                      )
+              case None =>
 
-                case None =>
-
-            case (AutoCandidate.Value(_), AutoCandidate.Member(_, _)) =>
-              // Value candidate before member candidate - this is OK
-              // Value handles a closed type set, member handles an open type set
+          case (AutoCandidate.Value(_), AutoCandidate.Member(_, _)) =>
+            // Value candidate before member candidate - this is OK
+            // Value handles a closed type set, member handles an open type set
 
         j += 1
       end while
@@ -163,17 +147,14 @@ object Autos:
         fullyInstantiated = false
         Reporter.error("The auto type is not fully instantiated: " + auto.info.show, span.endPoint.toPos)
 
-    for
-      cands <- procType.candidates
-      cand <- cands
-    do
-      cand match
-        case _: Symbol =>
-        case MemberCandidate(tp, _) =>
-          if !tp.isFullyInstantiated then
-            fullyInstantiated = false
-            Reporter.error("The member candidate type is not fully instantiated: " + tp.show, span.toPos)
-      end match
+      for cand <- auto.candidates do
+        cand match
+          case _: Symbol =>
+          case MemberCandidate(tp, _) =>
+            if !tp.isFullyInstantiated then
+              fullyInstantiated = false
+              Reporter.error("The member candidate type is not fully instantiated: " + tp.show, span.toPos)
+        end match
 
     if !fullyInstantiated then return dummyWord(resultType, span)
 
