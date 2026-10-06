@@ -318,7 +318,7 @@ object Symbols:
   end Symbol
 
   final class TypeSymbol private[Symbols](
-    val initKind: Kind,
+    val initKind: Kind, // TODO: remove kind given TypeOperatorInfo?
     name: String,
     flags: Flags,
     visibility: Visibility,
