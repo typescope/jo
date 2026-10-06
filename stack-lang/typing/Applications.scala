@@ -89,84 +89,82 @@ trait Applications extends DynamicTyper:
     var fun1 = fun
     val funType = fun1.tpe
 
-    if funType.isInvokableType then
-      if funType.isPolyType then
-        fun1 = TreeOps.instantiatePoly(funType.asProcType, fun1)
-
-      val invokeType = fun1.tpe.asInvokableType
-      val paramSize = invokeType.paramTypes.size
-
-      Inference.conditionalInstantiate(invokeType.resultType, tt)
-
-      val preArgTypes = invokeType.preParamTypes
-      if preArgTypes.size != 0 then
-        Reporter.error(
-          s"The postfix call syntax cannot be used, as the function takes prefix arguments",
-          fun1.pos)
-        errorWord(applySpan)
-
-      else if args.size < invokeType.minimumArgs ||
-              !invokeType.hasVararg && args.size > paramSize then
-        val mod = if invokeType.hasVararg then "at least " else ""
-        val size = if invokeType.hasVararg then invokeType.minimumArgs else paramSize
-        Reporter.error(
-          s"The function expects $mod$size argument(s), found = ${args.size}",
-          applySpan.toPos)
-        errorWord(applySpan)
-
-      else
-        val hasNamed = args.exists(_.isInstanceOf[Ast.NamedArg])
-        val argsTypedOpt =
-          if hasNamed then
-            invokeType match
-              case proc: ProcType =>
-                if proc.hasVararg then
-                  val elementType = proc.postParamTypes.last.stripVarargs
-                  if elementType.isMixedType then
-                    transformVarargsMixed(args, proc, applySpan)
-                  else if elementType.isNamedType then
-                    transformVarargsNamed(args, proc, applySpan)
-                  else
-                    Reporter.error("Named arguments are not supported for functions with varargs", applySpan.toPos)
-                    None
-                else
-                  transformNamedArgs(args, proc, applySpan)
-              case _ =>
-                Reporter.error(
-                  "Named arguments are only supported for declared functions and methods (not lambda/function-value calls)",
-                  applySpan.toPos)
-                None
-          else
-            val positional = args.asInstanceOf[List[Ast.Word]]
-            val numProvided = positional.size
-            if invokeType.hasVararg then
-              invokeType match
-                case proc: ProcType if proc.postParamTypes.last.stripVarargs.isNamedType =>
-                  transformVarargsNamed(positional, proc, applySpan)
-                case _ =>
-                  Some(transformVarargs(positional, invokeType.paramTypes, applySpan))
-            else
-              Some:
-                val providedArgs = transformArgs(positional, invokeType.paramTypes.take(numProvided))
-                val defaultArgs = invokeType match
-                  case proc: ProcType => Defaults.synthesizePostDefaults(proc, numProvided, applySpan)
-                  case _ => Nil
-                providedArgs ++ defaultArgs
-
-        if argsTypedOpt.isEmpty then
-          errorWord(applySpan)
-
-        else
-          val argsTyped = argsTypedOpt.get
-          if invokeType.autoTypes.isEmpty then
-            TreeOps.smartApply(fun1, argsTyped, autos = Nil)(applySpan).adapt
-          else
-            Autos.resolve(fun1, argsTyped, applySpan, config).adapt
-
-    else
+    if !funType.isInvokableType then
       if !fun1.tpe.isError then
         Reporter.error(s"Not a function: " + fun1.tpe.show, fun1.pos)
+      return errorWord(applySpan)
+
+    if funType.isPolyType then
+      fun1 = TreeOps.instantiatePoly(funType.asProcType, fun1)
+
+    val invokeType = fun1.tpe.asInvokableType
+    val paramSize = invokeType.paramTypes.size
+
+    Inference.conditionalInstantiate(invokeType.resultType, tt)
+
+    val preArgTypes = invokeType.preParamTypes
+    if preArgTypes.size != 0 then
+      Reporter.error(
+        s"The postfix call syntax cannot be used, as the function takes prefix arguments",
+        fun1.pos)
+      return errorWord(applySpan)
+
+    if args.size < invokeType.minimumArgs || !invokeType.hasVararg && args.size > paramSize then
+      val mod = if invokeType.hasVararg then "at least " else ""
+      val size = if invokeType.hasVararg then invokeType.minimumArgs else paramSize
+      Reporter.error(
+        s"The function expects $mod$size argument(s), found = ${args.size}",
+        applySpan.toPos)
+
+      return errorWord(applySpan)
+
+    val hasNamed = args.exists(_.isInstanceOf[Ast.NamedArg])
+    val argsTypedOpt =
+      if hasNamed then
+        invokeType match
+          case proc: ProcType =>
+            if proc.hasVararg then
+              val elementType = proc.postParamTypes.last.stripVarargs
+              if elementType.isMixedType then
+                transformVarargsMixed(args, proc, applySpan)
+              else if elementType.isNamedType then
+                transformVarargsNamed(args, proc, applySpan)
+              else
+                Reporter.error("Named arguments are not supported for functions with varargs", applySpan.toPos)
+                None
+            else
+              transformNamedArgs(args, proc, applySpan)
+          case _ =>
+            Reporter.error(
+              "Named arguments are only supported for declared functions and methods (not lambda/function-value calls)",
+              applySpan.toPos)
+            None
+      else
+        val positional = args.asInstanceOf[List[Ast.Word]]
+        val numProvided = positional.size
+        if invokeType.hasVararg then
+          invokeType match
+            case proc: ProcType if proc.postParamTypes.last.stripVarargs.isNamedType =>
+              transformVarargsNamed(positional, proc, applySpan)
+            case _ =>
+              Some(transformVarargs(positional, invokeType.paramTypes, applySpan))
+        else
+          Some:
+            val providedArgs = transformArgs(positional, invokeType.paramTypes.take(numProvided))
+            val defaultArgs = invokeType match
+              case proc: ProcType => Defaults.synthesizePostDefaults(proc, numProvided, applySpan)
+              case _ => Nil
+            providedArgs ++ defaultArgs
+
+    if argsTypedOpt.isEmpty then
       errorWord(applySpan)
+
+    else
+      val argsTyped = argsTypedOpt.get
+      if invokeType.autoTypes.isEmpty then
+        TreeOps.smartApply(fun1, argsTyped, autos = Nil)(applySpan).adapt
+      else
+        Autos.resolve(fun1, argsTyped, applySpan, config).adapt
 
   /** Check a dotless call such as `str1 + str2` */
   def transformDotlessCall(call: Ast.InfixOperatorCall)
