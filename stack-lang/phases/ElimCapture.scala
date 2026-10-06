@@ -144,7 +144,7 @@ object ElimCapture:
       val lifter = new Lifter(funSym)
       val body = lifter(fdef.body)(using ctx.withSubsts(substs.toMap))
       val params = fdef.params ++ paramSymsCaptured
-      val fdef2 = FunDef(funSym, fdef.tparams, params, fdef.autos, fdef.candidates, fdef.resultType, fdef.effectPolicy, body)(fdef.annots, fdef.span)
+      val fdef2 = FunDef(funSym, fdef.tparams, params, fdef.autos, fdef.resultType, fdef.effectPolicy, body)(fdef.annots, fdef.span)
       ctx.lifted += fdef2
 
       Block(words = Nil)(fdef.span)
@@ -334,7 +334,6 @@ object ElimCapture:
         tparams = Nil,
         params = ctorParams.toList,
         autos = Nil,
-        candidates = Nil,
         resultType = TypeTree(StaticRef(classSym))(lam.span),
         effectPolicy = Effects.Policy.CheckBound(Nil),
         body = ctorBody
@@ -370,7 +369,6 @@ object ElimCapture:
         tparams = Nil,
         params = params,
         autos = Nil,
-        candidates = Nil,
         resultType = TypeTree(lambdaType.resultType)(lam.span),
         effectPolicy = Effects.Policy.CheckBound(receives),
         body = body3

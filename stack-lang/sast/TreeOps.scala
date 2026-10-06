@@ -200,7 +200,6 @@ object TreeOps:
       tparams = Nil,
       paramSyms,
       autoSyms,
-      candidates = Nil,
       resultType = TypeTree(procType.resultType)(sym.span),
       effectPolicy = Effects.Policy.CheckBound(procType.receives),
       body

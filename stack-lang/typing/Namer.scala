@@ -1358,40 +1358,37 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
       sym
 
   def transformParams(params: List[Ast.Param])
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, ck: Checks)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : List[Symbol] =
 
     for (param, i) <- params.zipWithIndex yield
       val tpt = transformValueType(param.tpt, allowPackType = i == params.size - 1)
-      val defautValue = param.default match
-        case None => None
-        case Some(expr) =>
-          Defaults.transformDefaultValue(expr, tpt, this) match
-          case None => None
-          case Some(word) =>
-            // Delay check to avoid triggering cycles
-            Checks.add:
-              Defaults.checkDefaultValue(word, paramType)
-
-            word match
-              case lit: Literal => lit.constant
-              case id: Ident => id.symbol
-
-      val paramInfo = new ParamInfo(param.name, tpt.tpe, defaultValue)
-
-      val paramSym = TermSymbol.create(param.name, paramInfo, Flags.Param, Visibility.Default, sc.owner, param.pos)
+      val paramSym = TermSymbol.create(param.name, Flags.Param, Visibility.Default, sc.owner, param.pos)
       sc.define(paramSym)
+
+      defn.index.addLazy(paramSym, () => {
+        val default = param.default match
+          case None => None
+          case Some(expr) => Defaults.transformDefault(expr, tpt, this)
+
+        ParamInfo(param.name, tpt, default)
+      })
+
       paramSym
 
 
   def transformAutos(autos: List[Ast.Auto])
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, ck: Checks)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : List[Symbol] =
 
     for auto <- autos yield
       val tpt = transformValueType(auto.tpt)
-      val autoSym = TermSymbol.create(auto.name, tpt.tpe, Flags.Param | Flags.Auto, Visibility.Default, sc.owner, auto.pos)
+      val autoSym = TermSymbol.create(auto.name, Flags.Param | Flags.Auto, Visibility.Default, sc.owner, auto.pos)
       sc.define(autoSym)
+      defn.index.addLazy(autoSym, () => {
+        val cands = Autos.transformCandidates(auto.candidates, tpt, this)
+        AutoInfo(auto.name, tpt, cands)
+      })
       autoSym
 
   def transformReceives(receives: Option[List[Ast.RefTree]], policy: Effects.Policy)
@@ -1582,10 +1579,6 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
       tparamSymsLazy.value
       transformAutos(funDef.autos)
 
-    val candidatesLazy = lazyValue:
-      funDef.autos.zip(autoSymsLazy.value).map: (auto, autoSym) =>
-        Autos.check(auto.candidates, autoSym.tpe, this)
-
     val givenResultTypeLazy = lazyValue:
       tparamSymsLazy.value
 
@@ -1655,7 +1648,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
 
       ProcType(
         tparamSymsLazy.value, paramSymsLazy.value.map(_.paramInfo),
-        autoSymsLazy.value.map(_.autoInfo), candidates,
+        autoSymsLazy.value.map(_.autoInfo),
         resultType, receivesInfo, funDef.preParamCount, funDef.preTypeParamCount
       )
 
@@ -1665,11 +1658,10 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
     index.setDocComment(funSym, funDef.docComment)
 
     lazyDef(funSym):
-      val candidateTrees = candidatesLazy.value.map(_._1)
       val tpt = TypeTree(resultTypeLazy.value)(funDef.resultType.span)
       FunDef(
         funSym, tparamSymsLazy.value, paramSymsLazy.value, autoSymsLazy.value,
-        candidateTrees, tpt, effectPolicyLazy.value, typedBodyLazy.value
+        tpt, effectPolicyLazy.value, typedBodyLazy.value
       )(annotationsLazy.value, funDef.span)
 
   private def transformConstructor(funDef: Ast.FunDef, thisSym: Symbol, classSym: Symbol)
@@ -1698,10 +1690,6 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
 
     val autoSymsLazy = lazyValue:
       transformAutos(funDef.autos)
-
-    val candidatesLazy = lazyValue:
-      funDef.autos.zip(autoSymsLazy.value).map: (auto, autoSym) =>
-        Autos.check(auto.candidates, autoSym.tpe, this)
 
     val resultTypeLazy = lazyValue:
       if !funDef.resultType.isEmpty then
@@ -1779,10 +1767,8 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
 
     val tparamSyms = Nil
     def computeInfo(resultType: Type) = withDefn:
-      val candidateSymbols = candidatesLazy.value.map(_._2)
-
       ProcType(
-        tparamSyms, paramSymsLazy.value.map(_.paramInfo), autoSymsLazy.value.map(_.toNamedInfo), candidateSymbols,
+        tparamSyms, paramSymsLazy.value.map(_.paramInfo), autoSymsLazy.value.map(_.autoInfo),
         resultType, funSym, funDef.preParamCount, funDef.preTypeParamCount)
 
     val index = lazyDefn.index
@@ -1791,11 +1777,10 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
     index.setDocComment(funSym, funDef.docComment)
 
     lazyDef(funSym):
-      val candidateTrees = candidatesLazy.value.map(_._1)
       val tpt = TypeTree(resultTypeLazy.value)(funDef.resultType.span)
       FunDef(
         funSym, tparamSyms, paramSymsLazy.value, autoSymsLazy.value,
-        candidateTrees, tpt, effectPolicyLazy.value, typedBodyLazy.value
+        tpt, effectPolicyLazy.value, typedBodyLazy.value
       )(annotationsLazy.value, funDef.span)
 
   private def transformTypeDef(tdef: Ast.TypeDef)
@@ -1910,7 +1895,6 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
       procType.tparams,
       paramSyms,
       autos = autoSyms,
-      candidates = Nil,
       TypeTree(procType.resultType)(viewSpan),
       Effects.Policy.Infer,
       body
