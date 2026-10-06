@@ -3,7 +3,6 @@ package sast
 import Trees.*
 import Symbols.*
 import Types.*
-import Denotations.*
 
 import ast.Positions.{Source, Span}
 import reporting.Config

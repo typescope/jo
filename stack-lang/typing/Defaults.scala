@@ -11,8 +11,6 @@ import sast.Denotations.*
 
 import reporting.Reporter
 
-import scala.collection.mutable
-
 object Defaults:
   /** Eagerly validate post-parameter section shape (syntax-only):
     *  - defaults must form a trailing suffix (no non-default after a defaulted param)
