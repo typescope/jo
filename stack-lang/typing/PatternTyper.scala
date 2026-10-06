@@ -8,6 +8,7 @@ import sast.*
 import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
+import sast.Denotations.*
 
 import reporting.Reporter
 import reporting.Diagnostics
@@ -38,7 +39,10 @@ class PatternTyper(namer: Namer)(using Config):
     val paramSyms =
       for param <- patDef.params yield
         val paramSym = PatternSymbol.create(param.name, Flags.Param, Visibility.Default, patSym, param.pos)
-        lazyDefn.index.addLazy(paramSym, () => namer.transformValueType(param.tpt).tpe)
+        lazyDefn.index.addLazy(paramSym, () => {
+          given Definitions = lazyDefn.value
+          namer.transformValueType(param.tpt).tpe
+        })
         paramSym
 
     val resultTypeTreeLazy = Namer.lazyValue:
@@ -55,13 +59,13 @@ class PatternTyper(namer: Namer)(using Config):
         given Reporter = reporterTemp
         for Ast.Case(pattern, _) <- patDef.cases yield
           given flowScope: FlowScope = new FlowScope(patScope)
-          paramSymsLazy.value.foreach { param => flowScope.define(param) }
+          paramSyms.foreach { param => flowScope.define(param) }
           val patternTyped = Inference.freshIsolate:
             transformPattern(pattern, scrutType)
 
           if !reporterTemp.hasErrors then
             for
-              paramSym <- paramSymsLazy.value if !flowScope.isPromoted(paramSym)
+              paramSym <- paramSyms if !flowScope.isPromoted(paramSym)
             do
               Reporter.error(s"The parameter $paramSym is not bound in the patterns", pattern.pos)
 
