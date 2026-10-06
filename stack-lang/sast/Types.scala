@@ -227,7 +227,7 @@ object Types:
       getLambdaInterfaceMethod.map: sym =>
         val procType = MemberRef(this, sym).info.asProcType
         LambdaType(
-          procType.params.map(_.info),
+          procType.params.map(_.tpe),
           procType.resultType,
           procType.receives
         )
@@ -566,8 +566,6 @@ object Types:
     def postParamTypes: List[Type]
 
     def hasVararg(using Definitions): Boolean
-    def minimumPostArgs(using Definitions): Int
-    def minimumArgs(using Definitions): Int
 
   /** The type for lambdas, e.g. Int => Int receives indent */
   case class LambdaType(params: List[Type], resultType: Type, receives: List[Symbol]) extends InvokableType:
@@ -579,8 +577,6 @@ object Types:
     def postParamTypes: List[Type] = params
 
     def hasVararg(using Definitions): Boolean = false
-    def minimumPostArgs(using Definitions): Int = params.size
-    def minimumArgs(using Definitions): Int = params.size
 
     def toProcType: ProcType =
       val paramInfos = params.zipWithIndex.map:
@@ -634,13 +630,6 @@ object Types:
       receivesInfo match
         case sym: Symbol => defn.index.receives(sym)
         case effs: List[Symbol] => effs
-
-    def minimumArgs(using Definitions): Int =
-      minimumPostArgs + preParamCount
-
-    def minimumPostArgs(using Definitions): Int =
-      val base = if hasVararg then postParamTypes.size - 1 else postParamTypes.size
-      base - defaults.size
 
     def hasVararg(using defn: Definitions): Boolean =
       paramCount > 0 && paramTypes.last.isVararg
