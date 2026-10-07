@@ -49,14 +49,10 @@ union Option[T] =
     case None => None
     case Some(value) => Some(f(value))
 
-  //[ Return the wrapped value, or the result of `compute` if there is none.
-    !
-    ! `compute` is only called for `None`, so it is safe to pass a fallback
-    ! that is expensive or that aborts.
-  //]
-  def getOrElse(compute: () => T): T =
+  //[ Return the wrapped value, or `default` if there is none. //]
+  def getOrElse(default: T): T =
     match this
-    case None => compute()
+    case None => default
     case Some(value) => value
 
   //[ Return `"None"`, or `"Some(v)"` with the value shown. //]

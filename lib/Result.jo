@@ -32,14 +32,11 @@ union Result[T, E] =
   //[ True if the result is an `Err`. //]
   def isErr: Bool = this is _: Err[E]
 
-  //[ Return the success value, or the result of `compute` on failure.
-    !
-    ! `compute` is only called for an `Err`, and does not receive the error.
-  //]
-  def getOrElse(compute: () => T): T =
+  //[ Return the success value, or `default` on failure. //]
+  def getOrElse(default: T): T =
     match this
     case Ok(value) => value
-    case _: Err[E] => compute()
+    case _: Err[E] => default
 
   //[ Apply `f` to the success value, leaving an error untouched.
     !

@@ -6,4 +6,4 @@ def empty[T]: Box[T] = new Box
 
 def main =
   println empty.value.map(x => x + 3)
-  println empty.value.getOrElse(() => 5)
+  println empty.value.getOrElse(5)
