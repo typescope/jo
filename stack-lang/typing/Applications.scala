@@ -158,10 +158,13 @@ trait Applications extends DynamicTyper:
 
         else
           val argsTyped = argsTypedOpt.get
-          if invokeType.autoTypes.isEmpty then
-            TreeOps.smartApply(fun1, argsTyped, autos = Nil)(applySpan).adapt
-          else
-            Autos.resolve(fun1, argsTyped, applySpan, config).adapt
+          val result =
+            if invokeType.autoTypes.isEmpty then
+              TreeOps.smartApply(fun1, argsTyped, autos = Nil)(applySpan)
+            else
+              Autos.resolve(fun1, argsTyped, applySpan, config)
+
+          expandIntrinsic(result).adapt
 
     else
       if !fun1.tpe.isError then
@@ -258,7 +261,15 @@ trait Applications extends DynamicTyper:
           transformArgs(postArgs, procType.postParamTypes)
 
 
-      Autos.resolve(fun, preArgs2 ++ postArgs2, call.span, config).adapt
+      expandIntrinsic(Autos.resolve(fun, preArgs2 ++ postArgs2, call.span, config)).adapt
+
+  private def expandIntrinsic(word: Word)(using defn: Definitions): Word =
+    word match
+      case Apply(Ident(sym), cond :: message :: Nil, location :: Nil) if sym == defn.jo_assert =>
+        val failure = Apply(Ident(defn.abort)(word.span), message :: Nil, location :: Nil)(word.span)
+        If(cond, unitValue(word.span), failure)(defn.UnitType, word.span)
+
+      case _ => word
 
   /** Assumes that the argument count requirement is satisfied */
   def transformArgs
