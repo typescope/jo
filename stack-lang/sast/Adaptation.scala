@@ -13,7 +13,6 @@ object Adaptation:
   enum Adapter:
     case SimpleParam(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope, source: Source)
     case VarargSplice(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope, source: Source)
-    case NullaryThunk(owner: Symbol, source: Source)
 
   enum Trial:
     case Member(tp: Type, member: String, error: Error)
@@ -250,25 +249,6 @@ object Adaptation:
 
       case _ => None
 
-  /** Try to synthesize a nullary thunk `() => body` for a target type `() => T`.
-    *
-    * This is intentionally a last-resort adaptation. It keeps the definition-site
-    * type explicit while allowing use sites to omit the wrapping lambda when the
-    * expected type is already known to be nullary.
-    */
-  private def adaptToNullaryThunk(word: Word, targetType: Type, owner: Symbol, source: Source)(using defn: Definitions): Result =
-    if !targetType.isLambdaType then return Result.Failure(Nil)
-
-    val targetLambdaType = targetType.asLambdaType
-    if targetLambdaType.params.nonEmpty then return Result.Failure(Nil)
-    if !Subtyping.conforms(word.tpe, targetLambdaType.resultType) then return Result.Failure(Nil)
-
-    val lambdaSym = TermSymbol.create("lambda", Flags.Fun | Flags.Synthetic, Visibility.Default, owner, word.span.toPos(using source))
-    val lambda = Lambda(lambdaSym, Nil, targetLambdaType.receives, word)(word.span)
-    defn.index.add(lambdaSym, lambda.tpe)
-    Result.Success(lambda)
-
-
   def createSimpleAdapters(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)(using Source): List[Adapter] =
     if adapters.isEmpty then Nil
     else Adapter.SimpleParam(adapters, owner, scope, summon[Source]) :: Nil
@@ -304,9 +284,6 @@ object Adaptation:
                   adaptVarargSplice(word, targetElemType, elemType, paramAdapters, owner, scope)
               case _ =>
                 Result.Failure(Nil)
-
-          case Adapter.NullaryThunk(owner, source) =>
-            adaptToNullaryThunk(word, targetType, owner, source)
 
       result match
         case Result.Success(word) => success = Some(word)
