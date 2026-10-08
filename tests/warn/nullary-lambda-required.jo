@@ -1,0 +1,40 @@
+def takesFloat(f: () => Float): Unit = ...
+def takesInt(f: () => Int): Unit = ...
+
+type StringLike = String :- [.toString]
+
+def takesStringLike(f: () => StringLike): Unit = ...
+
+interface Logger
+  def log(msg: String): Unit
+end
+
+def takesLogger(f: () => Logger): Unit = ...
+
+class FileLogger
+  def log(msg: String): Unit = ...
+  view Logger
+end
+
+class Service(logger: FileLogger)
+  view Logger = logger
+end
+
+def main =
+  val b: Byte = 1
+  takesFloat b
+  takesInt b
+
+  takesStringLike 3
+
+  val service = new Service(new FileLogger)
+  takesLogger service
+
+  takesInt 3
+  val thunk: () => Int = 3
+
+  with reader = Some("line") in reader()
+
+param reader: () => Option[String]
+
+def deferred: () => Int = 3

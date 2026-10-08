@@ -1,0 +1,41 @@
+---------- Error at tests/warn/nullary-lambda-required.jo:25:14 ---------------
+|   takesFloat b
+|              ^
+|              Expect type () => Float receives none, found = b: Byte
+
+---------- Error at tests/warn/nullary-lambda-required.jo:26:12 ---------------
+|   takesInt b
+|            ^
+|            Expect type () => Int receives none, found = b: Byte
+
+---------- Error at tests/warn/nullary-lambda-required.jo:28:19 ---------------
+|   takesStringLike 3
+|                   ^
+|                   Expect type () => StringLike receives none, found = Int
+
+---------- Error at tests/warn/nullary-lambda-required.jo:31:15 ---------------
+|   takesLogger service
+|               ^^^^^^^
+|               Expect type () => Logger receives none, found = service: Service
+
+---------- Error at tests/warn/nullary-lambda-required.jo:33:12 ---------------
+|   takesInt 3
+|            ^
+|            Expect type () => Int receives none, found = Int
+
+---------- Error at tests/warn/nullary-lambda-required.jo:34:26 ---------------
+|   val thunk: () => Int = 3
+|                          ^
+|                          Expect type () => Int receives none, found = Int
+
+---------- Error at tests/warn/nullary-lambda-required.jo:36:17 ---------------
+|   with reader = Some("line") in reader()
+|                 ^^^^^^^^^^^^
+|                 Expect type () => Option[String] receives none, found = Some[String]
+
+---------- Error at tests/warn/nullary-lambda-required.jo:40:27 ---------------
+| def deferred: () => Int = 3
+|                           ^
+|                           Expect type () => Int receives none, found = Int
+
+8 error(s), 0 warning(s)
