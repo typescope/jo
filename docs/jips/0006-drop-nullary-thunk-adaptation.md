@@ -107,8 +107,12 @@ Delaying the feature keeps the decision reversible. If future use cases
 justify implicit wrapping, it is easy to add. The compiler would synthesize
 lambda trees, and no changes to SAST are needed.
 
+Delaying also leaves room for better designs. For example, it is possible to enhance
+duck types to adapt a value from `T` to `() => T`. That would make the feature
+less invasive: the library author can control when such adapation should happen.
+
 Keeping the feature now makes the decision permanent once users and libraries
-depend on it. Removing it would a breaking change.
+depend on it. Removing it or changing it for better designs would a breaking change.
 
 This is the argument by C. A. R. Hoare in [*The Emperor's Old Clothes*](https://dl.acm.org/doi/10.1145/358549.358561):
 
