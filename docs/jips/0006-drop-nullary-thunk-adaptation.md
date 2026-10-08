@@ -42,7 +42,7 @@ option.getOrElse(() => 0)  // explicit lambda
 option.getOrElse(0)        // implicit wrapping
 ```
 
-`assert` provided another use. Its message parameter formerly had type
+`assert` is another use case. Its message parameter formerly had type
 `() => String`, so successful assertions could skip message construction:
 
 ```jo
@@ -51,7 +51,7 @@ assert(cond, () => "unexpected state: \{state}")  // explicit lambda
 assert(cond, "unexpected state: \{state}")        // implicit wrapping
 ```
 
-Both forms avoided formatting the string when the condition held. Adaptation
+Both forms avoid formatting the string when the conditions hold. Adaptation
 let the message read like an ordinary value while retaining that optimization.
 
 This proposal removes the feature for three reasons:
@@ -61,7 +61,7 @@ This proposal removes the feature for three reasons:
 2. **Marginal utility.** The main library uses no longer depend on adaptation,
    and the remaining convenience chiefly concerns diagnostic construction.
 3. **Optimal evolution.** Adding the feature later is compatible, while keeping
-   it commits future versions to supporting it once users depend on it.
+   it will be a life-long debt if it is not the optimal choice.
 
 ## Justification
 
