@@ -80,47 +80,41 @@ between computing a value and passing a computation apparent at the use site.
 ### Marginal utility
 
 For a constant fallback such as `0`, there is no useful work to defer.
-In fact, it is an overkill for `Option.getOrElse` and `Result.getOrElse` to
-accept a thunk of type `() => T` instead of `T`. If programmers want to delay
-the default computation, they can do that explicitly with a `match`, which is better.
+`Option.getOrElse` and `Result.getOrElse` can accept an ordinary value of type
+`T`. Requiring a thunk for every default complicates these simple calls merely
+to avoid computing an unused fallback. Programmers already have facility to
+do that explicitly if they want the micro-optimization.
 
-The use case for `assert` seem to be justified. But in essence, it is a feature
-for performance improvement, which is a red flag in language design.
+`assert` presents a stronger case for implicit deferral. Its message reads
+naturally as a value, yet constructing it on every successful assertion wastes
+work. The motivation for deferring is performance.
 
-User-defined logging and validation helpers can still benefit from skipping
-unused messages. If message construction has no observable effects, delaying
-it changes only the cost of the call. If construction does have effects, an
-explicit lambda helps the reader see that those effects may never occur.
+The same benefit could appear in user-defined logging and validation
+helpers. They can skip constructing unused diagnostic strings. The motivation is
+again performance. But if the performance matters there as micro-optimization,
+it might be better to be made explicit to avoid breaking the optimization accidentally
+in refactoring. In addition, the type `String | (() => String)` could be used to
+support address both usability and performance concerns.
 
-The benefit is most apparent for diagnostic strings, which are often discarded
-and may be expensive to construct. Structured log records and diagnostic trees
-can benefit for the same reason. These descriptions may never be used,
-whatever type represents them.
-
-Other lazy APIs, such as retries and transactions, have a different purpose.
-A retry repeats a computation, and a transaction runs it within a controlled
-scope. An explicit lambda shows which work is subject to that behavior.
-Omitting it saves syntax but hides useful information. These APIs justify
-passing computations as functions, but provide little reason to wrap them
-implicitly.
-
-Performance is a legitimate design concern, but concise diagnostic-message
-construction does not justify a general rule that silently changes evaluation
-throughout the language. Explicit lambdas preserve both the optimization and
-the visible boundary.
+Inventing a general language feature primarily for performance reasons is a
+trap in language design. Here, the benefit chiefly concerns diagnostic construction,
+while the feature compromises semantic clarity. That is too high a price
+for this narrow optimization.
 
 ### Optimal evolution
 
 Delaying the feature keeps the decision reversible. If future use cases
 justify implicit wrapping, it is easy to add. The compiler would synthesize
-existing lambda nodes, so no new SAST representation is needed. Previously
-serialized libraries would retain their meaning without a compatibility change.
+lambda trees, and no changes to SAST are needed.
 
 Keeping the feature now makes the decision permanent once users and libraries
-depend on it. Removing it would break their source code. Preserving source
-compatibility would require supporting the rule forever, even if its design
-later proves undesirable. Explicit lambdas let us wait until the need and the
-implications are better understood.
+depend on it. Removing it would a breaking change.
+
+This is the argument by C. A. R. Hoare in [*The Emperor's Old Clothes*](https://dl.acm.org/doi/10.1145/358549.358561):
+
+> A feature which is omitted can always be added later, when its design and its
+> implications are well understood. A feature which is included before it is
+> fully understood can never be removed later.
 
 ## Consequences
 
@@ -137,9 +131,7 @@ assert(cond, expensiveMessage())
 
 Assertions therefore retain concise call syntax without depending on thunk
 adaptation. Successful assertions do not allocate a message closure or a
-`SourceLocation`. User-defined lazy APIs require explicit lambdas after
-removal. Implicit wrapping is rejected. Explicit lambdas preserve deferred,
-repeated evaluation.
+`SourceLocation`.
 
 ## Alternatives considered
 
