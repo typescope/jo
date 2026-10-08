@@ -29,16 +29,8 @@ val next: () => Int = () => counter.next()   // explicit
 
 ## Motivation
 
-Jo normally evaluates an argument before calling a function. A library that
-needs to delay or repeat a computation can instead accept a function with no
-arguments, of type `() => T`. The caller writes `() => e` to pass that
-computation. The expression `e` runs each time the library invokes the function.
-
-Nullary thunk adaptation makes these calls shorter. When a parameter expects
-`() => T`, the caller can supply `e`, and the compiler wraps it in `() => e`.
-The argument expression is then evaluated when the library invokes the
-function, rather than before the call. The adaptation adds no expressive
-power, because the caller can write the lambda explicitly.
+To improve usability, when a parameter expects the type `() => T`, the caller
+can supply `e` of type `T`, and the compiler automatically wraps it in `() => e`.
 
 One motivation for the feature was `getOrElse`. Its fallback was a
 function of type `() => T`, called only when the value was absent. Adaptation
@@ -82,16 +74,18 @@ when an expression runs and how often it runs. At a function call, the reader
 must inspect the callee's parameter type to discover this behavior.
 
 Writing `() =>` gives the deferred computation a visible boundary. This follows
-Jo's principles of local reasoning and explicitness, and makes the distinction
+Jo's principles of semantic clarity and explicitness, and makes the distinction
 between computing a value and passing a computation apparent at the use site.
 
 ### Marginal utility
 
 For a constant fallback such as `0`, there is no useful work to defer.
-`Option.getOrElse` and `Result.getOrElse` now accept an ordinary default value,
-consistent with `Map.getOrElse`. `assert` is now a compiler intrinsic that
-provides conditional evaluation directly. These APIs retain concise call
-syntax without depending on adaptation.
+In fact, it is an overkill for `Option.getOrElse` and `Result.getOrElse` to
+accept a thunk of type `() => T` instead of `T`. If programmers want to delay
+the default computation, they can do that explicitly with a `match`, which is better.
+
+The use case for `assert` seem to be justified. But in essence, it is a feature
+for performance improvement, which is a red flag in language design.
 
 User-defined logging and validation helpers can still benefit from skipping
 unused messages. If message construction has no observable effects, delaying
