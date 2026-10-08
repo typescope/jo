@@ -1,6 +1,6 @@
 ---
 author: Fengyun Liu
-status: Draft
+status: Accepted
 created: 2026-10-07
 title: Drop nullary thunk adaptation
 ---
@@ -94,7 +94,7 @@ helpers. They can skip constructing unused diagnostic strings. The motivation is
 again performance. But if the performance matters there as micro-optimization,
 it might be better to be made explicit to avoid breaking the optimization accidentally
 in refactoring. In addition, the type `String | (() => String)` could be used to
-support address both usability and performance concerns.
+address both usability and performance concerns.
 
 Inventing a general language feature primarily for performance reasons is a
 trap in language design. Here, the benefit chiefly concerns diagnostic construction,
