@@ -8,12 +8,13 @@ def main: Unit =
   println (new SourceLocation("generated.jo", 42)).toString
 
   assert(true, compile.location.toString)
-  assert(true, () =>
-    println compile.location.toString
-    abort("message evaluated")
-  )
+  assert(true, message())
 
   auto overridden: SourceLocation = new SourceLocation("overridden.jo", 99)
   println compile.location.toString
   println forwarded()
   println "passed"
+
+def message(): String =
+  println compile.location.toString
+  abort("message evaluated")

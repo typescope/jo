@@ -6,8 +6,6 @@ false
 42
 fallback
 jo
-8
-42
 --- option.map ---
 None
 Some(43)

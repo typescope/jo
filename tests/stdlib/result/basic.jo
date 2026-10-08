@@ -21,8 +21,6 @@ def testGetOrElse =
 
   println (ok.getOrElse(0))
   println (err.getOrElse(0))
-  println (ok.getOrElse(() => 1))
-  println (err.getOrElse(() => 1))
 
 def testMap =
   println "--- result.map ---"

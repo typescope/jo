@@ -6,8 +6,6 @@ true
 --- result.getOrElse ---
 42
 0
-42
-1
 --- result.map ---
 Ok(43)
 Err(oops)

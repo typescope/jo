@@ -93,20 +93,6 @@ A lambda may adapt to an interface with a single abstract method when the shapes
 
 See [Lambda Types](lambda-types.md).
 
-### Nullary Thunk Adaptation
-
-Jo can adapt a value `e` to an expected nullary function type `() => R` by synthesizing:
-
-```jo
-() => e
-```
-
-This happens only when the target is a nullary lambda type and the value type already conforms to the result type `R`.
-
-It does **not** recursively trigger further adaptation inside the thunk body.
-
-For example, if `Int` adapts to `StringLike`, that does **not** imply `Int` adapts to `() => StringLike`.
-
 ## Adaptation Does Not Chain Arbitrarily
 
 Jo does not treat adaptation as a general graph search.

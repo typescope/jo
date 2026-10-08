@@ -66,8 +66,18 @@ val processor: Processor = msg =>
 with IO = customIO in processor("hello")
 ```
 
+## Deferred Computation
+
+A function with no arguments has type `() => T`. Write an explicit lambda
+to defer an expression of type `T`:
+
+```jo
+val compute: () => Int = () => 42
+val value = compute()
+```
+
 ## See Also
 
 - [Duck Types](duck-types.md) - Flexible parameter conversion
-- [Type Adaptation](type-adaptation.md) - Nullary thunk adaptation
+- [Type Adaptation](type-adaptation.md) - Expected-type conversions
 - [Interface Definitions](../definitions/interface-definitions.md) - Lambda literal adaptation to single-abstract-method interfaces

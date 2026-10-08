@@ -23,8 +23,6 @@ def testGetOrElse =
   println (someInt.getOrElse(7))
   println (noneString.getOrElse("fallback"))
   println (someString.getOrElse("fallback"))
-  println (noneInt.getOrElse(() => 8))
-  println (someInt.getOrElse(() => 8))
 
 def testMap =
   println "--- option.map ---"

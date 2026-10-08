@@ -379,7 +379,7 @@ object Checker:
                 val elementType = tpe.stripVarargs
                 Adaptation.createVarargSpliceAdapters(elementType.adapters, sc.owner, sc)
               else
-                Adaptation.createSimpleAdapters(tpe.adapters, sc.owner, sc) :+ Adaptation.Adapter.NullaryThunk(sc.owner, so)
+                Adaptation.createSimpleAdapters(tpe.adapters, sc.owner, sc)
 
             Adaptation.adapt(word2, tpe, adapters)
 

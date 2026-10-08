@@ -111,15 +111,19 @@ private defer def abortImpl(s: String): Bottom
 def abort(s: String)(auto location: SourceLocation): Bottom =
   abortImpl(s + " (" + location + ")")
 
-//[ Abort with the message from `error` unless `cond` holds
+//[ Abort with `error` and the source location unless `cond` holds
   !
-  ! `error` is only called when the check fails. A location requested inside
-  ! the message is therefore constructed only on failure:
+  ! The compiler intrinsifies `assert` as follows:
   !
-  !     assert(cond, "check failed (" + compile.location + ")")
+  !     if !cond then abort(error)
+  !
+  ! The argument `error` and `location` are only created when the assertion fails.
+  !
+  ! This ensures that an assertion on a hot path will not allocate anything when
+  ! the assertion holds.
 //]
-def assert(cond: Bool, error: () => String): Unit =
-  if !cond then abortImpl(error())
+@intrinsic
+def assert(cond: Bool, error: String)(auto location: SourceLocation): Unit = ...
 
 //------------------------------------------------------------------------------
 //

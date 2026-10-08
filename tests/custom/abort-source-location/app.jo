@@ -4,7 +4,7 @@ def fail()(auto location: SourceLocation): Bottom =
   abort("forwarded abort")
 
 def check()(auto location: SourceLocation): Unit =
-  assert(false, "forwarded assertion (" + location + ")")
+  assert(false, "forwarded assertion")
 
 def nestedCheck()(auto location: SourceLocation): Unit = check()
 
@@ -21,7 +21,7 @@ def countdown(n: Int)(auto location: SourceLocation): Bottom =
 def main: Unit =
   match IO.args[0]
     case "abort" => abort("direct abort")
-    case "assert" => assert(false, "direct assertion (" + compile.location + ")")
+    case "assert" => assert(false, "direct assertion")
     case "forward-abort" => fail()
     case "forward-assert" => nestedCheck()
     case "override" => overridden()
@@ -31,6 +31,6 @@ def main: Unit =
     case "plain-abort" => abort("plain abort")
     case "plain-assert" => assert(false, "plain assertion")
     case "lazy" =>
-      assert(true, () => abort("message evaluated"))
+      assert(true, abort("message evaluated"))
       println("passed")
     case _ => abort("unknown test")

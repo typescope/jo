@@ -1,0 +1,19 @@
+class Counter
+  var calls: Int = 0
+
+  def check(): Bool =
+    calls = calls + 1
+    true
+end
+
+section Custom
+  def assert(cond: Bool, error: String): Unit = println error
+end
+
+def main: Unit =
+  val counter = new Counter
+  assert(counter.check(), abort("message evaluated"))
+  jo.assert(error = abort("named message evaluated"), cond = counter.check())
+  assert (counter.check()) "unused message"
+  println counter.calls
+  Custom.assert(true, "ordinary function")

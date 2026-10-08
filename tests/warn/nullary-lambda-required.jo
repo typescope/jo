@@ -29,3 +29,12 @@ def main =
 
   val service = new Service(new FileLogger)
   takesLogger service
+
+  takesInt 3
+  val thunk: () => Int = 3
+
+  with reader = Some("line") in reader()
+
+param reader: () => Option[String]
+
+def deferred: () => Int = 3

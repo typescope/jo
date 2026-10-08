@@ -44,7 +44,7 @@ placeholder|not implemented|28
 forward-placeholder|not implemented|29
 tailrec|tailrec abort|30
 plain-abort|plain abort|31
-plain-assert|plain assertion|none
+plain-assert|plain assertion|32
 CASES
     "$@" lazy > "$WORK/actual" 2>&1
     printf 'passed\n' > "$WORK/expected"

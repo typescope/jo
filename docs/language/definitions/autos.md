@@ -76,19 +76,18 @@ import jo.compile.SourceLocation
 
 def check(cond: Bool)(auto location: SourceLocation): Unit =
   if !cond then
-    assert(false, "check failed (" + location + ")")
+    assert(false, "check failed")
 
 check(answer == 42) // synthesis occurs here
 ```
 
 `compile.location` requests a `SourceLocation` on demand, and its `toString`
 returns `file:line`. `abort` takes an auto location and appends `(file:line)` to
-its message. `assert` does not request a location automatically.
-Put the request inside an assertion's lazy message to construct and format it
-only on failure:
+its message. `assert` is a compiler intrinsic that evaluates its condition once
+and evaluates its message and auto location only on failure:
 
 ```jo
-assert(cond, "check failed (" + compile.location + ")")
+assert(cond, "check failed")
 ```
 
 The `...` placeholder still takes an auto location.
