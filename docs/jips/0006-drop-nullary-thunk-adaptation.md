@@ -137,6 +137,9 @@ Assertions therefore retain concise call syntax without depending on thunk
 adaptation. Successful assertions do not allocate a message closure or a
 `SourceLocation`.
 
+Given the special status of `assert` in a language and its wide usage, we believe
+intrinsification is a good choice.
+
 ## Alternatives considered
 
 **Keep adaptation for diagnostic messages.** This avoids lambda syntax in
