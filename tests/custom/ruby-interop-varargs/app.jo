@@ -41,6 +41,10 @@ def testPositionalSplice: Unit =
   val f: FileModule = rb.const("File").cast[FileModule]
   val segs: List[String] = List("x", "y")
   println(f.join(..segs))
+  println (f.join(..segs, "z"))
+  println (f.join(..segs, ..segs))
+  println (f.join(..segs, "z", ..segs, "w"))
+  println (f.join("root", ..segs))
 
 def testMixedPositionalAndKeyword: Unit =
   println "--- ..Mixed[T] positional + keyword ---"
