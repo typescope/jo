@@ -17,3 +17,7 @@ def testPositionalSplice: Unit =
   val path: PathModule = js.require("path").cast[PathModule]
   val segs: List[String] = List("x", "y")
   println path.join(..segs)
+  println (path.join(..segs, "z"))
+  println (path.join(..segs, ..segs))
+  println (path.join(..segs, "z", ..segs, "w"))
+  println (path.join("root", ..segs))

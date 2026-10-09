@@ -2,6 +2,10 @@
 tmp/a/b
 --- ..T splice ---
 x/y
+x/y/z
+x/y/x/y
+x/y/z/x/y/w
+root/x/y
 --- ..Mixed[T] positional + keyword ---
 hello|world
 --- ..Mixed[T] splice ---
