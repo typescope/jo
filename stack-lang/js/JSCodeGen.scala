@@ -590,7 +590,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   /** Unpack a @js.interop vararg pack (List.empty + a + b ++ xs) into JS exprs, splicing Lists as ...js.list(xs) */
   private def compileVarargItems(word: Word)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], List[JS.Expr]) =
     word match
-      case Apply(Select(pack, "result"), Nil, _) =>
+      case Apply(Select(pack, "result"), Nil, _) if TreeOps.isVarargBuilder(pack) =>
         compileVarargItems(pack)
 
       case Apply(Ident(sym), Nil, _) if sym == defn.List_empty =>
@@ -599,20 +599,22 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case Apply(fun, List(_), _) if fun.refers(defn.ListBuilder_fun) =>
         (Nil, Nil)
 
-      case Apply(Select(prev, "add"), List(item), _) =>
+      case Apply(Select(prev, "add" | "+"), List(item), _) if TreeOps.isVarargPackReceiver(prev) =>
         val (prevStats, prevExprs) = compileVarargItems(prev)
         val (itemStats, itemExpr)  = compileExpr(item, enforcePurity = false)
         (prevStats ++ itemStats, prevExprs :+ itemExpr)
 
-      case Apply(Select(prev, "addList"), List(xs), _) =>
+      case Apply(Select(prev, "addList" | "++"), List(xs), _) if TreeOps.isVarargPackReceiver(prev) =>
         val (prevStats, prevExprs) = compileVarargItems(prev)
         val (xsStats, xsExpr) = compileExpr(xs, enforcePurity = false)
         // Convert Jo List[T] to JS Array before spreading (Jo_List ≠ native Array)
         val jsArr = JS.Call(None, jsName(runtime.js_array), List(xsExpr))
         (prevStats ++ xsStats, prevExprs :+ JS.Spread(jsArr))
 
-      case _ =>
-        throw new Exception("unexpected vararg list shape in @js.interop call: " + word.show)
+      case xs =>
+        val (stats, expr) = compileExpr(xs, enforcePurity = false)
+        val jsArr = JS.Call(None, jsName(runtime.js_array), List(expr))
+        (stats, List(JS.Spread(jsArr)))
 
 
   /** Compile a function/method call */
