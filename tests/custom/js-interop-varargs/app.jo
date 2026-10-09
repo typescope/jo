@@ -21,3 +21,10 @@ def testPositionalSplice: Unit =
   println (path.join(..segs, ..segs))
   println (path.join(..segs, "z", ..segs, "w"))
   println (path.join("root", ..segs))
+  val builder = List.builder[String]().add("b").add("c")
+  println (path.join(..builder.result))
+  println (path.join(..(PartSource + "u")))
+
+object PartSource
+  def +(part: String): List[String] = [part]
+end
