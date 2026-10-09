@@ -49,6 +49,9 @@ def testPositionalSplice: Unit =
   println (path.join(..segs, ..segs))
   println (path.join(..segs, "z", ..segs, "w"))
   println (path.join("root", ..segs))
+  val builder = List.builder[String]().add("b").add("c")
+  println (path.join(..builder.result))
+  println (path.join(..(PartSource + "u")))
 
 def testMixedPositionalAndKeyword: Unit =
   println "--- ..Mixed[T] positional + keyword ---"
@@ -67,3 +70,7 @@ def testNamedOnly: Unit =
   val d = bd.dict(x = 1, y = 2)
   println py.dynamic(d)["x"].asInt.toString
   println py.dynamic(d)["y"].asInt.toString
+
+object PartSource
+  def +(part: String): List[String] = [part]
+end
