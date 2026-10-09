@@ -89,15 +89,15 @@ class RubyRuntime(using defn: Definitions):
   /** Extra symbols that become reachable when a given SAST symbol is reached.
    *
    *  - String.iterator: replaced by StringOps.iterator at emit time.
-   *  - List.++: over-approximation of @rb.interop vararg splice sites; any
-   *    use of List.++ pulls in rb_array (acceptable because List is already
-   *    reachable at that point so rb_array adds negligible size).
+   *  - List: keep rb_array for interop splices, including bare-list packs
+   *    with no builder or concatenation call to mark the helper reachable.
    *  - rb.try: codegen constructs Ok/Err directly; no SAST New node exists.
    */
   def intrinsicDeps: Map[Symbol, List[Symbol]] =
     val strSym  = defn.String_type
     val listSym = defn.List_type
     Map(
+      listSym -> List(rb_array),
       strSym.termMember("iterator") -> List(String_iterator),
       listSym.termMember("++")      -> List(rb_array),
       defn.ListBuilder_addList -> List(rb_array),

@@ -10,6 +10,20 @@ import reporting.Config
 import scala.collection.mutable
 
 object TreeOps:
+  /** Only list and builder operations describe the structure of a vararg pack. */
+  def isVarargPackReceiver(word: Word)(using defn: Definitions): Boolean =
+    word.tpe.isClassType &&
+      (word.tpe.classSymbol == defn.List_type || word.tpe.classSymbol == defn.ListBuilder_type)
+
+  /** Recognize builder chains generated for vararg packs.
+    * A user-supplied builder expression must be evaluated as a whole.
+    */
+  def isVarargBuilder(word: Word)(using defn: Definitions): Boolean =
+    word match
+      case Apply(fun, List(Literal(Constant.Int(_))), _) if fun.refers(defn.ListBuilder_fun) => true
+      case Apply(Select(prev, "add" | "addList"), List(_), _) => isVarargBuilder(prev)
+      case _ => false
+
   /** Construct the canonical source location for a call or generated failure. */
   def sourceLocation(span: Span)(using defn: Definitions, source: Source, config: Config): Word =
     val targetType = StaticRef(defn.SourceLocation_class)

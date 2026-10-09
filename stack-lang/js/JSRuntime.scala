@@ -106,11 +106,9 @@ class JSRuntime(using defn: Definitions):
    *    replaced by StringOps helpers at emit time; Universe must see the
    *    mapping so it keeps those helpers reachable.
    *
-   *  - List.++ : when a List is spliced into a @js.interop vararg call with
-   *    `..list`, the codegen emits `js.array(list)` to convert the Jo List
-   *    to a native JS array before spreading.  List.++ is an over-approximation
-   *    of that site (any List.++ use triggers js_array), but acceptable because
-   *    List is already reachable at that point so js_array adds negligible size.
+   *  - List: interop vararg packs may now be a bare list, with no builder
+   *    or concatenation call. Keeping js_array whenever List is live also
+   *    covers those codegen-injected conversions before spreading.
    *
    *  - js.try : the codegen wraps the action in a try/rescue and constructs
    *    Ok(value) / Err(exception) directly; no SAST New node exists for them.
@@ -119,6 +117,7 @@ class JSRuntime(using defn: Definitions):
     val strSym  = defn.String_type
     val listSym = defn.List_type
     Map(
+      listSym -> List(js_array),
       strSym.termMember("size")      -> List(String_size),
       strSym.termMember("get")       -> List(String_get),
       strSym.termMember("substring") -> List(String_substring),

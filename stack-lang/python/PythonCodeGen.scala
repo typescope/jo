@@ -80,12 +80,6 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       word.pos(using ctx.currentFunction.source)
     )
 
-  private def abortBadFfiCallArgs(word: Word)(using ctx: Context): Nothing =
-    Reporter.abort(
-      "Dynamic call arguments must be written directly at the call site; use positional args, named args (key = value), or ..xs splice",
-      word.pos(using ctx.currentFunction.source)
-    )
-
   private def pythonInteropMemberName(sym: Symbol): String =
     runtime.pyTargetName(sym).getOrElse(pythonMemberName(sym))
 
@@ -713,7 +707,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     */
   private def compileVarargItems(packed: Word, enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], List[P.Expr]) =
     packed match
-      case Apply(Select(pack, "result"), Nil, _) =>
+      case Apply(Select(pack, "result"), Nil, _) if TreeOps.isVarargBuilder(pack) =>
         compileVarargItems(pack, enforcePurity)
 
       case Apply(Ident(sym), Nil, _) if sym == defn.List_empty =>
@@ -722,20 +716,22 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case Apply(fun, List(_), _) if fun.refers(defn.ListBuilder_fun) =>
         (Nil, Nil)
 
-      case Apply(Select(prev, "add"), List(arg), _) =>
+      case Apply(Select(prev, "add" | "+"), List(arg), _) if TreeOps.isVarargPackReceiver(prev) =>
         val (prevStats, prevExprs) = compileVarargItems(prev, enforcePurity)
         val (argStats, argExpr) = compileCallArg(arg, enforcePurity = false)
         (prevStats ++ argStats, prevExprs :+ argExpr)
 
-      case Apply(Select(prev, "addList"), List(xs), _) =>
+      case Apply(Select(prev, "addList" | "++"), List(xs), _) if TreeOps.isVarargPackReceiver(prev) =>
         val (prevStats, prevExprs) = compileVarargItems(prev, enforcePurity)
         val (xsStats, xsExpr) = compileExpr(xs, enforcePurity = false)
         // Convert Jo List to Python list so Python *-unpacking works
         val pyList = P.Call(None, pythonName(runtime.py_list), List(xsExpr))
         (prevStats ++ xsStats, prevExprs :+ P.Starred(pyList))
 
-      case _ =>
-        abortBadFfiCallArgs(packed)
+      case xs =>
+        val (stats, expr) = compileExpr(xs, enforcePurity = false)
+        val pyList = P.Call(None, pythonName(runtime.py_list), List(expr))
+        (stats, List(P.Starred(pyList)))
 
   /** Compile a function/method call */
   private def compileCall(fun: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
