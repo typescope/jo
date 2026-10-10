@@ -95,36 +95,3 @@ class JSRuntime(using defn: Definitions):
   val Jo    = defn.resolveContainer("jo")
   val jo_Ok = Jo.typeMember("Ok")
   val jo_Err = Jo.typeMember("Err")
-
-  /** Extra symbols that become reachable when a given SAST symbol is reached.
-   *
-   *  The JS codegen injects calls to runtime helpers at certain SAST sites
-   *  that are invisible to the Universe traverser.  Each entry here says:
-   *  "whenever the key symbol is live, also treat the value symbols as live."
-   *
-   *  - String intrinsics (size, get, …): the @intrinsic String methods are
-   *    replaced by StringOps helpers at emit time; Universe must see the
-   *    mapping so it keeps those helpers reachable.
-   *
-   *  - List: interop vararg packs may now be a bare list, with no builder
-   *    or concatenation call. Keeping js_array whenever List is live also
-   *    covers those codegen-injected conversions before spreading.
-   *
-   *  - js.try : the codegen wraps the action in a try/rescue and constructs
-   *    Ok(value) / Err(exception) directly; no SAST New node exists for them.
-   */
-  def intrinsicDeps: Map[Symbol, List[Symbol]] =
-    val strSym  = defn.String_type
-    val listSym = defn.List_type
-    Map(
-      listSym -> List(js_array),
-      strSym.termMember("size")      -> List(String_size),
-      strSym.termMember("get")       -> List(String_get),
-      strSym.termMember("substring") -> List(String_substring),
-      strSym.termMember("indexOf")   -> List(String_indexOf),
-      strSym.termMember("iterator")  -> List(String_iterator),
-      listSym.termMember("++")       -> List(js_array),
-      defn.ListBuilder_addList -> List(js_array),
-      js_try -> List(jo_Ok, jo_Ok.termMember(Names.Constructor),
-                     jo_Err, jo_Err.termMember(Names.Constructor)),
-    )

@@ -82,6 +82,25 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
             symbol2UniqueName(sym) = uniqueName
             uniqueName
 
+  private val universe = new Universe(rewire)
+
+  private def functionName(sym: Symbol)(using UniqueName): String =
+    universe.useFunction(sym)
+    jsName(sym)
+
+  private def referenceMemberName(sym: Symbol): String =
+    if sym.isMethod then universe.useMethod(sym)
+
+    jsInteropMemberName(sym)
+
+  private def classReferenceName(cls: Symbol)(using UniqueName): String =
+    universe.useClass(cls)
+    jsName(cls)
+
+  private def constructorName(cls: Symbol)(using UniqueName): String =
+    universe.useConstructor(cls)
+    jsName(cls)
+
   //----------------------------------------------------------------------------
   // Compilation
   //----------------------------------------------------------------------------
@@ -117,10 +136,17 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
     given UniqueName = globalScope
 
-    for unit <- units; defn <- unit do
-      defn match
-        case fdef: FunDef if !fdef.symbol.is(Flags.Object) => defs += compileFunction(fdef)
-        case cdef: ClassDef => defs += compileClass(cdef)
+    val loweredFunctions = universe.lower(units, runtime.start)(compileFunction)
+
+    // Assemble in source order, including methods discovered late in lowering.
+    for unit <- units; tree <- unit do
+      tree match
+        case fdef: FunDef if loweredFunctions.contains(fdef.symbol) =>
+          defs += loweredFunctions(fdef.symbol)
+
+        case cdef: ClassDef if universe.contains(cdef.symbol) =>
+          defs += compileClass(cdef, loweredFunctions)
+
         case _ =>
 
     // Build the program: combine all initialization with the main call
@@ -145,6 +171,11 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
   /** Compile a function or method definition */
   private def compileFunction(fdef: FunDef): JS.FunDef = try
     val sym = fdef.symbol
+
+    // Erased primitive methods have a regular receiver parameter. Only
+    // instance methods use the host receiver name.
+    if sym.isMethod then
+      symbol2UniqueName(sym.owner.classInfo.self) = "this"
 
     // Object accessors should not be reachable - they're replaced with direct access
     assert(!sym.is(Flags.Object),
@@ -180,7 +211,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     throw ex
 
   /** Compile a class definition */
-  private def compileClass(cdef: ClassDef)(using UniqueName): JS.ClassDef =
+  private def compileClass(cdef: ClassDef, loweredFunctions: Map[Symbol, JS.FunDef])(using UniqueName): JS.ClassDef =
     val classSym = cdef.symbol
     val jsClassName = jsName(classSym)
 
@@ -189,8 +220,8 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
     // Get all fields from the class definition
     val fieldNames = cdef.vals.map(_.symbol).map(jsMemberName)
 
-    // Compile methods - each method gets compiled with its own scope
-    val methods = cdef.funs.map(compileFunction)
+    // Assemble methods lowered by the reachability worklist.
+    val methods = cdef.funs.flatMap(f => loweredFunctions.get(f.symbol))
 
     // Add static field if this is a singleton object
     val staticFields =
@@ -439,6 +470,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case Ident(sym) =>
         assert(!sym.is(Flags.Context), "Unexpected context parameter")
+
+        if sym.isFunction then universe.useFunction(sym)
+
         if enforcePurity && sym.isMutable then
           // Mutable variable reads are impure - wrap in temp
           val tempName = freshTemp()
@@ -451,7 +485,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         word.tpe match
           case Types.MemberRef(_, sym) =>
             val (qualStats, qualExpr) = compileExpr(qual, enforcePurity)
-            val memberName = jsInteropMemberName(sym)
+            val memberName = referenceMemberName(sym)
             (qualStats, JS.Select(qualExpr, memberName))
 
           case _ => throw new Exception("Unexpected select: " + word.show)
@@ -461,6 +495,8 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           throw new Exception("Unexpected value drop in expression position: " + encoded.show)
 
         else if encoded.tpe.isLambdaType && repr.tpe.isClassType then
+          universe.useMethod(repr.tpe.classSymbol.termMember(Names.apply))
+
           // Wrap class instance as lambda
           val (objStats, objExpr) = compileExpr(repr, enforcePurity = false)  // lambda body is OK
           val objName = freshTemp()
@@ -479,7 +515,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         val classSym = classType.tpe.classSymbol
         val allArgs = args ++ autos
         val (argStats, argExprs) = compileExprList(allArgs, enforcePurity = false)
-        val newExpr = JS.New(jsName(classSym), argExprs)
+        val newExpr = JS.New(constructorName(classSym), argExprs)
 
         if enforcePurity then
           val tempName = freshTemp()
@@ -510,7 +546,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
             JS.Call(Some(JS.Ident("Array")), "isArray", argExpr :: Nil)
 
           else
-            JS.InstanceOf(argExpr, jsName(cls))
+            JS.InstanceOf(argExpr, classReferenceName(cls))
 
         // Type test is pure if argExpr is pure
         (argStats, test)
@@ -608,12 +644,12 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         val (prevStats, prevExprs) = compileVarargItems(prev)
         val (xsStats, xsExpr) = compileExpr(xs, enforcePurity = false)
         // Convert Jo List[T] to JS Array before spreading (Jo_List ≠ native Array)
-        val jsArr = JS.Call(None, jsName(runtime.js_array), List(xsExpr))
+        val jsArr = JS.Call(None, functionName(runtime.js_array), List(xsExpr))
         (prevStats ++ xsStats, prevExprs :+ JS.Spread(jsArr))
 
       case xs =>
         val (stats, expr) = compileExpr(xs, enforcePurity = false)
-        val jsArr = JS.Call(None, jsName(runtime.js_array), List(expr))
+        val jsArr = JS.Call(None, functionName(runtime.js_array), List(expr))
         (stats, List(JS.Spread(jsArr)))
 
 
@@ -626,11 +662,8 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           val funType = sym.tpe.asProcType
           val classSym = funType.resultType.classSymbol
 
-          // Mark class reachable
-          jsName(classSym)
-
           // Direct access to static singleton field
-          (Nil, JS.Select(JS.Ident(jsName(classSym)), SingletonFieldName))
+          (Nil, JS.Select(JS.Ident(classReferenceName(classSym)), SingletonFieldName))
 
         else if sym == runtime.js_abort then
           // abort(msg): Bottom  →  throw msg
@@ -741,8 +774,8 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           val (actionStats, actionExpr) = compileExpr(action, enforcePurity = false)
           val tempResult = freshTemp()
           val tempErr    = freshTemp()
-          val okExpr     = JS.New(jsName(runtime.jo_Ok), List(actionExpr))
-          val errExpr    = JS.New(jsName(runtime.jo_Err), List(JS.Ident(tempErr)))
+          val okExpr     = JS.New(constructorName(runtime.jo_Ok), List(actionExpr))
+          val errExpr    = JS.New(constructorName(runtime.jo_Err), List(JS.Ident(tempErr)))
           val tryBody    = JS.Block(actionStats :+ JS.Assign(tempResult, okExpr))
           val tryStat    = JS.TryCatch(tryBody, tempErr, JS.Assign(tempResult, errExpr))
           (List(JS.VarDecl("let", tempResult, JS.UndefinedLit), tryStat), JS.Ident(tempResult))
@@ -784,7 +817,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
         else
           val (argStats, argExprs) = compileExprList(args, enforcePurity = false)
-          val call = JS.Call(None, jsName(sym), argExprs)
+          val call = JS.Call(None, functionName(sym), argExprs)
           if enforcePurity then
             val tempName = freshTemp()
             (argStats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
@@ -969,7 +1002,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
         else
           // Regular method/function call on an object
-          val memberName = jsInteropMemberName(methodSym)
+          val memberName = referenceMemberName(methodSym)
           val procType = methodSym.tpe.asProcType
           val isInteropVararg =
             methodSym.owner.hasAnnotation(runtime.annot_interop) && procType.hasVararg
@@ -1270,7 +1303,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case "size" =>
         val (stats, exprs) = compileExprList(qual :: Nil, enforcePurity = false)
-        val call = JS.Call(None, jsName(runtime.String_size), exprs)
+        val call = JS.Call(None, functionName(runtime.String_size), exprs)
         if enforcePurity then
           val tempName = freshTemp()
           (stats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
@@ -1280,7 +1313,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case "get" =>
         val index :: Nil = args: @unchecked
         val (stats, exprs) = compileExprList(qual :: index :: Nil, enforcePurity = false)
-        val call = JS.Call(None, jsName(runtime.String_get), exprs)
+        val call = JS.Call(None, functionName(runtime.String_get), exprs)
         if enforcePurity then
           val tempName = freshTemp()
           (stats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
@@ -1290,7 +1323,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case "substring" =>
         val index :: len :: Nil = args: @unchecked
         val (stats, exprs) = compileExprList(qual :: index :: len :: Nil, enforcePurity = false)
-        val call = JS.Call(None, jsName(runtime.String_substring), exprs)
+        val call = JS.Call(None, functionName(runtime.String_substring), exprs)
         if enforcePurity then
           val tempName = freshTemp()
           (stats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
@@ -1300,7 +1333,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
       case "indexOf" =>
         val other :: from :: Nil = args: @unchecked
         val (stats, exprs) = compileExprList(qual :: other :: from :: Nil, enforcePurity = false)
-        val call = JS.Call(None, jsName(runtime.String_indexOf), exprs)
+        val call = JS.Call(None, functionName(runtime.String_indexOf), exprs)
         if enforcePurity then
           val tempName = freshTemp()
           (stats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
@@ -1309,7 +1342,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case "iterator" =>
         val (stats, exprs) = compileExprList(qual :: Nil, enforcePurity = false)
-        val call = JS.Call(None, jsName(runtime.String_iterator), exprs)
+        val call = JS.Call(None, functionName(runtime.String_iterator), exprs)
         if enforcePurity then
           val tempName = freshTemp()
           (stats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
