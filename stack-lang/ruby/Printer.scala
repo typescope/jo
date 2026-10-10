@@ -162,9 +162,11 @@ object Printer:
 
   /** Emit an expression with precedence context */
   def emitTree(tree: Tree, parentPrec: Int = 0, isBlockCtx: Boolean = false)(using ctx: Context): Unit =
-    def withParenthesisOpt(op: String)(work: Int => Unit): Unit =
+    def withParenthesisOpt(op: String, isBinary: Boolean = false)(work: Int => Unit): Unit =
       val myPrec = precedence(op)
-      val needsParens = myPrec < parentPrec
+      // Make nested binary grouping explicit even when precedence would suffice.
+      val needsParens = myPrec < parentPrec || (isBinary && parentPrec > 0)
+
       if needsParens then
         emitInline("(")
         work(myPrec)
@@ -181,7 +183,7 @@ object Printer:
       case Ident(name) => emitInline(name)
 
       case BinOp(left, op, right) =>
-        withParenthesisOpt(op): myPrec =>
+        withParenthesisOpt(op, isBinary = true): myPrec =>
           emitTree(left, myPrec)
           emitInline(" ", op, " ")
           // All binary operators here are left-associative, so the right
