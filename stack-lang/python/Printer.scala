@@ -229,8 +229,9 @@ object Printer:
 
   /** Emit an expression with precedence context */
   def emitExpr(expr: Expr, parentPrec: Int = 0)(using ctx: Context): Unit =
-    def withParenthesisOpt(myPrec: Int)(work: Int => Unit): Unit =
-      val needsParens = myPrec < parentPrec
+    def withParenthesisOpt(myPrec: Int, isBinary: Boolean = false)(work: Int => Unit): Unit =
+      // Make nested binary grouping explicit even when precedence would suffice.
+      val needsParens = myPrec < parentPrec || (isBinary && parentPrec > 0)
 
       if needsParens then
         emitInline("(")
@@ -248,7 +249,7 @@ object Printer:
       case Ident(name) => emitInline(name)
 
       case BinOp(left, op, right) =>
-        withParenthesisOpt(precedence(op)): myPrec =>
+        withParenthesisOpt(precedence(op), isBinary = true): myPrec =>
           emitExpr(left, myPrec)
           emitInline(" ", op, " ")
           // Preserve right operand grouping for left-associative operators.
