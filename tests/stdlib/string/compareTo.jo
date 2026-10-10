@@ -27,7 +27,7 @@ def testCompareTo =
   println m.get("\u{4F60}")               // 3
   println m.size                          // 3
 
-// Preserve exact code point and prefix-length differences on every backend.
+// Preserve exact code point differences and prefix ordering on every backend.
 def testCodePointComparison =
   println "".compareTo("")
   println "same".compareTo("same")

@@ -328,20 +328,7 @@ private section StringOps
       end
     end
     if done then result
-    else if left.hasNext then
-      var delta = 0
-      while left.hasNext do
-        val _ = left.next()
-        delta = delta + 1
-      end
-      delta
-    else if right.hasNext then
-      var delta = 0
-      while right.hasNext do
-        val _ = right.next()
-        delta = delta - 1
-      end
-      delta
-    else
-      0
+    else if left.hasNext then 1
+    else if right.hasNext then -1
+    else 0
 end
