@@ -34,7 +34,7 @@ Create: `"hello"`, `"hello \{name}"` (interpolation), `"""` for multi-line (cont
 - `.toFloatOpt`: Option[Float]
 - `.*(n)`: String — repeat n times
 - `.isEmpty`: Bool
-- `.compareTo(other)`: Int
+- `.compareTo(other)`: Int — negative before, zero equal, positive after
 - `.iterator`: Iterator[Char]
 - `.exists(pat: Regex)`: Bool
 - `.matchFirst(pat: Regex)`: Option[Match]

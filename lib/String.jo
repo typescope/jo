@@ -97,7 +97,15 @@ class String
   def toFloatOpt: Option[Float] =
     Float.parse(this)
 
-  //[ Lexicographic comparison by Unicode code points.    //]
+  //[ Lexicographic comparison by Unicode code points.
+    !
+    ! Returns a negative value if this string precedes `other`, zero if they
+    ! are equal, and a positive value if this string follows `other`.
+    !
+    ! If one string is a prefix of the other, the shorter string comes first.
+    !
+    ! Only the sign is guaranteed; do not rely on the magnitude of the result.
+  //]
   def compareTo(other: String): Int =
     StringOps.compareTo(this, other)
 
