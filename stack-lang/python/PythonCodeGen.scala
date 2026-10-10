@@ -531,13 +531,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           throw new Exception("Unexpected value drop in expression position: " + encoded.show)
 
         else if encoded.tpe.isLambdaType && repr.tpe.isClassType then
-          // Wrap class instance as lambda
-          val (objStats, objExpr) = compileExpr(repr, enforcePurity = false)  // lambda body is OK
-          val objName = freshTemp()
-          val bindObj = P.Assign(objName, objExpr)
-          // lambda *args: instance.apply(*args)
-          val lambdaBody = P.Call(Some(P.Ident(objName)), "apply", List(P.RawCode("*args")))
-          (objStats :+ bindObj, P.Lambda(List("*args"), lambdaBody))
+          // A bound method retains this closure instance even when a loop
+          // reassigns the temporary used to construct the next closure.
+          val (objStats, objExpr) = compileExpr(repr, enforcePurity)
+          (objStats, P.Select(objExpr, "apply"))
 
         else
           // Pass through enforcePurity
