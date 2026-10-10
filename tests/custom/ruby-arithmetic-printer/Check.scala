@@ -27,7 +27,11 @@ object RubyArithmeticPrinterCheck:
       (BinOp(BinOp(BinOp(a, "+", b), "*", c), "-", a), "((3 + 4) * 5) - 3", 32),
       (BinOp(BinOp(a, "+", b), "<<", IntLit(1)), "(3 + 4) << 1", 14),
       (BinOp(BinOp(a, "&", b), "|", c), "(3 & 4) | 5", 5),
-      (BinOp(a, "%", BinOp(b, "+", c)), "3 % (4 + 5)", 3)
+      (BinOp(a, "%", BinOp(b, "+", c)), "3 % (4 + 5)", 3),
+      (UnaryOp("-", UnaryOp("~", a)), "-(~3)", 4),
+      (BinOp(UnaryOp("-", a), "*", b), "(-3) * 4", -12),
+      (Call(Some(BinOp(a, "-", b)), "abs", List.empty), "(3 - 4).abs", 1),
+      (Call(Some(UnaryOp("-", a)), "abs", List.empty), "(-3).abs", 3)
     )
     val checks = cases.map: (expr, expected, value) =>
       val code = render(expr)
