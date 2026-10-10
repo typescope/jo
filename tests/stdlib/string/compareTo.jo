@@ -48,6 +48,10 @@ def testCodePointComparison =
   println "\u{1F600}a".compareTo("\u{1F600}z")
   println "".compareTo("\u{1F600}\u{1F680}")
   println "\u{1F600}\u{1F680}".compareTo("")
+  println "a".compareTo("é")
+  println "\u{7FF}".compareTo("\u{800}")
+  println "\u{4F60}".compareTo("\u{4F61}")
+  println "\u{1F600}".compareTo("\u{1F601}")
 
   // Ordering synthesized from compareTo must use the same implementation.
   println List("z", "a", "é", "a", "").sort
