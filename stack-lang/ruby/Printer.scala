@@ -2,11 +2,11 @@ package ruby
 
 import ruby.Trees.*
 
-/** Pretty printer for Ruby AST with precedence-aware parenthesization
+/** Pretty printer for Ruby AST with explicit expression grouping
   *
   * Generates clean, idiomatic Ruby code from the AST.
   *
-  * - Precedence-aware: Only adds parentheses when needed
+  * - Parenthesizes nested compound expressions
   * - Proper indentation: Uses 2-space indentation (Ruby standard)
   *
   * Invariants:
@@ -56,48 +56,12 @@ object Printer:
   def emitIndentedTree(tree: Tree, isBlockCtx: Boolean)(using ctx: Context): Unit =
     tree match
       case _: If | _: Block | _: Assign | _: While | _: FieldAssign | _: Catch | _: Return | _: Throw | _: IndexAssign | _: BeginRescue | Break | Next =>
-       emitTree(tree, 0, isBlockCtx)
+       emitTree(tree, isBlockCtx = isBlockCtx)
 
       case _ =>
         emitNewline()
         emit(INDENT * ctx.indent)
-        emitTree(tree, 0, isBlockCtx)
-
-  /** Operator precedence levels (higher = tighter binding)
-    *
-    * 	high   ::
-    * 	       []
-    * 	       **
-    * 	       -(unary)  +(unary)  !  ~
-    * 	       *  /  %
-    * 	       +  -
-    * 	       <<  >>
-    * 	       &
-    * 	       |  ^
-    * 	       >  >=  <  <=
-    * 	       <=> ==  === !=  =~  !~
-    * 	       &&
-    * 	       ||
-    * 	       .. ...
-    * 	       = (+=, -=...)
-    * 	       not
-    * 	low    and or
-    *
-    *
-    * https://ruby-doc.org/docs/ruby-doc-bundle/Manual/man-1.4/syntax.html#operator
-    */
-  private def precedence(op: String): Int = op match
-    case "||" => 1
-    case "&&" => 2
-    case "=="|"!=" => 4
-    case "<"|">"|"<="|">=" => 5
-    case "|"|"^" => 6
-    case "&" => 7
-    case ">>"|"<<" => 8
-    case "+"|"-" => 9
-    case "*"|"/"|"%" => 10
-    case "!"|"-"|"~" => 11
-    case _ => 100  // Atomic expressions (no parens needed)
+        emitTree(tree, isBlockCtx = isBlockCtx)
 
   /** Print a complete Ruby program */
   def print(program: Program, pw: java.io.PrintWriter): Unit =
@@ -149,7 +113,7 @@ object Printer:
             val Assign(fieldName, value) = field
 
             emitLine("@@", fieldName, " = ")
-            emitTree(value, 0)
+            emitTree(value)
 
             emitLine("def self.", fieldName)
             indented:
@@ -160,17 +124,14 @@ object Printer:
 
       emitLine("end")
 
-  /** Emit an expression with precedence context */
-  def emitTree(tree: Tree, parentPrec: Int = 0, isBlockCtx: Boolean = false)(using ctx: Context): Unit =
-    def withParenthesisOpt(op: String)(work: Int => Unit): Unit =
-      val myPrec = precedence(op)
-      val needsParens = myPrec < parentPrec
-      if needsParens then
-        emitInline("(")
-        work(myPrec)
-        emitInline(")")
-      else
-        work(myPrec)
+  /** Emit an expression, grouping compound expressions when nested. */
+  def emitTree(tree: Tree, nested: Boolean = false, isBlockCtx: Boolean = false)(using ctx: Context): Unit =
+    val needsParens = nested && (tree match
+      case _: BinOp | _: UnaryOp => true
+      case _ => false
+    )
+
+    if needsParens then emitInline("(")
 
     tree match
       case IntLit(n) => emitInline(n.toString)
@@ -181,18 +142,13 @@ object Printer:
       case Ident(name) => emitInline(name)
 
       case BinOp(left, op, right) =>
-        withParenthesisOpt(op): myPrec =>
-          emitTree(left, myPrec)
-          emitInline(" ", op, " ")
-          // All binary operators here are left-associative, so the right
-          // operand must be parenthesized when it has the same precedence
-          // (e.g. `a - (b - c)` must not become `a - b - c`).
-          emitTree(right, myPrec + 1)
+        emitTree(left, nested = true)
+        emitInline(" ", op, " ")
+        emitTree(right, nested = true)
 
       case UnaryOp(op, operand) =>
-        withParenthesisOpt(op): myPrec =>
-          emitInline(op)
-          emitTree(operand, myPrec + 1)
+        emitInline(op)
+        emitTree(operand, nested = true)
 
       case If(cond, thenBranch, elseBranch) =>
         emitIndented("if")
@@ -209,14 +165,14 @@ object Printer:
       case Call(receiver, method, args) =>
         receiver match
           case Some(recv) =>
-            emitTree(recv, 100)
+            emitTree(recv, nested = true)
             emitInline(".", method)
             // Ruby convention: omit () for zero-argument method calls on a receiver
             if args.nonEmpty then
               emitInline("(")
               args.zipWithIndex.foreach: (arg, i) =>
                 if i > 0 then emitInline(", ")
-                emitTree(arg, 0)
+                emitTree(arg)
               emitInline(")")
 
           case None =>
@@ -226,49 +182,49 @@ object Printer:
             emitInline("(")
             args.zipWithIndex.foreach: (arg, i) =>
               if i > 0 then emitInline(", ")
-              emitTree(arg, 0)
+              emitTree(arg)
             emitInline(")")
 
       case KwArg(name, value) =>
         emitInline(name, ": ")
-        emitTree(value, 0)
+        emitTree(value)
 
       case Starred(expr) =>
         emitInline("*")
-        emitTree(expr, 0)
+        emitTree(expr)
 
       case LambdaCall(fun, args) =>
-        emitTree(fun, 0)
+        emitTree(fun)
         emitInline(".call")
 
         emitInline("(")
         args.zipWithIndex.foreach: (arg, i) =>
           if i > 0 then emitInline(", ")
-          emitTree(arg, 0)
+          emitTree(arg)
         emitInline(")")
 
       case Lambda(params, body) =>
         emitInline("lambda { |", params.mkString(", "), "| ")
-        emitTree(body, 0)
+        emitTree(body)
         emitInline(" }")
 
       case New(className, args) =>
         emitInline(className, ".new(")
         args.zipWithIndex.foreach: (arg, i) =>
           if i > 0 then emitInline(", ")
-          emitTree(arg, 0)
+          emitTree(arg)
         emitInline(")")
 
       case Select(receiver, member) =>
-        emitTree(receiver, 100)
+        emitTree(receiver, nested = true)
         emitInline(".", member)
 
       case Index(receiver, args) =>
-        emitTree(receiver, 100)
+        emitTree(receiver, nested = true)
         emitInline("[")
         args.zipWithIndex.foreach: (arg, i) =>
           if i > 0 then emitInline(", ")
-          emitTree(arg, 0)
+          emitTree(arg)
         emitInline("]")
 
       case Block(statements) =>
@@ -298,7 +254,7 @@ object Printer:
         if !isBlockCtx then emitLine("end")(using ctx)
 
       case InstanceOf(value, className) =>
-        emitTree(value, 100)
+        emitTree(value, nested = true)
         emitInline(".is_a?(", className, ")")
 
       case RawCode(code) =>
@@ -307,7 +263,7 @@ object Printer:
 
       case Assign(name, rhs) =>
         emitIndented(name, " = ")
-        emitTree(rhs, 0)(using ctx.indented)
+        emitTree(rhs)(using ctx.indented)
 
       case FieldAssign(receiver, field, rhs) =>
         receiver match
@@ -317,11 +273,11 @@ object Printer:
           case None =>
             emitIndented("@", field)
         emitInline(" = ")
-        emitTree(rhs, 0)(using ctx.indented)
+        emitTree(rhs)(using ctx.indented)
 
       case While(cond, body) =>
         emitLine("while ")
-        emitTree(cond, 0)(using ctx.indented)
+        emitTree(cond)(using ctx.indented)
         indented:
           emitIndentedTree(body, isBlockCtx = true)
         emitLine("end")
@@ -336,12 +292,12 @@ object Printer:
         // Keep multiline expressions attached to return: a bare newline
         // after the keyword would return nil before evaluating the value.
         emitIndented("return(")
-        emitTree(value, 0)(using ctx.indented)
+        emitTree(value)(using ctx.indented)
         emitInline(")")
 
       case Catch(tag, body) =>
         emitLine("catch(")
-        emitTree(tag, 0)(using ctx.indented)
+        emitTree(tag)(using ctx.indented)
         emitInline(") do")
         indented:
           emitIndentedTree(body, isBlockCtx = true)
@@ -349,23 +305,23 @@ object Printer:
 
       case Throw(tag, value) =>
         emitIndented("throw(")
-        emitTree(tag, 0)(using ctx.indented)
+        emitTree(tag)(using ctx.indented)
         value match
           case Some(v) =>
             emitInline(", ")
-            emitTree(v, 0)
+            emitTree(v)
           case None =>
         emitInline(")")
 
       case IndexAssign(receiver, args, rhs) =>
         emitIndented("")
-        emitTree(receiver, 100)(using ctx.indented)
+        emitTree(receiver, nested = true)(using ctx.indented)
         emitInline("[")
         args.zipWithIndex.foreach: (arg, i) =>
           if i > 0 then emitInline(", ")
-          emitTree(arg, 0)
+          emitTree(arg)
         emitInline("] = ")
-        emitTree(rhs, 0)
+        emitTree(rhs)
 
       case BeginRescue(body, binder, handler) =>
         emitLine("begin")
@@ -375,6 +331,8 @@ object Printer:
         indented:
           emitIndentedTree(handler, isBlockCtx = true)
         emitLine("end")
+
+    if needsParens then emitInline(")")
 
   /** Escape special characters in strings */
   private def escape(s: String): String =

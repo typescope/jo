@@ -2,11 +2,11 @@ package js
 
 import js.Trees.*
 
-/** Pretty printer for JavaScript AST with precedence-aware parenthesization
+/** Pretty printer for JavaScript AST with explicit expression grouping
   *
   * Generates clean, idiomatic JavaScript code from the AST.
   *
-  * - Precedence-aware: Only adds parentheses when needed
+  * - Parenthesizes nested compound expressions
   * - Proper indentation: Uses 2-space indentation (JavaScript standard)
   *
   * Invariants:
@@ -46,44 +46,6 @@ object Printer:
   def indented(work: Context ?=> Unit)(using ctx: Context): Unit =
     val ctx2 = Context(ctx.indent + 1, ctx.pw)
     work(using ctx2)
-
-  /** Operator precedence levels (higher = tighter binding)
-    *
-    * JavaScript precedence (from lowest to highest):
-    *   , (comma)
-    *   = (assignment - not used in our AST, assignment is a statement)
-    *   ?: (conditional)
-    *   ||
-    *   &&
-    *   |
-    *   ^
-    *   &
-    *   ==, !=, ===, !==
-    *   <, <=, >, >=, instanceof, in
-    *   <<, >>, >>>
-    *   +, -
-    *   *, /, %
-    *   ** (exponentiation)
-    *   unary: !, ~, +, -, typeof, void, delete
-    *   new, function call, member access
-    *
-    * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Operator_Precedence
-    */
-  private def precedence(op: String): Int = op match
-    case "," => 0        // Comma (lowest in expressions)
-    case "||" => 1       // Logical OR
-    case "&&" => 2       // Logical AND
-    case "|" => 3        // Bitwise OR
-    case "^" => 4        // Bitwise XOR
-    case "&" => 5        // Bitwise AND
-    case "=="|"!="|"==="|"!==" => 6  // Equality
-    case "<"|">"|"<="|">="|"instanceof"|"in" => 7  // Relational
-    case "<<"|">>"|">>>" => 8  // Bitwise shift
-    case "+"|"-" => 9     // Additive
-    case "*"|"/"|"%" => 10  // Multiplicative
-    case "**" => 11      // Exponentiation (right-associative)
-    case "!"|"~"|"-"|"+"|"typeof"|"void"|"delete" => 12  // Unary operators
-    case _ => 100        // Atomic expressions (no parens needed)
 
   /** A `+`/`-` operator, which can merge with a following sign into `++`/`--`. */
   private def isSign(op: String): Boolean = op == "-" || op == "+"
@@ -130,7 +92,7 @@ object Printer:
           staticFields.foreach: field =>
             val Assign(fieldName, value) = field
             emitLine("static ", fieldName, " = ")
-            emitExpr(value, 0)
+            emitExpr(value)
             emitInline(";")
 
           if methods.nonEmpty then emitNewline()
@@ -155,26 +117,28 @@ object Printer:
   private def emitStat(stat: Stat)(using ctx: Context): Unit = stat match
     case VarDecl(keyword, name, init) =>
       emitLine(keyword, " ", name, " = ")
-      emitExpr(init, 0)
+      emitExpr(init)
       emitInline(";")
 
     case Assign(name, value) =>
       emitIndented(name, " = ")
-      emitExpr(value, 0)
+      emitExpr(value)
       emitInline(";")
 
     case FieldAssign(receiver, field, value) =>
-      emitIndentedExpr(receiver, 0)
+      emitIndented("")
+      emitReceiver(receiver)
       emitInline(".", field, " = ")
-      emitExpr(value, 0)
+      emitExpr(value)
       emitInline(";")
 
     case IndexAssign(receiver, index, value) =>
-      emitIndentedExpr(receiver, 0)
+      emitIndented("")
+      emitReceiver(receiver)
       emitInline("[")
-      emitExpr(index, 0)
+      emitExpr(index)
       emitInline("] = ")
-      emitExpr(value, 0)
+      emitExpr(value)
       emitInline(";")
 
     case TryCatch(body, errName, handler) =>
@@ -188,7 +152,7 @@ object Printer:
 
     case IfStat(cond, thenBranch, elseBranch) =>
       emitLine("if (")
-      emitExpr(cond, 0)
+      emitExpr(cond)
       emitInline(") {")
       indented:
         emitStat(thenBranch)
@@ -200,7 +164,7 @@ object Printer:
 
     case While(cond, body) =>
       emitLine("while (")
-      emitExpr(cond, 0)
+      emitExpr(cond)
       emitInline(") {")
       indented:
         emitStat(body)
@@ -223,16 +187,16 @@ object Printer:
 
     case Return(value) =>
       emitLine("return ")
-      emitExpr(value, 0)
+      emitExpr(value)
       emitInline(";")
 
     case Throw(exception) =>
       emitLine("throw ")
-      emitExpr(exception, 0)
+      emitExpr(exception)
       emitInline(";")
 
     case ExprStat(expr) =>
-      emitIndentedExpr(expr, 0)
+      emitIndentedExpr(expr)
       emitInline(";")
 
     case blk: Block =>
@@ -260,40 +224,39 @@ object Printer:
         emitStat(stat)
 
   /** An indented expression */
-  private def emitIndentedExpr(expr: Expr, prec: Int)(using ctx: Context): Unit =
+  private def emitIndentedExpr(expr: Expr, nested: Boolean = false)(using ctx: Context): Unit =
     emitNewline()
     emit(INDENT * ctx.indent)
-    emitExpr(expr, prec)
+    emitExpr(expr, nested)
 
-  /** Emit an expression with precedence context */
-  def emitExpr(expr: Expr, parentPrec: Int = 0)(using ctx: Context): Unit =
-    def withParenthesisOpt(op: String)(work: Int => Unit): Unit =
-      val myPrec = precedence(op)
-      val needsParens = myPrec < parentPrec
-      if needsParens then
-        emitInline("(")
-        work(myPrec)
-        emitInline(")")
-      else
-        work(myPrec)
+  /** Group numeric receivers so member access cannot merge with the literal. */
+  private def emitReceiver(expr: Expr)(using Context): Unit =
+    val needsParens = expr match
+      case _: IntLit | _: FloatLit => true
+      case BigIntLit(n) => n >= 0
+      case _ => false
+
+    if needsParens then emitInline("(")
+
+    emitExpr(expr, nested = true)
+
+    if needsParens then emitInline(")")
+
+  /** Emit an expression, grouping compound expressions when nested. */
+  def emitExpr(expr: Expr, nested: Boolean = false)(using ctx: Context): Unit =
+    val needsParens = nested && (expr match
+      case _: BinOp | _: UnaryOp | _: Conditional | _: Arrow | _: Function | _: ObjectLit | _: InstanceOf => true
+      case _ => false
+    )
+
+    if needsParens then emitInline("(")
 
     expr match
-      case IntLit(n) =>
-        if parentPrec > 20 then
-          // 2.toString is invalid in JS, (2).toString is OK
-          emitInline("(", n.toString, ")")
-        else
-          emitInline(n.toString)
+      case IntLit(n) => emitInline(n.toString)
 
       case BigIntLit(n) =>
-        val literal =
-          if n < 0 then s"(${n}n)"
-          else s"${n}n"
-        if parentPrec > 20 && n >= 0 then
-          // 2n.toString is invalid in JS, (2n).toString is OK
-          emitInline("(", literal, ")")
-        else
-          emitInline(literal)
+        if n < 0 then emitInline(s"(${n}n)")
+        else emitInline(s"${n}n")
 
       case FloatLit(d) => emitInline(d.toString)
 
@@ -308,39 +271,30 @@ object Printer:
       case Ident(name) => emitInline(name)
 
       case BinOp(left, op, right) =>
-        withParenthesisOpt(op): myPrec =>
-          emitExpr(left, myPrec)
-          emitInline(" ", op, " ")
-          // Preserve right operand grouping for left-associative operators.
-          val rightPrec = if op == "**" then myPrec - 1 else myPrec + 1
-          emitExpr(right, rightPrec)
+        emitExpr(left, nested = true)
+        emitInline(" ", op, " ")
+        emitExpr(right, nested = true)
 
       case UnaryOp(op, operand) =>
-        withParenthesisOpt(op): myPrec =>
-          emitInline(op)
-          // Separate the operator from the operand when they would otherwise
-          // merge into a different token: a word operator (typeof/void/delete),
-          // or a sign followed by a negative literal (-(-10) must not be `--10`).
-          if op.head.isLetter || (isSign(op) && startsWithSign(operand)) then
-            emitInline(" ")
-          emitExpr(operand, myPrec + 1)
+        emitInline(op)
+        // Keep word operators and adjacent signs separate from their operands.
+        if op.head.isLetter || (isSign(op) && startsWithSign(operand)) then
+          emitInline(" ")
+
+        emitExpr(operand, nested = true)
 
       case Conditional(cond, thenBranch, elseBranch) =>
         // JavaScript ternary: cond ? thenBranch : elseBranch
-        // Wrap in parens for complex cases
-        val needsParens = parentPrec > 0
-        if needsParens then emitInline("(")
-        emitExpr(cond, 1)
+        emitExpr(cond, nested = true)
         emitInline(" ? ")
-        emitExpr(thenBranch, 1)
+        emitExpr(thenBranch, nested = true)
         emitInline(" : ")
-        emitExpr(elseBranch, 1)
-        if needsParens then emitInline(")")
+        emitExpr(elseBranch, nested = true)
 
       case Call(receiver, method, args) =>
         receiver match
           case Some(recv) =>
-            emitExpr(recv, 100)
+            emitReceiver(recv)
             if method.nonEmpty then
               emitInline(".", method)
 
@@ -350,21 +304,18 @@ object Printer:
         emitInline("(")
         args.zipWithIndex.foreach: (arg, i) =>
           if i > 0 then emitInline(", ")
-          emitExpr(arg, 0)
+          emitExpr(arg)
         emitInline(")")
 
       case Arrow(params, body) =>
         // Arrow function: (params) => body
-        val needsParens = parentPrec > 0
-        if needsParens then emitInline("(")
         // Always use parentheses if there are 0 params, multiple params, or rest parameters
         if params.length == 1 && !params.head.startsWith("...") then
           emitInline(params.head)
         else
           emitInline("(", params.mkString(", "), ")")
         emitInline(" => ")
-        emitExpr(body, 0)
-        if needsParens then emitInline(")")
+        emitExpr(body)
 
       case Function(params, body) =>
         // Function expression: function(params) { body }
@@ -377,24 +328,24 @@ object Printer:
         emitInline("new ", className, "(")
         args.zipWithIndex.foreach: (arg, i) =>
           if i > 0 then emitInline(", ")
-          emitExpr(arg, 0)
+          emitExpr(arg)
         emitInline(")")
 
       case Select(receiver, member) =>
-        emitExpr(receiver, 100)
+        emitReceiver(receiver)
         emitInline(".", member)
 
       case Index(receiver, index) =>
-        emitExpr(receiver, 100)
+        emitReceiver(receiver)
         emitInline("[")
-        emitExpr(index, 0)
+        emitExpr(index)
         emitInline("]")
 
       case ArrayLit(elements) =>
         emitInline("[")
         elements.zipWithIndex.foreach: (elem, i) =>
           if i > 0 then emitInline(", ")
-          emitExpr(elem, 0)
+          emitExpr(elem)
         emitInline("]")
 
       case ObjectLit(fields) =>
@@ -403,20 +354,22 @@ object Printer:
           val (key, value) = field
           if i > 0 then emitInline(", ")
           emitInline(key, ": ")
-          emitExpr(value, 0)
+          emitExpr(value)
         emitInline("}")
 
       case InstanceOf(value, className) =>
-        emitExpr(value, 7)
+        emitExpr(value, nested = true)
         emitInline(" instanceof ", className)
 
       case Spread(expr) =>
         emitInline("...")
-        emitExpr(expr, 100)
+        emitExpr(expr, nested = true)
 
       case RawCode(code) =>
         // Emit raw JavaScript code directly without modification
         emitInline(code)
+
+    if needsParens then emitInline(")")
 
   /** Escape special characters in strings */
   private def escape(s: String): String =
