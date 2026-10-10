@@ -140,22 +140,22 @@ end
 //
 
 private class StringIterator
-  val arr: js.Dynamic
-  var index: Int
+  val source: String
+  var utf16: Int
 
-  def StringIterator(arr: js.Dynamic, index: Int) =
-    this.arr = arr
-    this.index = index
+  def StringIterator(source: String) =
+    this.source = source
+    this.utf16 = 0
 
   view Iterator[Char]
 
-  def hasNext: Bool = index < arr.length.asInt
+  def hasNext: Bool = utf16 < StringOps.utf16Length(source)
 
   def next: Char receives none =
-    assert (index < arr.length.asInt) "String iterator exhausted"
-    val cp = arr[index].codePointAt(0).asInt.toChar
-    index = index + 1
-    cp
+    assert hasNext "String iterator exhausted"
+    val cp = StringOps.codePointAtUtf16(source, utf16)
+    utf16 = utf16 + (if cp > 65535 then 2 else 1)
+    cp.toChar
 end
 
 private section StringOps
@@ -206,9 +206,7 @@ private section StringOps
     js.dynamic(str).slice(startUtf16, endUtf16).asString
 
   def iterator(str: String): Iterator[Char] receives none =
-    // Array.from splits by Unicode code points, not UTF-16 code units
-    val arr = js.global.Array.from(str)
-    new StringIterator(arr, 0)
+    new StringIterator(str)
 
   def indexOf(str: String, other: String, from: Int): Int receives none =
     val n = str.size

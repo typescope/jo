@@ -5,8 +5,7 @@ def testLines =
   println "--- lines ---"
 
   val a = "".lines
-  println a.size                   // 1
-  println a[0]                     // (empty)
+  println a.size                   // 0
 
   val b = "one".lines
   println b.size                   // 1
@@ -23,11 +22,39 @@ def testLines =
   println d[1]                     // two
 
   val e = "one\n".lines
-  println e.size                   // 2
+  println e.size                   // 1
   println e[0]                     // one
-  println e[1]                     // (empty)
 
   val f = "\u{4F60}\u{597D}\n\u{1F680}".lines
   println f.size                   // 2
   println f[0]                     // 你好
   println f[1]                     // 🚀
+
+  val g = "one\r\n".lines
+  println g.size                   // 1
+  println g[0]                     // one
+
+  val h = "one\n\n".lines
+  println h.size                   // 2
+  println h[0]                     // one
+  println h[1]                     // (empty)
+
+  val i = "\n".lines
+  println i.size                   // 1
+  println i[0]                     // (empty)
+
+  val j = "one\r\n\r\n".lines
+  println j.size                   // 2
+  println j[0]                     // one
+  println j[1]                     // (empty)
+
+  val k = "\none\n\ntwo\n".lines
+  println k.size                   // 4
+  println k[0]                     // (empty)
+  println k[1]                     // one
+  println k[2]                     // (empty)
+  println k[3]                     // two
+
+  val l = "one\r".lines
+  println l.size                   // 1
+  println (l[0] == "one\r")       // true
