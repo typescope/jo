@@ -29,7 +29,14 @@ object JSArithmeticPrinterCheck:
       (BinOp(BinOp(a, "&", b), "|", c), "(3 & 4) | 5", 5),
       (BinOp(a, "%", BinOp(b, "+", c)), "3 % (4 + 5)", 3),
       (BinOp(BinOp(IntLit(2), "**", a), "**", IntLit(2)), "(2 ** 3) ** 2", 64),
-      (BinOp(IntLit(2), "**", BinOp(a, "**", IntLit(2))), "2 ** (3 ** 2)", 512)
+      (BinOp(IntLit(2), "**", BinOp(a, "**", IntLit(2))), "2 ** (3 ** 2)", 512),
+      (BinOp(UnaryOp("-", a), "**", IntLit(2)), "(-3) ** 2", 9),
+      (Call(Some(UnaryOp("-", a)), "valueOf", Nil), "(-3).valueOf()", -3),
+      (Call(Some(a), "valueOf", Nil), "(3).valueOf()", 3),
+      (Call(Some(FloatLit(-3.5)), "valueOf", Nil), "(-3.5).valueOf()", -3.5),
+      (BinOp(Conditional(BoolLit(true), a, b), "*", c), "(true ? 3 : 4) * 5", 15),
+      (Call(Some(Arrow(List("x"), BinOp(Ident("x"), "+", IntLit(1)))), "", List(a)),
+        "(x => x + 1)(3)", 4)
     )
     val checks = cases.map: (expr, expected, value) =>
       val code = render(expr)
@@ -39,6 +46,11 @@ object JSArithmeticPrinterCheck:
     assert(render(BinOp(Ident("x"), "+", Call(None, "f", List(a)))) == "x + f(3)")
     assert(render(Call(None, "f", List(BinOp(a, "+", b)))) == "f(3 + 4)")
     assert(render(UnaryOp("-", BinOp(a, "+", b))) == "-(3 + 4)")
+
+    assert(render(Call(Some(BigIntLit(3)), "toString", Nil)) == "(3n).toString()")
+    assert(render(Call(Some(BigIntLit(-3)), "toString", Nil)) == "(-3n).toString()")
+    assert(render(BinOp(UnaryOp("typeof", a), "===", StringLit("number"))) ==
+      "(typeof 3) === \"number\"")
 
     val file = Files.createTempFile("jo-js-arithmetic-printer-", ".js")
 
