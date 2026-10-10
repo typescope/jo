@@ -1,0 +1,16 @@
+def f(val: Int): String = "\{val}"
+
+class Regex(pattern: String)
+  def show(): String = "\{pattern}"
+
+def nested(val: Int): String = "\{val { "\{val}" }}"
+
+def multiline(val: Int): String = """
+  \{val}
+  """
+
+def invalid(): String = "\{val} \{1}"
+
+def missingBrace(): String = "\{1 val}"
+
+def main() = println "\{1}"

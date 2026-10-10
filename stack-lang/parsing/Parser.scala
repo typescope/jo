@@ -54,8 +54,12 @@ object Parser:
     val parser = new Parser(source.content)(using rp, source)
     parser.parse(defaultModuleName)
 
-  catch case _: java.nio.file.NoSuchFileException =>
-    Reporter.abortInternal("Source not found: " + path)
+  catch
+    case _: java.nio.file.NoSuchFileException =>
+      Reporter.abortInternal("Source not found: " + path)
+
+    case _: SyntaxError =>
+      throw Reporter.FatalError.StopAfterPhase()
 
    /** A scanner that supports peeking tokens ahead. */
   class LookAheadScanner(scanner: Scanner):

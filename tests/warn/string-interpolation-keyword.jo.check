@@ -1,0 +1,11 @@
+---------- Error at tests/warn/string-interpolation-keyword.jo:1:7 ---------------
+| def f(val: Int): String = "\{val}"
+|       ^^^
+|       Expect a name, found token VAL
+
+---------- Error at tests/warn/string-interpolation-keyword.jo:1:30 ---------------
+| def f(val: Int): String = "\{val}"
+|                              ^^^
+|                              Expect an expression, found = VAL
+
+2 error(s), 0 warning(s)
