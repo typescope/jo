@@ -257,14 +257,11 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         compileExpr(repr)
 
       else if encoded.tpe.isLambdaType && repr.tpe.isClassType then
-        // Wrap class instance as lambda
+        // A method proc retains this closure instance even when a loop
+        // reassigns the temporary used to construct the next closure.
         val obj = compileExpr(repr)
-        val objName = summon[UniqueName].freshName("instance")
-        R.Block(
-          R.Assign(objName, obj) ::
-          R.Lambda(List("*args"), R.Call(Some(R.Ident(objName)), "apply", List(R.RawCode("*args")))) ::
-          Nil
-        )
+        val method = R.Call(Some(obj), "method", List(R.RawCode(":apply")))
+        R.Call(Some(method), "to_proc", Nil)
 
       else
         compileExpr(repr)

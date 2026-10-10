@@ -9,7 +9,18 @@ def chooseLast(n: Int, f: () => Int): () => Int =
     val g: () => Int = () => n
     chooseLast (n - 1) g
 
+// Capture both a value and the previous continuation in a local tail call.
+// Each closure must retain its own instance across subsequent iterations.
+def build(n: Int): List[Int] =
+  def go(i: Int, k: List[Int] => List[Int]): List[Int] =
+    if i == 0 then k([])
+    else go(i - 1, xs => k(xs + i))
+  go(n, xs => xs)
+
 def main =
   val init: () => Int = () => -1
   val f = chooseLast 3 init
   println f()   // should be 1, not 0
+  println: build(0)
+  println: build(1)
+  println: build(3)
