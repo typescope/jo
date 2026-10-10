@@ -26,6 +26,8 @@ object Compiler:
     "jo.Array.create" -> "jo.js.runtime.RefArray.create",
     "jo.Array.clear"  -> "jo.js.runtime.RefArray.clear",
 
+    "jo.StringOps.compareTo" -> "jo.js.runtime.StringOps.compareTo",
+
     "jo.Bytes.size"     -> "jo.js.runtime.RawBytes.size",
     "jo.Bytes.get"      -> "jo.js.runtime.RawBytes.get",
     "jo.Bytes.slice"    -> "jo.js.runtime.RawBytes.slice",

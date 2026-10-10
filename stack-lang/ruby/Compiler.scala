@@ -26,6 +26,8 @@ object Compiler:
     "jo.Array.create" -> "jo.rb.runtime.RefArray.create",
     "jo.Array.clear"  -> "jo.rb.runtime.RefArray.clear",
 
+    "jo.StringOps.compareTo" -> "jo.rb.runtime.StringOps.compareTo",
+
     "jo.Bytes.size"     -> "jo.rb.runtime.RawBytes.size",
     "jo.Bytes.get"      -> "jo.rb.runtime.RawBytes.get",
     "jo.Bytes.slice"    -> "jo.rb.runtime.RawBytes.slice",
