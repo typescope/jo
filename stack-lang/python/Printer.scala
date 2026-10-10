@@ -2,11 +2,11 @@ package python
 
 import python.Trees.*
 
-/** Pretty printer for Python AST with precedence-aware parenthesization
+/** Pretty printer for Python AST with explicit expression grouping
   *
   * Generates clean, idiomatic Python code from the AST.
   *
-  * - Precedence-aware: Only adds parentheses when needed
+  * - Parenthesizes nested compound expressions
   * - Proper indentation: Uses 4-space indentation (PEP 8 standard)
   *
   * Invariants:
@@ -46,46 +46,6 @@ object Printer:
   def indented(work: Context ?=> Unit)(using ctx: Context): Unit =
     val ctx2 = Context(ctx.indent + 1, ctx.pw)
     work(using ctx2)
-
-  /** Operator precedence levels (higher = tighter binding)
-    *
-    * Python precedence (from lowest to highest):
-    *   lambda
-    *   if-else (ternary)
-    *   or
-    *   and
-    *   not
-    *   in, not in, is, is not, <, <=, >, >=, !=, ==
-    *   |
-    *   ^
-    *   &
-    *   <<, >>
-    *   +, -
-    *   *, /, //, %
-    *   -(unary), +(unary), ~
-    *   **
-    *   x[index], x.attr, x(args)
-    *
-    * https://docs.python.org/3/reference/expressions.html#operator-precedence
-    */
-  private def precedence(op: String): Int = op match
-    case "or" => 1
-    case "and" => 2
-    case "not" => 3
-    case "=="|"!="|"<"|">"|"<="|">="|"is"|"in" => 4
-    case "|" => 5
-    case "^" => 6
-    case "&" => 7
-    case ">>"|"<<" => 8
-    case "+"|"-" => 9
-    case "*"|"/"|"//"|"%" => 10
-    case "**" => 12
-    case _ => 100  // Atomic expressions (no parens needed)
-
-  private def unaryPrecedence(op: String): Int = op match
-    case "not" => precedence(op)
-    case "+"|"-"|"~" => 11
-    case _ => 100
 
   /** Print a complete Python program */
   def print(program: Program, pw: java.io.PrintWriter): Unit =
@@ -138,23 +98,23 @@ object Printer:
   private def emitStat(stat: Stat)(using ctx: Context): Unit = stat match
     case Assign(name, rhs) =>
       emitLine(name, " = ")
-      emitExpr(rhs, 0)
+      emitExpr(rhs)
 
     case AttrAssign(receiver, attr, rhs) =>
-      emitIndentedExpr(receiver, 100)
+      emitIndentedExpr(receiver, nested = true)
       emitInline(".", attr, " = ")
-      emitExpr(rhs, 0)
+      emitExpr(rhs)
 
     case IndexAssign(receiver, index, rhs) =>
-      emitIndentedExpr(receiver, 100)
+      emitIndentedExpr(receiver, nested = true)
       emitInline("[")
-      emitExpr(index, 0)
+      emitExpr(index)
       emitInline("] = ")
-      emitExpr(rhs, 0)
+      emitExpr(rhs)
 
     case IfStat(cond, thenBranch, elseBranch) =>
       emitLine("if ")
-      emitExpr(cond, 0)
+      emitExpr(cond)
       emitInline(":")
       indented:
         emitStat(thenBranch)
@@ -164,7 +124,7 @@ object Printer:
 
     case While(cond, body) =>
       emitLine("while ")
-      emitExpr(cond, 0)
+      emitExpr(cond)
       emitInline(":")
       indented:
         emitStat(body)
@@ -177,25 +137,25 @@ object Printer:
 
     case Return(value) =>
       emitLine("return ")
-      emitExpr(value, 0)
+      emitExpr(value)
 
     case Raise(exception) =>
       emitLine("raise ")
-      emitExpr(exception, 0)
+      emitExpr(exception)
 
     case TryExcept(body, exceptionType, binder, handler) =>
       emitLine("try:")
       indented:
         emitStat(body)
       emitLine("except ")
-      emitExpr(exceptionType, 0)
+      emitExpr(exceptionType)
       binder.foreach(name => emitInline(" as ", name))
       emitInline(":")
       indented:
         emitStat(handler)
 
     case ExprStat(expr) =>
-      emitIndentedExpr(expr, 0)
+      emitIndentedExpr(expr)
 
     case blk: Block =>
       emitBlock(blk)
@@ -222,23 +182,19 @@ object Printer:
         emitStat(stat)
 
   /** An indented expression */
-  private def emitIndentedExpr(expr: Expr, prec: Int)(using ctx: Context): Unit =
+  private def emitIndentedExpr(expr: Expr, nested: Boolean = false)(using ctx: Context): Unit =
     emitNewline()
     emit(INDENT * ctx.indent)
-    emitExpr(expr, prec)
+    emitExpr(expr, nested)
 
-  /** Emit an expression with precedence context */
-  def emitExpr(expr: Expr, parentPrec: Int = 0)(using ctx: Context): Unit =
-    def withParenthesisOpt(myPrec: Int, isBinary: Boolean = false)(work: Int => Unit): Unit =
-      // Make nested binary grouping explicit even when precedence would suffice.
-      val needsParens = myPrec < parentPrec || (isBinary && parentPrec > 0)
+  /** Emit an expression, grouping compound expressions when nested. */
+  def emitExpr(expr: Expr, nested: Boolean = false)(using ctx: Context): Unit =
+    val needsParens = nested && (expr match
+      case _: BinOp | _: UnaryOp | _: IfExpr | _: Lambda => true
+      case _ => false
+    )
 
-      if needsParens then
-        emitInline("(")
-        work(myPrec)
-        emitInline(")")
-      else
-        work(myPrec)
+    if needsParens then emitInline("(")
 
     expr match
       case IntLit(n) => emitInline(n.toString)
@@ -249,34 +205,26 @@ object Printer:
       case Ident(name) => emitInline(name)
 
       case BinOp(left, op, right) =>
-        withParenthesisOpt(precedence(op), isBinary = true): myPrec =>
-          emitExpr(left, myPrec)
-          emitInline(" ", op, " ")
-          // Preserve right operand grouping for left-associative operators.
-          val rightPrec = if op == "**" then myPrec - 1 else myPrec + 1
-          emitExpr(right, rightPrec)
+        emitExpr(left, nested = true)
+        emitInline(" ", op, " ")
+        emitExpr(right, nested = true)
 
       case UnaryOp(op, operand) =>
-        withParenthesisOpt(unaryPrecedence(op)): myPrec =>
-          emitInline(op, " ")
-          emitExpr(operand, myPrec)
+        emitInline(op, " ")
+        emitExpr(operand, nested = true)
 
       case IfExpr(cond, thenBranch, elseBranch) =>
         // Python ternary: thenBranch if cond else elseBranch
-        // Wrap in parens for complex cases
-        val needsParens = parentPrec > 0
-        if needsParens then emitInline("(")
-        emitExpr(thenBranch, 1)
+        emitExpr(thenBranch, nested = true)
         emitInline(" if ")
-        emitExpr(cond, 1)
+        emitExpr(cond, nested = true)
         emitInline(" else ")
-        emitExpr(elseBranch, 1)
-        if needsParens then emitInline(")")
+        emitExpr(elseBranch, nested = true)
 
       case Call(receiver, method, args) =>
         receiver match
           case Some(recv) =>
-            emitExpr(recv, 100)
+            emitExpr(recv, nested = true)
             emitInline(".", method)
 
           case None =>
@@ -285,43 +233,43 @@ object Printer:
         emitInline("(")
         args.zipWithIndex.foreach: (arg, i) =>
           if i > 0 then emitInline(", ")
-          emitExpr(arg, 0)
+          emitExpr(arg)
         emitInline(")")
 
       case LambdaCall(fun, args) =>
-        emitExpr(fun, 100)
+        emitExpr(fun, nested = true)
         emitInline("(")
         args.zipWithIndex.foreach: (arg, i) =>
           if i > 0 then emitInline(", ")
-          emitExpr(arg, 0)
+          emitExpr(arg)
         emitInline(")")
 
       case Lambda(params, body) =>
         emitInline("lambda ", params.mkString(", "), ": ")
-        emitExpr(body, 0)
+        emitExpr(body)
 
       case New(className, args) =>
         emitInline(className, "(")
         args.zipWithIndex.foreach: (arg, i) =>
           if i > 0 then emitInline(", ")
-          emitExpr(arg, 0)
+          emitExpr(arg)
         emitInline(")")
 
       case Select(receiver, member) =>
-        emitExpr(receiver, 100)
+        emitExpr(receiver, nested = true)
         emitInline(".", member)
 
       case Index(receiver, index) =>
-        emitExpr(receiver, 100)
+        emitExpr(receiver, nested = true)
         emitInline("[")
         index match
           case Slice(start, end) =>
             // Python slice: receiver[start:end]
-            emitExpr(start, 0)
+            emitExpr(start)
             emitInline(":")
-            emitExpr(end, 0)
+            emitExpr(end)
           case _ =>
-            emitExpr(index, 0)
+            emitExpr(index)
         emitInline("]")
 
       case Slice(start, end) =>
@@ -330,28 +278,30 @@ object Printer:
 
       case InstanceOf(value, className) =>
         emitInline("isinstance(")
-        emitExpr(value, 0)
+        emitExpr(value)
         emitInline(", ", className, ")")
 
       case Starred(expr) =>
         emitInline("*")
-        emitExpr(expr, 0)
+        emitExpr(expr)
 
       case KwArg(key, value) =>
         emitInline(key, "=")
-        emitExpr(value, 0)
+        emitExpr(value)
 
       case TupleLit(elems) =>
         emitInline("(")
         elems.zipWithIndex.foreach: (elem, i) =>
           if i > 0 then emitInline(", ")
-          emitExpr(elem, 0)
+          emitExpr(elem)
         if elems.size == 1 then emitInline(",")
         emitInline(")")
 
       case RawCode(code) =>
         // Emit raw Python code directly without modification
         emitInline(code)
+
+    if needsParens then emitInline(")")
 
   /** Escape special characters in strings */
   private def escape(s: String): String =

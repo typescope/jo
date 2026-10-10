@@ -29,7 +29,13 @@ object PythonArithmeticPrinterCheck:
       (BinOp(BinOp(a, "&", b), "|", c), "(3 & 4) | 5", 5),
       (BinOp(a, "%", BinOp(b, "+", c)), "3 % (4 + 5)", 3),
       (BinOp(BinOp(IntLit(2), "**", a), "**", IntLit(2)), "(2 ** 3) ** 2", 64),
-      (BinOp(IntLit(2), "**", BinOp(a, "**", IntLit(2))), "2 ** (3 ** 2)", 512)
+      (BinOp(IntLit(2), "**", BinOp(a, "**", IntLit(2))), "2 ** (3 ** 2)", 512),
+      (BinOp(UnaryOp("-", a), "**", IntLit(2)), "(- 3) ** 2", 9),
+      (BinOp(UnaryOp("not", BoolLit(true)), "+", IntLit(2)), "(not True) + 2", 2),
+      (LambdaCall(Lambda(List("x"), BinOp(Ident("x"), "+", IntLit(1))), List(a)),
+        "(lambda x: x + 1)(3)", 4),
+      (Call(Some(UnaryOp("-", a)), "bit_length", Nil), "(- 3).bit_length()", 2),
+      (BinOp(IfExpr(BoolLit(true), a, b), "*", c), "(3 if True else 4) * 5", 15)
     )
     val checks = cases.map: (expr, expected, value) =>
       val code = render(expr)
