@@ -4,7 +4,6 @@ import common.IO
 
 import sast.*
 import sast.Trees.FileUnit
-import sast.Universe
 import phases.*
 
 import reporting.Reporter
@@ -105,7 +104,7 @@ object Compiler:
 
         val backend: Step[List[FileUnit], Unit] =
           Step("Backend", (units: List[FileUnit]) =>
-            codeGen.generate(Universe.filter(units, pythonRuntime.start, rewire, pythonRuntime.intrinsicDeps), outFile)
+            codeGen.generate(units, outFile)
           )
         units               |>
         contextParamsLower  |>

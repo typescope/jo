@@ -1,0 +1,39 @@
+def collect[T](values: ..T): List[T] = values
+
+def withPrefix(prefix: Int, values: ..Int): Int =
+  values.fold(prefix, (acc, value) => acc + value)
+
+def source(): List[Int] =
+  println "source"
+  [1, 2]
+
+def appended(): Int =
+  println "element"
+  3
+
+def main =
+  val values = [3, 1, 3]
+  val set = Set(..values)
+  println set.size
+  println set.iterator.toList.join(",")
+  println collect(..values).join(",")
+  println withPrefix(10, ..values)
+  println collect[Int](..List.empty[Int]).size
+  println Set[Int](..List.empty[Int]).size
+  println collect(0, ..values, 4).join(",")
+  println [..values, 4].join(",")
+  println collect(..values, 5).join(",")
+  println withPrefix(10, ..values, 4)
+  println [..List.empty[Int], 6].join(",")
+  println [..values, 7].join(",")
+  println values.join(",")
+  val widened: List[Int | String] = [..values, "tail"]
+  println widened.size
+  println [..source(), appended()].join(",")
+  println [..values, 4, 5].join(",")
+  println [..values, ..values].join(",")
+  println collect(..values, 4, ..values, 5).join(",")
+  println [..List.empty[Int], ..values, 6].join(",")
+  println [..values, ..List.empty[Int]].join(",")
+  println [..source(), appended(), ..source(), appended()].join(",")
+  println values.join(",")
