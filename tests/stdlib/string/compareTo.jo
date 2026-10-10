@@ -1,5 +1,6 @@
 def main =
   testCompareTo()
+  testCodePointComparison()
 
 def testCompareTo =
   println "--- compareTo ---"
@@ -25,3 +26,28 @@ def testCompareTo =
   println m.get("a")                      // 1
   println m.get("\u{4F60}")               // 3
   println m.size                          // 3
+
+// Preserve exact code point and prefix-length differences on every backend.
+def testCodePointComparison =
+  println "".compareTo("")
+  println "same".compareTo("same")
+  println "a".compareTo("z")
+  println "z".compareTo("a")
+  println "".compareTo("abc")
+  println "abc".compareTo("")
+  println "abc".compareTo("abcdef")
+  println "abcdef".compareTo("abc")
+  println "a\u{0}b".compareTo("a\u{0}d")
+  println "é".compareTo("ê")
+  println "é\u{1F600}".compareTo("é\u{1F680}")
+  println "\u{10000}".compareTo("\u{FFFF}")
+  println "é".compareTo("é\u{1F600}\u{1F680}")
+  println "é\u{1F600}\u{1F680}".compareTo("é")
+  println "\u{FFFF}".compareTo("\u{10000}")
+  println "\u{1F600}".compareTo("\u{1F600}")
+  println "\u{1F600}a".compareTo("\u{1F600}z")
+  println "".compareTo("\u{1F600}\u{1F680}")
+  println "\u{1F600}\u{1F680}".compareTo("")
+
+  // Ordering synthesized from compareTo must use the same implementation.
+  println List("z", "a", "é", "a", "").sort

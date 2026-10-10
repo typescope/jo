@@ -27,6 +27,8 @@ object Compiler:
     "jo.Array.create" -> "jo.py.runtime.RefArray.create",
     "jo.Array.clear"  -> "jo.py.runtime.RefArray.clear",
 
+    "jo.StringOps.compareTo" -> "jo.py.runtime.StringOps.compareTo",
+
     // Bytes operations
     "jo.Bytes.size"     -> "jo.py.runtime.RawBytes.size",
     "jo.Bytes.get"      -> "jo.py.runtime.RawBytes.get",

@@ -159,6 +159,43 @@ private class StringIterator
 end
 
 private section StringOps
+  // Walk host UTF-16 offsets directly, preserving code point ordering and
+  // exact differences. Native string ordering compares UTF-16 code units.
+  def compareTo(str: String, other: String): Int =
+    if str == other then return 0
+
+    val left = js.dynamic(str)
+    val right = js.dynamic(other)
+    val leftSize = left.length.cast[Int]
+    val rightSize = right.length.cast[Int]
+    var i = 0
+
+    while i < leftSize && i < rightSize do
+      val a = left.codePointAt(i).cast[Int]
+      val b = right.codePointAt(i).cast[Int]
+
+      if a != b then return a - b
+
+      // Equal code points have equal UTF-16 widths, so one offset suffices.
+      i = i + (if a > 65535 then 2 else 1)
+    end
+
+    var delta = 0
+
+    while i < leftSize do
+      val cp = left.codePointAt(i).cast[Int]
+      i = i + (if cp > 65535 then 2 else 1)
+      delta = delta + 1
+    end
+
+    while i < rightSize do
+      val cp = right.codePointAt(i).cast[Int]
+      i = i + (if cp > 65535 then 2 else 1)
+      delta = delta - 1
+    end
+
+    delta
+
   def utf16Length(str: String): Int =
     js.dynamic(str).length.asInt
 

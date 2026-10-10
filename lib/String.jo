@@ -99,35 +99,7 @@ class String
 
   //[ Lexicographic comparison by Unicode code points.    //]
   def compareTo(other: String): Int =
-    val left = this.iterator
-    val right = other.iterator
-    var result = 0
-    var done = false
-    while left.hasNext && right.hasNext && !done do
-      val c1 = left.next.toInt
-      val c2 = right.next.toInt
-      if c1 != c2 then
-        result = c1 - c2
-        done = true
-      end
-    end
-    if done then result
-    else if left.hasNext then
-      var delta = 0
-      while left.hasNext do
-        val _ = left.next()
-        delta = delta + 1
-      end
-      delta
-    else if right.hasNext then
-      var delta = 0
-      while right.hasNext do
-        val _ = right.next()
-        delta = delta - 1
-      end
-      delta
-    else
-      0
+    StringOps.compareTo(this, other)
 
   //[ A hash of the characters, computed as `hash * 31 + codePoint`.
     !
@@ -338,4 +310,38 @@ private section String
 
     view Iterator[String]
   end
+end
+
+// Backend runtimes can replace the iterator-based comparison.
+private section StringOps
+  defer def compareTo(str: String, other: String): Int =
+    val left = str.iterator
+    val right = other.iterator
+    var result = 0
+    var done = false
+    while left.hasNext && right.hasNext && !done do
+      val c1 = left.next.toInt
+      val c2 = right.next.toInt
+      if c1 != c2 then
+        result = c1 - c2
+        done = true
+      end
+    end
+    if done then result
+    else if left.hasNext then
+      var delta = 0
+      while left.hasNext do
+        val _ = left.next()
+        delta = delta + 1
+      end
+      delta
+    else if right.hasNext then
+      var delta = 0
+      while right.hasNext do
+        val _ = right.next()
+        delta = delta - 1
+      end
+      delta
+    else
+      0
 end

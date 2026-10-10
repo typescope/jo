@@ -175,6 +175,29 @@ private class StringIterator
 end
 
 private section StringOps
+  // Index host strings directly and decode only the first differing pair.
+  def compareTo(str: String, other: String): Int =
+    if str == other then return 0
+
+    val left = py.dynamic(str)
+    val right = py.dynamic(other)
+    val leftSize = builtins.len(left)
+    val rightSize = builtins.len(right)
+    var i = 0
+
+    while i < leftSize && i < rightSize do
+      val a = left[i]
+      val b = right[i]
+
+      if !(a.cast[String] == b.cast[String]) then
+        return builtins.ord(a) - builtins.ord(b)
+      end
+
+      i = i + 1
+    end
+
+    leftSize - rightSize
+
   def iterator(s: String): Iterator[Char] receives none =
     val iterPy = builtins.iter(s)
     val firstVal: py.Dynamic = builtins.next(iterPy, py.none)

@@ -155,6 +155,27 @@ private class StringIterator
 end
 
 private section StringOps
+  // Materialize code points in Ruby, avoiding external Enumerator Fibers.
+  // Preserve both code point differences and prefix-length differences.
+  def compareTo(str: String, other: String): Int =
+    if str == other then return 0
+
+    val left = rb.dynamic(str).codepoints
+    val right = rb.dynamic(other).codepoints
+    val leftSize = left.length.cast[Int]
+    val rightSize = right.length.cast[Int]
+    var i = 0
+
+    while i < leftSize && i < rightSize do
+      val delta = left[i].cast[Int] - right[i].cast[Int]
+
+      if delta != 0 then return delta
+
+      i = i + 1
+    end
+
+    leftSize - rightSize
+
   def iterator(str: String): Iterator[Char] receives none =
     val iter: Any = rb.dynamic(str).each_codepoint
     new StringIterator(iter)
