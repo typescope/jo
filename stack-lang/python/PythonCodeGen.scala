@@ -119,6 +119,25 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
             symbol2UniqueName(sym) = uniqueName
             uniqueName
 
+  private val universe = new Universe(rewire)
+
+  private def functionName(sym: Symbol)(using UniqueName): String =
+    universe.useFunction(sym)
+    pythonName(sym)
+
+  private def referenceMemberName(sym: Symbol): String =
+    if sym.isMethod then universe.useMethod(sym)
+
+    pythonInteropMemberName(sym)
+
+  private def classReferenceName(cls: Symbol)(using UniqueName): String =
+    universe.useClass(cls)
+    pythonName(cls)
+
+  private def constructorName(cls: Symbol)(using UniqueName): String =
+    universe.useConstructor(cls)
+    pythonName(cls)
+
   //----------------------------------------------------------------------------
   // Compilation
   //----------------------------------------------------------------------------
@@ -159,10 +178,17 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
     given UniqueName = globalScope
 
-    for unit <- units; defn <- unit do
-      defn match
-        case fdef: FunDef if !fdef.symbol.is(Flags.Object) => defs += compileFunction(fdef)
-        case cdef: ClassDef => defs += compileClass(cdef)
+    val loweredFunctions = universe.lower(units, runtime.start)(compileFunction)
+
+    // Assemble in source order, including methods discovered late in lowering.
+    for unit <- units; tree <- unit do
+      tree match
+        case fdef: FunDef if loweredFunctions.contains(fdef.symbol) =>
+          defs += loweredFunctions(fdef.symbol)
+
+        case cdef: ClassDef if universe.contains(cdef.symbol) =>
+          defs += compileClass(cdef, loweredFunctions)
+
         case _ =>
 
     for name <- localExitExceptionNames.values.toList.sorted do
@@ -199,6 +225,11 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
   private def compileFunction(fdef: FunDef): P.FunDef = try
     val sym = fdef.symbol
 
+    // Erased primitive methods have a regular receiver parameter. Only
+    // instance methods use the host receiver name.
+    if sym.isMethod then
+      symbol2UniqueName(sym.owner.classInfo.self) = "self"
+
     // Regular function - create new scope for local variables
     given UniqueName = reservedNames.newScope(separator = "")
     given Context = Context(sym, LoopContext(Nil))
@@ -233,7 +264,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     throw ex
 
   /** Compile a class definition */
-  private def compileClass(cdef: ClassDef)(using scope: UniqueName): P.ClassDef =
+  private def compileClass(cdef: ClassDef, loweredFunctions: Map[Symbol, P.FunDef])(using scope: UniqueName): P.ClassDef =
     val classSym = cdef.symbol
     val pythonClassName = pythonName(classSym)
 
@@ -242,9 +273,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     // Get all fields from the class definition
     val fieldNames = cdef.vals.map(_.symbol).map(pythonMemberName)
 
-    // Compile methods - each method gets compiled with its own scope
-    // Include __init__ in the methods list (it will be renamed in compileFunction)
-    val methods = cdef.funs.map(compileFunction)
+    // Assemble methods lowered by the reachability worklist.
+    val methods = cdef.funs.flatMap(f => loweredFunctions.get(f.symbol))
 
     P.ClassDef(
       name = pythonClassName,
@@ -500,6 +530,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
       case Ident(sym) =>
         assert(!sym.is(Flags.Context), "Unexpected context parameter")
+
+        if sym.isFunction then universe.useFunction(sym)
+
         if sym == runtime.py_none then
           (Nil, P.NoneLit)
 
@@ -515,7 +548,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         word.tpe match
           case Types.MemberRef(_, sym) =>
             val (qualStats, qualExpr) = compileExpr(qual, enforcePurity)
-            val memberName = pythonInteropMemberName(sym)
+            val memberName = referenceMemberName(sym)
             (qualStats, P.Select(qualExpr, memberName))
 
           case _ => throw new Exception("Unexpected select: " + word.show)
@@ -525,6 +558,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           throw new Exception("Unexpected value drop in expression position: " + encoded.show)
 
         else if encoded.tpe.isLambdaType && repr.tpe.isClassType then
+          universe.useMethod(repr.tpe.classSymbol.termMember(Names.apply))
+
           // Wrap class instance as lambda
           val (objStats, objExpr) = compileExpr(repr, enforcePurity = false)  // lambda body is OK
           val objName = freshTemp()
@@ -542,7 +577,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val classSym = classType.tpe.classSymbol
         val allArgs = args ++ autos
         val (argStats, argExprs) = compileExprList(allArgs, enforcePurity = false)
-        val newExpr = P.New(pythonName(classSym), argExprs)
+        val newExpr = P.New(constructorName(classSym), argExprs)
         if enforcePurity then
           val tempName = freshTemp()
           (argStats :+ P.Assign(tempName, newExpr), P.Ident(tempName))
@@ -559,7 +594,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           else if cls == defn.Int_type || cls == defn.Long_type || cls == defn.Byte_type || cls == defn.Char_type then "int"
           else if cls == defn.Bool_type then "bool"
           else if cls == defn.Array_class then "list"
-          else pythonName(cls)
+          else classReferenceName(cls)
 
         // Type test is pure if argxpr is pure
         (argStats, P.InstanceOf(argExpr, className))
@@ -725,12 +760,12 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val (prevStats, prevExprs) = compileVarargItems(prev, enforcePurity)
         val (xsStats, xsExpr) = compileExpr(xs, enforcePurity = false)
         // Convert Jo List to Python list so Python *-unpacking works
-        val pyList = P.Call(None, pythonName(runtime.py_list), List(xsExpr))
+        val pyList = P.Call(None, functionName(runtime.py_list), List(xsExpr))
         (prevStats ++ xsStats, prevExprs :+ P.Starred(pyList))
 
       case xs =>
         val (stats, expr) = compileExpr(xs, enforcePurity = false)
-        val pyList = P.Call(None, pythonName(runtime.py_list), List(expr))
+        val pyList = P.Call(None, functionName(runtime.py_list), List(expr))
         (stats, List(P.Starred(pyList)))
 
   /** Compile a function/method call */
@@ -742,8 +777,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val funType = sym.tpe.asProcType
           val classSym = funType.resultType.classSymbol
 
-          // Mark class reachable
-          pythonName(classSym)
+          // Singleton initialization constructs this class.
+          universe.useConstructor(classSym)
 
           // Get or create the global singleton variable name
           val singletonVar = runtime.getOrCreateSingletonId(classSym)
@@ -824,8 +859,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val (actionStats, actionExpr) = compileExpr(action, enforcePurity = false)
           val tempResult = freshTemp()
           val tempExc    = freshTemp()
-          val okExpr     = P.New(pythonName(runtime.jo_Ok), List(actionExpr))
-          val errExpr    = P.New(pythonName(runtime.jo_Err), List(P.Ident(tempExc)))
+          val okExpr     = P.New(constructorName(runtime.jo_Ok), List(actionExpr))
+          val errExpr    = P.New(constructorName(runtime.jo_Err), List(P.Ident(tempExc)))
           val tryBody    = P.Block(actionStats :+ P.Assign(tempResult, okExpr))
           val tryStat    = P.TryExcept(tryBody, P.Ident("Exception"), Some(tempExc),
             P.Assign(tempResult, errExpr))
@@ -862,7 +897,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         else
           val procType = sym.tpe.asProcType
           val (argStats, argExprs) = compileCallArgListWithTypes(args, procType.params ++ procType.autos, enforcePurity = false)
-          val call = P.Call(None, pythonName(sym), argExprs)
+          val call = P.Call(None, functionName(sym), argExprs)
           if enforcePurity then
             val tempName = freshTemp()
             (argStats :+ P.Assign(tempName, call), P.Ident(tempName))
@@ -989,7 +1024,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           // when any arg has statements.  qualStats ++ argStats guarantees qual's side
           // effects precede all arg side effects.  When no side effects produce statements,
           // Python's own left-to-right evaluation of `recv.m(a, b)` preserves the order.
-          val memberName = pythonInteropMemberName(methodSym)
+          val memberName = referenceMemberName(methodSym)
           val procType = methodSym.tpe.asProcType
           val isInteropVararg =
             methodSym.owner.hasAnnotation(runtime.annot_interop) && procType.hasVararg
@@ -1074,6 +1109,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         throw new Exception(s"Unknown Bool method: $name")
 
   /** Reduce an integer expression to signed 32-bit (two's-complement wrap):
+    *
     * `((e + 0x80000000) & 0xFFFFFFFF) - 0x80000000`. Python ints are
     * arbitrary precision, so arithmetic that can overflow must be masked to
     * keep `Int` 32-bit and consistent with the other backends.
@@ -1147,6 +1183,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         throw new Exception(s"Unknown Int method: $name")
 
   /** Reduce an integer expression to signed 64-bit (two's-complement wrap):
+    *
     * `((e + 2^63) & (2^64 - 1)) - 2^63`. The constants exceed Long, so they
     * are emitted as `1 << 63` / `(1 << 64) - 1`.
     */
@@ -1155,8 +1192,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     val mask = P.BinOp(P.BinOp(P.IntLit(1), "<<", P.IntLit(64)), "-", P.IntLit(1))
     P.BinOp(P.BinOp(P.BinOp(e, "+", off), "&", mask), "-", off)
 
-  /** Sign-aware truncating div/mod, exact for 64-bit operands (the float
-    * `int(a / b)` loses precision past 2^53):
+  /** Compute exact signed division and remainder for 64-bit operands.
+    *
+    * The floating-point expression `int(a / b)` loses precision past 2^53.
+    * Use sign-aware truncating integer operations instead:
     *   quotient:  (abs(a) // abs(b)) * (1 - 2 * (a ^ b < 0))
     *   remainder: (abs(a) % abs(b)) * (1 - 2 * (a < 0))
     * Written without conditionals or comparison operands so it survives Python
@@ -1333,7 +1372,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
       case "iterator" =>
         val (stats, exprs) = compileExprList(List(qual), enforcePurity = false)
-        val call = P.Call(None, pythonName(runtime.String_iterator), exprs)
+        val call = P.Call(None, functionName(runtime.String_iterator), exprs)
         if enforcePurity then
           val tempName = freshTemp()
           (stats :+ P.Assign(tempName, call), P.Ident(tempName))
