@@ -4,7 +4,6 @@ import common.IO
 
 import sast.*
 import sast.Trees.FileUnit
-import sast.Universe
 import phases.*
 
 import reporting.Reporter
@@ -99,7 +98,7 @@ object Compiler:
           Step("Backend", (units: List[FileUnit]) => {
             val rewire  = FrontEnd.rewireMap.value
             val codegen = new JSCodeGen(jsRuntime, rewire)
-            codegen.generate(Universe.filter(units, jsRuntime.start, rewire, jsRuntime.intrinsicDeps), outFile)
+            codegen.generate(units, outFile)
           })
         units               |>
         contextParamsLower  |>

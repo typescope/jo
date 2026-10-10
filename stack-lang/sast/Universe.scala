@@ -2,150 +2,106 @@ package sast
 
 import Trees.*
 import Symbols.*
-import Types.*
 
 import scala.collection.mutable
 
-/** Reachability analysis starting from `root`.
- *
- *  @param root          The program entry point.
- *  @param rewire        Symbol redirects used for linking (e.g. jo.main → user main).
- *  @param intrinsicDeps Additional symbols made reachable when a given symbol is
- *                       reached.  Used by backends to declare codegen-injected
- *                       dependencies that have no corresponding SAST node (e.g.
- *                       runtime helpers substituted for @intrinsic calls, or
- *                       classes instantiated inside try/rescue wrappers).
- *                       Defaults to empty (no extra deps).
- */
-class Universe(root: Symbol, rewire: Map[Symbol, Symbol], intrinsicDeps: Map[Symbol, List[Symbol]] = Map.empty)(using defn: Definitions):
-
-  // ---- worklist state -------------------------------------------------------
-
-  private val _live    = mutable.Set.empty[Symbol]
+/** Reachability worklist driven by references emitted during backend lowering.
+  *
+  * Linking resolves deferred function identifiers. Abstract interface method
+  * selections remain for dynamic dispatch, so retain their implementations
+  * in reachable classes regardless of which is discovered first.
+  */
+class Universe(rewire: Map[Symbol, Symbol])(using defn: Definitions):
+  private val live = mutable.Set.empty[Symbol]
   private val worklist = mutable.Queue.empty[Symbol]
+  private val liveClasses = mutable.Set.empty[Symbol]
+  private val abstractMethods = mutable.Set.empty[Symbol]
 
+  /** Enqueue a reference after resolving links and deduplicating it.
+    *
+    * Intrinsics have no emitted definition; their lowering marks any helpers.
+    */
   private def enqueue(sym: Symbol): Unit =
-    val resolved = if sym.isFunction then rewire.getOrElse(sym, sym) else sym
-    intrinsicDeps.getOrElse(resolved, Nil).foreach(enqueue)
-    if !_live.contains(resolved) && !resolved.hasAnnotation(defn.intrinsic) then
+    val resolved = rewire.getOrElse(sym, sym)
+
+    if !resolved.hasAnnotation(defn.intrinsic) && live.add(resolved) then
       worklist.enqueue(resolved)
 
-  private val traverser = new Universe.Traverser(enqueue)
+  /** Mark a reference to a function emitted outside a class. */
+  def useFunction(sym: Symbol): Unit =
+    assert(sym.isFunction && !sym.isMethod, s"Expected a function: $sym")
+    enqueue(sym)
 
-  private def collectRefs(body: Word): Unit = traverser(body)(using ())
+  /** Mark an instance method reference, including abstract interface methods. */
+  def useMethod(sym: Symbol): Unit =
+    assert(sym.isMethod && !sym.is(Flags.Constructor), s"Expected a method: $sym")
+    enqueue(sym)
 
-  // ---- fixed-point computation ----------------------------------------------
+  /** Mark a class reference without requiring its constructor. */
+  def useClass(cls: Symbol): Unit =
+    assert(cls.isClass, s"Expected a class: $cls")
+    enqueue(cls)
 
-  def run(): Set[Symbol] =
-    enqueue(root)
+  /** Mark construction of a class.
+    *
+    * Construction references both the class and its constructor, unlike a
+    * class test, which only calls `useClass`.
+    */
+  def useConstructor(cls: Symbol): Unit =
+    useClass(cls)
+    val ctor = cls.termMember(Names.Constructor)
+    assert(ctor.is(Flags.Constructor), s"Expected a constructor: $ctor")
+    enqueue(ctor)
 
-    val _liveClasses  = mutable.Set.empty[Symbol]
-    val _deferMethods = mutable.Set.empty[Symbol]
+  /** Lower each reachable function once.
+    *
+    * Assemble definitions separately to preserve source order and keep methods
+    * grouped within their classes.
+    */
+  def lower[A](units: List[FileUnit], root: Symbol)(compile: FunDef => A): Map[Symbol, A] =
+    val functions = mutable.Map.empty[Symbol, FunDef]
+
+    for unit <- units; tree <- unit do
+      tree match
+        case fdef: FunDef => functions(fdef.symbol) = fdef
+
+        case cdef: ClassDef => cdef.funs.foreach(f => functions(f.symbol) = f)
+
+        case _ =>
+
+    val lowered = mutable.Map.empty[Symbol, A]
+    useFunction(root)
 
     while worklist.nonEmpty do
       val sym = worklist.dequeue()
-      if !_live.contains(sym) then
-        _live += sym
 
-        if sym.isFunction then
-          val fdef = defn.index.getCode(sym)
-          collectRefs(fdef.body)
+      if sym.isAllOf(Flags.Method | Flags.Defer) then
+        abstractMethods += sym
 
-        // CHA: abstract method live → find concrete impls in live classes.
-        if sym.is(Flags.Defer) then
-          _deferMethods += sym
-          val ifaceSym = sym.owner
-          for classSym <- _liveClasses do
-            val classInfo = classSym.classInfo
-            if classInfo.views.exists(_.typeSymbol == ifaceSym) then
-              enqueue(classInfo.memberSymbol(sym.name))
+        for cls <- liveClasses do
+          if cls.classInfo.views.exists(_.typeSymbol == sym.owner) then
+            useMethod(cls.classInfo.memberSymbol(sym.name))
 
-        // CHA mirror: class live → find already-live abstract methods it implements.
-        if sym.isClass then
-          _liveClasses += sym
-          val classInfo = sym.classInfo
-          classInfo.views.foreach: itype =>
-            val ifaceSym = itype.typeSymbol
-            val reachable = ifaceSym.classInfo.allMethods.filter(_deferMethods.contains)
-            for abstractMeth <- reachable do
-              enqueue(classInfo.memberSymbol(abstractMeth.name))
-        end if
+      else if sym.isFunction && !sym.is(Flags.Object) then
+        // Concrete methods require their enclosing class shell as well.
+        if sym.is(Flags.Method) then useClass(sym.owner)
+
+        lowered(sym) = compile(functions(sym))
+
+      if sym.isClass then
+        liveClasses += sym
+        val info = sym.classInfo
+
+        for view <- info.views; method <- view.typeSymbol.classInfo.allMethods do
+          if abstractMethods.contains(method) then useMethod(info.memberSymbol(method.name))
+
+        if sym.is(Flags.Object) then useConstructor(sym)
+
       end if
     end while
-    _live.toSet
+
+    lowered.toMap
+
+  def contains(sym: Symbol): Boolean = live.contains(sym)
 
 end Universe
-
-object Universe:
-
-  private[sast] class Traverser(enqueue: Symbol => Unit)(using Definitions) extends TreeTraverser:
-    type Context = Unit
-
-    def apply(word: Word)(using Unit): Unit =
-      word match
-        case Ident(sym) if sym.isFunction =>
-          enqueue(sym)
-          if sym.is(Flags.Object) then
-            // Singleton object accessor: backends derive the class from resultType at
-            // emit time (not from the FunDef body), so enqueue the class explicitly.
-            enqueue(sym.tpe.asProcType.resultType.classSymbol)
-
-        case sel @ Select(_, _) =>
-          sel.tpe match
-            case MemberRef(_, sym) if sym.isFunction => enqueue(sym)
-            case _ =>
-
-          recur(word)
-
-        case Encoded(repr) =>
-          this(repr)
-
-          if word.tpe.isLambdaType && repr.tpe.isClassType then
-            // Lambda encoding from ElimCapture: Encoded(Apply(Select(New(cls), "<init>"), captures))
-            // Add the lambda class and its `apply` method (lambda assumption).
-
-            val cls = repr.tpe.classSymbol
-            val apply = cls.termMember(Names.apply)
-            enqueue(apply)
-
-        case New(classType) =>
-          enqueue(classType.tpe.classSymbol)
-
-        case ClassTest(_, cls) =>
-          enqueue(cls)
-          recur(word)
-
-        case _ =>
-          recur(word)
-
-  def filter(units: List[FileUnit], root: Symbol, rewire: Map[Symbol, Symbol], intrinsicDeps: Map[Symbol, List[Symbol]] = Map.empty)(using Definitions): List[FileUnit] =
-    filter(units, new Universe(root, rewire, intrinsicDeps).run())
-
-  /** Return a copy of `units` with all unreachable definitions removed.
-   *
-   *  - A top-level FunDef is kept iff its symbol is in `live`.
-   *  - A ClassDef is kept iff its class symbol is in `live`;
-   *    its `funs` list is trimmed to only those methods in `live`.
-   *  - An InterfaceDef is kept iff at least one of its methods is in `live`;
-   *    its `methods` list is trimmed accordingly.
-   *  - All other def kinds are dropped (backends do not emit them).
-   */
-  def filter(units: List[FileUnit], live: Set[Symbol]): List[FileUnit] =
-    units.map: unit =>
-      val kept = mutable.ArrayBuffer.empty[Def]
-      unit.foreach:
-        case fdef: FunDef =>
-          if live.contains(fdef.symbol) then kept += fdef
-
-        case cdef: ClassDef =>
-          if live.contains(cdef.symbol) then
-            kept += cdef.withFuns(cdef.funs.filter(f => live.contains(f.symbol)))
-
-        case idef: InterfaceDef =>
-          val reachableMethods = idef.methods.filter(m => live.contains(m.symbol))
-          if reachableMethods.nonEmpty then
-            kept += idef.withMethods(reachableMethods)
-
-        case _ =>
-
-      unit.copy(defs = kept.toList)

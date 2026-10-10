@@ -41,6 +41,13 @@ def testPositionalSplice: Unit =
   val f: FileModule = rb.const("File").cast[FileModule]
   val segs: List[String] = List("x", "y")
   println(f.join(..segs))
+  println (f.join(..segs, "z"))
+  println (f.join(..segs, ..segs))
+  println (f.join(..segs, "z", ..segs, "w"))
+  println (f.join("root", ..segs))
+  val builder = List.builder[String]().add("b").add("c")
+  println (f.join(..builder.result))
+  println (f.join(..(PartSource + "u")))
 
 def testMixedPositionalAndKeyword: Unit =
   println "--- ..Mixed[T] positional + keyword ---"
@@ -57,3 +64,7 @@ def testNamedOnly: Unit =
   println "--- ..Named[T] keyword-only ---"
   val cfg: ConfiguratorObj = rb.const("Configurator").init().cast[ConfiguratorObj]
   println cfg.configure(x = 1, y = 2)
+
+object PartSource
+  def +(part: String): List[String] = [part]
+end

@@ -135,6 +135,25 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
             symbol2UniqueName(sym) = uniqueName
             uniqueName
 
+  private val universe = new Universe(rewire)
+
+  private def functionName(sym: Symbol)(using UniqueName): String =
+    universe.useFunction(sym)
+    rubyName(sym)
+
+  private def referenceMemberName(sym: Symbol): String =
+    if sym.isMethod then universe.useMethod(sym)
+
+    rubyInteropMemberName(sym)
+
+  private def classReferenceName(cls: Symbol)(using UniqueName): String =
+    universe.useClass(cls)
+    rubyName(cls)
+
+  private def constructorName(cls: Symbol)(using UniqueName): String =
+    universe.useConstructor(cls)
+    rubyName(cls)
+
   //----------------------------------------------------------------------------
   // Compilation
   //----------------------------------------------------------------------------
@@ -145,10 +164,17 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
     given UniqueName = globalScope
 
-    for unit <- units; defn <- unit do
-      defn match
-        case fdef: FunDef if !fdef.symbol.is(Flags.Object) => defs += compileFunction(fdef)
-        case cdef: ClassDef => defs += compileClass(cdef)
+    val loweredFunctions = universe.lower(units, runtime.start)(compileFunction)
+
+    // Assemble in source order, including methods discovered late in lowering.
+    for unit <- units; tree <- unit do
+      tree match
+        case fdef: FunDef if loweredFunctions.contains(fdef.symbol) =>
+          defs += loweredFunctions(fdef.symbol)
+
+        case cdef: ClassDef if universe.contains(cdef.symbol) =>
+          defs += compileClass(cdef, loweredFunctions)
+
         case _ =>
 
     // Build the program
@@ -170,6 +196,11 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   /** Compile a function definition */
   private def compileFunction(fdef: FunDef): R.FunDef = try
     val sym = fdef.symbol
+
+    // Erased primitive methods have a regular receiver parameter. Only
+    // instance methods use the host receiver name.
+    if sym.isMethod then
+      symbol2UniqueName(sym.owner.classInfo.self) = "self"
 
     // Regular function - create new scope for local variables
     given UniqueName = reservedNames.newScope(separator = "")
@@ -197,7 +228,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   catch case ex: Exception => throw ex
 
   /** Compile a class definition */
-  private def compileClass(cdef: ClassDef)(using scope: UniqueName): R.ClassDef =
+  private def compileClass(cdef: ClassDef, loweredFunctions: Map[Symbol, R.FunDef])(using scope: UniqueName): R.ClassDef =
     val classSym = cdef.symbol
     val rubyClassName = rubyName(classSym)
 
@@ -206,8 +237,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     // Get all fields from the class definition
     val fieldNames = cdef.vals.map(_.symbol).map(rubyMemberName)
 
-    // Compile methods - each method gets compiled with its own scope
-    val methods = cdef.funs.map(compileFunction)
+    // Assemble methods lowered by the reachability worklist.
+    val methods = cdef.funs.flatMap(f => loweredFunctions.get(f.symbol))
 
     // Add static field if this is a singleton object
     val staticFields =
@@ -234,13 +265,16 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
     case Ident(sym) =>
       assert(!sym.is(Flags.Context), "Unexpected context parameter")
+
+      if sym.isFunction then universe.useFunction(sym)
+
       R.Ident(rubyName(sym))
 
     case Select(qual, name) =>
       word.tpe match
         case Types.MemberRef(_, sym) =>
           val qualExpr = compileExpr(qual)
-          val memberName = rubyInteropMemberName(sym)
+          val memberName = referenceMemberName(sym)
           R.Select(qualExpr, memberName)
 
         case _ => throw new Exception("Unexpected select: " + word.show)
@@ -257,6 +291,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         compileExpr(repr)
 
       else if encoded.tpe.isLambdaType && repr.tpe.isClassType then
+        universe.useMethod(repr.tpe.classSymbol.termMember(Names.apply))
+
         // Wrap class instance as lambda
         val obj = compileExpr(repr)
         val objName = summon[UniqueName].freshName("instance")
@@ -273,7 +309,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       // Object construction
       val classSym = classType.tpe.classSymbol
       val rubyArgs = (args ++ autos).map(compileExpr)
-      R.New(rubyName(classSym), rubyArgs)
+      R.New(constructorName(classSym), rubyArgs)
 
     case ClassTest(arg, cls) =>
       // Type test for union types
@@ -287,7 +323,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           else if cls == defn.Float_type then "Float"
           else if cls == defn.Int_type || cls == defn.Long_type || cls == defn.Byte_type || cls == defn.Char_type then "Integer"
           else if cls == defn.Array_class then "Array"
-          else rubyName(cls)
+          else classReferenceName(cls)
 
         R.InstanceOf(value, className)
 
@@ -377,6 +413,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       throw new Exception("Unexpected: " + word)
 
   /** Whether `name` is a valid Ruby method name.
+    *
     * Allows letters, digits, underscores, with optional `?` or `!` suffix.
     */
   /** Whether `name` is a valid Ruby writer name (plain identifier, no `?`/`!` suffix). */
@@ -411,13 +448,14 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     */
   private def compileVarargItems(word: Word)(using scope: UniqueName, ctx: Context): List[R.Tree] =
     word match
-      case Apply(Select(pack, "result"), Nil, _) => compileVarargItems(pack)
+      case Apply(Select(pack, "result"), Nil, _) if TreeOps.isVarargBuilder(pack) =>
+        compileVarargItems(pack)
 
       case Apply(Ident(sym), Nil, _) if sym == defn.List_empty => Nil
 
       case Apply(fun, List(_), _) if fun.refers(defn.ListBuilder_fun) => Nil
 
-      case Apply(Select(prev, "add"), List(item), _) =>
+      case Apply(Select(prev, "add" | "+"), List(item), _) if TreeOps.isVarargPackReceiver(prev) =>
         val compiled = item match
           case Apply(fun, List(Literal(Constant.String(name)), value), _)
               if fun.refers(defn.compile_namedArg) =>
@@ -426,13 +464,14 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
             compileExpr(other)
         compileVarargItems(prev) :+ compiled
 
-      case Apply(Select(prev, "addList"), List(xs), _) =>
+      case Apply(Select(prev, "addList" | "++"), List(xs), _) if TreeOps.isVarargPackReceiver(prev) =>
         // Jo List[T] is not a native Ruby Array; convert via rb.array before splatting
-        val rubyArray = R.Call(None, rubyName(runtime.rb_array), List(compileExpr(xs)))
+        val rubyArray = R.Call(None, functionName(runtime.rb_array), List(compileExpr(xs)))
         compileVarargItems(prev) :+ R.Starred(rubyArray)
 
-      case _ =>
-        throw new Exception("unexpected vararg list shape in @rb.interop call: " + word.show)
+      case xs =>
+        val rubyArray = R.Call(None, functionName(runtime.rb_array), List(compileExpr(xs)))
+        List(R.Starred(rubyArray))
 
   /** Compile one call argument with awareness of the declared parameter type.
     *
@@ -456,6 +495,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       compileExpr(valueWord)
 
   /** Compile call args paired with their declared parameter types.
+    *
     * Keyword args (`@rb.keyword`) are emitted as `key: value` and collected
     * at the end so positional args always precede them.
     */
@@ -494,7 +534,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           val classSym = funType.resultType.classSymbol
 
           // Mark the class as reachable - it will get a static instance field
-          val className = rubyName(classSym)
+          val className = classReferenceName(classSym)
           R.Select(R.Ident(className), SingletonFieldName)
 
         // --- rb.* FFI intrinsics ---
@@ -546,8 +586,8 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           val action :: Nil = args: @unchecked
           val tempResult = summon[UniqueName].freshName("rbresult")
           val tempExc    = summon[UniqueName].freshName("rbexc")
-          val okExpr     = R.New(rubyName(runtime.jo_Ok), List(compileExpr(action)))
-          val errExpr    = R.New(rubyName(runtime.jo_Err), List(R.Ident(tempExc)))
+          val okExpr     = R.New(constructorName(runtime.jo_Ok), List(compileExpr(action)))
+          val errExpr    = R.New(constructorName(runtime.jo_Err), List(R.Ident(tempExc)))
           R.Block(
             R.Assign(tempResult, R.Nil) ::
             R.BeginRescue(R.Assign(tempResult, okExpr), tempExc, R.Assign(tempResult, errExpr)) ::
@@ -558,7 +598,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         else
           val procType = sym.tpe.asProcType
           val rubyArgs = compileCallArgListWithTypes(args, procType.params ++ procType.autos)
-          R.Call(None, rubyName(sym), rubyArgs)
+          R.Call(None, functionName(sym), rubyArgs)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.BoolType) =>
         compileBoolPrimitive(name, qual, args)
@@ -649,7 +689,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
         else
           // Regular method/function call on an object
-          val memberName = rubyInteropMemberName(methodSym)
+          val memberName = referenceMemberName(methodSym)
           val procType = methodSym.tpe.asProcType
           val isInteropVararg =
             methodSym.owner.hasAnnotation(runtime.annot_interop) && procType.hasVararg
@@ -700,6 +740,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         throw new Exception(s"Unknown Bool method: $name")
 
   /** Reduce an integer expression to signed 32-bit (two's-complement wrap):
+    *
     * `((e + 0x80000000) & 0xFFFFFFFF) - 0x80000000`. Ruby Integers are
     * arbitrary precision, so overflow-capable arithmetic is masked to keep
     * `Int` 32-bit and consistent with the other backends.
@@ -715,6 +756,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     R.BinOp(R.BinOp(R.BinOp(e, "+", off), "&", mask), "-", off)
 
   /** Reduce an integer expression to signed 64-bit (two's-complement wrap).
+    *
     * Same scheme as [[wrapInt32]] at 64-bit width: mask to the low 64 bits and
     * sign-extend so bit 63 determines the sign.
     */
@@ -917,7 +959,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           Nil)
 
       case "iterator" =>
-        R.Call(None, rubyName(runtime.String_iterator), List(compileExpr(qual)))
+        R.Call(None, functionName(runtime.String_iterator), List(compileExpr(qual)))
 
       case "toLower" =>
         R.Call(Some(compileExpr(qual)), "downcase", Nil)
