@@ -282,7 +282,6 @@ end
 private section ParamSupport
   type Ctx
   type Key[T]
-  type Batch
 
   //[ Stub function to be replaced at backend
     !
@@ -306,20 +305,12 @@ private section ParamSupport
     end
     abort("Unbound parameter " + builtins.str(key))
 
-  def startBatch(ctx: Ctx, count: Int): Batch receives none =
-    val b: py.List = builtins.list()
-    b.append(ctx)
-    py.dynamic(b).cast[Batch]
-
-  def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
+  def addBinding[T](ctx: Ctx, key: Key[T], value: T): Ctx receives none =
     val lst: py.List = builtins.list()
-    lst.append(py.dynamic(batch)[0])
+    lst.append(ctx)
     lst.append(key)
     lst.append(value)
-    py.dynamic(batch)[0] = builtins.tuple(lst)
-
-  def finish(batch: Batch): Ctx receives none =
-    py.dynamic(batch)[0].cast[Ctx]
+    py.dynamic(builtins.tuple(lst)).cast[Ctx]
 end
 
 //------------------------------------------------------------------------------

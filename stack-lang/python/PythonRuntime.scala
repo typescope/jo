@@ -112,9 +112,7 @@ class PythonRuntime(using defn: Definitions):
   val ParamSupport = Python.containerMember("ParamSupport")
   val emptyCtx = ParamSupport.termMember("emptyCtx")
   val getParam = ParamSupport.termMember("getParam")
-  val startBatch = ParamSupport.termMember("startBatch")
   val addBinding = ParamSupport.termMember("addBinding")
-  val finishBatch = ParamSupport.termMember("finish")
   val paramKey = ParamSupport.termMember("paramKey")
 
   val start = Python.termMember("start")
