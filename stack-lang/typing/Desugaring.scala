@@ -21,6 +21,8 @@ object Desugaring:
     * - `RefTree` as itself
     * - `BracketApply(RefTree, args)` as `AppliedType`
     * - `PrefixOperatorCall(op, arg)` as unary `AppliedType`
+    * - untyped-parameter `Lambda` as `LambdaType`
+    * - parentheses and single-expression blocks around type-shaped words
     * - union-shaped `Expr` as `UnionType`
     * - other `Expr` as `ExprType`
     */
@@ -33,6 +35,16 @@ object Desugaring:
 
     case PrefixOperatorCall(op, arg) =>
       toTypeTree(arg).map(tt => AppliedType(op, tt :: Nil)(word.span))
+
+    case Lambda(params, body) if params.forall(_.tpt.isEmpty) =>
+      toTypeTree(body).map: resultType =>
+        LambdaType(params.map(_.ident), resultType, Nil)(word.span)
+
+    case Fence(inner) =>
+      toTypeTree(inner)
+
+    case Block(inner :: Nil) =>
+      toTypeTree(inner)
 
     case Expr(words) =>
       val isUnion =
