@@ -25,7 +25,7 @@ object Adapters:
       s"Adapter is shadowed: parameter type ${adapterParamType.show} conforms to an earlier adapter's parameter type"
 
     val message2 =
-      val paramType = earlierAdapter.tpe.asProcType.params.head.info
+      val paramType = earlierAdapter.tpe.asProcType.params.head.tpe
       s"Earlier adapter ${earlierAdapter.name} with parameter type ${paramType.show} is defined here"
 
   def check(adapters: List[Ast.ParamAdapter], rawParamType: Type, namer: Namer)
@@ -92,8 +92,8 @@ object Adapters:
 
         else
           // Check: no shadowed adapters - adapter parameter type must not conform to any earlier adapter's parameter type
-          val adapterParamType = procType.params.head.info
-          val shadowing = valid.find {
+          val adapterParamType = procType.params.head.tpe
+          val shadowing = valid.find:
             case (ParamAdapter.Member(memberName), _) =>
               // Earlier adapter is a member adapter
               // Check if this function adapter is shadowed: does the function's argument type have the member?
@@ -113,9 +113,8 @@ object Adapters:
             case (ParamAdapter.Function(earlierSym), _) =>
               // Earlier adapter is a function adapter
               val earlierProcType = earlierSym.tpe.asProcType
-              val earlierParamType = earlierProcType.params.head.info
+              val earlierParamType = earlierProcType.params.head.tpe
               Subtyping.conforms(adapterParamType, earlierParamType)
-          }
 
           shadowing match
             case Some((earlierAdapter, earlierAst)) =>

@@ -309,7 +309,7 @@ object Adaptation:
           // The validation currently is performed after checking thus invalid adapters may appear here
           if adapterSym.isFunction then
             val procType = adapterSym.tpe.asProcType
-            val adapterParamType = procType.params.head.info
+            val adapterParamType = procType.params.head.tpe
 
             val isValid =
               !procType.isPolyType
@@ -411,7 +411,7 @@ object Adaptation:
         case ParamAdapter.Function(adapterSym) =>
           if adapterSym.isFunction then
             val procType = adapterSym.tpe.asProcType
-            val adapterParamType = procType.params.head.info
+            val adapterParamType = procType.params.head.tpe
 
             val isValid =
               !procType.isPolyType
