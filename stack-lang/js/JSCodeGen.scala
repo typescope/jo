@@ -808,6 +808,10 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           val keyId = runtime.getOrCreateParamId(paramSym)
           (Nil, JS.Ident(keyId))
 
+        else if sym == defn.Float_parseFloatDecimal then
+          val (stats, expr) = compileExpr(args.head, enforcePurity)
+          (stats, JS.Call(None, "Number", List(expr)))
+
         else if sym == defn.jo_pass then
           (Nil, JS.NullLit)
 

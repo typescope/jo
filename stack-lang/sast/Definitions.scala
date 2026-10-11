@@ -55,6 +55,7 @@ final class Definitions(private var _index: SymbolIndex) extends Definitions.Laz
   val Long_type   =  jo.typeMember("Long")
   val Bool_type   =  jo.typeMember("Bool")
   val Float_type  =  jo.typeMember("Float")
+  val Float_parseFloatDecimal = jo.containerMember("Float").termMember("parseFloatDecimal")
   val String_type =  jo.typeMember("String")
 
   val Iterator_type = jo.typeMember("Iterator")

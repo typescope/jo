@@ -517,6 +517,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           val globalName = runtime.getOrCreateParamId(paramSym)
           R.Ident(globalName)
 
+        else if sym == defn.Float_parseFloatDecimal then
+          R.Call(Some(compileExpr(args.head)), "to_f", Nil)
+
         else if sym == defn.jo_pass then
           R.Nil
 
