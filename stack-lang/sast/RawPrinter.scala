@@ -336,9 +336,9 @@ object RawPrinter:
           val paramText = "[" ~ indent:
               val items = params.map: param =>
                 val defaultText = param.default match
-                  case const: Constant => "Lit [" ~ printConstant(const) ~ "]"
-                  case sym: Symbol => "Ref [" ~ printSymbolRef(sym) ~ "]"
-                  case None => Text("None")
+                  case DefaultValue.Literal(const) => "Lit [" ~ printConstant(const) ~ "]"
+                  case DefaultValue.Ref(sym) => "Ref [" ~ printSymbolRef(sym) ~ "]"
+                  case DefaultValue.None => Text("None")
 
                 "[" ~ param.name ~ "," ~ printType(param.tpe, tparamScope) ~ "," ~ defaultText ~ "]"
               items.join(LINE_SEP)
@@ -349,8 +349,8 @@ object RawPrinter:
                 val candidatesText =
                   val items = auto.candidates.map: cand =>
                     cand match
-                      case sym: Symbol => printSymbolRef(sym)
-                      case MemberCandidate(tp, name) => "[" ~ printType(tp, tparamScope) ~ "]." ~ name
+                      case AutoCandidate.Value(sym) => printSymbolRef(sym)
+                      case AutoCandidate.Member(tp, name) => "[" ~ printType(tp, tparamScope) ~ "]." ~ name
                   "[" ~ items.join(",") ~ "]"
 
                 "[" ~ auto.name ~ "," ~ printType(auto.tpe, tparamScope) ~ "," ~ candidatesText ~ "]"

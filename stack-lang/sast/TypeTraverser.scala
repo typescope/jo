@@ -1,7 +1,7 @@
 package sast
 
 import Types.*
-import Denotations.MemberCandidate
+import Denotations.*
 
 abstract class TypeTraverser:
   def apply(tp: Type): Unit
@@ -48,7 +48,7 @@ abstract class TypeTraverser:
           this(auto.tpe)
           for candidate <- auto.candidates do
             candidate match
-            case MemberCandidate(tp, name) => this(tp)
+            case AutoCandidate.Member(tp, name) => this(tp)
             case _ => // Symbol case - no traversal needed
 
         this(resType)

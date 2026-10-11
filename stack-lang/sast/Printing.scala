@@ -446,12 +446,16 @@ object Printing:
         def showParam(param: ParamInfo): Text =
           val base = param.name ~ ": " ~ param.tpe
           param.default match
+          case DefaultValue.Literal(const) =>
+            const match
             case Constant.Bool(v)   => base ~ " = " ~ v.toString
             case Constant.Int(v)    => base ~ " = " ~ v.toString
             case Constant.Float(v)  => base ~ " = " ~ v.toString
             case Constant.String(v) => base ~ " = " ~ "\"" ~ v.toString ~ "\""
-            case sym: Symbol        => base ~ " = " ~ sym.name
-            case None => base
+
+          case DefaultValue.Ref(sym) => base ~ " = " ~ sym
+
+          case DefaultValue.None => base
 
         val preText =
           if n > 0 then

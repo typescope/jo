@@ -91,8 +91,8 @@ abstract class TypeMap(using Definitions):
         auto.copy(
           tpe = this(auto.tpe),
           candidates = auto.candidates.map:
-            case MemberCandidate(tp, name) => MemberCandidate(this(tp), name)
-            case sym => sym  // Symbol case (no transformation needed)
+            case mem @ AutoCandidate.Member(tp, name) => AutoCandidate.Member(this(tp), name)(mem.span)
+            case cand => cand  // Symbol case (no transformation needed)
         )
 
     val resType2 = this(resType)

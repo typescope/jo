@@ -16,8 +16,8 @@ import scala.collection.mutable
  * This module resolves auto parameters for function calls by searching through
  * candidate lists. It supports:
  *
- * 1. Value candidates (Symbol): Direct references to values/functions
- * 2. Member candidates (MemberCandidate): Type members that are eta-expanded
+ * 1. Value candidates: Direct references to values/functions
+ * 2. Member candidates: Type members that are eta-expanded
  */
 object AutoResolution:
   /** Trace element to track resolution path and detect cycles */
@@ -86,7 +86,7 @@ object AutoResolution:
     None
 
   def search
-      (targetType: Type, cands: List[Symbol | MemberCandidate], localAutos: List[Symbol],
+      (targetType: Type, cands: List[AutoCandidate], localAutos: List[Symbol],
         trace: Vector[TraceElement], choice: SearchNode.Choice, owner: Symbol, span: Span)
       (using defn: Definitions, source: Source, config: Config)
   : Option[Word] =
@@ -104,15 +104,15 @@ object AutoResolution:
     // Then search through candidates
     val candRes = findFirst(cands): cand =>
       val searchCand = cand match
-        case sym: Symbol => Candidate.ValueCandidate(sym)
-        case MemberCandidate(tp, name) => Candidate.MemberCandidate(tp, name)
+        case AutoCandidate.Value(sym) => Candidate.ValueCandidate(sym)
+        case AutoCandidate.Member(tp, name) => Candidate.MemberCandidate(tp, name)
 
       val trial = new SearchNode.Trial(searchCand, next = null)
       choice.children += trial
 
       cand match
-        case sym: Symbol => tryValue(sym, targetType, trace, trial, owner, localAutos, span)
-        case MemberCandidate(tp, name) => tryMember(tp, name, targetType, trace, trial, owner, localAutos, span)
+        case AutoCandidate.Value(sym) => tryValue(sym, targetType, trace, trial, owner, localAutos, span)
+        case AutoCandidate.Member(tp, name) => tryMember(tp, name, targetType, trace, trial, owner, localAutos, span)
 
     if candRes.nonEmpty then return candRes
 

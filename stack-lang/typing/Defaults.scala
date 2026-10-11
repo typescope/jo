@@ -32,13 +32,13 @@ object Defaults:
       (using defn: Definitions, rp: Reporter, source: Source)
   : Word =
     paramInfo.default match
-      case None =>
+      case DefaultValue.None =>
         Reporter.error(s"Missing required parameter '${paramInfo.name}'", span.toPos)
         errorWord(span)
 
-      case const: Constant => Literal(const)(paramInfo.tpe, span)
+      case DefaultValue.Literal(const) => Literal(const)(paramInfo.tpe, span)
 
-      case sym: Symbol =>
+      case DefaultValue.Ref(sym) =>
         if sym.tpe.isValueType then
           Ident(sym)(span)
         else
@@ -51,43 +51,43 @@ object Defaults:
   /** Type-check a single default value expression against the declared param type. */
   def transformDefault(default: Ast.Word, paramType: Type, namer: Namer)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
-  : None.type | Symbol | Constant =
+  : DefaultValue =
     if paramType.isVararg then
       Reporter.error("Vararg parameter cannot have a default value", default.pos)
-      return None
+      return DefaultValue.None
 
     default match
       case lit: Ast.IntLit =>
         val lit2 = NumericTyper.typeIntLit(lit)(using Inference.TargetType.Known(paramType), defn, rp, so)
-        if checkConformsLit(lit2, paramType) then lit2.constant else None
+        if checkConformsLit(lit2, paramType) then DefaultValue.Literal(lit2.constant)(lit2.span) else DefaultValue.None
 
       case lit: Ast.FloatLit =>
         val lit2 = NumericTyper.typeFloatLit(lit)(using defn, rp, so)
-        if checkConformsLit(lit2, paramType) then lit2.constant else None
+        if checkConformsLit(lit2, paramType) then DefaultValue.Literal(lit2.constant)(lit2.span) else DefaultValue.None
 
       case lit: Ast.BoolLit =>
         val lit2 = Literal(Constant.Bool(lit.value))(defn.BoolType, lit.span)
-        if checkConformsLit(lit2, paramType) then lit2.constant else None
+        if checkConformsLit(lit2, paramType) then DefaultValue.Literal(lit2.constant)(lit2.span) else DefaultValue.None
 
       case lit: Ast.CharLit =>
         val lit2 = NumericTyper.typeCharLit(lit)(using Inference.TargetType.Known(paramType), defn, rp, so)
-        if checkConformsLit(lit2, paramType) then lit2.constant else None
+        if checkConformsLit(lit2, paramType) then DefaultValue.Literal(lit2.constant)(lit2.span) else DefaultValue.None
 
       case lit: Ast.StringLit =>
         val lit2 = Literal(Constant.String(lit.value))(defn.StringType, lit.span)
-        if checkConformsLit(lit2, paramType) then lit2.constant else None
+        if checkConformsLit(lit2, paramType) then DefaultValue.Literal(lit2.constant)(lit2.span) else DefaultValue.None
 
       case ref: Ast.RefTree =>
         namer.resolveQualid(ref, SymbolKind.Term) match
           case Some(sym) =>
             val id = Ident(sym)(ref.span)
-            if checkRefDefault(id, paramType) then sym else None
+            if checkRefDefault(id, paramType) then DefaultValue.Ref(sym)(ref.span) else DefaultValue.None
 
-          case None => None   // resolveQualid already reported the error
+          case None => DefaultValue.None   // resolveQualid already reported the error
 
       case _ =>
         Reporter.error("Default value must be a literal or a qualified identifier", default.span.toPos)
-        None
+        DefaultValue.None
 
   /** Verify that the literal type conforms to the expected parameter type. */
   private

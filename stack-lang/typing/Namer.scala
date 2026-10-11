@@ -1373,7 +1373,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
         given Definitions = defnLazy.value
         val tpt = transformValueType(param.tpt, allowPackType = i == params.size - 1)
         val default = param.default match
-          case None => None
+          case None => DefaultValue.None
           case Some(expr) => Defaults.transformDefault(expr, tpt.tpe, this)
 
         ParamInfo(param.name, tpt.tpe, default)

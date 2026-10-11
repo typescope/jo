@@ -1,7 +1,7 @@
 package sast
 
 import Types.*
-import Denotations.MemberCandidate
+import Denotations.*
 
 abstract class TypeAccumulator[T](zero: T):
   type Context
@@ -59,7 +59,7 @@ abstract class TypeAccumulator[T](zero: T):
 
           auto.candidates.foldLeft(acc2a): (acc, cand) =>
             cand match
-              case MemberCandidate(tp, _) => combine(acc, this(tp))
+              case AutoCandidate.Member(tp, _) => combine(acc, this(tp))
               case _ => acc
 
         combine(acc2, this(resType))

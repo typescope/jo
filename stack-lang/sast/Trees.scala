@@ -620,15 +620,6 @@ object Trees:
     (val annots: List[Apply], val span: Span)
   extends Def
 
-  enum AutoCandidate extends Positioned:
-    case Value(symbol: Symbol)(val span: Span)
-    case Member(tpt: TypeTree, name: String)(val span: Span)
-
-    def show(using Definitions): String =
-      this match
-        case Value(sym) => sym.name
-        case Member(tpt, name) => "[" + tpt.tpe.show + "]." + name
-
   /** Represents a named function or method definition */
   case class FunDef
     (symbol: Symbol,

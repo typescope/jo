@@ -17,9 +17,8 @@ import scala.collection.mutable
 object Autos:
   def transformCandidates(candidates: List[Ast.AutoCandidate], autoType: Type, namer: Namer)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
-  : List[Symbol | MemberCandidate] =
+  : List[AutoCandidate] =
     val trees = new mutable.ArrayBuffer[AutoCandidate]
-    val cands = new mutable.ArrayBuffer[Symbol | MemberCandidate]
 
     def checkTypeConform(valueType: Type, span: Span) =
       // instantiate type parameters with type vars and do subtype check
@@ -50,7 +49,6 @@ object Autos:
                   checkTypeConform(procType.resultType, value.span)
 
                 trees += AutoCandidate.Value(sym)(value.span)
-                cands += sym
 
               else
                 Reporter.error("A reference to a value candidate expected, found = " + sym.tpe.show, value.span.toPos)
@@ -63,14 +61,13 @@ object Autos:
                 namer.transformValueType(tpt, allowPackType = false)
           val memberType = typedTpt.tpe
 
-          trees += AutoCandidate.Member(typedTpt, memberName)(member.span)
-          cands += MemberCandidate(memberType, memberName)
+          trees += AutoCandidate.Member(typedTpt.tpe, memberName)(member.span)
     end for
 
     // Check validity of candidates
     checkShadowing(trees.toList)
 
-    cands.toList
+    trees.toList
 
   /** Check for shadowed candidates - later candidates shadowed by earlier ones */
   def checkShadowing(candidates: List[AutoCandidate])
@@ -101,8 +98,8 @@ object Autos:
           case (AutoCandidate.Member(tpI, nameI), AutoCandidate.Member(tpJ, nameJ)) =>
             // Member candidate shadowing member candidate
             // Same member name means they're redundant
-            if nameI == nameJ && Subtyping.conforms(tpI.tpe, tpJ.tpe) then
-              if Subtyping.conforms(tpJ.tpe, tpI.tpe) then
+            if nameI == nameJ && Subtyping.conforms(tpI, tpJ) then
+              if Subtyping.conforms(tpJ, tpI) then
                 Reporter.error(
                   s"Member candidate ${cj.show} appears multiple times in candidate list",
                   cj.span.toPos
@@ -115,7 +112,7 @@ object Autos:
 
 
           case (AutoCandidate.Member(memberTpt, memberName), AutoCandidate.Value(symJ)) =>
-            memberTpt.tpe.getTermMember(memberName) match
+            memberTpt.getTermMember(memberName) match
               case Some(tpI) =>
                  val tpJ = symJ.tpe.effectiveResultType
                  if Subtyping.conforms(tpI.effectiveResultType, tpJ) then
@@ -152,8 +149,8 @@ object Autos:
 
       for cand <- auto.candidates do
         cand match
-          case _: Symbol =>
-          case MemberCandidate(tp, _) =>
+          case AutoCandidate.Value(__) =>
+          case AutoCandidate.Member(tp, _) =>
             if !tp.isFullyInstantiated then
               fullyInstantiated = false
               Reporter.error("The member candidate type is not fully instantiated: " + tp.show, span.toPos)
