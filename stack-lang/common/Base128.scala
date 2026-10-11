@@ -79,11 +79,16 @@ object Base128:
 
     var y: Long = 0
     var continue = true
+    var count = 0
+
     while continue do
+      assert(count < 10 && (y >>> 57) == 0, "Base-128 value exceeds 64 bits")
       val b = readByte()
       y = (y << 7) | (b & MASK)
       continue = (b & 0x80) == 0
+      count += 1
     end while
+
     y
 
   // Arbitrary-precision variants. Same signed base-128 scheme generalized to

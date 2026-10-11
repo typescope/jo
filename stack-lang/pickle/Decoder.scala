@@ -1528,8 +1528,8 @@ object Decoder:
   private def decodeInt()(using buf: ReadBuffer): Int =
     buf.readInt()
 
-  private def decodeBigInt()(using buf: ReadBuffer): BigInt =
-    buf.readBigInt()
+  private def decodeLong()(using buf: ReadBuffer): Long =
+    buf.readLong()
 
   private def decodeIntRaw()(using buf: ReadBuffer): Int =
     buf.readIntRaw()
@@ -1549,32 +1549,19 @@ object Decoder:
 
   private def decodeConstant()(using buf: ReadBuffer, state: State): Constant =
     val constType = decodeByte()
+
     constType match
-      case Format.BoolConst =>
-        val value = decodeBool()
-        Constant.Bool(value)
-
-      case Format.IntConst =>
-        val value = decodeBigInt()
-        Constant.Int(value.toInt)
-
-      case Format.ByteConst =>
-        Constant.Byte(decodeBigInt().toInt)
+      case Format.BoolConst => Constant.Bool(decodeBool())
+      case Format.IntConst => Constant.Int(decodeInt())
+      case Format.ByteConst => Constant.Byte(decodeByte() & 0xFF)
 
       case Format.CharConst =>
-        Constant.Char(decodeBigInt().toInt)
+        val value = decodeNat()
+        Constant.Char(value)
 
-      case Format.LongConst =>
-        Constant.Long(decodeBigInt().toLong)
-
-      case Format.FloatConst =>
-        val value = decodeDouble()
-        Constant.Float(value)
-
-      case Format.StringConst =>
-        val value = decodeString()
-        Constant.String(value)
-
+      case Format.LongConst => Constant.Long(decodeLong())
+      case Format.FloatConst => Constant.Float(decodeDouble())
+      case Format.StringConst => Constant.String(decodeString())
       case _ => throw new Exception(s"Unknown constant type: $constType")
 
   private def decodeSource(stringTable: StringTable)(using buf: ReadBuffer): Source =

@@ -26,6 +26,15 @@ package pickle
   * - big-endian 2's complement
   * - big-endian IEEE 754 double (floating-point constants)
   *
+  * Constant payloads follow a one-byte constant tag:
+  * - Bool: one byte (0 or 1)
+  * - Byte: one raw unsigned byte (0 to 255)
+  * - Char: unsigned base-128 Unicode scalar value (surrogates excluded)
+  * - Int: signed base-128, checked to fit 32 bits
+  * - Long: signed base-128, bounded to 64 bits
+  * - Float: eight-byte big-endian IEEE 754 double
+  * - String: unsigned base-128 index into the string table
+  *
   * == File Structure ==
   *
   * ```
@@ -65,6 +74,8 @@ package pickle
   * - Unsigned values < 128 and signed values with magnitude < 64 use 1 byte
   * - Bytes store seven-bit groups in big-endian order; the high bit marks the final byte
   * - Signed values encode (absolute value << 1) | sign bit
+  * - For signed Long, the negative-zero representation denotes Long.MinValue
+  * - Bounded integers use at most ten bytes and reject overflow
   * - Used for: IDs, indices, lengths, most numeric values
   * - See common/Base128.scala for implementation
   *

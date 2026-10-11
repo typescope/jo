@@ -1177,8 +1177,8 @@ object Encoder:
   private def encodeInt(n: Int)(using buf: WriteBuffer): Unit =
     buf.addInt(n)
 
-  private def encodeBigInt(n: BigInt)(using buf: WriteBuffer): Unit =
-    buf.addBigInt(n)
+  private def encodeLong(n: Long)(using buf: WriteBuffer): Unit =
+    buf.addLong(n)
 
   private def encodeIntRaw(n: Int)(using buf: WriteBuffer): Unit =
     buf.addIntRaw(n)
@@ -1204,19 +1204,20 @@ object Encoder:
 
       case Constant.Int(value) =>
         encodeByte(Format.IntConst)
-        encodeBigInt(BigInt(value))
+        encodeInt(value)
 
       case Constant.Byte(value) =>
+        assert(value >= 0 && value <= 255, s"Invalid Byte constant: $value")
         encodeByte(Format.ByteConst)
-        encodeBigInt(BigInt(value))
+        encodeByte(value.toByte)
 
       case Constant.Char(value) =>
         encodeByte(Format.CharConst)
-        encodeBigInt(BigInt(value))
+        encodeNat(value)
 
       case Constant.Long(value) =>
         encodeByte(Format.LongConst)
-        encodeBigInt(BigInt(value))
+        encodeLong(value)
 
       case Constant.Float(value) =>
         encodeByte(Format.FloatConst)
