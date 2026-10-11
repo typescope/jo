@@ -68,6 +68,10 @@ extends Phase:
 
         case procType: ProcType => transformFunDenot(sym, procType)
 
+        case info: ParamInfo => info.copy(tpe = typeMap(info.tpe)(using ()))
+
+        case info: AutoInfo => info.copy(tpe = typeMap(info.tpe)(using ()))
+
         case tp: Type => typeMap(tp)(using ())
 
   private def withCtx[T](ctxOpt: Option[Symbol])(work: => T)(using Context): T =

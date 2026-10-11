@@ -67,6 +67,10 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
         if toi.body `eq` body2 then toi
         else TypeOperatorInfo(toi.tparams, body2, toi.preParamCount)
 
+      case info: ParamInfo => info.copy(tpe = eraseType(info.tpe))
+
+      case info: AutoInfo => info.copy(tpe = eraseType(info.tpe))
+
       case tp: Type => eraseType(tp)
 
   def eraseType(tp: Type)(using Context): Type =
