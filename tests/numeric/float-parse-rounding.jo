@@ -1,0 +1,47 @@
+def main =
+  // Reported regressions: exponent scaling and a plain fraction.
+  val parsed = "1.65973835e+16".toFloat
+  val literal = 16597383500000000.0
+  println (parsed == literal)
+  println (literal - parsed == 0.0)
+  println ("0.9844941451716409".toFloat == 0.9844941451716409)
+  println ("0.9844941451716409".toFloatOpt is Some(0.9844941451716409))
+
+  // Round the complete decimal once, including ties to even.
+  println ("9007199254740993".toFloat == 9007199254740992.0)
+  println ("9007199254740995".toFloat == 9007199254740996.0)
+  println ("1.00000000000000011102230246251565404236316680908203125".toFloat == 1.0)
+  println ("1.00000000000000011102230246251565404236316680908203126".toFloat == 1.0000000000000002)
+  println ("123456789012345678901234567890e-29".toFloat == 1.2345678901234567)
+
+  // Large exponents, the normal/subnormal boundary, and minimum subnormal.
+  println ("1.2345678901234567e+300".toFloat == 1.2345678901234567e300)
+  println ("1.2345678901234567e-300".toFloat == 1.2345678901234567e-300)
+  println ("1.7976931348623157e308".toFloat == 1.7976931348623157e308)
+  println ("2.2250738585072014e-308".toFloat == 2.2250738585072014e-308)
+  println ("2.225073858507201e-308".toFloat == 2.225073858507201e-308)
+  println ("4.9406564584124654e-324".toFloat == 5e-324)
+  println ("2.4703282292062327e-324".toFloat == 0.0)
+  println ("2.4703282292062328e-324".toFloat == 5e-324)
+
+  // Overflow/underflow must not overflow an exponent accumulator or loop.
+  val infinity = "1e309".toFloat
+  println (infinity > 1.7976931348623157e308)
+  println ("1e999999999999999999999999".toFloat == infinity)
+  println ("-1e999999999999999999999999".toFloat == -infinity)
+  println ("1e-999999999999999999999999".toFloat == 0.0)
+  println ("0e999999999999999999999999".toFloat == 0.0)
+  println ("-0".toFloat == -0.0)
+  println ("-0.0e10".toFloat == -0.0)
+  println ("-1e-999999999999999999999999".toFloat == -0.0)
+
+  // Preserve Jo's decimal grammar despite the hosts' broader parsers.
+  println (Float.parse("NaN") is None)
+  println (Float.parse("Infinity") is None)
+  println (Float.parse("inf") is None)
+  println (Float.parse("0x1.0p0") is None)
+  println (Float.parse("1_000.0") is None)
+  println (Float.parse("1.0f") is None)
+  println (Float.parse("1e2junk") is None)
+  println (Float.parse("1.0\n") is None)
+  println (Float.parse("1e999999999999999999999999x") is None)
