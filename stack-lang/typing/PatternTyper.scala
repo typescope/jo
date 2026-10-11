@@ -920,14 +920,14 @@ class PatternTyper(namer: Namer)(using Config):
 
         val valuePattern = ValuePattern(literal)(scrutType)
 
-        if Subtyping.conforms(scrutType, literal.tpe) then
+        if Subtyping.conforms(scrutType, literal.tpe.widenConstType) then
           valuePattern
 
         else
           val explain = new StringBuilder
 
           if Patterns.isValidTypePattern(literal.tpe, scrutType)(using explain) then
-            TypePattern(TypeTree(literal.tpe)(pat.span), valuePattern)(scrutType)
+            TypePattern(TypeTree(literal.tpe.widenConstType)(pat.span), valuePattern)(scrutType)
           else
             Reporter.error(explain.toString, pat.pos)
             WildcardPattern()(ErrorType, pat.span)

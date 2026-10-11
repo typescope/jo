@@ -299,7 +299,7 @@ object ElimCapture:
 
       defn.index.add(applySym, ProcType(
         tparams = Nil,
-        params = params.map(_.paramInfo),
+        params = params.map(p => ParamInfo(p.name, p.tpe)),
         autos = Nil,
         resultType = lambdaType.resultType,
         receivesInfo = receives,
@@ -471,7 +471,7 @@ object ElimCapture:
         captures.size == captures.map(_.name).toSet.size,
         "[Internal error] captured different variables with same name in " + fdef.symbol)
 
-      val paramCaptures = captures.map(_.paramInfo)
+      val paramCaptures = captures.map(p => ParamInfo(p.name, p.tpe))
 
       val funSym = createLiftedFunSym(fdef, prependParams = Nil, appendParams = paramCaptures)
       LiftInfo(funSym, captures)
