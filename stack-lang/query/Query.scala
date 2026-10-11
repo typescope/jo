@@ -556,16 +556,19 @@ object Query:
   private def paramSignature(sym: Symbol)(using Definitions): String =
     val base = sym.name + ": " + sym.tpe.show
     sym.paramInfo.default match
-      case DefaultValue.Lit(const) => const match
-        case Constant.Bool(v)   => v.toString
-        case Constant.Int(v)    => v.toString
-        case Constant.Byte(v)   => v.toString
-        case Constant.Char(v)   => v.toString
-        case Constant.Long(v)   => v.toString
-        case Constant.Float(v)  => v.toString
-        case Constant.String(v) => JsonUtil.string(v)
+      case DefaultValue.Lit(const) =>
+        val default = const match
+          case Constant.Bool(v)   => v.toString
+          case Constant.Int(v)    => v.toString
+          case Constant.Byte(v)   => v.toString
+          case Constant.Char(v)   => v.toString
+          case Constant.Long(v)   => v.toString
+          case Constant.Float(v)  => v.toString
+          case Constant.String(v) => JsonUtil.string(v)
 
-      case DefaultValue.Ref(sym) => sym.name
+        base + " = " + default
+
+      case DefaultValue.Ref(sym) => base + " = " + sym.name
 
       case DefaultValue.None => base
 
@@ -577,7 +580,8 @@ object Query:
     val candidateText =
       if candidates.isEmpty then ""
       else " with [" + candidates.map(autoCandidateSignature).mkString(", ") + "]"
-    paramSignature(sym) + candidateText
+    val base = sym.name + ": " + sym.tpe.show
+    base + candidateText
 
   private def receivesSignature(procType: ProcType)(using Definitions): String =
     def showEffects(effects: List[Symbol]): String =
