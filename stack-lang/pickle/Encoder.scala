@@ -511,16 +511,22 @@ object Encoder:
         encodeType(param.tpe)
 
         param.paramInfo.default match
-          case None =>
+          case DefaultValue.None =>
             encodeByte(0)
 
-          case const: Constant =>
+          case lit @ DefaultValue.Literal(const) =>
             encodeByte(1) // Lit tag
             encodeConstant(const)
+            val startDelta = lit.span.start - param.sourcePos.span.start
+            encodeInt(startDelta)
+            encodeNat(lit.span.length)
 
-          case sym: Symbol =>
+          case ref @ DefaultValue.Ref(sym) =>
             encodeByte(2) // Ref tag
             encodeSymbolRef(sym)
+            val startDelta = ref.span.start - param.sourcePos.span.start
+            encodeInt(startDelta)
+            encodeNat(ref.span.length)
 
       repeated(fdef.autos): auto =>
         encodeNat(state.getId(auto))
@@ -535,14 +541,19 @@ object Encoder:
 
         repeated(auto.autoInfo.candidates): candidate =>
           candidate match
-            case sym: Symbol =>
+            case AutoCandidate.Value(sym) =>
               encodeByte(0) // Tag for function candidate
               encodeSymbolRef(sym)
 
-            case MemberCandidate(tpe, name) =>
+            case AutoCandidate.Member(tpe, name) =>
               encodeByte(1) // Tag for member candidate
               encodeType(tpe)
               encodeString(name)
+          end match
+
+          val startDelta = candidate.span.start - auto.sourcePos.span.start
+          encodeInt(startDelta)
+          encodeNat(candidate.span.length)
 
       encodeTypeTree(fdef.resultType, absoluteStart)
 

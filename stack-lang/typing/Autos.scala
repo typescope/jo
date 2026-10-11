@@ -59,7 +59,6 @@ object Autos:
           val typedTpt =
               Checks.eager:
                 namer.transformValueType(tpt, allowPackType = false)
-          val memberType = typedTpt.tpe
 
           trees += AutoCandidate.Member(typedTpt.tpe, memberName)(member.span)
     end for
@@ -149,7 +148,7 @@ object Autos:
 
       for cand <- auto.candidates do
         cand match
-          case AutoCandidate.Value(__) =>
+          case AutoCandidate.Value(_) =>
           case AutoCandidate.Member(tp, _) =>
             if !tp.isFullyInstantiated then
               fullyInstantiated = false

@@ -351,14 +351,22 @@ object Decoder:
         val tag = decodeByte()
         val default = tag match
           case 0 => // None
-            None
+            DefaultValue.None
 
           case 1 => // Lit
-            decodeConstant()
+            val const = decodeConstant()
+            val startDelta = decodeInt()
+            val len = decodeNat()
+            val span = Span(paramSpan.start + startDelta, len)
+            DefaultValue.Literal(const)(span)
 
           case 2 => // Ref
-            decodeSymbolRef()
-
+            val sym = decodeSymbolRef()
+            val startDelta = decodeInt()
+            val len = decodeNat()
+            val span = Span(paramSpan.start + startDelta, len)
+            DefaultValue.Ref(sym)(span)
+ 
         val paramInfo = ParamInfo(paramName, paramType, default)
 
         val param = TermSymbol.create(paramName, paramInfo, Flags.Param, Visibility.Default, symbol, paramSpan.toPos)
@@ -382,12 +390,18 @@ object Decoder:
           tag match
             case 0 => // Function candidate
               val candidateSym = decodeSymbolRef()
-              candidateSym
+              val startDelta = decodeInt()
+              val len = decodeNat()
+              val span = Span(autoSpan.start + startDelta, len)
+              AutoCandidate.Value(candidateSym)(span)
 
             case 1 => // Member candidate
               val tpe = decodeType()
               val memberName = decodeString()
-              MemberCandidate(tpe, memberName)
+              val startDelta = decodeInt()
+              val len = decodeNat()
+              val span = Span(autoSpan.start + startDelta, len)
+              AutoCandidate.Member(tpe, memberName)(span)
 
         val autoInfo = AutoInfo(autoName, autoType, cands)
         val auto = TermSymbol.create(autoName, autoInfo, Flags.Param | Flags.Auto, Visibility.Default, symbol, autoSpan.toPos)
