@@ -1,0 +1,16 @@
+---------- Error at tests/warn/call-lambda-argument-count.jo:4:11 ---------------
+|   val _ = f(1)
+|           ^^^^
+|           The function expects 2 argument(s), found = 1
+
+---------- Error at tests/warn/call-lambda-argument-count.jo:5:11 ---------------
+|   val _ = f(1, 2, 3)
+|           ^^^^^^^^^^
+|           The function expects 2 argument(s), found = 3
+
+---------- Error at tests/warn/call-lambda-argument-count.jo:8:11 ---------------
+|   val _ = g(1)
+|           ^^^^
+|           The function expects 0 argument(s), found = 1
+
+3 error(s), 0 warning(s)

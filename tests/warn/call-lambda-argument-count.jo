@@ -1,0 +1,8 @@
+// Function values must reject missing and extra positional arguments.
+def main =
+  val f: (Int, Int) => Int = (x, y) => x + y
+  val _ = f(1)
+  val _ = f(1, 2, 3)
+
+  val g: () => Int = () => 1
+  val _ = g(1)
