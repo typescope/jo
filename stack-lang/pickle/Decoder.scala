@@ -137,10 +137,7 @@ object Decoder:
     // - Major version must match exactly
     // - Minor version can be <= current (backward compatible)
     if majorVersion != Format.MAJOR_VERSION || minorVersion > Format.MINOR_VERSION then
-      Reporter.abortInternal(
-        s"Incompatible SAST file version: file is $majorVersion.$minorVersion, compiler supports ${Format.MAJOR_VERSION}.${Format.MINOR_VERSION}\n" +
-        "Please rebuild the library with the current compiler version or use a compiler that supports this SAST version."
-      )
+      Reporter.abortInternal(Format.incompatibleVersionMessage(majorVersion, minorVersion))
 
     // Read string table
     val stringTableAddr: Int = decodeIntRaw()

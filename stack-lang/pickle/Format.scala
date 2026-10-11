@@ -125,6 +125,11 @@ package pickle
   *
   * == Version Compatibility ==
   *
+  * The SAST format version is independent of the Jo compiler release version.
+  * Libraries built with different compiler versions can share a SAST format.
+  * Incompatibility errors use a maintained table of compiler releases supporting
+  * each SAST format to recommend a compatible compiler or a library rebuild.
+  *
   * Major version must match exactly:
   *
   * - Different major version = incompatible format change
@@ -162,9 +167,27 @@ object Format:
   // The MAJOR version change should never happen for minor compiler releases (except pre-1.0 releases).
   // Post-1.0 releases must ensure major-version backward compatibility.
   //
-  // In another word, SAST major version must align compiler major version.
+  // SAST versions are independent of compiler release versions.
   final val MAJOR_VERSION: Byte = 2
   final val MINOR_VERSION: Byte = 0
+
+  // Update this table when releasing a compiler with a new SAST format.
+  private val compilerCompatibility: Map[(Int, Int), String] = Map(
+    (1, 1) -> "Jo 0.13.x",
+    (2, 0) -> "the unreleased Jo compiler (this branch)"
+  )
+
+  def incompatibleVersionMessage(major: Int, minor: Int): String =
+    val libraryCompiler = compilerCompatibility.get((major, minor)) match
+      case Some(versions) => s"Switch to $versions, which supports SAST $major.$minor.\n"
+      case None => s"Switch to a compiler that supports SAST $major.$minor.\n"
+
+    val rebuild = compilerCompatibility.get((MAJOR_VERSION.toInt, MINOR_VERSION.toInt)) match
+      case Some(versions) => s"Alternatively, rebuild the library with $versions or select a compatible version of the library."
+      case None => "Alternatively, rebuild the library with this compiler or select a compatible version of the library."
+
+    s"Incompatible SAST file version: file is $major.$minor, compiler supports $MAJOR_VERSION.$MINOR_VERSION.\n" +
+      libraryCompiler + rebuild
 
   // Magic number to identify SAST files (ASCII: "SAST")
   final val MAGIC_NUMBER: Int = 0x53415354
