@@ -533,6 +533,9 @@ object Query:
     value match
       case Constant.String(v) => JsonUtil.string(v)
       case Constant.Int(v)    => v.toString
+      case Constant.Byte(v)   => v.toString
+      case Constant.Char(v)   => v.toString
+      case Constant.Long(v)   => v.toString
       case Constant.Float(v)  => v.toString
       case Constant.Bool(v)   => v.toString
 
@@ -556,6 +559,9 @@ object Query:
       case DefaultValue.Lit(const) => const match
         case Constant.Bool(v)   => v.toString
         case Constant.Int(v)    => v.toString
+        case Constant.Byte(v)   => v.toString
+        case Constant.Char(v)   => v.toString
+        case Constant.Long(v)   => v.toString
         case Constant.Float(v)  => v.toString
         case Constant.String(v) => JsonUtil.string(v)
 

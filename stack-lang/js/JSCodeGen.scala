@@ -466,7 +466,7 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case Literal(c) =>
         // Literals are always pure
-        (Nil, compileLiteral(c, word.tpe))
+        (Nil, compileLiteral(c))
 
       case Ident(sym) =>
         assert(!sym.is(Flags.Context), "Unexpected context parameter")
@@ -579,12 +579,14 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         throw new Exception("Unexpected in expression position: " + word)
 
   /** Compile a literal constant */
-  private def compileLiteral(c: Constant, tpe: Types.Type): JS.Expr =
+  private def compileLiteral(c: Constant): JS.Expr =
     c match
       case Constant.Bool(b) => JS.BoolLit(b)
       case Constant.String(s) => JS.StringLit(s)
-      case Constant.Int(n) if tpe.isSubtype(defn.LongType) => JS.BigIntLit(n.toLong)
+      case Constant.Byte(n) => JS.IntLit(n.toLong)
+      case Constant.Char(n) => JS.IntLit(n.toLong)
       case Constant.Int(n) => JS.IntLit(n.toLong)
+      case Constant.Long(n) => JS.BigIntLit(n)
       case Constant.Float(d) => JS.FloatLit(d)
 
   /** Compile a list of expressions, correctly handling evaluation order */

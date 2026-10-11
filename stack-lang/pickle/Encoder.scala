@@ -767,8 +767,6 @@ object Encoder:
       case Literal(const) =>
         encodeByte(Format.Literal)
         encodeConstant(const)
-        // TODO: remove type
-        encodeType(word.tpe)
         encodeInt(startDelta)
         encodeNat(word.span.length)
 
@@ -1206,7 +1204,19 @@ object Encoder:
 
       case Constant.Int(value) =>
         encodeByte(Format.IntConst)
-        encodeBigInt(value)
+        encodeBigInt(BigInt(value))
+
+      case Constant.Byte(value) =>
+        encodeByte(Format.ByteConst)
+        encodeBigInt(BigInt(value))
+
+      case Constant.Char(value) =>
+        encodeByte(Format.CharConst)
+        encodeBigInt(BigInt(value))
+
+      case Constant.Long(value) =>
+        encodeByte(Format.LongConst)
+        encodeBigInt(BigInt(value))
 
       case Constant.Float(value) =>
         encodeByte(Format.FloatConst)

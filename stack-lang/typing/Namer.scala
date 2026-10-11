@@ -251,15 +251,15 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
         NumericTyper.typeCharLit(lit).adapt
 
       case Ast.BoolLit(v) =>
-        Literal(Constant.Bool(v))(defn.BoolType, word.span).adapt
+        Literal(Constant.Bool(v))(word.span).adapt
 
       case Ast.StringLit(v) =>
-        Literal(Constant.String(v))(defn.StringType, word.span).adapt
+        Literal(Constant.String(v))(word.span).adapt
 
       case Ast.RegexLit(pattern, flags, _) =>
         val fun = Ident(defn.Regex_compileChecked)(word.span)
-        val patternArg = Literal(Constant.String(pattern))(defn.StringType, word.span)
-        val flagsArg = Literal(Constant.String(flags))(defn.StringType, word.span)
+        val patternArg = Literal(Constant.String(pattern))(word.span)
+        val flagsArg = Literal(Constant.String(flags))(word.span)
         fun.appliedTo(patternArg, flagsArg).adapt
 
       case Ast.InterpolatedString(parts) =>
@@ -852,7 +852,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
       part match
         case Ast.StringLit(value) =>
           // String literals are already typed as String
-          Literal(Constant.String(value))(defn.StringType, part.span)
+          Literal(Constant.String(value))(part.span)
 
         case expr =>
           // Type check the interpolation expression
@@ -864,7 +864,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
     typedParts match
       case Nil =>
         // Empty interpolated string
-        Literal(Constant.String(""))(defn.StringType, span)
+        Literal(Constant.String(""))(span)
       case head :: Nil =>
         // Single part
         head

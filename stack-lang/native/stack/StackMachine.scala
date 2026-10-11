@@ -103,7 +103,16 @@ extends Backend(runtime):
             call(String_fromByteString)
 
           case Constant.Int(n) =>
-            push(Int32(n.toInt))
+            push(Int32(n))
+
+          case Constant.Byte(n) =>
+            push(Int32(n))
+
+          case Constant.Char(n) =>
+            push(Int32(n))
+
+          case Constant.Long(_) =>
+            throw new Exception("Long literal must be lowered before native code generation")
 
           case Constant.Float(_) =>
             throw new Exception("Floating point not supported for native backend")

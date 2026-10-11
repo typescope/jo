@@ -582,6 +582,15 @@ object RawPrinter:
       case Constant.Int(value) =>
         "Int [" ~ value.toString ~ "]"
 
+      case Constant.Byte(value) =>
+        "Byte [" ~ value.toString ~ "]"
+
+      case Constant.Char(value) =>
+        "Char [" ~ value.toString ~ "]"
+
+      case Constant.Long(value) =>
+        "Long [" ~ value.toString ~ "]"
+
       case Constant.Float(value) =>
         "Float [" ~ value.toString ~ "]"
 

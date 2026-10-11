@@ -81,11 +81,11 @@ object Trees:
         case Encoded(expr) => expr.strip
         case _ => this
 
-  /** TODO: remove tpe */
   case class Literal
     (constant: Constant)
-    (val tpe: Type, val span: Span)
-  extends Word
+    (val span: Span)
+  extends Word:
+    val tpe = ConstantType(constant)
 
   case class RecordLit
     (args: List[(String, Word)])
@@ -713,14 +713,14 @@ object Trees:
   //----------------------------------------------------------------------------
   // helpers
 
-  def StringLit(s: String)(span: Span)(using defn: Definitions) =
-    Literal(Constant.String(s))(defn.StringType, span)
+  def StringLit(s: String)(span: Span) =
+    Literal(Constant.String(s))(span)
 
-  def IntLit(n: Int)(span: Span)(using defn: Definitions) =
-    Literal(Constant.Int(n))(defn.IntType, span)
+  def IntLit(n: Int)(span: Span) =
+    Literal(Constant.Int(n))(span)
 
-  def BoolLit(b: Boolean)(span: Span)(using defn: Definitions) =
-    Literal(Constant.Bool(b))(defn.BoolType, span)
+  def BoolLit(b: Boolean)(span: Span) =
+    Literal(Constant.Bool(b))(span)
 
   def all(cond: Word, conds: Word*)(using defn: Definitions): Word =
     conds.foldLeft(cond): (acc, cond) =>

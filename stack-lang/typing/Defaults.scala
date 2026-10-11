@@ -36,7 +36,7 @@ object Defaults:
         Reporter.error(s"Missing required parameter '${paramInfo.name}'", span.toPos)
         errorWord(span)
 
-      case DefaultValue.Lit(const) => Literal(const)(paramInfo.tpe, span)
+      case DefaultValue.Lit(const) => Literal(const)(span)
 
       case DefaultValue.Ref(sym) =>
         if sym.tpe.isValueType then
@@ -62,11 +62,11 @@ object Defaults:
         if checkConformsLit(lit2, paramType) then DefaultValue.Lit(lit2.constant)(lit2.span) else DefaultValue.None
 
       case lit: Ast.FloatLit =>
-        val lit2 = NumericTyper.typeFloatLit(lit)(using defn, rp, so)
+        val lit2 = NumericTyper.typeFloatLit(lit)(using rp, so)
         if checkConformsLit(lit2, paramType) then DefaultValue.Lit(lit2.constant)(lit2.span) else DefaultValue.None
 
       case lit: Ast.BoolLit =>
-        val lit2 = Literal(Constant.Bool(lit.value))(defn.BoolType, lit.span)
+        val lit2 = Literal(Constant.Bool(lit.value))(lit.span)
         if checkConformsLit(lit2, paramType) then DefaultValue.Lit(lit2.constant)(lit2.span) else DefaultValue.None
 
       case lit: Ast.CharLit =>
@@ -74,7 +74,7 @@ object Defaults:
         if checkConformsLit(lit2, paramType) then DefaultValue.Lit(lit2.constant)(lit2.span) else DefaultValue.None
 
       case lit: Ast.StringLit =>
-        val lit2 = Literal(Constant.String(lit.value))(defn.StringType, lit.span)
+        val lit2 = Literal(Constant.String(lit.value))(lit.span)
         if checkConformsLit(lit2, paramType) then DefaultValue.Lit(lit2.constant)(lit2.span) else DefaultValue.None
 
       case ref: Ast.RefTree =>

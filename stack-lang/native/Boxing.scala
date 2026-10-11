@@ -30,8 +30,7 @@ class Boxing(runtime: NativeRuntime)(using defn: Definitions) extends Phase:
 
   override def transformLiteral(lit: Literal)(using Context): Word =
     lit match
-      case Literal(Constant.Int(n)) if lit.tpe.isSubtype(defn.LongType) =>
-        val value = n.toLong
+      case Literal(Constant.Long(value)) =>
         val hi = (value >> 32).toInt
         val lo = value.toInt
         val constructorCall = Ident(runtime.Core_LongRepr_fun)(lit.span)

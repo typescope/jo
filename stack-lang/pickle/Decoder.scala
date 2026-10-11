@@ -366,7 +366,7 @@ object Decoder:
             val len = decodeNat()
             val span = Span(paramSpan.start + startDelta, len)
             DefaultValue.Ref(sym)(span)
- 
+
         val paramInfo = ParamInfo(paramName, paramType, default)
 
         val param = TermSymbol.create(paramName, paramInfo, Flags.Param, Visibility.Default, symbol, paramSpan.toPos)
@@ -1045,9 +1045,8 @@ object Decoder:
       case Format.Lambda      => decodeLambda(owner, prevOffset)
       case _ => throw new Exception(s"Unknown word tag: $wordTag")
 
-  private def decodeLiteral(prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Literal =
+  private def decodeLiteral(prevOffset: Int)(using buf: ReadBuffer, state: State): Literal =
     val const = decodeConstant()
-    val tpe = decodeType()
 
     val startDelta = decodeInt()
     val length = decodeNat()
@@ -1055,7 +1054,7 @@ object Decoder:
     val startOffset = prevOffset + startDelta
     val span = Span(startOffset, length)
 
-    Literal(const)(tpe, span)
+    Literal(const)(span)
 
   private def decodeIdent(prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Ident =
     val sym = decodeSymbolRef()
@@ -1559,7 +1558,16 @@ object Decoder:
 
       case Format.IntConst =>
         val value = decodeBigInt()
-        Constant.Int(value)
+        Constant.Int(value.toInt)
+
+      case Format.ByteConst =>
+        Constant.Byte(decodeBigInt().toInt)
+
+      case Format.CharConst =>
+        Constant.Char(decodeBigInt().toInt)
+
+      case Format.LongConst =>
+        Constant.Long(decodeBigInt().toLong)
 
       case Format.FloatConst =>
         val value = decodeDouble()

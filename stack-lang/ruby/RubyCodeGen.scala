@@ -261,6 +261,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         case Constant.Bool(b) => R.BoolLit(b)
         case Constant.String(s) => R.StringLit(s)
         case Constant.Int(n) => R.IntLit(n.toLong)
+        case Constant.Byte(n) => R.IntLit(n.toLong)
+        case Constant.Char(n) => R.IntLit(n.toLong)
+        case Constant.Long(n) => R.IntLit(n)
         case Constant.Float(d) => R.FloatLit(d)
 
     case Ident(sym) =>

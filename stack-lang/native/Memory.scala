@@ -48,7 +48,7 @@ class Memory(runtime: NativeRuntime)(using defn: Definitions):
     val offset = fieldOffset(recordType, field)
     var addr: Word = Encoded(ref)(AddrType)
     if offset != 0 then
-      val offsetLit = Literal(Constant.Int(offset))(IntType, rhs.span)
+      val offsetLit = Literal(Constant.Int(offset))(rhs.span)
       val addAddrFun = Ident(runtime.Core_addAddr)(rhs.span)
       addr = addAddrFun.appliedTo(Encoded(ref)(AddrType), offsetLit)
 
@@ -60,7 +60,7 @@ class Memory(runtime: NativeRuntime)(using defn: Definitions):
     val offset = fieldOffset(recordType, field)
     var addr: Word = Encoded(qual)(AddrType)
     if offset != 0 then
-      val offsetLit = Literal(Constant.Int(offset))(IntType, select.span)
+      val offsetLit = Literal(Constant.Int(offset))(select.span)
       val addAddrFun = Ident(runtime.Core_addAddr)(select.span)
       addr = addAddrFun.appliedTo(Encoded(qual)(AddrType), offsetLit)
 

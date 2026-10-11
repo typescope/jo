@@ -429,9 +429,12 @@ object Types:
     def underlying(using defn: Definitions): Type =
       const match
         case _: Constant.Bool => defn.BoolType
-        case _: Constant.String => defn.StringType
+        case _: Constant.Byte => defn.ByteType
+        case _: Constant.Char => defn.CharType
         case _: Constant.Int => defn.IntType
+        case _: Constant.Long => defn.LongType
         case _: Constant.Float => defn.FloatType
+        case _: Constant.String => defn.StringType
 
   /** A proxy type may be reduced to other types in subtype and shape checking.
     *

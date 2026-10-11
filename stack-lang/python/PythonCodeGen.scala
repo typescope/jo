@@ -632,6 +632,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case Constant.Bool(b) => P.BoolLit(b)
       case Constant.String(s) => P.StringLit(s)
       case Constant.Int(n) => P.IntLit(n.toLong)
+      case Constant.Byte(n) => P.IntLit(n.toLong)
+      case Constant.Char(n) => P.IntLit(n.toLong)
+      case Constant.Long(n) => P.IntLit(n)
       case Constant.Float(d) => P.FloatLit(d)
 
 

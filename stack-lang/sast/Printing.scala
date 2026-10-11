@@ -188,11 +188,11 @@ object Printing:
             "\"" ~ StringUtil.escape(s) ~ "\""
 
           case Constant.Int(n) =>
-            val isChar = word.tpe.isSubtype(defn.CharType)
-            if isChar then
-              "'" ~ StringUtil.escapeChar(n.toChar) ~ "'"
-            else
-              Text(n.toString)
+            Text(n.toString)
+
+          case Constant.Byte(n) => Text(n.toString)
+          case Constant.Char(n) => "'" ~ StringUtil.escapeChar(n.toChar) ~ "'"
+          case Constant.Long(n) => Text(n.toString)
 
           case Constant.Float(d) =>
             Text(d.toString)
@@ -380,6 +380,9 @@ object Printing:
         const match
           case Constant.Bool(value)   => Text(value.toString)
           case Constant.Int(value)    => Text(value.toString)
+          case Constant.Byte(value)   => Text(value.toString)
+          case Constant.Char(value)   => Text(value.toString)
+          case Constant.Long(value)   => Text(value.toString)
           case Constant.Float(value)  => Text(value.toString)
           case Constant.String(value) => "\"" ~ StringUtil.escape(value) ~ "\""
 
@@ -428,6 +431,9 @@ object Printing:
         def showConstant(c: Constant): String = c match
           case Constant.String(v) => "\"" + v + "\""
           case Constant.Int(v)    => v.toString
+          case Constant.Byte(v)   => v.toString
+          case Constant.Char(v)   => v.toString
+          case Constant.Long(v)   => v.toString
           case Constant.Bool(v)   => v.toString
           case Constant.Float(v)  => v.toString
         val annotText =
@@ -450,6 +456,9 @@ object Printing:
             const match
             case Constant.Bool(v)   => base ~ " = " ~ v.toString
             case Constant.Int(v)    => base ~ " = " ~ v.toString
+            case Constant.Byte(v)   => base ~ " = " ~ v.toString
+            case Constant.Char(v)   => base ~ " = " ~ v.toString
+            case Constant.Long(v)   => base ~ " = " ~ v.toString
             case Constant.Float(v)  => base ~ " = " ~ v.toString
             case Constant.String(v) => base ~ " = " ~ "\"" ~ v.toString ~ "\""
 

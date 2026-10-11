@@ -160,8 +160,8 @@ object Format:
   // Post-1.0 releases must ensure major-version backward compatibility.
   //
   // In another word, SAST major version must align compiler major version.
-  final val MAJOR_VERSION: Byte = 1
-  final val MINOR_VERSION: Byte = 1
+  final val MAJOR_VERSION: Byte = 2
+  final val MINOR_VERSION: Byte = 0
 
   // Magic number to identify SAST files (ASCII: "SAST")
   final val MAGIC_NUMBER: Int = 0x53415354
@@ -203,6 +203,9 @@ object Format:
   final val IntConst    : Byte = 2
   final val StringConst : Byte = 3
   final val FloatConst : Byte = 4
+  final val ByteConst  : Byte = 5
+  final val CharConst  : Byte = 6
+  final val LongConst  : Byte = 7
 
   final val TypePattern        : Byte = 1
   final val WildcardPattern    : Byte = 2

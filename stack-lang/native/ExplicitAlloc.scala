@@ -33,7 +33,7 @@ class ExplicitAlloc(runtime: NativeRuntime)(using defn: Definitions) extends Pha
 
     val recordType = word.tpe.asRecordType
     val size = Memory.size(recordType)
-    val sizeLit = Literal(Constant.Int(size))(defn.IntType, word.span)
+    val sizeLit = Literal(Constant.Int(size))(word.span)
     val allocApply = allocFun.appliedTo(sizeLit)
 
     val owner = Phase.owner.value

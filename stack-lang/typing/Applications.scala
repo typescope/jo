@@ -427,9 +427,6 @@ trait Applications extends DynamicTyper:
     val result = if useBuilder && !pack.tpe.isError then finishPack(pack, flexSpan) else pack
     argsFixTyped :+ result
 
-  private def intLiteral(value: Int, span: Span)(using defn: Definitions): Word =
-    Literal(Constant.Int(value))(defn.IntType, span)
-
   /** Start a vararg pack: `ListBuilder[T](capacity)`.
     *
     * The capacity-taking factory rather than `List.builder`, which takes none:
@@ -441,7 +438,7 @@ trait Applications extends DynamicTyper:
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars)
   : Word =
     val newBuilder = Ident(defn.ListBuilder_fun)(span).appliedToTypes(elementType)
-    applyTypedArgs(newBuilder, intLiteral(capacity, span) :: Nil, span)
+    applyTypedArgs(newBuilder, IntLit(capacity)(span) :: Nil, span)
 
   /** Close a vararg pack: `.result`. */
   private def finishPack(pack: Word, span: Span)

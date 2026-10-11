@@ -822,6 +822,9 @@ object JsonEmitter:
       case ConstantType(const) =>
         const match
           case sast.Constant.Int(n) => s"""{ "kind": "literal", "value": $n }"""
+          case sast.Constant.Byte(n) => s"""{ "kind": "literal", "value": $n }"""
+          case sast.Constant.Char(n) => s"""{ "kind": "literal", "value": $n }"""
+          case sast.Constant.Long(n) => s"""{ "kind": "literal", "value": $n }"""
           case sast.Constant.Bool(b) => s"""{ "kind": "literal", "value": $b }"""
           case sast.Constant.String(s) => s"""{ "kind": "literal", "value": ${jsonString(s)} }"""
           case sast.Constant.Float(f) => s"""{ "kind": "literal", "value": $f }"""

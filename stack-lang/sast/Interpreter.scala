@@ -450,11 +450,19 @@ object Interpreter:
 
   def exec(word: Word)(using env: Env, params: Params, defn: Definitions, runtime: Runtime): List[Denotation] =
     word match
-      case lit @ Literal(c)  =>
+      case Literal(c)  =>
         c match
+          case Constant.Byte(n) =>
+            IntVal(n) :: Nil
+
+          case Constant.Char(n) =>
+            IntVal(n) :: Nil
+
           case Constant.Int(n) =>
-            if lit.tpe.isSubtype(defn.LongType) then LongVal(n.toLong) :: Nil
-            else IntVal(n.toInt) :: Nil
+            IntVal(n) :: Nil
+
+          case Constant.Long(n) =>
+            LongVal(n) :: Nil
 
           case Constant.Float(d) =>
             FloatVal(d) :: Nil
