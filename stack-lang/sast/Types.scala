@@ -327,6 +327,12 @@ object Types:
             case tp: Type =>
               recur(tp)
 
+            case info: ParamInfo =>
+              recur(info.tpe)
+
+            case info: AutoInfo =>
+              recur(info.tpe)
+
             case ntable: NameTable =>
               ntable.resolveTerm(name).map(sym => StaticRef(sym))
 

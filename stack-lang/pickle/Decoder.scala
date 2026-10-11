@@ -785,7 +785,8 @@ object Decoder:
         val paramSpanLength = decodeNat()
         val paramSpan = Span(absoluteStart + paramStartDelta, paramSpanLength)
 
-        val paramInfo = decodeType()
+        val tpe = decodeType()
+        val paramInfo = ParamInfo(paramName, tpe)
 
         val param = PatternSymbol.create(paramName, paramInfo, Flags.Param, Visibility.Default, symbol, paramSpan.toPos)
         state.registerInternalSymbol(paramId, param)

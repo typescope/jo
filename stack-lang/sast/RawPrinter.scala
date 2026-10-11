@@ -252,6 +252,10 @@ object RawPrinter:
     denot match
       case tp: Type => printType(tp)
 
+      case info: ParamInfo => printType(info.tpe)
+
+      case info: AutoInfo => printType(info.tpe)
+
       case ntable: NameTable => "NameTable [" ~ ntable.members.join(",") ~ "]"
 
       case classInfo: ClassInfo =>
