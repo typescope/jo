@@ -278,7 +278,7 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions, config: Con
   override def transformMatch(patmat: Match)(using Context): Word =
     val Match(scrutineeRaw, cases) = patmat
     val scrutinee = transform(scrutineeRaw)
-    val scrutType = scrutinee.tpe.widenTermRef
+    val scrutType = scrutinee.tpe.widen
 
     given Source = Phase.source.value
 
