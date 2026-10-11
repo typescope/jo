@@ -841,9 +841,9 @@ object JsonEmitter:
 
       case duckType: DuckType =>
         val adaptersJson = duckType.adapters.map {
-          case ParamAdapter.Function(sym) =>
+          case TypeAdapter.Function(sym) =>
             s"""{ "kind": "function", "name": ${jsonString(sym.name)}, "fullName": ${jsonString(sym.fullName)} }"""
-          case ParamAdapter.Member(name) =>
+          case TypeAdapter.Member(name) =>
             s"""{ "kind": "member", "name": ${jsonString("." + name)} }"""
         }.mkString(", ")
         s"""{ "kind": "duck", "base": ${emitType(duckType.baseType)}, "adapters": [$adaptersJson] }"""

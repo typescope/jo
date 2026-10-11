@@ -30,11 +30,11 @@ object Adapters:
 
   def check(adapters: List[Ast.DuckAdapter], rawParamType: Type, namer: Namer)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
-  : List[ParamAdapter] =
+  : List[TypeAdapter] =
     // ..T ==> T
     val paramType = rawParamType.stripVarargs
 
-    val valid = new mutable.ArrayBuffer[(ParamAdapter, Ast.DuckAdapter)]
+    val valid = new mutable.ArrayBuffer[(TypeAdapter, Ast.DuckAdapter)]
 
     for adapter <- adapters do
       adapter match
@@ -44,7 +44,7 @@ object Adapters:
             case None =>
 
         case Ast.DuckAdapter.Member(memberName) =>
-          valid += ParamAdapter.Member(memberName) -> adapter
+          valid += TypeAdapter.Member(memberName) -> adapter
       end match
     end for
 
@@ -55,23 +55,23 @@ object Adapters:
 
   def checkFunctionAdapter(ref: Ast.RefTree, namer: Namer)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
-  : Option[ParamAdapter] =
+  : Option[TypeAdapter] =
 
     namer.resolveQualid(ref, SymbolKind.Term).flatMap: sym =>
       if !sym.is(Flags.Fun) then
         Reporter.error("A reference to function expected, found = " + sym, ref.pos)
         None
       else
-        Some(ParamAdapter.Function(sym))
+        Some(TypeAdapter.Function(sym))
 
-  def validateAdapters(adapters: List[(ParamAdapter, Ast.DuckAdapter)], paramType: Type)
+  def validateAdapters(adapters: List[(TypeAdapter, Ast.DuckAdapter)], paramType: Type)
       (using defn: Definitions, rp: Reporter, so: Source)
-  : List[ParamAdapter] =
+  : List[TypeAdapter] =
 
-    val valid = new mutable.ArrayBuffer[(ParamAdapter, Ast.DuckAdapter)]
+    val valid = new mutable.ArrayBuffer[(TypeAdapter, Ast.DuckAdapter)]
 
     adapters.foreach {
-      case (adapter @ ParamAdapter.Function(sym), astAdapter) =>
+      case (adapter @ TypeAdapter.Function(sym), astAdapter) =>
         val procType = sym.tpe.asProcType
 
         // Check: must have exactly one parameter
@@ -94,7 +94,7 @@ object Adapters:
           // Check: no shadowed adapters - adapter parameter type must not conform to any earlier adapter's parameter type
           val adapterParamType = procType.params.head.tpe
           val shadowing = valid.find:
-            case (ParamAdapter.Member(memberName), _) =>
+            case (TypeAdapter.Member(memberName), _) =>
               // Earlier adapter is a member adapter
               // Check if this function adapter is shadowed: does the function's argument type have the member?
               adapterParamType.getTermMember(memberName) match
@@ -110,7 +110,7 @@ object Adapters:
                   false
               end match
 
-            case (ParamAdapter.Function(earlierSym), _) =>
+            case (TypeAdapter.Function(earlierSym), _) =>
               // Earlier adapter is a function adapter
               val earlierProcType = earlierSym.tpe.asProcType
               val earlierParamType = earlierProcType.params.head.tpe
@@ -119,21 +119,21 @@ object Adapters:
           shadowing match
             case Some((earlierAdapter, earlierAst)) =>
               earlierAdapter match
-                case ParamAdapter.Function(earlierSym) =>
+                case TypeAdapter.Function(earlierSym) =>
                   rp.report(ShadowedAdapter(adapterParamType, earlierSym, earlierAst.pos, astAdapter.pos))
 
-                case ParamAdapter.Member(memberName) =>
+                case TypeAdapter.Member(memberName) =>
                   Reporter.error(s"Adapter is shadowed by earlier member adapter .$memberName", astAdapter.pos)
 
             case None =>
               valid += adapter -> astAdapter
 
-      case (adapter @ ParamAdapter.Member(name), astAdapter) =>
+      case (adapter @ TypeAdapter.Member(name), astAdapter) =>
         // Check: no shadowed member adapters
         // Function adapters don't shadow member adapters (open vs closed type sets)
         val shadowing = valid.find:
-          case (_: ParamAdapter.Function, _) => false
-          case (ParamAdapter.Member(member), _) => member == name
+          case (_: TypeAdapter.Function, _) => false
+          case (TypeAdapter.Member(member), _) => member == name
 
         shadowing match
           case Some(_) =>

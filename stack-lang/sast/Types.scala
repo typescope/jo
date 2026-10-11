@@ -255,7 +255,7 @@ object Types:
         case _ => this
 
     /** Get adapters from a duck type, following type aliases */
-    def adapters(using Definitions): List[ParamAdapter] =
+    def adapters(using Definitions): List[TypeAdapter] =
       this match
         case duckType: DuckType =>
           duckType.adapters
@@ -535,16 +535,13 @@ object Types:
 
     def hasClass(cls: Symbol): Boolean = classMap.contains(cls)
 
-  /** Adapters for duck types
-    *
-    * TODO: rename to TypeAdapter
-    */
-  enum ParamAdapter:
+  /** Adapters for duck types */
+  enum TypeAdapter:
     case Function(symbol: Symbol)
     case Member(name: String)
 
   /** Duck type: compile-time duck typing with explicit adapters */
-  case class DuckType(baseType: Type)(val adaptersLazy: LazyValue[List[ParamAdapter]]) extends Type:
+  case class DuckType(baseType: Type)(val adaptersLazy: LazyValue[List[TypeAdapter]]) extends Type:
     def adapters = adaptersLazy.value
 
   /** Extension type: base type with extension methods
