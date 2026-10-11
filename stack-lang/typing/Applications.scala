@@ -132,6 +132,20 @@ trait Applications extends DynamicTyper:
       else
         val positional = args.asInstanceOf[List[Ast.Word]]
         val numProvided = positional.size
+
+        if invokeType.hasVararg && numProvided < invokeType.paramTypes.size - 1 then
+          Reporter.error(
+            s"The function expects at least ${invokeType.paramTypes.size - 1} argument(s), found = $numProvided",
+            applySpan.toPos)
+          return errorWord(applySpan)
+
+        if !invokeType.hasVararg && (numProvided > invokeType.paramTypes.size ||
+            (!invokeType.isProcType && numProvided < invokeType.paramTypes.size)) then
+          Reporter.error(
+            s"The function expects ${invokeType.paramTypes.size} argument(s), found = $numProvided",
+            applySpan.toPos)
+          return errorWord(applySpan)
+
         if invokeType.hasVararg then
           invokeType match
             case proc: ProcType if proc.paramTypes.last.stripVarargs.isNamedType =>
@@ -156,6 +170,9 @@ trait Applications extends DynamicTyper:
 
     else
       val argsTyped = argsTypedOpt.get
+
+      if argsTyped.exists(_.tpe.isError) then return errorWord(applySpan)
+
       val result =
         if invokeType.autoTypes.isEmpty then
           TreeOps.smartApply(fun1, argsTyped, autos = Nil)(applySpan)
@@ -524,6 +541,8 @@ trait Applications extends DynamicTyper:
               ok = false
             else
               slots(idx) = Some((namedArg.arg, Some(name)))
+
+    if !ok then return None
 
     val typed = mutable.ArrayBuffer.empty[Word]
     var i = 0

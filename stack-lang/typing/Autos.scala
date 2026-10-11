@@ -16,7 +16,7 @@ import scala.collection.mutable
 
 object Autos:
   def transformCandidates(candidates: List[Ast.AutoCandidate], autoType: Type, namer: Namer)
-      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, ck: Checks)
   : List[AutoCandidate] =
     val trees = new mutable.ArrayBuffer[AutoCandidate]
 
@@ -34,19 +34,23 @@ object Autos:
           namer.resolveQualid(ref, SymbolKind.Term) match
             case Some(sym) =>
               if sym.is(Flags.Fun) then
-                val procType = sym.tpe.asProcType
+                // Candidate signatures can refer back to this auto parameter.
+                // Validate them after the enclosing signatures are complete.
+                Checks.add:
+                  val candidateType = sym.tpe
 
-                // Check: must have no regular parameters (only auto parameters allowed)
-                if procType.params.nonEmpty then
-                  Reporter.error(s"Auto candidate must have no regular parameters, found ${procType.params.size} parameters", value.span.toPos)
+                  if !candidateType.isError then
+                    val procType = candidateType.asProcType
 
-                // Check: must have no type parameters
-                else if procType.tparams.nonEmpty then
-                  Reporter.error(s"Auto candidate cannot have type parameters, found ${procType.tparams.size} type parameters", value.span.toPos)
+                    // Only auto parameters are allowed on candidate functions.
+                    if procType.params.nonEmpty then
+                      Reporter.error(s"Auto candidate must have no regular parameters, found ${procType.params.size} parameters", value.span.toPos)
 
-                // Check: result type must conform to auto type
-                else
-                  checkTypeConform(procType.resultType, value.span)
+                    else if procType.tparams.nonEmpty then
+                      Reporter.error(s"Auto candidate cannot have type parameters, found ${procType.tparams.size} type parameters", value.span.toPos)
+
+                    else
+                      checkTypeConform(procType.resultType, value.span)
 
                 trees += AutoCandidate.Value(sym)(value.span)
 
@@ -64,7 +68,7 @@ object Autos:
     end for
 
     // Check validity of candidates
-    checkShadowing(trees.toList)
+    Checks.add { checkShadowing(trees.toList) }
 
     trees.toList
 
