@@ -336,7 +336,7 @@ object RawPrinter:
           val paramText = "[" ~ indent:
               val items = params.map: param =>
                 val defaultText = param.default match
-                  case DefaultValue.Literal(const) => "Lit [" ~ printConstant(const) ~ "]"
+                  case DefaultValue.Lit(const) => "Lit [" ~ printConstant(const) ~ "]"
                   case DefaultValue.Ref(sym) => "Ref [" ~ printSymbolRef(sym) ~ "]"
                   case DefaultValue.None => Text("None")
 

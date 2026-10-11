@@ -171,12 +171,11 @@ extends Linker:
       tparams = Nil,
       params = Nil,
       autos = Nil,
-      candidates = Nil,
       resultType = defn.UnitType,
       receivesInfo = Nil,
       preParamCount = 0,
       preTypeParamCount = 0
-    )()
+    )
 
     TermSymbol.create(
       "objectInitProc",
@@ -240,7 +239,6 @@ extends Linker:
       tparams = Nil,
       params = Nil,
       autos = Nil,
-      candidates = Nil,
       resultType = TypeTree(defn.UnitType)(span),
       effectPolicy = Effects.Policy.Infer,  // no effects needed
       body = body

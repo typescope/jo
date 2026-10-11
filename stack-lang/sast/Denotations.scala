@@ -93,7 +93,7 @@ object Denotations:
       TypeOps.substSymbols(body, tparams, targs)
 
   enum DefaultValue:
-    case Literal(const: Constant)(val span: Span)
+    case Lit(const: Constant)(val span: Span)
     case Ref(symbol: Symbol)(val span: Span)
     case None
 

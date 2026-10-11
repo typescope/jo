@@ -358,7 +358,7 @@ object Decoder:
             val startDelta = decodeInt()
             val len = decodeNat()
             val span = Span(paramSpan.start + startDelta, len)
-            DefaultValue.Literal(const)(span)
+            DefaultValue.Lit(const)(span)
 
           case 2 => // Ref
             val sym = decodeSymbolRef()

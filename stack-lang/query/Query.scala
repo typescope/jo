@@ -550,25 +550,24 @@ object Query:
   private def typeParams(params: List[Symbol]): String =
     if params.isEmpty then "" else params.map(_.name).mkString("[", ", ", "]")
 
-  private def defaultValue(value: DefaultValue): String =
-    value match
+  private def paramSignature(sym: Symbol)(using Definitions): String =
+    val base = sym.name + ": " + sym.tpe.show
+    sym.paramInfo.default match
       case DefaultValue.Lit(const) => const match
         case Constant.Bool(v)   => v.toString
         case Constant.Int(v)    => v.toString
         case Constant.Float(v)  => v.toString
         case Constant.String(v) => JsonUtil.string(v)
+
       case DefaultValue.Ref(sym) => sym.name
 
-  private def paramSignature(sym: Symbol, default: Option[DefaultValue] = None)(using Definitions): String =
-    val base = sym.name + ": " + sym.tpe.show
-    default match
-      case Some(value) => base + " = " + defaultValue(value)
-      case None => base
+      case DefaultValue.None => base
 
   private def autoCandidateSignature(candidate: AutoCandidate)(using Definitions): String =
     candidate.show
 
-  private def autoSignature(sym: Symbol, candidates: List[AutoCandidate])(using Definitions): String =
+  private def autoSignature(sym: Symbol)(using Definitions): String =
+    val candidates: List[AutoCandidate] = sym.autoInfo.candidates
     val candidateText =
       if candidates.isEmpty then ""
       else " with [" + candidates.map(autoCandidateSignature).mkString(", ") + "]"
@@ -598,17 +597,14 @@ object Query:
       else fd.params.take(procType.preParamCount).map(paramSignature(_)).mkString("(", ", ", ")")
 
     val postParams = fd.params.drop(procType.preParamCount)
-    val defaultCount = procType.defaults.size
     val postParamText =
-      val split = postParams.size - defaultCount
-      val withoutDefaults = postParams.take(split).map(paramSignature(_))
-      val withDefaults = postParams.drop(split).zip(procType.defaults).map:
-        case (param, default) => paramSignature(param, Some(default))
-      (withoutDefaults ++ withDefaults).mkString("(", ", ", ")")
+      val paramSigs = postParams.map: param =>
+        paramSignature(param)
+      paramSigs.mkString("(", ", ", ")")
 
     val autoText =
       if fd.autos.isEmpty then ""
-      else fd.autos.zip(fd.candidates).map(autoSignature).mkString("(auto ", ", ", ")")
+      else fd.autos.map(autoSignature).mkString("(auto ", ", ", ")")
 
     tparamText + preParamText + postParamText + autoText + ": " + fd.resultType.tpe.show + receivesSignature(procType)
 

@@ -514,7 +514,7 @@ object Encoder:
           case DefaultValue.None =>
             encodeByte(0)
 
-          case lit @ DefaultValue.Literal(const) =>
+          case lit @ DefaultValue.Lit(const) =>
             encodeByte(1) // Lit tag
             encodeConstant(const)
             val startDelta = lit.span.start - param.sourcePos.span.start

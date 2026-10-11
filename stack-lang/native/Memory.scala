@@ -89,7 +89,7 @@ object Memory:
     memberTypes += NamedInfo(ITable, AnyType)
 
     for field <- classInfo.fields do
-      memberTypes += field.toNamedInfo
+      memberTypes += NamedInfo(field.name, field.tpe)
 
     RecordType(memberTypes.toList)
 

@@ -446,7 +446,7 @@ object Printing:
         def showParam(param: ParamInfo): Text =
           val base = param.name ~ ": " ~ param.tpe
           param.default match
-          case DefaultValue.Literal(const) =>
+          case DefaultValue.Lit(const) =>
             const match
             case Constant.Bool(v)   => base ~ " = " ~ v.toString
             case Constant.Int(v)    => base ~ " = " ~ v.toString
