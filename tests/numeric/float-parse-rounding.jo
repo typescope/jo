@@ -14,6 +14,11 @@ def main =
   println ("1.00000000000000011102230246251565404236316680908203126".toFloat == 1.0000000000000002)
   println ("123456789012345678901234567890e-29".toFloat == 1.2345678901234567)
 
+  // A long mantissa and matching exponent must cancel before rounding.
+  val longMantissa = "1" + "0" * 400 + "e-400"
+  println (Float.parse(longMantissa) is Some(1.0))
+  println (longMantissa.toFloat == 1.0)
+
   // Large exponents, the normal/subnormal boundary, and minimum subnormal.
   println ("1.2345678901234567e+300".toFloat == 1.2345678901234567e300)
   println ("1.2345678901234567e-300".toFloat == 1.2345678901234567e-300)
