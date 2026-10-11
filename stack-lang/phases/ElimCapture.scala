@@ -276,9 +276,10 @@ object ElimCapture:
       // Create constructor parameters for captured variables
       val ctorParams = new mutable.ArrayBuffer[Symbol]
       for capture <- allCaptures do
+        val name = captureToField(capture)
         val ctorParam = TermSymbol.create(
-          captureToField(capture),
-          capture.tpe,
+          name,
+          ParamInfo(name, capture.tpe),
           Flags.Param,
           Visibility.Default,
           ctorSym,
