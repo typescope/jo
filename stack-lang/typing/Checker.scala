@@ -390,7 +390,7 @@ object Checker:
               else tpe
 
             val trialsMsg = Adaptation.formatTrials(ex.trials)
-            Reporter.error(s"Expect type ${targetType.show}, found = ${word2.tpe.show}${trialsMsg}", word2.pos)
+            Reporter.error(s"Expect type ${targetType.show}, found = ${word2.tpe.widen.show}${trialsMsg}", word2.pos)
             Encoded(Block(Nil)(word2.span))(tpe)
 
         else
