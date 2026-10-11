@@ -97,11 +97,15 @@ object Denotations:
     case Ref(symbol: Symbol)(val span: Span)
     case None
 
+  trait NamedType extends Denotation:
+    val name: String
+    val tpe: Type
+
   /** The denotation of a normal parameter
     *
     * The name field is duplicated such that ParamInfo can be used in ProcType directly
     */
-  case class ParamInfo(name: String, tpe: Type, default: DefaultValue = DefaultValue.None) extends Denotation
+  case class ParamInfo(name: String, tpe: Type, default: DefaultValue = DefaultValue.None) extends NamedType
 
   enum AutoCandidate extends Positioned:
     case Member(tpe: Type, name: String)(val span: Span)
@@ -116,5 +120,6 @@ object Denotations:
     *
     * The name field is duplicated such that AutoInfo can be used in ProcType directly
     */
-  case class AutoInfo(name: String, tpe: Type, candidates: List[AutoCandidate]) extends Denotation
+  case class AutoInfo(name: String, tpe: Type, candidates: List[AutoCandidate]) extends NamedType
+
 

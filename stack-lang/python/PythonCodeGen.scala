@@ -4,7 +4,8 @@ import sast.*
 import sast.Trees.*
 import sast.Symbols.Symbol
 import sast.Types
-import sast.Types.{Type, NamedParam}
+import sast.Types.Type
+import sast.Denotations.NamedType
 
 import python.Trees as P
 
@@ -687,14 +688,14 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       compileExpr(valueWord, enforcePurity)
 
   /** Like compileCallArgList but each argument is compiled with param-type awareness. */
-  private def compileCallArgListWithTypes(args: List[Word], params: List[NamedParam], enforcePurity: Boolean)
+  private def compileCallArgListWithTypes(args: List[Word], params: List[NamedType], enforcePurity: Boolean)
       (using scope: UniqueName, ctx: Context): (List[P.Stat], List[P.Expr]) =
     var stats: List[P.Stat] = Nil
     var exprs: List[P.Expr] = Nil
 
     for (word, param) <- args.zip(params).reverse do
       val shouldEnforcePurity = enforcePurity || stats.nonEmpty
-      val (wordStats, wordExpr) = compileCallArgWithType(word, param.name, param.info, shouldEnforcePurity)
+      val (wordStats, wordExpr) = compileCallArgWithType(word, param.name, param.tpe, shouldEnforcePurity)
       stats = wordStats ++ stats
       exprs = wordExpr :: exprs
 
