@@ -134,6 +134,15 @@ package pickle
   *
   * This saves space by not duplicating type information.
   *
+  * == Symbol Flags ==
+  *
+  * Flag masks use unsigned base-128. See sast/Flags.scala for the persisted flags
+  * and their bit positions, which form part of the SAST format contract.
+  * Flags.SAST_MASK selects these bits at every flag encoding site.
+  * Context definitions retain a flag payload; Context itself is implied by their tag.
+  * Constructor is implied by a class method named "<init>".
+  * Internal flags such as Fun, Class and Param are reconstructed when decoding.
+  *
   * == Version Compatibility ==
   *
   * The SAST format version is independent of the Jo compiler release version.

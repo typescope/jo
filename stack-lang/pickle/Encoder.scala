@@ -320,9 +320,9 @@ object Encoder:
       encodeByte(1)
       encodeNat(state.nameTable.getIndex(symbol))
 
-  /** Not all flags need serialization, handled by caller */
+  /** Only persisted flags are written; internal flags are reconstructed by the decoder. */
   private def encodeFlags(flags: Flags)(using buf: WriteBuffer): Unit =
-    val bits = Flags.toBits(flags)
+    val bits = Flags.toBits(flags & Flags.SAST_MASK)
     encodeLongNat(bits)
 
   private def encodeKind(kind: Kind)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
@@ -393,7 +393,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & Flags.Object)
+      encodeFlags(defSym.flags)
       encodeKind(defSym.asTypeSymbol.kind)
       encodeVisibility(defSym)
 
@@ -413,7 +413,7 @@ object Encoder:
         val sym = field.symbol
         encodeNat(state.getId(sym))
         encodeString(sym.name)
-        encodeFlags(sym.flags & Flags.Mutable)
+        encodeFlags(sym.flags)
         encodeVisibility(sym)
 
         val symSpan = sym.sourcePos.span
@@ -486,7 +486,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & (Flags.Synthetic | Flags.Defer | Flags.Default | Flags.Object | Flags.Constructor | Flags.Annotation))
+      encodeFlags(defSym.flags)
       encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
@@ -582,7 +582,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & Flags.Synthetic)
+      encodeFlags(defSym.flags)
       encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
@@ -628,7 +628,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & Flags.Defer)
+      encodeFlags(defSym.flags)
       encodeKind(defSym.asTypeSymbol.kind)
       encodeVisibility(defSym)
 
@@ -1137,7 +1137,7 @@ object Encoder:
       val sym = ident.symbol
       encodeNat(state.getId(sym))
       encodeString(sym.name)
-      encodeFlags(sym.flags & (Flags.Mutable | Flags.Auto))
+      encodeFlags(sym.flags)
       encodeInt(sym.span.start - prevOffset)
       encodeNat(sym.span.length)
       encodeType(sym.tpe)

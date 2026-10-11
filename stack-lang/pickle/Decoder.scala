@@ -297,7 +297,12 @@ object Decoder:
 
     val id = decodeNat()
     val name = decodeString()
-    val flags = decodeFlags() | initFlags | Flags.Fun | Flags.Loaded
+
+    val constructorFlag =
+      if owner != null && owner.isClass && name == Names.Constructor then Flags.Constructor
+      else Flags.empty
+
+    val flags = decodeFlags() | initFlags | Flags.Fun | Flags.Loaded | constructorFlag
     val visibility = decodeVisibility(owner)
 
     val symStartDelta = decodeInt()
@@ -1313,7 +1318,7 @@ object Decoder:
 
     val symbolId = decodeNat()
     val symbolName = decodeString()
-    val symbolFlags = decodeFlags()
+    val symbolFlags = decodeFlags() | Flags.Fun
     val symbolDelta = decodeInt()
     val symbolLength = decodeNat()
 
