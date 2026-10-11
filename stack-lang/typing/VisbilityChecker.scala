@@ -126,7 +126,7 @@ object VisibilityChecker:
             // Check adapters for function symbols
             for adapter <- duckType.adapters do
               adapter match
-                case TypeAdapter.Function(symbol) =>
+                case DuckAdapter.Function(symbol) =>
                   checkUsage(symbol, defSymbol, pos)
                   checkCoherence(symbol, defSymbol, pos)
                 case _ =>

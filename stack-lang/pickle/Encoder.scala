@@ -736,11 +736,11 @@ object Encoder:
 
         repeated(duckType.adapters): adapter =>
           adapter match
-            case TypeAdapter.Function(symbol) =>
+            case DuckAdapter.Function(symbol) =>
               encodeByte(0) // Tag for function adapter
               encodeSymbolRef(symbol)
 
-            case TypeAdapter.Member(name) =>
+            case DuckAdapter.Member(name) =>
               encodeByte(1) // Tag for member adapter
               encodeString(name)
 

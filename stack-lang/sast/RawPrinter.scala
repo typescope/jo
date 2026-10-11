@@ -387,8 +387,8 @@ object RawPrinter:
 
       case duckType @ DuckType(baseType) =>
         val adapterTexts = duckType.adapters.map:
-          case TypeAdapter.Function(sym) => printSymbolRef(sym)
-          case TypeAdapter.Member(name) => "." ~ name
+          case DuckAdapter.Function(sym) => printSymbolRef(sym)
+          case DuckAdapter.Member(name) => "." ~ name
         "DuckType [" ~ printType(baseType, tparamScope) ~ ",[" ~ adapterTexts.join(",") ~ "]]"
 
       case ext @ ExtensionType(base) =>

@@ -419,8 +419,8 @@ object Printing:
 
       case duckType @ DuckType(baseType) =>
         val adapterTexts = duckType.adapters.map:
-          case TypeAdapter.Function(sym) => Text(sym.name)
-          case TypeAdapter.Member(name) => "." ~ name
+          case DuckAdapter.Function(sym) => Text(sym.name)
+          case DuckAdapter.Member(name) => "." ~ name
         if adapterTexts.isEmpty then Text(baseType)
         else baseType ~ " :- [" ~ adapterTexts.join(", ") ~ "]"
 

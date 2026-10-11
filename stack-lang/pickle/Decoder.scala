@@ -996,11 +996,11 @@ object Decoder:
           tag match
             case 0 => // Function adapter
               val symbol = decodeSymbolRef()
-              TypeAdapter.Function(symbol)
+              DuckAdapter.Function(symbol)
 
             case 1 => // Member adapter
               val name = decodeString()
-              TypeAdapter.Member(name)
+              DuckAdapter.Member(name)
           end match
         DuckType(baseType)(LazyValue.eager(adapters))
 
