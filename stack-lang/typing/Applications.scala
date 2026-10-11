@@ -158,10 +158,11 @@ trait Applications extends DynamicTyper:
       val argsTyped = argsTypedOpt.get
       val result =
         if invokeType.autoTypes.isEmpty then
-          TreeOps.smartApply(fun1, argsTyped, autos = Nil)(applySpan).adapt
+          TreeOps.smartApply(fun1, argsTyped, autos = Nil)(applySpan)
         else
-          Autos.resolve(fun1, argsTyped, applySpan, config).adapt
+          Autos.resolve(fun1, argsTyped, applySpan, config)
 
+      // Expand before adaptation can wrap a discarded result in Encoded.
       expandIntrinsic(result).adapt
 
   /** Check a dotless call such as `str1 + str2` */
