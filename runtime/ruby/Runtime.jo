@@ -155,6 +155,36 @@ private class StringIterator
 end
 
 private section StringOps
+  // ASCII trim characters occupy one host unit, even around Unicode text.
+  private interface RbTrimString
+    def bytesize: Int
+    def getbyte(index: Int): Int
+    def byteslice(start: Int, length: Int): String
+  end
+
+  def trim(str: String, leading: Bool, trailing: Bool): String =
+    val host = rb.dynamic(str).cast[RbTrimString]
+    val n = host.bytesize
+    var start = 0
+    var stop = n
+
+    if leading then
+      while start < stop && isWhitespace(host.getbyte(start)) do
+        start = start + 1
+      end
+    end
+
+    if trailing then
+      while stop > start && isWhitespace(host.getbyte(stop - 1)) do
+        stop = stop - 1
+      end
+    end
+
+    if start == 0 && stop == n then str
+    else host.byteslice(start, stop - start)
+
+  private def isWhitespace(c: Int): Bool = c == 32 || c >= 9 && c <= 13
+
   // Compare UTF-8 bytes without materializing code points. Decode only the
   // first differing pair and return the ordering for an unmatched suffix.
   def compareTo(str: String, other: String): Int =
