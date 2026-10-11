@@ -22,7 +22,7 @@ Create: `"hello"`, `"hello \{name}"` (interpolation), `"""` for multi-line (cont
 - `.contains(other)`: Bool
 - `.startsWith(prefix)`: Bool
 - `.endsWith(suffix)`: Bool
-- `.trim`, `.trimStart`, `.trimEnd`: String — strip ASCII whitespace
+- `.trim`, `.trimStart`, `.trimEnd`: String — strip ASCII whitespace (space, tab, newline, carriage return, vertical tab, and form feed)
 - `.toLower`, `.toUpper`: String
 - `.replace(target, replacement)`: String — replace all occurrences
 - `.split(separator)`: List[String]

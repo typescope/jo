@@ -159,6 +159,35 @@ private class StringIterator
 end
 
 private section StringOps
+  // ASCII trim characters occupy one host unit, even around Unicode text.
+  private interface JsTrimString
+    def charCodeAt(index: Int): Int
+    def slice(start: Int, stop: Int): String
+  end
+
+  def trim(str: String, leading: Bool, trailing: Bool): String =
+    val host = js.dynamic(str).cast[JsTrimString]
+    val n = js.dynamic(str).length.cast[Int]
+    var start = 0
+    var stop = n
+
+    if leading then
+      while start < stop && isWhitespace(host.charCodeAt(start)) do
+        start = start + 1
+      end
+    end
+
+    if trailing then
+      while stop > start && isWhitespace(host.charCodeAt(stop - 1)) do
+        stop = stop - 1
+      end
+    end
+
+    if start == 0 && stop == n then str
+    else host.slice(start, stop)
+
+  private def isWhitespace(c: Int): Bool = c == 32 || c >= 9 && c <= 13
+
   // Walk host UTF-16 offsets directly, preserving exact code point differences.
   // Native string ordering compares UTF-16 code units.
   def compareTo(str: String, other: String): Int =

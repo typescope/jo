@@ -181,6 +181,23 @@ private class StringIterator
 end
 
 private section StringOps
+  // Fixed-arity calls avoid assembling vararg lists for host trimming.
+  @py.interop
+  private interface PyTrimString
+    def strip(chars: String): String
+    def lstrip(chars: String): String
+    def rstrip(chars: String): String
+  end
+
+  def trim(str: String, leading: Bool, trailing: Bool): String =
+    val host = py.dynamic(str).cast[PyTrimString]
+    val chars = " \t\n\r\u{B}\u{C}"
+
+    if leading && trailing then host.strip(chars)
+    else if leading then host.lstrip(chars)
+    else if trailing then host.rstrip(chars)
+    else str
+
   // Index host strings directly and decode only the first differing pair.
   def compareTo(str: String, other: String): Int =
     if str == other then return 0

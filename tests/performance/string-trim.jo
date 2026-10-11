@@ -1,0 +1,8 @@
+def main() =
+  val line = "ab" * 50000
+  var total = 0
+  var i = 0
+  while i < 100 do
+    total = total + line.trim.size
+    i = i + 1
+  println: total

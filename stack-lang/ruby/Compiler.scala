@@ -27,6 +27,7 @@ object Compiler:
     "jo.Array.fill" -> "jo.rb.runtime.RefArray.fill",
 
     "jo.StringOps.compareTo" -> "jo.rb.runtime.StringOps.compareTo",
+    "jo.StringOps.trim" -> "jo.rb.runtime.StringOps.trim",
 
     "jo.Bytes.size"     -> "jo.rb.runtime.RawBytes.size",
     "jo.Bytes.get"      -> "jo.rb.runtime.RawBytes.get",

@@ -2,33 +2,87 @@ def main =
   testTrimStart()
   testTrimEnd()
   testTrim()
+  testTrimCharacters()
+  testLongStrings()
 
 def testTrimStart =
   println "--- trimStart ---"
 
-  println ("  hello  ".trimStart == "hello  ")          // true
-  println ("hello".trimStart == "hello")                // true
-  println ("  ".trimStart == "")                        // true
-  println ("".trimStart == "")                          // true
-  println ("\t\nhello\n\t".trimStart == "hello\n\t")    // true
-  println ("  \u{4F60}\u{597D}  ".trimStart == "\u{4F60}\u{597D}  ")  // true
+  assert("  hello  ".trimStart == "hello  ", "trimStart result")
+  assert("hello".trimStart == "hello", "trimStart result")
+  assert("  ".trimStart == "", "trimStart result")
+  assert("".trimStart == "", "trimStart result")
+  assert("\t\nhello\n\t".trimStart == "hello\n\t", "trimStart result")
+  assert("  \u{4F60}\u{597D}  ".trimStart == "\u{4F60}\u{597D}  ", "trimStart result")
 
 def testTrimEnd =
   println "--- trimEnd ---"
 
-  println ("  hello  ".trimEnd == "  hello")            // true
-  println ("hello".trimEnd == "hello")                  // true
-  println ("  ".trimEnd == "")                          // true
-  println ("".trimEnd == "")                            // true
-  println ("\t\nhello\n\t".trimEnd == "\t\nhello")      // true
-  println ("  \u{4F60}\u{597D}  ".trimEnd == "  \u{4F60}\u{597D}")  // true
+  assert("  hello  ".trimEnd == "  hello", "trimEnd result")
+  assert("hello".trimEnd == "hello", "trimEnd result")
+  assert("  ".trimEnd == "", "trimEnd result")
+  assert("".trimEnd == "", "trimEnd result")
+  assert("\t\nhello\n\t".trimEnd == "\t\nhello", "trimEnd result")
+  assert("  \u{4F60}\u{597D}  ".trimEnd == "  \u{4F60}\u{597D}", "trimEnd result")
 
 def testTrim =
   println "--- trim ---"
 
-  println ("  hello  ".trim == "hello")                // true
-  println ("hello".trim == "hello")                    // true
-  println ("  ".trim == "")                            // true
-  println ("".trim == "")                              // true
-  println ("\t\nhello\n\t".trim == "hello")            // true
-  println ("  \u{4F60}\u{597D}  ".trim == "\u{4F60}\u{597D}")  // true
+  assert("  hello  ".trim == "hello", "trim result")
+  assert("hello".trim == "hello", "trim result")
+  assert("  ".trim == "", "trim result")
+  assert("".trim == "", "trim result")
+  assert("\t\nhello\n\t".trim == "hello", "trim result")
+  assert("  \u{4F60}\u{597D}  ".trim == "\u{4F60}\u{597D}", "trim result")
+
+def checkTrims(s: String, start: String, trailing: String, both: String) =
+  assert(s.trimStart == start, "trimStart result for \{s}")
+  assert(s.trimEnd == trailing, "trimEnd result for \{s}")
+  assert(s.trim == both, "trim result for \{s}")
+
+def testTrimCharacters =
+  println "--- trim characters ---"
+  val whitespace = " \t\n\r\u{B}\u{C}"
+  val text = "é\u{1F680}"
+  var i = 0
+
+  // Exhaust the control range, including NUL and the separator controls.
+  while i <= 32 do
+    val c = i.toChar.toString
+    val padded = c + text + c
+
+    if whitespace.contains(c) then
+      checkTrims(padded, text + c, c + text, text)
+      checkTrims(c, "", "", "")
+    else
+      checkTrims(padded, padded, padded, padded)
+      checkTrims(c, c, c, c)
+    end
+
+    i = i + 1
+  end
+
+  // Host trim defaults disagree about these Unicode characters.
+  val protected = "\u{7F}\u{85}\u{A0}\u{1680}\u{2000}\u{2028}\u{2029}\u{202F}\u{205F}\u{3000}\u{FEFF}"
+  val chars = protected.iterator
+
+  while chars.hasNext do
+    val c = chars.next.toString
+    val padded = c + text + c
+    checkTrims(padded, padded, padded, padded)
+    checkTrims(" " + c + " ", c + " ", " " + c, c)
+  end
+
+  checkTrims(" \t\n\r\u{B}\u{C}", "", "", "")
+  checkTrims(" a\u{0}b ", "a\u{0}b ", " a\u{0}b", "a\u{0}b")
+  checkTrims(" a\t b ", "a\t b ", " a\t b", "a\t b")
+
+def testLongStrings =
+  println "--- long strings ---"
+  val line = "ab" * 50000
+  checkTrims(line, line, line, line)
+  checkTrims(" \t" + line + "\r\n", line + "\r\n", " \t" + line, line)
+  val unicode = "é\u{1F680}" * 1000
+  checkTrims(unicode, unicode, unicode, unicode)
+  checkTrims(" " + unicode + " ", unicode + " ", " " + unicode, unicode)
+  checkTrims(" " * 3000, "", "", "")

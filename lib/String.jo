@@ -156,57 +156,14 @@ class String
       val start = sLen - sfLen
       this.indexOf(suffix, start) == start
 
-  //[ Remove leading ASCII whitespace (<= ' ').    //]
-  def trimStart: String =
-    val iter = this.iterator
-    var start = 0
-    var leading = true
-    while iter.hasNext && leading do
-      if iter.next <= ' ' then
-        start = start + 1
-      else
-        leading = false
-      end
-    end
-    if start == 0 then this
-    else
-      val len = this.size
-      this.substring(start, len - start)
+  //[ Remove leading ASCII whitespace: space, tab, newline, carriage return, vertical tab, and form feed. //]
+  def trimStart: String = StringOps.trim(this, leading = true, trailing = false)
 
-  //[ Remove trailing ASCII whitespace (<= ' ').    //]
-  def trimEnd: String =
-    val iter = this.iterator
-    var i = 0
-    var stop = 0
-    while iter.hasNext do
-      val ch = iter.next
-      if ch > ' ' then
-        stop = i + 1
-      end
-      i = i + 1
-    end
-    if stop == i then this
-    else this.substring(0, stop)
+  //[ Remove trailing ASCII whitespace: space, tab, newline, carriage return, vertical tab, and form feed. //]
+  def trimEnd: String = StringOps.trim(this, leading = false, trailing = true)
 
-  //[ Remove leading and trailing ASCII whitespace (<= ' ').    //]
-  def trim: String =
-    val iter = this.iterator
-    var i = 0
-    var start = -1
-    var stop = 0
-    while iter.hasNext do
-      val ch = iter.next
-      if ch > ' ' then
-        if start < 0 then
-          start = i
-        end
-        stop = i + 1
-      end
-      i = i + 1
-    end
-    if start < 0 then ""
-    else if start == 0 && stop == i then this
-    else this.substring(start, stop - start)
+  //[ Remove leading and trailing ASCII whitespace: space, tab, newline, carriage return, vertical tab, and form feed. //]
+  def trim: String = StringOps.trim(this, leading = true, trailing = true)
 
   //[ Replace all non-overlapping occurrences of `target`.    //]
   def replace(target: String, replacement: String): String =
@@ -320,8 +277,54 @@ private section String
   end
 end
 
-// Backend runtimes can replace the iterator-based comparison.
+// Backend runtimes can replace these string operations.
 private section StringOps
+  // Use an iterator in the portable fallback: indexed access may rescan
+  // UTF-8/UTF-16 prefixes and become quadratic for long whitespace runs.
+  defer def trim(str: String, leading: Bool, trailing: Bool): String =
+    if !leading && !trailing then return str
+
+    if !trailing then
+      val iter = str.iterator
+      var start = 0
+
+      while iter.hasNext && isWhitespace(iter.next) do
+        start = start + 1
+      end
+
+      if start == 0 then return str
+      return str.substring(start, str.size - start)
+    end
+
+    val n = str.size
+    if n == 0 then return str
+
+    if !isWhitespace(str.get(n - 1)) && (!leading || !isWhitespace(str.get(0))) then
+      return str
+    end
+
+    val iter = str.iterator
+    var i = 0
+    var start = if leading then -1 else 0
+    var stop = 0
+
+    while iter.hasNext do
+      val c = iter.next
+
+      if !isWhitespace(c) then
+        if start < 0 then start = i
+        stop = i + 1
+      end
+
+      i = i + 1
+    end
+
+    if start < 0 then ""
+    else if start == 0 && stop == i then str
+    else str.substring(start, stop - start)
+
+  private def isWhitespace(c: Char): Bool = c == ' ' || c >= '\t' && c <= '\r'
+
   defer def compareTo(str: String, other: String): Int =
     val left = str.iterator
     val right = other.iterator
