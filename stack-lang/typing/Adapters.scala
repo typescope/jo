@@ -28,22 +28,22 @@ object Adapters:
       val paramType = earlierAdapter.tpe.asProcType.params.head.tpe
       s"Earlier adapter ${earlierAdapter.name} with parameter type ${paramType.show} is defined here"
 
-  def check(adapters: List[Ast.ParamAdapter], rawParamType: Type, namer: Namer)
+  def check(adapters: List[Ast.DuckAdapter], rawParamType: Type, namer: Namer)
       (using defn: Definitions, sc: Scope, rp: Reporter, so: Source)
   : List[ParamAdapter] =
     // ..T ==> T
     val paramType = rawParamType.stripVarargs
 
-    val valid = new mutable.ArrayBuffer[(ParamAdapter, Ast.ParamAdapter)]
+    val valid = new mutable.ArrayBuffer[(ParamAdapter, Ast.DuckAdapter)]
 
     for adapter <- adapters do
       adapter match
-        case Ast.ParamAdapter.Function(ref) =>
+        case Ast.DuckAdapter.Function(ref) =>
           checkFunctionAdapter(ref, namer) match
             case Some(typedAdapter) => valid += typedAdapter -> adapter
             case None =>
 
-        case Ast.ParamAdapter.Member(memberName) =>
+        case Ast.DuckAdapter.Member(memberName) =>
           valid += ParamAdapter.Member(memberName) -> adapter
       end match
     end for
@@ -64,11 +64,11 @@ object Adapters:
       else
         Some(ParamAdapter.Function(sym))
 
-  def validateAdapters(adapters: List[(ParamAdapter, Ast.ParamAdapter)], paramType: Type)
+  def validateAdapters(adapters: List[(ParamAdapter, Ast.DuckAdapter)], paramType: Type)
       (using defn: Definitions, rp: Reporter, so: Source)
   : List[ParamAdapter] =
 
-    val valid = new mutable.ArrayBuffer[(ParamAdapter, Ast.ParamAdapter)]
+    val valid = new mutable.ArrayBuffer[(ParamAdapter, Ast.DuckAdapter)]
 
     adapters.foreach {
       case (adapter @ ParamAdapter.Function(sym), astAdapter) =>

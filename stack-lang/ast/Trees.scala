@@ -374,7 +374,7 @@ object Trees:
     for param <- receives do assert(isQualid(param), param)
 
   case class DuckType
-    (tpt: TypeTree, adapters: List[ParamAdapter])
+    (tpt: TypeTree, adapters: List[DuckAdapter])
     (val span: Span)
   extends TypeTree:
     assert(adapters.nonEmpty, "duck type must have at least one adapter")
@@ -644,8 +644,7 @@ object Trees:
     : UnionDef =
       UnionDef(ident, tparams, branches, funs)(span).copyAttachments(this)
 
-  /** TODO: rename to Adapter or DuckAdapter*/
-  enum ParamAdapter extends Tree:
+  enum DuckAdapter extends Tree:
     case Function(ref: RefTree)(val span: Span)
     case Member(name: String)(val span: Span)
 

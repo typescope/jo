@@ -33,10 +33,10 @@ object Printing:
 
   given Text.Maker[TypeTree] = v => showType(v)
 
-  given Text.Maker[ParamAdapter] = v =>
+  given Text.Maker[DuckAdapter] = v =>
     v match
-      case ParamAdapter.Function(ref) => showWord(ref)
-      case ParamAdapter.Member(name) => "." ~ name
+      case DuckAdapter.Function(ref) => showWord(ref)
+      case DuckAdapter.Member(name) => "." ~ name
 
   given Text.Maker[Param] = v =>
     v.ident ~ showTypeAnnot(v.tpt)

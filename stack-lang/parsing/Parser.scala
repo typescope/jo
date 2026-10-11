@@ -1268,19 +1268,19 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   /** Parse adapter list: [adapter1, adapter2, ...]
     * Adapters can be qualified identifiers (function adapters) or .member (member adapters)
     */
-  def adapterList(): List[ParamAdapter] =
+  def adapterList(): List[DuckAdapter] =
     eat(Token.LBRACKET)
-    val adapters = mutable.ArrayBuffer[ParamAdapter]()
+    val adapters = mutable.ArrayBuffer[DuckAdapter]()
 
     // Parse first adapter
     if peek() == Token.DOT then
       val dotItem = eat(Token.DOT)
       val memberName = ident()
       val span1 = dotItem.span | memberName.span
-      adapters += ParamAdapter.Member(memberName.name)(span1)
+      adapters += DuckAdapter.Member(memberName.name)(span1)
     else
       val ref = qualid()
-      adapters += ParamAdapter.Function(ref)(ref.span)
+      adapters += DuckAdapter.Function(ref)(ref.span)
 
     // Parse remaining adapters
     while peek() == Token.COMMA do
@@ -1289,10 +1289,10 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         val dotItem = eat(Token.DOT)
         val memberName = ident()
         val span = dotItem.span | memberName.span
-        adapters += ParamAdapter.Member(memberName.name)(span)
+        adapters += DuckAdapter.Member(memberName.name)(span)
       else
         val ref = qualid()
-        adapters += ParamAdapter.Function(ref)(ref.span)
+        adapters += DuckAdapter.Function(ref)(ref.span)
 
     eat(Token.RBRACKET)
     adapters.toList
