@@ -96,7 +96,7 @@ object Defaults:
   : Boolean =
     if !Subtyping.conforms(lit.tpe, paramType) then
       Reporter.error(
-        s"Default value type ${lit.tpe.show} does not conform to parameter type ${paramType.show}",
+        s"Default value type ${lit.tpe.widen.show} does not conform to parameter type ${paramType.show}",
         lit.span.toPos
       )
       false
