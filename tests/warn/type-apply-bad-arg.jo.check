@@ -3,4 +3,14 @@
 |                    ^^
 |                    Expected a type argument, found an expression
 
-1 error(s), 0 warning(s)
+---------- Error at tests/warn/type-apply-bad-arg.jo:12:20 ---------------
+|   val _ = identity[(x: Int) => x]("hello")
+|                    ^^^^^^^^^^^^^
+|                    Expected a type argument, found an expression
+
+---------- Error at tests/warn/type-apply-bad-arg.jo:13:20 ---------------
+|   val _ = identity[x => x + 1]("hello")
+|                    ^^^^^^^^^^
+|                    Expected a type argument, found an expression
+
+3 error(s), 0 warning(s)

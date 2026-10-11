@@ -7,3 +7,7 @@ def main =
   // A polymorphic def used directly — bracket is TypeApply.
   // Literal is not a valid type argument.
   val _ = identity[42]("hello")   // error: expected a type argument, found an expression
+
+  // Typed value parameters and expression bodies are not function types.
+  val _ = identity[(x: Int) => x]("hello")
+  val _ = identity[x => x + 1]("hello")
