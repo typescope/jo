@@ -89,7 +89,7 @@ trait Applications extends DynamicTyper:
     var fun1 = fun
     val funType = fun1.tpe
 
-   if !funType.isInvokableType then
+    if !funType.isInvokableType then
       if !fun1.tpe.isError then
         Reporter.error(s"Not a function: " + fun1.tpe.show, fun1.pos)
       return errorWord(applySpan)
