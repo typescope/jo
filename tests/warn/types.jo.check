@@ -45,12 +45,12 @@
 ---------- Error at tests/warn/types.jo:21:5 ---------------
 |     if even 3 then   // error
 |     ^
-|     Cannot find common result type, tp1 = 5, tp2 = Bool
+|     Cannot find common result type, tp1 = Int, tp2 = Bool
 
 ---------- Error at tests/warn/types.jo:28:5 ---------------
 |     if even 3 then
 |     ^
-|     Cannot find common result type, tp1 = 5, tp2 = Bool
+|     Cannot find common result type, tp1 = Int, tp2 = Bool
 
 ---------- Error at tests/warn/types.jo:34:9 ---------------
 |   while a * 3 do    // error
