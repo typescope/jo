@@ -86,7 +86,7 @@ end
 
 //[ Operations on `Float` that are not methods. //]
 section Float
-  // Backend decimal conversion. The caller must validate the syntax first.
+  //[ Backend decimal conversion. The caller must validate the syntax first. //]
   @intrinsic
   private def parseFloatDecimal(s: String): Float = ...
 
