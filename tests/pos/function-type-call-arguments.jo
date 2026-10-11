@@ -1,0 +1,53 @@
+def keep[T](value: T): T = value
+
+class Machine
+  var value: Int = 0
+end
+
+class FunctionIndex
+  def get(f: Int => Int): Int = f(1)
+end
+
+def main =
+  val fs = List.builder[Int => Int]()
+  fs += (x => x + 1)
+  println: fs.result().map(f => f(1))
+
+  val parenthesized = List.builder[(Int) => Int]()
+  parenthesized += (x => x + 2)
+  assert(parenthesized.result()[0](1) == 3, "parenthesized parameter type")
+
+  val binary = List.builder[(Int, Int) => Int]()
+  binary += ((x, y) => x + y)
+  assert(binary.result()[0](1, 2) == 3, "multiple parameter types")
+
+  val nullary = List.builder[() => Int]()
+  nullary += (() => 4)
+  assert(nullary.result()[0]() == 4, "nullary function type")
+
+  val curried = List.builder[Int => Int => Int]()
+  curried += (x => y => x + y)
+  assert(curried.result()[0](1)(2) == 3, "nested function result type")
+
+  val nested = List.builder[List[Int => Int]]()
+  nested += [x => x + 5]
+  assert(nested.result()[0][0](1) == 6, "function type in an applied type")
+
+  val fenced = keep[(Int => Int)](x => x + 6)
+  assert(fenced(1) == 7, "parenthesized function type")
+
+  val primitives = jo.mutable.List[Machine => Unit]()
+  primitives += (m => m.value = m.value + 1)
+  val machine = new Machine()
+  primitives[0](machine)
+  assert(machine.value == 1, "mutable list of functions")
+
+  val parenthesizedPrimitives = jo.mutable.List[(Machine) => Unit]()
+  parenthesizedPrimitives += (m => m.value = m.value + 2)
+  parenthesizedPrimitives[0](machine)
+  assert(machine.value == 3, "mutable list with parenthesized function parameter")
+
+  // Brackets on values must continue to accept lambda expressions.
+  val index = new FunctionIndex()
+  assert(index[x => x + 7] == 8, "lambda-valued index")
+  assert(index[(x: Int) => x + 8] == 9, "typed lambda-valued index")
