@@ -5,6 +5,7 @@ import sast.*
 import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
+import sast.Denotations.*
 
 import phases.Phase
 
@@ -94,7 +95,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
       FunDef(
         liftedSym, tparams = Nil,
         self :: fdef.params,
-        fdef.autos, fdef.candidates,
+        fdef.autos,
         fdef.resultType,
         fdef.effectPolicy,
         body2
@@ -112,7 +113,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
       FunDef(
         liftedSym, tparams = Nil,
         self :: fdef.params,
-        fdef.autos, fdef.candidates,
+        fdef.autos,
         fdef.resultType,
         fdef.effectPolicy,
         body2

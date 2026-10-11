@@ -7,7 +7,7 @@ import sast.*
 import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
-import sast.Denotations.ClassInfo
+import sast.Denotations.*
 
 import scala.collection.mutable
 
@@ -288,7 +288,7 @@ object ElimCapture:
 
       defn.index.add(ctorSym, ProcType(
         tparams = Nil,
-        params = ctorParams.map(_.toParamInfo).toList,
+        params = ctorParams.map(_.paramInfo).toList,
         autos = Nil,
         resultType = StaticRef(classSym),
         receivesInfo = Nil,
@@ -298,7 +298,7 @@ object ElimCapture:
 
       defn.index.add(applySym, ProcType(
         tparams = Nil,
-        params = params.map(_.toParamInfo),
+        params = params.map(_.paramInfo),
         autos = Nil,
         resultType = lambdaType.resultType,
         receivesInfo = receives,
@@ -470,7 +470,7 @@ object ElimCapture:
         captures.size == captures.map(_.name).toSet.size,
         "[Internal error] captured different variables with same name in " + fdef.symbol)
 
-      val paramCaptures = captures.map(_.toParamInfo)
+      val paramCaptures = captures.map(_.paramInfo)
 
       val funSym = createLiftedFunSym(fdef, prependParams = Nil, appendParams = paramCaptures)
       LiftInfo(funSym, captures)

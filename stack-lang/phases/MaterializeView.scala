@@ -4,6 +4,7 @@ import sast.*
 import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
+import sast.Denotations.*
 
 import ast.Positions.Source
 
@@ -62,7 +63,7 @@ class MaterializeView(using defn: Definitions) extends Phase:
       FunDef(
         liftedSym, fdef.tparams,
         self :: fdef.params,
-        fdef.autos, fdef.candidates,
+        fdef.autos,
         fdef.resultType,
         fdef.effectPolicy,
         body2

@@ -5,6 +5,7 @@ import sast.Trees.*
 import sast.Symbols.Symbol
 import sast.Symbols.*
 import sast.Types.*
+import sast.Denotations.*
 import sast.Flags
 
 import Phase.PhaseKey
@@ -86,7 +87,7 @@ class LiftPrimitiveMethods(arrayOpsSection: String)(using defn: Definitions) ext
             newDefs += FunDef(
               liftedSym, fdef.tparams,
               self :: fdef.params,
-              fdef.autos, fdef.candidates,
+              fdef.autos,
               fdef.resultType, fdef.effectPolicy,
               body2
             )(fdef.annots, fdef.span)

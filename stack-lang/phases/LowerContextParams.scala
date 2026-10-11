@@ -249,7 +249,7 @@ extends Phase:
     val params2 =
       val paramsTransformed =
         for param <- procType.params
-        yield param.copy(info = this.typeMap(param.info)(using ()))
+        yield param.copy(tpe = this.typeMap(param.tpe)(using ()))
 
       if procType.receives.nonEmpty || funSym.isMethod && implementedDefersReceives(funSym) then
         paramsTransformed :+ ParamInfo("__ctx", CtxType)
@@ -259,7 +259,7 @@ extends Phase:
 
     val autos2 =
       for auto <- procType.autos
-      yield auto.copy(info = this.typeMap(auto.info)(using ()))
+      yield auto.copy(tpe = this.typeMap(auto.tpe)(using ()))
 
     val resType2 = this.typeMap(procType.resultType)(using ())
 
