@@ -317,6 +317,8 @@ object Types:
     def getTermMember(name: String)(using Definitions): Option[Type] =
       def recur(tp: Type): Option[Type] = Debug.trace("getMember " + name + " on " + tp, enable = false):
         tp match
+        case constType: ConstantType => recur(constType.underlying)
+
         case ext: ExtensionType =>
           ext.extensions.find(_.name == name).map(StaticRef(_)).orElse(recur(ext.base))
 

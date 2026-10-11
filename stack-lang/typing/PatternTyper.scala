@@ -41,7 +41,8 @@ class PatternTyper(namer: Namer)(using Config):
         val paramSym = PatternSymbol.create(param.name, Flags.Param, Visibility.Default, patSym, param.pos)
         lazyDefn.index.addLazy(paramSym, () => {
           given Definitions = lazyDefn.value
-          namer.transformValueType(param.tpt).tpe
+          val tpe = namer.transformValueType(param.tpt).tpe
+          ParamInfo(param.name, tpe)
         })
         paramSym
 
