@@ -69,7 +69,7 @@
 ---------- Error at tests/warn/class.jo:86:3 ---------------
 |   new C
 |   ^^^^^
-|   The function expects 1 argument(s), found = 0
+|   Missing required parameter 'x'
 
 ---------- Error at tests/warn/class.jo:88:17 ---------------
 |   val _ = new C("hello")

@@ -1,6 +1,11 @@
 ---------- Error at tests/warn/colon-call-new.jo:6:5 ---------------
 |     new Point():
 |     ^^^^^^^^^^^
-|     The function expects 2 argument(s), found = 0
+|     Missing required parameter 'x'
 
-1 error(s), 0 warning(s)
+---------- Error at tests/warn/colon-call-new.jo:6:5 ---------------
+|     new Point():
+|     ^^^^^^^^^^^
+|     Missing required parameter 'y'
+
+2 error(s), 0 warning(s)

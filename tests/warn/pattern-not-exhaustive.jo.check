@@ -11,7 +11,7 @@
 ---------- Error at tests/warn/pattern-not-exhaustive.jo:37:21 ---------------
 |     case Warning => pass
 |                     ^^^^
-|                     Cannot find common result type, tp1 = String, tp2 = Unit
+|                     Cannot find common result type, tp1 = "ok", tp2 = Unit
 
 ---------- Warning at tests/warn/pattern-not-exhaustive.jo:35:9 ---------------
 |   match status

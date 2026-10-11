@@ -1,21 +1,21 @@
 ---------- Error at tests/warn/coercion.jo:5:17 ---------------
 |   val x: Char = b           // error
 |                 ^
-|                 Expect type Char, found = b: Byte
+|                 Expect type Char, found = Byte
 
 ---------- Error at tests/warn/coercion.jo:10:19 ---------------
 |   val b_c: Byte = c     // error
 |                   ^
-|                   Expect type Byte, found = c: Char
+|                   Expect type Byte, found = Char
 
 ---------- Error at tests/warn/coercion.jo:14:19 ---------------
 |   val b_i: Byte = i     // error
 |                   ^
-|                   Expect type Byte, found = i: Int
+|                   Expect type Byte, found = Int
 
 ---------- Error at tests/warn/coercion.jo:15:19 ---------------
 |   val c_i: Char = i     // error
 |                   ^
-|                   Expect type Char, found = i: Int
+|                   Expect type Char, found = Int
 
 4 error(s), 0 warning(s)

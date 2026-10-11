@@ -1,12 +1,12 @@
 ---------- Error at tests/warn/nullary-lambda-required.jo:25:14 ---------------
 |   takesFloat b
 |              ^
-|              Expect type () => Float receives none, found = b: Byte
+|              Expect type () => Float receives none, found = Byte
 
 ---------- Error at tests/warn/nullary-lambda-required.jo:26:12 ---------------
 |   takesInt b
 |            ^
-|            Expect type () => Int receives none, found = b: Byte
+|            Expect type () => Int receives none, found = Byte
 
 ---------- Error at tests/warn/nullary-lambda-required.jo:28:19 ---------------
 |   takesStringLike 3
@@ -16,7 +16,7 @@
 ---------- Error at tests/warn/nullary-lambda-required.jo:31:15 ---------------
 |   takesLogger service
 |               ^^^^^^^
-|               Expect type () => Logger receives none, found = service: Service
+|               Expect type () => Logger receives none, found = Service
 
 ---------- Error at tests/warn/nullary-lambda-required.jo:33:12 ---------------
 |   takesInt 3
