@@ -130,16 +130,16 @@ object Decoder:
     if magic != Format.MAGIC_NUMBER then
       Reporter.abortInternal(f"Invalid SAST file: expected magic number 0x${Format.MAGIC_NUMBER}%08X, got 0x${magic}%08X")
 
-    val majorVersion = decodeByte()
-    val minorVersion = decodeByte()
+    val majorVersion = decodeByte() & 0xFF
+    val minorVersion = decodeByte() & 0xFF
 
     // Check version compatibility
     // - Major version must match exactly
     // - Minor version can be <= current (backward compatible)
-    if majorVersion != Format.MAJOR_VERSION then
+    if majorVersion != Format.MAJOR_VERSION || minorVersion > Format.MINOR_VERSION then
       Reporter.abortInternal(
         s"Incompatible SAST file version: file is $majorVersion.$minorVersion, compiler supports ${Format.MAJOR_VERSION}.${Format.MINOR_VERSION}\n" +
-        "Please rebuild the library with the current compiler version."
+        "Please rebuild the library with the current compiler version or use a compiler that supports this SAST version."
       )
 
     // Read string table

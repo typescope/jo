@@ -24,6 +24,7 @@ package pickle
   * - signed base-128
   * - unsigned base-128
   * - big-endian 2's complement
+  * - big-endian IEEE 754 double (floating-point constants)
   *
   * == File Structure ==
   *
@@ -32,24 +33,23 @@ package pickle
   *   Magic Number        4 bytes fixed (0x53415354 = "SAST")
   *   Major Version       1 byte
   *   Minor Version       1 byte
-  *   Owner Index         signed base-128 (-1 or index to name table)
   *   String Table Addr   4 bytes fixed (offset from start)
   *   Name Table Addr     4 bytes fixed (offset from start)
   *
   * [Body]
-  *   Root Symbol ID      unsigned base-128 (internal symbol ID)
-  *   Root Symbol Name    unsigned base-128 (index to string table)
-  *   Source Info         (file path, lines table)
-  *   Symbol Span         2x unsigned base-128 (offset, length)
-  *   Imports             variable (import statements)
-  *   Definitions         variable (functions, types, etc.)
+  *   Source File         unsigned base-128 (index to string table)
+  *   Line Count          unsigned base-128
+  *   Line Lengths        Line Count x unsigned base-128
+  *   Imports Length      4 bytes fixed (byte length of imports payload)
+  *   Imports             count + import records
+  *   Definitions         count + definition records (tag + fixed 4-byte length + payload)
   *
   * [Name Table] @ Name Table Addr
   *   Count               unsigned base-128 (number of external symbols)
   *   For each symbol:
   *     Owner Index       signed base-128 (-1 if root, else index in this table)
   *     Name Index        unsigned base-128 (index to string table)
-  *     Kind              1 byte (Term=0, Type=1, Pattern=2)
+  *     Kind              1 byte (Type=0, Pattern=1, Term=2, Container=3, Annotation=4)
   *
   * [String Table] @ String Table Addr
   *   Count               unsigned base-128 (number of strings)
@@ -62,13 +62,14 @@ package pickle
   *
   * **Signed/Unsigned Base-128 Encoding**: Variable-length encoding for integers
   *
-  * - Small values (< 128) use 1 byte
-  * - Larger values use multiple bytes with continuation bit
+  * - Unsigned values < 128 and signed values with magnitude < 64 use 1 byte
+  * - Bytes store seven-bit groups in big-endian order; the high bit marks the final byte
+  * - Signed values encode (absolute value << 1) | sign bit
   * - Used for: IDs, indices, lengths, most numeric values
   * - See common/Base128.scala for implementation
   *
   * **Fixed 4-byte Integers**: Big-endian 2's complement
-  * - Used for: Magic number, table addresses
+  * - Used for: Magic number, table addresses, imports and definition byte lengths
   *
   * **String Encoding**: UTF-8 with length prefix
   * - Length as unsigned base-128
@@ -76,13 +77,13 @@ package pickle
   *
   * == Symbol References ==
   *
-  * **Internal Symbols**: Defined within this namespace
+  * **Internal Symbols**: Defined within this file unit (excluding namespace symbols)
   *
   * - Encoded as: byte(0) + unsigned base-128 ID
   * - IDs are sequential integers, only valid within file
   * - Used for: local variables, function parameters, internal definitions
   *
-  * **External Symbols**: Defined in other modules
+  * **External Symbols**: Defined in other file units, or namespace symbols
   *
   * - Encoded as: byte(1) + unsigned base-128 index to name table
   * - Name table stores full qualified path (e.g., ["Predef", "println"])
@@ -90,19 +91,22 @@ package pickle
   *
   * == Owner Information ==
   *
-  * The owner of a namespace is the symbol that contains it:
-  * - `-1`: Top-level namespace
-  * - `>= 0`: Index to name table pointing to parent namespace
+  * A file unit's namespace is determined by its directory relative to the library
+  * root, rather than stored in the file header. The loader creates namespace
+  * symbols while traversing these directories and supplies the owner to the decoder.
+  * Definition owners are reconstructed from the enclosing definitions.
   *
-  * Owner symbols are created lazily during loading if they don't exist yet.
-  * This allows loading modules in any order.
+  * External name-table entries store their owner as an index into the same table;
+  * `-1` indicates a root symbol.
   *
   * == Position Encoding ==
   *
   * Positions use delta encoding for space efficiency:
   *
-  * - Offset: delta from previous tree's end position
-  * - Length: delta from sum of children lengths
+  * - Definition starts: absolute unsigned base-128 offsets
+  * - Nested starts: signed deltas from a parent start or preceding sibling's end
+  * - Leaf and symbol lengths: unsigned base-128 lengths
+  * - Composite ends: signed deltas from the final child's end where applicable
   * - Most trees fit in 1 byte per delta
   *
   * Lines table uses unsigned base-128 encoding of line lengths:
@@ -129,14 +133,13 @@ package pickle
   * Minor version is backward compatible:
   *
   * - Older minor version can be loaded by newer compiler
-  * - Newer minor version warns but attempts to load
-  * - Use for: new optional features, extended formats
+  * - Newer minor version is rejected before reading the body
+  * - Use for: changes that preserve reading of older minor versions
   *
   * == Validation ==
   *
   * - Magic number check: Detects non-SAST files
   * - Version check: Ensures compatibility
-  * - Owner chain validation: Ensures symbol table consistency
   * - (Future: Checksums for corruption detection)
   *
   * == Future Extensions ==
