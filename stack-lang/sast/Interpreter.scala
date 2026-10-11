@@ -990,6 +990,10 @@ object Interpreter:
                   // Use 0 as Unit
                   IntVal(0) :: Nil
 
+                else if sym == defn.Float_parseFloatDecimal then
+                  val StringVal(value) :: Nil = argVals: @unchecked
+                  FloatVal(java.lang.Double.parseDouble(value)) :: Nil
+
                 else
                   val fdef = defn.index.getCode(sym)
                   call(fdef, argVals)(using env)

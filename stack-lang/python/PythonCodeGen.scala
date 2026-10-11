@@ -788,6 +788,10 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val keyId = runtime.getOrCreateParamId(paramSym)
           (Nil, P.Ident(keyId))
 
+        else if sym == defn.Float_parseFloatDecimal then
+          val (stats, expr) = compileExpr(args.head, enforcePurity)
+          (stats, P.Call(None, "float", List(expr)))
+
         else if sym == defn.jo_pass then
           (Nil, P.NoneLit)
 
