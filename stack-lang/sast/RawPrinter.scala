@@ -325,7 +325,7 @@ object RawPrinter:
       case AppliedType(tctor, targs) =>
         "AppliedType [" ~ printSymbolRef(tctor) ~ ",[" ~ targs.map(t => printType(t, tparamScope)).join(",") ~ "]]"
 
-      case procType @ ProcType(tparams, params, autos, candidates, resType, _, preParamCount, preTypeParamCount) =>
+      case procType @ ProcType(tparams, params, autos, resType, _, preParamCount, preTypeParamCount) =>
         tparamScope.withParams(tparams):
           val tparamText = "[" ~ indent:
               val items = tparams.map: tparam =>
@@ -335,39 +335,34 @@ object RawPrinter:
 
           val paramText = "[" ~ indent:
               val items = params.map: param =>
-                "[" ~ param.name ~ "," ~ printType(param.info, tparamScope) ~ "]"
+                val defaultText = param.default match
+                  case const: Constant => "Lit [" ~ printConstant(const) ~ "]"
+                  case sym: Symbol => "Ref [" ~ printSymbolRef(sym) ~ "]"
+                  case None => Text("None")
+
+                "[" ~ param.name ~ "," ~ printType(param.tpe, tparamScope) ~ "," ~ defaultText ~ "]"
               items.join(LINE_SEP)
           ~ "]"
 
           val autoText = "[" ~ indent:
               val items = autos.map: auto =>
-                "[" ~ auto.name ~ "," ~ printType(auto.info, tparamScope) ~ "]"
+                val candidatesText =
+                  val items = auto.candidates.map: cand =>
+                    cand match
+                      case sym: Symbol => printSymbolRef(sym)
+                      case MemberCandidate(tp, name) => "[" ~ printType(tp, tparamScope) ~ "]." ~ name
+                  "[" ~ items.join(",") ~ "]"
+
+                "[" ~ auto.name ~ "," ~ printType(auto.tpe, tparamScope) ~ "," ~ candidatesText ~ "]"
               items.join(LINE_SEP)
            ~ "]"
 
-          val candidatesText = "[" ~ indent:
-              val items = candidates.map: candidateList =>
-                val printed = candidateList.map:
-                  case sym: Symbol => printSymbolRef(sym)
-                  case MemberCandidate(tp, name) => "[" ~ printType(tp, tparamScope) ~ "]." ~ name
-                "[" ~ printed.join(",") ~ "]"
-              items.join(LINE_SEP)
-          ~ "]"
-
           val receiveText = "[" ~ procType.receives.join(",") ~ "]"
-
-          val defaultsText = "[" ~ indent:
-              val items = procType.defaults.map:
-                case DefaultValue.Lit(const) => "Lit [" ~ printConstant(const) ~ "]"
-                case DefaultValue.Ref(sym)   => "Ref [" ~ printSymbolRef(sym) ~ "]"
-              items.join(LINE_SEP)
-          ~ "]"
 
           "ProcType [" ~ indent:
             List(
-              tparamText, paramText, autoText, candidatesText,
+              tparamText, paramText, autoText,
               printType(resType, tparamScope), receiveText, Text(preParamCount), Text(preTypeParamCount),
-              defaultsText
             ).join("," ~ Text.BreakLine)
           ~ "]"
 
