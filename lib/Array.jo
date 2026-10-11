@@ -77,7 +77,7 @@ section Array
   defer def clear[T](arr: Array[T], at: Int): Unit
 
   //[ Create an array containing `size` copies of `value`. //]
-  def fill[T](size: Int, value: T): Array[T] =
+  defer def fill[T](size: Int, value: T): Array[T] =
     val arr = create[T](size)
     var i = 0
     while i < size do
