@@ -140,7 +140,7 @@ class PatternTyper(namer: Namer)(using Config):
       Inference.freshIsolate:
         namer.transform(scrutinee)
 
-    val scrutType = scrutinee2.tpe.widenTermRef
+    val scrutType = scrutinee2.tpe.widen
 
     if scrutType.isError then return errorWord(patmat.span)
 
