@@ -250,7 +250,7 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions, config: Con
     params match
       case param :: Nil =>
         val value = Ident(param)(span)
-        if isPartial then Ident(defn.Some_fun)(span).appliedToTypes(param.info.asType).appliedTo(value)
+        if isPartial then Ident(defn.Some_fun)(span).appliedToTypes(param.tpe).appliedTo(value)
         else value
 
       case _ =>
