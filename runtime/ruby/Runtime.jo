@@ -43,6 +43,9 @@ private interface RbArrayClass
 end
 
 private section RefArray
+  def fill[T](size: Int, value: T): Array[T] =
+    rb.const("Array").cast[RbArrayClass].arrayNew(size, value).cast[Array[T]]
+
   def create[T](size: Int): Array[T] =
     rb.const("Array").cast[RbArrayClass].arrayNew(size, rb.nil).cast[Array[T]]
 

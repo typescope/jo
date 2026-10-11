@@ -1,0 +1,62 @@
+class Cell
+  var value: Int = 0
+end
+
+class Counter
+  var calls: Int = 0
+
+  def next: Int =
+    calls = calls + 1
+    calls
+end
+
+def main =
+  val empty = Array.fill(0, 42)
+  assert(empty.size == 0, "zero-sized fill")
+
+  val single = Array.fill(1, -7)
+  assert(single.size == 1 && single[0] == -7, "single-element fill")
+
+  val filled = Array.fill(4, 7)
+  var i = 0
+  while i < filled.size do
+    assert(filled[i] == 7, "every slot is filled")
+    i = i + 1
+  end
+
+  filled[1] = 9
+  assert(filled[0] == 7 && filled[1] == 9 && filled[2] == 7, "independent slots")
+  val another = Array.fill(4, 7)
+  assert(another[1] == 7, "separate fills have separate storage")
+
+  val counter = new Counter()
+  val once = Array.fill(3, counter.next)
+  assert(counter.calls == 1, "fill evaluates its value once")
+  assert(once[0] == 1 && once[1] == 1 && once[2] == 1, "repeat the evaluated value")
+  val emptyEffect = Array.fill(0, counter.next)
+  assert(emptyEffect.size == 0 && counter.calls == 2, "empty fill still evaluates its value")
+
+  val cell = new Cell()
+  val references = Array.fill(3, cell)
+  references[0].value = 5
+  assert(references[1].value == 5 && references[2].value == 5, "fill shares the supplied reference")
+  references[1] = new Cell()
+  references[1].value = 8
+  assert(references[0].value == 5 && references[2].value == 5, "replacing one reference is independent")
+
+  val bools = Array.fill(2, value = false)
+  assert(!bools[0] && !bools[1], "Boolean fill")
+  val chars = Array.fill(2, 'é')
+  assert(chars[0] == 'é' && chars[1] == 'é', "Unicode character fill")
+  val strings = Array.fill(2, "hello")
+  assert(strings[0] == "hello" && strings[1] == "hello", "String fill")
+  val mixed = Array.fill[Int | String](2, "value")
+  assert((mixed[0] is "value") && (mixed[1] is "value"), "union fill")
+
+  // Tabulation must call its function once for each index.
+  val tabCounter = new Counter()
+  val tabulated = Array.tabulate(3, i => i + tabCounter.next)
+  assert(tabCounter.calls == 3, "tabulate evaluates each element")
+  assert(tabulated[0] == 1 && tabulated[1] == 3 && tabulated[2] == 5, "tabulate preserves index order")
+
+  println "array fill passed"

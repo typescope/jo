@@ -1,0 +1,3 @@
+def main() =
+  val a = Array.fill(4000000, 0)
+  println: a.size

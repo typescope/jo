@@ -25,6 +25,7 @@ object Compiler:
 
     "jo.Array.create" -> "jo.py.runtime.RefArray.create",
     "jo.Array.clear"  -> "jo.py.runtime.RefArray.clear",
+    "jo.Array.fill" -> "jo.py.runtime.RefArray.fill",
 
     "jo.StringOps.compareTo" -> "jo.py.runtime.StringOps.compareTo",
 

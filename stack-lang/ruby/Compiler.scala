@@ -24,6 +24,7 @@ object Compiler:
 
     "jo.Array.create" -> "jo.rb.runtime.RefArray.create",
     "jo.Array.clear"  -> "jo.rb.runtime.RefArray.clear",
+    "jo.Array.fill" -> "jo.rb.runtime.RefArray.fill",
 
     "jo.StringOps.compareTo" -> "jo.rb.runtime.StringOps.compareTo",
 

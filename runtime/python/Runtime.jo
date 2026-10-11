@@ -118,6 +118,12 @@ private section ListClaim
 end
 
 private section RefArray
+  def fill[T](size: Int, value: T): Array[T] =
+    val seed: py.List = builtins.list()
+    seed.append(value)
+    val result: py.List = py.dynamic(seed).cast[ListRepeat].repeat(size)
+    py.dynamic(result).cast[Array[T]]
+
   def create[T](size: Int): Array[T] =
     // A Python list has no unfilled slots: every index must already exist
     // before `set` can write to it, so the None fill is not optional. `[None]
