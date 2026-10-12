@@ -33,6 +33,9 @@ class SymbolIndex(val nameTable: NameTable, val initProvider: InfoProvider) exte
   def addLazy(sym: Symbol, infoLazy: () => Denotation): Unit =
     provider.addLazy(sym, infoLazy, () => ErrorType)
 
+  def complete(sym: Symbol, compute: () => Denotation, errorInfo: () => Denotation): Denotation =
+    provider.complete(sym, compute, errorInfo)
+
   /** Install a transformer for symbols
     *
     * Warning: Accessing `sym.info` will loop. Use the provided data instead.
