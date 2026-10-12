@@ -56,16 +56,23 @@ extends Phase:
       denot match
         case info: ClassInfo => info
 
+        case alias: TypeAlias =>
+          val body2 = typeMap(alias.body)(using ())
+          if alias.body `eq` body2 then alias
+          else TypeAlias(() => body2)
+
         case toi: TypeOperatorInfo =>
           val body2 = typeMap(toi.body)(using ())
           if toi.body `eq` body2 then toi
-          else TypeOperatorInfo(toi.tparams, body2, toi.preParamCount)
+          else TypeOperatorInfo(toi.tparams, () => body2, toi.preParamCount)
 
         case procType: ProcType => transformFunDenot(sym, procType)
 
         case info: ParamInfo => info.copy(tpe = typeMap(info.tpe)(using ()))
 
         case info: AutoInfo => info.copy(tpe = typeMap(info.tpe)(using ()))
+
+        case _: TypeParamInfo => denot
 
         case tp: Type => typeMap(tp)(using ())
 

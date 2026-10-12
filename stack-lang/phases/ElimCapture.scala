@@ -206,7 +206,6 @@ object ElimCapture:
 
       // Create class symbol
       val classSym = TypeSymbol.create(
-        Kind.Simple,
         className,
         Flags.Synthetic | Flags.Class,
         Visibility.Default,
@@ -312,9 +311,9 @@ object ElimCapture:
         classSym,
         tparams = Nil,
         self = selfSym,
-        fields = fieldSyms.toList,
-        methods = ctorSym :: applySym :: Nil,
-        views = directViewTypes
+        fieldsInit = fieldSyms.toList,
+        methodsInit = ctorSym :: applySym :: Nil,
+        viewsInit = directViewTypes
       ))
 
       // Create constructor body: initialize all fields from parameters, then return this
