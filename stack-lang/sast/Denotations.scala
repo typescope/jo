@@ -29,9 +29,10 @@ object Denotations:
     */
   class ClassInfo(
     val classSymbol: Symbol, val tparams: List[Symbol],
-    val self: Symbol, val fields: List[Symbol], methodsInit: => List[Symbol],
+    val self: Symbol, fieldsInit: => List[Symbol], methodsInit: => List[Symbol],
     viewsInit: => List[Type])
   extends Denotation:
+    lazy val fields: List[Symbol] = fieldsInit
     lazy val methods: List[Symbol] = methodsInit
     lazy val views: List[Type] = viewsInit
 
