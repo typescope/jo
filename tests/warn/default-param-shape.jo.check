@@ -13,9 +13,9 @@
 |                             ^^^^^^
 |                             Parameter 'z' must have a default value because a preceding parameter has one
 
----------- Error at tests/warn/default-param-shape.jo:7:9 ---------------
+---------- Error at tests/warn/default-param-shape.jo:7:21 ---------------
 | def bar(xs: ..Int = 0): Int = 1
-|         ^^^^^^^^^
-|         Vararg parameter cannot have a default value
+|                     ^
+|                     Vararg parameter cannot have a default value
 
 4 error(s), 0 warning(s)

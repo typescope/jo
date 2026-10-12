@@ -5,6 +5,7 @@ import sast.Trees.*
 import sast.Symbols.Symbol
 import sast.Symbols.*
 import sast.Types.*
+import sast.Denotations.*
 import sast.Flags
 
 import Phase.PhaseKey
@@ -48,14 +49,13 @@ class LiftPrimitiveMethods(arrayOpsSection: String)(using defn: Definitions) ext
 
         val funType = ProcType(
           tparams = classInfo.tparams,
-          params = NamedInfo("this", thisInfo) :: oldProcType.params,
+          params = ParamInfo("this", thisInfo) :: oldProcType.params,
           autos = oldProcType.autos,
-          candidates = oldProcType.candidates,
           resultType = oldProcType.resultType,
           receivesInfo = oldProcType.receivesInfo,
           preParamCount = 1,
           preTypeParamCount = classInfo.tparams.size
-        )(oldProcType.defaultsLazy)
+        )
 
         val liftedSym = TermSymbol.create(
           classSym.name + "$" + methodSym.name,
@@ -87,7 +87,7 @@ class LiftPrimitiveMethods(arrayOpsSection: String)(using defn: Definitions) ext
             newDefs += FunDef(
               liftedSym, fdef.tparams,
               self :: fdef.params,
-              fdef.autos, fdef.candidates,
+              fdef.autos,
               fdef.resultType, fdef.effectPolicy,
               body2
             )(fdef.annots, fdef.span)

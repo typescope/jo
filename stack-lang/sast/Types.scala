@@ -227,7 +227,7 @@ object Types:
       getLambdaInterfaceMethod.map: sym =>
         val procType = MemberRef(this, sym).info.asProcType
         LambdaType(
-          procType.params.map(_.info),
+          procType.params.map(_.tpe),
           procType.resultType,
           procType.receives
         )
@@ -255,7 +255,7 @@ object Types:
         case _ => this
 
     /** Get adapters from a duck type, following type aliases */
-    def adapters(using Definitions): List[ParamAdapter] =
+    def adapters(using Definitions): List[DuckAdapter] =
       this match
         case duckType: DuckType =>
           duckType.adapters
@@ -317,6 +317,8 @@ object Types:
     def getTermMember(name: String)(using Definitions): Option[Type] =
       def recur(tp: Type): Option[Type] = Debug.trace("getMember " + name + " on " + tp, enable = false):
         tp match
+        case constType: ConstantType => recur(constType.underlying)
+
         case ext: ExtensionType =>
           ext.extensions.find(_.name == name).map(StaticRef(_)).orElse(recur(ext.base))
 
@@ -324,6 +326,12 @@ object Types:
           sym.info match
             case tp: Type =>
               recur(tp)
+
+            case info: ParamInfo =>
+              recur(info.tpe)
+
+            case info: AutoInfo =>
+              recur(info.tpe)
 
             case ntable: NameTable =>
               ntable.resolveTerm(name).map(sym => StaticRef(sym))
@@ -429,9 +437,12 @@ object Types:
     def underlying(using defn: Definitions): Type =
       const match
         case _: Constant.Bool => defn.BoolType
-        case _: Constant.String => defn.StringType
+        case _: Constant.Byte => defn.ByteType
+        case _: Constant.Char => defn.CharType
         case _: Constant.Int => defn.IntType
+        case _: Constant.Long => defn.LongType
         case _: Constant.Float => defn.FloatType
+        case _: Constant.String => defn.StringType
 
   /** A proxy type may be reduced to other types in subtype and shape checking.
     *
@@ -457,8 +468,6 @@ object Types:
 
   /** A part of a type with a specific name */
   case class NamedInfo[+T](name: String, info: T)
-
-  case class MemberCandidate(tp: Type, name: String)
 
   /** A record type --- named tuples
     *
@@ -527,12 +536,12 @@ object Types:
     def hasClass(cls: Symbol): Boolean = classMap.contains(cls)
 
   /** Adapters for duck types */
-  enum ParamAdapter:
+  enum DuckAdapter:
     case Function(symbol: Symbol)
     case Member(name: String)
 
   /** Duck type: compile-time duck typing with explicit adapters */
-  case class DuckType(baseType: Type)(val adaptersLazy: LazyValue[List[ParamAdapter]]) extends Type:
+  case class DuckType(baseType: Type)(val adaptersLazy: LazyValue[List[DuckAdapter]]) extends Type:
     def adapters = adaptersLazy.value
 
   /** Extension type: base type with extension methods
@@ -565,8 +574,6 @@ object Types:
     def postParamTypes: List[Type]
 
     def hasVararg(using Definitions): Boolean
-    def minimumPostArgs(using Definitions): Int
-    def minimumArgs(using Definitions): Int
 
   /** The type for lambdas, e.g. Int => Int receives indent */
   case class LambdaType(params: List[Type], resultType: Type, receives: List[Symbol]) extends InvokableType:
@@ -578,60 +585,47 @@ object Types:
     def postParamTypes: List[Type] = params
 
     def hasVararg(using Definitions): Boolean = false
-    def minimumPostArgs(using Definitions): Int = params.size
-    def minimumArgs(using Definitions): Int = params.size
 
     def toProcType: ProcType =
       val paramInfos = params.zipWithIndex.map:
-        case (paramType, i) => NamedInfo("p" + i, paramType)
+        case (paramType, i) => ParamInfo("p" + i, paramType)
 
       ProcType(
         tparams = Nil,
         params = paramInfos,
         autos = Nil,
-        candidates = Nil,
         resultType = resultType,
         receivesInfo = receives,
         preParamCount = 0,
         preTypeParamCount = 0
-      )()
+      )
 
   /** either the fun symbol or a list of effects */
   type ReceivesInfo = Symbol | List[Symbol]
 
-  /** A default value for a post-parameter: either a literal or a parameterless symbol reference */
-  enum DefaultValue:
-    case Lit(value: Constant)
-    case Ref(symbol: Symbol)
-
   /** The type of a function, method or pattern predicates */
   case class ProcType
     (tparams: List[Symbol],
-      params: List[NamedInfo[Type]],
-      autos: List[NamedInfo[Type]],
-      candidates: List[List[Symbol | MemberCandidate]],
+      params: List[ParamInfo],
+      autos: List[AutoInfo],
       resultType: Type,
       receivesInfo: ReceivesInfo,
       preParamCount: Int,
       preTypeParamCount: Int)
-    (val defaultsLazy: LazyValue[List[DefaultValue]] = LazyValue.eager(Nil))
   extends InvokableType:
-    assert(autos.size == candidates.size)
     assert(preTypeParamCount >= 0 && preTypeParamCount <= tparams.size, s"preTypeParamCount = $preTypeParamCount, tparam.size = ${tparams.size}")
 
-    def defaults: List[DefaultValue] = defaultsLazy.value
+    val preParamTypes: List[Type] = params.take(preParamCount).map(_.tpe)
+    val postParamTypes: List[Type] = params.drop(preParamCount).map(_.tpe)
 
-    val preParamTypes: List[Type] = params.take(preParamCount).map(_.info)
-    val postParamTypes: List[Type] = params.drop(preParamCount).map(_.info)
-
-    val paramTypes: List[Type] = params.map(_.info)
+    val paramTypes: List[Type] = params.map(_.tpe)
 
     val paramCount: Int = params.size
     val tparamCount: Int = tparams.size
     val preTparams: List[Symbol] = tparams.take(preTypeParamCount)
     val postTparams: List[Symbol] = tparams.drop(preTypeParamCount)
 
-    val autoTypes: List[Type] = autos.map(_.info)
+    val autoTypes: List[Type] = autos.map(_.tpe)
 
     val allParamTypes: List[Type] = paramTypes ++ autoTypes
     val allParamCount: Int = allParamTypes.size
@@ -645,19 +639,12 @@ object Types:
         case sym: Symbol => defn.index.receives(sym)
         case effs: List[Symbol] => effs
 
-    def minimumArgs(using Definitions): Int =
-      minimumPostArgs + preParamCount
-
-    def minimumPostArgs(using Definitions): Int =
-      val base = if hasVararg then postParamTypes.size - 1 else postParamTypes.size
-      base - defaults.size
-
     def hasVararg(using defn: Definitions): Boolean =
       paramCount > 0 && paramTypes.last.isVararg
 
     def instantiate(targs: List[Type])(using Definitions): ProcType =
       assert(tparamCount == targs.size, "expect " + tparamCount + ", found = " + targs.size)
-      TypeOps.substSymbols(this.copy(tparams = Nil, preTypeParamCount = 0)(this.defaultsLazy), tparams, targs).as[ProcType]
+      TypeOps.substSymbols(this.copy(tparams = Nil, preTypeParamCount = 0), tparams, targs).as[ProcType]
 
     /** Instantiate only the prefix type parameters.
       *
@@ -670,15 +657,13 @@ object Types:
       substTp.copy(
         tparams = substTp.tparams.drop(preTypeParamCount),
         preTypeParamCount = 0
-      )(substTp.defaultsLazy)
+      )
 
-    def prepend(paramsToAdd: List[NamedInfo[Type]]): ProcType =
-      this.copy(params = paramsToAdd ++ params)(this.defaultsLazy)
+    def prepend(paramsToAdd: List[ParamInfo]): ProcType =
+      this.copy(params = paramsToAdd ++ params)
 
-    def append(paramsToAdd: List[NamedInfo[Type]]): ProcType =
-      // Appending shifts the trailing post-params, so defaults are no longer valid; drop them.
-      // (append is only used post-typer, where defaults have already been expanded at call sites.)
-      this.copy(params = params ++ paramsToAdd)(LazyValue.eager(Nil))
+    def append(paramsToAdd: List[ParamInfo]): ProcType =
+      this.copy(params = params ++ paramsToAdd)
 
     def postParamCount = params.size - preParamCount
 
@@ -692,12 +677,11 @@ object Types:
         tparams = tparams,  // instantiatePreTypeParams already removed pre-type-params
         params = params.drop(preParamCount),
         autos = autos,
-        candidates = candidates,
         resultType = resultType,
         receivesInfo = receivesInfo,
         preParamCount = 0,
         preTypeParamCount = 0
-      )(this.defaultsLazy)
+      )
 
     def resCount = if resultType.isVoidType then 0 else 1
 

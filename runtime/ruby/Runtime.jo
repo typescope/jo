@@ -341,7 +341,6 @@ end
 private section ParamSupport
   type Ctx
   type Key[T]
-  type Batch
 
   //[ Stub function to be replaced at backend
     !
@@ -365,20 +364,12 @@ private section ParamSupport
     end
     abort("Unbound parameter " + rb.dynamic(key).toString)
 
-  def startBatch(ctx: Ctx, count: Int): Batch receives none =
-    val b = rbRaw("[]").cast[rb.Array]
-    b.push(ctx)
-    rb.dynamic(b).cast[Batch]
-
-  def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
+  def addBinding[T](ctx: Ctx, key: Key[T], value: T): Ctx receives none =
     val arr = rbRaw("[]").cast[rb.Array]
-    arr.push(rb.dynamic(batch)[0])
+    arr.push(ctx)
     arr.push(key)
     arr.push(value)
-    rb.dynamic(batch)[0] = arr
-
-  def finish(batch: Batch): Ctx receives none =
-    rb.dynamic(batch)[0].cast[Ctx]
+    rb.dynamic(arr).cast[Ctx]
 end
 
 //------------------------------------------------------------------------------

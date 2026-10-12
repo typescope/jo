@@ -5,6 +5,7 @@ import sast.*
 import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
+import sast.Denotations.*
 
 import phases.Phase
 
@@ -71,8 +72,8 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
     val classSym = methodSym.owner
     val oldProcType = methodSym.tpe.asProcType
     val thisInfo = classSym.classInfo.self.tpe
-    val paramInfos = NamedInfo("this", thisInfo)
-    val funType = oldProcType.prepend(paramInfos :: Nil)
+    val paramInfo = ParamInfo("this", thisInfo)
+    val funType = oldProcType.prepend(paramInfo :: Nil)
 
     TermSymbol.create(
       classSym.name + "$" + methodSym.name,
@@ -94,7 +95,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
       FunDef(
         liftedSym, tparams = Nil,
         self :: fdef.params,
-        fdef.autos, fdef.candidates,
+        fdef.autos,
         fdef.resultType,
         fdef.effectPolicy,
         body2
@@ -112,7 +113,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
       FunDef(
         liftedSym, tparams = Nil,
         self :: fdef.params,
-        fdef.autos, fdef.candidates,
+        fdef.autos,
         fdef.resultType,
         fdef.effectPolicy,
         body2
@@ -253,7 +254,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         else
           Ident(getLiftedFunSymbol(memberRef.symbol))(fun.span)
 
-      val liftedProcType = procType.prepend(NamedInfo("this", receiverRef.tpe.widen) :: Nil)
+      val liftedProcType = procType.prepend(ParamInfo("this", receiverRef.tpe.widen) :: Nil)
       val liftedFunEncoded = Encoded(liftedFun)(liftedProcType)
 
       Apply(liftedFunEncoded, receiverRef :: args2, autos2)(apply.span)
@@ -281,7 +282,7 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
           val liftedProcType =
               // The `this` of an abstract interface method is the implementation class
-              procType.prepend(NamedInfo("this", AnyType) :: Nil)
+              procType.prepend(ParamInfo("this", AnyType) :: Nil)
 
           val liftedFunEncoded = Encoded(liftedFun)(liftedProcType)
 

@@ -2,6 +2,7 @@ package sast
 
 import Types.*
 import Symbols.Symbol
+import ast.Positions.{ Positioned, Span }
 
 /** The denotation of a symbol: what a symbol refers to or describes.
   *
@@ -90,3 +91,35 @@ object Denotations:
     def instantiate(targs: List[Type])(using Definitions): Type =
       assert(tparams.size == targs.size, "expect " + tparams.size + ", found = " + targs.size)
       TypeOps.substSymbols(body, tparams, targs)
+
+  enum DefaultValue:
+    case Lit(const: Constant)(val span: Span)
+    case Ref(symbol: Symbol)(val span: Span)
+    case None
+
+  trait NamedType extends Denotation:
+    val name: String
+    val tpe: Type
+
+  /** The denotation of a normal parameter
+    *
+    * The name field is duplicated such that ParamInfo can be used in ProcType directly
+    */
+  case class ParamInfo(name: String, tpe: Type, default: DefaultValue = DefaultValue.None) extends NamedType
+
+  enum AutoCandidate extends Positioned:
+    case Member(tpe: Type, name: String)(val span: Span)
+    case Value(symbol: Symbol)(val span: Span)
+
+    def show(using Definitions): String =
+      this match
+        case Value(sym) => sym.name
+        case Member(tpt, name) => "[" + tpt.show + "]." + name
+
+  /** The denotation of an auto parameter
+    *
+    * The name field is duplicated such that AutoInfo can be used in ProcType directly
+    */
+  case class AutoInfo(name: String, tpe: Type, candidates: List[AutoCandidate]) extends NamedType
+
+

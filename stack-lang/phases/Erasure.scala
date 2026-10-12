@@ -67,6 +67,10 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
         if toi.body `eq` body2 then toi
         else TypeOperatorInfo(toi.tparams, body2, toi.preParamCount)
 
+      case info: ParamInfo => info.copy(tpe = eraseType(info.tpe))
+
+      case info: AutoInfo => info.copy(tpe = eraseType(info.tpe))
+
       case tp: Type => eraseType(tp)
 
   def eraseType(tp: Type)(using Context): Type =
@@ -493,20 +497,18 @@ object Erasure:
 
           val params2 =
             for param <- procType.params
-            yield param.copy(info = this(param.info))
+            yield param.copy(tpe = this(param.tpe))
 
           val autos2 =
             for auto <- procType.autos
-            yield auto.copy(info = this(auto.info))
-
-          val candidates2 = procType.candidates.map(_ => Nil)
+            yield auto.copy(tpe = this(auto.tpe), candidates = Nil)
 
           val resType2 = this(procType.resultType)
-          // DefaultValue contains no Types to map; thread defaultsFun through unchanged
+
           ProcType(
-            tparams2, params2, autos2, candidates2, resType2, procType.receives,
+            tparams2, params2, autos2, resType2, procType.receives,
             procType.preParamCount, preTypeParamCount2
-          )(procType.defaultsLazy)
+          )
 
         case _ =>
           recur(tp)

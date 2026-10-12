@@ -252,6 +252,10 @@ object RawPrinter:
     denot match
       case tp: Type => printType(tp)
 
+      case info: ParamInfo => printType(info.tpe)
+
+      case info: AutoInfo => printType(info.tpe)
+
       case ntable: NameTable => "NameTable [" ~ ntable.members.join(",") ~ "]"
 
       case classInfo: ClassInfo =>
@@ -325,7 +329,7 @@ object RawPrinter:
       case AppliedType(tctor, targs) =>
         "AppliedType [" ~ printSymbolRef(tctor) ~ ",[" ~ targs.map(t => printType(t, tparamScope)).join(",") ~ "]]"
 
-      case procType @ ProcType(tparams, params, autos, candidates, resType, _, preParamCount, preTypeParamCount) =>
+      case procType @ ProcType(tparams, params, autos, resType, _, preParamCount, preTypeParamCount) =>
         tparamScope.withParams(tparams):
           val tparamText = "[" ~ indent:
               val items = tparams.map: tparam =>
@@ -335,39 +339,34 @@ object RawPrinter:
 
           val paramText = "[" ~ indent:
               val items = params.map: param =>
-                "[" ~ param.name ~ "," ~ printType(param.info, tparamScope) ~ "]"
+                val defaultText = param.default match
+                  case lit @ DefaultValue.Lit(const) => "Lit [" ~ printConstant(const) ~ "]@" ~ lit.span
+                  case ref @ DefaultValue.Ref(sym) => "Ref [" ~ printSymbolRef(sym) ~ "]@" ~ ref.span
+                  case DefaultValue.None => Text("None")
+
+                "[" ~ param.name ~ "," ~ printType(param.tpe, tparamScope) ~ "," ~ defaultText ~ "]"
               items.join(LINE_SEP)
           ~ "]"
 
           val autoText = "[" ~ indent:
               val items = autos.map: auto =>
-                "[" ~ auto.name ~ "," ~ printType(auto.info, tparamScope) ~ "]"
+                val candidatesText =
+                  val items = auto.candidates.map: cand =>
+                    cand match
+                      case AutoCandidate.Value(sym) => printSymbolRef(sym) ~ "@" ~ cand.span
+                      case AutoCandidate.Member(tp, name) => "[" ~ printType(tp, tparamScope) ~ "]." ~ name ~ "@" ~ cand.span
+                  "[" ~ items.join(",") ~ "]"
+
+                "[" ~ auto.name ~ "," ~ printType(auto.tpe, tparamScope) ~ "," ~ candidatesText ~ "]"
               items.join(LINE_SEP)
            ~ "]"
 
-          val candidatesText = "[" ~ indent:
-              val items = candidates.map: candidateList =>
-                val printed = candidateList.map:
-                  case sym: Symbol => printSymbolRef(sym)
-                  case MemberCandidate(tp, name) => "[" ~ printType(tp, tparamScope) ~ "]." ~ name
-                "[" ~ printed.join(",") ~ "]"
-              items.join(LINE_SEP)
-          ~ "]"
-
           val receiveText = "[" ~ procType.receives.join(",") ~ "]"
-
-          val defaultsText = "[" ~ indent:
-              val items = procType.defaults.map:
-                case DefaultValue.Lit(const) => "Lit [" ~ printConstant(const) ~ "]"
-                case DefaultValue.Ref(sym)   => "Ref [" ~ printSymbolRef(sym) ~ "]"
-              items.join(LINE_SEP)
-          ~ "]"
 
           "ProcType [" ~ indent:
             List(
-              tparamText, paramText, autoText, candidatesText,
+              tparamText, paramText, autoText,
               printType(resType, tparamScope), receiveText, Text(preParamCount), Text(preTypeParamCount),
-              defaultsText
             ).join("," ~ Text.BreakLine)
           ~ "]"
 
@@ -388,8 +387,8 @@ object RawPrinter:
 
       case duckType @ DuckType(baseType) =>
         val adapterTexts = duckType.adapters.map:
-          case ParamAdapter.Function(sym) => printSymbolRef(sym)
-          case ParamAdapter.Member(name) => "." ~ name
+          case DuckAdapter.Function(sym) => printSymbolRef(sym)
+          case DuckAdapter.Member(name) => "." ~ name
         "DuckType [" ~ printType(baseType, tparamScope) ~ ",[" ~ adapterTexts.join(",") ~ "]]"
 
       case ext @ ExtensionType(base) =>
@@ -586,6 +585,15 @@ object RawPrinter:
 
       case Constant.Int(value) =>
         "Int [" ~ value.toString ~ "]"
+
+      case Constant.Byte(value) =>
+        "Byte [" ~ value.toString ~ "]"
+
+      case Constant.Char(value) =>
+        "Char [" ~ value.toString ~ "]"
+
+      case Constant.Long(value) =>
+        "Long [" ~ value.toString ~ "]"
 
       case Constant.Float(value) =>
         "Float [" ~ value.toString ~ "]"

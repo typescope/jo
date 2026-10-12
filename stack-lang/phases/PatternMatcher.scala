@@ -8,6 +8,7 @@ import sast.*
 import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
+import sast.Denotations.*
 
 import Trees.SeqPattern.Size
 
@@ -162,14 +163,13 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions, config: Con
   private def createImplFunSymbol(predSym: Symbol): Symbol =
     val predType = predSym.tpe.asProcType
 
-    val params = NamedInfo("scrutinee", predType.resultType.stripPartial) :: Nil
+    val params = ParamInfo("scrutinee", predType.resultType.stripPartial) :: Nil
 
     val autos = predType.autos
-    val cands = autos.map(_ => Nil)
 
     val resultType = implResultType(predType)
 
-    val funType = ProcType(predType.tparams, params, autos, cands, resultType, predType.receives, preParamCount = 0, preTypeParamCount = 0)()
+    val funType = ProcType(predType.tparams, params, autos, resultType, predType.receives, preParamCount = 0, preTypeParamCount = 0)
     TermSymbol.create(predSym.name + "$impl", funType, Flags.Fun | Flags.Synthetic, Visibility.Default, predSym.owner, predSym.sourcePos)
 
   private def getImplFunSymbol(predSym: Symbol, implMap: mutable.Map[Symbol, Symbol]): Symbol =
@@ -191,8 +191,8 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions, config: Con
         BoolType
 
       case param :: Nil =>
-        if isPartial then UnionType(someType(param.info) :: NoneType :: Nil)
-        else param.info
+        if isPartial then UnionType(someType(param.tpe) :: NoneType :: Nil)
+        else param.tpe
 
       case _ =>
         if isPartial then UnionType(ResultArrayType :: NoneType :: Nil)
@@ -208,14 +208,13 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions, config: Con
     Phase.owner.set(implSym)
     given Source = Phase.source.value
 
-    val scrutSym = TermSymbol.create("scrutinee", paramTypes(0).info, Flags.Param, Visibility.Default, implSym, implSym.sourcePos)
+    val scrutSym = TermSymbol.create("scrutinee", paramTypes(0), Flags.Param, Visibility.Default, implSym, implSym.sourcePos)
     val scrutIdent = Ident(scrutSym)(symSpan)
 
     // TODO: rebind pattern param symbols
     val resultType = procType.resultType
     val tpt = TypeTree(resultType)(pdef.resultType.span)
     val autos = Nil
-    val cands = autos.map(_ => Nil)
 
     val patternTranslated = simplify(transformPattern(scrutIdent, pdef.body))
 
@@ -244,14 +243,14 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions, config: Con
           case _ =>
             simplify(If(patternTranslated, success, failure)(resultType, span))
 
-    FunDef(implSym, pdef.tparams, scrutSym :: Nil, autos, cands, tpt, Effects.Policy.Infer, body)(annots = Nil, span = pdef.span)
+    FunDef(implSym, pdef.tparams, scrutSym :: Nil, autos, tpt, Effects.Policy.Infer, body)(annots = Nil, span = pdef.span)
 
   /** The value returned by a pattern function with outputs on success */
   private def successValue(params: List[Symbol], isPartial: Boolean, owner: Symbol, span: Span): Word =
     params match
       case param :: Nil =>
         val value = Ident(param)(span)
-        if isPartial then Ident(defn.Some_fun)(span).appliedToTypes(param.info.asType).appliedTo(value)
+        if isPartial then Ident(defn.Some_fun)(span).appliedToTypes(param.tpe).appliedTo(value)
         else value
 
       case _ =>
@@ -279,7 +278,7 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions, config: Con
   override def transformMatch(patmat: Match)(using Context): Word =
     val Match(scrutineeRaw, cases) = patmat
     val scrutinee = transform(scrutineeRaw)
-    val scrutType = scrutinee.tpe.widenTermRef
+    val scrutType = scrutinee.tpe.widen
 
     given Source = Phase.source.value
 
@@ -483,7 +482,7 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions, config: Con
       val assigns =
         for param <- procType.params
         yield
-          val valueSym = TermSymbol.create(param.name, param.info, Flags.Synthetic, Visibility.Default, owner, pred.pos)
+          val valueSym = TermSymbol.create(param.name, param.tpe, Flags.Synthetic, Visibility.Default, owner, pred.pos)
           Assign(Ident(valueSym)(span), objIdent.select(param.name))
 
       withTypeTest(Block(objAssign :: matchComponents(assigns, nested, span) :: Nil)(span))
@@ -501,13 +500,13 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions, config: Con
       val block =
         procType.params match
           case param :: Nil =>
-            val valueIdent = local(param.name, param.info)
+            val valueIdent = local(param.name, param.tpe)
 
             if isPartial then
               //     val res = Foo$impl(scrut)
               //     res is Some && { val x = res.value; nested }
               val resIdent = local("res", app.tpe)
-              val value = Select(Encoded(resIdent)(someType(param.info)), "value")(span)
+              val value = Select(Encoded(resIdent)(someType(param.tpe)), "value")(span)
               val components = matchComponents(Assign(valueIdent, value) :: Nil, nested, span)
               val isSome = ClassTest(resIdent, defn.Some_class)(span)
               val cond = If(isSome, components, BoolLit(false)(span))(BoolType, span)
@@ -523,7 +522,7 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions, config: Con
               for (param, i) <- params.zipWithIndex
               yield
                 val rhs = arrayIdent.select("get").appliedTo(IntLit(i)(span))
-                Assign(local(param.name, param.info), Encoded(rhs)(param.info))
+                Assign(local(param.name, param.tpe), Encoded(rhs)(param.tpe))
 
             val components = matchComponents(assigns, nested, span)
 

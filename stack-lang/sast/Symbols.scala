@@ -88,8 +88,13 @@ object Symbols:
         case container: ContainerSymbol if !this.isAlias => container.nameTable
         case _ => defn.index.info(this)
 
-    /** The type of this symbol, as a Type. Throws if the symbol is a container. */
-    def tpe(using Definitions): Type = info.asType
+    /** The type of this symbol. Throws if the symbol does not have a type */
+    def tpe(using Definitions): Type =
+      info match
+        case tpe: Type => tpe
+        case param: ParamInfo => param.tpe
+        case auto: AutoInfo => auto.tpe
+        case _ => throw new Exception("Symbol " + this + " des not have a type")
 
     /** All symbols that have a ProcType are functions, including top-level
       * functions, methods and pattern predicates
@@ -150,6 +155,16 @@ object Symbols:
 
       this.info match
         case info: ClassInfo => info
+        case tp => throw new Exception("Unexpected type " + tp)
+
+    def paramInfo(using Definitions): ParamInfo =
+      this.info match
+        case info: ParamInfo => info
+        case tp => throw new Exception("Unexpected type " + tp)
+
+    def autoInfo(using Definitions): AutoInfo =
+      this.info match
+        case info: AutoInfo => info
         case tp => throw new Exception("Unexpected type " + tp)
 
     def typeOperatorInfo(using Definitions): TypeOperatorInfo =
@@ -289,8 +304,6 @@ object Symbols:
         this.ownersIterator.foldLeft(this.name):
           (acc, owner) => owner.name + "." + acc
 
-    def toNamedInfo(using Definitions): NamedInfo[Type] = NamedInfo(name, info.asType)
-
     def span: Span = sourcePos.span
 
     def source: Source = sourcePos.source
@@ -305,7 +318,7 @@ object Symbols:
   end Symbol
 
   final class TypeSymbol private[Symbols](
-    val initKind: Kind,
+    val initKind: Kind, // TODO: remove kind given TypeOperatorInfo?
     name: String,
     flags: Flags,
     visibility: Visibility,
@@ -355,7 +368,7 @@ object Symbols:
       new TermSymbol(name, flags, visibility, owner, pos)
 
     def create
-        (name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
+        (name: String, info: Denotation, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
         (using defn: Definitions)
     : Symbol =
       val sym = new TermSymbol(name, flags, visibility, owner, pos)
@@ -379,7 +392,7 @@ object Symbols:
       new PatternSymbol(name, flags, visibility, owner, pos)
 
     def create
-        (name: String, info: Type, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
+        (name: String, info: Denotation, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
         (using defn: Definitions)
     : PatternSymbol =
       val sym = new PatternSymbol(name, flags, visibility, owner, pos)

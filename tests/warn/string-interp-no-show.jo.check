@@ -1,7 +1,7 @@
 ---------- Error at tests/warn/string-interp-no-show.jo:7:27 ---------------
 |   val message = "Point: \{p}"
 |                           ^
-|                           Expect type StringLike, found = p: Point
+|                           Expect type StringLike, found = Point
 
 Tried the following adapters:
   - .toString: missing ✗

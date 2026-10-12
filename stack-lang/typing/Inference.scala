@@ -106,8 +106,8 @@ object Inference:
   def commonResultType(tp1: Type, tp2: Type)
       (using defn: Definitions, tt: TargetType): Option[Type] =
 
-    val tp1Widen = tp1.widenTermRef
-    val tp2Widen = tp2.widenTermRef
+    val tp1Widen = tp1.widen
+    val tp2Widen = tp2.widen
     if tp1.isError || tp2.isError then Some(ErrorType)
     else if tp1.isVoidType || tp2.isVoidType then Some(VoidType)
     else if Subtyping.conforms(tp1, tp2Widen) then Some(tp2Widen)

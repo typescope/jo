@@ -1,7 +1,7 @@
 ---------- Error at tests/warn/duck-type-member-with-params.jo:23:11 ---------------
 |   process fmt  // Should fail: .format has normal parameters
 |           ^^^
-|           Expect type Formattable, found = fmt: Formatter
+|           Expect type Formattable, found = Formatter
 
 Tried the following adapters:
   - .format: type mismatch ✗
@@ -11,7 +11,7 @@ Tried the following adapters:
 ---------- Error at tests/warn/duck-type-member-with-params.jo:25:15 ---------------
 |   processList fmt  // Should also fail: .format has normal parameters (vararg splice)
 |               ^^^
-|               Expect type Formattable, found = fmt: Formatter
+|               Expect type Formattable, found = Formatter
 
 Tried the following adapters:
   - .format: type mismatch ✗
@@ -21,7 +21,7 @@ Tried the following adapters:
 ---------- Error at tests/warn/duck-type-member-with-params.jo:28:17 ---------------
 |   processList(..fmts)
 |                 ^^^^
-|                 Expect type List[Formattable], found = fmts: List[Formatter]
+|                 Expect type List[Formattable], found = List[Formatter]
 
 Tried the following adapters:
   - .format: type mismatch ✗

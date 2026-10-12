@@ -335,7 +335,6 @@ end
 private section ParamSupport
   type Ctx
   type Key[T]
-  type Batch
 
   //[ Stub function to be replaced at backend
     !
@@ -359,20 +358,12 @@ private section ParamSupport
     end
     abort ("Unbound parameter " + js.dynamic(key).toString())
 
-  def startBatch(ctx: Ctx, count: Int): Batch receives none =
-    val b = jsRaw("{}")
-    b.ctx = ctx
-    b.cast[Batch]
-
-  def addBinding[T](batch: Batch, key: Key[T], value: T): Unit receives none =
+  def addBinding[T](ctx: Ctx, key: Key[T], value: T): Ctx receives none =
     val arr = jsRaw("[]").cast[JsArray]
-    arr.push(js.dynamic(batch).ctx)
+    arr.push(ctx)
     arr.push(key)
     arr.push(value)
-    js.dynamic(batch).ctx = arr
-
-  def finish(batch: Batch): Ctx receives none =
-    js.dynamic(batch).ctx.cast[Ctx]
+    js.dynamic(arr).cast[Ctx]
 end
 
 //------------------------------------------------------------------------------

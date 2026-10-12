@@ -11,8 +11,8 @@ import reporting.Config
 
 object Adaptation:
   enum Adapter:
-    case SimpleParam(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope, source: Source)
-    case VarargSplice(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope, source: Source)
+    case SimpleParam(adapters: List[DuckAdapter], owner: Symbol, scope: typing.Scope, source: Source)
+    case VarargSplice(adapters: List[DuckAdapter], owner: Symbol, scope: typing.Scope, source: Source)
 
   enum Trial:
     case Member(tp: Type, member: String, error: Error)
@@ -249,11 +249,11 @@ object Adaptation:
 
       case _ => None
 
-  def createSimpleAdapters(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)(using Source): List[Adapter] =
+  def createSimpleAdapters(adapters: List[DuckAdapter], owner: Symbol, scope: typing.Scope)(using Source): List[Adapter] =
     if adapters.isEmpty then Nil
     else Adapter.SimpleParam(adapters, owner, scope, summon[Source]) :: Nil
 
-  def createVarargSpliceAdapters(adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)
+  def createVarargSpliceAdapters(adapters: List[DuckAdapter], owner: Symbol, scope: typing.Scope)
       (using source: Source): List[Adapter] =
     Adapter.VarargSplice(adapters, owner, scope, source) :: Nil
 
@@ -294,7 +294,7 @@ object Adaptation:
       case None => Result.Failure(trials.toSeq)
 
   def adaptSimple
-      (word: Word, targetType: Type, adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)
+      (word: Word, targetType: Type, adapters: List[DuckAdapter], owner: Symbol, scope: typing.Scope)
       (using Definitions, Source, Config)
   : Result = Debug.trace(s"adapt ${word.show} to ${targetType.show} with ${adapters}", enable = false):
     val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
@@ -305,11 +305,11 @@ object Adaptation:
       remaining = remaining.tail
 
       adapter match
-        case ParamAdapter.Function(adapterSym) =>
+        case DuckAdapter.Function(adapterSym) =>
           // The validation currently is performed after checking thus invalid adapters may appear here
           if adapterSym.isFunction then
             val procType = adapterSym.tpe.asProcType
-            val adapterParamType = procType.params.head.info
+            val adapterParamType = procType.params.head.tpe
 
             val isValid =
               !procType.isPolyType
@@ -325,7 +325,7 @@ object Adaptation:
             else
               trials += Trial.Function(adapterSym)
 
-        case ParamAdapter.Member(memberName) =>
+        case DuckAdapter.Member(memberName) =>
           // Member adapter: apply if the word's type has the member (possibly through views)
           adaptMember(word, memberName, owner, selectMember = true) match
             case MemberAdaptResult.Success(selected) =>
@@ -397,7 +397,7 @@ object Adaptation:
     Result.Failure(trials.toList)
 
   def adaptVarargSplice
-      (word: Word, targetElemType: Type, elemType: Type, adapters: List[ParamAdapter], owner: Symbol, scope: typing.Scope)
+      (word: Word, targetElemType: Type, elemType: Type, adapters: List[DuckAdapter], owner: Symbol, scope: typing.Scope)
       (using Definitions, Source, Config)
   : Result = Debug.trace(s"adapt splice ${word.show} from ${elemType.show} to ${targetElemType.show} with ${adapters}", enable = false):
     val trials = new scala.collection.mutable.ArrayBuffer[Trial]()
@@ -408,10 +408,10 @@ object Adaptation:
       remaining = remaining.tail
 
       adapter match
-        case ParamAdapter.Function(adapterSym) =>
+        case DuckAdapter.Function(adapterSym) =>
           if adapterSym.isFunction then
             val procType = adapterSym.tpe.asProcType
-            val adapterParamType = procType.params.head.info
+            val adapterParamType = procType.params.head.tpe
 
             val isValid =
               !procType.isPolyType
@@ -427,7 +427,7 @@ object Adaptation:
             else
               trials += Trial.Function(adapterSym)
 
-        case ParamAdapter.Member(memberName) =>
+        case DuckAdapter.Member(memberName) =>
           // Member adapter for vararg splice: apply .map(_.memberName) or .map(_.memberName())
           // Create a dummy word with the element type to pass to adaptMember
           val dummyWord = Encoded(Block(Nil)(word.span))(elemType)

@@ -4,6 +4,7 @@ import sast.*
 import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
+import sast.Denotations.*
 
 import ast.Positions.Source
 
@@ -28,7 +29,7 @@ class MaterializeView(using defn: Definitions) extends Phase:
     val interfaceSym = methodSym.owner
     val oldProcType = methodSym.tpe.asProcType
     val thisInfo = interfaceSym.classInfo.self.tpe
-    val paramInfos = NamedInfo("this", thisInfo)
+    val paramInfos = ParamInfo("this", thisInfo)
     val funType = oldProcType.prepend(paramInfos :: Nil)
 
     TermSymbol.create(
@@ -62,7 +63,7 @@ class MaterializeView(using defn: Definitions) extends Phase:
       FunDef(
         liftedSym, fdef.tparams,
         self :: fdef.params,
-        fdef.autos, fdef.candidates,
+        fdef.autos,
         fdef.resultType,
         fdef.effectPolicy,
         body2
@@ -88,7 +89,7 @@ class MaterializeView(using defn: Definitions) extends Phase:
 
       val liftedFun = Ident(getLiftedFunSymbol(memberRef.symbol))(fun.span)
 
-      val liftedProcType = procType.prepend(NamedInfo("this", receiverRef.tpe.widen) :: Nil)
+      val liftedProcType = procType.prepend(ParamInfo("this", receiverRef.tpe.widen) :: Nil)
 
       Encoded(liftedFun)(liftedProcType)
 

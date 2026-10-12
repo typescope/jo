@@ -155,9 +155,7 @@ extends Linker:
   val ParamSupport_paramKey = ParamSupport.termMember("paramKey")
   val ParamSupport_emptyCtx = ParamSupport.termMember("emptyCtx")
   val ParamSupport_getParam = ParamSupport.termMember("getParam")
-  val ParamSupport_startBatch = ParamSupport.termMember("startBatch")
   val ParamSupport_addBinding = ParamSupport.termMember("addBinding")
-  val ParamSupport_finishBatch = ParamSupport.termMember("finish")
 
   val runtimeStateLabel = Label("runtimeState")
 
@@ -171,12 +169,11 @@ extends Linker:
       tparams = Nil,
       params = Nil,
       autos = Nil,
-      candidates = Nil,
       resultType = defn.UnitType,
       receivesInfo = Nil,
       preParamCount = 0,
       preTypeParamCount = 0
-    )()
+    )
 
     TermSymbol.create(
       "objectInitProc",
@@ -240,7 +237,6 @@ extends Linker:
       tparams = Nil,
       params = Nil,
       autos = Nil,
-      candidates = Nil,
       resultType = TypeTree(defn.UnitType)(span),
       effectPolicy = Effects.Policy.Infer,  // no effects needed
       body = body

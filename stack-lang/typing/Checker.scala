@@ -290,7 +290,7 @@ object Checker:
     commonTypeOpt match
       case Some(tp) => tp
       case None =>
-        Reporter.error(s"Cannot find common result type, tp1 = ${tp1.show}, tp2 = ${tp2.show}", pos)
+        Reporter.error(s"Cannot find common result type, tp1 = ${tp1.widen.show}, tp2 = ${tp2.widen.show}", pos)
         ErrorType
 
   def adaptParameterless(word: Word, targetType: TargetType)(using Definitions, Scope, Reporter, Source, TypeVars, Config): Word =
@@ -390,7 +390,7 @@ object Checker:
               else tpe
 
             val trialsMsg = Adaptation.formatTrials(ex.trials)
-            Reporter.error(s"Expect type ${targetType.show}, found = ${word2.tpe.show}${trialsMsg}", word2.pos)
+            Reporter.error(s"Expect type ${targetType.show}, found = ${word2.tpe.widen.show}${trialsMsg}", word2.pos)
             Encoded(Block(Nil)(word2.span))(tpe)
 
         else

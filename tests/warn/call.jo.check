@@ -26,7 +26,7 @@
 ---------- Error at tests/warn/call.jo:20:3 ---------------
 |   foo(2)
 |   ^^^^^^
-|   The function expects 2 argument(s), found = 1
+|   Missing required parameter 'y'
 
 ---------- Error at tests/warn/call.jo:22:3 ---------------
 |   2 bar(3)

@@ -6,6 +6,7 @@ import sast.*
 import sast.Trees.*
 import sast.Types.*
 import sast.Symbols.*
+import sast.Denotations.*
 
 import reporting.Reporter
 import reporting.Config
@@ -319,9 +320,9 @@ object Encoder:
       encodeByte(1)
       encodeNat(state.nameTable.getIndex(symbol))
 
-  /** Not all flags need serialization, handled by caller */
+  /** Only persisted flags are written; internal flags are reconstructed by the decoder. */
   private def encodeFlags(flags: Flags)(using buf: WriteBuffer): Unit =
-    val bits = Flags.toBits(flags)
+    val bits = Flags.toBits(flags & Flags.SAST_MASK)
     encodeLongNat(bits)
 
   private def encodeKind(kind: Kind)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
@@ -346,20 +347,6 @@ object Encoder:
       encodeNat(symSpan.length)
 
       encodeKind(tparam.asTypeSymbol.kind)
-
-
-  private def encodeParams(params: List[Symbol], prevOffset: Int)(using defn: Definitions, state: State, buf: WriteBuffer): Unit =
-    // Assume param section is small such that the delta is small even for the same base offset
-    repeated(params): param =>
-      encodeNat(state.getId(param))
-      encodeString(param.name)
-
-      val symSpan = param.sourcePos.span
-      val startDelta = symSpan.start - prevOffset
-      encodeInt(startDelta)
-      encodeNat(symSpan.length)
-
-      encodeType(param.tpe)
 
   private def encodeDef(defn: Def)(using definitions: Definitions, state: State, buf: WriteBuffer): Unit =
     defn match
@@ -406,7 +393,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & Flags.Object)
+      encodeFlags(defSym.flags)
       encodeKind(defSym.asTypeSymbol.kind)
       encodeVisibility(defSym)
 
@@ -426,7 +413,7 @@ object Encoder:
         val sym = field.symbol
         encodeNat(state.getId(sym))
         encodeString(sym.name)
-        encodeFlags(sym.flags & Flags.Mutable)
+        encodeFlags(sym.flags)
         encodeVisibility(sym)
 
         val symSpan = sym.sourcePos.span
@@ -499,7 +486,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & (Flags.Synthetic | Flags.Defer | Flags.Default | Flags.Object | Flags.Constructor | Flags.Annotation))
+      encodeFlags(defSym.flags)
       encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
@@ -511,7 +498,35 @@ object Encoder:
 
       encodeTypeParams(fdef.tparams, absoluteStart)
 
-      encodeParams(fdef.params, absoluteStart)
+      // Assume param section is small such that the delta is small even for the same base offset
+      repeated(fdef.params): param =>
+        encodeNat(state.getId(param))
+        encodeString(param.name)
+
+        val symSpan = param.sourcePos.span
+        val startDelta = symSpan.start - absoluteStart
+        encodeInt(startDelta)
+        encodeNat(symSpan.length)
+
+        encodeType(param.tpe)
+
+        param.paramInfo.default match
+          case DefaultValue.None =>
+            encodeByte(0)
+
+          case lit @ DefaultValue.Lit(const) =>
+            encodeByte(1) // Lit tag
+            encodeConstant(const)
+            val startDelta = lit.span.start - param.sourcePos.span.start
+            encodeInt(startDelta)
+            encodeNat(lit.span.length)
+
+          case ref @ DefaultValue.Ref(sym) =>
+            encodeByte(2) // Ref tag
+            encodeSymbolRef(sym)
+            val startDelta = ref.span.start - param.sourcePos.span.start
+            encodeInt(startDelta)
+            encodeNat(ref.span.length)
 
       repeated(fdef.autos): auto =>
         encodeNat(state.getId(auto))
@@ -522,26 +537,23 @@ object Encoder:
         encodeInt(startDelta)
         encodeNat(symSpan.length)
 
-        encodeType(auto.tpe)
+        encodeType(auto.autoInfo.tpe)
 
-      // Encode candidates for each auto parameter
-      repeated(fdef.candidates): candidateList =>
-        repeated(candidateList): candidate =>
+        repeated(auto.autoInfo.candidates): candidate =>
           candidate match
             case AutoCandidate.Value(sym) =>
               encodeByte(0) // Tag for function candidate
               encodeSymbolRef(sym)
-              val symSpan = sym.sourcePos.span
-              encodeInt(symSpan.start - absoluteStart)
-              encodeNat(symSpan.length)
 
-            case AutoCandidate.Member(tpt, name) =>
+            case AutoCandidate.Member(tpe, name) =>
               encodeByte(1) // Tag for member candidate
-              encodeType(tpt.tpe)
+              encodeType(tpe)
               encodeString(name)
-              val tptSpan = tpt.span
-              encodeInt(tptSpan.start - absoluteStart)
-              encodeNat(tptSpan.length)
+          end match
+
+          val startDelta = candidate.span.start - auto.sourcePos.span.start
+          encodeInt(startDelta)
+          encodeNat(candidate.span.length)
 
       encodeTypeTree(fdef.resultType, absoluteStart)
 
@@ -551,16 +563,6 @@ object Encoder:
       val procType = defSym.info.as[ProcType]
       encodeNat(procType.preParamCount)
       encodeNat(procType.preTypeParamCount)
-
-      // Encode default values for trailing post-parameters
-      repeated(procType.defaults): default =>
-        default match
-          case DefaultValue.Lit(const) =>
-            encodeByte(0) // Lit tag
-            encodeConstant(const)
-          case DefaultValue.Ref(sym) =>
-            encodeByte(1) // Ref tag
-            encodeSymbolRef(sym)
 
       encodeWord(fdef.body, fdef.resultType.span.endOffset)
 
@@ -580,7 +582,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & Flags.Synthetic)
+      encodeFlags(defSym.flags)
       encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
@@ -626,7 +628,7 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeFlags(defSym.flags & Flags.Defer)
+      encodeFlags(defSym.flags)
       encodeKind(defSym.asTypeSymbol.kind)
       encodeVisibility(defSym)
 
@@ -734,11 +736,11 @@ object Encoder:
 
         repeated(duckType.adapters): adapter =>
           adapter match
-            case ParamAdapter.Function(symbol) =>
+            case DuckAdapter.Function(symbol) =>
               encodeByte(0) // Tag for function adapter
               encodeSymbolRef(symbol)
 
-            case ParamAdapter.Member(name) =>
+            case DuckAdapter.Member(name) =>
               encodeByte(1) // Tag for member adapter
               encodeString(name)
 
@@ -765,7 +767,6 @@ object Encoder:
       case Literal(const) =>
         encodeByte(Format.Literal)
         encodeConstant(const)
-        encodeType(word.tpe)
         encodeInt(startDelta)
         encodeNat(word.span.length)
 
@@ -954,7 +955,19 @@ object Encoder:
         encodeInt(symbol.sourcePos.span.start - word.span.start)
         encodeNat(symbol.sourcePos.span.length)
 
-        encodeParams(params, word.span.start)
+        val lambdaStart = word.span.start
+
+        // Assume param section is small such that the delta is small even for the same base offset
+        repeated(params): param =>
+          encodeNat(state.getId(param))
+          encodeString(param.name)
+
+          val symSpan = param.sourcePos.span
+          val startDelta = symSpan.start - lambdaStart
+          encodeInt(startDelta)
+          encodeNat(symSpan.length)
+
+          encodeType(param.tpe)
 
         repeated(receives): eff =>
           encodeSymbolRef(eff)
@@ -1124,7 +1137,7 @@ object Encoder:
       val sym = ident.symbol
       encodeNat(state.getId(sym))
       encodeString(sym.name)
-      encodeFlags(sym.flags & (Flags.Mutable | Flags.Auto))
+      encodeFlags(sym.flags)
       encodeInt(sym.span.start - prevOffset)
       encodeNat(sym.span.length)
       encodeType(sym.tpe)
@@ -1164,8 +1177,8 @@ object Encoder:
   private def encodeInt(n: Int)(using buf: WriteBuffer): Unit =
     buf.addInt(n)
 
-  private def encodeBigInt(n: BigInt)(using buf: WriteBuffer): Unit =
-    buf.addBigInt(n)
+  private def encodeLong(n: Long)(using buf: WriteBuffer): Unit =
+    buf.addLong(n)
 
   private def encodeIntRaw(n: Int)(using buf: WriteBuffer): Unit =
     buf.addIntRaw(n)
@@ -1191,7 +1204,20 @@ object Encoder:
 
       case Constant.Int(value) =>
         encodeByte(Format.IntConst)
-        encodeBigInt(value)
+        encodeInt(value)
+
+      case Constant.Byte(value) =>
+        assert(value >= 0 && value <= 255, s"Invalid Byte constant: $value")
+        encodeByte(Format.ByteConst)
+        encodeByte(value.toByte)
+
+      case Constant.Char(value) =>
+        encodeByte(Format.CharConst)
+        encodeNat(value)
+
+      case Constant.Long(value) =>
+        encodeByte(Format.LongConst)
+        encodeLong(value)
 
       case Constant.Float(value) =>
         encodeByte(Format.FloatConst)

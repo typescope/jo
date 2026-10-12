@@ -3,6 +3,7 @@ package sast
 import Trees.*
 import Types.*
 import Symbols.*
+import Denotations.*
 
 import ast.Naming
 
@@ -187,11 +188,11 @@ object Printing:
             "\"" ~ StringUtil.escape(s) ~ "\""
 
           case Constant.Int(n) =>
-            val isChar = word.tpe.isSubtype(defn.CharType)
-            if isChar then
-              "'" ~ StringUtil.escapeChar(n.toChar) ~ "'"
-            else
-              Text(n.toString)
+            Text(n.toString)
+
+          case Constant.Byte(n) => Text(n.toString)
+          case Constant.Char(n) => "'" ~ StringUtil.escapeChar(n.toChar) ~ "'"
+          case Constant.Long(n) => Text(n.toString)
 
           case Constant.Float(d) =>
             Text(d.toString)
@@ -379,6 +380,9 @@ object Printing:
         const match
           case Constant.Bool(value)   => Text(value.toString)
           case Constant.Int(value)    => Text(value.toString)
+          case Constant.Byte(value)   => Text(value.toString)
+          case Constant.Char(value)   => Text(value.toString)
+          case Constant.Long(value)   => Text(value.toString)
           case Constant.Float(value)  => Text(value.toString)
           case Constant.String(value) => "\"" ~ StringUtil.escape(value) ~ "\""
 
@@ -415,8 +419,8 @@ object Printing:
 
       case duckType @ DuckType(baseType) =>
         val adapterTexts = duckType.adapters.map:
-          case ParamAdapter.Function(sym) => Text(sym.name)
-          case ParamAdapter.Member(name) => "." ~ name
+          case DuckAdapter.Function(sym) => Text(sym.name)
+          case DuckAdapter.Member(name) => "." ~ name
         if adapterTexts.isEmpty then Text(baseType)
         else baseType ~ " :- [" ~ adapterTexts.join(", ") ~ "]"
 
@@ -427,6 +431,9 @@ object Printing:
         def showConstant(c: Constant): String = c match
           case Constant.String(v) => "\"" + v + "\""
           case Constant.Int(v)    => v.toString
+          case Constant.Byte(v)   => v.toString
+          case Constant.Char(v)   => v.toString
+          case Constant.Long(v)   => v.toString
           case Constant.Bool(v)   => v.toString
           case Constant.Float(v)  => v.toString
         val annotText =
@@ -434,7 +441,7 @@ object Printing:
           else "@" ~ annot.symbol.fullName ~ "(" ~ annot.args.map(showConstant).join(", ") ~ ")"
         base ~ " " ~ annotText
 
-      case procType @ ProcType(tparams, params, autos, candidates, resType, _, n, _) =>
+      case procType @ ProcType(tparams, params, autos, resType, _, n, _) =>
         val tparamText =
           if tparams.isEmpty then
             Text.Empty
@@ -442,8 +449,22 @@ object Printing:
           else
             "[" ~ tparams.join(Text(", ")) ~ "]"
 
-        def showParam(param: NamedInfo[Type]): Text =
-          param.name ~ ": " ~ param.info
+        def showParam(param: ParamInfo): Text =
+          val base = param.name ~ ": " ~ param.tpe
+          param.default match
+          case DefaultValue.Lit(const) =>
+            const match
+            case Constant.Bool(v)   => base ~ " = " ~ v.toString
+            case Constant.Int(v)    => base ~ " = " ~ v.toString
+            case Constant.Byte(v)   => base ~ " = " ~ v.toString
+            case Constant.Char(v)   => base ~ " = " ~ v.toString
+            case Constant.Long(v)   => base ~ " = " ~ v.toString
+            case Constant.Float(v)  => base ~ " = " ~ v.toString
+            case Constant.String(v) => base ~ " = " ~ "\"" ~ v.toString ~ "\""
+
+          case DefaultValue.Ref(sym) => base ~ " = " ~ sym
+
+          case DefaultValue.None => base
 
         val preText =
           if n > 0 then
@@ -452,30 +473,14 @@ object Printing:
             Text.Empty
 
         val postParams = params.drop(n)
-        val defaults = procType.defaults
-        val postParamTexts =
-          if defaults.isEmpty then
-            postParams.map(showParam)
-          else
-            val split = postParams.size - defaults.size
-            val noDefault = postParams.take(split).map(showParam)
-            val withDefault = postParams.drop(split).zip(defaults).map: (param, dv) =>
-              val dvText = dv match
-                case DefaultValue.Lit(const) => const match
-                  case Constant.Bool(v)   => v.toString
-                  case Constant.Int(v)    => v.toString
-                  case Constant.Float(v)  => v.toString
-                  case Constant.String(v) => "\"" + v + "\""
-                case DefaultValue.Ref(sym) => sym.name
-              showParam(param) ~ " = " ~ dvText
-            noDefault ++ withDefault
+        val postParamTexts = postParams.map(showParam)
 
         val postText =
           "(" ~ postParamTexts.join(", ") ~ ")"
 
         val autoText =
           if autos.isEmpty then Text.Empty
-          else "(" ~ autos.map(param => param.name ~ ": " ~ param.info).join(", ") ~ ")"
+          else "(" ~ autos.map(auto => auto.name ~ ": " ~ auto.tpe).join(", ") ~ ")"
 
         def showEffects(effs: List[Symbol]): Text =
           if effs.isEmpty then Text(" receives none")

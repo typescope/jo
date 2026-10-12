@@ -1,6 +1,7 @@
 package sast
 
 import Types.*
+import Denotations.*
 
 abstract class TypeAccumulator[T](zero: T):
   type Context
@@ -49,17 +50,16 @@ abstract class TypeAccumulator[T](zero: T):
       case AnnotType(base, _) =>
         this(base)
 
-      case ProcType(tparams, params, autos, candidates, resType, _, preParamCount, preTypeParamCount) =>
+      case ProcType(tparams, params, autos, resType, _, preParamCount, preTypeParamCount) =>
         val acc1 = params.foldLeft(zero): (acc, param) =>
-          combine(acc, this(param.info))
+          combine(acc, this(param.tpe))
 
         val acc2 = autos.foldLeft(acc1): (acc, auto) =>
-          combine(acc, this(auto.info))
+          val acc2a = combine(acc, this(auto.tpe))
 
-        val acc3 = candidates.foldLeft(acc2): (acc, cands) =>
-          cands.foldLeft(acc): (acc, cand) =>
+          auto.candidates.foldLeft(acc2a): (acc, cand) =>
             cand match
-              case MemberCandidate(tp, _) => combine(acc, this(tp))
+              case AutoCandidate.Member(tp, _) => combine(acc, this(tp))
               case _ => acc
 
-        combine(acc3, this(resType))
+        combine(acc2, this(resType))

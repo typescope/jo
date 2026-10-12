@@ -8,6 +8,7 @@ import sast.*
 import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
+import sast.Denotations.*
 
 import reporting.Reporter
 import reporting.Diagnostics
@@ -32,24 +33,25 @@ class PatternTyper(namer: Namer)(using Config):
     val patSym = PatternSymbol.create(patDef.name, flags, Checker.visibility(patDef, sc.owner), sc.owner, patDef.ident.pos)
     given patScope: Scope = sc.fresh(patSym)
 
-    val tparamSymsLazy = Namer.lazyValue:
+    val tparamSyms =
       namer.transformTypeParams(patDef.tparams)
 
-    val paramSymsLazy = Namer.lazyValue:
-      tparamSymsLazy.value
+    val paramSyms =
       for param <- patDef.params yield
-        val tpt = namer.transformValueType(param.tpt)
-        val paramSym = PatternSymbol.create(param.name, tpt.tpe, Flags.Param, Visibility.Default, patSym, param.pos)
+        val paramSym = PatternSymbol.create(param.name, Flags.Param, Visibility.Default, patSym, param.pos)
+        lazyDefn.index.addLazy(paramSym, () => {
+          given Definitions = lazyDefn.value
+          val tpe = namer.transformValueType(param.tpt).tpe
+          ParamInfo(param.name, tpe)
+        })
         paramSym
 
     val resultTypeTreeLazy = Namer.lazyValue:
       assert(!patDef.resultType.isEmpty, "result type of pattern predicates is mandatory")
 
-      tparamSymsLazy.value
       namer.transformValueType(patDef.resultType)
 
     val typedBodyLazy = Namer.lazyValue:
-      paramSymsLazy.value
       val scrutType = resultTypeTreeLazy.value.tpe.stripPartial
 
       val reporterTemp = rp.fresh(buffer = true)
@@ -58,13 +60,13 @@ class PatternTyper(namer: Namer)(using Config):
         given Reporter = reporterTemp
         for Ast.Case(pattern, _) <- patDef.cases yield
           given flowScope: FlowScope = new FlowScope(patScope)
-          paramSymsLazy.value.foreach { param => flowScope.define(param) }
+          paramSyms.foreach { param => flowScope.define(param) }
           val patternTyped = Inference.freshIsolate:
             transformPattern(pattern, scrutType)
 
           if !reporterTemp.hasErrors then
             for
-              paramSym <- paramSymsLazy.value if !flowScope.isPromoted(paramSym)
+              paramSym <- paramSyms if !flowScope.isPromoted(paramSym)
             do
               Reporter.error(s"The parameter $paramSym is not bound in the patterns", pattern.pos)
 
@@ -87,10 +89,10 @@ class PatternTyper(namer: Namer)(using Config):
     def computeInfo(resultType: Type) = Namer.withDefn:
       val autoTypes = Nil
       ProcType(
-        tparamSymsLazy.value, paramSymsLazy.value.map(_.toNamedInfo), autoTypes,
-        Nil, resultType, receivesInfo = Nil, patDef.preParamCount,
+        tparamSyms, paramSyms.map(_.paramInfo), autoTypes,
+        resultType, receivesInfo = Nil, patDef.preParamCount,
         preTypeParamCount = 0
-      )()
+      )
 
     val index = lazyDefn.index
     index.addLazy(patSym, () => computeInfo(resultTypeTreeLazy.value.tpe), () => computeInfo(ErrorType))
@@ -98,7 +100,7 @@ class PatternTyper(namer: Namer)(using Config):
     index.setDocComment(patSym, patDef.docComment)
 
     Namer.lazyDef(patSym):
-      PatDef(patSym, tparamSymsLazy.value, paramSymsLazy.value, resultTypeTreeLazy.value, typedBodyLazy.value)(annotationsLazy.value, patDef.span)
+      PatDef(patSym, tparamSyms, paramSyms, resultTypeTreeLazy.value, typedBodyLazy.value)(annotationsLazy.value, patDef.span)
 
   private def checkExhaustivity(patterns: List[Pattern], coveredTypeTree: TypeTree)
       (using defn: Definitions, rp: Reporter, so: Source): Unit =
@@ -138,7 +140,7 @@ class PatternTyper(namer: Namer)(using Config):
       Inference.freshIsolate:
         namer.transform(scrutinee)
 
-    val scrutType = scrutinee2.tpe.widenTermRef
+    val scrutType = scrutinee2.tpe.widen
 
     if scrutType.isError then return errorWord(patmat.span)
 
@@ -583,34 +585,31 @@ class PatternTyper(namer: Namer)(using Config):
         tparams = Nil,
         params = Nil,
         autos = Nil,
-        candidates = Nil,
         resultType = defn.IntType,
         receivesInfo = Nil,
         preParamCount = 0,
         preTypeParamCount = 0
-      )(),
+      ),
 
       "get" -> ProcType(
         tparams = Nil,
-        params = NamedInfo("i", defn.IntType) :: Nil,
+        params = ParamInfo("i", defn.IntType) :: Nil,
         autos = Nil,
-        candidates = Nil,
         resultType = tvar,
         receivesInfo = Nil,
         preParamCount = 0,
         preTypeParamCount = 0
-      )(),
+      ),
 
       "slice" -> ProcType(
         tparams = Nil,
-        params = NamedInfo("from", defn.IntType) :: NamedInfo("len", defn.IntType)  :: Nil,
+        params = ParamInfo("from", defn.IntType) :: ParamInfo("len", defn.IntType)  :: Nil,
         autos = Nil,
-        candidates = Nil,
         resultType = AnyType,
         receivesInfo = Nil,
         preParamCount = 0,
         preTypeParamCount = 0
-      )(),
+      ),
     )
 
     def memberConforms(name: String) =
@@ -921,14 +920,14 @@ class PatternTyper(namer: Namer)(using Config):
 
         val valuePattern = ValuePattern(literal)(scrutType)
 
-        if Subtyping.conforms(scrutType, literal.tpe) then
+        if Subtyping.conforms(scrutType, literal.tpe.widenConstType) then
           valuePattern
 
         else
           val explain = new StringBuilder
 
           if Patterns.isValidTypePattern(literal.tpe, scrutType)(using explain) then
-            TypePattern(TypeTree(literal.tpe)(pat.span), valuePattern)(scrutType)
+            TypePattern(TypeTree(literal.tpe.widenConstType)(pat.span), valuePattern)(scrutType)
           else
             Reporter.error(explain.toString, pat.pos)
             WildcardPattern()(ErrorType, pat.span)

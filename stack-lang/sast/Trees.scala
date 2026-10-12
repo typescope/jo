@@ -83,8 +83,9 @@ object Trees:
 
   case class Literal
     (constant: Constant)
-    (val tpe: Type, val span: Span)
-  extends Word
+    (val span: Span)
+  extends Word:
+    val tpe = ConstantType(constant)
 
   case class RecordLit
     (args: List[(String, Word)])
@@ -619,22 +620,12 @@ object Trees:
     (val annots: List[Apply], val span: Span)
   extends Def
 
-  enum AutoCandidate extends Positioned:
-    case Value(symbol: Symbol)(val span: Span)
-    case Member(tpt: TypeTree, name: String)(val span: Span)
-
-    def show(using Definitions): String =
-      this match
-        case Value(sym) => sym.name
-        case Member(tpt, name) => "[" + tpt.tpe.show + "]." + name
-
   /** Represents a named function or method definition */
   case class FunDef
     (symbol: Symbol,
       tparams: List[Symbol],
       params: List[Symbol],
       autos: List[Symbol],
-      candidates: List[List[AutoCandidate]],
       resultType: TypeTree,
       effectPolicy: Effects.Policy,
       body: Word)
@@ -642,8 +633,6 @@ object Trees:
     (using defn: Definitions)
   extends Word, Def:
     defn.index.setCode(symbol, this)
-
-    assert(autos.size == candidates.size)
 
     private var censusCache: (List[Symbol], List[Symbol]) | Null = null
 
@@ -724,14 +713,14 @@ object Trees:
   //----------------------------------------------------------------------------
   // helpers
 
-  def StringLit(s: String)(span: Span)(using defn: Definitions) =
-    Literal(Constant.String(s))(defn.StringType, span)
+  def StringLit(s: String)(span: Span) =
+    Literal(Constant.String(s))(span)
 
-  def IntLit(n: Int)(span: Span)(using defn: Definitions) =
-    Literal(Constant.Int(n))(defn.IntType, span)
+  def IntLit(n: Int)(span: Span) =
+    Literal(Constant.Int(n))(span)
 
-  def BoolLit(b: Boolean)(span: Span)(using defn: Definitions) =
-    Literal(Constant.Bool(b))(defn.BoolType, span)
+  def BoolLit(b: Boolean)(span: Span) =
+    Literal(Constant.Bool(b))(span)
 
   def all(cond: Word, conds: Word*)(using defn: Definitions): Word =
     conds.foldLeft(cond): (acc, cond) =>

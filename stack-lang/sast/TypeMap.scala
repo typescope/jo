@@ -1,6 +1,7 @@
 package sast
 
 import Types.*
+import Denotations.*
 
 abstract class TypeMap(using Definitions):
   type Context
@@ -79,23 +80,21 @@ abstract class TypeMap(using Definitions):
         RecordType(fields2)
 
   private def recurProcType(procType: ProcType)(using Context): ProcType =
-    val ProcType(tparams, params, autos, candidates, resType, receives, preParamCount, preTypeParamCount) = procType
+    val ProcType(tparams, params, autos, resType, receives, preParamCount, preTypeParamCount) = procType
 
     val params2 =
       for param <- params
-      yield param.copy(info = this(param.info))
+      yield param.copy(tpe = this(param.tpe))
 
     val autos2 =
-      for auto <- autos
-      yield auto.copy(info = this(auto.info))
-
-    val candidates2 =
-      for candidateList <- candidates
-      yield candidateList.map {
-        case MemberCandidate(tp, name) => MemberCandidate(this(tp), name)
-        case sym => sym  // Symbol case (no transformation needed)
-      }
+      for auto <- autos yield
+        auto.copy(
+          tpe = this(auto.tpe),
+          candidates = auto.candidates.map:
+            case mem @ AutoCandidate.Member(tp, name) => AutoCandidate.Member(this(tp), name)(mem.span)
+            case cand => cand  // Symbol case (no transformation needed)
+        )
 
     val resType2 = this(resType)
-    // DefaultValue contains no Types to map; thread defaultsFun through unchanged
-    ProcType(tparams, params2, autos2, candidates2, resType2, receives, preParamCount, preTypeParamCount)(procType.defaultsLazy)
+
+    ProcType(tparams, params2, autos2, resType2, receives, preParamCount, preTypeParamCount)

@@ -21,7 +21,7 @@
 ---------- Error at tests/warn/named-arg-errors.jo:24:3 ---------------
 |   f(x = 1, y = 2)
 |   ^^^^^^^^^^^^^^^
-|   The function expects 3 argument(s), found = 2
+|   Missing required parameter 'z'
 
 ---------- Error at tests/warn/named-arg-errors.jo:28:3 ---------------
 |   fn(x = 1, y = 2)

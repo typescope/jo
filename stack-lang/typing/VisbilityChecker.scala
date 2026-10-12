@@ -3,6 +3,7 @@ package sast
 import Trees.*
 import Types.*
 import Symbols.*
+import Denotations.*
 
 import ast.Positions.*
 import reporting.Reporter
@@ -92,8 +93,7 @@ object VisibilityChecker:
     fdef.autos.foreach: auto =>
       checkType(funSym, auto.tpe, auto.sourcePos)
 
-    fdef.candidates.foreach: cands =>
-      for cand <- cands do
+      for cand <- auto.autoInfo.candidates do
         cand match
           case AutoCandidate.Value(symbol) =>
             // The sysmbol should be coherent itself
@@ -101,7 +101,7 @@ object VisibilityChecker:
             checkCoherence(symbol, funSym, cand.pos)
 
           case AutoCandidate.Member(tp, _) =>
-            checkType(funSym, tp.tpe, cand.pos)
+            checkType(funSym, tp, cand.pos)
 
     checkType(funSym, fdef.resultType.tpe, fdef.resultType.pos)
 
@@ -126,7 +126,7 @@ object VisibilityChecker:
             // Check adapters for function symbols
             for adapter <- duckType.adapters do
               adapter match
-                case ParamAdapter.Function(symbol) =>
+                case DuckAdapter.Function(symbol) =>
                   checkUsage(symbol, defSymbol, pos)
                   checkCoherence(symbol, defSymbol, pos)
                 case _ =>

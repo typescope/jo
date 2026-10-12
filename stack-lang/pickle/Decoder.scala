@@ -130,17 +130,14 @@ object Decoder:
     if magic != Format.MAGIC_NUMBER then
       Reporter.abortInternal(f"Invalid SAST file: expected magic number 0x${Format.MAGIC_NUMBER}%08X, got 0x${magic}%08X")
 
-    val majorVersion = decodeByte()
-    val minorVersion = decodeByte()
+    val majorVersion = decodeByte() & 0xFF
+    val minorVersion = decodeByte() & 0xFF
 
     // Check version compatibility
     // - Major version must match exactly
     // - Minor version can be <= current (backward compatible)
-    if majorVersion != Format.MAJOR_VERSION then
-      Reporter.abortInternal(
-        s"Incompatible SAST file version: file is $majorVersion.$minorVersion, compiler supports ${Format.MAJOR_VERSION}.${Format.MINOR_VERSION}\n" +
-        "Please rebuild the library with the current compiler version."
-      )
+    if majorVersion != Format.MAJOR_VERSION || minorVersion > Format.MINOR_VERSION then
+      Reporter.abortInternal(Format.incompatibleVersionMessage(majorVersion, minorVersion))
 
     // Read string table
     val stringTableAddr: Int = decodeIntRaw()
@@ -300,7 +297,12 @@ object Decoder:
 
     val id = decodeNat()
     val name = decodeString()
-    val flags = decodeFlags() | initFlags | Flags.Fun | Flags.Loaded
+
+    val constructorFlag =
+      if owner != null && owner.isClass && name == Names.Constructor then Flags.Constructor
+      else Flags.empty
+
+    val flags = decodeFlags() | initFlags | Flags.Fun | Flags.Loaded | constructorFlag
     val visibility = decodeVisibility(owner)
 
     val symStartDelta = decodeInt()
@@ -346,7 +348,28 @@ object Decoder:
         val paramSpanLength = decodeNat()
         val paramSpan = Span(absoluteStart + paramStartDelta, paramSpanLength)
 
-        val paramInfo = decodeType()
+        val paramType = decodeType()
+
+        val tag = decodeByte()
+        val default = tag match
+          case 0 => // None
+            DefaultValue.None
+
+          case 1 => // Lit
+            val const = decodeConstant()
+            val startDelta = decodeInt()
+            val len = decodeNat()
+            val span = Span(paramSpan.start + startDelta, len)
+            DefaultValue.Lit(const)(span)
+
+          case 2 => // Ref
+            val sym = decodeSymbolRef()
+            val startDelta = decodeInt()
+            val len = decodeNat()
+            val span = Span(paramSpan.start + startDelta, len)
+            DefaultValue.Ref(sym)(span)
+
+        val paramInfo = ParamInfo(paramName, paramType, default)
 
         val param = TermSymbol.create(paramName, paramInfo, Flags.Param, Visibility.Default, symbol, paramSpan.toPos)
         state.registerInternalSymbol(paramId, param)
@@ -362,38 +385,31 @@ object Decoder:
         val autoSpanLength = decodeNat()
         val autoSpan = Span(absoluteStart + autoStartDelta, autoSpanLength)
 
-        val autoInfo = decodeType()
+        val autoType = decodeType()
 
-        val auto = TermSymbol.create(autoName, autoInfo, Flags.Param | Flags.Auto, Visibility.Default, symbol, autoSpan.toPos)
-        state.registerInternalSymbol(autoId, auto)
-
-        auto
-
-      // Decode auto candidates
-      val candidatesWithTrees = repeated {
-        repeated {
+        val cands = repeated:
           val tag = decodeByte()
           tag match
             case 0 => // Function candidate
               val candidateSym = decodeSymbolRef()
-              val candidateStartDelta = decodeInt()
-              val candidateSpanLength = decodeNat()
-              val candidateSpan = Span(absoluteStart + candidateStartDelta, candidateSpanLength)
-              (AutoCandidate.Value(candidateSym)(candidateSpan), candidateSym)
+              val startDelta = decodeInt()
+              val len = decodeNat()
+              val span = Span(autoSpan.start + startDelta, len)
+              AutoCandidate.Value(candidateSym)(span)
 
             case 1 => // Member candidate
               val tpe = decodeType()
               val memberName = decodeString()
-              val tptStartDelta = decodeInt()
-              val tptSpanLength = decodeNat()
-              val tptSpan = Span(absoluteStart + tptStartDelta, tptSpanLength)
-              val tpt = TypeTree(tpe)(tptSpan)
-              (AutoCandidate.Member(tpt, memberName)(tptSpan), MemberCandidate(tpe, memberName))
-        }
-      }
+              val startDelta = decodeInt()
+              val len = decodeNat()
+              val span = Span(autoSpan.start + startDelta, len)
+              AutoCandidate.Member(tpe, memberName)(span)
 
-      val candidateTrees = candidatesWithTrees.map(_.map(_._1))
-      val candidateSymbols = candidatesWithTrees.map(_.map(_._2))
+        val autoInfo = AutoInfo(autoName, autoType, cands)
+        val auto = TermSymbol.create(autoName, autoInfo, Flags.Param | Flags.Auto, Visibility.Default, symbol, autoSpan.toPos)
+        state.registerInternalSymbol(autoId, auto)
+
+        auto
 
       val resultType = decodeTypeTree(absoluteStart)
 
@@ -401,16 +417,6 @@ object Decoder:
 
       val preParamCount = decodeNat()
       val preTypeParamCount = decodeNat()
-
-      // Decode default values for trailing post-parameters
-      val defaults: List[DefaultValue] = repeated:
-        val tag = decodeByte()
-        tag match
-          case 0 => // Lit
-            DefaultValue.Lit(decodeConstant())
-          case 1 => // Ref
-            val sym = decodeSymbolRef()
-            DefaultValue.Ref(sym)
 
       val signatureEndPos = sigBuf.position
     end sig
@@ -420,10 +426,10 @@ object Decoder:
       val receives = sig.receives
 
       ProcType(
-        sig.tparams, sig.params.map(_.toNamedInfo), sig.autos.map(_.toNamedInfo),
-        sig.candidateSymbols, sig.resultType.tpe, receives, sig.preParamCount,
+        sig.tparams, sig.params.map(_.paramInfo), sig.autos.map(_.autoInfo),
+        sig.resultType.tpe, receives, sig.preParamCount,
         sig.preTypeParamCount
-      )(LazyValue.eager(sig.defaults))
+      )
 
     val index = defnLazy.index
     index.addLazy(symbol, () => funInfo)
@@ -441,7 +447,7 @@ object Decoder:
       val span = Span(absoluteStart, body.span.endOffset + endDelta - absoluteStart)
       val policy = Effects.Policy.CheckBound(sig.receives)
 
-      FunDef(symbol, sig.tparams, sig.params, sig.autos, sig.candidateTrees, sig.resultType, policy, body)(sig.annots, span)
+      FunDef(symbol, sig.tparams, sig.params, sig.autos, sig.resultType, policy, body)(sig.annots, span)
     })
 
   private def decodeClassDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): LazyDef[ClassDef] =
@@ -781,7 +787,8 @@ object Decoder:
         val paramSpanLength = decodeNat()
         val paramSpan = Span(absoluteStart + paramStartDelta, paramSpanLength)
 
-        val paramInfo = decodeType()
+        val tpe = decodeType()
+        val paramInfo = ParamInfo(paramName, tpe)
 
         val param = PatternSymbol.create(paramName, paramInfo, Flags.Param, Visibility.Default, symbol, paramSpan.toPos)
         state.registerInternalSymbol(paramId, param)
@@ -799,8 +806,9 @@ object Decoder:
     lazy val patInfo: ProcType =
       val receives = sig.receives
       ProcType(
-        sig.tparams, sig.params.map(_.toNamedInfo), Nil, Nil,
-        sig.resultType.tpe, receives, sig.preParamCount, sig.preTypeParamCount)()
+        sig.tparams, sig.params.map(_.paramInfo), Nil,
+        sig.resultType.tpe, receives, sig.preParamCount, sig.preTypeParamCount
+      )
 
     val index = defnLazy.index
     index.addLazy(symbol, () => patInfo)
@@ -990,11 +998,11 @@ object Decoder:
           tag match
             case 0 => // Function adapter
               val symbol = decodeSymbolRef()
-              ParamAdapter.Function(symbol)
+              DuckAdapter.Function(symbol)
 
             case 1 => // Member adapter
               val name = decodeString()
-              ParamAdapter.Member(name)
+              DuckAdapter.Member(name)
           end match
         DuckType(baseType)(LazyValue.eager(adapters))
 
@@ -1040,9 +1048,8 @@ object Decoder:
       case Format.Lambda      => decodeLambda(owner, prevOffset)
       case _ => throw new Exception(s"Unknown word tag: $wordTag")
 
-  private def decodeLiteral(prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Literal =
+  private def decodeLiteral(prevOffset: Int)(using buf: ReadBuffer, state: State): Literal =
     val const = decodeConstant()
-    val tpe = decodeType()
 
     val startDelta = decodeInt()
     val length = decodeNat()
@@ -1050,7 +1057,7 @@ object Decoder:
     val startOffset = prevOffset + startDelta
     val span = Span(startOffset, length)
 
-    Literal(const)(tpe, span)
+    Literal(const)(span)
 
   private def decodeIdent(prevOffset: Int)(using buf: ReadBuffer, defn: Definitions, state: State): Ident =
     val sym = decodeSymbolRef()
@@ -1311,7 +1318,7 @@ object Decoder:
 
     val symbolId = decodeNat()
     val symbolName = decodeString()
-    val symbolFlags = decodeFlags()
+    val symbolFlags = decodeFlags() | Flags.Fun
     val symbolDelta = decodeInt()
     val symbolLength = decodeNat()
 
@@ -1526,8 +1533,8 @@ object Decoder:
   private def decodeInt()(using buf: ReadBuffer): Int =
     buf.readInt()
 
-  private def decodeBigInt()(using buf: ReadBuffer): BigInt =
-    buf.readBigInt()
+  private def decodeLong()(using buf: ReadBuffer): Long =
+    buf.readLong()
 
   private def decodeIntRaw()(using buf: ReadBuffer): Int =
     buf.readIntRaw()
@@ -1547,23 +1554,19 @@ object Decoder:
 
   private def decodeConstant()(using buf: ReadBuffer, state: State): Constant =
     val constType = decodeByte()
+
     constType match
-      case Format.BoolConst =>
-        val value = decodeBool()
-        Constant.Bool(value)
+      case Format.BoolConst => Constant.Bool(decodeBool())
+      case Format.IntConst => Constant.Int(decodeInt())
+      case Format.ByteConst => Constant.Byte(decodeByte() & 0xFF)
 
-      case Format.IntConst =>
-        val value = decodeBigInt()
-        Constant.Int(value)
+      case Format.CharConst =>
+        val value = decodeNat()
+        Constant.Char(value)
 
-      case Format.FloatConst =>
-        val value = decodeDouble()
-        Constant.Float(value)
-
-      case Format.StringConst =>
-        val value = decodeString()
-        Constant.String(value)
-
+      case Format.LongConst => Constant.Long(decodeLong())
+      case Format.FloatConst => Constant.Float(decodeDouble())
+      case Format.StringConst => Constant.String(decodeString())
       case _ => throw new Exception(s"Unknown constant type: $constType")
 
   private def decodeSource(stringTable: StringTable)(using buf: ReadBuffer): Source =

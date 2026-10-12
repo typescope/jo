@@ -1,7 +1,7 @@
 ---------- Error at tests/warn/annot-param-type-cycle.jo:8:1 ---------------
 | @foo
 | ^^^^
-| The function expects 1 argument(s), found = 0
+| Missing required parameter 'x'
 
 ---------- Error at tests/warn/annot-param-type-cycle.jo:6:19 ---------------
 | annotation foo(x: A)

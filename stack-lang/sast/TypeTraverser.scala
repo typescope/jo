@@ -1,6 +1,7 @@
 package sast
 
 import Types.*
+import Denotations.*
 
 abstract class TypeTraverser:
   def apply(tp: Type): Unit
@@ -39,15 +40,15 @@ abstract class TypeTraverser:
       case AnnotType(base, _) =>
         this(base)
 
-      case ProcType(tparams, params, autos, candidates, resType, _, preParamCount, preTypeParamCount) =>
+      case ProcType(tparams, params, autos, resType, _, preParamCount, preTypeParamCount) =>
         // TODO: Once type bounds are supported, we need to transform bounds
-        for param <- params do this(param.info)
+        for param <- params do this(param.tpe)
 
-        for auto <- autos do this(auto.info)
-
-        for candidateList <- candidates; candidate <- candidateList do
-          candidate match
-            case MemberCandidate(tp, name) => this(tp)
+        for auto <- autos do 
+          this(auto.tpe)
+          for candidate <- auto.candidates do
+            candidate match
+            case AutoCandidate.Member(tp, name) => this(tp)
             case _ => // Symbol case - no traversal needed
 
         this(resType)

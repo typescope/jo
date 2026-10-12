@@ -23,10 +23,10 @@ object NumericTyper:
       case Some(expectedType) if expectedType.isSubtype(defn.ByteType) =>
         val intValue = parseIntLiteral(lit.value, lit.isHex, lit.span)
         if intValue >= 0 && intValue <= 255 then
-          Literal(Constant.Int(intValue))(defn.ByteType, lit.span)
+          Literal(Constant.Byte(intValue))(lit.span)
         else
           rp.error(s"Integer literal $intValue out of range for Byte [0, 255]", lit.span.toPos)
-          Literal(Constant.Int(intValue))(defn.ByteType, lit.span)
+          Literal(Constant.Byte(intValue))(lit.span)
 
       case Some(expectedType) if expectedType.isSubtype(defn.CharType) =>
         val intValue = parseIntLiteral(lit.value, lit.isHex, lit.span)
@@ -35,25 +35,25 @@ object NumericTyper:
           // Reject surrogate code points (0xD800 to 0xDFFF)
           if intValue >= 0xD800 && intValue <= 0xDFFF then
             rp.error(f"Integer literal $intValue%X (U+$intValue%04X) is a surrogate code point, not a valid Unicode scalar value", lit.span.toPos)
-            Literal(Constant.Int(intValue))(defn.CharType, lit.span)
+            Literal(Constant.Char(intValue))(lit.span)
           else
-            Literal(Constant.Int(intValue))(defn.CharType, lit.span)
+            Literal(Constant.Char(intValue))(lit.span)
         else
           rp.error(f"Integer literal $intValue%X out of range for Char [0, 10FFFF]", lit.span.toPos)
-          Literal(Constant.Int(intValue))(defn.CharType, lit.span)
+          Literal(Constant.Char(intValue))(lit.span)
 
       case Some(expectedType) if expectedType.isSubtype(defn.LongType) =>
         val longValue = parseLongLiteral(lit.value, lit.isHex, lit.span)
-        Literal(Constant.Int(longValue))(defn.LongType, lit.span)
+        Literal(Constant.Long(longValue))(lit.span)
 
       case Some(expectedType) if expectedType.isSubtype(defn.FloatType) =>
         val intValue = parseIntLiteral(lit.value, lit.isHex, lit.span)
-        Literal(Constant.Float(intValue.toDouble))(defn.FloatType, lit.span)
+        Literal(Constant.Float(intValue.toDouble))(lit.span)
 
       case _ =>
         // Default to Int
         val intValue = parseIntLiteral(lit.value, lit.isHex, lit.span)
-        Literal(Constant.Int(intValue))(defn.IntType, lit.span)
+        Literal(Constant.Int(intValue))(lit.span)
 
   /** Type a character literal from AST to SAST Literal
     *
@@ -71,27 +71,27 @@ object NumericTyper:
       case Some(expectedType) if expectedType.isSubtype(defn.ByteType) =>
         // Char to Byte: only if character code fits in unsigned byte range
         if charValue >= 0 && charValue <= 255 then
-          Literal(Constant.Int(charValue))(defn.ByteType, lit.span)
+          Literal(Constant.Byte(charValue))(lit.span)
         else
           rp.error(s"Character literal '${Character.toString(lit.value)}' (code $charValue) out of range for Byte [0, 255]", lit.span.toPos)
-          Literal(Constant.Int(charValue))(defn.ByteType, lit.span)
+          Literal(Constant.Byte(charValue))(lit.span)
 
       case Some(expectedType) if expectedType.isSubtype(defn.IntType) =>
         // Widening: Char to Int
-        Literal(Constant.Int(charValue))(defn.IntType, lit.span)
+        Literal(Constant.Int(charValue))(lit.span)
 
       case Some(expectedType) if expectedType.isSubtype(defn.FloatType) =>
         // Widening: Char to Float
-        Literal(Constant.Float(charValue.toDouble))(defn.FloatType, lit.span)
+        Literal(Constant.Float(charValue.toDouble))(lit.span)
 
       case _ =>
         // Default to Char
-        Literal(Constant.Int(charValue))(defn.CharType, lit.span)
+        Literal(Constant.Char(charValue))(lit.span)
 
   /** Type a float literal from AST to SAST Literal */
-  def typeFloatLit(lit: Ast.FloatLit)(using defn: Definitions, rp: Reporter, src: Source): Literal =
+  def typeFloatLit(lit: Ast.FloatLit)(using rp: Reporter, src: Source): Literal =
     val floatValue = parseFloatLiteral(lit.value, lit.span)
-    Literal(Constant.Float(floatValue))(defn.FloatType, lit.span)
+    Literal(Constant.Float(floatValue))(lit.span)
 
   /** Parse integer literal string to Int value
     *

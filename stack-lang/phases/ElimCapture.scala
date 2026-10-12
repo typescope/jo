@@ -7,7 +7,7 @@ import sast.*
 import sast.Trees.*
 import sast.Symbols.*
 import sast.Types.*
-import sast.Denotations.ClassInfo
+import sast.Denotations.*
 
 import scala.collection.mutable
 
@@ -66,7 +66,7 @@ object ElimCapture:
       if !owner.isContainer then owner.name + "$" + acc else acc
 
   def createLiftedFunSym
-      (fdef: FunDef, prependParams: List[NamedInfo[Type]], appendParams: List[NamedInfo[Type]])
+      (fdef: FunDef, prependParams: List[ParamInfo], appendParams: List[ParamInfo])
       (using defn: Definitions)
   : Symbol =
 
@@ -74,7 +74,7 @@ object ElimCapture:
 
     val oldProcType = oldFunSym.info.as[ProcType]
     val paramInfos = prependParams ++ oldProcType.params ++ appendParams
-    val funType = oldProcType.copy(params = paramInfos)(LazyValue.eager(Nil))
+    val funType = oldProcType.copy(params = paramInfos)
 
     val funName = flatName(fdef.symbol)
     TermSymbol.create(funName, funType, Flags.Fun | Flags.Synthetic, Visibility.Default, oldFunSym.enclosingContainer, oldFunSym.sourcePos)
@@ -144,7 +144,7 @@ object ElimCapture:
       val lifter = new Lifter(funSym)
       val body = lifter(fdef.body)(using ctx.withSubsts(substs.toMap))
       val params = fdef.params ++ paramSymsCaptured
-      val fdef2 = FunDef(funSym, fdef.tparams, params, fdef.autos, fdef.candidates, fdef.resultType, fdef.effectPolicy, body)(fdef.annots, fdef.span)
+      val fdef2 = FunDef(funSym, fdef.tparams, params, fdef.autos, fdef.resultType, fdef.effectPolicy, body)(fdef.annots, fdef.span)
       ctx.lifted += fdef2
 
       Block(words = Nil)(fdef.span)
@@ -276,9 +276,10 @@ object ElimCapture:
       // Create constructor parameters for captured variables
       val ctorParams = new mutable.ArrayBuffer[Symbol]
       for capture <- allCaptures do
+        val name = captureToField(capture)
         val ctorParam = TermSymbol.create(
-          captureToField(capture),
-          capture.tpe,
+          name,
+          ParamInfo(name, capture.tpe),
           Flags.Param,
           Visibility.Default,
           ctorSym,
@@ -288,25 +289,23 @@ object ElimCapture:
 
       defn.index.add(ctorSym, ProcType(
         tparams = Nil,
-        params = ctorParams.map(_.toNamedInfo).toList,
+        params = ctorParams.map(_.paramInfo).toList,
         autos = Nil,
-        candidates = Nil,
         resultType = StaticRef(classSym),
         receivesInfo = Nil,
         preParamCount = 0,
         preTypeParamCount = 0
-      )())
+      ))
 
       defn.index.add(applySym, ProcType(
         tparams = Nil,
-        params = params.map(_.toNamedInfo),
+        params = params.map(p => ParamInfo(p.name, p.tpe)),
         autos = Nil,
-        candidates = Nil,
         resultType = lambdaType.resultType,
         receivesInfo = receives,
         preParamCount = 0,
         preTypeParamCount = 0
-      )())
+      ))
 
       // Register the ClassInfo with the method symbols
       defn.index.add(classSym, new ClassInfo(
@@ -336,7 +335,6 @@ object ElimCapture:
         tparams = Nil,
         params = ctorParams.toList,
         autos = Nil,
-        candidates = Nil,
         resultType = TypeTree(StaticRef(classSym))(lam.span),
         effectPolicy = Effects.Policy.CheckBound(Nil),
         body = ctorBody
@@ -372,7 +370,6 @@ object ElimCapture:
         tparams = Nil,
         params = params,
         autos = Nil,
-        candidates = Nil,
         resultType = TypeTree(lambdaType.resultType)(lam.span),
         effectPolicy = Effects.Policy.CheckBound(receives),
         body = body3
@@ -474,7 +471,7 @@ object ElimCapture:
         captures.size == captures.map(_.name).toSet.size,
         "[Internal error] captured different variables with same name in " + fdef.symbol)
 
-      val paramCaptures = captures.map(_.toNamedInfo)
+      val paramCaptures = captures.map(p => ParamInfo(p.name, p.tpe))
 
       val funSym = createLiftedFunSym(fdef, prependParams = Nil, appendParams = paramCaptures)
       LiftInfo(funSym, captures)

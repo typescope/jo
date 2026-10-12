@@ -9,7 +9,7 @@ object Flags:
   opaque type Flags = Long
 
   private val flagNames: Array[String] = Array.fill(64)("")
-  private val MAX_INDEX = 41
+  private val MAX_INDEX = 42
 
   private[Flags] def defineFlag(index: Byte, name: String): Flag =
     assert(index <= MAX_INDEX, s"Maximum flags reached: at most $MAX_INDEX flags")
@@ -20,10 +20,8 @@ object Flags:
     flagNames(index) = name
     1.toLong << index
 
-  /** The encoding of flags is implementation detail.
-    *
-    * The encoding can change, therefore no assumptions should be made about the
-    * encoding except in encoding/decoding of SASTs.
+  /** Persisted flags have stable bit positions in the SAST format.
+    * Internal flag positions are implementation details and must not be serialized.
     */
   def toBits(fs: Flags): Long = fs
 
@@ -39,17 +37,21 @@ object Flags:
     end for
     buf.toList
 
-  // Keep encoded flags at low positions to reduce encoding size
+  // Persisted flags: these bit positions are part of the SAST format contract.
+  // Do not renumber or reuse them without a breaking SAST version change.
+  // Keep new persisted flags at low positions to reduce encoding size.
 
   val Mutable    : Flag = defineFlag(0, "mutable"   ) // a mutable variable
-  val Context    : Flag = defineFlag(1, "context"   ) // context parameter
-  val Default    : Flag = defineFlag(2, "default"   ) // a deferred function with a default implementation
-  val Defer      : Flag = defineFlag(3, "defer"     ) // a deferred function, interface method or type definition
-  val Synthetic  : Flag = defineFlag(4, "synthetic" ) // a compiler-synthesized symbol
-  val Object     : Flag = defineFlag(5, "object"    ) // an object class or object accessor
-  val Auto       : Flag = defineFlag(6, "auto"      ) // a local auto definition for auto resolution
-  val Annotation : Flag = defineFlag(7, "annotation") // an annotation definition
+  val Default    : Flag = defineFlag(1, "default"   ) // a deferred function with a default implementation
+  val Defer      : Flag = defineFlag(2, "defer"     ) // a deferred function, interface method or type definition
+  val Synthetic  : Flag = defineFlag(3, "synthetic" ) // a compiler-synthesized symbol
+  val Object     : Flag = defineFlag(4, "object"    ) // an object class or object accessor
+  val Auto       : Flag = defineFlag(5, "auto"      ) // a local auto definition for auto resolution
+  val Annotation : Flag = defineFlag(6, "annotation") // an annotation definition
 
+  val SAST_MASK: Flags = Mutable | Default | Defer | Synthetic | Object | Auto | Annotation
+
+  // Internal flags: reconstructed by the decoder from tree kinds and symbol names.
   val Loaded     : Flag = defineFlag(30, "loaded"   ) // a symbol loaded from sast
   val Fun        : Flag = defineFlag(31, "fun"      ) // symbol.info is ProcType
   val Class      : Flag = defineFlag(32, "class"    )
@@ -60,8 +62,9 @@ object Flags:
   val Param      : Flag = defineFlag(37, "param"    ) // a term, type or pattern parameter
   val Interface  : Flag = defineFlag(38, "interface") // an interface
   val Alias      : Flag = defineFlag(39, "alias"    ) // an alias symbol created by import or alias
-  val Constructor: Flag = defineFlag(40, "constructor") // a constructor
+  val Context    : Flag = defineFlag(40, "context"  ) // context parameter
   val Label      : Flag = defineFlag(41, "label"    ) // a compiler-internal block label
+  val Constructor: Flag = defineFlag(42, "constructor") // a constructor
 
 
   val empty   : Flags = 0
