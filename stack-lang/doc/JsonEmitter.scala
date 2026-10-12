@@ -485,7 +485,9 @@ object JsonEmitter:
     val sym = td.symbol
     val defn = summon[Definitions]
 
-    val info = sym.info
+    val info = sym.info match
+      case alias: TypeAlias => alias.body
+      case info => info
 
     def emitUnionCases(unionType: UnionType): String =
       val cases = unionType.classes.map { cls =>
@@ -517,7 +519,8 @@ object JsonEmitter:
               case _ => s""", "aliasOf": ${emitType(ext.base)}"""
             ("type", base + emitExtensionMethods(ext))
 
-          case TypeOperatorInfo(tparams, body, _) =>
+          case info: TypeOperatorInfo =>
+            val body = info.body
             body match
               case bodyUnion: UnionType =>
                 ("type", emitUnionCases(bodyUnion))
@@ -541,9 +544,9 @@ object JsonEmitter:
 
     // Type params (with position for infix type operators)
     val (preTypeParams, postTypeParams) = info match
-      case TypeOperatorInfo(params, _, preCount) =>
-        val pre = params.take(preCount).map(_.name)
-        val post = params.drop(preCount).map(_.name)
+      case info: TypeOperatorInfo =>
+        val pre = info.tparams.take(info.preParamCount).map(_.name)
+        val post = info.tparams.drop(info.preParamCount).map(_.name)
         (pre, post)
       case _ => (Nil, Nil)
     out.println(s"""$indent  "preTypeParams": [${preTypeParams.map(jsonString).mkString(", ")}],""")
@@ -793,7 +796,7 @@ object JsonEmitter:
           val argsJson = targs.map(emitType).mkString(", ")
           // Check if the type constructor has pre-type-parameters (infix type)
           val preCount = tctor.info match
-            case TypeOperatorInfo(_, _, preParamCount) => preParamCount
+            case info: TypeOperatorInfo => info.preParamCount
             case _ => 0
           if preCount > 0 then
             s"""{ "kind": "applied", "name": ${jsonString(tctor.fullName)}, "args": [$argsJson], "preCount": $preCount }"""
