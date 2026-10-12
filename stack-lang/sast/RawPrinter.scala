@@ -340,8 +340,8 @@ object RawPrinter:
           val paramText = "[" ~ indent:
               val items = params.map: param =>
                 val defaultText = param.default match
-                  case DefaultValue.Lit(const) => "Lit [" ~ printConstant(const) ~ "]"
-                  case DefaultValue.Ref(sym) => "Ref [" ~ printSymbolRef(sym) ~ "]"
+                  case lit @ DefaultValue.Lit(const) => "Lit [" ~ printConstant(const) ~ "]@" ~ lit.span
+                  case ref @ DefaultValue.Ref(sym) => "Ref [" ~ printSymbolRef(sym) ~ "]@" ~ ref.span
                   case DefaultValue.None => Text("None")
 
                 "[" ~ param.name ~ "," ~ printType(param.tpe, tparamScope) ~ "," ~ defaultText ~ "]"
@@ -353,8 +353,8 @@ object RawPrinter:
                 val candidatesText =
                   val items = auto.candidates.map: cand =>
                     cand match
-                      case AutoCandidate.Value(sym) => printSymbolRef(sym)
-                      case AutoCandidate.Member(tp, name) => "[" ~ printType(tp, tparamScope) ~ "]." ~ name
+                      case AutoCandidate.Value(sym) => printSymbolRef(sym) ~ "@" ~ cand.span
+                      case AutoCandidate.Member(tp, name) => "[" ~ printType(tp, tparamScope) ~ "]." ~ name ~ "@" ~ cand.span
                   "[" ~ items.join(",") ~ "]"
 
                 "[" ~ auto.name ~ "," ~ printType(auto.tpe, tparamScope) ~ "," ~ candidatesText ~ "]"
