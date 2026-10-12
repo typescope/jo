@@ -18,10 +18,7 @@ import common.Debug
 
 /** Perform checks related to types  */
 object Checker:
-  /** Check kind of a type
-    *
-    * Note: Do not access info of type symbols.
-    */
+  /** Check kind of a type without forcing class contents or type-definition bodies. */
   def checkKind(tctor: TypeTree, targs: List[TypeTree], kind: Kind)(using Reporter, Source): Boolean =
     kind match
       case Kind.Arrow(args, to) =>
@@ -54,7 +51,6 @@ object Checker:
       else
         TypeApply(fun, targs)(span)
 
-  /** Should not take Definitions to avoid forcing symbols */
   /** True for types that may be silently dropped without a warning.
     *
     * Covers Unit, Bottom, void, and types implementing the dynamic-interop
@@ -91,11 +87,10 @@ object Checker:
       case Encoded(expr) => calleeOf(expr)
       case _             => None
 
-  def checkValueType(word: Word)(using Reporter, Source): Unit =
+  def checkValueType(word: Word)(using Definitions, Reporter, Source): Unit =
     checkValueType(word.tpe, word.pos)
 
-  /** Should not take Definitions to avoid forcing symbols */
-  def checkValueType(tp: Type, pos: SourcePosition)(using Reporter): Boolean =
+  def checkValueType(tp: Type, pos: SourcePosition)(using Definitions, Reporter): Boolean =
     if tp.isInstanceOf[ProcType] then
       Reporter.error(s"Expect value type, found a function", pos)
       false
@@ -116,7 +111,7 @@ object Checker:
           val sym = refType.symbol
 
           if sym.isType then
-            sym.asTypeSymbol.initKind match
+            sym.asTypeSymbol.kind match
               case Kind.Simple => return true
               case kind => error(Some(kind))
 

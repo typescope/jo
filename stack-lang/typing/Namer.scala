@@ -1356,8 +1356,8 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
   : List[TypeSymbol] =
     for tparam <- tparams yield
       // Only support simple-kinded type parameters
-      val sym = TypeSymbol.create(Kind.Simple, tparam.name, Flags.Param, Visibility.Default, sc.owner, tparam.pos)
-      defnLazy.index.add(sym, AnyType)
+      val sym = TypeSymbol.create(tparam.name, Flags.Param, Visibility.Default, sc.owner, tparam.pos)
+      defnLazy.index.add(sym, TypeParamInfo(Kind.Simple))
       sc.define(sym)
       sym
 
@@ -1796,19 +1796,17 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
     if tdef.rhs.isEmpty && !isAnyOrBottom then
       flags = flags | Flags.Defer
 
-    val kind = Kind.simpleKinded(tdef.tparams.size)
-
     val annotationsLazy = lazyValue:
       given Scope = sc
       transformAnnotations(tdef.annotations)
 
-    val typeSym = TypeSymbol.create(kind, tdef.name, flags, Checker.visibility(tdef, sc.owner), sc.owner, tdef.ident.pos)
+    val typeSym = TypeSymbol.create(tdef.name, flags, Checker.visibility(tdef, sc.owner), sc.owner, tdef.ident.pos)
 
     given sc2: Scope = sc.fresh(typeSym)
     val tparamSyms =
       transformTypeParams(tdef.tparams)
 
-    val rhsTypeLazy = lazyValue:
+    def computeRhs()(using Definitions): Type =
       val defn = summon[Definitions]
 
       if tdef.rhs.isEmpty then
@@ -1830,19 +1828,17 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
         else
           rhs
 
+    val rhsTypeLazy = lazyValue:
+      lazyDefn.index.complete(typeSym, () => computeRhs(), () => ErrorType).asType
 
-    def computeInfo(): Denotation =
+    val denot: Denotation =
       if tdef.tparams.isEmpty then
-        rhsTypeLazy.value
+        TypeAlias(() => rhsTypeLazy.value)
       else
-        TypeOperatorInfo(tparamSyms, rhsTypeLazy.value, tdef.preParamCount)
-
-    val errorType = () =>
-      if tdef.tparams.isEmpty then ErrorType
-      else TypeOperatorInfo(tparamSyms, ErrorType, tdef.preParamCount)
+        TypeOperatorInfo(tparamSyms, () => rhsTypeLazy.value, tdef.preParamCount)
 
     val index = lazyDefn.index
-    index.addLazy(typeSym, computeInfo, errorType)
+    index.add(typeSym, denot)
     index.setDocComment(typeSym, tdef.docComment)
     index.setAnnotations(typeSym, () => annotationsLazy.value.map(TreeOps.applyToAnnotation))
 
@@ -1998,13 +1994,12 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
 
     val extraFlags = cdef0.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
     val flags = Checker.checkModifiers(cdef0) | extraFlags | Flags.Class
-    val kind = Kind.simpleKinded(cdef0.tparams.size)
 
     val classAnnotationsLazy = lazyValue:
       given Scope = sc
       transformAnnotations(cdef0.annotations)
 
-    val classSym = TypeSymbol.create(kind, cdef0.name, flags, Checker.visibility(cdef0, sc.owner), sc.owner, cdef0.ident.pos)
+    val classSym = TypeSymbol.create(cdef0.name, flags, Checker.visibility(cdef0, sc.owner), sc.owner, cdef0.ident.pos)
     val thisSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, classSym, cdef0.ident.pos)
 
     // Class desugaring now happens in Desugaring.synthesize
@@ -2021,7 +2016,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
     val delayedDefs = new mutable.ArrayBuffer[LazyDef[FunDef]]
     val delayedFields = new mutable.ArrayBuffer[LazyDef[FieldDecl]]
 
-    // Add this to scope (must be before classInfoLazy, which uses shortCutScope)
+    // Add this to scope before checking views, which uses shortCutScope.
     val thisScope = paramScope.fresh()
     thisScope.define(thisSym)
 
@@ -2033,20 +2028,17 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
     val viewTypeTreesLazy = lazyValue:
       lazyViewTypeTrees.map(_.value).filter(!_.tpe.isError)
 
-    val classInfoLazy = lazyValue:
-      val viewTypeTrees = viewTypeTreesLazy.value  // must run before delayedDefs.map to add forwarder symbols
-      val fields = delayedFields.map(_.symbol).toList
-      val methods = delayedDefs.map(_.symbol).toList
-      new ClassInfo(
-        classSym,
-        tparamSyms,
-        thisSym,
-        fields,
-        methods,
-        viewTypeTrees.map(_.tpe)
-      )
+    val classInfo = new ClassInfo(
+      classSym, tparamSyms, thisSym,
+      fieldsInit = delayedFields.map(_.symbol).toList,
+      methodsInit = {
+        viewTypeTreesLazy.value
+        delayedDefs.map(_.symbol).toList
+      },
+      viewsInit = viewTypeTreesLazy.value.map(_.tpe)
+    )
+    index.add(classSym, classInfo)
 
-    index.addLazy(classSym, () => classInfoLazy.value)
     index.setAnnotations(classSym, () => classAnnotationsLazy.value.map(TreeOps.applyToAnnotation))
     index.setDocComment(classSym, cdef0.docComment)
 
@@ -2059,6 +2051,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
 
     for vdef <- cdef.vals do
       var flags = Checker.checkModifiers(vdef) | vdef.getKeyOrElse(Desugaring.ExtraFlags)(Flags.empty)
+
       if vdef.mutable then flags = flags | Flags.Field | Flags.Mutable
       else flags = flags | Flags.Field
 
@@ -2134,8 +2127,8 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
           delayedDefs += delayedDef
 
     lazyDef(classSym):
-      // Force ClassInfo first (registers forwarder symbols); extract delegate view infos.
-      classInfoLazy.value
+      // Check views first to register forwarder symbols.
+      viewTypeTreesLazy.value
 
       val fields: List[FieldDecl] =
         for delayedField <- delayedFields.toList yield delayedField.force()
@@ -2153,13 +2146,12 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
   : LazyDef[InterfaceDef] =
 
     val flags = Checker.checkModifiers(idef) | Flags.Interface
-    val kind = Kind.simpleKinded(idef.tparams.size)
 
     val annotationsLazy = lazyValue:
       given Scope = sc
       transformAnnotations(idef.annotations)
 
-    val interfaceSym = TypeSymbol.create(kind, idef.name, flags, Checker.visibility(idef, sc.owner), sc.owner, idef.ident.pos)
+    val interfaceSym = TypeSymbol.create(idef.name, flags, Checker.visibility(idef, sc.owner), sc.owner, idef.ident.pos)
 
     val selfSym = TermSymbol.create("this", Flags.Synthetic, Visibility.Default, interfaceSym, idef.ident.pos)
 
@@ -2169,21 +2161,17 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
       transformTypeParams(idef.tparams)
 
     val methods = new mutable.ArrayBuffer[Symbol]
-
-    val interfaceInfoLazy = lazyValue:
-      annotationsLazy.value
-      // Reuse ClassInfo but with empty fields
-      new ClassInfo(
-        interfaceSym,
-        tparamSyms,
-        selfSym,
-        fields = Nil,
-        methods.toList,
-        views = Nil
-      )
+    val interfaceInfo = new ClassInfo(
+      interfaceSym, tparamSyms, selfSym, Nil,
+      methodsInit = {
+        annotationsLazy.value
+        methods.toList
+      },
+      viewsInit = Nil
+    )
 
     val index = lazyDefn.index
-    index.addLazy(interfaceSym, () => interfaceInfoLazy.value)
+    index.add(interfaceSym, interfaceInfo)
     index.setAnnotations(interfaceSym, () => annotationsLazy.value.map(TreeOps.applyToAnnotation))
     index.setDocComment(interfaceSym, idef.docComment)
 
@@ -2408,7 +2396,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
           case StaticRef(tctorSym) if tctorSym.isType =>
             if tctor2.tpe == ErrorType
                || targs2.exists(_.tpe.isError)
-               || !Checker.checkKind(tctor2, targs2, tctorSym.asTypeSymbol.initKind)
+               || !Checker.checkKind(tctor2, targs2, tctorSym.asTypeSymbol.kind)
             then
               // A type argument is erroneous (error already reported); propagate
               // ErrorType so the whole applied type is treated as erroneous.
