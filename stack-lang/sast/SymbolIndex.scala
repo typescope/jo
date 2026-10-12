@@ -71,13 +71,27 @@ class SymbolIndex(val nameTable: NameTable, val initProvider: InfoProvider) exte
   // Doc comments
   //
 
-  private val docComments = mutable.Map[Symbol, List[String]]()
+  type DocCommentInfo = List[String] | (() => List[String])
 
-  def setDocComment(sym: Symbol, doc: List[String]): Unit =
-    if doc.nonEmpty then docComments(sym) = doc
+  private val docComments = mutable.Map[Symbol, DocCommentInfo]()
+
+  def setDocComment(sym: Symbol, doc: DocCommentInfo): Unit =
+    doc match
+      case Nil => ()
+      case _ => docComments(sym) = doc
 
   def docComment(sym: Symbol): List[String] =
-    docComments.getOrElse(sym, Nil)
+    docComments.get(sym) match
+      case None => Nil
+
+      case Some(info) =>
+        info match
+          case doc: List[String] => doc
+
+          case lazyInfo: (() => List[String]) =>
+            val doc = lazyInfo()
+            docComments(sym) = doc
+            doc
 
   //----------------------------------------------------------------------------
   // Annotations
@@ -93,9 +107,11 @@ class SymbolIndex(val nameTable: NameTable, val initProvider: InfoProvider) exte
   def annotations(sym: Symbol): List[Annotation] =
     annotations.get(sym) match
       case None => Nil
+
       case Some(info) =>
         info match
           case annots: List[Annotation] => annots
+
           case lazyInfo: (() => List[Annotation]) =>
             val annots = lazyInfo()
             annotations(sym) = annots

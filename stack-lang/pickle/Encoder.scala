@@ -42,7 +42,7 @@ import java.nio.charset.StandardCharsets.UTF_8
   * == Information of symbols
   *
   *   Symbol infos (owner and type) are reconstructed from trees. Flags and
-  *   kinds are stored directly.
+  *   type-parameter kinds are stored directly. Other kinds are derived from infos.
   *
   *   Duplicated copies are envisioned for language tools (e.g. doc/IDE) in the
   *   future.
@@ -394,20 +394,19 @@ object Encoder:
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeFlags(defSym.flags)
-      encodeKind(defSym.asTypeSymbol.kind)
       encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
-      encodeDocComment(defSym)
-      repeated(cdef.annots): annot =>
-        encodeWord(annot, absoluteStart)
-
       encodeTypeParams(cdef.tparams, defSym.span.start)
 
       encodeNat(state.getId(cdef.self))
       encodeString(cdef.self.name)
+
+      encodeDocComment(defSym)
+      repeated(cdef.annots): annot =>
+        encodeWord(annot, absoluteStart)
 
       repeated(cdef.vals): field =>
         val sym = field.symbol
@@ -449,20 +448,19 @@ object Encoder:
 
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
-      encodeKind(defSym.asTypeSymbol.kind)
       encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
-      encodeDocComment(defSym)
-      repeated(idef.annots): annot =>
-        encodeWord(annot, absoluteStart)
-
       encodeTypeParams(idef.tparams, defSym.span.start)
 
       encodeNat(state.getId(idef.self))
       encodeString(idef.self.name)
+
+      encodeDocComment(defSym)
+      repeated(idef.annots): annot =>
+        encodeWord(annot, absoluteStart)
 
       // Interfaces don't have direct views - encode empty list
       repeated(List.empty[Type]): viewType =>
@@ -629,19 +627,19 @@ object Encoder:
       encodeNat(state.getId(defSym))
       encodeString(defSym.name)
       encodeFlags(defSym.flags)
-      encodeKind(defSym.asTypeSymbol.kind)
       encodeVisibility(defSym)
 
       encodeInt(defSym.span.start - absoluteStart)
       encodeNat(defSym.span.length)
 
+      encodeTypeParams(tdef.tparams, absoluteStart)
+
+      if tdef.tparams.nonEmpty then
+        encodeNat(defSym.typeOperatorInfo.preParamCount)
+
       encodeDocComment(defSym)
       repeated(tdef.annots): annot =>
         encodeWord(annot, absoluteStart)
-
-      encodeTypeParams(tdef.tparams, absoluteStart)
-      if tdef.tparams.nonEmpty then
-        encodeNat(defSym.typeOperatorInfo.preParamCount)
 
       encodeTypeTree(tdef.rhs, absoluteStart)
 
