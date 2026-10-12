@@ -91,6 +91,7 @@ object Symbols:
     /** The type of this symbol. Throws if the symbol does not have a type */
     def tpe(using Definitions): Type =
       info match
+        case alias: TypeAlias => alias.body
         case tpe: Type => tpe
         case param: ParamInfo => param.tpe
         case auto: AutoInfo => auto.tpe
@@ -318,7 +319,6 @@ object Symbols:
   end Symbol
 
   final class TypeSymbol private[Symbols](
-    val initKind: Kind, // TODO: remove kind given TypeOperatorInfo?
     name: String,
     flags: Flags,
     visibility: Visibility,
@@ -327,6 +327,10 @@ object Symbols:
   extends Symbol(name, flags, visibility, owner, sourcePos):
     def kind(using Definitions): Kind =
       this.info match
+        case TypeParamInfo(kind) => kind
+
+        case StaticRef(target) if this.isAlias => target.asTypeSymbol.kind
+
         case classInfo: ClassInfo if classInfo.tparams.nonEmpty =>
           val tparamKinds = classInfo.tparams.map(tparam => tparam.asTypeSymbol.kind)
           Kind.Arrow(tparamKinds, Kind.Simple)
@@ -376,14 +380,14 @@ object Symbols:
       sym
 
   object TypeSymbol:
-    def create(kind: Kind, name: String, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition): TypeSymbol =
-      new TypeSymbol(kind, name, flags, visibility, owner, pos)
+    def create(name: String, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition): TypeSymbol =
+      new TypeSymbol(name, flags, visibility, owner, pos)
 
     def create
-        (kind: Kind, name: String, info: Denotation, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
+        (name: String, info: Denotation, flags: Flags, visibility: Visibility, owner: Symbol, pos: SourcePosition)
         (using defn: Definitions)
     : TypeSymbol =
-      val sym = new TypeSymbol(kind, name, flags, visibility, owner, pos)
+      val sym = new TypeSymbol(name, flags, visibility, owner, pos)
       defn.index.add(sym, info)
       sym
 

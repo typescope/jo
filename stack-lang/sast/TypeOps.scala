@@ -180,6 +180,7 @@ object TypeOps:
 
           else
             sym.info match
+              case alias: TypeAlias => recur(alias.body)
               case tp: Type => recur(tp)
               case _ => tref
 
@@ -196,13 +197,10 @@ object TypeOps:
           else
             recur(tvar.instantiated)
 
-        case app @ AppliedType(tctor, targs) =>
+        case AppliedType(tctor, targs) if !tctor.isGroundType =>
           tctor.info match
             case toi: TypeOperatorInfo =>
-              if tctor.isGroundType then app
-              else recur(toi.instantiate(targs))
-
-            case _: ClassInfo => app
+              recur(toi.instantiate(targs))
 
             case tp =>
               throw new Exception("Type constructor have type " + tp)
