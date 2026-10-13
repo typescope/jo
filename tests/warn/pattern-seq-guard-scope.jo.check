@@ -3,10 +3,28 @@
 |                                      ^
 |                                      Undefined term name a
 
+---------- Warning at tests/warn/pattern-seq-guard-scope.jo:6:20 ---------------
+|     case [.. while a ~ b, ..rest] => a + b
+|                    ^^^^^
+|                    The repeat pattern shadows the following pattern, potentially makes the next pattern unreachable.
+|
+| The repeat pattern covers the next pattern:
+|     case [.. while a ~ b, ..rest] => a + b
+|                           ^^^^^^
+
 ---------- Error at tests/warn/pattern-seq-guard-scope.jo:12:43 ---------------
 |     case [.. while name ~ age, ..rest] => name
 |                                           ^^^^
 |                                           Undefined term name name
+
+---------- Warning at tests/warn/pattern-seq-guard-scope.jo:12:20 ---------------
+|     case [.. while name ~ age, ..rest] => name
+|                    ^^^^^^^^^^
+|                    The repeat pattern shadows the following pattern, potentially makes the next pattern unreachable.
+|
+| The repeat pattern covers the next pattern:
+|     case [.. while name ~ age, ..rest] => name
+|                                ^^^^^^
 
 ---------- Error at tests/warn/pattern-seq-guard-scope.jo:18:40 ---------------
 |     case [..matched while x, y if y == x, ..rest] => matched.size
@@ -18,9 +36,18 @@
 |          ^
 |          The case is not reachable
 
+---------- Warning at tests/warn/pattern-seq-guard-scope.jo:25:20 ---------------
+|     case [.. while x, ..rest] => rest.size
+|                    ^
+|                    The repeat pattern shadows the following pattern, potentially makes the next pattern unreachable.
+|
+| The repeat pattern covers the next pattern:
+|     case [.. while x, ..rest] => rest.size
+|                       ^^^^^^
+
 ---------- Error at tests/warn/pattern-seq-guard-scope.jo:32:36 ---------------
 |     case x ~ [..ys while (y if y > x), ..] => pass  // x is available
 |                                    ^
 |                                    Expect type Int, found = String
 
-4 error(s), 1 warning(s)
+4 error(s), 4 warning(s)

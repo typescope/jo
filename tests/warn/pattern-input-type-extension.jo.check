@@ -1,0 +1,15 @@
+---------- Warning at tests/warn/pattern-input-type-extension.jo:24:10 ---------------
+|     case [] => pass
+|          ^^
+|          The case is not reachable
+
+---------- Warning at tests/warn/pattern-input-type-extension.jo:23:20 ---------------
+|     case [.. while Boxed(_: Bool), ..] => pass
+|                    ^^^^^^^^^^^^^
+|                    The repeat pattern shadows the following pattern, potentially makes the next pattern unreachable.
+|
+| The repeat pattern covers the next pattern:
+|     case [.. while Boxed(_: Bool), ..] => pass
+|                                    ^^
+
+0 error(s), 2 warning(s)

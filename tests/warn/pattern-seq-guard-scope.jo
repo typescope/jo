@@ -21,7 +21,7 @@ def test3(list: List[Int]) =
 
 def test4(list: List[Int]) =
   match list
-    // ✓ OK: rest is bound by the second repeat pattern
+    // rest is bound, but the irrefutable guard leaves it empty.
     case [.. while x, ..rest] => rest.size
     case _ => 0
   end

@@ -1,0 +1,25 @@
+// Sequence coverage must instantiate the generic extension's element type.
+// These matches are exhaustive and should produce no diagnostics.
+class Box[T](value: T)
+
+pattern Boxed[T](value: T): Box[T] = case Box(value)
+
+class VectorImpl[T](items: List[T])
+
+extension VectorOps[T] for VectorImpl[T]
+  def size(): Int = this.items.size()
+  def get(i: Int): T = this.items.get(i)
+  def slice(from: Int, len: Int): Vector[T] = VectorImpl(this.items.slice(from, len))
+end
+
+type Vector[T] = VectorImpl[T] :+ [VectorOps.size, VectorOps.get, VectorOps.slice]
+
+def first(values: Vector[Box[Bool]]): Unit =
+  match values
+    case [Boxed(value) if value is (_: Bool), ..] => pass
+    case [] => pass
+
+  match values
+    case [.. while Boxed(_: Bool), ..] => pass
+    case [] => pass
+

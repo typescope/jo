@@ -543,11 +543,11 @@ object RawPrinter:
           ~ "]"
         ~ "]"
 
-      case OrPattern(lhs, rhs) =>
-        "OrPattern [" ~ lhs ~ "," ~ rhs ~ "]"
+      case pat @ OrPattern(lhs, rhs) =>
+        "OrPattern [" ~ lhs ~ "," ~ rhs ~ "," ~ pat.refinement ~ "]"
 
-      case AndPattern(lhs, rhs) =>
-        "AndPattern [" ~ lhs ~ "," ~ rhs ~ "]"
+      case pat @ AndPattern(lhs, rhs) =>
+        "AndPattern [" ~ lhs ~ "," ~ rhs ~ "," ~ pat.refinement ~ "]"
 
       case NotPattern(nested) =>
         "NotPattern [" ~ nested ~ "]"

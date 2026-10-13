@@ -1356,7 +1356,7 @@ object Decoder:
         val symbol =
           if isDef then
             val name = decodeString()
-            val info = nested.valueType
+            val info = decodeType()
 
             val symbol = PatternSymbol.create(name, info, Flags.empty, Visibility.Default, owner, span.toPos(using state.source))
             state.registerInternalSymbol(id, symbol)
@@ -1368,16 +1368,14 @@ object Decoder:
         BindPattern(ident, nested)(isDef)
 
       case Format.TypePattern =>
-        val scrutineeType = decodeType()
         val tpt = decodeTypeTree(prevOffset)
         val nested = decodePattern(owner, prevOffset)
-        TypePattern(tpt, nested)(scrutineeType)
+        TypePattern(tpt, nested)
 
       case Format.ApplyPattern =>
         val startDelta = decodeInt()
         val startOffset = startDelta + prevOffset
 
-        val scrutineeType = decodeType()
         val fun = decodeWord(owner, prevOffset)
 
         var lastOffset = fun.span.endOffset
@@ -1389,24 +1387,23 @@ object Decoder:
         val endDelta = decodeInt()
         val span = Span(startOffset, lastOffset + endDelta - startOffset)
 
-        ApplyPattern(fun, nested)(scrutineeType, span)
+        ApplyPattern(fun, nested)(span)
 
       case Format.OrPattern =>
         val lhs = decodePattern(owner, prevOffset)
         val rhs = decodePattern(owner, lhs.span.endOffset)
-        val valueType = decodeType()
-        OrPattern(lhs, rhs)(valueType)
+        val refinement = decodeType()
+        OrPattern(lhs, rhs)(refinement)
 
       case Format.ValuePattern =>
-        val scrutineeType = decodeType()
         val value = decodeWord(owner, prevOffset)
-        ValuePattern(value)(scrutineeType)
+        ValuePattern(value)
 
       case Format.AndPattern =>
-        val valueType = decodeType()
+        val refinement = decodeType()
         val lhs = decodePattern(owner, prevOffset)
         val rhs = decodePattern(owner, lhs.span.endOffset)
-        AndPattern(lhs, rhs)(valueType)
+        AndPattern(lhs, rhs)(refinement)
 
       case Format.NotPattern =>
         val startDelta = decodeInt()
@@ -1416,12 +1413,10 @@ object Decoder:
         NotPattern(nested)(span)
 
       case Format.GuardPattern =>
-        val scrutineeType = decodeType()
         val guard = decodeWord(owner, prevOffset)
-        GuardPattern(guard)(scrutineeType)
+        GuardPattern(guard)
 
       case Format.AssignPattern =>
-        val scrutineeType = decodeType()
         val startDelta = decodeInt()
         val startOffset = prevOffset + startDelta
 
@@ -1431,10 +1426,9 @@ object Decoder:
           lastOffset = assign.span.endOffset
           assign
 
-        AssignPattern(assignments)(scrutineeType)
+        AssignPattern(assignments)
 
       case Format.SeqPattern =>
-        val scrutineeType = decodeType()
         val startDelta = decodeInt()
         val startOffset = prevOffset + startDelta
 
@@ -1447,14 +1441,13 @@ object Decoder:
         val endDelta = decodeInt()
         val span = Span(startOffset, lastOffset + endDelta - startOffset)
 
-        SeqPattern(pats)(scrutineeType, span)
+        SeqPattern(pats)(span)
 
       case Format.WildcardPattern =>
-        val scrutineeType = decodeType()
         val startDelta = decodeInt()
         val length = decodeNat()
         val span = Span(prevOffset + startDelta, length)
-        WildcardPattern()(scrutineeType, span)
+        WildcardPattern()(span)
 
       case _ => throw new Exception(s"Unknown pattern tag: $patternTag")
 
