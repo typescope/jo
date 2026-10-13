@@ -417,7 +417,6 @@ class PatternMatcher(isLambdaValue: Symbol)(using defn: Definitions, config: Con
         Block(assignments2 :+ BoolLit(true)(pat.span))(pat.span)
 
       case WildcardPattern() =>
-        assert(Subtyping.conforms(scrut.tpe.widen, pat.valueType.widen), "scrutee type = " + scrut.tpe.widen.show + ", pattern type = " + pat.valueType.widen.show)
         BoolLit(true)(pat.span)
 
   private def transformOrPattern(scrut: Ident, orPattern: OrPattern)

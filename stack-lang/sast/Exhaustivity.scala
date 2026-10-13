@@ -70,29 +70,31 @@ object Exhaustivity:
       case UnionSpace(spaces) =>
         spaces.flatMap(flatten)
 
-  def isIrrefutable(pat: Pattern)(using defn: Definitions): Boolean =
+  /** Whether the pattern always succeeds for the type it was checked against. */
+  def isIrrefutable(pat: Pattern, inputType: Type)(using defn: Definitions): Boolean =
     pat match
-      case BindPattern(_, nested) => isIrrefutable(nested)
+      case BindPattern(_, nested) => isIrrefutable(nested, inputType)
 
       case TypePattern(tpt, nested) =>
-        Subtyping.isEqualType(tpt.tpe, pat.scrutineeType) && isIrrefutable(nested)
+        Subtyping.isEqualType(tpt.tpe, inputType) && isIrrefutable(nested, tpt.tpe)
 
       case WildcardPattern() => true
 
       case seqPat: SeqPattern =>
-        seqPat.totalSize == Size.GreatEq(0) && atomsIrrefutable(seqPat)
+        seqPat.totalSize == Size.GreatEq(0) && atomsIrrefutable(seqPat, inputType)
 
       case ValuePattern(value) => false
 
       case app @ ApplyPattern(pred, nested) =>
         assert(pred.tpe.isProcType, pred.tpe)
         !pred.tpe.asProcType.resultType.isPartial
-        && Subtyping.isEqualType(app.valueType, app.scrutineeType)
-        && nested.forall(isIrrefutable)
+        && Subtyping.isEqualType(app.refinedType(inputType), inputType)
+        && nested.zip(pred.tpe.asProcType.paramTypes).forall: (pat, paramType) =>
+          isIrrefutable(pat, paramType)
 
       case _: OrPattern => false
 
-      case AndPattern(lhs, rhs) => isIrrefutable(lhs) && isIrrefutable(rhs)
+      case AndPattern(lhs, rhs) => isIrrefutable(lhs, inputType) && isIrrefutable(rhs, inputType)
 
       case _: NotPattern => false
 
@@ -103,7 +105,7 @@ object Exhaustivity:
   def isIrrefutable(word: Word)(using defn: Definitions): Boolean =
     word match
       case IsExpr(expr, pat) =>
-        isIrrefutable(pat) && Subtyping.conforms(expr.tpe, pat.valueType)
+        isIrrefutable(pat, expr.tpe.widen) && Subtyping.conforms(expr.tpe, pat.refinedType(expr.tpe.widen))
 
       case Apply(Select(lhs, "&&"), rhs :: Nil, Nil) if lhs.tpe.isBoolType =>
         isIrrefutable(lhs) && isIrrefutable(rhs)
@@ -112,25 +114,30 @@ object Exhaustivity:
 
 
   /** Check element constraints; sequence length is handled separately. */
-  def atomsIrrefutable(pat: SeqPattern)(using Definitions): Boolean =
+  private def atomsIrrefutable(pat: SeqPattern, inputType: Type)(using Definitions): Boolean =
+    // Sequence elements are typed against the instantiated get method's result.
+    lazy val itemType =
+      TypeOps.instantiateExtensionReceiver(inputType.termMember("get").asProcType, inputType).resultType
+
     pat.patterns.forall:
-      case AtomPattern(pat) => isIrrefutable(pat)
+      case AtomPattern(pat) => isIrrefutable(pat, itemType)
       case RepeatPattern(_, _) => true
 
-  def project(pattern: Pattern)(using defn: Definitions): Space =
+  /** Project coverage relative to the type the pattern was checked against. */
+  def project(pattern: Pattern, inputType: Type)(using defn: Definitions): Space =
     pattern match
-      case BindPattern(id, nested) => project(nested)
+      case BindPattern(id, nested) => project(nested, inputType)
 
-      case TypePattern(tpt, nested) => project(nested)
+      case TypePattern(tpt, nested) => project(nested, tpt.tpe)
 
-      case WildcardPattern() => TypeSpace(pattern.valueType)
+      case WildcardPattern() => TypeSpace(inputType)
 
       case seqPat: SeqPattern =>
 
-        if atomsIrrefutable(seqPat) then
-          SeqSpace(seqPat.valueType, seqPat.totalSize)
+        if atomsIrrefutable(seqPat, inputType) then
+          SeqSpace(inputType, seqPat.totalSize)
         else
-          PartialSpace(SeqSpace(seqPat.valueType, seqPat.totalSize))
+          PartialSpace(SeqSpace(inputType, seqPat.totalSize))
 
       case ValuePattern(value) =>
         value match
@@ -142,33 +149,34 @@ object Exhaustivity:
 
       case app @ ApplyPattern(pred, nested) =>
         if pred.tpe.asProcType.resultType.isPartial then
-          PartialSpace(TypeSpace(app.valueType))
+          PartialSpace(TypeSpace(app.refinedType(inputType)))
 
         else
-          if nested.isEmpty then TypeSpace(app.valueType)
+          if nested.isEmpty then TypeSpace(app.refinedType(inputType))
           else
-            val spaces = nested.map(project)
+            val spaces = nested.zip(pred.tpe.asProcType.paramTypes).map: (pat, paramType) =>
+              project(pat, paramType)
             PredSpace(app.symbol, pred.tpe.asProcType, spaces)
 
       case OrPattern(lhs, rhs) =>
-        UnionSpace(project(lhs) :: project(rhs) :: Nil)
+        UnionSpace(project(lhs, inputType) :: project(rhs, inputType) :: Nil)
 
       case AndPattern(lhs, rhs) =>
-        if isIrrefutable(rhs) then project(lhs)
-        else PartialSpace(project(lhs))
+        if isIrrefutable(rhs, inputType) then project(lhs, inputType)
+        else PartialSpace(project(lhs, inputType))
 
       case NotPattern(nested) =>
-        val spaceNested = project(nested)
+        val spaceNested = project(nested, inputType)
         spaceNested match
-          case _: PartialSpace => PartialSpace(TypeSpace(pattern.scrutineeType))
-          case _ => subtract(TypeSpace(pattern.scrutineeType), spaceNested)
+          case _: PartialSpace => PartialSpace(TypeSpace(inputType))
+          case _ => subtract(TypeSpace(inputType), spaceNested)
 
       case GuardPattern(_) =>
         EmptySpace
 
       case AssignPattern(assignments) =>
         // Assignment pattern always matches (just binds values)
-        TypeSpace(pattern.scrutineeType)
+        TypeSpace(inputType)
 
   def subtract(s1: Space, s2: Space)(using defn: Definitions): Space = Debug.trace(s"subtract(${s1.show}, ${s2.show})", (_: Space).show, enable = false):
     (s1, s2) match

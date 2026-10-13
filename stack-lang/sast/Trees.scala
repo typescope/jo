@@ -325,11 +325,25 @@ object Trees:
   // patterns
 
   sealed trait Pattern extends Tree:
-    /** The type of the scrutinee */
-    def scrutineeType: Type
-
     /** The refined type of the scrutinee if the pattern succeeds */
-    def valueType: Type
+    def refinedType(scrut: Type)(using Definitions): Type =
+      this match
+        case TypePattern(tpt, _) => tpt.tpe
+
+        case ApplyPattern(fun, _) => fun.tpe.asProcType.resultType.stripPartial
+
+        case ValuePattern(value) => value.tpe
+
+        // Bare references retain the binding's declared type.
+        case BindPattern(id, _: WildcardPattern) => id.symbol.tpe
+
+        case BindPattern(_, nested) => nested.refinedType(scrut)
+
+        case pat: OrPattern => pat.refinement
+
+        case pat: AndPattern => pat.refinement
+
+        case _ => scrut
 
     def show(using Definitions): String = Printing.show(this)
 
@@ -340,25 +354,19 @@ object Trees:
         case _ => false
 
   case class TypePattern
-    (tpt: TypeTree, nested: Pattern)(val scrutineeType: Type)
+    (tpt: TypeTree, nested: Pattern)
   extends Pattern with DerivedSpan:
-    def valueType = tpt.tpe
-
     def deriveSpan: Span = tpt.span | nested.span
 
   case class WildcardPattern
     ()
-    (val scrutineeType: Type, val span: Span)
-  extends Pattern:
-    def valueType = scrutineeType
+    (val span: Span)
+  extends Pattern
 
   case class BindPattern
     (id: Ident, nested: Pattern)
     (isDef: Boolean)
   extends Pattern with DerivedSpan:
-    def scrutineeType = nested.scrutineeType
-    def valueType = nested.valueType
-
     def deriveSpan = id.span | nested.span
 
     /** Whether the symbol is a reference or a definition
@@ -370,35 +378,25 @@ object Trees:
 
   case class OrPattern
     (lhs: Pattern, rhs: Pattern)
-    (val valueType: Type)
+    (val refinement: Type)
   extends Pattern with DerivedSpan:
-    def scrutineeType = lhs.scrutineeType
-
     def deriveSpan = lhs.span | rhs.span
 
   case class AndPattern
     (lhs: Pattern, rhs: Pattern)
-    (val valueType: Type)
+    (val refinement: Type)
   extends Pattern with DerivedSpan:
-    def scrutineeType = lhs.scrutineeType
-
     def deriveSpan = lhs.span | rhs.span
 
   case class NotPattern
     (nested: Pattern)
     (val span: Span)
-  extends Pattern:
-    def scrutineeType = nested.scrutineeType
-
-    def valueType = scrutineeType
+  extends Pattern
 
   case class ApplyPattern
     (fun: Word, nested: List[Pattern])
-    (val scrutineeType: Type, val span: Span)
-    (using Definitions)
+    (val span: Span)
   extends Pattern:
-    val valueType = fun.tpe.asProcType.resultType.stripPartial
-
     val symbol =
       fun match
         case Ident(sym) if sym.isPattern => sym
@@ -408,10 +406,8 @@ object Trees:
     def deriveSpan = nested.foldLeft(fun.span)(_ | _.span)
 
   case class ValuePattern
-    (value: Word)(val scrutineeType: Type)
+    (value: Word)
   extends Pattern with DerivedSpan:
-    def valueType = value.tpe
-
     def deriveSpan = value.span
 
   /** Represents patterns `if e`
@@ -420,28 +416,20 @@ object Trees:
     */
   case class GuardPattern
     (guard: Word)
-    (val scrutineeType: Type)
   extends Pattern with DerivedSpan:
-    def valueType = scrutineeType
-
     def deriveSpan = guard.span
 
   case class AssignPattern
     (assignments: List[Assign])
-    (val scrutineeType: Type)
   extends Pattern with DerivedSpan:
     assert(assignments.nonEmpty, "AssignPattern must have at least one assignment")
-
-    def valueType = scrutineeType
 
     def deriveSpan = assignments.head.span | assignments.last.span
 
   case class SeqPattern
     (patterns: List[SeqPartPattern])
-    (val scrutineeType: Type, val span: Span)
+    (val span: Span)
   extends Pattern:
-    def valueType = scrutineeType
-
     /** The distance from the end of a pattern to the end of sequence */
     val distanceToEnd: Seq[SeqPattern.Size] = SeqPattern.computeDistanceToEnd(patterns)
 
@@ -556,7 +544,7 @@ object Trees:
     def headPattern: Pattern =
       this match
         case AtomPattern(pat) => pat
-        case RepeatPattern(_, None) => WildcardPattern()(AnyType, this.span)
+        case RepeatPattern(_, None) => WildcardPattern()(this.span)
         case RepeatPattern(_, Some(guard)) => guard
 
     /** Length coverage used by exhaustivity analysis. */

@@ -996,19 +996,18 @@ object Encoder:
 
         if isDef then
           encodeString(sym.name)
+          encodeType(sym.tpe)
 
       case TypePattern(tpt, nested) =>
         checkSubtype[TypePattern, DerivedSpan]
 
         encodeByte(Format.TypePattern)
-        encodeType(pattern.scrutineeType)
         encodeTypeTree(tpt, prevOffset)
         encodePattern(nested, prevOffset)
 
       case ApplyPattern(fun, nested) =>
         encodeByte(Format.ApplyPattern)
         encodeInt(startDelta)
-        encodeType(pattern.scrutineeType)
         encodeWord(fun, prevOffset)
 
         var lastOffset = fun.span.endOffset
@@ -1018,26 +1017,25 @@ object Encoder:
 
         encodeInt(pattern.span.endOffset - lastOffset)
 
-      case OrPattern(lhs, rhs) =>
+      case pat @ OrPattern(lhs, rhs) =>
         checkSubtype[OrPattern, DerivedSpan]
 
         encodeByte(Format.OrPattern)
         encodePattern(lhs, prevOffset)
         encodePattern(rhs, lhs.span.endOffset)
-        encodeType(pattern.valueType)
+        encodeType(pat.refinement)
 
       case ValuePattern(value) =>
         checkSubtype[ValuePattern, DerivedSpan]
 
         encodeByte(Format.ValuePattern)
-        encodeType(pattern.scrutineeType)
         encodeWord(value, prevOffset)
 
-      case apat @ AndPattern(lhs, rhs) =>
+      case pat @ AndPattern(lhs, rhs) =>
         checkSubtype[AndPattern, DerivedSpan]
 
         encodeByte(Format.AndPattern)
-        encodeType(apat.valueType)
+        encodeType(pat.refinement)
         encodePattern(lhs, prevOffset)
         encodePattern(rhs, lhs.span.endOffset)
 
@@ -1046,18 +1044,16 @@ object Encoder:
         encodeInt(startDelta)
         encodePattern(nested, pattern.span.start)
 
-      case gpat @ GuardPattern(guard) =>
+      case GuardPattern(guard) =>
         checkSubtype[GuardPattern, DerivedSpan]
 
         encodeByte(Format.GuardPattern)
-        encodeType(gpat.scrutineeType)
         encodeWord(guard, prevOffset)
 
       case apat @ AssignPattern(assignments) =>
         checkSubtype[AssignPattern, DerivedSpan]
 
         encodeByte(Format.AssignPattern)
-        encodeType(apat.scrutineeType)
         encodeInt(startDelta)
 
         var lastOffset = apat.span.start
@@ -1067,7 +1063,6 @@ object Encoder:
 
       case SeqPattern(pats) =>
         encodeByte(Format.SeqPattern)
-        encodeType(pattern.scrutineeType)
         encodeInt(startDelta)
 
         var lastOffset = pattern.span.start
@@ -1079,7 +1074,6 @@ object Encoder:
 
       case WildcardPattern() =>
         encodeByte(Format.WildcardPattern)
-        encodeType(pattern.scrutineeType)
         encodeInt(startDelta)
         encodeNat(pattern.span.length)
 

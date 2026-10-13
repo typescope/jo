@@ -422,7 +422,7 @@ abstract class TreeMap(using Definitions):
     if nested2 `eq` nested then
       pat
     else
-      TypePattern(tpt, nested2)(pat.scrutineeType)
+      TypePattern(tpt, nested2)
 
   def transformApplyPattern(pat: ApplyPattern)(using Context): Pattern =
     recurApplyPattern(pat)
@@ -437,7 +437,7 @@ abstract class TreeMap(using Definitions):
       patNested2
 
     if changed then
-      ApplyPattern(fun, nested2)(pat.scrutineeType, pat.span)
+      ApplyPattern(fun, nested2)(pat.span)
     else
       pat
 
@@ -452,7 +452,7 @@ abstract class TreeMap(using Definitions):
     if lhs2.eq(lhs) && rhs2.eq(rhs) then
       pat
     else
-      OrPattern(lhs2, rhs2)(pat.valueType)
+      OrPattern(lhs2, rhs2)(pat.refinement)
 
   def transformAndPattern(pat: AndPattern)(using Context): Pattern =
     recurAndPattern(pat)
@@ -464,7 +464,7 @@ abstract class TreeMap(using Definitions):
     if lhs2.eq(lhs) && rhs2.eq(rhs) then
       pat
     else
-      AndPattern(lhs2, rhs2)(pat.valueType)
+      AndPattern(lhs2, rhs2)(pat.refinement)
 
   def transformNotPattern(pat: NotPattern)(using Context): Pattern =
     recurNotPattern(pat)
@@ -485,7 +485,7 @@ abstract class TreeMap(using Definitions):
     if value2 `eq` pat.value then
       pat
     else
-      ValuePattern(value2)(pat.scrutineeType)
+      ValuePattern(value2)
 
   def transformGuardPattern(pat: GuardPattern)(using Context): Pattern =
     recurGuardPattern(pat)
@@ -496,7 +496,7 @@ abstract class TreeMap(using Definitions):
     if guard2.eq(guard) then
       pat
     else
-      GuardPattern(guard2)(pat.scrutineeType)
+      GuardPattern(guard2)
 
   def transformAssignPattern(pat: AssignPattern)(using Context): Pattern =
     recurAssignPattern(pat)
@@ -514,7 +514,7 @@ abstract class TreeMap(using Definitions):
     if !changed then
       pat
     else
-      AssignPattern(assignments2)(pat.scrutineeType)
+      AssignPattern(assignments2)
 
   def transformSeqPattern(pat: SeqPattern)(using Context): Pattern =
     recurSeqPattern(pat)
@@ -545,7 +545,7 @@ abstract class TreeMap(using Definitions):
       end for
 
     if changed then
-      SeqPattern(patterns2)(pat.scrutineeType, pat.span)
+      SeqPattern(patterns2)(pat.span)
     else
       pat
 

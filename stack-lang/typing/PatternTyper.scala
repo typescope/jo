@@ -80,7 +80,7 @@ class PatternTyper(namer: Namer)(using Config):
 
       if patterns.isEmpty then
         Reporter.error("Expect case patterns, found none", patDef.pos)
-        WildcardPattern()(ErrorType, patDef.span)
+        WildcardPattern()(patDef.span)
 
       else
         patterns.tail.foldLeft(patterns.head): (acc, pat) =>
@@ -112,7 +112,7 @@ class PatternTyper(namer: Namer)(using Config):
 
     var rest = scrutSpace
     for pattern <- patterns do
-      val space = Exhaustivity.project(pattern)
+      val space = Exhaustivity.project(pattern, coveredType.stripPartial)
       if Exhaustivity.isDisjoint(rest, space) then
         Reporter.warn("The case is not reachable", pattern.pos)
       else
@@ -213,7 +213,7 @@ class PatternTyper(namer: Namer)(using Config):
     import Exhaustivity.Space
     var rest = Space.TypeSpace(patmat.scrutinee.tpe.widenTermRef)
     for Case(pat, _) <- patmat.cases do
-      val space = Exhaustivity.project(pat)
+      val space = Exhaustivity.project(pat, patmat.scrutinee.tpe.widen)
       if Exhaustivity.isDisjoint(rest, space) then
         Reporter.warn("The case is not reachable", pat.pos)
       else
@@ -231,7 +231,7 @@ class PatternTyper(namer: Namer)(using Config):
       (using Definitions, Reporter): Unit =
     import Exhaustivity.Space
     val typeSpace = Space.TypeSpace(rhsType.widenTermRef)
-    val patternSpace = Exhaustivity.project(pattern)
+    val patternSpace = Exhaustivity.project(pattern, rhsType.widenTermRef)
     val rest = Exhaustivity.subtract(typeSpace, patternSpace)
 
     val cases = Exhaustivity.flatten(rest)
@@ -298,7 +298,7 @@ class PatternTyper(namer: Namer)(using Config):
 
         if args.size != paramSize then
           Reporter.error(s"The pattern predicate expects $paramSize arguments, found = ${args.size}", id.pos)
-          WildcardPattern()(ErrorType, patSpan)
+          WildcardPattern()(patSpan)
 
         else if sym == defn.orPattern then
           transformOrPattern(args(0), args(1), scrutType)
@@ -314,18 +314,18 @@ class PatternTyper(namer: Namer)(using Config):
             for (arg, paramType) <- args.zip(procType.paramTypes) yield
               transformPattern(arg, paramType)
 
-          ApplyPattern(fun, argsTyped)(scrutType, patSpan)
+          ApplyPattern(fun, argsTyped)(patSpan)
 
       else
         if !scrutType.isError then
           Reporter.error(s"The pattern result type ${resType.show} is invalid with respect to the scrutinee type ${scrutType.show}. " + explain, id.pos)
-        WildcardPattern()(ErrorType, patSpan)
+        WildcardPattern()(patSpan)
 
     else
       if !fun.tpe.isError then
         Reporter.error(s"Not a pattern predicate: " + fun.tpe.show, id.pos)
 
-      WildcardPattern()(ErrorType, patSpan)
+      WildcardPattern()(patSpan)
 
 
   private def transformOrPattern(lhs: Ast.Pattern, rhs: Ast.Pattern, scrutType: Type)
@@ -348,13 +348,13 @@ class PatternTyper(namer: Namer)(using Config):
     // may contain warnings
     rp2.commit(rp)
 
-    val valueType =
+    val refinement =
       given TargetType = TargetType.Unknown
-      Inference.commonResultType(lhsPat.valueType, rhsPat.valueType) match
+      Inference.commonResultType(lhsPat.refinedType(scrutType), rhsPat.refinedType(scrutType)) match
         case Some(tpe) => tpe
         case None => scrutType
 
-    OrPattern(lhsPat, rhsPat)(valueType)
+    OrPattern(lhsPat, rhsPat)(refinement)
 
   private def transformAndPattern(lhs: Ast.Pattern, rhs: Ast.Pattern, scrutType: Type)
       (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
@@ -362,13 +362,13 @@ class PatternTyper(namer: Namer)(using Config):
     val lhsPat = transformPattern(lhs, scrutType)
     val rhsPat = transformPattern(rhs, scrutType)
 
-    val valueType =
+    val refinement =
       given TargetType = TargetType.Unknown
-      Inference.commonResultType(lhsPat.valueType, rhsPat.valueType) match
+      Inference.commonResultType(lhsPat.refinedType(scrutType), rhsPat.refinedType(scrutType)) match
         case Some(tpe) => tpe
         case None => scrutType
 
-    AndPattern(lhsPat, rhsPat)(valueType)
+    AndPattern(lhsPat, rhsPat)(refinement)
 
   private def transformNotPattern(pat: Ast.Pattern, scrutType: Type, patSpan: Span)
       (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
@@ -396,7 +396,7 @@ class PatternTyper(namer: Namer)(using Config):
 
     val pattern =
       if name == "_" then
-        TypePattern(tpt2, WildcardPattern()(tpe, id.span))(scrutType)
+        TypePattern(tpt2, WildcardPattern()(id.span))
 
       else
         sc.resolvePatternVariable(name) match
@@ -405,11 +405,11 @@ class PatternTyper(namer: Namer)(using Config):
 
             if Subtyping.conforms(tpe, sym.tpe) then
               val patVal = Ident(sym)(id.span)
-              BindPattern(patVal, TypePattern(tpt2, WildcardPattern()(tpe, id.span))(scrutType))(isDef = false)
+              BindPattern(patVal, TypePattern(tpt2, WildcardPattern()(id.span)))(isDef = false)
 
             else
               Reporter.error(s"The type ${tpe.show} not a equal to the type of $sym. The latter has type " + sym.tpe.show, tpt.pos)
-              WildcardPattern()(ErrorType, patSpan)
+              WildcardPattern()(patSpan)
 
           case None =>
             val sym = PatternSymbol.create(name, tpe, Flags.empty, Visibility.Default, sc.owner, id.pos)
@@ -417,7 +417,7 @@ class PatternTyper(namer: Namer)(using Config):
             sc.promote(sym, id.pos)
 
             val patVal = Ident(sym)(id.span)
-            BindPattern(patVal, TypePattern(tpt2, WildcardPattern()(tpe, id.span))(scrutType))(isDef = true)
+            BindPattern(patVal, TypePattern(tpt2, WildcardPattern()(id.span)))(isDef = true)
         end match
       end if
 
@@ -426,7 +426,7 @@ class PatternTyper(namer: Namer)(using Config):
       pattern
     else
       Reporter.error(explain.toString, tpt.pos)
-      WildcardPattern()(ErrorType, patSpan)
+      WildcardPattern()(patSpan)
 
   private def transformIdentPattern(id: Ast.Ident, scrutType: Type)
       (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source, tvars: TypeVars)
@@ -437,7 +437,7 @@ class PatternTyper(namer: Namer)(using Config):
       transformApplyPattern(id, Nil, scrutType, id.span)
 
     else if name == "_" then
-      WildcardPattern()(scrutType, id.span)
+      WildcardPattern()(id.span)
 
     else
       sc.resolvePatternVariable(name) match
@@ -446,11 +446,11 @@ class PatternTyper(namer: Namer)(using Config):
 
           if Subtyping.conforms(scrutType, sym.tpe) then
             val patVal = Ident(sym)(id.span)
-            BindPattern(patVal, WildcardPattern()(sym.tpe, id.span.endPoint))(isDef = false)
+            BindPattern(patVal, WildcardPattern()(id.span.endPoint))(isDef = false)
 
           else
             Reporter.error(s"$sym has the type ${sym.tpe.show}, which is not equal to the scrutinee type " + scrutType.show, id.pos)
-            WildcardPattern()(ErrorType, id.span)
+            WildcardPattern()(id.span)
 
         case None =>
           val sym = PatternSymbol.create(name, scrutType, Flags.empty, Visibility.Default, sc.owner, id.pos)
@@ -458,7 +458,7 @@ class PatternTyper(namer: Namer)(using Config):
           sc.define(sym)
 
           val patVal = Ident(sym)(id.span)
-          val wildcard = WildcardPattern()(scrutType, id.span.endPoint)
+          val wildcard = WildcardPattern()(id.span.endPoint)
           BindPattern(patVal, wildcard)(isDef = true)
 
   private def transformBindPattern(id: Ast.Ident, nested: Ast.Pattern, scrutType: Type)
@@ -477,17 +477,17 @@ class PatternTyper(namer: Namer)(using Config):
 
           val nestedPattern = transformPattern(nested, scrutType)
 
-          if Subtyping.conforms(nestedPattern.valueType, sym.tpe) then
+          if Subtyping.conforms(nestedPattern.refinedType(scrutType), sym.tpe) then
             val patVal = Ident(sym)(id.span)
             BindPattern(patVal, nestedPattern)(isDef = false)
 
           else
             Reporter.error(s"$sym has the type ${sym.tpe.show}, which is not equal to the scrutinee type " + scrutType.show, id.pos)
-            WildcardPattern()(ErrorType, id.span)
+            WildcardPattern()(id.span)
 
         case None =>
           val nestedPattern = transformPattern(nested, scrutType)
-          val sym = PatternSymbol.create(name, nestedPattern.valueType, Flags.empty, Visibility.Default, sc.owner, id.pos)
+          val sym = PatternSymbol.create(name, nestedPattern.refinedType(scrutType), Flags.empty, Visibility.Default, sc.owner, id.pos)
           sc.promote(sym, id.pos)
           sc.define(sym)
 
@@ -642,7 +642,7 @@ class PatternTyper(namer: Namer)(using Config):
     if signatureConforms then
       if !tvar.isInstantiated then
         Reporter.error("Tvar is not instantiated", seq.pos)
-        WildcardPattern()(ErrorType, seq.span)
+        WildcardPattern()(seq.span)
 
       else
         val partPatterns = new mutable.ArrayBuffer[SeqPartPattern]
@@ -686,7 +686,7 @@ class PatternTyper(namer: Namer)(using Config):
           end match
         end for
 
-        val seqPattern = SeqPattern(partPatterns.toList)(scrutType, seq.span)
+        val seqPattern = SeqPattern(partPatterns.toList)(seq.span)
 
         if !tempReporter.hasErrors then
           // check determinism of patterns
@@ -707,9 +707,10 @@ class PatternTyper(namer: Namer)(using Config):
                 val next = seqPattern(i + 1) // i never points to the last
                 val headPattern = next.headPattern
 
-                val space1 = Exhaustivity.project(itemPat)
-                val space2 = Exhaustivity.project(headPattern)
+                val space1 = Exhaustivity.project(itemPat, itemType)
+                val space2 = Exhaustivity.project(headPattern, itemType)
                 val reachableSpace = Exhaustivity.subtract(space2, space1)
+
                 if Exhaustivity.isEmpty(reachableSpace) then
                   rp.report(ShadowedPatternError(itemPat, headPattern))
 
@@ -734,7 +735,7 @@ class PatternTyper(namer: Namer)(using Config):
       if !sliceConforms then
         Reporter.error("The scrutinee does not have a method `def slice(from: Int, to: Int)` to support sequence pattern", seq.pos)
 
-      WildcardPattern()(ErrorType, seq.span)
+      WildcardPattern()(seq.span)
 
 
   private def resolvePatternPredicate(id: Ast.RefTree)(using sc: FlowScope, rp: Reporter, so: Source, defn: Definitions): Symbol =
@@ -770,7 +771,7 @@ class PatternTyper(namer: Namer)(using Config):
     val assignments2 = transformAssignments(assignments)
 
     // Desugar to AndPattern(basePat, AssignPattern(assignments))
-    val assignPat = AssignPattern(assignments2)(scrutType)
+    val assignPat = AssignPattern(assignments2)
     AndPattern(basePat2, assignPat)(scrutType)
 
   private def transformAssignments(assignments: List[(Ast.Ident, Ast.Word)])
@@ -810,10 +811,10 @@ class PatternTyper(namer: Namer)(using Config):
     if !Subtyping.conforms(scrutType, defn.StringType) then
       if !scrutType.isError then
         Reporter.error(s"Regex pattern scrutinee must be String, found: ${scrutType.show}", regexPat.pos)
-      return WildcardPattern()(ErrorType, regexPat.span)
+      return WildcardPattern()(regexPat.span)
 
     val span = regexPat.span
-    val wildcard = WildcardPattern()(scrutType, span.endPoint)
+    val wildcard = WildcardPattern()(span.endPoint)
     val scrutSym = PatternSymbol.create("_scrut", scrutType, Flags.Synthetic, Visibility.Default, sc.owner, regexPat.pos)
     val scrutId = Ident(scrutSym)(regexPat.pos.span)
     val basePat = BindPattern(scrutId, wildcard)(isDef = true)
@@ -832,7 +833,7 @@ class PatternTyper(namer: Namer)(using Config):
     val needsResultBinder = binderOpt.nonEmpty || regexLit.groupNames.nonEmpty
 
     def withGuard(guardWord: Word): Pattern =
-      val guardPat = GuardPattern(guardWord)(scrutType)
+      val guardPat = GuardPattern(guardWord)
       AndPattern(basePat, guardPat)(scrutType)
 
     def withGroupAssignments(baseWithGuard: Pattern, resultSym: Symbol): Pattern =
@@ -847,23 +848,23 @@ class PatternTyper(namer: Namer)(using Config):
           Ast.Ident(group.name)(group.span) -> rhsAst
 
       val assigns = transformAssignments(assignsAst)
-      val assignPat = AssignPattern(assigns)(scrutType)
+      val assignPat = AssignPattern(assigns)
       AndPattern(baseWithGuard, assignPat)(scrutType)
 
     if needsResultBinder then
-      makeTypePattern(binderOpt, matchResultType, matchFirstWord.tpe, regexPat.pos, matchFirstWord.span) match
+      makeTypePattern(binderOpt, matchResultType, regexPat.pos, matchFirstWord.span) match
         case Some((matchPattern, resultSym)) =>
           val baseWithGuard = withGuard(IsExpr(matchFirstWord, matchPattern))
           if regexLit.groupNames.nonEmpty then withGroupAssignments(baseWithGuard, resultSym)
           else baseWithGuard
         case None =>
-          WildcardPattern()(ErrorType, regexPat.span)
+          WildcardPattern()(regexPat.span)
     else
-      val guardPattern = TypePattern(TypeTree(matchResultType)(matchFirstWord.span), WildcardPattern()(matchResultType, matchFirstWord.span))(matchFirstWord.tpe)
+      val guardPattern = TypePattern(TypeTree(matchResultType)(matchFirstWord.span), WildcardPattern()(matchFirstWord.span))
       withGuard(IsExpr(matchFirstWord, guardPattern))
 
   private def makeTypePattern(
-      binderOpt: Option[Ast.Ident], matchResultType: Type, matchFirstType: Type, pos: SourcePosition, span: Span)
+      binderOpt: Option[Ast.Ident], matchResultType: Type, pos: SourcePosition, span: Span)
       (using defn: Definitions, sc: FlowScope, rp: Reporter, so: Source)
   : Option[(Pattern, Symbol)] =
 
@@ -893,8 +894,8 @@ class PatternTyper(namer: Namer)(using Config):
           sym
 
     val resultId = Ident(resultSym)(span)
-    val bindPattern = BindPattern(resultId, WildcardPattern()(matchResultType, span))(isDef)
-    val matchPattern = TypePattern(TypeTree(matchResultType)(span), bindPattern)(matchFirstType)
+    val bindPattern = BindPattern(resultId, WildcardPattern()(span))(isDef)
+    val matchPattern = TypePattern(TypeTree(matchResultType)(span), bindPattern)
     Some((matchPattern, resultSym))
 
   def transformPattern(
@@ -918,7 +919,7 @@ class PatternTyper(namer: Namer)(using Config):
           given ControlScope = ControlScope.NoReturn
           namer.transform(value)
 
-        val valuePattern = ValuePattern(literal)(scrutType)
+        val valuePattern = ValuePattern(literal)
 
         if Subtyping.conforms(scrutType, literal.tpe.widenConstType) then
           valuePattern
@@ -927,10 +928,10 @@ class PatternTyper(namer: Namer)(using Config):
           val explain = new StringBuilder
 
           if Patterns.isValidTypePattern(literal.tpe, scrutType)(using explain) then
-            TypePattern(TypeTree(literal.tpe.widenConstType)(pat.span), valuePattern)(scrutType)
+            TypePattern(TypeTree(literal.tpe.widenConstType)(pat.span), valuePattern)
           else
             Reporter.error(explain.toString, pat.pos)
-            WildcardPattern()(ErrorType, pat.span)
+            WildcardPattern()(pat.span)
 
       // TypePattern: x: Type
       case Ast.TypePattern(id, tpt) =>
@@ -961,7 +962,7 @@ class PatternTyper(namer: Namer)(using Config):
           given ControlScope = ControlScope.NoReturn
           FlowTyper.transformFlow(guard, namer)
 
-        val guardPat = GuardPattern(guard2)(scrutType)
+        val guardPat = GuardPattern(guard2)
         AndPattern(pattern2, guardPat)(scrutType)
 
       // ExprPattern: p1 p2 p3 (infix operators)

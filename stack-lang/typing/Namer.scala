@@ -1106,7 +1106,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
       return errorWord(rescue.span)
 
     // 4. Check pattern type equals one of the two top-level branches (rejects sub-branch patterns)
-    val patType = pat2.valueType
+    val patType = pat2.refinedType(scrutType)
     val branchA = unionType.branches(0)
     val branchB = unionType.branches(1)
 
@@ -1126,7 +1126,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
 
     // 5. Check pattern exhaustively covers the matched branch (warn if not)
     val branchSpace = Exhaustivity.Space.TypeSpace(handledBranch)
-    val patSpace    = Exhaustivity.project(pat2)
+    val patSpace    = Exhaustivity.project(pat2, scrutType)
     val remaining   = Exhaustivity.subtract(branchSpace, patSpace)
     val uncovered   = Exhaustivity.flatten(remaining)
 
@@ -1172,7 +1172,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
         // case v => v.success
         val vSym = PatternSymbol.create("v", scrutType, Flags.Synthetic, Visibility.Default, sc.owner, rescue.span.toPos)
         val vIdent = Ident(vSym)(rescue.span)
-        val successPat = BindPattern(vIdent, WildcardPattern()(scrutType, rescue.span))(isDef = true)
+        val successPat = BindPattern(vIdent, WildcardPattern()(rescue.span))(isDef = true)
 
         val successBody =
           val partialApply = TreeOps.createExtensionApply(sym, vIdent, rescue.span)
@@ -1186,7 +1186,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
 
         val vSym = PatternSymbol.create("v", tx, Flags.Synthetic, Visibility.Default, sc.owner, rescue.span.toPos)
         val vIdent = Ident(vSym)(rescue.span)
-        val successPat = BindPattern(vIdent, TypePattern(TypeTree(tx)(rescue.span), WildcardPattern()(tx, rescue.span))(scrutType))(isDef = true)
+        val successPat = BindPattern(vIdent, TypePattern(TypeTree(tx)(rescue.span), WildcardPattern()(rescue.span)))(isDef = true)
 
         val successCase = Case(successPat, vIdent)(rescue.span)
         createMatch(successCase)
