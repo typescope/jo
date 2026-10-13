@@ -14,7 +14,12 @@ end
 
 type Vector[T] = VectorImpl[T] :+ [VectorOps.size, VectorOps.get, VectorOps.slice]
 
-def first(values: Vector[Box[Bool]]): Bool =
+def first(values: Vector[Box[Bool]]): Unit =
   match values
-    case [Boxed(value) if value is (_: Bool), ..] => value
-    case [] => false
+    case [Boxed(value) if value is (_: Bool), ..] => pass
+    case [] => pass
+
+  match values
+    case [.. while Boxed(_: Bool), ..] => pass
+    case [] => pass
+
