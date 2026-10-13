@@ -23,7 +23,7 @@ def test3(list: List[Int]) =
 
 def test4(list: List[Int]) =
   match list
-    // ✓ OK: guarded repeat followed by unguarded (both deterministic)
+    // Deterministic, but the irrefutable guard leaves rest empty.
     case [.. while x, ..rest] => rest.size
     case _ => 0
   end
@@ -44,7 +44,7 @@ def test6(list: List[Int]) =
 
 def test7(list: List[Int]) =
   match list
-    // ✓ OK: guarded repeat followed by guarded repeat
+    // Deterministic, but both guards are irrefutable.
     case [.. while x, .. while y, ..rest] => rest.size
     case _ => 0
   end

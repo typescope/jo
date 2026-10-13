@@ -18,6 +18,15 @@
 |          ^
 |          The case is not reachable
 
+---------- Warning at tests/warn/pattern-seq-determinism.jo:27:20 ---------------
+|     case [.. while x, ..rest] => rest.size
+|                    ^
+|                    The repeat pattern shadows the following pattern, potentially makes the next pattern unreachable.
+|
+| The repeat pattern covers the next pattern:
+|     case [.. while x, ..rest] => rest.size
+|                       ^^^^^^
+
 ---------- Warning at tests/warn/pattern-seq-determinism.jo:49:10 ---------------
 |     case _ => 0
 |          ^
@@ -32,4 +41,13 @@
 |     case [.. while x, .. while y, ..rest] => rest.size
 |                                ^
 
-3 error(s), 3 warning(s)
+---------- Warning at tests/warn/pattern-seq-determinism.jo:48:32 ---------------
+|     case [.. while x, .. while y, ..rest] => rest.size
+|                                ^
+|                                The repeat pattern shadows the following pattern, potentially makes the next pattern unreachable.
+|
+| The repeat pattern covers the next pattern:
+|     case [.. while x, .. while y, ..rest] => rest.size
+|                                   ^^^^^^
+
+3 error(s), 5 warning(s)
