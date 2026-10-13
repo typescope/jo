@@ -1,0 +1,44 @@
+// Nested patterns must use their own input type during coverage analysis.
+union Choice = Left | Right
+
+class Box[T](value: T)
+
+pattern Boxed[T](value: T): Box[T] = case Box(value)
+
+def classify(box: Box[Choice]): String =
+  match box
+    case Boxed(!Left) => "right"
+    case Boxed(Left) => "left"
+
+// Negation retains the original input type for a surrounding binding.
+def boundChoice(box: Box[Choice]): Choice =
+  match box
+    case Boxed(value @ (!Left)) => value
+    case Boxed(Left) => Left
+
+// The guard's is-expression has a different input type from the outer pattern.
+def guarded(box: Box[Bool]): Bool =
+  match box
+    case Boxed(value) if value is (_: Bool) => value
+
+// Sequence coverage uses the element type for predicates and their guards.
+def first(values: List[Box[Bool]]): Bool =
+  match values
+    case [Boxed(value) if value is (_: Bool), ..] => value
+    case [] => false
+
+// Negation in a repeat guard is relative to the element's union type.
+def split(values: List[Choice]): Int =
+  match values
+    case [..prefix while !Left, Left, ..] => prefix.size()
+    case [..] => -1
+
+def main =
+  println(classify(Box[Choice](Right)))
+  println(classify(Box[Choice](Left)))
+  println(classify(Box(boundChoice(Box[Choice](Right)))))
+  println(guarded(Box(true)))
+  println(first([Box(true), Box(false)]))
+  println(first([]))
+  println(split([Right, Right, Left]))
+  println(split([Right]))
