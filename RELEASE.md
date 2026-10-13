@@ -11,6 +11,13 @@ Bundle all repository changes for the release into a single PR and merge it to
 
           val current: Version = Version(X, Y, Z)
 
+- [ ] Update the SAST version-to-compiler version map in
+      `stack-lang/pickle/Format.scala` (`compilerCompatibility`)
+
+      When releasing a new SAST format, replace its unreleased compiler label
+      with the release version. Keep older format entries accurate so
+      incompatibility errors recommend a compatible compiler or library rebuild.
+
 - [ ] Update the release badge in `README.md` to `vX.Y.Z`
 
       Both the badge image URL and the release tag link.

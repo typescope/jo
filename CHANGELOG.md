@@ -4,6 +4,102 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-13
+
+### Added
+
+- Mutable collections provide `isEmpty`; `mutable.List` also provides `push`
+  and `pop` for stack operations. `Array.clear` clears an element slot, and
+  mutable lists clear removed elements to release retained references. ([#142])
+- `compile.location` requests a source location as a value, and
+  `SourceLocation.toString` returns `file:line`. ([#143])
+
+### Changed
+
+- `abort`, `assert`, and the `...` placeholder include the source file and line
+  in failure messages. `assert` is now a compiler intrinsic: its message and
+  source location are evaluated only when its condition is false. ([#143], [#145])
+- `Option.getOrElse` and `Result.getOrElse` take an ordinary default value
+  instead of a thunk. The default is evaluated before the call. ([#145])
+- `String.lines` and `String.lineIterator` return no lines for empty input and
+  omit the extra empty line after a final line separator. ([#146])
+- Vararg calls with a single splice avoid unnecessary copying, and dynamic
+  interop varargs are handled consistently across backends. ([#147])
+- String comparison and trimming use faster runtime implementations. Trimming
+  removes only ASCII whitespace: space, tab, newline, carriage return, vertical
+  tab, and form feed. Python and Ruby use native array construction for
+  `Array.fill`. ([#151], [#154], [#156])
+- Type checking reports clearer function-call, type-pattern, and type-mismatch
+  errors. Pattern coverage tracks the correct input type through nested,
+  generic, and guarded patterns. SAST serialization preserves source positions
+  for parameter defaults and auto candidates, and validates pattern data.
+  Incompatible SAST files report compatible compiler versions and rebuild
+  guidance. ([#144], [#157], [#158], [#160])
+
+### Removed
+
+- Nullary thunk adaptation: passing an expression where `() => T` is expected
+  now requires an explicit `() => expression`. See [JIP-0006]. ([#145])
+
+### Fixed
+
+- JavaScript, Ruby, and Python code generation preserves grouping for nested
+  expressions. ([#149])
+- Parser syntax errors are reported without crashing, including malformed
+  string interpolations. ([#150])
+- Closures created in Python and Ruby tail-recursive loops capture the values
+  from their own iteration. ([#152])
+- Decimal `Float` parsing handles rounding, overflow, and long mantissas with
+  matching exponents correctly. ([#153])
+- Explicit call type arguments accept function types while preserving indexing
+  of lambda-valued elements. ([#155])
+
+### Security
+
+- Array access and clearing check bounds across backends. Mutable lists clear
+  removed slots so unused references are not retained. ([#142])
+- Type tests and patterns enforce encapsulation restrictions, including
+  interface and polymorphic patterns. ([#144])
+
+### Compatibility
+
+- Code relying on implicit nullary thunk adaptation must use `() => expression`.
+  `getOrElse` callers passing a thunk must pass a value instead; use explicit
+  matching when a fallback must remain lazy. `assert` callers passing a message
+  thunk must pass a string expression, which is still evaluated only on failure.
+  ([#145])
+- String line splitting no longer produces an empty line for empty input or an
+  extra empty line for a final separator. Trimming preserves non-whitespace
+  ASCII control characters that were previously removed. `String.compareTo`
+  guarantees only the sign of its result. ([#146], [#151], [#154])
+- Failure output now includes source locations, and stricter type-pattern
+  checks can reject previously accepted source. ([#143], [#144])
+- Libraries must be recompiled. SAST format 2.0 is incompatible in both
+  directions with the previous 1.1 format. Use the compiler, standard library,
+  and runtime libraries from this release together. Custom runtimes must adapt
+  to the updated deferred functions, including `abortImpl` and `Array.clear`.
+  ([#142], [#143], [#157], [#158], [#160])
+- Build specifications and `.joy` package formats are unchanged.
+
+[#142]: https://github.com/typescope/jo/pull/142
+[#143]: https://github.com/typescope/jo/pull/143
+[#144]: https://github.com/typescope/jo/pull/144
+[#145]: https://github.com/typescope/jo/pull/145
+[#146]: https://github.com/typescope/jo/pull/146
+[#147]: https://github.com/typescope/jo/pull/147
+[#149]: https://github.com/typescope/jo/pull/149
+[#150]: https://github.com/typescope/jo/pull/150
+[#151]: https://github.com/typescope/jo/pull/151
+[#152]: https://github.com/typescope/jo/pull/152
+[#153]: https://github.com/typescope/jo/pull/153
+[#154]: https://github.com/typescope/jo/pull/154
+[#155]: https://github.com/typescope/jo/pull/155
+[#156]: https://github.com/typescope/jo/pull/156
+[#157]: https://github.com/typescope/jo/pull/157
+[#158]: https://github.com/typescope/jo/pull/158
+[#160]: https://github.com/typescope/jo/pull/160
+[JIP-0006]: https://jo-lang.org/jips/0006-drop-nullary-thunk-adaptation
+
 ## [0.13.11] - 2026-10-02
 
 ### Added
