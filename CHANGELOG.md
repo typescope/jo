@@ -30,9 +30,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   tab, and form feed. Python and Ruby use native array construction for
   `Array.fill`. ([#151], [#154], [#156])
 - Type checking reports clearer function-call, type-pattern, and type-mismatch
-  errors. SAST serialization preserves source positions for parameter defaults
-  and auto candidates, and incompatible SAST files report compatible compiler
-  versions and rebuild guidance. ([#144], [#157], [#158])
+  errors. Pattern coverage tracks the correct input type through nested,
+  generic, and guarded patterns. SAST serialization preserves source positions
+  for parameter defaults and auto candidates, and validates pattern data.
+  Incompatible SAST files report compatible compiler versions and rebuild
+  guidance. ([#144], [#157], [#158], [#160])
 
 ### Removed
 
@@ -76,7 +78,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   directions with the previous 1.1 format. Use the compiler, standard library,
   and runtime libraries from this release together. Custom runtimes must adapt
   to the updated deferred functions, including `abortImpl` and `Array.clear`.
-  ([#142], [#143], [#157], [#158])
+  ([#142], [#143], [#157], [#158], [#160])
 - Build specifications and `.joy` package formats are unchanged.
 
 [#142]: https://github.com/typescope/jo/pull/142
@@ -95,6 +97,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 [#156]: https://github.com/typescope/jo/pull/156
 [#157]: https://github.com/typescope/jo/pull/157
 [#158]: https://github.com/typescope/jo/pull/158
+[#160]: https://github.com/typescope/jo/pull/160
 [JIP-0006]: https://jo-lang.org/jips/0006-drop-nullary-thunk-adaptation
 
 ## [0.13.11] - 2026-10-02
