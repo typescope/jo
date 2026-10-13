@@ -62,14 +62,21 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
           if changed then erasedViews else info.views
         )
 
+      case alias: TypeAlias =>
+        val body2 = eraseType(alias.body)
+        if alias.body `eq` body2 then alias
+        else TypeAlias(() => body2)
+
       case toi: TypeOperatorInfo =>
         val body2 = eraseType(toi.body)
         if toi.body `eq` body2 then toi
-        else TypeOperatorInfo(toi.tparams, body2, toi.preParamCount)
+        else TypeOperatorInfo(toi.tparams, () => body2, toi.preParamCount)
 
       case info: ParamInfo => info.copy(tpe = eraseType(info.tpe))
 
       case info: AutoInfo => info.copy(tpe = eraseType(info.tpe))
+
+      case _: TypeParamInfo => denot
 
       case tp: Type => eraseType(tp)
 

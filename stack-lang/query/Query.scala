@@ -637,7 +637,8 @@ object Query:
       if sym.is(Flags.Defer) then ""
       else
         info match
-          case TypeOperatorInfo(_, body, _) => " = " + body.show
+          case alias: TypeAlias => " = " + alias.body.show
+          case info: TypeOperatorInfo => " = " + info.body.show
           case tp: Type => " = " + tp.show
           case other => " = " + other.toString
     "type " + sym.name + typeParams(td.tparams) + rhs

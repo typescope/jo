@@ -208,8 +208,7 @@ object Decoder:
           TermSymbol.create(name, flags, Visibility.Default, owner, span.toPos(using state.source))
 
         else if target.isType then
-          val kind = target.asTypeSymbol.kind
-          TypeSymbol.create(kind, name, flags, Visibility.Default, owner, span.toPos(using state.source))
+          TypeSymbol.create(name, flags, Visibility.Default, owner, span.toPos(using state.source))
 
         else
           PatternSymbol.create(name, flags, Visibility.Default, owner, span.toPos(using state.source))
@@ -264,29 +263,32 @@ object Decoder:
     val symbol = TermSymbol.create(name, flags, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
-    val typeStartPos = buf.position
-    object paramData:
+    val sigStartPos = buf.position
+    object sig:
       given defn: Definitions = defnLazy.value
-      given ReadBuffer = state.fresh(typeStartPos)
+      given ReadBuffer = state.fresh(sigStartPos)
+
       val docLines = repeated { decodeString() }
-      if docLines.nonEmpty then defn.index.setDocComment(symbol, docLines)
       val annots: List[Apply] = repeated:
         decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
+
       val tpt = decodeTypeTree(absoluteStart)
       val endDelta = decodeInt()
       val span = Span(absoluteStart, tpt.span.endOffset + endDelta - absoluteStart)
       val paramDef = ParamDef(symbol, tpt)(annots, span)
-    end paramData
+    end sig
 
     // Supply type for symbol
     val index = defnLazy.index
-    index.addLazy(symbol, () => paramData.tpt.tpe)
-    index.setAnnotations(symbol, () => paramData.annots.map(TreeOps.applyToAnnotation))
+    index.addLazy(symbol, () => sig.tpt.tpe)
+
+    index.setDocComment(symbol, () => sig.docLines)
+    index.setAnnotations(symbol, () => sig.annots.map(TreeOps.applyToAnnotation))
 
     // Set buffer position at end
     buf.setPosition(pos + length)
 
-    LazyDef(symbol, () => paramData.paramDef)
+    LazyDef(symbol, () => sig.paramDef)
 
   private def decodeFunDef(owner: Symbol, initFlags: Flags)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): LazyDef[FunDef] =
     given Source = state.source
@@ -315,13 +317,11 @@ object Decoder:
     given defn: Definitions = defnLazy.value
 
     // Read signature lazily
-    val tparamsStartPos = buf.position
+    val sigStartPos = buf.position
     object sig:
-      given sigBuf: ReadBuffer = state.fresh(tparamsStartPos)
+      given sigBuf: ReadBuffer = state.fresh(sigStartPos)
 
       val docLines = repeated { decodeString() }
-      if docLines.nonEmpty then defn.index.setDocComment(symbol, docLines)
-
       val annots: List[Apply] = repeated:
         decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
 
@@ -335,7 +335,7 @@ object Decoder:
         val tparamSpan = Span(absoluteStart + tparamStartDelta, tparamSpanLength)
 
         val kind = decodeKind()
-        val tparam = TypeSymbol.create(kind, tparamName, AnyType, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
+        val tparam = TypeSymbol.create(tparamName, TypeParamInfo(kind), Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
 
@@ -433,6 +433,8 @@ object Decoder:
 
     val index = defnLazy.index
     index.addLazy(symbol, () => funInfo)
+
+    index.setDocComment(symbol, () => sig.docLines)
     index.setAnnotations(symbol, () => sig.annots.map(TreeOps.applyToAnnotation))
 
     // Set buffer position at end
@@ -450,6 +452,19 @@ object Decoder:
       FunDef(symbol, sig.tparams, sig.params, sig.autos, sig.resultType, policy, body)(sig.annots, span)
     })
 
+  private def decodeTypeParams(owner: Symbol, prevOffset: Int)
+      (using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State)
+  : List[Symbol] =
+    repeated:
+      val id = decodeNat()
+      val name = decodeString()
+      val span = Span(prevOffset + decodeInt(), decodeNat())
+      val info = TypeParamInfo(decodeKind())
+      val symbol = TypeSymbol.create(name, Flags.Param, Visibility.Default, owner, span.toPos(using state.source))
+      defnLazy.index.add(symbol, info)
+      state.registerInternalSymbol(id, symbol)
+      symbol
+
   private def decodeClassDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): LazyDef[ClassDef] =
     given Source = state.source
     val length = decodeIntRaw()
@@ -460,7 +475,6 @@ object Decoder:
     val id = decodeNat()
     val name = decodeString()
     val flags = decodeFlags() | Flags.Class
-    val kind = decodeKind()
     val visibility = decodeVisibility(owner)
 
     val symStartDelta = decodeInt()
@@ -468,48 +482,34 @@ object Decoder:
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
     // Create and register symbol immediately
-    val symbol = TypeSymbol.create(kind, name, flags, visibility, owner, symSpan.toPos)
+    val symbol = TypeSymbol.create(name, flags, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
+
+    val tparams = decodeTypeParams(symbol, symbol.span.start)(using buf, defnLazy, state)
 
     val index = defnLazy.index
     given defn: Definitions = defnLazy.value
 
-    // Read class content lazily
-    val contentStartPos = buf.position
-    object content:
-      given ReadBuffer = state.fresh(contentStartPos)
+    // Decode self symbol
+    val selfInfo =
+      val classRef = StaticRef(symbol)
+      if tparams.isEmpty then classRef
+      else AppliedType(symbol, tparams.map(StaticRef.apply))
+
+    val selfId = decodeNat()
+    val selfName = decodeString()
+    val self = TermSymbol.create(selfName, Flags.Synthetic, Visibility.Default, symbol, symbol.sourcePos)
+    index.add(self, selfInfo)
+    state.registerInternalSymbol(selfId, self)
+
+    // Read class signature lazily
+    val sigStartPos = buf.position
+    object sig:
+      given ReadBuffer = state.fresh(sigStartPos)
 
       val docLines = repeated { decodeString() }
-      if docLines.nonEmpty then index.setDocComment(symbol, docLines)
-
       val annots: List[Apply] = repeated:
         decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
-
-      // Decode type parameters
-      val tparams = repeated:
-        val tparamId = decodeNat()
-        val tparamName = decodeString()
-
-        val tparamStartDelta = decodeInt()
-        val tparamLength = decodeNat()
-        val tparamSpan = Span(symbol.span.start + tparamStartDelta, tparamLength)
-
-        val tparamKind = decodeKind()
-
-        val tparam = TypeSymbol.create(tparamKind, tparamName, AnyType, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
-        state.registerInternalSymbol(tparamId, tparam)
-        tparam
-
-      // Decode self symbol
-      val selfInfo =
-        val classRef = StaticRef(symbol)
-        if tparams.isEmpty then classRef
-        else AppliedType(symbol, tparams.map(StaticRef.apply))
-
-      val selfId = decodeNat()
-      val selfName = decodeString()
-      val self = TermSymbol.create(selfName, selfInfo, Flags.Synthetic, Visibility.Default, symbol, symbol.sourcePos)
-      state.registerInternalSymbol(selfId, self)
 
       // Decode val members
       val vals = repeated:
@@ -546,29 +546,31 @@ object Decoder:
 
       val endDelta = decodeInt()
 
-      val symInfo =
-        val funs = delayedFuns.map(_.symbol)
-        val directViewTypes = directViewTrees.map(_.tpe)
-        new ClassInfo(symbol, tparams, self, vals.map(_.symbol), funs, directViewTypes)
+    end sig
 
-    end content
+    index.add(symbol, new ClassInfo(
+      symbol, tparams, self,
+      fieldsInit = sig.vals.map(_.symbol),
+      methodsInit = sig.delayedFuns.map(_.symbol),
+      viewsInit = sig.directViewTrees.map(_.tpe)
+    ))
 
-    index.setAnnotations(symbol, () => content.annots.map(TreeOps.applyToAnnotation))
-    index.addLazy(symbol, () => content.symInfo)
+    index.setDocComment(symbol, () => sig.docLines)
+    index.setAnnotations(symbol, () => sig.annots.map(TreeOps.applyToAnnotation))
 
     // Set buffer position at end
     buf.setPosition(pos + length)
 
     LazyDef(symbol, () => {
       var lastOffset = absoluteStart
-      val funs = content.delayedFuns.map: d =>
+      val funs = sig.delayedFuns.map: d =>
         val fun = d.force()
         lastOffset = fun.span.endOffset
         fun
 
-      val span = Span(absoluteStart, lastOffset + content.endDelta - absoluteStart)
+      val span = Span(absoluteStart, lastOffset + sig.endDelta - absoluteStart)
 
-      ClassDef(symbol, content.self, content.tparams, content.vals, funs, content.directViewTrees)(content.annots, span)
+      ClassDef(symbol, self, tparams, sig.vals, funs, sig.directViewTrees)(sig.annots, span)
     })
 
   private def decodeInterfaceDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): LazyDef[InterfaceDef] =
@@ -580,7 +582,6 @@ object Decoder:
 
     val id = decodeNat()
     val name = decodeString()
-    val kind = decodeKind()
     val visibility = decodeVisibility(owner)
 
     val symStartDelta = decodeInt()
@@ -588,47 +589,34 @@ object Decoder:
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
     // Create and register symbol immediately
-    val symbol = TypeSymbol.create(kind, name, Flags.Interface, visibility, owner, symSpan.toPos)
+    val symbol = TypeSymbol.create(name, Flags.Interface, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
 
+    val tparams = decodeTypeParams(symbol, symbol.span.start)(using buf, defnLazy, state)
+
+    val index = defnLazy.index
     given defn: Definitions = defnLazy.value
 
-    // Read interface content lazily
-    val contentStartPos = buf.position
-    object content:
-      given ReadBuffer = state.fresh(contentStartPos)
+    // Decode self symbol
+    val selfInfo =
+      val interfaceRef = StaticRef(symbol)
+      if tparams.isEmpty then interfaceRef
+      else AppliedType(symbol, tparams.map(StaticRef.apply))
+
+    val selfId = decodeNat()
+    val selfName = decodeString()
+    val self = TermSymbol.create(selfName, Flags.Synthetic, Visibility.Default, symbol, symbol.sourcePos)
+    index.add(self, selfInfo)
+    state.registerInternalSymbol(selfId, self)
+
+    // Read interface signature lazily
+    val sigStartPos = buf.position
+    object sig:
+      given ReadBuffer = state.fresh(sigStartPos)
 
       val docLines = repeated { decodeString() }
-      if docLines.nonEmpty then defn.index.setDocComment(symbol, docLines)
-
       val annots: List[Apply] = repeated:
         decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
-
-      // Decode type parameters
-      val tparams = repeated:
-        val tparamId = decodeNat()
-        val tparamName = decodeString()
-
-        val tparamStartDelta = decodeInt()
-        val tparamLength = decodeNat()
-        val tparamSpan = Span(symbol.span.start + tparamStartDelta, tparamLength)
-
-        val tparamKind = decodeKind()
-
-        val tparam = TypeSymbol.create(tparamKind, tparamName, AnyType, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
-        state.registerInternalSymbol(tparamId, tparam)
-        tparam
-
-      // Decode self symbol
-      val selfInfo =
-        val interfaceRef = StaticRef(symbol)
-        if tparams.isEmpty then interfaceRef
-        else AppliedType(symbol, tparams.map(StaticRef.apply))
-
-      val selfId = decodeNat()
-      val selfName = decodeString()
-      val self = TermSymbol.create(selfName, selfInfo, Flags.Synthetic, Visibility.Default, symbol, symbol.sourcePos)
-      state.registerInternalSymbol(selfId, self)
 
       // Decode views
       val decodedViews = repeated:
@@ -641,29 +629,30 @@ object Decoder:
 
       val endDelta = decodeInt()
 
-      val symInfo =
-        val methods = delayedMethods.map(_.symbol)
-        new ClassInfo(symbol, tparams, self, Nil, methods, decodedViews)
+    end sig
 
-    end content
+    index.add(symbol, new ClassInfo(
+      symbol, tparams, self, Nil,
+      methodsInit = sig.delayedMethods.map(_.symbol),
+      viewsInit = sig.decodedViews
+    ))
 
-    val index = defnLazy.index
-    index.addLazy(symbol, () => content.symInfo)
-    index.setAnnotations(symbol, () => content.annots.map(TreeOps.applyToAnnotation))
+    index.setDocComment(symbol, () => sig.docLines)
+    index.setAnnotations(symbol, () => sig.annots.map(TreeOps.applyToAnnotation))
 
     // Set buffer position at end
     buf.setPosition(pos + length)
 
     LazyDef(symbol, () => {
       var lastOffset = absoluteStart
-      val methods = content.delayedMethods.map: d =>
+      val methods = sig.delayedMethods.map: d =>
         val method = d.force()
         lastOffset = method.span.endOffset
         method
 
-      val span = Span(absoluteStart, lastOffset + content.endDelta - absoluteStart)
+      val span = Span(absoluteStart, lastOffset + sig.endDelta - absoluteStart)
 
-      InterfaceDef(symbol, content.self, content.tparams, methods)(content.annots, span)
+      InterfaceDef(symbol, self, tparams, methods)(sig.annots, span)
     })
 
   private def decodeTypeDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): LazyDef[TypeDef] =
@@ -675,7 +664,6 @@ object Decoder:
     val id = decodeNat()
     val name = decodeString()
     val flags = decodeFlags()
-    val kind = decodeKind()
     val visibility = decodeVisibility(owner)
 
     val symStartDelta = decodeInt()
@@ -683,52 +671,44 @@ object Decoder:
     val symSpan = Span(absoluteStart + symStartDelta, symSpanLength)
 
     // Create symbol immediately but delay type reading
-    val symbol = TypeSymbol.create(kind, name, flags, visibility, owner, symSpan.toPos)
+    val symbol = TypeSymbol.create(name, flags, visibility, owner, symSpan.toPos)
     state.registerInternalSymbol(id, symbol)
+
+    val tparams = decodeTypeParams(symbol, absoluteStart)(using buf, defnLazy, state)
+    val preParamCount = if tparams.isEmpty then 0 else decodeNat()
 
     given defn: Definitions = defnLazy.value
 
     // Read type and def length lazily
-    val typeStartPos = buf.position
-    object delayed:
-      given ReadBuffer = state.fresh(typeStartPos)
+    val sigStartPos = buf.position
+    object sig:
+      given ReadBuffer = state.fresh(sigStartPos)
 
       val docLines = repeated { decodeString() }
-      if docLines.nonEmpty then defn.index.setDocComment(symbol, docLines)
-
       val annots: List[Apply] = repeated:
         decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
 
-      // Decode type parameters
-      val tparams = repeated:
-        val tparamId = decodeNat()
-        val tparamName = decodeString()
-
-        val tparamStartDelta = decodeInt()
-        val tparamLength = decodeNat()
-        val tparamSpan = Span(symbol.span.start + tparamStartDelta, tparamLength)
-
-        val tparamKind = decodeKind()
-        val tparam = TypeSymbol.create(tparamKind, tparamName, AnyType, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
-        state.registerInternalSymbol(tparamId, tparam)
-        tparam
-      val preParamCount = if tparams.isEmpty then 0 else decodeNat()
       val rhs = decodeTypeTree(absoluteStart)
-      val tpe: Denotation = if tparams.isEmpty then rhs.tpe else TypeOperatorInfo(tparams, rhs.tpe, preParamCount)
       val endDelta = decodeInt()
       val span = Span(absoluteStart, rhs.span.endOffset + endDelta - absoluteStart)
-    end delayed
+    end sig
 
-    // Add symbol info lazily
+    // Register the descriptor without forcing its body.
     val index = defnLazy.index
-    index.addLazy(symbol, () => delayed.tpe)
-    index.setAnnotations(symbol, () => delayed.annots.map(TreeOps.applyToAnnotation))
+
+    val info =
+      if tparams.isEmpty then TypeAlias(() => sig.rhs.tpe)
+      else TypeOperatorInfo(tparams, () => sig.rhs.tpe, preParamCount)
+    index.add(symbol, info)
+
+    index.setDocComment(symbol, () => sig.docLines)
+    index.setAnnotations(symbol, () => sig.annots.map(TreeOps.applyToAnnotation))
 
     // Set buffer position at end
     buf.setPosition(pos + length)
 
     LazyDef(symbol, () => {
-      TypeDef(symbol, delayed.tparams, delayed.rhs)(delayed.annots, delayed.span)
+      TypeDef(symbol, tparams, sig.rhs)(sig.annots, sig.span)
     })
 
   private def decodePatDef(owner: Symbol)(using buf: ReadBuffer, defnLazy: Definitions.Lazy, state: State): LazyDef[PatDef] =
@@ -753,13 +733,11 @@ object Decoder:
     given defn: Definitions = defnLazy.value
 
     // Read signature lazily
-    val tparamsStartPos = buf.position
+    val sigStartPos = buf.position
     object sig:
-      given sigBuf: ReadBuffer = state.fresh(tparamsStartPos)
+      given sigBuf: ReadBuffer = state.fresh(sigStartPos)
 
       val docLines = repeated { decodeString() }
-      if docLines.nonEmpty then defn.index.setDocComment(symbol, docLines)
-
       val annots: List[Apply] = repeated:
         decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
 
@@ -774,7 +752,7 @@ object Decoder:
 
         val kind = decodeKind()
 
-        val tparam = TypeSymbol.create(kind, tparamName, AnyType, Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
+        val tparam = TypeSymbol.create(tparamName, TypeParamInfo(kind), Flags.Param, Visibility.Default, symbol, tparamSpan.toPos)
         state.registerInternalSymbol(tparamId, tparam)
         tparam
 
@@ -812,6 +790,8 @@ object Decoder:
 
     val index = defnLazy.index
     index.addLazy(symbol, () => patInfo)
+
+    index.setDocComment(symbol, () => sig.docLines)
     index.setAnnotations(symbol, () => sig.annots.map(TreeOps.applyToAnnotation))
 
     // Set buffer position at end
@@ -862,15 +842,24 @@ object Decoder:
     for delayedDef <- delayedDefs do nameTable.define(delayedDef.symbol)
     nameTable.freeze()
 
-    object sectionData:
-      given defn: Definitions = defnLazy.value
+    object sig:
+      given Definitions = defnLazy.value
       given ReadBuffer = state.fresh(docCommentPos)
 
       val docLines = repeated { decodeString() }
-      if docLines.nonEmpty then defn.index.setDocComment(symbol, docLines)
       val annots: List[Apply] = repeated:
         decodeWord(symbol, absoluteStart).asInstanceOf[Apply]
+    end sig
 
+    val index = defnLazy.index
+    index.setDocComment(symbol, () => sig.docLines)
+    index.setAnnotations(symbol, () => sig.annots.map(TreeOps.applyToAnnotation))
+
+    // Set buffer position at end
+    buf.setPosition(pos + length)
+
+    LazyDef(symbol, () => {
+      given Definitions = defnLazy.value
       var lastOffset = absoluteStart
       val nestedDefs = delayedDefs.map: d =>
         val nestedDef = d.force()
@@ -878,14 +867,9 @@ object Decoder:
         nestedDef
 
       val span = Span(absoluteStart, lastOffset + endDelta - absoluteStart)
-    end sectionData
 
-    defnLazy.index.setAnnotations(symbol, () => sectionData.annots.map(TreeOps.applyToAnnotation))
-
-    // Set buffer position at end
-    buf.setPosition(pos + length)
-
-    LazyDef(symbol, () => Section(symbol, sectionData.nestedDefs)(sectionData.annots, sectionData.span))
+      Section(symbol, nestedDefs)(sig.annots, span)
+    })
 
   //----------------------------------------------------------------------------
 

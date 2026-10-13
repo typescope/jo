@@ -252,9 +252,13 @@ object RawPrinter:
     denot match
       case tp: Type => printType(tp)
 
+      case TypeParamInfo(kind) => "TypeParamInfo [" ~ printKind(kind) ~ "]"
+
       case info: ParamInfo => printType(info.tpe)
 
       case info: AutoInfo => printType(info.tpe)
+
+      case alias: TypeAlias => "TypeAlias [" ~ printType(alias.body) ~ "]"
 
       case ntable: NameTable => "NameTable [" ~ ntable.members.join(",") ~ "]"
 
@@ -275,7 +279,10 @@ object RawPrinter:
             "[" ~ viewList.join(",") ~ "],"
         ~ "]"
 
-      case TypeOperatorInfo(tparams, rhs, preParamCount) =>
+      case info: TypeOperatorInfo =>
+        val tparams = info.tparams
+        val rhs = info.body
+        val preParamCount = info.preParamCount
         val tparamScope = new TypeParamScope
         tparamScope.withParams(tparams):
           val tparamText = "[" ~ indent:

@@ -11,6 +11,12 @@ abstract class InfoProvider:
 
   def addLazy(sym: Symbol, infoLazy: () => Denotation, errorType: () => Denotation): Unit
 
+  /** Run a completion callback with cycle detection, even for an eager denotation.
+    *
+    * The caller is responsible for caching the result.
+    */
+  def complete(sym: Symbol, compute: () => Denotation, errorInfo: () => Denotation): Denotation
+
   def addLazy(sym: Symbol, infoLazy: () => Denotation): Unit =
     addLazy(sym, infoLazy, () => ErrorType)
 
@@ -44,6 +50,9 @@ object InfoProvider:
     def addLazy(sym: Symbol, infoLazy: () => Denotation, errorInfo: () => Denotation): Unit =
       // add to super provider, which supports lazy info
       provider.addLazy(sym, infoLazy, errorInfo)
+
+    def complete(sym: Symbol, compute: () => Denotation, errorInfo: () => Denotation): Denotation =
+      provider.complete(sym, compute, errorInfo)
 
     def get(sym: Symbol): Option[Denotation] =
       cache.get(sym) match

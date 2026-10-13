@@ -260,8 +260,17 @@ object Types:
         case duckType: DuckType =>
           duckType.adapters
 
-        case StaticRef(sym) if sym.isType && sym.info.isType =>
-          sym.tpe.adapters
+        case StaticRef(sym) if sym.isType && !sym.is(Flags.Defer) =>
+          sym.info match
+            case alias: TypeAlias => alias.body.adapters
+            case tp: Type => tp.adapters
+            case _ => Nil
+
+        case AppliedType(tctor, targs) if !tctor.isGroundType =>
+          tctor.info match
+            case toi: TypeOperatorInfo => toi.instantiate(targs).adapters
+
+            case _ => Nil
 
         case tvar: TypeVar if tvar.isInstantiated =>
           tvar.instantiated.adapters
@@ -324,6 +333,9 @@ object Types:
 
         case StaticRef(sym) =>
           sym.info match
+            case alias: TypeAlias =>
+              recur(alias.body)
+
             case tp: Type =>
               recur(tp)
 
@@ -359,7 +371,9 @@ object Types:
 
         case AppliedType(tctor, targs) =>
           tctor.info match
-            case toi: TypeOperatorInfo => recur(toi.instantiate(targs))
+            case toi: TypeOperatorInfo =>
+              if tctor.is(Flags.Defer) then None
+              else recur(toi.instantiate(targs))
 
             case cinfo: ClassInfo =>
               cinfo.getTermMember(this, name)
