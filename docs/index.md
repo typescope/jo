@@ -63,6 +63,7 @@ features:
 
 ## From the blog
 
+- [Jo 0.14.0 Released](/blog/2026-10-14-jo-0-14-0) · October 14, 2026
 - [Introducing Harpe — An Agent Framework with Compile-Time Sandboxing](/blog/2026-09-28-introducing-harpe) · September 28, 2026
 - [The Standard Library, Documented](/blog/2026-08-22-standard-library-docs) · August 22, 2026
 - [Why Secure AI Needs Compile-Time Sandboxing](/blog/2026-06-11-why-compile-time-sandboxing) · June 11, 2026
