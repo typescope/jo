@@ -16,7 +16,7 @@ def testUnknownFlag =
 
 def testDuplicateFlag =
   val _ = `(?ii)abc`
-  val _ = `(?mim)abc`
+  val _ = `(?m)abc`
 
 // --- Pattern validation ---
 

@@ -27,7 +27,7 @@ char     = single character in single quotes
 
 string_part = any character and escape, except end quote and interpolation
 
-regex_flags = "i" | "m" | "s"
+regex_flags = "i" | "s"
 regex_name_start = letter | "_"
 regex_name_tail = letter | digit | "_"
 regex_name = regex_name_start {regex_name_tail}

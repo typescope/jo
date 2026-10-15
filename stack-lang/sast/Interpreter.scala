@@ -301,7 +301,10 @@ object Interpreter:
       "compileRegexPattern" -> { (args: List[Value]) =>
         val StringVal(source) :: StringVal(flags) :: Nil = args: @unchecked
         val jflags = regexFlags(flags)
-        PlatformVal(java.util.regex.Pattern.compile(source, jflags)) :: Nil
+        val anchored =
+          if !source.contains('$') then source
+          else rewriteRegexEndAnchors(source)
+        PlatformVal(java.util.regex.Pattern.compile(anchored, jflags)) :: Nil
       },
 
   )
@@ -312,11 +315,33 @@ object Interpreter:
     while i < flags.length do
       flags.charAt(i) match
         case 'i' => jflags |= java.util.regex.Pattern.CASE_INSENSITIVE
-        case 'm' => jflags |= java.util.regex.Pattern.MULTILINE
         case 's' => jflags |= java.util.regex.Pattern.DOTALL
         case _ =>
       i += 1
     jflags
+
+  private def rewriteRegexEndAnchors(source: String): String =
+    val out = new StringBuilder
+    var i = 0
+    var inClass = false
+
+    while i < source.length do
+      val ch = source.charAt(i)
+
+      if ch == '\\' && i + 1 < source.length then
+        out.append(ch).append(source.charAt(i + 1))
+        i += 2
+
+      else
+        if ch == '[' then inClass = true
+        else if ch == ']' then inClass = false
+
+        if ch == '$' && !inClass then out.append("\\z")
+        else out.append(ch)
+
+        i += 1
+
+    out.toString
 
   private def codePointIndexToUtf16(str: String, cpIndex: Int): Int =
     if cpIndex <= 0 then 0

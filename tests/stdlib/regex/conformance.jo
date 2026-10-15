@@ -103,7 +103,14 @@ def testAnchors =
 def testFlags =
   println "--- regex conformance / flags ---"
   println `(?s)^a.c$`.matchesExact("a\nc")
-  printMatch(`(?m)^foo$`.matchFirst("xx\nfoo\nyy"))
+  val lines = "xx\r\nfoo\nyy".lineIterator
+  var found = false
+
+  while lines.hasNext do
+    if `^foo$`.matchesExact(lines.next) then found = true
+  end
+
+  println found
   println `(?i)abc`.matchesExact("ABC")
 
 def testUnicode =

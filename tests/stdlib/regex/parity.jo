@@ -10,7 +10,7 @@ def printMatch(m: Option[Match]) =
 def main =
   testNamedGroups()
   testUnicodeInput()
-  testFlagMWithoutS()
+  testFlagS()
   testZeroWidth()
   testLazyQuantifiers()
 
@@ -75,10 +75,10 @@ def testZeroWidth =
 
   println "abc".replaceAll(``, _ => "-")
 
-def testFlagMWithoutS =
-  println "--- regex parity / m without s ---"
-  println `(?m)^a.c$`.matchesExact("a\nc")
-  println `(?ms)^a.c$`.matchesExact("a\nc")
+def testFlagS =
+  println "--- regex parity / s ---"
+  println `^a.c$`.matchesExact("a\nc")
+  println `(?s)^a.c$`.matchesExact("a\nc")
 
 def testLazyQuantifiers =
   println "--- regex parity / lazy quantifiers ---"

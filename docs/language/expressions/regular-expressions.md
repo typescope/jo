@@ -8,11 +8,11 @@ Regex literals are written between backticks:
 
 ```jo
 `\d+`
-`(?im)^foo$`
+`(?is)foo.bar`
 ```
 
 - `` `pattern` ``: no flags
-- `` `(?flags)pattern` ``: optional inline flag prefix `(?ims)` at the start
+- `` `(?flags)pattern` ``: optional inline flag prefix `(?is)` at the start
 
 Inside a regex literal:
 - backslash sequences are passed through verbatim to the regex engine (no string-style escaping)
@@ -21,11 +21,12 @@ Inside a regex literal:
 
 ## Flags
 
-Jo supports three flags, written as an inline prefix `(?flags)`:
+Jo supports two flags, written as an inline prefix `(?flags)`:
 
 - `i` (case-insensitive): letter matching ignores case
-- `m` (multiline anchors): `^` and `$` match line boundaries, not only whole-string boundaries
 - `s` (dotall): `.` also matches newline
+
+`^` matches only at the start of the string. `$` matches only at the end, after any final newline. To match a pattern against individual lines, use `String.lineIterator`, which handles both `\n` and `\r\n` separators. The `s` flag still lets `.` match across lines.
 
 ## Supported Subset
 

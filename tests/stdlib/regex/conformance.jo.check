@@ -60,7 +60,7 @@ true
 false
 --- regex conformance / flags ---
 true
-Some(foo)
+true
 true
 --- regex conformance / word boundaries ---
 true
