@@ -77,14 +77,14 @@ class Long
 
   //[ Arithmetic shift right.
     !
-    ! The behavior is undefined if count > 63.
+    ! The behavior is undefined if count is outside 0..63.
   //]
   @intrinsic
   def >>(count: Long): Long = ...
 
   //[ Arithmetic shift left.
     !
-    ! The behavior is undefined if count > 63.
+    ! The behavior is undefined if count is outside 0..63.
   //]
   @intrinsic
   def <<(count: Long): Long = ...

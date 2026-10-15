@@ -104,6 +104,11 @@ The compilation process follows these phases:
 - Warning tests validate compiler diagnostic messages
 - Negative tests ensure proper error handling and reporting
 
+## Investigating Compiler Bugs
+- Check the documented language contract before treating different backend results as a bug.
+- Weigh the runtime cost on valid programs before defining behavior for previously undefined inputs. Keep behavior undefined when enforcing consistency would add overhead to every operation without a clear benefit.
+- State the full valid input range in the documentation, including whether negative values are excluded. Fix backend differences for inputs whose behavior is defined.
+
 ## Code Quality Guidelines
 
 The compiler is written in Scala 3. Follow these conventions when writing or editing code:
