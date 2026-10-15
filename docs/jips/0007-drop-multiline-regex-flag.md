@@ -44,6 +44,11 @@ Without `m`, an anchor has one meaning throughout a program: `^` asserts the
 start of the entire input, and `$` asserts its end. A final newline is part of
 the input, so `$` matches after it. Neither anchor consumes a character.
 
+With `m`, even the meaning of a line boundary needs qualification for CRLF
+input. Is `\r\n` one line ending or two characters that each create an anchor
+position? Should `$` match before `\r` or before `\n`? Those choices are visible
+in matches and hard to infer from the name *multiline*.
+
 The word *multiline* conflates two different questions: whether a pattern may
 span lines and whether anchors may assert positions within lines. Removing `m`
 keeps the first question independent of anchors. Explicit newlines can occur in
