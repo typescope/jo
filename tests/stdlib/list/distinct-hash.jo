@@ -1,0 +1,29 @@
+def testDistinct(shift: Long) =
+  val n = 512
+  val comparisons = Array.fill[Int](1, 0)
+  auto countingEq: Eq[Long] = (a, b) =>
+    comparisons[0] = comparisons[0] + 1
+    a == b
+
+  // Include negative values and duplicates, in a different order on the second pass.
+  val xs = List.tabulate(n, i => ((i - n / 2) as Long) << shift)
+  val result = (xs ++ xs.reverse).distinct
+  println result.size
+  // Counting comparisons catches quadratic behavior without timing thresholds.
+  println: comparisons[0] <= n * 8
+
+  var ordered = result.size == n
+
+  if ordered then
+    for i in 0 until n do
+      if result[i] != xs[i] then ordered = false
+    end
+  end
+
+  println ordered
+
+def main =
+  println "--- list.distinct / Long high bits ---"
+  testDistinct(32)
+  println "--- list.distinct / Long low zero bits ---"
+  testDistinct(16)

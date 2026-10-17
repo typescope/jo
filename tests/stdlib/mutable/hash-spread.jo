@@ -1,0 +1,68 @@
+def testTables[T](keys: List[T], capacity: Int)
+    (auto equality: Eq[T] with [[T].==], hash: Hash[T] with [[T].hashCode]) =
+  val n = keys.size
+  val comparisons = Array.fill[Int](1, 0)
+  auto countingEq: Eq[T] = (a, b) =>
+    comparisons[0] = comparisons[0] + 1
+    equality.equal(a, b)
+
+  val set = new mutable.Set[T](capacity)
+  val map = new mutable.Map[T, Int](capacity)
+
+  for i in 0 until n do
+    set.add(keys[i])
+    map[keys[i]] = i
+  end
+
+  // Duplicate inserts and updates must preserve size after several resizes.
+  for i in 0 until n do
+    set.add(keys[i])
+    map[keys[i]] = i + 1
+  end
+
+  println set.size
+  println map.size
+  // Either table failing to spread hashes makes this budget fail.
+  println: comparisons[0] <= n * 16
+
+  var found = true
+
+  for i in 0 until n do
+    if !set.contains(keys[i]) || map.getOrElse(keys[i], -1) != i + 1 then
+      found = false
+    end
+  end
+
+  println found
+
+  for i in 0 until n do
+    if i % 2 == 0 then
+      set.remove(keys[i])
+      map.remove(keys[i])
+    end
+  end
+
+  println set.size
+  println map.size
+  var removed = true
+
+  for i in 0 until n do
+    val retained = i % 2 != 0
+    val expected = if retained then i + 1 else -1
+
+    if set.contains(keys[i]) != retained || map.getOrElse(keys[i], -1) != expected then
+      removed = false
+    end
+  end
+
+  println removed
+
+def main =
+  val ints = List.tabulate(512, i => (i - 256) << 16)
+  val longs = List.tabulate(512, i => ((i - 256) as Long) << 32)
+  println "--- mutable hash tables / Int low zero bits ---"
+  testTables(ints, 16)
+  println "--- mutable hash tables / Long high bits ---"
+  testTables(longs, 16)
+  println "--- mutable hash tables / custom capacity ---"
+  testTables(ints, 17)

@@ -124,8 +124,8 @@ class Long
 
   //[ Return 1, -1 or 0 as this value is greater than, less than or equal to `other`. //]
   def compareTo(other: Long): Int = if this > other then 1 else if this < other then -1 else 0
-  //[ The low 32 bits. Used to synthesize `Hash[Long]`. //]
-  def hashCode: Int = this.toInt
+  //[ The XOR of the low and high 32 bits. Used to synthesize `Hash[Long]`. //]
+  def hashCode: Int = (this ^ (this >> 32)).toInt
   //[ The greater of the two values. //]
   def max(other: Long): Long = if this >= other then this else other
   //[ The lesser of the two values. //]

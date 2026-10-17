@@ -71,7 +71,10 @@ class Set[T]
   private def capacity: Int = buckets.size
 
   private def bucketIndexFor(x: T, cap: Int): Int =
-    (hash.hashCode(x) & 0x7fffffff) % cap
+    // Spread high bits into the low bits used by power-of-two capacities.
+    val h = hash.hashCode(x)
+    val spread = h ^ ((h >> 16) & 0xffff)
+    (spread & 0x7fffffff) % cap
 
   private def bucketIndex(x: T): Int =
     bucketIndexFor(x, capacity)

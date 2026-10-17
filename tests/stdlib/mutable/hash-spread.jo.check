@@ -1,0 +1,24 @@
+--- mutable hash tables / Int low zero bits ---
+512
+512
+true
+true
+256
+256
+true
+--- mutable hash tables / Long high bits ---
+512
+512
+true
+true
+256
+256
+true
+--- mutable hash tables / custom capacity ---
+512
+512
+true
+true
+256
+256
+true
