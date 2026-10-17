@@ -943,6 +943,9 @@ object Encoder:
         encodeWord(rhs, pattern.span.endOffset)
 
       case Lambda(symbol, params, receives, body) =>
+        // The lambda end is preserved by its symbol span, independently of the body.
+        assert(symbol.span.endOffset == word.span.endOffset)
+
         encodeByte(Format.Lambda)
 
         encodeInt(startDelta)

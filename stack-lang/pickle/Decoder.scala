@@ -1329,7 +1329,8 @@ object Decoder:
 
     val body = decodeWord(lambdaSymbol, startOffset)
 
-    val span = Span(startOffset, body.span.endOffset - startOffset)
+    // The symbol retains the lambda end.
+    val span = Span(startOffset, symbolSpan.endOffset - startOffset)
 
     val res = Lambda(lambdaSymbol, params, receives, body)(span)
 
