@@ -33,6 +33,7 @@ Jo supports two flags, written as an inline prefix `(?flags)`:
 Jo intentionally supports a conservative portable subset:
 
 - literals and escaped metacharacters: `\(` `\)` `\[` `\]` `\{` `\}` `\*` `\+` `\?` `\|` `\\`
+- control escapes: `\n` (newline), `\r` (carriage return), `\t` (tab), `\f` (form feed), including inside character classes
 - wildcard `.`
 - character classes: `[abc]`, `[a-z]`, `[^a-z]`
 - concatenation and alternation: `ab`, `a|b`
