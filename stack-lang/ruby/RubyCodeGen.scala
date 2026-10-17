@@ -121,7 +121,13 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           case None =>
             val uniqueName =
               if sym.isLocal then
-                scope.freshName(RubyCodeGen.encodeSymbolic(sym.name))
+                val rawName = RubyCodeGen.encodeSymbolic(sym.name)
+                // Uppercase Ruby identifiers are constants, so prefix local values
+                // before uniquifying to avoid collisions with names such as _A.
+                val localName =
+                  if !sym.isClass && rawName.headOption.exists(_.isUpper) then "_" + rawName
+                  else rawName
+                scope.freshName(localName)
 
               else
                 val rawName = sym.fullName.replace(".", "_")
