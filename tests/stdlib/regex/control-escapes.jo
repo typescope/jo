@@ -41,3 +41,60 @@ def main =
     """
   println: input is `a\nb`
   println: input is `a\n  b`
+
+  testHttpHeaders()
+  testLogLines()
+  testTabSeparatedRows()
+  testPageBreaks()
+
+def testHttpHeaders =
+  println "--- regex control escapes / HTTP headers ---"
+  val headers = `^HTTP/1\.1 (\d{3}) [^\r\n]+\r\nContent-Type: ([^\r\n]+)\r\n\r\n`
+  val response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nhello"
+
+  if headers.matchPrefix(response) is Some(m) then
+    println m[1]
+    println m[2]
+  end
+
+  // This format requires CRLF and a blank line before the body.
+  println headers.matchPrefix("HTTP/1.1 200 OK\nContent-Type: text/plain\n\nhello").isEmpty
+  println headers.matchPrefix("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nhello").isEmpty
+
+def testLogLines =
+  println "--- regex control escapes / log lines ---"
+  val pair = `^INFO start\r?\nINFO done\r?\n$`
+  println pair.matchesExact("INFO start\nINFO done\n")
+  println pair.matchesExact("INFO start\r\nINFO done\r\n")
+  println pair.matchesExact("INFO start\rINFO done\r")
+
+  val log = "INFO: started\nERROR: disk full\r\nINFO: stopped\n"
+
+  if `ERROR: ([^\r\n]+)\r?\n`.matchFirst(log) is Some(m) then
+    println m[1]
+  end
+
+def testTabSeparatedRows =
+  println "--- regex control escapes / tab-separated rows ---"
+  val row = `([^\t\r\n]+)\t(\d+)\t([^\t\r\n]+)\r?\n`
+  val input = "alice\t42\tactive\nbob\t7\tinactive\r\n"
+  val rows = row.matchAll(input)
+  println rows.size
+
+  for m in rows do
+    println m[1]
+    println m[2]
+    println m[3]
+  end
+
+  println row.matchFirst("alice 42 active\n").isEmpty
+
+def testPageBreaks =
+  println "--- regex control escapes / form-feed page breaks ---"
+  val report = "Page 1\nRevenue: 1200\fPage 2\nCosts: 700"
+  val pages = `\f`.split(report)
+  println pages.size
+  println: pages[0] == "Page 1\nRevenue: 1200"
+  println: pages[1] == "Page 2\nCosts: 700"
+  println `Revenue: \d+\fPage 2\nCosts: \d+`.matchFirst(report).nonEmpty
+  println: `\f`.replaceAll(report, _ => "\n---\n") == "Page 1\nRevenue: 1200\n---\nPage 2\nCosts: 700"

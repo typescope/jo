@@ -24,3 +24,28 @@ false
 --- regex control escapes / across lines ---
 true
 false
+--- regex control escapes / HTTP headers ---
+200
+text/plain
+true
+true
+--- regex control escapes / log lines ---
+true
+true
+false
+disk full
+--- regex control escapes / tab-separated rows ---
+2
+alice
+42
+active
+bob
+7
+inactive
+true
+--- regex control escapes / form-feed page breaks ---
+2
+true
+true
+true
+true
