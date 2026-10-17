@@ -28,6 +28,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   val SingletonFieldName = "__instance"
 
   private val reservedNames = new UniqueName(separator = "")
+  private val memberReservedNames = new UniqueName(separator = "_")
 
   val keywords = List(
     "for", "while", "def", "class", "if", "else", "elsif", "end",
@@ -50,15 +51,21 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   // Make keywords unavailable
   for word <- keywords do reservedNames.freshName(word)
 
-  // Ruby reserves _1 through _9 for numbered block parameters, including
-  // names introduced by uniquifying wildcard bindings.
-  for index <- 1 to 9 do reservedNames.freshName(s"_$index")
+  // Ruby reserves _1 through _9 for numbered block parameters. Avoid these
+  // in locals (including uniquified wildcards) and method definitions.
+  for index <- 1 to 9 do
+    reservedNames.freshName(s"_$index")
+    memberReservedNames.freshName(s"_$index")
 
   // Make built-in constants unavailable
-  for name <- builtinConstants do reservedNames.freshName(name)
+  for name <- builtinConstants do
+    reservedNames.freshName(name)
+    memberReservedNames.freshName(name)
 
   // Make runtime symbols unavailable
-  for name <- runtime.runtimeNames do reservedNames.freshName(name)
+  for name <- runtime.runtimeNames do
+    reservedNames.freshName(name)
+    memberReservedNames.freshName(name)
 
   private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
 
@@ -105,7 +112,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
       case _ =>
         val rawName = RubyCodeGen.encodeSymbolic(sym.name)
-        val scope = reservedNames.newScope("_")
+        // Ruby allows keywords as member names. Leave them unchanged so names
+        // such as alias and alias_1 stay distinct without shared allocation.
+        val scope = memberReservedNames.newScope("_")
         val name = scope.freshName(rawName)
         symbol2UniqueName(sym) = name
         name
