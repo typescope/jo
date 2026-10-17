@@ -1,0 +1,43 @@
+import jo.regex.*
+
+def testDynamic(source: String, input: String, letter: String) =
+  match Regex.compile(source)
+    case Ok(r) =>
+      println r.matchesExact(input)
+      println r.matchesExact(letter)
+
+    case Err(err) =>
+      println err
+
+def main =
+  // Unicode escapes keep the expected input independent of string control escapes.
+  println "--- regex control escapes / literals ---"
+  println `\n`.matchesExact("\u{0A}")
+  println `\n`.matchesExact("n")
+  println `\r`.matchesExact("\u{0D}")
+  println `\r`.matchesExact("r")
+  println `\t`.matchesExact("\u{09}")
+  println `\t`.matchesExact("t")
+  println `\f`.matchesExact("\u{0C}")
+  println `\f`.matchesExact("f")
+
+  println "--- regex control escapes / character classes ---"
+  println `[\n]`.matchesExact("\u{0A}")
+  println `[\r]`.matchesExact("\u{0D}")
+  println `[\t]`.matchesExact("\u{09}")
+  println `[\f]`.matchesExact("\u{0C}")
+
+  println "--- regex control escapes / dynamic compile ---"
+  testDynamic("\\n", "\u{0A}", "n")
+  testDynamic("\\r", "\u{0D}", "r")
+  testDynamic("\\t", "\u{09}", "t")
+  testDynamic("\\f", "\u{0C}", "f")
+
+  println "--- regex control escapes / across lines ---"
+  val input = """
+    a
+    b
+    c
+    """
+  println: input is `a\nb`
+  println: input is `a\n  b`

@@ -1,0 +1,26 @@
+--- regex control escapes / literals ---
+true
+false
+true
+false
+true
+false
+true
+false
+--- regex control escapes / character classes ---
+true
+true
+true
+true
+--- regex control escapes / dynamic compile ---
+true
+false
+true
+false
+true
+false
+true
+false
+--- regex control escapes / across lines ---
+true
+false
