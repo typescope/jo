@@ -345,6 +345,7 @@ object Printer:
         case '\r' => sb ++= "\\r"
         case '\t' => sb ++= "\\t"
         case '"'  => sb ++= "\\\""
+        case '#'  => sb ++= "\\#"
         case '\\' => sb ++="\\\\"
         case _ if cp < 32 || cp > 126 => sb ++= f"\\u{${cp}%x}"
         case _ => sb += cp.toChar
