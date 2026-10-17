@@ -221,7 +221,7 @@ class List[T]
       count = count + 1
       i = i + 1
     end
-    if count == 100 then res = res + ", ..."
+    if i < _size then res = res + ", ..."
     res = res + "]"
     res
 end
