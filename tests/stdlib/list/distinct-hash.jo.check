@@ -1,0 +1,8 @@
+--- list.distinct / Long high bits ---
+512
+true
+true
+--- list.distinct / Long low zero bits ---
+512
+true
+true

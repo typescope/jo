@@ -43,3 +43,13 @@ def main() =
 
   // Comparison
   println (maxL > billion)       // true
+
+  // Hashing incorporates both halves, including signed edge values.
+  val zero: Long = 0
+  println zero.hashCode          // 0
+  println one.hashCode           // 1
+  println (one << 32).hashCode   // 1
+  println ((one << 32) | one).hashCode // 0
+  println (zero - one).hashCode  // 0
+  println minL.hashCode          // -2147483648
+  println maxL.hashCode          // -2147483648
