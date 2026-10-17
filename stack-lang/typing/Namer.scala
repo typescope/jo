@@ -1273,7 +1273,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
        given ControlScope = ControlScope.InLambda
        transform(body)
 
-     val res = Lambda(lambdaSym, paramSyms, receives, bodyTyped)(lambda.span)
+     val res = Lambda(lambdaSym, paramSyms, receives, bodyTyped)
 
      // Not really useful, but maintain the invariant that each symbol has info
      defn.index.add(lambdaSym, res.tpe)

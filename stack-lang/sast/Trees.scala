@@ -295,9 +295,9 @@ object Trees:
     */
   case class Lambda
     (symbol: Symbol, params: List[Symbol], receives: List[Symbol], body: Word)
-    (val span: Span)
     (using Definitions)
   extends Word:
+    def span: Span = symbol.sourcePos.span
     val tpe =
       val resultType = body.tpe.widen
       LambdaType(params.map(_.tpe), resultType, receives)

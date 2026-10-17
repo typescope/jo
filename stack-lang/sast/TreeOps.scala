@@ -158,7 +158,7 @@ object TreeOps:
     val bodyWord = body(paramIdents)
 
     // Create and return the lambda
-    val res = Lambda(lambdaSym, paramSyms, lambdaType.receives, bodyWord)(span)
+    val res = Lambda(lambdaSym, paramSyms, lambdaType.receives, bodyWord)
 
     defn.index.add(lambdaSym, res.tpe)
 
