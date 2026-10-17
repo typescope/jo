@@ -1,0 +1,16 @@
+def main =
+  val typed = (x: Int, y: Int) => x + y
+  val inferred: (Int, Int) => Int = (x, y) => x + y
+  val unaryTyped = (x: Int) => x * 2
+  val unaryInferred: Int => Int = x => x * 2
+  val nullary = () => 42
+
+  println: typed(2, 3)
+  println: inferred(4, 5)
+  println: unaryTyped(6)
+  println: unaryInferred(7)
+  println: nullary()
+
+  val xs: List[Int ~ Int] = [1 ~ 2, 3 ~ 4]
+  println: xs.fold([], (acc: List[Int], p: Int ~ Int) => acc + p.fst)
+  println: xs.fold[List[Int]]([], (acc, p) => acc + p.fst)
