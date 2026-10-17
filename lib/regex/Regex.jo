@@ -8,6 +8,7 @@ namespace jo.regex
   ! Supported syntax:
   ! - literals and escaped metacharacters such as `\(`, `\)`, `\[`, `\]`,
   !   `\{`, `\}`, `\*`, `\+`, `\?`, `\|`, `\\`
+  ! - inside regex literals, escape a literal backtick as `\``
   ! - control escapes `\n` (newline), `\r` (carriage return), `\t` (tab),
   !   `\f` (form feed), including inside character classes
   ! - explicit newlines such as `a\nb` match across lines without flags
