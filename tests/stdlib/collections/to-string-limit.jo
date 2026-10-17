@@ -1,0 +1,24 @@
+def check(size: Int, expected: String) =
+  val list = List.tabulate(size, i => i)
+  val array = Array.tabulate(size, i => i)
+  val buffer = new mutable.List[Int]
+
+  for i in 0 until size do
+    buffer.append(i)
+  end
+
+  assert: list.toString == expected, "List.toString"
+  assert: array.toString == expected, "Array.toString"
+  assert: buffer.toString == expected, "mutable.List.toString"
+  println size
+
+def main =
+  val first99 = List.tabulate(99, i => i).join(", ")
+  val first100 = first99 + ", 99"
+
+  check(0, "[]")
+  check(1, "[0]")
+  check(99, "[" + first99 + "]")
+  check(100, "[" + first100 + "]")
+  check(101, "[" + first100 + ", ...]")
+  check(200, "[" + first100 + ", ...]")

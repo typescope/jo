@@ -151,7 +151,7 @@ class Set[T]
         res = res + ", " + text
       count = count + 1
     end
-    if count == 100 then res = res + ", ..."
+    if iter.hasNext then res = res + ", ..."
     res = res + "}"
     res
 end

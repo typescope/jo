@@ -1,0 +1,34 @@
+def check(size: Int, shown: Int, truncated: Bool) =
+  var map = Map.empty[Int, Int]
+  var set = Set.empty[Int]
+  val mutableMap = mutable.Map.empty[Int, Int]
+  val mutableSet = mutable.Set.empty[Int]
+
+  for i in 0 until size do
+    map = map.update(i, i)
+    set = set + i
+    mutableMap.add(i, i)
+    mutableSet.add(i)
+  end
+
+  val suffix = if truncated then ", ...}" else "}"
+  val expectedSet = "{" + List.tabulate(shown, i => i).join(", ") + suffix
+  val expectedMap = "{" + List.tabulate(shown, i => "\{i} -> \{i}").join(", ") + suffix
+
+  // Follow each hash table's iteration order without requiring a particular order.
+  val expectedMutableSet = "{" + mutableSet.toList.take(shown).join(", ") + suffix
+  val expectedMutableMap = "{" + mutableMap.toList.take(shown).map(p => "\{p.fst} -> \{p.snd}").join(", ") + suffix
+
+  assert: map.toString == expectedMap, "Map.toString"
+  assert: set.toString == expectedSet, "Set.toString"
+  assert: mutableMap.toString == expectedMutableMap, "mutable.Map.toString"
+  assert: mutableSet.toString == expectedMutableSet, "mutable.Set.toString"
+  println size
+
+def main =
+  check(0, 0, false)
+  check(1, 1, false)
+  check(99, 99, false)
+  check(100, 100, false)
+  check(101, 100, true)
+  check(200, 100, true)
