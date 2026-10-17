@@ -34,7 +34,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     "begin", "rescue", "ensure", "case", "when", "unless", "until",
     "loop", "do", "break", "next", "return", "yield", "super", "self",
     "module", "include", "extend", "require", "p",
-    "true", "false", "nil", "and", "or", "not", "in", "then"
+    "true", "false", "nil", "and", "or", "not", "in", "then",
+    "alias", "defined?", "redo", "retry", "undef", "BEGIN", "END",
+    "__FILE__", "__LINE__", "__ENCODING__", "__END__"
   )
 
   // Ruby built-in constants/classes that the generated code references
