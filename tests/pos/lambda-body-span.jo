@@ -1,0 +1,18 @@
+// Pickling must preserve the full lambda span even when its typed body is smaller.
+def main =
+  val render = (i: Int) => "\{i}"
+  val pair = (i: Int) => "\{i} -> \{i}"
+  val unicode = (i: Int) => "\{i} → \{i}"
+  val parenthesized = (i: Int) => (i + 1)
+  val nested = (i: Int) => (j: Int) => "\{i}:\{j}"
+  val multiline = (i: Int) => """
+    value: \{i}
+    """
+
+  println: render(7)
+  println: pair(8)
+  println: unicode(9)
+  println: parenthesized(10)
+  println: nested(11)(12)
+  println: multiline(13)
+  println "after lambdas"
