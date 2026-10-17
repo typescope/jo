@@ -28,7 +28,6 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
   val SingletonFieldName = "__instance"
 
   private val reservedNames = new UniqueName(separator = "")
-  private val memberReservedNames = new UniqueName(separator = "_")
 
   val keywords = List(
     "for", "while", "def", "class", "if", "else", "elsif", "end",
@@ -40,32 +39,27 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     "__FILE__", "__LINE__", "__ENCODING__", "__END__"
   )
 
-  // Ruby built-in constants/classes that the generated code references
-  // directly (see ClassTest and Long division). Reserve them so a user symbol
-  // is never emitted with one of these names and shadows the runtime class we
-  // depend on.
+  // Reserve built-in names so generated runtime references cannot be shadowed.
   val builtinConstants = List(
-    "Integer", "Float", "String", "Array", "Rational", "TrueClass", "FalseClass"
+    "Integer", "Float", "String", "Array", "Rational", "TrueClass", "FalseClass",
+    "Proc", "Encoding"
   )
+
+  private val memberReservedNames =
+    (builtinConstants ++ runtime.runtimeNames ++ (1 to 9).map(index => s"_$index")).toSet
 
   // Make keywords unavailable
   for word <- keywords do reservedNames.freshName(word)
 
   // Ruby reserves _1 through _9 for numbered block parameters. Avoid these
   // in locals (including uniquified wildcards) and method definitions.
-  for index <- 1 to 9 do
-    reservedNames.freshName(s"_$index")
-    memberReservedNames.freshName(s"_$index")
+  for index <- 1 to 9 do reservedNames.freshName(s"_$index")
 
   // Make built-in constants unavailable
-  for name <- builtinConstants do
-    reservedNames.freshName(name)
-    memberReservedNames.freshName(name)
+  for name <- builtinConstants do reservedNames.freshName(name)
 
   // Make runtime symbols unavailable
-  for name <- runtime.runtimeNames do
-    reservedNames.freshName(name)
-    memberReservedNames.freshName(name)
+  for name <- runtime.runtimeNames do reservedNames.freshName(name)
 
   private val symbol2UniqueName: mutable.Map[Symbol, String] = mutable.Map.empty
 
@@ -112,10 +106,11 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
       case _ =>
         val rawName = RubyCodeGen.encodeSymbolic(sym.name)
-        // Ruby allows keywords as member names. Leave them unchanged so names
-        // such as alias and alias_1 stay distinct without shared allocation.
-        val scope = memberReservedNames.newScope("_")
-        val name = scope.freshName(rawName)
+        // Escape the trailing-underscore family together: Integer -> Integer_,
+        // Integer_ -> Integer__, etc. Names stay distinct and dispatch is stable
+        // across classes without sharing an allocation scope.
+        val baseName = rawName.substring(0, rawName.lastIndexWhere(_ != '_') + 1)
+        val name = if memberReservedNames.contains(baseName) then rawName + "_" else rawName
         symbol2UniqueName(sym) = name
         name
 
@@ -851,7 +846,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         wrapInt64(R.BinOp(compileExpr(qual), "<<", compileExpr(arg)))
 
       case "/" =>
-        // Truncate toward zero exactly via Rational: Rational(a, b).truncate.
+        // Truncate toward zero exactly via Rational(a, b).truncate.
         // Rational arithmetic is exact (unlike Float#fdiv, which loses
         // precision beyond 53 bits) and Rational#truncate rounds toward zero.
         // Each operand is referenced once, so side-effecting operands are
