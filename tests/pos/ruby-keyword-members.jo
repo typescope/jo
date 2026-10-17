@@ -1,0 +1,108 @@
+// Ruby reserved names that are ordinary identifiers in Jo.
+// Member names must work in definitions, calls, getters, and setters.
+class RubyKeywordMethods
+  def elsif(value: Int): Int = value + 1
+  def ensure(value: Int): Int = value + 2
+  def when(value: Int): Int = value + 3
+  def unless(value: Int): Int = value + 4
+  def until(value: Int): Int = value + 5
+  def loop(value: Int): Int = value + 6
+  def next(value: Int): Int = value + 7
+  def yield(value: Int): Int = value + 8
+  def super(value: Int): Int = value + 9
+  def self(value: Int): Int = value + 10
+  def module(value: Int): Int = value + 11
+  def include(value: Int): Int = value + 12
+  def extend(value: Int): Int = value + 13
+  def require(value: Int): Int = value + 14
+  def p(value: Int): Int = value + 15
+  def nil(value: Int): Int = value + 16
+  def and(value: Int): Int = value + 17
+  def or(value: Int): Int = value + 18
+  def not(value: Int): Int = value + 19
+  def alias(value: Int): Int = value + 20
+  def redo(value: Int): Int = value + 21
+  def retry(value: Int): Int = value + 22
+  def undef(value: Int): Int = value + 23
+  def BEGIN(value: Int): Int = value + 24
+  def END(value: Int): Int = value + 25
+  def __FILE__(value: Int): Int = value + 26
+  def __LINE__(value: Int): Int = value + 27
+  def __ENCODING__(value: Int): Int = value + 28
+  def __END__(value: Int): Int = value + 29
+
+class RubyKeywordFields
+  var elsif: Int = 1
+  var ensure: Int = 2
+  var when: Int = 3
+  var unless: Int = 4
+  var until: Int = 5
+  var loop: Int = 6
+  var next: Int = 7
+  var yield: Int = 8
+  var super: Int = 9
+  var self: Int = 10
+  var module: Int = 11
+  var include: Int = 12
+  var extend: Int = 13
+  var require: Int = 14
+  var p: Int = 15
+  var nil: Int = 16
+  var and: Int = 17
+  var or: Int = 18
+  var not: Int = 19
+  var alias: Int = 20
+  var redo: Int = 21
+  var retry: Int = 22
+  var undef: Int = 23
+  var BEGIN: Int = 24
+  var END: Int = 25
+  var __FILE__: Int = 26
+  var __LINE__: Int = 27
+  var __ENCODING__: Int = 28
+  var __END__: Int = 29
+
+def main =
+  val methods = new RubyKeywordMethods
+  println: [methods.elsif(100), methods.ensure(100), methods.when(100), methods.unless(100), methods.until(100), methods.loop(100), methods.next(100), methods.yield(100), methods.super(100), methods.self(100)]
+  println: [methods.module(100), methods.include(100), methods.extend(100), methods.require(100), methods.p(100), methods.nil(100), methods.and(100), methods.or(100), methods.not(100), methods.alias(100)]
+  println: [methods.redo(100), methods.retry(100), methods.undef(100), methods.BEGIN(100), methods.END(100), methods.__FILE__(100), methods.__LINE__(100), methods.__ENCODING__(100), methods.__END__(100)]
+
+  val fields = new RubyKeywordFields
+  println: [fields.elsif, fields.ensure, fields.when, fields.unless, fields.until, fields.loop, fields.next, fields.yield, fields.super, fields.self]
+  println: [fields.module, fields.include, fields.extend, fields.require, fields.p, fields.nil, fields.and, fields.or, fields.not, fields.alias]
+  println: [fields.redo, fields.retry, fields.undef, fields.BEGIN, fields.END, fields.__FILE__, fields.__LINE__, fields.__ENCODING__, fields.__END__]
+
+  fields.elsif = fields.elsif + 100
+  fields.ensure = fields.ensure + 100
+  fields.when = fields.when + 100
+  fields.unless = fields.unless + 100
+  fields.until = fields.until + 100
+  fields.loop = fields.loop + 100
+  fields.next = fields.next + 100
+  fields.yield = fields.yield + 100
+  fields.super = fields.super + 100
+  fields.self = fields.self + 100
+  fields.module = fields.module + 100
+  fields.include = fields.include + 100
+  fields.extend = fields.extend + 100
+  fields.require = fields.require + 100
+  fields.p = fields.p + 100
+  fields.nil = fields.nil + 100
+  fields.and = fields.and + 100
+  fields.or = fields.or + 100
+  fields.not = fields.not + 100
+  fields.alias = fields.alias + 100
+  fields.redo = fields.redo + 100
+  fields.retry = fields.retry + 100
+  fields.undef = fields.undef + 100
+  fields.BEGIN = fields.BEGIN + 100
+  fields.END = fields.END + 100
+  fields.__FILE__ = fields.__FILE__ + 100
+  fields.__LINE__ = fields.__LINE__ + 100
+  fields.__ENCODING__ = fields.__ENCODING__ + 100
+  fields.__END__ = fields.__END__ + 100
+
+  println: [fields.elsif, fields.ensure, fields.when, fields.unless, fields.until, fields.loop, fields.next, fields.yield, fields.super, fields.self]
+  println: [fields.module, fields.include, fields.extend, fields.require, fields.p, fields.nil, fields.and, fields.or, fields.not, fields.alias]
+  println: [fields.redo, fields.retry, fields.undef, fields.BEGIN, fields.END, fields.__FILE__, fields.__LINE__, fields.__ENCODING__, fields.__END__]
