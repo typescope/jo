@@ -393,7 +393,7 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
 
         val lambda2 =
           if body2.ne(body) || paramChanged then
-            Lambda(symbol, params, receives, body2)(lambda.span)
+            Lambda(symbol, params, receives, body2)
           else
             lambda
 

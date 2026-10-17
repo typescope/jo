@@ -1329,9 +1329,7 @@ object Decoder:
 
     val body = decodeWord(lambdaSymbol, startOffset)
 
-    val span = Span(startOffset, body.span.endOffset - startOffset)
-
-    val res = Lambda(lambdaSymbol, params, receives, body)(span)
+    val res = Lambda(lambdaSymbol, params, receives, body)
 
     // Not really useful, but maintain the invariant that each symbol has info
     defn.index.add(lambdaSymbol, res.tpe)

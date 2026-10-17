@@ -341,7 +341,7 @@ extends Phase:
           case _ =>
             this(body)
 
-    Lambda(sym, params2, Nil, bodyCore)(lam.span)
+    Lambda(sym, params2, Nil, bodyCore)
 
   override def transformWith(word: With)(using Context): Word =
     val With(expr, args) = word

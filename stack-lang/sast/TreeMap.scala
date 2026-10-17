@@ -398,7 +398,7 @@ abstract class TreeMap(using Definitions):
     val Lambda(symbol, params, receives, body) = lambda
     val body2 = this(body)
     if body2 `ne` body then
-      Lambda(symbol, params, receives, body2)(lambda.span)
+      Lambda(symbol, params, receives, body2)
     else
       lambda
 

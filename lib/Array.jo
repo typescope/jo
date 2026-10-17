@@ -51,7 +51,7 @@ class Array[T]
         res = res + ", " + text
       index = index + 1
     end
-    if index == 100 then res = res + ", ..."
+    if index < this.size then res = res + ", ..."
     res = res + "]"
     res
 
