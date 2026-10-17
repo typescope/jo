@@ -22,7 +22,7 @@ Some(😀)
 abc
 1
 3
---- regex parity / m without s ---
+--- regex parity / s ---
 false
 true
 --- regex parity / zero width ---

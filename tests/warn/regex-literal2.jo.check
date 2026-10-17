@@ -33,10 +33,10 @@
 |               ^
 |               Duplicate regex flag: i
 
----------- Error at tests/warn/regex-literal2.jo:19:16 ---------------
-|   val _ = `(?mim)abc`
-|                ^
-|                Duplicate regex flag: m
+---------- Error at tests/warn/regex-literal2.jo:19:14 ---------------
+|   val _ = `(?m)abc`
+|              ^
+|              Unknown regex flag: m
 
 ---------- Error at tests/warn/regex-literal2.jo:24:12 ---------------
 |   val _ = `(?=a)`

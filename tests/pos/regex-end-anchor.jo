@@ -1,0 +1,6 @@
+def main =
+  println: "ab\n".matchFirst(`b$`).nonEmpty
+  println: "ab\nc".matchFirst(`b$`).nonEmpty
+  println: "ab\n\n".matchFirst(`b$`).nonEmpty
+  println: "ab".matchFirst(`b$`).nonEmpty
+  println: "a$".matchFirst(`a[$]`).nonEmpty

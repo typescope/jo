@@ -78,7 +78,6 @@ private class Validator(source: String)
 
   private def validateFlags(): String | None =
     var seenI = false
-    var seenM = false
     var seenS = false
     var p = 0
     while p < flags.size do
@@ -86,9 +85,6 @@ private class Validator(source: String)
       if ch == 'i' then
         if seenI then return "Duplicate regex flag 'i' at position " + p
         seenI = true
-      else if ch == 'm' then
-        if seenM then return "Duplicate regex flag 'm' at position " + p
-        seenM = true
       else if ch == 's' then
         if seenS then return "Duplicate regex flag 's' at position " + p
         seenS = true

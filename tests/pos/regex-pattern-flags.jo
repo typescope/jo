@@ -9,19 +9,6 @@ def testI =
   else
     println "i-on-bad"
 
-def testM =
-  val s = "x\nfoo\ny"
-
-  if s is `^foo$` then
-    println "m-off-bad"
-  else
-    println "m-off-ok"
-
-  if s is `(?m)^foo$` then
-    println "m-on-ok"
-  else
-    println "m-on-bad"
-
 def testS =
   val s = "a\nc"
 
@@ -38,5 +25,4 @@ def testS =
 def main =
   println "--- regex pattern flags ---"
   testI()
-  testM()
   testS()

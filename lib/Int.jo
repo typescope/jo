@@ -82,14 +82,14 @@ class Int
 
   //[ Arithmetic shift right.
     !
-    ! The behavior is undefined if count > 31.
+    ! The behavior is undefined if count is outside 0..31.
   //]
   @intrinsic
   def >>(count: Int): Int = ...
 
   //[ Arithmetic shift left.
     !
-    ! The behavior is undefined if count > 31 .
+    ! The behavior is undefined if count is outside 0..31.
   //]
   @intrinsic
   def <<(count: Int): Int = ...

@@ -24,6 +24,7 @@ def testInvalid =
   println "--- regex validation / invalid ---"
   println checkError("[abc")
   println checkError("(?z)abc")
+  println checkError("(?m)abc")
   println checkError("(?ii)abc")
   println checkError("(?<>)")
   println checkError("(?<1x>a)")

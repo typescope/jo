@@ -11,7 +11,8 @@ import reporting.Reporter.error
 import scala.collection.mutable
 
 object Regex:
-  private val AllowedFlags: Set[Char] = Set('i', 'm', 's')
+  private val AllowedFlags: Set[Char] = Set('i', 's')
+  private val FlagSyntax: Set[Char] = Set('i', 'm', 's')
 
   def parseLiteral(item: TokenInfo)(using Source, Reporter): RegexLit =
     item.token match
@@ -32,7 +33,7 @@ object Regex:
   private def validatePattern(source: WithSpan[String])(using Source, Reporter): List[Ident] =
     new Validator(source.value, source.span).validate()
 
-  /** Extract inline flag prefix `(?ims)` from the start of a regex literal content.
+  /** Extract inline flag prefix from the start of a regex literal content.
     * Returns (remainingPattern, flags, flagsPrefixByteLen).
     * All prefix characters are ASCII so char count equals byte count.
     */
@@ -41,10 +42,10 @@ object Regex:
       val close = content.indexOf(')')
       if close >= 2 then
         val flags = content.substring(2, close)
-        // Only treat as a flags prefix when every char is a recognised flag letter.
+        // Recognize the removed m flag here so it gets an explicit diagnostic.
         // If any char is not a flag letter (e.g. `(?=a)`, `(?<name>...)`), leave
         // the content unchanged so the pattern validator sees and diagnoses it.
-        if flags.forall(AllowedFlags.contains) then
+        if flags.forall(FlagSyntax.contains) then
           val prefixLen = close + 1   // "(?...)" length; all ASCII → chars = bytes
           (content.substring(prefixLen), flags, prefixLen)
         else
