@@ -71,6 +71,20 @@ The same approach supports line validation, extraction, and filtering. It
 makes the unit of work explicit and handles LF and CRLF separators in the same
 way. It also lets each match use ordinary whole-input anchors against a line.
 
+Patterns spanning lines can match separators explicitly, without any flags:
+
+```jo
+val lf = "a\nb"
+val crlf = "a\r\nb"
+
+println: lf is `a\nb`         // true
+println: crlf is `a\r\nb`     // true
+
+// Accept either LF or CRLF.
+println: lf is `a\r?\nb`      // true
+println: crlf is `a\r?\nb`    // true
+```
+
 This is not an exact substitute for every use of `m`. `lineIterator` omits line
 separators and does not preserve positions in the original input. A program
 that needs original match offsets, line endings, or whole-input replacement
