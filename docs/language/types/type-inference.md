@@ -22,7 +22,8 @@ val flag = true
 
 ## Lambda Parameter Inference
 
-Lambda parameter types can be either inferred from usage or from expected type:
+Lambda parameters must either all have type annotations or all omit them.
+When annotations are omitted, their types can be inferred from usage or from the expected type:
 
 ```jo
 // `x` inferred to have type `Int`

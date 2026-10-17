@@ -325,8 +325,9 @@ simple_params = simple_param {"," simple_param}
 simple_param  = name ":" type
 
 lambda_param_section = "(" [lambda_params] ")"
-lambda_params = lambda_param {"," lambda_param}
-lambda_param  = name [":" type]
+lambda_params = name {"," name}
+              | lambda_typed_param {"," lambda_typed_param}
+lambda_typed_param = name ":" type
 
 post_params = post_param {"," post_param}
 post_param  = name ":" type ["=" default_value]

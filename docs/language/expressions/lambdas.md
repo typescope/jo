@@ -16,6 +16,10 @@ x => x + 1              // single parameter, type inferred
 (x: Int, y: Int) => x + y  // multiple parameters with annotations
 ```
 
+Parameter type annotations must be given for every parameter or omitted for every
+parameter. Partially annotated forms such as `(x: Int, y) => x + y` and
+`(x, y: Int) => x + y` are rejected, even when an expected function type is available.
+
 When the body fits on one line, the lambda is written inline. When it needs multiple phrases, the `=>` introduces a block:
 
 ```jo

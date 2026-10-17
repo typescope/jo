@@ -2144,6 +2144,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def lambda(): Word =
     val lparen = peekItem()
     val paramList = params(typeOptional = true)
+    val typedCount = paramList.count(param => !param.tpt.isEmpty)
+
+    if typedCount > 0 && typedCount < paramList.size then
+      error(
+        "Lambda parameters must either all have type annotations or all omit them",
+        (paramList.head.span | paramList.last.span).toPos,
+      )
+
     val arrow = eat(Token.RARROW)
     val body = block(lparen.indent, arrow)
     Lambda(paramList, body)(lparen.span | body.span)
