@@ -59,6 +59,20 @@ end
 
 //[ Operations on `Array` that are not methods. //]
 section Array
+  // Runtimes with flat strings replace this to avoid copying each prefix.
+  private[jo] defer def join(arr: Array[String], separator: String): String =
+    if arr.size == 0 then ""
+    else
+      var res = arr[0]
+      var i = 1
+
+      while i < arr.size do
+        res = res + separator + arr[i]
+        i = i + 1
+      end
+
+      res
+
   //[ Create an array with `size` elements.
     !
     ! The elements are uninitialized. Code must not depend on any particular

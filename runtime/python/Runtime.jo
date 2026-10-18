@@ -153,6 +153,14 @@ private section RefArray
 
   def clone[T](arr: Array[T]): Array[T] =
     py.dynamic(arr).callDynamic("copy").cast[Array[T]]
+
+  @py.interop
+  private interface PyJoinString
+    def join(parts: Array[String]): String
+  end
+
+  def join(arr: Array[String], separator: String): String =
+    py.dynamic(separator).cast[PyJoinString].join(arr)
 end
 
 //------------------------------------------------------------------------------

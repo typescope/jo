@@ -24,6 +24,7 @@ object Compiler:
 
     "jo.Array.create" -> "jo.js.runtime.RefArray.create",
     "jo.Array.clear"  -> "jo.js.runtime.RefArray.clear",
+    "jo.Array.join" -> "jo.js.runtime.RefArray.join",
 
     "jo.StringOps.compareTo" -> "jo.js.runtime.StringOps.compareTo",
     "jo.StringOps.trim" -> "jo.js.runtime.StringOps.trim",

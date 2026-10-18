@@ -206,20 +206,13 @@ class List[T]
 
     acc
 
-  //[ Join elements into a string with `separator` between each pair. //]
+  //[ Join elements into a string with `separator` between each pair.
+    !
+    ! Each element is converted to a string once, in list order.
+  //]
   def join(separator: String)(auto elementShow: Show[T] with [[T].toString]): String =
-    var res = ""
-    var first = true
-    val iter = this.iterator
-    while iter.hasNext do
-      val text = elementShow.show iter.next()
-      if first then
-        res = text
-        first = false
-      else
-        res = res + separator + text
-    end
-    res
+    val parts = Array.tabulate(_size, i => elementShow.show(arr[start + i]))
+    Array.join(parts, separator)
 
   //[ True if at least one element satisfies `pred`. //]
   def exists(pred: T => Bool): Bool =
