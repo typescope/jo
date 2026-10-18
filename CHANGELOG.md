@@ -4,6 +4,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `List.join` uses native array joining on JavaScript, Ruby, and Python,
+  avoiding quadratic string concatenation on Ruby and on Python with nonempty
+  separators.
+
 ## [0.14.1] - 2026-10-18
 
 ### Changed
