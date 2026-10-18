@@ -4,6 +4,66 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-10-18
+
+### Changed
+
+- `Long.hashCode` mixes the high and low 32 bits, and mutable hash maps and
+  sets spread high hash bits into their bucket indices to reduce collisions.
+  ([#163])
+- Integer shift documentation explicitly excludes negative counts: valid
+  counts are `0..31` for `Int` and `0..63` for `Long`. ([#162])
+
+### Removed
+
+- The regex multiline flag `m` is no longer supported. `^` and `$` match only
+  the start and end of the entire input; `$` matches after any final newline.
+  Use `String.lineIterator` for line-oriented matching. The `i` and `s` flags
+  remain available. See [JIP-0007]. ([#162])
+
+### Fixed
+
+- Ruby code generation handles capitalized local names and Ruby keywords used
+  as identifiers or members without name conflicts. ([#167])
+- Collection `toString` output omits the truncation marker when a collection
+  contains exactly 100 elements. Lambda source positions survive SAST
+  serialization correctly. ([#164])
+- Lambda parameters must either all have type annotations or all omit them;
+  partially annotated parameter lists now report a syntax error. ([#166])
+- Regex end anchors consistently require the end of the entire input in the
+  interpreter and Python backend, including input ending in a newline. ([#162])
+
+### Security
+
+- Ruby string literals escape `#` so literal text cannot become Ruby
+  interpolation and execute injected code. Regenerate Ruby output with this
+  compiler to apply the fix. ([#167])
+
+### Compatibility
+
+- Regex literals using `(?m)` are rejected, and dynamic regex compilation
+  rejects the `m` flag. Migrate line-oriented matching to
+  `String.lineIterator`; use `s` when `.` must match newlines. Code relying on
+  `$` matching before a final newline must handle that newline explicitly.
+  Use the updated compiler, standard library, and runtimes together for the
+  revised regex contract. ([#162])
+- Lambdas with partially annotated parameters must annotate every parameter
+  or omit all annotations. ([#166])
+- `Long.hashCode` values and hash collection iteration order can change.
+  Collection output no longer includes `...` at exactly 100 elements.
+  ([#163], [#164])
+- SAST format 2.0 remains compatible in both directions with Jo 0.14.0.
+  Existing libraries do not require recompilation for format compatibility;
+  regenerate Ruby applications to receive the string escaping fix. Build
+  specifications and `.joy` package formats are unchanged.
+
+[#162]: https://github.com/typescope/jo/pull/162
+[#163]: https://github.com/typescope/jo/pull/163
+[#164]: https://github.com/typescope/jo/pull/164
+[#166]: https://github.com/typescope/jo/pull/166
+[#167]: https://github.com/typescope/jo/pull/167
+[JIP-0007]: https://jo-lang.org/jips/0007-drop-multiline-regex-flag
+
 ## [0.14.0] - 2026-10-13
 
 ### Added
