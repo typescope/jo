@@ -10,6 +10,7 @@ Fix #XXX: A short description
 
 - [ ] Added / updated tests under `tests/pos/` or `tests/warn/`
 - [ ] Docs updated if the change affects user-visible behavior
+- [ ] Update CHANGELOG.md
 - [ ] A JIP is required for language change
 - [ ] All commits are signed off ([why?](https://github.com/typescope/jo/blob/main/CONTRIBUTING.md#contribution-terms))
 
