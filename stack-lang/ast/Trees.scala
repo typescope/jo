@@ -185,12 +185,12 @@ object Trees:
   extends Word, RefTree
 
   case class IsExpr
-    (scrutinee: Word, pattern: Pattern)
+    (expr: Word, pattern: Pattern)
     (val span: Span)
   extends Word
 
   case class RescueExpr
-    (scrutinee: Word, pattern: Pattern, handler: Word)
+    (expr: Word, pattern: Pattern, handler: Word)
     (val span: Span)
   extends Word
 
@@ -206,7 +206,7 @@ object Trees:
   extends Word
 
   case class Match
-    (scrutinee: Word, cases: List[Case])
+    (expr: Word, cases: List[Case])
     (val span: Span)
   extends Word
 

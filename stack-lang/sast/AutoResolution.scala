@@ -142,6 +142,7 @@ object AutoResolution:
         val call = Apply(Ident(sym)(span), args = Nil, autos = Nil)(span)
         trial.next = SearchNode.Success
         Some(call)
+        
       else
         val loop = trace.exists:
           case TraceElement.ValueElement(s) => s == sym

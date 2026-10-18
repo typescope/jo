@@ -184,7 +184,7 @@ object AstReducer extends Reducer:
         shrinkBody(p).map(p2 => Block(blk.phrases.updated(i, p2))(blk.span))
 
     case m: Match =>
-      if m.cases.size > 1 then drops(m.cases).map(cs => Match(m.scrutinee, cs)(m.span))
+      if m.cases.size > 1 then drops(m.cases).map(cs => Match(m.expr, cs)(m.span))
       else LazyList.empty
 
     case _ => LazyList.empty

@@ -57,14 +57,14 @@ extends Phase:
         case info: ClassInfo => info
 
         case alias: TypeAlias =>
-          val body2 = typeMap(alias.body)(using ())
-          if alias.body `eq` body2 then alias
-          else TypeAlias(() => body2)
+          val mapped = typeMap(alias.body)(using ())
+          if alias.body `eq` mapped then alias
+          else TypeAlias(() => mapped)
 
         case toi: TypeOperatorInfo =>
-          val body2 = typeMap(toi.body)(using ())
-          if toi.body `eq` body2 then toi
-          else TypeOperatorInfo(toi.tparams, () => body2, toi.preParamCount)
+          val mapped = typeMap(toi.body)(using ())
+          if toi.body `eq` mapped then toi
+          else TypeOperatorInfo(toi.tparams, () => mapped, toi.preParamCount)
 
         case procType: ProcType => transformFunDenot(sym, procType)
 
@@ -150,8 +150,7 @@ extends Phase:
         val getParamFun = TypeApply(Ident(getParamSym)(word.span), tparam :: Nil)(word.span)
         getParamFun.appliedTo(ctx, key)
 
-      case _ =>
-        word
+      case _ => word
 
 
   /** Does any of the implemented deferred methods have non-empty receives?
@@ -174,45 +173,33 @@ extends Phase:
     val args2 = args.map(this(_))
     val autos2 = autos.map(this(_))
 
-    var isDummyCtxParam = false
-
-    val needCtx =
+    val ctxParamOpt =
       baseInvokeType match
         case pt: ProcType =>
           // Note: the receives spec is not erased during denotation transform
           if pt.receives.nonEmpty then
-            true
+            Some(Ident(ensureCtx(apply.span))(apply.span))
           else
             apply.memberSymbol match
               case Some(sym) =>
-                isDummyCtxParam = implementedDefersReceives(sym)
-                isDummyCtxParam
-
-              case _ => false
+                if implementedDefersReceives(sym) then
+                  Some(Ident(emptyCtxSym)(apply.span).appliedTo())
+                else None
+              case _ => None
 
         case lt: LambdaType =>
-          lt.receives.nonEmpty
+          if lt.receives.nonEmpty then
+             Some(Ident(ensureCtx(apply.span))(apply.span))
+          else None
 
     val changed = (fun2 ne fun) || args2.zip(args).exists((a, b) => a ne b) || autos2.zip(autos).exists((a, b) => a ne b)
-
-    if needCtx then
-      val ctxArg =
-        if isDummyCtxParam then
-          Ident(emptyCtxSym)(apply.span).appliedTo()
-        else
-          Ident(ensureCtx(apply.span))(apply.span)
-
-      Apply(fun2, args2 :+ ctxArg, autos2)(apply.span, apply.isPartialApply)
-
-    else if changed then
-      Apply(fun2, args2, autos2)(apply.span, apply.isPartialApply)
-
+    if changed then
+      Apply(fun2, args2 ++ ctxParamOpt.toList, autos2)(apply.span, apply.isPartialApply)
     else
       apply
 
   override def transformTypeApply(tapply: TypeApply)(using Context): Word =
     val TypeApply(fun, targs) = tapply
-
     val procType = tapply.tpe.asProcType
 
     var changed =
@@ -241,6 +228,7 @@ extends Phase:
     val cond2 = this(cond)
     val thenp2 = this(thenp)
     val elsep2 = this(elsep)
+
     if tp2.eq(tp) && cond2.eq(cond) && thenp2.eq(thenp) && elsep2.eq(elsep) then
       ifElse
     else
@@ -274,29 +262,23 @@ extends Phase:
   override def transformFunDef(fdef: FunDef)(using Context): FunDef = try
     val sym = fdef.symbol
 
-    val shouldAddCtxParam =
+    val needCtx = sym.info match
       // Note that the receives spec is not erased during denotation transform.
-      sym.info match
-        case pt: ProcType =>
-          pt.receives.nonEmpty || sym.isMethod && implementedDefersReceives(sym)
+      case pt: ProcType =>
+        pt.receives.nonEmpty || sym.isMethod && implementedDefersReceives(sym)
+      case _ =>
+        false
 
-        case _ =>
-          false
-
-    val maybeCtxParam =
-      if shouldAddCtxParam then
+    val ctxParamOpt = if needCtx then
         Some(TermSymbol.create("__ctx", CtxType, Flags.Param | Flags.Synthetic, Visibility.Default, sym, sym.sourcePos))
-
-      else
+    else
         None
 
-    val params2 = fdef.params ++ maybeCtxParam.toList
-
     val bodyCore = withOwner(sym):
-      withCtx(maybeCtxParam):
-        this(fdef.body)
+      withCtx(ctxParamOpt)(this(fdef.body))
 
-    fdef.copy(params = params2, body = bodyCore)(fdef.annots, fdef.span)
+    fdef.copy(params = fdef.params ++ ctxParamOpt.toList, body = bodyCore)(fdef.annots, fdef.span)
+
   catch case ex =>
     println(fdef.symbol.tpe.show)
     println(fdef.show)
@@ -304,7 +286,6 @@ extends Phase:
 
   override def transformLambda(lam: Lambda)(using Context): Word =
     val Lambda(sym, params, _, body) = lam
-
     val receives = lam.tpe.asLambdaType.receives
 
     val capturedCtxOpt =
@@ -316,32 +297,25 @@ extends Phase:
       else
         None
 
-    val maybeCallCtxParam =
+    val callCtxOpt =
       if receives.nonEmpty then
         Some(TermSymbol.create("__ctx1", CtxType, Flags.Param | Flags.Synthetic, Visibility.Default, sym, sym.sourcePos))
       else
         None
 
-    val params2 = params ++ maybeCallCtxParam.toList
-
-    val seedCtx: Option[Symbol] =
-      (capturedCtxOpt, maybeCallCtxParam) match
-        case (None, Some(callCtx)) => Some(callCtx)
-        case (Some(capturedCtx), None) => Some(capturedCtx)
-        case _ => None
-
-    val bodyCore = withOwner(sym):
-      withCtx(seedCtx):
-        (capturedCtxOpt, maybeCallCtxParam) match
-          case (Some(capturedCtx), Some(callCtx)) =>
+    val bodyCore  = withOwner(sym):
+      (capturedCtxOpt, callCtxOpt) match
+        case (None, Some(callCtx)) =>
+          withCtx(Some(callCtx))(this(body))
+        case (Some(capturedCtx), None) =>
+         withCtx(Some(capturedCtx))(this(body))
+        case (Some(capturedCtx), Some(callCtx)) =>
             val (merged, mergedInit) = mergedLambdaCtx(capturedCtx, callCtx, receives, lam.body.span)
             withCtx(Some(merged)):
               prependStmts(this(body), mergedInit :: Nil, lam.body.span)
+        case _ => this(body)
 
-          case _ =>
-            this(body)
-
-    Lambda(sym, params2, Nil, bodyCore)
+    Lambda(sym, params ++ callCtxOpt.toList, Nil, bodyCore)
 
   override def transformWith(word: With)(using Context): Word =
     val With(expr, args) = word
@@ -350,8 +324,7 @@ extends Phase:
     val owner = Phase.owner.value
     val outerCtxSym =
       currentCtxSym.getOpt match
-        case Some(sym) =>
-          sym
+        case Some(sym) => sym
         case None =>
           val sym = TermSymbol.create("__ctx0", CtxType, Flags.Synthetic, Visibility.Default, owner, owner.sourcePos)
           stats += Assign(Ident(sym)(word.span), Ident(emptyCtxSym)(word.span).appliedTo())
@@ -378,10 +351,7 @@ extends Phase:
       ctxSym = nextSym
 
     // 3. evaluate expr under __ctxN
-    val expr2 = withCtx(Some(ctxSym)):
-      this(expr)
-
-    stats += expr2
+    stats += withCtx(Some(ctxSym))(this(expr))
 
     Block(stats.toList)(word.span)
 
@@ -400,7 +370,6 @@ object LowerContextParams:
             val paramsTransformed = lambdaType.params.map(param => this(param))
             if lambdaType.receives.nonEmpty then
               paramsTransformed :+ CtxType
-
             else
               paramsTransformed
 
