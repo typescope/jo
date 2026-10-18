@@ -1,0 +1,12 @@
+def annotatedFirst =
+  val f: (Int, Int) => Int = (x: Int, y) => x + y
+
+def annotatedLast =
+  val f: (Int, Int) => Int = (x, y: Int) => x + y
+
+def annotatedMiddle =
+  val f: (Int, Int, Int) => Int = (x, y: Int, z) => x + y + z
+
+def foldAccumulator =
+  val xs: List[Int ~ Int] = [1 ~ 2]
+  println: xs.fold([], (acc: List[Int], p) => acc + p.fst)

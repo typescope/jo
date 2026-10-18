@@ -1,0 +1,21 @@
+---------- Error at tests/warn/lambda-partial-annotations.jo:2:31 ---------------
+|   val f: (Int, Int) => Int = (x: Int, y) => x + y
+|                               ^^^^^^^^^
+|                               Lambda parameters must either all have type annotations or all omit them
+
+---------- Error at tests/warn/lambda-partial-annotations.jo:5:31 ---------------
+|   val f: (Int, Int) => Int = (x, y: Int) => x + y
+|                               ^^^^^^^^^
+|                               Lambda parameters must either all have type annotations or all omit them
+
+---------- Error at tests/warn/lambda-partial-annotations.jo:8:36 ---------------
+|   val f: (Int, Int, Int) => Int = (x, y: Int, z) => x + y + z
+|                                    ^^^^^^^^^^^^
+|                                    Lambda parameters must either all have type annotations or all omit them
+
+---------- Error at tests/warn/lambda-partial-annotations.jo:12:25 ---------------
+|   println: xs.fold([], (acc: List[Int], p) => acc + p.fst)
+|                         ^^^^^^^^^^^^^^^^^
+|                         Lambda parameters must either all have type annotations or all omit them
+
+4 error(s), 0 warning(s)
