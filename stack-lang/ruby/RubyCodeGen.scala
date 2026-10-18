@@ -34,22 +34,25 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
     "begin", "rescue", "ensure", "case", "when", "unless", "until",
     "loop", "do", "break", "next", "return", "yield", "super", "self",
     "module", "include", "extend", "require", "p",
-    "true", "false", "nil", "and", "or", "not", "in", "then"
+    "true", "false", "nil", "and", "or", "not", "in", "then",
+    "alias", "defined?", "redo", "retry", "undef", "BEGIN", "END",
+    "__FILE__", "__LINE__", "__ENCODING__", "__END__"
   )
 
-  // Ruby built-in constants/classes that the generated code references
-  // directly (see ClassTest and Long division). Reserve them so a user symbol
-  // is never emitted with one of these names and shadows the runtime class we
-  // depend on.
+  // Reserve built-in names so generated runtime references cannot be shadowed.
   val builtinConstants = List(
-    "Integer", "Float", "String", "Array", "Rational", "TrueClass", "FalseClass"
+    "Integer", "Float", "String", "Array", "Rational", "TrueClass", "FalseClass",
+    "Proc", "Encoding"
   )
+
+  private val memberReservedNames =
+    (builtinConstants ++ runtime.runtimeNames ++ (1 to 9).map(index => s"_$index")).toSet
 
   // Make keywords unavailable
   for word <- keywords do reservedNames.freshName(word)
 
-  // Ruby reserves _1 through _9 for numbered block parameters, including
-  // names introduced by uniquifying wildcard bindings.
+  // Ruby reserves _1 through _9 for numbered block parameters. Avoid these
+  // in locals (including uniquified wildcards) and method definitions.
   for index <- 1 to 9 do reservedNames.freshName(s"_$index")
 
   // Make built-in constants unavailable
@@ -103,8 +106,11 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
       case _ =>
         val rawName = RubyCodeGen.encodeSymbolic(sym.name)
-        val scope = reservedNames.newScope("_")
-        val name = scope.freshName(rawName)
+        // Escape the trailing-underscore family together: Integer -> Integer_,
+        // Integer_ -> Integer__, etc. Names stay distinct and dispatch is stable
+        // across classes without sharing an allocation scope.
+        val baseName = rawName.substring(0, rawName.lastIndexWhere(_ != '_') + 1)
+        val name = if memberReservedNames.contains(baseName) then rawName + "_" else rawName
         symbol2UniqueName(sym) = name
         name
 
@@ -121,7 +127,11 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
           case None =>
             val uniqueName =
               if sym.isLocal then
-                scope.freshName(RubyCodeGen.encodeSymbolic(sym.name))
+                val rawName = RubyCodeGen.encodeSymbolic(sym.name)
+                // Uppercase Ruby identifiers are constants, so prefix local values
+                // before uniquifying to avoid collisions with names such as _A.
+                val localName = if rawName(0).isUpper then "_" + rawName else rawName
+                scope.freshName(localName)
 
               else
                 val rawName = sym.fullName.replace(".", "_")
@@ -836,7 +846,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         wrapInt64(R.BinOp(compileExpr(qual), "<<", compileExpr(arg)))
 
       case "/" =>
-        // Truncate toward zero exactly via Rational: Rational(a, b).truncate.
+        // Truncate toward zero exactly via Rational(a, b).truncate.
         // Rational arithmetic is exact (unlike Float#fdiv, which loses
         // precision beyond 53 bits) and Rational#truncate rounds toward zero.
         // Each operand is referenced once, so side-effecting operands are

@@ -1,0 +1,31 @@
+def main =
+  val x = 7
+  println "#{x} #$x #@x"
+
+  // Incomplete Ruby interpolation must also remain literal.
+  println "#{"
+  println "#$"
+  println "#@"
+
+  // Adjacent hashes, backslashes, and quotes must survive escaping.
+  println "### ##{x} ##$x ##@x #"
+  println "\\#{x} \\#$x \\#@x"
+  println "\\\\#{x} \\\\#$x \\\\#@x"
+  println "\"#{x}\" '#@x' \"#$x\""
+  println "plain #tag #! # comment"
+
+  // Ruby must not evaluate expressions in Jo string literals.
+  println "#{1 / 0}"
+  println "#{missing}"
+
+  // Literal Ruby interpolation and actual Jo interpolation can coexist.
+  println "Ruby #{x}; Jo \{x}; #@x; #$x"
+
+  val template = """
+    Hello #{name}
+    @id = #@id
+    mode = #$mode
+    Jo value = \{x}
+    """
+  println template
+  println "😀#{x}λ#@x#$x"

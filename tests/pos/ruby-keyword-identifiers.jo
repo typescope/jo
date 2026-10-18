@@ -1,0 +1,72 @@
+interface RetryOperation
+  def retry(redo: Int): Int
+
+class KeywordFields(alias: String, alias_1: String, undef: Int)
+  def retry(redo: Int): Int = undef + redo
+  def retry_1(redo: Int): Int = undef * redo
+  def _1: Int = 9
+  view RetryOperation
+
+def add(redo: Int, retry: Int): Int = redo + retry
+
+def keywordParams(alias: Int, undef: Int, __FILE__: Int,
+                  __LINE__: Int, __ENCODING__: Int, __END__: Int): Int =
+  alias + undef + __FILE__ + __LINE__ + __ENCODING__ + __END__
+
+def keywordFunction: Int =
+  def redo(unless: Int): Int = unless * 2
+  redo(6)
+
+def main =
+  val p = new KeywordFields("x", "y", 4)
+  println p.alias
+  println p.alias_1
+  println: add(2, 3)
+  println: p.retry(2)
+  println: p.retry_1(2)
+  println p._1
+  val operation: RetryOperation = p
+  println: operation.retry(3)
+  println: keywordParams(1, 2, 3, 4, 5, 6)
+
+  // Keywords and the names produced by escaping them must stay distinct.
+  val alias1 = 10
+  val alias = 20
+  val redo = 30
+  var retry = 40
+  retry = retry + 1
+  val undef = 50
+  println: [alias1, alias, redo, retry, undef]
+
+  val __FILE__ = 1
+  val __LINE__ = 2
+  val __ENCODING__ = 3
+  val __END__ = 4
+  println: [__FILE__, __LINE__, __ENCODING__, __END__]
+
+  val ensure = (redo: Int, retry: Int) => redo + retry + alias
+  println: ensure(2, 3)
+
+  def undefValue: Int =
+    val alias = 7
+    val alias1 = 8
+    alias + alias1
+
+  println undefValue
+
+  println keywordFunction
+
+  // Ruby keywords already reserved by the backend must still work.
+  val until = 1
+  val unless = 2
+  val next = 3
+  val yield = 4
+  val module = 5
+  val elsif = 6
+  val and = 7
+  val or = 8
+  val not = 9
+  val nil = 10
+  val super = 11
+  val self = 12
+  println: [until, unless, next, yield, module, elsif, and, or, not, nil, super, self]

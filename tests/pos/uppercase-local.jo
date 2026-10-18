@@ -1,0 +1,45 @@
+class Box(Value: Int)
+  def Add(Extra: Int): Int = Value + Extra
+
+def Area(W: Int, H: Int): Int = area(W, H)
+
+def area(W: Int, H: Int): Int =
+  val A = W * H
+  A
+
+def prefixedFirst: Int =
+  val _A = 10
+  val A = 20
+  _A + A
+
+def main =
+  var N = 0
+
+  for i in 0 until 3 do
+    N = N + area(i, 2)
+  end
+
+  println N
+  println prefixedFirst
+
+  // These names must remain distinct after Ruby name generation.
+  val A = 10
+  val _A = 20
+  val _A1 = 30
+  val A1 = 40
+  val a = 50
+  val S0 = 60
+  println: [A, _A, _A1, A1, a, S0]
+
+  val F = (X: Int) => A + X
+  println: F(2)
+  println: Box(7).Value
+
+  println: Area(3, 4)
+  println: Box(7).Add(5)
+
+  val G = (W: Int, H: Int) => Area(W, H)
+  println: G(4, 5)
+
+  def Double(X: Int): Int = X * 2
+  println: Double(6)
