@@ -262,17 +262,14 @@ extends Phase:
   override def transformFunDef(fdef: FunDef)(using Context): FunDef = try
     val sym = fdef.symbol
 
-    val needCtx = sym.info match
+    val ctxParamOpt = sym.info match
       // Note that the receives spec is not erased during denotation transform.
       case pt: ProcType =>
-        pt.receives.nonEmpty || sym.isMethod && implementedDefersReceives(sym)
-      case _ =>
-        false
-
-    val ctxParamOpt = if needCtx then
-        Some(TermSymbol.create("__ctx", CtxType, Flags.Param | Flags.Synthetic, Visibility.Default, sym, sym.sourcePos))
-    else
-        None
+        if pt.receives.nonEmpty || sym.isMethod && implementedDefersReceives(sym) then
+          Some(TermSymbol.create("__ctx", CtxType, Flags.Param | Flags.Synthetic, Visibility.Default, sym, sym.sourcePos))
+        else
+          None
+      case _ => None
 
     val bodyCore = withOwner(sym):
       withCtx(ctxParamOpt)(this(fdef.body))
