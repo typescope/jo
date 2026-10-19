@@ -305,11 +305,11 @@ extends Phase:
         case (None, Some(callCtx)) =>
           withCtx(Some(callCtx))(this(body))
         case (Some(capturedCtx), None) =>
-         withCtx(Some(capturedCtx))(this(body))
+          withCtx(Some(capturedCtx))(this(body))
         case (Some(capturedCtx), Some(callCtx)) =>
-            val (merged, mergedInit) = mergedLambdaCtx(capturedCtx, callCtx, receives, lam.body.span)
-            withCtx(Some(merged)):
-              prependStmts(this(body), mergedInit :: Nil, lam.body.span)
+          val (merged, mergedInit) = mergedLambdaCtx(capturedCtx, callCtx, receives, lam.body.span)
+          withCtx(Some(merged)):
+            prependStmts(this(body), mergedInit :: Nil, lam.body.span)
         case _ => this(body)
 
     Lambda(sym, params ++ callCtxOpt.toList, Nil, bodyCore)
