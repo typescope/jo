@@ -77,6 +77,9 @@ private section RefArray
 
   def clone[T](array: Array[T]): Array[T] =
     js.dynamic(array).slice(0).cast[Array[T]]
+
+  def join(arr: Array[String], separator: String): String =
+    js.dynamic(arr).cast[js.Array].join(separator)
 end
 
 //------------------------------------------------------------------------------

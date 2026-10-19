@@ -68,6 +68,13 @@ private section RefArray
 
   def clone[T](arr: Array[T]): Array[T] =
     rb.dynamic(arr).dup.cast[Array[T]]
+
+  private interface RbJoinArray
+    def join(separator: String): String
+  end
+
+  def join(arr: Array[String], separator: String): String =
+    rb.dynamic(arr).cast[RbJoinArray].join(separator)
 end
 
 //------------------------------------------------------------------------------

@@ -1,0 +1,41 @@
+interface RationalOperation
+  def Rational(a: Long, b: Long): Long
+
+class Divider
+  def Rational(a: Long, b: Long): Long = a + b
+  def Rational_1(a: Long, b: Long): Long = a - b
+  def Rational_(a: Long, b: Long): Long = a * b
+  def Rational__(a: Long, b: Long): Long = a + b + 100
+  def quotient(a: Long, b: Long): Long = a / b
+  view RationalOperation
+
+class BuiltinFields(Integer: Int, Integer_1: Int, Float: Int, String: Int,
+                    Array: Int, Rational: Int, Rational_1: Int,
+                    TrueClass: Int, FalseClass: Int, ARGV: Int, ARGV_1: Int,
+                    Integer_: Int, ARGV_: Int, Proc: Int, Encoding: Int)
+  def quotient(a: Long, b: Long): Long = a / b
+
+def main =
+  val divider = new Divider
+  println: divider.Rational(8, 3)
+  println: divider.Rational_1(8, 3)
+  println: divider.Rational_(8, 3)
+  println: divider.Rational__(8, 3)
+  val operation: RationalOperation = divider
+  println: operation.Rational(8, 3)
+
+  // Member methods must not intercept the helper used for Long division.
+  println: divider.quotient(8, 3)
+  println: divider.quotient(-8, 3)
+  println: divider.quotient(8, -3)
+  println: divider.quotient(9223372036854775807, 3)
+
+  // Builtin names and names formerly produced by escaping them stay distinct.
+  val fields = new BuiltinFields(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+  println: [fields.Integer, fields.Integer_1, fields.Float, fields.String, fields.Array]
+  println: [fields.Rational, fields.Rational_1, fields.TrueClass, fields.FalseClass]
+  println: [fields.ARGV, fields.ARGV_1]
+  println: [fields.Integer_, fields.ARGV_, fields.Proc, fields.Encoding]
+
+  // Field getters also define methods, including Rational.
+  println: fields.quotient(-8, 3)

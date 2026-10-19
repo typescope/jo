@@ -1,5 +1,7 @@
 def main =
   testJoin()
+  testJoinShow()
+  testJoinLarge()
 
 def testJoin =
   println "--- join ---"
@@ -11,3 +13,38 @@ def testJoin =
   println ["a", "", "c"].join(",")
   println ["\u{4F60}", "\u{597D}"].join("-")
   println ["\u{1F680}", "\u{1F389}"].join(" ")
+
+  println ["a", "b", "c"].join("")
+  println ["", "", ""].join("|")
+  println ["", "x", ""].join("\u{1F680}")
+  println [1, 2, 3].join(" / ")
+  println ["skip", "a", "b", "skip"].slice(1, 2).join("-")
+
+  val repeated = "hello"
+  println List.fill(3, repeated).join(",")
+  println repeated
+
+class JoinValue(value: Int, record: Int => Unit)
+  def toString: String =
+    record(value)
+    value.toString
+end
+
+def testJoinShow =
+  println "--- show order ---"
+  val shown = mutable.List.empty[Int]
+  val record: Int => Unit = value => shown.append(value)
+
+  val values = List.tabulate(3, i => new JoinValue(i, record))
+  println values.join("|")
+  println shown
+
+  val empty = List.empty[JoinValue]
+  println empty.join(",")
+  println shown
+
+def testJoinLarge =
+  println "--- large join ---"
+  val values = List.fill(4096, "1")
+  println values.join("").size
+  println values.join(",").size
