@@ -1073,7 +1073,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
     // 1. Type-check scrutinee in outer scope (no FlowScope yet)
     val scrutinee2 = Inference.freshIsolate:
       given TargetType = TargetType.ValueType
-      transform(rescue.scrutinee)
+      transform(rescue.expr)
 
     val scrutType = scrutinee2.tpe.widenTermRef
 
@@ -1081,14 +1081,14 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
 
     // 2. Verify two-branch union type
     if !scrutType.isUnionType then
-      Reporter.error("rescue requires a union type, found: " + scrutType.show, rescue.scrutinee.pos)
+      Reporter.error("rescue requires a union type, found: " + scrutType.show, rescue.expr.pos)
       return errorWord(rescue.span)
 
     val unionType = scrutType.asUnionType
     if unionType.branches.size != 2 then
       Reporter.error(
         s"rescue requires a two-branch union type, found ${unionType.branches.size} branches: ${unionType.branches.map(_.show).mkString(", ")}",
-        rescue.scrutinee.pos)
+        rescue.expr.pos)
       return errorWord(rescue.span)
 
     // 3. Type-check the pattern against the scrutinee type; stop early on pattern errors
@@ -1166,7 +1166,7 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
         if procType.postParamCount > 0 || procType.autos.nonEmpty then
           Reporter.error(
             "rescue: .success must be an extension method with no post-parameters and no auto parameters",
-            rescue.scrutinee.pos)
+            rescue.expr.pos)
           return errorWord(rescue.span)
 
         // case v => v.success
