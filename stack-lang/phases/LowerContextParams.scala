@@ -193,7 +193,7 @@ extends Phase:
           else None
 
     val changed = (fun2 ne fun) || args2.zip(args).exists((a, b) => a ne b) || autos2.zip(autos).exists((a, b) => a ne b)
-    if changed then
+    if changed || !ctxParamOpt.isEmpty then
       Apply(fun2, args2 ++ ctxParamOpt.toList, autos2)(apply.span, apply.isPartialApply)
     else
       apply
