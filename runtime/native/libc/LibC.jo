@@ -1,0 +1,26 @@
+namespace jo.runtime.native.LibC
+
+import jo.compile.intrinsic
+
+import jo.runtime.native.Addr
+
+// Functions of the C library
+//
+// The backend declares each function as an external C function of the same
+// name and calls it directly. `Int` maps to C `int`, `Long` to `long`,
+// `size_t` and `ssize_t`, and `Addr` to a pointer.
+
+@intrinsic
+def write(fd: Int, buf: Addr, count: Long): Long receives none = ...
+
+@intrinsic
+def exit(status: Int): Bottom receives none = ...
+
+@intrinsic
+def calloc(count: Long, size: Long): Addr receives none = ...
+
+@intrinsic
+def sigaltstack(ss: Addr, oldss: Addr): Int receives none = ...
+
+@intrinsic
+def sigaction(signum: Int, act: Addr, oldact: Addr): Int receives none = ...

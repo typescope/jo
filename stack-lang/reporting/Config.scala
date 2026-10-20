@@ -291,6 +291,9 @@ object Config:
   lazy val NativeRuntimePath: String =
     java.nio.file.Paths.get(rootDir, "libs/runtime-native").toString
 
+  lazy val LLVMRuntimePath: String =
+    java.nio.file.Paths.get(rootDir, "libs/runtime-llvm").toString
+
   lazy val RubyRuntimePath: String =
     java.nio.file.Paths.get(rootDir, "libs/runtime-ruby").toString
 

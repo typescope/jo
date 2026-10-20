@@ -1,0 +1,93 @@
+package llvm
+
+import phases.Phase
+
+import sast.*
+import sast.Trees.*
+import sast.Types.*
+
+import ast.Positions.Span
+
+/**
+  * Insert boxing/unboxing for numeric types in union types.
+  *
+  * This is the copy for the LLVM backend, where Long is a 64-bit machine value
+  * and is boxed like the other numeric types.
+  * JavaScript backend doesn't need boxing since all values are tagged.
+  *
+  * Boxing is needed when:
+  * - A numeric value (Byte/Char/Int/Float) is casted to a union type (by Typer)
+  * - A union type value is casted to a numeric type (by PatternMatcher)
+  *
+  * This phase runs after pattern translation, so patterns should not exist.
+  *
+  * Thanks to Encoded nodes inserted during pattern translation and erasure,
+  * we only need to override transformEncoded to inspect these markers.
+  *
+  * TODO: merge into the phase Erasure
+  */
+class Boxing(runtime: LLVMRuntime)(using defn: Definitions) extends Phase:
+
+  override def transformEncoded(encoded: Encoded)(using Context): Word =
+    val Encoded(repr) = encoded
+    val repr2 = transform(repr)
+
+    val reprType = repr2.tpe
+    val targetType = encoded.tpe
+
+    if needsBoxing(reprType, targetType) then
+      // Create boxed value
+      boxValue(repr2, targetType, encoded.span)
+
+    else if needsUnboxing(reprType, targetType) then
+      // Extract numeric from union/any
+      unboxValue(repr2, targetType, encoded.span)
+
+    else
+      // No boxing/unboxing needed, keep the encoding
+      if repr2 eq repr then encoded
+      else Encoded(repr2)(targetType)
+
+  /** Check if boxing is needed: numeric -> union/any containing that numeric */
+  private def needsBoxing(reprType: Type, targetType: Type): Boolean =
+    targetType.dealias.isAnyType
+      && reprType.isNumericOrBoolType
+
+  /** Check if unboxing is needed: union/any -> numeric */
+  private def needsUnboxing(reprType: Type, targetType: Type): Boolean =
+    reprType.approx.isAnyType
+      && targetType.isNumericOrBoolType
+
+  /** Box a numeric value into a union type */
+  private def boxValue(word: Word, unionType: Type, span: Span): Word =
+    // Determine which box constructor to use based on numeric type
+    val boxConstructor = word.tpe match
+      case tpe if Subtyping.conforms(tpe, defn.BoolType) => runtime.Core_BoolBox_fun
+      case tpe if Subtyping.conforms(tpe, defn.ByteType) => runtime.Core_ByteBox_fun
+      case tpe if Subtyping.conforms(tpe, defn.CharType) => runtime.Core_CharBox_fun
+      case tpe if Subtyping.conforms(tpe, defn.IntType) => runtime.Core_IntBox_fun
+      case tpe if Subtyping.conforms(tpe, defn.LongType) => runtime.Core_LongBox_fun
+      case tpe if Subtyping.conforms(tpe, defn.FloatType) => runtime.Core_FloatBox_fun
+      case _ => throw new Exception(s"Unexpected numeric/bool type for boxing: ${word.tpe}")
+
+    // Create: BoxClass(word)
+    val constructorCall = Ident(boxConstructor)(span).appliedTo(word)
+    Encoded(constructorCall)(unionType)
+
+  /** Unbox a union value to extract numeric */
+  private def unboxValue(word: Word, numericType: Type, span: Span): Word =
+    // Determine which box class to extract from based on target numeric type
+    val boxClass = numericType match
+      case tpe if Subtyping.conforms(tpe, defn.BoolType) => runtime.Core_BoolBox
+      case tpe if Subtyping.conforms(tpe, defn.ByteType) => runtime.Core_ByteBox
+      case tpe if Subtyping.conforms(tpe, defn.CharType) => runtime.Core_CharBox
+      case tpe if Subtyping.conforms(tpe, defn.IntType) => runtime.Core_IntBox
+      case tpe if Subtyping.conforms(tpe, defn.LongType) => runtime.Core_LongBox
+      case tpe if Subtyping.conforms(tpe, defn.FloatType) => runtime.Core_FloatBox
+      case _ => throw new Exception(s"Unexpected numeric/bool type for unboxing: ${numericType}")
+
+    // Extract: Encoded(word)(BoxType).select("value")
+    val boxClassType = StaticRef(boxClass)
+    val encodedAsBox = Encoded(word)(boxClassType)
+    Select(encodedAsBox, "value")(span)
+end Boxing
