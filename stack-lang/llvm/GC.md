@@ -4,7 +4,8 @@ This document designs memory reclamation for the 64-bit LLVM backend. It
 builds on an earlier design, explicit function regions with deferred
 promotion, and changes it in four places:
 
-1. Region boundaries are backend configuration, not a language annotation.
+1. Region functions are chosen by the user in backend configuration, not by a
+   language annotation.
 2. Cleanup traces only the objects of the closing region.
 3. Cleanup allocates nothing. The trace reverses pointers instead of keeping a
    work list.
@@ -36,14 +37,15 @@ every frame that can see it.
 ## Region boundaries
 
 `@region` cannot be part of the language because only the native backend can
-honor it. The LLVM backend decides region boundaries itself:
+honor it. Region functions are backend configuration instead:
 
 - `--region <function>` makes a function a region function. The flag can be
   repeated, and a project can list region functions in `jo.toml`, like
   `--link` mappings.
-- A default rule picks region functions when none are configured, so ordinary
-  programs reclaim memory without configuration. The rule is an open question
-  (see below).
+
+The backend does not choose region functions itself. Users who want to reduce
+memory use pick them. Choosing them automatically is a separate concern that
+can be improved later without changing this design.
 
 Merging regions is always safe. It only delays reclamation. The backend
 therefore may ignore a region boundary when it is inconvenient, for example
@@ -272,8 +274,8 @@ backend can instead open and close a region per iteration.
 
 ## Limitations
 
-- Programs without region functions never free memory. This is the current
-  behavior.
+- Programs without configured region functions never free memory. This is
+  the current behavior.
 - Objects promoted to the root region stay until the program exits.
 - Garbage accumulates inside a long-running region, for example in a loop.
 - A removed escape stays promoted until its destination closes, as in the gist.
@@ -281,9 +283,6 @@ backend can instead open and close a region per iteration.
 
 ## Open questions
 
-- The default rule for region functions. Candidates: every function called
-  directly from `main`, or functions whose parameters and result are small
-  values, such as numbers, strings or `Unit`.
 - Whether loops produced by tail-call optimization should open a region per
   iteration.
 - Whether to replace `malloc` with size classes in region-owned chunks.
@@ -300,4 +299,3 @@ Each step ends with verification and a commit, as for the backend.
    Tests: escapes through fields, arrays, closures, context parameters and
    results, cycles inside a region, cycles across regions, and repeated region
    calls.
-3. The default region rule, measured on `tests/performance`.
