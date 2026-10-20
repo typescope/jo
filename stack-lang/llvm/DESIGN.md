@@ -110,6 +110,8 @@ added without touching codegen:
 - The backend needs clang 15 or newer, which reads opaque pointers by default.
   clang 14 crashes on them when optimizing, so with clang 14 only `--opt 0`
   works. The driver then passes `-mllvm -opaque-pointers`.
+- `./ci` runs the `llvm` mode with `$CLANG`, which defaults to `clang`. Set
+  `CLANG=clang-15` where the default clang is older.
 
 ## Milestones
 
