@@ -11,6 +11,11 @@
 ---------- Error at tests/warn/operator-mixing.jo:47:3 ---------------
 |   +x ++ y
 |   ^
-|   Function + expects 1 pre arguments, found = 0
+|   Undefined term name +
 
-3 error(s), 0 warning(s)
+---------- Error at tests/warn/operator-mixing.jo:47:3 ---------------
+|   +x ++ y
+|   ^
+|   Expect a function, found = +: Error
+
+4 error(s), 0 warning(s)

@@ -5,4 +5,4 @@
 //    │ size  │  content             │
 //    └───────┴──────────────────────┘
 
-def main = true + 3
+def main = 3 + true
