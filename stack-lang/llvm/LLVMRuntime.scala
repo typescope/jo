@@ -71,7 +71,8 @@ class LLVMRuntime(val rewire: Map[Symbol, Symbol])(using defn: Definitions):
   val Core_LongBox_fun  = Native.termMember("LongBox")
   val Core_FloatBox_fun = Native.termMember("FloatBox")
 
-  val Core_String_fromByteString = Core_StringOps.termMember("fromByteString")
+  val Core_bufferClassId = Native.termMember("bufferClassId")
+  val Core_bytesClassId  = Native.termMember("bytesClassId")
 
   val Core_String_Raw    = Native.typeMember("Raw")
   val Core_String_Concat = Native.typeMember("Concat")
@@ -100,16 +101,24 @@ class LLVMRuntime(val rewire: Map[Symbol, Symbol])(using defn: Definitions):
   def getLiftedMethodOrUpdate(meth: Symbol, update: => Symbol): Symbol =
     methodToLiftedMap.getOrElseUpdate(meth, update)
 
+  /** Class ids of heap objects that are not instances of Jo classes */
+  val BufferClassId = 0
+  val BytesClassId = 1
+  private val FirstClassId = 2
+
   def getClassId(cls: Symbol): Int =
     classIds.get(cls) match
       case Some(id) => id
       case None =>
-        val id = classIds.size
+        val id = classIds.size + FirstClassId
         classIds(cls) = id
         reverseClassIds(id) = cls
         id
 
   def getClassSymbol(classId: Int): Symbol = reverseClassIds(classId)
+
+  /** The number of class ids in use, including the reserved ones */
+  def classIdCount: Int = classIds.size + FirstClassId
 
   def getInterfaceId(interface: Symbol): Int =
     interfaceIds.getOrElseUpdate(interface, interfaceIds.size)

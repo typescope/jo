@@ -149,7 +149,7 @@ private[native] section StringOps
         if totalByteN == cpN then from + len
         else codePointToByteOffset(content, totalByteN, from + len)
       val subByteN = endByte - startByte
-      val buf = GC.alloc subByteN
+      val buf = allocBuffer subByteN
       copyBytes(buf, addAddr(content, startByte), subByteN)
       cast[String] Raw(subByteN, len, buf)
 
@@ -206,7 +206,7 @@ private[native] section StringOps
     new StringIterator(source)
 
   def bytes(repr: String): Addr =
-    val bytes = GC.alloc byteSize(repr)
+    val bytes = allocBuffer byteSize(repr)
 
     def recur(repr: StringRepr, from: Int): Int =
       match repr

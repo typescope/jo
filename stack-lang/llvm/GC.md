@@ -92,8 +92,10 @@ String literals, interface tables and other globals are not heap objects. They
 carry a header with `phys = 0` and `req = 0`, so the barrier never lowers them
 and the trace never enters them.
 
-String literal globals must therefore get the same header layout as heap
-objects.
+A string literal is a static `Raw` object whose `content` points into a static
+buffer object. Context parameter keys point into static buffers too. Program
+arguments are copied into heap buffers at startup, and memory handed to the C
+library, such as the alternate signal stack, comes from `calloc`.
 
 ## Allocation
 

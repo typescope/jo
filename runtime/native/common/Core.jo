@@ -279,7 +279,7 @@ private def charToStr(c: Char): String =
     else if codePoint <= 0xFFFF then 3
     else 4
 
-  val content = GC.alloc len
+  val content = allocBuffer len
 
   // Encode code point to UTF-8
   if codePoint <= 0x7F then
@@ -310,7 +310,7 @@ private def intToStr(n: Int): String =
   else if n == -2147483648 then "-2147483648" // its negation is still negative
   else
     // memory allocator will handle alignment
-    val buf = GC.alloc 11 // max 11
+    val buf = allocBuffer 11 // max 11
 
     val negative = n < 0
     var remains = if negative then 0 - n else n
@@ -410,7 +410,7 @@ private section RawBytes
     val src = cast[Addr] repr
     val start = contentOffset
     val dst = GC.alloc (length + start)
-    writeInt dst 0                        // reserved cid (unused)
+    writeInt dst bytesClassId
     writeInt (addAddr dst wordSize) length
 
     var i = 0
@@ -426,11 +426,7 @@ private section RawBytes
     val content = addAddr src contentOffset
     val outLen = ((n + 2) / 3) * 4
 
-    // Output goes to StringOps.fromByteString, which reads a `[byteSize(4)][content]`
-    // byte string — not a Bytes object — so no cid word here.
-    val outBuf = GC.alloc (outLen + 4)
-    writeInt outBuf outLen
-    val out = addAddr outBuf 4
+    val out = allocBuffer outLen
 
     var i = 0
     var o = 0
@@ -448,12 +444,13 @@ private section RawBytes
       i = i + 3
       o = o + 4
 
-    StringOps.fromByteString outBuf
+    // Base64 is ASCII: one code point per byte
+    cast[String]: Raw(outLen, outLen, out)
 
   def fill(size: Int, values: Int => Byte): Bytes =
     val start = contentOffset
     val dst = GC.alloc (size + start)
-    writeInt dst 0                        // reserved cid (unused)
+    writeInt dst bytesClassId
     writeInt (addAddr dst wordSize) size
 
     var i = 0
@@ -488,19 +485,11 @@ private section RefArray
 
   def clear[T](arr: Array[T], i: Int): Unit =
     assert: i >= 0 && i < arr.size, "Index \{i} out of bounds, size = \{arr.size}"
-    writeAddr:
-      addAddr:
-        cast[Addr] arr
-        i * wordSize + contentOffset
-      nullAddr
+    writeRef(cast[Addr] arr, i * wordSize + contentOffset, nullAddr)
 
   def set[T](arr: Array[T], i: Int, value: T): Unit =
     assert: i >= 0 && i < arr.size, "Index \{i} out of bounds, size = \{arr.size}"
-    writeAddr:
-      addAddr:
-        cast[Addr] arr
-        i * wordSize + contentOffset
-      cast[Addr] value
+    writeRef(cast[Addr] arr, i * wordSize + contentOffset, cast[Addr] value)
 
   def size[T](arr: Array[T]): Int =
     readInt: addAddr (cast[Addr] arr) wordSize
