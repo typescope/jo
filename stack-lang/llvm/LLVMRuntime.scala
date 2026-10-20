@@ -21,6 +21,7 @@ class LLVMRuntime(val rewire: Map[Symbol, Symbol])(using defn: Definitions):
   val Core_State       = Native.typeMember("State")
   val Core_state       = Native.termMember("state")
   val Core_start       = Native.termMember("start")
+  val Core_parseFloat  = Native.termMember("parseFloat")
   val Core_initObjects = Native.termMember("initObjects")
 
   val Core_cast      = Native.termMember("cast")
