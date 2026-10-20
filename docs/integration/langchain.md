@@ -32,13 +32,11 @@ The [Jo bridge](https://github.com/typescope/jo/blob/main/templates/langchain-da
 implements `run_jo(code, user_id)` behind the tool:
 
 1. Write the model's Jo source to a temporary file.
-2. Run `jo compile --python` with the confined API as `--lib` and the trusted runtime
-   as `--link-lib`. Link the generated `UserTask.analyzeDocuments` to the API's entry
-   point and the runtime's `platformMain` to `jo.main`. Return compiler errors to the
-   agent so it can revise the source.
+2. Run `jo compile --python` against the confined API (`--lib`) and link in the
+   trusted runtime (`--link-lib`). Return compiler errors to the agent so it can
+   revise the source.
 3. Run the compiled Python program in a minimal environment with the host-selected
-   user ID and database path.
-   Return its output or runtime error to the agent.
+   user ID and database path. Return its output or runtime error to the agent.
 
 The generated program can use only the API, the standard library, and the
 capabilities in the entry point's signature. The compiler rejects everything else.
