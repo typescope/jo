@@ -21,8 +21,8 @@ agent = create_agent(
 result = agent.invoke({"messages": [{"role": "user", "content": args.prompt}]})
 ```
 
-Only `code` is a model tool argument. The Python host chooses `user_id` with the CLI
-flag in this example. In a service, derive it from the authenticated request. 
+The model supplies only `code`. The Python host chooses `user_id`, from a CLI flag in
+this example. In a service, derive it from the authenticated request.
 LangChain documents this `@tool` and `create_agent` pattern in its
 [agent guide](https://docs.langchain.com/oss/python/langchain/agents).
 

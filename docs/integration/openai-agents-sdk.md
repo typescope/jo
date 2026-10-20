@@ -22,8 +22,8 @@ agent = Agent(
 result = Runner.run_sync(agent, args.prompt)
 ```
 
-Only `code` is a model tool argument. The Python host chooses `user_id` with the CLI
-flag in this example. In a service, derive it from the authenticated request. 
+The model supplies only `code`. The Python host chooses `user_id`, from a CLI flag in
+this example. In a service, derive it from the authenticated request.
 The [OpenAI Agents SDK quickstart](https://developers.openai.com/api/docs/guides/agents/quickstart)
 documents this function tool pattern.
 
