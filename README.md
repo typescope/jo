@@ -119,7 +119,7 @@ See the [security documentation](https://jo-lang.org/security/security-problem) 
 Keep your model, agent loop, and tool calling code. Add one tool that compiles the agent's Jo program against a confined API, links a trusted implementation, and runs it.
 
 <div align="center">
-  <img alt="An agent sends Jo source to a tool that compiles against a confined API, links a trusted API implementation, runs the program, and returns a result or error." src="./docs/public/img/integration-flow.svg" width="100%">
+  <img alt="An agent sends Jo source to a tool that compiles against a confined API and returns compiler errors, links a trusted API implementation, runs the program, and returns its output or runtime error." src="./docs/public/img/integration-flow.svg" width="100%">
 </div>
 
 See the integration guides for [LangChain](https://jo-lang.org/integration/langchain), the [OpenAI Agents SDK](https://jo-lang.org/integration/openai-agents-sdk), and [Harpe](https://jo-lang.org/integration/harpe).
@@ -140,6 +140,17 @@ Jo's capability model is grounded in `λCC`, a formally verified calculus of
 [contextual capabilities](https://github.com/typescope/contextual-capability).
 `λCC` provides a mathematical account of static capability tracking and the proof
 is mechanized in Coq.
+
+To cite the model:
+
+```bibtex
+@misc{lambda-cc,
+  author = {Fengyun Liu and Ond{\v{r}}ej Lhot{\'a}k},
+  title = {A Mathematical Model of Contextual Capabilities},
+  note = {Mechanized Coq development and accompanying paper},
+  year = {2026}
+}
+```
 
 ## Learn More
 
@@ -162,11 +173,7 @@ is mechanized in Coq.
   </tr>
   <tr>
     <td><a href="https://jo-lang.org/integration/">Agent Framework Integrations</a></td>
-    <td>
-      <a href="https://jo-lang.org/integration/langchain">LangChain</a><br>
-      <a href="https://jo-lang.org/integration/openai-agents-sdk">OpenAI Agents SDK</a><br>
-      <a href="https://jo-lang.org/integration/harpe">Harpe</a>
-    </td>
+    <td>LangChain, OpenAI Agents SDK, and Harpe</td>
   </tr>
 </table>
 
