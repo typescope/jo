@@ -356,5 +356,29 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
       case Ident(sym) if sym == runtime.Core_intToAddr =>
         Encoded(args2.head)(AddrType)
 
+      // Addresses are 32-bit integers on this platform
+
+      case Ident(sym) if sym == runtime.Core_readAddr =>
+        Encoded(Ident(runtime.Core_readInt)(fun.span).appliedTo(args2*))(AddrType)
+
+      case Ident(sym) if sym == runtime.Core_writeAddr =>
+        val addr :: value :: Nil = args2: @unchecked
+        Ident(runtime.Core_writeInt)(fun.span).appliedTo(addr, Encoded(value)(defn.IntType))
+
+      case Ident(sym) if sym == runtime.Core_nullAddr =>
+        Encoded(IntLit(0)(apply.span))(AddrType)
+
+      case Ident(sym) if sym == runtime.Core_isNull =>
+        val intEq = Ident(runtime.Int_eq)(fun.span)
+        intEq.appliedTo(Encoded(args2.head)(defn.IntType), IntLit(0)(apply.span))
+
+      case Ident(sym) if sym == runtime.Core_sameRef =>
+        val a :: b :: Nil = args2: @unchecked
+        val intEq = Ident(runtime.Int_eq)(fun.span)
+        intEq.appliedTo(Encoded(a)(defn.IntType), Encoded(b)(defn.IntType))
+
+      case Ident(sym) if sym == runtime.Core_wordSize =>
+        IntLit(4)(apply.span)
+
       case _ =>
         Apply(transform(fun), args2, autos2)(apply.span)
