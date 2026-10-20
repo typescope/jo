@@ -16,6 +16,7 @@ def run_jo_program(code: str) -> str:
 agent = Agent(
     name="Document analyst",
     instructions=SYSTEM_PROMPT,
+    model=os.environ.get("MODEL", "gpt-5.6-terra"),
     tools=[run_jo_program],
 )
 result = Runner.run_sync(agent, args.prompt)
@@ -68,7 +69,8 @@ export OPENAI_API_KEY="your-api-key"
 python3 agent.py "List my documents" --user-id 1
 ```
 
-Run the same question with `--user-id 2` to compare results. The sample database has
+Run the same question with `--user-id 2` to compare results. Set `MODEL` to choose
+another model. The sample database has
 documents for users 1, 2, and 3. `prepare.sh` compiles the confined
 `data/DatabaseAPI.jo` and trusted `data/Runtime.jo`, then copies the sample database
 to `out/`. Run it again to reset any changes made by the agent.

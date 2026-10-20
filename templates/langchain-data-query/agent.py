@@ -21,7 +21,7 @@ def main() -> None:
         return run_jo(code, args.user_id)
 
     agent = create_agent(
-        model=os.environ.get("JO_AGENT_MODEL", "openai:gpt-5.6-terra"),
+        model=os.environ.get("MODEL", "openai:gpt-5.6-terra"),
         tools=[run_jo_program],
         system_prompt=SYSTEM_PROMPT,
     )

@@ -14,7 +14,7 @@ def run_jo_program(code: str) -> str:
     return run_jo(code, args.user_id)
 
 agent = create_agent(
-    model="openai:gpt-5.6-terra",
+    model=os.environ.get("MODEL", "openai:gpt-5.6-terra"),
     tools=[run_jo_program],
     system_prompt=SYSTEM_PROMPT,
 )
@@ -68,7 +68,8 @@ export OPENAI_API_KEY="your-api-key"
 python3 agent.py "List my documents" --user-id 1
 ```
 
-Run the same question with `--user-id 2` to compare results. The sample database has
+Run the same question with `--user-id 2` to compare results. Set `MODEL` to choose
+another model, using LangChain's `provider:model` format. The sample database has
 documents for users 1, 2, and 3. `prepare.sh` compiles the confined
 `data/DatabaseAPI.jo` and trusted `data/Runtime.jo`, then copies the sample database
 to `out/`. Run it again to reset any changes made by the agent.

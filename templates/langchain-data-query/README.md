@@ -14,10 +14,11 @@ export OPENAI_API_KEY="your-api-key"
 python3 agent.py "List my documents" --user-id 1
 ```
 
-Run again with `--user-id 2` to see another user's documents. `prepare.sh`
+Run again with `--user-id 2` to see another user's documents. Set `MODEL` to
+choose another model, such as `MODEL=openai:gpt-5.6-terra`. `prepare.sh`
 compiles the confined `data/DatabaseAPI.jo` and trusted `data/Runtime.jo`,
 and refreshes a disposable copy of the database in `out/`. The agent supplies
-Jo source to a single tool; the Python host supplies the user ID outside the
+Jo source to a single tool. The Python host supplies the user ID outside the
 tool schema. In a deployed application, derive that identity from the
 authenticated request. The host and its other tools remain outside Jo's
 generated-code boundary.

@@ -94,7 +94,7 @@ cp -a "$PROJECT_ROOT/templates/harpe-data-query/." "$TMP_ROOT/harpe-data-query/"
   HARPE_USER_ID=1 HARPE_DB_PATH="$database" \
     bash sandbox/run.sh "$guest_file" > "$TMP_ROOT/harpe-output"
 
-  grep -q 'Updated Title' "$TMP_ROOT/harpe-output"
+  grep -q 'Q4 Budget Report' "$TMP_ROOT/harpe-output"
   if grep -q 'Technical Design' "$TMP_ROOT/harpe-output"; then
     echo 'Harpe guest returned another user’s document'
     exit 1

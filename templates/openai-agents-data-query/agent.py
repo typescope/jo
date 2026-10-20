@@ -22,7 +22,7 @@ def main() -> None:
     agent = Agent(
         name="Document analyst",
         instructions=SYSTEM_PROMPT,
-        model=os.environ.get("JO_AGENT_MODEL", "gpt-5.6-terra"),
+        model=os.environ.get("MODEL", "gpt-5.6-terra"),
         tools=[run_jo_program],
     )
     print(Runner.run_sync(agent, args.prompt).final_output)
