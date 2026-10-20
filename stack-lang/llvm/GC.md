@@ -15,9 +15,8 @@ The design is single-threaded, like the rest of the native runtime.
 
 ## Overview
 
-The heap is a stack of regions. The root region exists for the whole program.
-A call to a region function opens a child region and closes it on return. All
-allocations go into the current region.
+The heap is a stack of regions. A call to a region function opens a child
+region and closes it on return. All allocations go into the current region.
 
 Every object records two region depths:
 
@@ -47,6 +46,22 @@ The backend does not choose region functions itself. Users who want to reduce
 memory use pick them. Choosing them automatically is a separate concern that
 can be improved later without changing this design.
 
+### The runtime region
+
+The runtime marks one region explicitly, the same way. Depth 0 is the runtime
+region. It holds what the runtime sets up before the program starts: singleton
+objects, program arguments and the standard streams. The entry `start` opens
+region 1 before it calls the user's `main` and closes it after.
+
+An object that escapes to depth 0 is held by runtime state, so it must live
+until the program exits.
+
+### Tail-recursive functions
+
+Jo's tail-call optimization turns a self-recursive function into a loop. A
+region function rewritten this way is out of scope for now. Later the compiler
+can warn that the region marking is ignored for such a function.
+
 Merging regions is always safe. It only delays reclamation. The backend
 therefore may ignore a region boundary when it is inconvenient, for example
 beyond the depth limit.
@@ -63,7 +78,7 @@ on path   [1 | cursor: 31]
 
 The on-path form is used only during cleanup (see below).
 
-Depth 0 is the root region. Region depth is limited to 32767 by the `phys`
+Depth 0 is the runtime region. Region depth is limited to 32767 by the `phys`
 field. A region function called at the limit runs in the current region
 instead of opening a new one.
 
@@ -268,25 +283,27 @@ The design holds under LLVM's optimizations:
 `enter`, `close` and `lower` are marked `noinline` to keep the boundary opaque.
 The barrier may be inlined.
 
-Jo's tail-call optimization turns a self-recursive region function into a loop
-inside one region. That is safe, but garbage accumulates across iterations. The
-backend can instead open and close a region per iteration.
-
 ## Limitations
 
-- Programs without configured region functions never free memory. This is
-  the current behavior.
-- Objects promoted to the root region stay until the program exits.
+- Programs without configured region functions free nothing before `main`
+  returns. This is the current behavior.
+- Objects promoted to the runtime region stay until the program exits.
 - Garbage accumulates inside a long-running region, for example in a loop.
 - A removed escape stays promoted until its destination closes, as in the gist.
 - `malloc` per object is slower than the current bump allocator.
 
-## Open questions
+## Later: a faster allocator
 
-- Whether loops produced by tail-call optimization should open a region per
-  iteration.
-- Whether to replace `malloc` with size classes in region-owned chunks.
-  Freeing then requires retention accounting for chunks with survivors.
+Allocating each object with `malloc` and freeing it with `free` is simple and
+correct, but slower than the bump allocator the backend uses today.
+
+A faster scheme gives each region its own large chunks and bump-allocates
+objects in them. Freeing a whole chunk at once is cheap, but a chunk can only be
+freed when none of its objects survived. A survivor keeps its address, so it
+stays in the chunk of the closed region. The allocator must then count the
+live objects of each chunk and free the chunk only when the count reaches zero.
+
+This changes only the allocator, not the region design.
 
 ## Plan
 
