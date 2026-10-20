@@ -40,6 +40,16 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
     exit 1
 }
 
+# Test with LLVM
+echo "  - Building with LLVM"
+bin/jo compile --llvm --clang "${CLANG:-clang}" "$DIR/app.jo" -o "$DIR/app.run"
+"$DIR/app.run" $ARGS > "$DIR/actual.out" 2>&1
+diff "$DIR/actual.out" "$DIR/expect.check" || {
+    echo "[error] LLVM test failed for $TEST_NAME"
+    cat "$DIR/actual.out"
+    exit 1
+}
+
 # Test with JavaScript
 echo "  - Building with JavaScript"
 bin/jo compile --js "$DIR/app.jo" -o "$DIR/app.js"

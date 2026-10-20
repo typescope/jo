@@ -53,8 +53,10 @@ CASES
 }
 
 check_cases interpreter "$JO" eval --check-tree --source-root "$PROJECT_ROOT" "$DIR/app.jo"
-for backend in js python ruby reg stack; do
-    "$JO" compile "--$backend" --check-tree --source-root "$PROJECT_ROOT" "$DIR/app.jo" -o "$WORK/app"
+for backend in js python ruby reg stack llvm; do
+    flags=("--$backend")
+    [[ $backend == llvm ]] && flags+=(--clang "${CLANG:-clang}")
+    "$JO" compile "${flags[@]}" --check-tree --source-root "$PROJECT_ROOT" "$DIR/app.jo" -o "$WORK/app"
     case "$backend" in
         js) check_cases "$backend" node "$WORK/app" ;;
         python) check_cases "$backend" python3 "$WORK/app" ;;

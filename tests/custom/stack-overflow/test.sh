@@ -13,7 +13,7 @@ run_test() {
     local binary="$DIR/app.run"
 
     echo "  - Building with $backend"
-    "$PROJECT_ROOT/bin/jo" compile --use-runtime-api native "$backend" "$DIR/app.jo" \
+    "$PROJECT_ROOT/bin/jo" compile --use-runtime-api native "$@" "$DIR/app.jo" \
         -o "$binary"
 
     "$binary" > "$DIR/actual.out" 2>&1
@@ -33,6 +33,7 @@ run_test() {
 
 run_test --reg
 run_test --stack
+run_test --llvm --clang "${CLANG:-clang}"
 
 rm -rf "$DIR/actual.out" "$DIR"/*.run
 
