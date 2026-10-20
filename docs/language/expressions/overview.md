@@ -7,7 +7,7 @@ Jo's expression language is organized around four syntactic levels, with the aim
 
 ## The Four Levels
 
-**Word** — the smallest self-contained expression unit. A word requires no external delimiters to determine where it ends; boundaries follow from the token structure alone. Literals, identifiers, `(expr)`, `new C()`, `[...]` list literals, and suffixed forms `a.b`, `a()`, `a[i]` are all words.
+**Word** — the smallest self-contained expression unit. A word requires no external delimiters to determine where it ends. Boundaries follow from the token structure alone. Literals, identifiers, `(expr)`, `new C()`, `[...]` list literals, and suffixed forms `a.b`, `a()`, `a[i]` are all words.
 
 **Expression** — a sequence of one or more words, extended with a few special forms: lambdas, `if`, `match`, colon calls, dot chains, `rescue`, and `allow`/`with`.
 

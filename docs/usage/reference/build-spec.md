@@ -22,7 +22,7 @@ jo = "1.2"
 ```
 
 It means *major line `1`, at version `1.2.0` or later* — not `1.2.x`. Compilers `1.2.0`,
-`1.2.7`, and `1.5.0` all satisfy `jo = "1.2"`; `1.1.9` is too old and `2.0.0` is a
+`1.2.7`, and `1.5.0` all satisfy `jo = "1.2"`. `1.1.9` is too old and `2.0.0` is a
 different major line. Patch releases are never distinguished, so no exact compiler
 version is recorded anywhere in the project, `jo.lock` included.
 
@@ -153,7 +153,7 @@ resources = ["assets/", "config/default.json"]
 ```
 
 Each entry is a resource mapping. The short form `source` means
-`source:source`; use `source:destination` when the runtime resource path should
+`source:source`. Use `source:destination` when the runtime resource path should
 not match the source tree layout. Source and destination paths are
 project-relative logical paths that use `/` on every operating system.
 

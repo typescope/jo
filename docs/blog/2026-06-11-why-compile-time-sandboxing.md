@@ -2,7 +2,7 @@
 title: Why Secure AI Needs Compile-Time Sandboxing
 date: 2026-06-11
 author: The Jo Team
-description: Runtime sandboxes confine processes; compile-time sandboxing confines code. For AI-generated code, the boundary must understand business logic — and that is a job for the type checker.
+description: Runtime sandboxes confine processes. Compile-time sandboxing confines code. For AI-generated code, the boundary must understand business logic — and that is a job for the type checker.
 ---
 
 # Why Secure AI Needs Compile-Time Sandboxing
@@ -21,7 +21,7 @@ untrusted code allowed to do — and who checked?
 
 The standard answer is runtime sandboxing: containers, seccomp filters, VMs.
 But they operate at the wrong level of
-abstraction. A container can stop a process from opening a socket; it cannot
+abstraction. A container can stop a process from opening a socket. It cannot
 stop untrusted code from querying *another user's* rows through a database
 connection it legitimately holds.
 
@@ -161,7 +161,7 @@ more than any single agent task needs.
 
 An agent is not a trusted caller. What it may call depends on
 the security context of the task at hand: one task should see only a small
-subset of the API surface; another needs an endpoint, but with its scope
+subset of the API surface. Another needs an endpoint, but with its scope
 narrowed — this user's rows, read-only, the last 30 days. Existing REST APIs
 were not designed to answer such needs, so the restrictions end up in
 gateways and per-agent proxy policies — authority drifts back into

@@ -34,11 +34,11 @@ Use a higher slash count to nest comments:
 ///]
 ```
 
-Only `///]` closes the outer comment; the inner `//[...//]` is treated as content.
+Only `///]` closes the outer comment. The inner `//[...//]` is treated as content.
 
 ## Rules
 
 1. Opening and closing delimiters must have the same slash count.
-2. Minimum two slashes (`//[`); a single `/[` is not valid.
+2. Minimum two slashes (`//[`). A single `/[` is not valid.
 3. No space between slashes and bracket.
 4. An unclosed block comment is a compile-time error.

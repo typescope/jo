@@ -117,7 +117,7 @@ boundary statically.
 
 ## Constraints
 
-**No duplicate views** — a class cannot declare two views of the same interface; it
+**No duplicate views** — a class cannot declare two views of the same interface. It
 would be ambiguous which provides the implementation.
 
 **No name conflicts** — a class method cannot share a name with a synthesized

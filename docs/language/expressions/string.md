@@ -68,8 +68,8 @@ The opening and closing delimiter must have the same quote count.
 
 1. Collect all content lines between the opening and closing delimiter.
 2. Determine base indentation from the closing delimiter column.
-3. Strip the base indentation from each non-empty content line; error if insufficient.
-4. Process escape sequences: only `\u{X...}` Unicode escapes are expanded; all other backslash sequences are kept as-is.
+3. Strip the base indentation from each non-empty content line. Report an error if insufficient.
+4. Process escape sequences. Only `\u{X...}` Unicode escapes are expanded. All other backslash sequences are kept as-is.
 5. Join lines with newline characters. No trailing newline unless there is an empty
    line before the closing delimiter.
 

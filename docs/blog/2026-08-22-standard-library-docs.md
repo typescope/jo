@@ -72,7 +72,7 @@ version = "1.4.0"
 
 Modules that declare no package show `version unknown`. For the lower-level
 interface, [`jo compile --doc`](../usage/commands/compile.md) takes source files
-directly and accepts `--project-version` explicitly; it remains experimental.
+directly and accepts `--project-version` explicitly. It remains experimental.
 See [`jo doc`](../usage/commands/doc.md) for the full set of options.
 
 ## Versioned, and staying that way

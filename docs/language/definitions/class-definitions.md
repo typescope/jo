@@ -112,7 +112,7 @@ Class parameters and explicit constructors cannot coexist. Use class parameters 
 
 ## Fields
 
-Fields declared with `val` are immutable; fields declared with `var` are mutable and
+Fields declared with `val` are immutable. Fields declared with `var` are mutable and
 can be reassigned after construction:
 
 ```jo
@@ -228,7 +228,7 @@ For each method `m` in interface `I`:
   compatible signature. For a direct view, `m` must be defined in the class body. For a
   delegate view, the synthesized forwarder satisfies this requirement automatically.
 - **Concrete** (`m` has a body): the class must NOT define a method or field with the
-  same name. Concrete interface methods are final and inherited as-is; no forwarder is
+  same name. Concrete interface methods are final and inherited as-is. No forwarder is
   generated for them.
 
 **Signature compatibility includes:**

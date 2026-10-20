@@ -31,7 +31,7 @@ src = ["app/"]
 modules = ["web"]
 ```
 
-Each resource entry is a mapping. The short form `source` means `source:source`;
+Each resource entry is a mapping. The short form `source` means `source:source`.
 use `source:destination` to give files a different runtime resource path.
 
 A directory source includes regular files recursively and preserves paths
@@ -122,7 +122,7 @@ dependency closure beside the generated program:
 The `<owner>` directory is described in [Owner Names](#owner-names).
 
 Link-only dependencies are included in the resource closure. `link = true`
-means hidden from user imports and package metadata; it does not make the
+means hidden from user imports and package metadata. It does not make the
 dependency's resources private or omit them from the app artifact.
 
 This is one app resource directory, split by owner to avoid file-name

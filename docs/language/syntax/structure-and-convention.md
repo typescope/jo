@@ -39,7 +39,7 @@ import mutable.Map      // Import a specific name
 import app.foo as bar   // Rename an import
 ```
 
-- All imports share a single flat scope; the same name cannot be imported from two
+- All imports share a single flat scope. The same name cannot be imported from two
   different sources.
 - All name universes (term, type, pattern, container) for a given name are imported
   together.

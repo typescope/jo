@@ -50,7 +50,7 @@ the file and report diagnostics.
 
 Project commands such as `jo build` and `jo doc` default the source root to the
 module's project directory. An explicit `--source-root` in the module's
-`compile-options` overrides that default for compilation; put it in
+`compile-options` overrides that default for compilation. Put it in
 `doc-options` to override the documentation default.
 
 ### Documentation

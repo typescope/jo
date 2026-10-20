@@ -12,7 +12,7 @@ List.map f list
 println "hello"
 ```
 
-Juxtaposition parses left-to-right; the number of arguments each function consumes is determined by its binding structure. See [Expression Syntax](../syntax/expression-syntax.md) for how word sequences are organized into application trees, including operator precedence and shape-based binding.
+Juxtaposition parses left-to-right. The number of arguments each function consumes is determined by its binding structure. See [Expression Syntax](../syntax/expression-syntax.md) for how word sequences are organized into application trees, including operator precedence and shape-based binding.
 
 ## Function Application
 
@@ -223,8 +223,8 @@ matrix[row * width + col]
 The syntax `x[...]` is always parsed as bracket application. The compiler then
 inspects the type of the receiver at the call site:
 
-- **Polymorphic receiver** → type application. The arguments must be valid types;
-  providing an expression is an error.
+- **Polymorphic receiver** → type application. The arguments must be valid types.
+  Providing an expression is an error.
 - **Non-polymorphic receiver** → bracket application, desugared to `.get(...)`.
 
 ```jo

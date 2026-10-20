@@ -4,7 +4,7 @@ Most error-handling complexity in mainstream languages stems from a single mista
 treating bugs and recoverable errors as the same kind of thing.
 
 **Bugs** — violated invariants, out-of-bounds accesses, programmer mistakes — should
-panic immediately. Recovery is not meaningful; the process is in an inconsistent state.
+panic immediately. Recovery is not meaningful because the process is in an inconsistent state.
 Trying to catch and handle them (à la `NullPointerException`) creates false confidence
 without restoring correctness.
 
@@ -22,7 +22,7 @@ introduced two fatal problems (Hejlsberg,
 
 - **Versionability**: adding a new failure mode requires updating every `throws` clause
   in the call chain — analogous to adding a method to an interface.
-- **Scalability**: declared exceptions explode when aggregating subsystems; developers
+- **Scalability**: declared exceptions explode when aggregating subsystems. Developers
   resort to `throws Exception` or empty catch blocks, defeating the feature.
 
 Beyond the type-system problems, exceptions break local reasoning: any call may jump to
@@ -129,7 +129,7 @@ without extra imports and without knowing the concrete success type name.
 private def findAt(regex: Regex, input: String, pos: Int): Match | None
 ```
 
-Within a module the types are in scope; the raw union is more direct and avoids the
+Within a module the types are in scope. The raw union is more direct and avoids the
 wrapper allocation.
 
 **Parameter types: prefer union types**

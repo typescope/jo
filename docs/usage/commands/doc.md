@@ -28,7 +28,7 @@ doc-options = [
 ```
 
 The options are passed verbatim to `jo compile --doc`. They apply only to
-documentation generation; the module's `compile-options` do not apply to
+documentation generation. The module's `compile-options` do not apply to
 `jo doc`. See the [compiler options reference](../reference/compiler-options.md#documentation-options)
 for available documentation options.
 

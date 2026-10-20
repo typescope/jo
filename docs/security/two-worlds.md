@@ -158,5 +158,5 @@ def aiMain(): Unit receives ordersApi, IO.stdout =   // (6)
 
 ## See Also
 
-- [The Security Problem](security-problem.md) — The three challenges this architecture addresses
+- [Popular languages are unsafe](security-problem.md) — Why generated code needs a bounded interface
 - [Language Design](language-design.md) — The language facilities that operate within this architecture

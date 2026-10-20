@@ -15,7 +15,7 @@ val isReady: Bool = false
 
 ### Int
 
-A signed 32-bit integer, the default integer type; the range is `[-2^31, 2^31 - 1]`.
+A signed 32-bit integer, the default integer type. The range is `[-2^31, 2^31 - 1]`.
 Arithmetic (`+`, `-`, `*`, unary `-`) that overflows the range is undefined
 behavior — a wrapped result is still a bug, so it is left unspecified. Bitwise
 operations (`<<`, `>>`, `&`, `|`, `^`) respect the 32-bit two's-complement
@@ -28,7 +28,7 @@ val negative: Int = -17
 
 ### Long
 
-A signed 64-bit integer; the range is `[-2^63, 2^63 - 1]`. As with `Int`,
+A signed 64-bit integer. The range is `[-2^63, 2^63 - 1]`. As with `Int`,
 arithmetic overflow is undefined behavior while bitwise operations respect the
 64-bit two's-complement representation.
 
@@ -41,7 +41,7 @@ val widened: Long = small   // Int widens to Long automatically
 ### Byte
 
 An unsigned 8-bit value in the range `[0, 255]`. Byte is a storage type with no
-arithmetic of its own; convert to `Int` with `toInt` to compute.
+arithmetic of its own. Convert to `Int` with `toInt` to compute.
 
 ```jo
 val b: Byte = 200
