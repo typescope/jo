@@ -415,15 +415,18 @@ div[class*='language-'] {
   color: #fbbf24;
 }
 
+/* Match the arrow and link text of VitePress feature cards */
 .integration-link {
+  display: flex;
+  align-items: center;
   margin-top: auto;
   color: var(--vp-c-brand-1);
-  font-size: 13.5px;
-  font-weight: 650;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .integration-link span {
-  display: inline-block;
+  margin-left: 6px;
   transition: transform 180ms ease;
 }
 
@@ -438,8 +441,14 @@ div[class*='language-'] {
 }
 
 .vp-doc .integrations-more a {
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  font-weight: 500;
   text-decoration: none;
+}
+
+.vp-doc .integrations-more a span {
+  margin-left: 6px;
 }
 
 @media (max-width: 960px) {

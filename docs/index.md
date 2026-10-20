@@ -82,7 +82,7 @@ features:
     <span class="tk">return</span> run_jo(code, user_id)
 agent = create_agent(
     model, tools=[run_jo_program])</pre>
-      <span class="integration-link">Read the guide <span aria-hidden="true">→</span></span>
+      <span class="integration-link">Read the guide <span class="vpi-arrow-right" aria-hidden="true"></span></span>
     </a>
     <a class="integration-card" href="/integration/openai-agents-sdk">
       <div class="integration-head">
@@ -95,7 +95,7 @@ agent = create_agent(
     <span class="tk">return</span> run_jo(code, user_id)
 agent = Agent(name=<span class="ts">"Analyst"</span>,
     tools=[run_jo_program])</pre>
-      <span class="integration-link">Read the guide <span aria-hidden="true">→</span></span>
+      <span class="integration-link">Read the guide <span class="vpi-arrow-right" aria-hidden="true"></span></span>
     </a>
     <a class="integration-card" href="/integration/harpe">
       <div class="integration-head">
@@ -105,10 +105,10 @@ agent = Agent(name=<span class="ts">"Analyst"</span>,
       <p>Build the whole agent in Jo with a framework sandboxed at compile time.</p>
       <pre class="integration-code" v-pre><span class="tk">val</span> runCode = RunCodeTool(sandboxDir)
 <span class="tk">val</span> tools = runCode.toolset(guestEnv)</pre>
-      <span class="integration-link">Read the guide <span aria-hidden="true">→</span></span>
+      <span class="integration-link">Read the guide <span class="vpi-arrow-right" aria-hidden="true"></span></span>
     </a>
   </div>
-  <p class="integrations-more"><a href="/integration/">How the integration works →</a></p>
+  <p class="integrations-more"><a href="/integration/">How the integration works <span class="vpi-arrow-right" aria-hidden="true"></span></a></p>
 </section>
 
 ## From the blog
