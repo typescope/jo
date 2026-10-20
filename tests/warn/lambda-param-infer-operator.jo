@@ -1,0 +1,7 @@
+// Operators on a lambda parameter of unknown type do not fix it to `Int`.
+// See JIP 0008.
+def app2[X, Y](f: X => Y, x: X): Y = f x
+
+def main =
+  val f = x => x + x
+  val n = app2 (x => x * x) 5
