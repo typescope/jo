@@ -119,7 +119,7 @@ See the [security documentation](https://jo-lang.org/security/security-problem) 
 Keep your model, agent loop, and tool calling code. Add one tool that compiles the agent's Jo program against a confined API, links a trusted implementation, and runs it.
 
 <div align="center">
-  <img alt="An agent sends Jo source to a tool that compiles against a confined API, links a trusted API implementation, runs the program, and returns a result or error." src="./docs/public/img/integration-flow.svg" width="100%">
+  <img alt="An agent sends Jo source to a tool that compiles against a confined API and returns compiler errors, links a trusted API implementation, runs the program, and returns its output or runtime error." src="./docs/public/img/integration-flow.svg" width="100%">
 </div>
 
 See the integration guides for [LangChain](https://jo-lang.org/integration/langchain), the [OpenAI Agents SDK](https://jo-lang.org/integration/openai-agents-sdk), and [Harpe](https://jo-lang.org/integration/harpe).
