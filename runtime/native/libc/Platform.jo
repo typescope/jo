@@ -41,6 +41,7 @@ private def allocBuffer(size: Int): Addr receives none =
 
 // Store a reference into the object `obj` at byte offset `offset`
 private def writeRef(obj: Addr, offset: Int, value: Addr): Unit receives none =
+  Regions.barrier(obj, value)
   writeAddr (addAddr obj offset) value
 
 // Copy a null-terminated C string into a buffer
@@ -76,9 +77,9 @@ private def copyCString(str: Addr): Addr receives none =
   ! Breaking the invariants will lead to segmentation fault.
 //]
 private class State
-  // allocator
-  var next: Addr = nullAddr
-  var remaining: Int = 0
+  // regions: the current region and the `enter` calls merged at the depth limit
+  var region: Addr = nullAddr
+  var skipped: Int = 0
 end
 
 @intrinsic
@@ -110,7 +111,11 @@ private def start(argc: Int, argv: Addr): Unit receives none =
     IO.stderr = createStdErr(),
     IO.args = strArr
   in
+    // The runtime region (depth 0) holds what is set up above. The program
+    // runs in a region of its own.
+    Regions.enter()
     jo.main()
+    Regions.leave nullAddr
 
   finish()
 
