@@ -78,6 +78,68 @@ private def start(argc: Int, argv: Addr): Unit receives none =
 private def finish: Unit receives none =
   LibC.exit 0
 
+//------------------------------------------------------------------------------
+//
+// Float conversions
+//
+
+// Write the C format string `%.<precision>g` into `buf`
+private def writeFormat(buf: Addr, precision: Int): Unit receives none =
+  writeByte(buf, 37.toByte)                   // %
+  writeByte(addAddr buf 1, 46.toByte)         // .
+  writeByte(addAddr buf 2, 49.toByte)         // 1
+  writeByte(addAddr buf 3, (48 + precision - 10).toByte)
+  writeByte(addAddr buf 4, 103.toByte)        // g
+  writeByte(addAddr buf 5, 0.toByte)
+
+// The shortest of 15, 16 or 17 significant digits that reads back as `f`.
+// Integral values get a trailing `.0`.
 private def floatToStr(f: Float): String =
-  // TODO: Implement proper float to string conversion
-  "<float>"
+  // spelled as the other backends do, not as the C library does
+  val maxFloat: Float = 1.7976931348623157e308
+  if f != f then return "NaN"
+  if f > maxFloat then return "Infinity"
+  if f < -maxFloat then return "-Infinity"
+
+  val bufSize = 32
+  val buf = GC.alloc bufSize
+  val format = GC.alloc 8
+
+  var precision = 15
+  var done = false
+  while !done do
+    writeFormat(format, precision)
+    val _ = LibC.snprintf buf bufSize.toLong format precision f
+    done = precision == 17 || (LibC.strtod buf nullAddr) == f
+    precision = precision + 1
+  end
+
+  // Find the end of the digits and whether it needs `.0`
+  var len = 0
+  var integral = true
+  while (readByte (addAddr buf len)).toInt != 0 do
+    val c = (readByte (addAddr buf len)).toInt
+    if c == 46 || c == 101 || c == 105 || c == 110 then integral = false
+    len = len + 1
+  end
+
+  if integral then
+    writeByte(addAddr buf len, 46.toByte)
+    writeByte(addAddr buf (len + 1), 48.toByte)
+    writeByte(addAddr buf (len + 2), 0.toByte)
+
+  StringOps.fromCString buf
+
+//[ Decimal conversion for `Float.parse`, which validates the syntax //]
+private def parseFloat(s: String): Float receives none =
+  val n = StringOps.byteSize s
+  val content = StringOps.bytes s
+  val buf = GC.alloc (n + 1)
+  var i = 0
+  while i < n do
+    writeByte(addAddr buf i, readByte (addAddr content i))
+    i = i + 1
+  end
+
+  // The allocator returns zeroed memory, so `buf` is null-terminated.
+  LibC.strtod buf nullAddr
