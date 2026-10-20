@@ -66,8 +66,8 @@ Ask “List my documents.” Run the same question with
 `JO_USER_ID=2 MODEL=gpt-5.6-terra jo run` to compare results. The sample database has
 documents for users 1, 2, and 3. `prepare.sh` copies the confined
 `data/DatabaseAPI.jo`, the trusted `data/Runtime.jo`, and its `os.jo` and `sqlite3.jo`
-bindings into the guest module, builds it, and refreshes the database in
-`out/`. Run it again to reset any changes made by the agent.
+bindings into the guest module, builds it, and creates a fresh database in `out/`
+from `data/seed.sql`. Run it again to reset any changes made by the agent.
 
 ## For production
 

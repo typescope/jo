@@ -17,7 +17,8 @@ JO_USER_ID=1 MODEL=gpt-5.6-terra jo run
 
 Ask “List my documents.” Run again with `JO_USER_ID=2` to compare results.
 `prepare.sh` copies the confined API and trusted runtime into the guest
-module, builds it, and refreshes the disposable database in `out/`.
+module, builds it, and creates a disposable database in `out/` from
+`data/seed.sql`.
 The Harpe driver supplies the user ID outside the model's tool input. In a
 deployed application, derive it from the authenticated request.
 

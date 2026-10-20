@@ -6,7 +6,7 @@ PROJECT_ROOT="$(cd "$TEST_DIR/../../.." && pwd)"
 TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/jo-agent-update.XXXXXX")"
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
-for file in DatabaseAPI.jo Runtime.jo os.jo sqlite3.jo database.db; do
+for file in DatabaseAPI.jo Runtime.jo os.jo sqlite3.jo seed.sql; do
   cmp "$PROJECT_ROOT/templates/langchain-data-query/data/$file" \
     "$PROJECT_ROOT/templates/openai-agents-data-query/data/$file"
   cmp "$PROJECT_ROOT/templates/langchain-data-query/data/$file" \
@@ -93,7 +93,10 @@ cp -a "$PROJECT_ROOT/templates/harpe-data-query/." "$TMP_ROOT/harpe-data-query/"
       --lib "$TMP_ROOT/langchain-data-query/out/api" \
       --link-lib "$TMP_ROOT/langchain-data-query/out/runtime" \
       sandbox/Task.jo -o "$guest_file"
-    database="$PWD/data/database.db"
+    mkdir -p out
+    python3 -c 'import sqlite3, sys; sqlite3.connect(sys.argv[1]).executescript(open(sys.argv[2]).read())' \
+      out/database.db data/seed.sql
+    database="$PWD/out/database.db"
   fi
 
   HARPE_USER_ID=1 HARPE_DB_PATH="$database" \

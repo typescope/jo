@@ -17,7 +17,7 @@ python3 agent.py "List my documents" --user-id 1
 Run again with `--user-id 2` to see another user's documents. Set `MODEL` to
 choose another model, such as `MODEL=openai:gpt-5.6-terra`. `prepare.sh`
 compiles the confined `data/DatabaseAPI.jo` and trusted `data/Runtime.jo`,
-and refreshes a disposable copy of the database in `out/`. The agent supplies
+and creates a disposable database in `out/` from `data/seed.sql`. The agent supplies
 Jo source to a single tool. The Python host supplies the user ID outside the
 tool schema. In a deployed application, derive that identity from the
 authenticated request. The host and its other tools remain outside Jo's

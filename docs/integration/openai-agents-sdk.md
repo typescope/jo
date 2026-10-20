@@ -71,8 +71,8 @@ python3 agent.py "List my documents" --user-id 1
 Run the same question with `--user-id 2` to compare results. Set `MODEL` to choose
 another model. The sample database has
 documents for users 1, 2, and 3. `prepare.sh` compiles the confined
-`data/DatabaseAPI.jo` and trusted `data/Runtime.jo`, then copies the sample database
-to `out/`. Run it again to reset any changes made by the agent.
+`data/DatabaseAPI.jo` and trusted `data/Runtime.jo`, then creates a fresh database
+in `out/` from `data/seed.sql`. Run it again to reset any changes made by the agent.
 
 ## For production
 
