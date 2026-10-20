@@ -1,0 +1,33 @@
+namespace jo.runtime.native.ChunkAllocator
+
+import jo.runtime.native
+import jo.runtime.native.LibC
+import jo.runtime.native.Addr
+
+// A bump allocator over zeroed chunks from the C library. It never frees.
+
+private def chunkSize: Int = 1048576
+
+private[native] def init(): Unit receives none =
+  val state = native.state
+  state.remaining = 0
+
+private[native] def alloc(size: Int): Addr receives none =
+  val state = native.state
+
+  // keep every allocation word-aligned
+  val aligned = (size + 7) & -8
+
+  if aligned > state.remaining then
+    val chunk = if aligned > chunkSize then aligned else chunkSize
+    val mem = LibC.calloc 1 chunk.toLong
+    if native.isNull mem then
+      abort "Unable to alloc memory from system"
+
+    state.next = mem
+    state.remaining = chunk
+
+  val res = state.next
+  state.next = native.addAddr res aligned
+  state.remaining = state.remaining - aligned
+  res

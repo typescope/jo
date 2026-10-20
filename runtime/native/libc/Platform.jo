@@ -1,0 +1,83 @@
+namespace jo.runtime.native
+
+import jo.compile.intrinsic
+
+import jo.runtime.native.LibC
+import jo.runtime.native.GC
+
+// Platform layer on top of the C library
+//
+// The common runtime expects every platform layer to provide `intToLong`,
+// `exitImpl`, `writeFd`, `floatToStr` and the program entry `start`.
+
+@intrinsic
+private def intToLong(a: Int): Long receives none = ...
+
+private def exitImpl(code: Int): Bottom receives none = LibC.exit code
+
+private def writeFd(fd: Int, content: Addr, len: Int): Int receives none =
+  (LibC.write fd content len.toLong).toInt
+
+//------------------------------------------------------------------------------
+//
+// program life time
+//
+
+//[
+  ! This object cannot be allocated by GC because the GC initialization needs to
+  ! record GC state inside it.
+  !
+  ! The class may not implement interfaces as the interface table is created
+  ! later.
+  !
+  ! The class initialization code is simply ignored --- it should not require
+  ! any initialization. The backend reserves zeroed memory for it.
+  !
+  ! Breaking the invariants will lead to segmentation fault.
+//]
+private class State
+  // allocator
+  var next: Addr = nullAddr
+  var remaining: Int = 0
+end
+
+@intrinsic
+private def state: State receives none =
+  abort "native state"
+
+//[ Program entry, called by the C `main` function //]
+private def start(argc: Int, argv: Addr): Unit receives none =
+  // GC must be up before installStackOverflowHandler (which uses GC.alloc).
+  GC.init()
+
+  // Install SIGSEGV handler so stack overflow prints a clear message.
+  installStackOverflowHandler()
+
+  // Must not use any global objects before batch initialization
+  // (GC is now up but singleton objects are not yet initialized)
+
+  // Initialize singleton object after runtime is ready
+  initObjects()
+
+  // Convert arguments from C string to Jo string
+  val strArr = Array.create[String](argc - 1)
+  // skip the first arg: program name
+  for i in 1 until argc do
+    val addr = readAddr: addAddr argv (i * wordSize)
+    strArr[i - 1] = StringOps.fromCString addr
+
+  with
+    IO.stdout = createStdOut(),
+    IO.stderr = createStdErr(),
+    IO.args = strArr
+  in
+    jo.main()
+
+  finish()
+
+private def finish: Unit receives none =
+  LibC.exit 0
+
+private def floatToStr(f: Float): String =
+  // TODO: Implement proper float to string conversion
+  "<float>"
