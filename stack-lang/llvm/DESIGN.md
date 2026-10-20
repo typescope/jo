@@ -4,8 +4,9 @@ A 64-bit native backend. It emits textual LLVM IR and calls `clang` to compile
 and link it.
 
 The 32-bit backends in `native/` stay as they are. They are the self-contained
-backends and the base for a future RV32 port. This backend shares no code with
-them. It only reuses the frontend and the generic lowering phases in `phases/`.
+backends and the base for a future RV32 port. This backend shares no compiler
+code with them. It reuses the frontend and the generic lowering phases in
+`phases/`, and shares the portable part of the runtime.
 
 ## Pipeline
 
@@ -58,16 +59,30 @@ not.
 
 ## Runtime
 
-The runtime is written in Jo in `runtime/llvm/` (namespace `jo.runtime.llvm`)
-and precompiled to `libs/runtime-llvm`. It is a separate copy of the 32-bit
-runtime, adapted to 64-bit words.
+The runtime is written in Jo in the namespace `jo.runtime.native`. It is split
+by platform interface:
 
-- It calls libc (`write`, `exit`, `malloc`, ...) instead of making raw
-  syscalls. The section `jo.runtime.llvm.LibC` declares the C functions. The
-  backend emits a `declare` for each one and calls it directly.
-- Memory primitives are typed: `readInt`/`writeInt` (`i32`),
-  `readAddr`/`writeAddr` (`ptr`), `readByte`/`writeByte` (`i8`). There is no
-  cast between pointers and `Int`.
+```
+runtime/native/common/         portable: strings, params, regex, arrays, numeric ops
+runtime/native/linux32/        raw Linux syscalls, brk allocator, LongRepr, start from stack
+runtime/native/linux32/i386/   syscall numbers and the sigaction layout of i386
+runtime/native/libc/           libc calls, chunk allocator, i64 Long, main(argc, argv)
+runtime/native/libc/linux/     the sigaction layout of glibc
+```
+
+`libs/runtime-native` is `common` + `linux32` + `linux32/i386`. This backend
+uses `libs/runtime-llvm`, which is `common` + `libc` + `libc/linux`.
+
+- The common runtime does not assume a word size. Memory primitives are
+  typed: `readInt`/`writeInt` (`i32`), `readAddr`/`writeAddr` (addresses),
+  `readByte`/`writeByte` (`i8`). `wordSize`, `nullAddr`, `isNull` and
+  `sameRef` replace casts between addresses and `Int`. The 32-bit backends
+  rewrite these primitives to their 32-bit forms in `EncodeClass`.
+- Each platform layer provides `intToLong`, `exitImpl`, `writeFd`,
+  `floatToStr` and the entry `start`.
+- The libc layer calls the C library instead of making raw syscalls. The
+  section `jo.runtime.native.LibC` declares the C functions. The backend
+  emits a `declare` for each one and calls it directly.
 - The C `main` calls the Jo entry `start(argc, argv)`.
 
 ## Hooks for the garbage collector
@@ -91,8 +106,10 @@ added without touching codegen:
 - `bin/llvmc <file.jo>`: compile with the LLVM backend (dev script).
 - `bin/jo compile --llvm <file.jo> -o <exe>`: compile with the built compiler.
 - `--keep-ll`: keep the generated `.ll` file next to the executable.
-- clang 15 or newer reads opaque pointers by default. For clang 14 the driver
-  passes `-mllvm -opaque-pointers`.
+- `--opt <level>`: clang optimization level, `2` by default.
+- The backend needs clang 15 or newer, which reads opaque pointers by default.
+  clang 14 crashes on them when optimizing, so with clang 14 only `--opt 0`
+  works. The driver then passes `-mllvm -opaque-pointers`.
 
 ## Milestones
 

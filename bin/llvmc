@@ -1,0 +1,28 @@
+#!/bin/bash
+
+files=(
+    # parser
+    stack-lang/ast/*.scala
+    stack-lang/common/*.scala
+    stack-lang/parsing/*.scala
+    stack-lang/reporting/*.scala
+
+    # typer
+    stack-lang/typing/*.scala
+
+    stack-lang/sast/*.scala
+
+    stack-lang/pickle/*.scala
+
+    # LLVM compiler
+    stack-lang/llvm/*.scala
+
+    stack-lang/phases/*.scala
+
+    # cli
+    stack-lang/cli/OptionParser.scala
+)
+
+FILES=${files[*]}
+
+scala-cli project.scala $FILES --main-class llvm.Compiler -- "$@"

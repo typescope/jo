@@ -1,0 +1,40 @@
+namespace jo.runtime.native
+
+import jo.compile.intrinsic
+
+import jo.runtime.native.LibC
+import jo.runtime.native.GC
+
+// Signal handler registered for SIGSEGV.
+//
+// The C library calls it with the signal number as argument. The handler takes
+// no parameter and never returns, so the extra argument does no harm.
+private def stackOverflowHandler(): Bottom receives none =
+  writeString: 2, cast[StringRepr] "Stack overflow\n"
+  LibC.exit 1
+
+// Backend intrinsifies this to the address of stackOverflowHandler.
+@intrinsic
+private def stackOverflowHandlerAddress: Addr = ...
+
+// Called once at startup (after GC.init) to install the SIGSEGV handler on an
+// alternate stack so it fires even when the main stack has overflowed.
+//
+// The struct layouts are those of glibc on 64-bit Linux.
+private def installStackOverflowHandler(): Unit receives none =
+  // Alternate stack: 64 KB (> SIGSTKSZ)
+  val altSize = 65536
+  val altMem = GC.alloc altSize
+
+  // stack_t: { ss_sp: ptr, ss_flags: int, ss_size: size_t }
+  val ss = GC.alloc 24
+  writeAddr ss altMem                // ss_sp
+  writeInt (addAddr ss 8) 0          // ss_flags = 0
+  writeInt (addAddr ss 16) altSize   // ss_size, upper half is zero
+  val _ = LibC.sigaltstack ss nullAddr
+
+  // sigaction: { sa_handler: ptr, sa_mask: 128 bytes, sa_flags: int, sa_restorer: ptr }
+  val act = GC.alloc 152
+  writeAddr act stackOverflowHandlerAddress   // sa_handler
+  writeInt (addAddr act 136) 0x08000000       // sa_flags = SA_ONSTACK
+  val _ = LibC.sigaction 11 act nullAddr      // SIGSEGV = 11
