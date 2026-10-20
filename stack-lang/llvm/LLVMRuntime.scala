@@ -82,6 +82,12 @@ class LLVMRuntime(val rewire: Map[Symbol, Symbol])(using defn: Definitions):
   val Core_stackOverflowHandler        = Native.termMember("stackOverflowHandler")
   val Core_stackOverflowHandlerAddress = Native.termMember("stackOverflowHandlerAddress")
 
+  val Regions = Native.containerMember("Regions")
+  val Regions_enter       = Regions.termMember("enter")
+  val Regions_leave       = Regions.termMember("leave")
+  val Regions_barrier     = Regions.termMember("barrier")
+  val Regions_layoutTable = Regions.termMember("layoutTable")
+
   val GC = defn.resolveContainer("jo.runtime.native.GC")
   val GC_alloc = GC.termMember("alloc")
 

@@ -21,6 +21,7 @@ object Compiler:
   val keepLL: Config.BooleanSetting = Config.BooleanSetting("--keep-ll", false, "keep the generated LLVM IR file")
   val clang: Config.StringSetting = Config.StringSetting("--clang", "clang", "the clang executable")
   val optLevel: Config.StringSetting = Config.StringSetting("--opt", "2", "clang optimization level")
+  val regionFunctions: Config.MultiStringSetting = Config.MultiStringSetting("--region", "make a function open a memory region, e.g., --region app.process")
 
   // Default link mappings for the runtime
   val defaultLinkMappings = Map(
@@ -44,8 +45,8 @@ object Compiler:
     "jo.ListImpl.tryExtend" -> "jo.runtime.native.ListClaim.tryExtend",
 
     // GC API wiring
-    "jo.runtime.native.GC.init"  -> "jo.runtime.native.ChunkAllocator.init",
-    "jo.runtime.native.GC.alloc" -> "jo.runtime.native.ChunkAllocator.alloc",
+    "jo.runtime.native.GC.init"  -> "jo.runtime.native.Regions.init",
+    "jo.runtime.native.GC.alloc" -> "jo.runtime.native.Regions.alloc",
   )
 
   // Runtime definitions for the frontend
@@ -65,7 +66,7 @@ object Compiler:
       if useNativeApi then args.patch(runtimeApi, Array("--lib", Config.LLVMRuntimePath), 2)
       else args
 
-    val options = keepLL :: clang :: optLevel :: Config.appOptions
+    val options = keepLL :: clang :: optLevel :: regionFunctions :: Config.appOptions
     val (config, sources) = cli.OptionParser.parseConfig(args1, options)
 
     given Config = config
@@ -115,7 +116,14 @@ object Compiler:
         val boxing = new Boxing(runtime)
         val encodeClass = new EncodeClass(runtime)
 
-        val codegen = Step("codegen", (units: List[sast.Trees.FileUnit]) => new CodeGen(runtime).compile(units))
+        val regions = regionFunctions.value.toSet
+        val codegen = Step("codegen", (units: List[sast.Trees.FileUnit]) =>
+          val gen = new CodeGen(runtime, regions)
+          val ir = gen.compile(units)
+          for name <- gen.unusedRegionFunctions do
+            Reporter.warn(s"--region $name: no function of this name is compiled")
+          ir
+        )
         val clangStep = Step("clang", (ir: String) => link(ir, outFile))
 
         namespacesSAST     |>

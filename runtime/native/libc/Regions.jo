@@ -1,0 +1,307 @@
+namespace jo.runtime.native
+
+import jo.compile.intrinsic
+
+import jo.runtime.native.LibC
+
+//[ Region-based memory management for the LLVM backend
+  !
+  ! See `stack-lang/llvm/GC.md` for the design. In short: allocations go into
+  ! the current region, a heap store lowers the required region of the stored
+  ! object, and closing a region frees the objects only it requires. Cleanup
+  ! allocates nothing and traces only the objects of the closing region.
+//]
+private section Regions
+  //----------------------------------------------------------------------------
+  // Object header
+  //
+  // The high half of slot 0 of every heap object:
+  //
+  //   normal    [0 | phys: 15 | req: 16]
+  //   on path   [1 | cursor: 31]
+  //
+  // `phys` is the depth of the region holding the object, `req` the depth of
+  // the shallowest region it must outlive. Static objects have both at 0.
+
+  private def maxDepth: Int = 32767
+
+  private def gcHalf(o: Addr): Int = readInt (addAddr o 4)
+
+  private def setGcHalf(o: Addr, v: Int): Unit = writeInt (addAddr o 4) v
+
+  private def normal(phys: Int, req: Int): Int = (phys << 16) | req
+
+  private def onPath(cursor: Int): Int = -2147483648 | cursor
+
+  private def reqOf(o: Addr): Int = (gcHalf o) & 0xFFFF
+
+  private def physOf(o: Addr): Int = ((gcHalf o) >> 16) & 0x7FFF
+
+  private def isOnPath(o: Addr): Bool = (gcHalf o) < 0
+
+  private def cursorOf(o: Addr): Int = (gcHalf o) & 0x7FFFFFFF
+
+  private def setReq(o: Addr, req: Int): Unit =
+    setGcHalf(o, ((gcHalf o) & -65536) | req)
+
+  //----------------------------------------------------------------------------
+  // Pointer layout, emitted by the backend
+  //
+  // `layoutTable` is indexed by class id. An entry is `[n, s1, ..., sn]`, the
+  // slots holding pointers. A slot with `interiorFlag` holds an `Addr`, which
+  // points one word past the header of a buffer. `n = -1` is a reference
+  // array, whose elements are all pointers.
+
+  @intrinsic
+  private def layoutTable: Addr = ...
+
+  private def interiorFlag: Int = 0x40000000
+
+  private def layoutOf(o: Addr): Addr =
+    readAddr (addAddr layoutTable ((readInt o) * wordSize))
+
+  private def slotCount(o: Addr): Int =
+    val n = readInt (layoutOf o)
+    if n == -1 then readInt (addAddr o wordSize) else n
+
+  // The object referred to by pointer slot `i` of `o`
+  private def getRef(o: Addr, i: Int): Addr =
+    val layout = layoutOf o
+    if (readInt layout) == -1 then
+      readAddr (addAddr o ((i + 2) * wordSize))
+    else
+      val s = readInt (addAddr layout ((i + 1) * 4))
+      if (s & interiorFlag) == 0 then
+        readAddr (addAddr o (s * wordSize))
+      else
+        val p = readAddr (addAddr o ((s - interiorFlag) * wordSize))
+        if isNull p then p else addAddr p (0 - wordSize)
+
+  // Make pointer slot `i` of `o` refer to the object `v`
+  private def setRef(o: Addr, i: Int, v: Addr): Unit =
+    val layout = layoutOf o
+    if (readInt layout) == -1 then
+      writeAddr (addAddr o ((i + 2) * wordSize)) v
+    else
+      val s = readInt (addAddr layout ((i + 1) * 4))
+      if (s & interiorFlag) == 0 then
+        writeAddr (addAddr o (s * wordSize)) v
+      else
+        val p = if isNull v then v else addAddr v wordSize
+        writeAddr (addAddr o ((s - interiorFlag) * wordSize)) p
+
+  //----------------------------------------------------------------------------
+  // Regions and segments
+  //
+  // Memory for regions and segments comes from the C library.
+  //
+  //   region    { parent, depth, first segment, last segment }
+  //   segment   { next, count, objects... }
+
+  private def segCapacity: Int = 510
+
+  private def parentOf(r: Addr): Addr = readAddr r
+
+  private def depthOf(r: Addr): Int = readInt (addAddr r 8)
+
+  private def firstSeg(r: Addr): Addr = readAddr (addAddr r 16)
+
+  private def lastSeg(r: Addr): Addr = readAddr (addAddr r 24)
+
+  private def setLastSeg(r: Addr, s: Addr): Unit = writeAddr (addAddr r 24) s
+
+  private def segNext(s: Addr): Addr = readAddr s
+
+  private def segCount(s: Addr): Int = readInt (addAddr s 8)
+
+  private def setSegCount(s: Addr, n: Int): Unit = writeInt (addAddr s 8) n
+
+  private def segEntry(s: Addr, i: Int): Addr = addAddr s (16 + i * wordSize)
+
+  private def callocOrAbort(size: Int): Addr =
+    val mem = LibC.calloc 1 size.toLong
+    if isNull mem then abort "Unable to alloc memory from system"
+    mem
+
+  private def newSegment(): Addr = callocOrAbort (16 + segCapacity * wordSize)
+
+  private def newRegion(parent: Addr, depth: Int): Addr =
+    val r = callocOrAbort 32
+    writeAddr r parent
+    writeInt (addAddr r 8) depth
+    val seg = newSegment()
+    writeAddr (addAddr r 16) seg
+    setLastSeg(r, seg)
+    r
+
+  private def append(r: Addr, obj: Addr): Unit =
+    var seg = lastSeg r
+    var n = segCount seg
+    if n == segCapacity then
+      val next = newSegment()
+      writeAddr seg next
+      setLastSeg(r, next)
+      seg = next
+      n = 0
+
+    writeAddr (segEntry seg n) obj
+    setSegCount(seg, n + 1)
+
+  //----------------------------------------------------------------------------
+  // API
+
+  //[ Create the runtime region, depth 0 //]
+  def init(): Unit receives none =
+    val st = state
+    st.region = newRegion(nullAddr, 0)
+    st.skipped = 0
+
+  //[ Allocate a zeroed object in the current region //]
+  def alloc(size: Int): Addr receives none =
+    val obj = callocOrAbort size
+    val r = state.region
+    val d = depthOf r
+    setGcHalf(obj, normal(d, d))
+    append(r, obj)
+    obj
+
+  //[ The write barrier: `value` must live as long as `obj` //]
+  def barrier(obj: Addr, value: Addr): Unit receives none =
+    if !(isNull value) then
+      val req = reqOf obj
+      if (reqOf value) > req then setReq(value, req)
+
+  //[ Open a region. At the depth limit, stay in the current region. //]
+  def enter(): Unit receives none =
+    val st = state
+    val r = st.region
+    val d = depthOf r
+    if d == maxDepth then
+      st.skipped = st.skipped + 1
+    else
+      st.region = newRegion(r, d + 1)
+
+  //[ Close the region opened by the matching `enter`, keeping `result` //]
+  def leave(result: Addr): Unit receives none =
+    val st = state
+    if st.skipped > 0 then
+      st.skipped = st.skipped - 1
+    else
+      val r = st.region
+      val parentDepth = (depthOf r) - 1
+      if !(isNull result) && (reqOf result) > parentDepth then
+        setReq(result, parentDepth)
+
+      val parent = parentOf r
+      close r
+      st.region = parent
+
+  //----------------------------------------------------------------------------
+  // Cleanup: allocates nothing and runs no user code
+
+  private def close(r: Addr): Unit =
+    val d = depthOf r
+
+    // Spread the requirements of escape roots
+    var seg = firstSeg r
+    while !(isNull seg) do
+      val n = segCount seg
+      var i = 0
+      while i < n do
+        val o = readAddr (segEntry seg i)
+        val req = reqOf o
+        if req < d then lower(o, req, d)
+        i = i + 1
+      end
+      seg = segNext seg
+    end
+
+    // Free dead objects and pack survivors at the front. The writer never
+    // passes the reader, and each segment's count is read before it changes.
+    val parentDepth = d - 1
+    var wseg = firstSeg r
+    var w = 0
+    seg = firstSeg r
+    while !(isNull seg) do
+      val n = segCount seg
+      var i = 0
+      while i < n do
+        val o = readAddr (segEntry seg i)
+        val req = reqOf o
+        if req == d then
+          LibC.free o
+        else
+          setGcHalf(o, normal(parentDepth, req))
+          if w == segCapacity then
+            setSegCount(wseg, w)
+            wseg = segNext wseg
+            w = 0
+
+          writeAddr (segEntry wseg w) o
+          w = w + 1
+
+        i = i + 1
+      end
+      seg = segNext seg
+    end
+    setSegCount(wseg, w)
+
+    // Release the segments after the survivors
+    var rest = segNext wseg
+    writeAddr wseg nullAddr
+    while !(isNull rest) do
+      val next = segNext rest
+      LibC.free rest
+      rest = next
+    end
+
+    // Hand the survivors to the parent
+    if w == 0 then
+      LibC.free wseg
+    else
+      val parent = parentOf r
+      writeAddr (lastSeg parent) (firstSeg r)
+      setLastSeg(parent, wseg)
+
+    LibC.free r
+
+  // Lower `req` to `d` for the objects of the region at depth `rd` reachable
+  // from `root`, a depth-first traversal with pointer reversal: the slot that
+  // led to the current object holds its parent until the traversal returns.
+  private def lower(root: Addr, d: Int, rd: Int): Unit =
+    var prev = nullAddr
+    var cur = root
+    setGcHalf(cur, onPath 0)
+
+    var done = false
+    while !(done) do
+      val i = cursorOf cur
+      if i < (slotCount cur) then
+        val c = getRef(cur, i)
+        if !(isNull c) && !(isOnPath c) && (reqOf c) > d then
+          if (physOf c) == rd then
+            // descend, reversing the slot
+            setRef(cur, i, prev)
+            prev = cur
+            cur = c
+            setGcHalf(cur, onPath 0)
+          else
+            // in an ancestor region: its own cleanup traces it
+            setReq(c, d)
+            setGcHalf(cur, onPath (i + 1))
+        else
+          setGcHalf(cur, onPath (i + 1))
+      else
+        setGcHalf(cur, normal(rd, d))
+        if isNull prev then
+          done = true
+        else
+          // return, restoring the reversed slot
+          val j = cursorOf prev
+          val up = getRef(prev, j)
+          setRef(prev, j, cur)
+          cur = prev
+          prev = up
+          setGcHalf(cur, onPath (j + 1))
+    end
+end
