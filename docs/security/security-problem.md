@@ -24,14 +24,23 @@ generated code to a scoped API whose trusted implementation enforces those rules
 
 ## Three challenges
 
-1. **Usability without ambient authorities.** Code needs access to approved effects
-   without passing every capability through every function call.
-2. **Security context representation.** A capability must encode whose authority it
-   carries. Abstract interfaces let trusted code provide access scoped to the current
-   user without exposing broader credentials or a way to forge that scope.
-3. **Authority attenuation.** Trusted code must be able to give generated code a narrow
-   capability without giving it a path back to the broader one. Compilation rejects
-   imports and effects outside the supplied interface.
+Securing AI-generated code at the language level requires solving three problems.
+
+1. **Usability without ambient authorities.** A secure language must remove ambient
+   authorities. Done naively, that means threading every capability through every
+   function call. The language needs to pass authorities implicitly while keeping them
+   statically trackable, so the common case stays ergonomic and every authority stays
+   auditable.
+2. **Security context representation.** The authority given to generated code must
+   encode the current user: not just "database access" but "this user's rows only."
+   Generated code must not be able to inspect, forge, or amplify that context. The
+   language needs a way to represent it and a type system that enforces the
+   abstraction boundary.
+3. **Authority attenuation.** Trusted code holds broad authorities. Generated code
+   should receive only the narrow slice it needs. The language must derive
+   fine-grained authorities from coarse ones and guarantee that the coarse authority
+   cannot be recovered through the derived one. Reflection and object inspection, as
+   in Java and JavaScript, break this guarantee.
 
 Jo is the first secure programming language to address these challenges. See
 [Two-world architecture](two-worlds.md) and [Secure language design](language-design.md).
