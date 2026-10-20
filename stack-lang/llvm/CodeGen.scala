@@ -575,16 +575,29 @@ class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
     else
       res
 
+  /** Variadic C functions and the number of their fixed parameters */
+  private val variadicC = Map("snprintf" -> 3)
+
   /** Call a function of the C library */
   def callC(sym: Symbol, args: List[V])(using FunContext): V =
     val funType = sym.tpe.asProcType
     val paramTypes = funType.allParamTypes.map(cType)
     val resType = cType(funType.resultType)
     val noreturn = if funType.resultType.isBottomType then " noreturn" else ""
-    cDecls.getOrElseUpdate(sym.name, s"declare $resType @${sym.name}(${paramTypes.mkString(", ")})$noreturn")
+
+    // A variadic function is declared with its fixed parameters only
+    val (declParams, callType) = variadicC.get(sym.name) match
+      case Some(fixed) =>
+        val params = (paramTypes.take(fixed) :+ "...").mkString(", ")
+        (params, s"$resType ($params)")
+
+      case None =>
+        (paramTypes.mkString(", "), resType)
+
+    cDecls.getOrElseUpdate(sym.name, s"declare $resType @${sym.name}($declParams)$noreturn")
 
     val argTexts = args.zip(paramTypes).map((arg, ty) => coerce(arg, ty).text)
-    val callText = s"call $resType @${sym.name}(${argTexts.mkString(", ")})"
+    val callText = s"call $callType @${sym.name}(${argTexts.mkString(", ")})"
 
     if funType.resultType.isBottomType then
       emit(callText)
@@ -626,6 +639,9 @@ class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
 
     else if sym == defn.jo_pass then
       V.Unit
+
+    else if sym == defn.Float_parseFloatDecimal then
+      callFun(runtime.Core_parseFloat, args)
 
     else if sym == runtime.Bool_and then
       val a :: b :: Nil = app.args: @unchecked
