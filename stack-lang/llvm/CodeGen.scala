@@ -103,6 +103,10 @@ class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
     module ++= "  ret i32 0\n"
     module ++= "}\n"
 
+    // Jo eliminates tail calls itself. LLVM would also turn accumulating
+    // recursion into loops, so deep recursion would no longer overflow.
+    module ++= "\nattributes #0 = { \"disable-tail-calls\"=\"true\" }\n"
+
     module.toString
 
   /** The LLVM name of a function, making the function reachable */
@@ -219,7 +223,7 @@ class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
     val res = compile(fdef.body)
     ret(res, resType)
 
-    functions ++= s"define internal $resType $name(${paramDecls.mkString(", ")}) {\n"
+    functions ++= s"define internal $resType $name(${paramDecls.mkString(", ")}) #0 {\n"
     functions ++= "entry:\n"
     functions ++= ctx.allocas
     functions ++= ctx.body

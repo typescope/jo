@@ -57,8 +57,16 @@ object Compiler:
   def main(args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
 
+    // `--use-runtime-api native` names the 32-bit runtime. This backend has
+    // its own runtime with the same API, so check against that one instead.
+    val runtimeApi = args.indexOf("--use-runtime-api")
+    val useNativeApi = runtimeApi >= 0 && args.lift(runtimeApi + 1).contains("native")
+    val args1 =
+      if useNativeApi then args.patch(runtimeApi, Array("--lib", Config.LLVMRuntimePath), 2)
+      else args
+
     val options = keepLL :: clang :: optLevel :: Config.appOptions
-    val (config, sources) = cli.OptionParser.parseConfig(args, options)
+    val (config, sources) = cli.OptionParser.parseConfig(args1, options)
 
     given Config = config
 
@@ -84,7 +92,7 @@ object Compiler:
       val rootNameTable = new NameTable
       given lazyDefn: Definitions.Lazy = Definitions.Lazy(rootNameTable)
 
-      val runtimePackages = Config.LLVMRuntimePath :: Nil
+      val runtimePackages = if useNativeApi then Nil else Config.LLVMRuntimePath :: Nil
       val namespacesSAST = FrontEnd.run(runtimePackages, sources, defaultLinkMappings, runtimeConfig) <| "Frontend"
 
       locally {
