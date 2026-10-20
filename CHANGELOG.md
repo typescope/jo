@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   avoiding quadratic string concatenation on Ruby and on Python with nonempty
   separators.
 
+### Removed
+
+- The top-level `Int` operators `+`, `-`, `*`, `/`, `%`, `>`, `<`, `>=`, `<=`,
+  `==`, and `!=` are removed. The `Int` methods remain. A lambda parameter
+  whose type was inferred only from arithmetic or comparison, such as
+  `x => x + 1` without an expected type, now needs a type annotation.
+
 ## [0.14.1] - 2026-10-18
 
 ### Changed
