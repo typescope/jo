@@ -82,3 +82,7 @@ Make that guidance available through agent instructions or retrieval before the 
 writes code. You can also expose `jo compile --query jo.String` as a read-only tool
 for looking up API signatures and documentation. To query the confined API, pass its
 source file, for example `jo compile --query DatabaseAPI.DB data/DatabaseAPI.jo`.
+
+To reduce Jo's cold-start time, compile it to a native image as described in the
+[install guide](../usage/install.md#pro-tip-native-launcher-for-faster-startup). A
+compilation server offers the best performance. Contact us for support.
