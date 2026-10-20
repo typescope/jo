@@ -32,7 +32,7 @@ class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
   /** LLVM names of Jo functions */
   private val funNames = mutable.Map.empty[Symbol, String]
 
-  /** Byte-string globals of string constants */
+  /** Static string objects of string constants */
   private val stringTable = mutable.LinkedHashMap.empty[String, String]
 
   /** Declarations of C functions */
@@ -76,7 +76,7 @@ class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
     val module = new StringBuilder
 
     for (value, name) <- stringTable do
-      module ++= byteStringGlobal(name, value) += '\n'
+      module ++= staticStringGlobals(name, value)
 
     for holder <- runtime.objectHolders do
       module ++= s"$holder = internal global ptr null, align 8\n"
@@ -86,6 +86,8 @@ class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
 
     for (cls, name) <- itables do
       module ++= interfaceTableGlobal(cls, name)
+
+    module ++= layoutTableGlobals()
 
     module += '\n'
 
@@ -133,14 +135,103 @@ class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
       case Some(target) => resolve(target)
       case None => sym
 
+  /** A static `Raw` string object for the constant */
   def addString(value: String): String =
-    stringTable.getOrElseUpdate(value, "@str." + stringTable.size)
+    stringTable.get(value) match
+      case Some(name) => name
+      case None =>
+        val name = "@str." + stringTable.size
+        stringTable(value) = name
 
-  /** A string constant in the format of `StringOps.fromByteString`: `[size: i32][bytes]` */
-  def byteStringGlobal(name: String, value: String): String =
+        // the module is emitted after codegen, when the interface table can
+        // no longer make methods reachable
+        interfaceTable(runtime.Core_String_Raw)
+        name
+
+  /** The address of the bytes of the string constant, as stored in `Raw.content` */
+  def stringContent(value: String): String =
+    s"getelementptr inbounds (i8, ptr ${addString(value)}.buf, i64 ${Layout.SlotSize})"
+
+  /** A static buffer object with the bytes and a static `Raw` object pointing to it
+    *
+    * Static objects have `gc = 0` in the header: they belong to the runtime
+    * region, so the garbage collector never moves or frees them.
+    */
+  def staticStringGlobals(name: String, value: String): String =
     val bytes = value.getBytes("UTF-8")
     val n = bytes.length
-    s"$name = private unnamed_addr constant <{ i32, [$n x i8] }> <{ i32 $n, [$n x i8] c\"${escapeBytes(bytes)}\" }>, align 8"
+    val buffer =
+      s"$name.buf = private unnamed_addr constant <{ i32, i32, [$n x i8] }> " +
+      s"<{ i32 ${runtime.BufferClassId}, i32 0, [$n x i8] c\"${escapeBytes(bytes)}\" }>, align 8\n"
+
+    val rawCls = runtime.Core_String_Raw
+    val values = Map(
+      Layout.ClassID -> V("i32", runtime.getClassId(rawCls).toString),
+      Layout.ITable  -> V("ptr", interfaceTable(rawCls)),
+      "byteSize"     -> V("i32", n.toString),
+      "cpCount"      -> V("i32", value.codePointCount(0, value.length).toString),
+      "content"      -> V("ptr", stringContent(value)),
+    )
+
+    val recordType = Layout.encodeClassType(rawCls.classInfo)
+    val slots = recordType.fields.map(field => staticSlot(values(field.name)))
+    val types = slots.map(_._1).mkString(", ")
+    val inits = slots.map(_._2).mkString(", ")
+    buffer + s"$name = private unnamed_addr constant <{ $types }> <{ $inits }>, align 8\n"
+
+  /** The type and initializer of one 8-byte slot of a static object */
+  def staticSlot(value: V): (String, String) =
+    value.ty match
+      case "ptr" | "i64" => (value.ty, value.text)
+      case "i32" => ("i32, i32", s"${value.text}, i32 0")
+      case ty => throw new Exception("Unsupported static slot type: " + ty)
+
+  /** Pointer layout of every class id, for the garbage collector
+    *
+    * `@gc.layouts` is an array indexed by class id. Each entry points to an
+    * `i32` array `[n, s1, ..., sn]` that lists the `n` slots holding pointers.
+    * A slot with `InteriorFlag` set holds an `Addr`, which points just past the
+    * header of a buffer. `n = -1` marks a reference array, whose elements are
+    * all pointers.
+    */
+  def layoutTableGlobals(): String =
+    val InteriorFlag = 0x40000000
+    val buf = new StringBuilder
+    val entries = new mutable.ArrayBuffer[String]
+
+    for id <- 0 until runtime.classIdCount do
+      val slots: List[Int] =
+        if id == runtime.BufferClassId || id == runtime.BytesClassId then Nil
+        else
+          val cls = runtime.getClassSymbol(id)
+          if cls == defn.Array_class then -1 :: Nil
+          else if cls == runtime.Core_ClosureTag then
+            val closureSlots = List(Layout.ClassID, Layout.Apply, Layout.Underlying)
+            closureSlots.indexOf(Layout.Underlying) :: Nil
+          else
+            val recordType = Layout.encodeClassType(cls.classInfo)
+            for
+              (field, index) <- recordType.fields.zipWithIndex
+              if field.name != Layout.ClassID && field.name != Layout.ITable
+              if !field.info.isVoidType && llvmType(field.info) == "ptr"
+            yield
+              if isAddr(field.info) then index | InteriorFlag else index
+
+      val values = slots match
+        case -1 :: Nil => List(-1)
+        case _ => slots.size :: slots
+
+      val name = s"@gc.layout.$id"
+      buf ++= s"$name = private constant [${values.size} x i32] [${values.map("i32 " + _).mkString(", ")}], align 4\n"
+      entries += s"ptr $name"
+
+    buf ++= s"@gc.layouts = internal constant [${entries.size} x ptr] [${entries.mkString(", ")}], align 8\n"
+    buf.toString
+
+  def isAddr(tp: Type): Boolean =
+    tp.approx match
+      case StaticRef(sym) => sym == runtime.Core_Addr
+      case _ => false
 
   def interfaceTable(cls: Symbol): String =
     itables.get(cls) match
@@ -410,8 +501,7 @@ class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
       case Constant.Float(d)  => V("double", "0x%016X".format(java.lang.Double.doubleToRawLongBits(d)))
 
       case Constant.String(s) =>
-        val bytes = V("ptr", addString(s))
-        callFun(runtime.Core_String_fromByteString, bytes :: Nil)
+        V("ptr", addString(s))
 
   def compile(id: Ident)(using ctx: FunContext): V =
     val sym = id.symbol
@@ -619,7 +709,7 @@ class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
         case Encoded(Apply(_, Ident(paramSym) :: Nil, Nil)) => paramSym
         case arg => throw new Exception("Unsupported argument to paramKey: " + arg)
 
-      V("ptr", addString(paramSym.fullName))
+      V("ptr", stringContent(paramSym.fullName))
 
     else if sym == runtime.Core_state then
       V("ptr", StateGlobal)
@@ -639,6 +729,12 @@ class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
 
     else if sym == defn.jo_pass then
       V.Unit
+
+    else if sym == runtime.Core_bufferClassId then
+      V("i32", runtime.BufferClassId.toString)
+
+    else if sym == runtime.Core_bytesClassId then
+      V("i32", runtime.BytesClassId.toString)
 
     else if sym == defn.Float_parseFloatDecimal then
       callFun(runtime.Core_parseFloat, args)
