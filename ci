@@ -2,6 +2,10 @@
 
 DIR=$(dirname "$0")
 
+# The LLVM backend needs clang 15 or newer
+CLANG=${CLANG:-clang}
+export CLANG
+
 retcode=0
 failed_tests=()
 error_file=""
@@ -85,6 +89,13 @@ run_mode() {
       reg)
         echo "  - regc"
         bin/jo compile --reg $file --check-tree -o "$exe" $OPTIONS
+        "$exe" > "$OUT" 2>&1
+        check "$OUT" "$CHECK"
+        ;;
+
+      llvm)
+        echo "  - llvm"
+        bin/jo compile --llvm --clang "$CLANG" $file --check-tree -o "$exe" $OPTIONS
         "$exe" > "$OUT" 2>&1
         check "$OUT" "$CHECK"
         ;;
@@ -194,6 +205,7 @@ background_task() {
     bin/jsc  --report-time  tests/pos/fact.jo  || error "bin/jsc"
     bin/stac --report-time  tests/pos/fact.jo  || error "bin/stac"
     bin/regc --report-time  tests/pos/fact.jo  || error "bin/regc"
+    bin/llvmc --clang "$CLANG" --report-time tests/pos/fact.jo || error "bin/llvmc"
     bin/jo.dev compile --ruby --report-time  tests/pos/fact.jo  || error "bin/jo.dev"
 
     bin/jo eval --report-time tests/pos/fact.jo || error "jo eval"
@@ -202,6 +214,7 @@ background_task() {
     bin/jo compile --js --report-time tests/pos/fact.jo || error "jo compile --js"
     bin/jo compile --stack --report-time tests/pos/fact.jo || error "jo compile --stack"
     bin/jo compile --reg --report-time tests/pos/fact.jo || error "jo compile --reg"
+    bin/jo compile --llvm --clang "$CLANG" --report-time tests/pos/fact.jo || error "jo compile --llvm"
 
     # check doc
     #
@@ -291,14 +304,14 @@ background_task() {
     ################################################################################
     # Numeric tests
 
-    run_suite "numeric" "$DIR/tests/numeric/*" "eval js ruby python"
+    run_suite "numeric" "$DIR/tests/numeric/*" "eval js ruby python llvm"
 
 
     ################################################################################
     # Stdlib tests
 
 
-    run_suite "stdlib" "$DIR/tests/stdlib/*/*.jo" "eval js ruby python reg"
+    run_suite "stdlib" "$DIR/tests/stdlib/*/*.jo" "eval js ruby python reg llvm"
 
     ################################################################################
     # Performance tests
@@ -320,7 +333,7 @@ start_background_task
 # Positive tests
 
 
-run_suite "positive" "$DIR/tests/pos/*" "eval stac reg js ruby python"
+run_suite "positive" "$DIR/tests/pos/*" "eval stac reg llvm js ruby python"
 
 
 ################################################################################

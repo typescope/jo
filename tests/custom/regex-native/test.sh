@@ -28,6 +28,16 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
     exit 1
 }
 
+echo "  - Building with LLVM"
+"$PROJECT_ROOT/bin/jo" compile --use-runtime-api native --llvm --clang "${CLANG:-clang}" "$DIR/app.jo" \
+  -o "$DIR/app.run"
+"$DIR/app.run" > "$DIR/actual.out" 2>&1
+diff "$DIR/actual.out" "$DIR/expect.check" || {
+    echo "[error] LLVM test failed for $TEST_NAME"
+    cat "$DIR/actual.out"
+    exit 1
+}
+
 # rm -rf "$DIR/actual.out" "$DIR"/*.run
 
 echo "  ✓ All tests passed for $TEST_NAME"
