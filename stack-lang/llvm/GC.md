@@ -159,6 +159,10 @@ Stores performed by the runtime also need the barrier:
 The barrier changes only the stored object. Propagation to its children is
 deferred to cleanup.
 
+Stores into `Addr` fields get no barrier. Such a field holds memory outside
+the regions, like the runtime state, or an interior pointer, which is never
+mutated.
+
 ## Region entry and exit
 
 A region function compiles to:
@@ -307,6 +311,32 @@ live objects of each chunk and free the chunk only when the count reaches zero.
 
 This changes only the allocator, not the region design.
 
+## Implementation
+
+The runtime is `runtime/native/libc/Regions.jo`. A region descriptor and its
+segments come from `calloc`, and a segment holds 510 objects. Objects are
+allocated with `calloc` and freed with `free`.
+
+Codegen calls `Regions.enter` at the start of a region function and
+`Regions.leave` before each `ret`, passing the result or `null`. Both are
+`noinline`. The barrier `Regions.barrier` is an ordinary function, which LLVM
+inlines.
+
+Usage:
+
+```
+jo compile --llvm --region app.process --region app.step app.jo -o app
+```
+
+The names are full names, as in `--link`. The compiler warns about a name that
+matches no compiled function.
+
+Tests: `tests/gc` checks that escaping objects survive, and
+`tests/custom/gc-regions` checks that memory is reclaimed. To check for memory
+errors, keep the IR with `--keep-ll`, add `sanitize_address` to the attribute
+groups and compile it with `clang -fsanitize=address`. With clang 15 on recent
+kernels, AddressSanitizer itself needs `setarch -R`.
+
 ## Plan
 
 Each step ends with verification and a commit, as for the backend.
@@ -315,6 +345,6 @@ Each step ends with verification and a commit, as for the backend.
    raw buffers, the layout table, and `writeRef`. No region functions yet, so
    behavior is unchanged.
 2. Regions. Segments, `enter`, `close`, `lower`, the barrier and `--region`.
-   Tests: escapes through fields, arrays, closures, context parameters and
-   results, cycles inside a region, cycles across regions, and repeated region
-   calls.
+   Tests: escapes through fields, arrays, closures, strings and results,
+   nested regions, cycles that escape and cycles that do not, and repeated
+   region calls.

@@ -79,6 +79,15 @@ object Config:
         case None =>
           Nil
 
+  /** A string option that can be given several times */
+  class MultiStringSetting(val flag: String, val desc: String) extends Setting[List[String]]:
+    def default = Nil
+
+    def spec = OptionSpec.Multi
+
+    def value(using cf: Config): List[String] = cf.cached(this):
+      cf.rawValues.get(this).map(_.asInstanceOf[List[String]].reverse).getOrElse(Nil)
+
   class InternalSetting[T](val default: T, val desc: String) extends Setting[T]:
     def flag = throw new Exception("not command-line option")
     def spec = OptionSpec.Single

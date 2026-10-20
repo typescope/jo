@@ -308,6 +308,11 @@ background_task() {
 
 
     ################################################################################
+    # Region tests: only the LLVM backend has regions
+
+    run_suite "gc" "$DIR/tests/gc/*" "llvm"
+
+    ################################################################################
     # Stdlib tests
 
 
