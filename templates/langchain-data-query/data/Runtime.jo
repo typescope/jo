@@ -129,6 +129,25 @@ section Impl
         QueryParts(negatedSQL, parts.params)
     end
 
+  // Reject invalid field/value pairs before any UPDATE statement executes.
+  def validateUpdate(update: FieldUpdate): Unit =
+    match update.field
+      case Title =>
+        match update.value
+          case StringValue _ => pass
+          case _ => abort "Title update requires a String"
+
+      case Content =>
+        match update.value
+          case StringValue _ => pass
+          case _ => abort "Content update requires a String"
+
+      case Draft =>
+        match update.value
+          case BoolValue _ => pass
+          case _ => abort "Draft update requires a Bool"
+    end
+
   //[ Translate list of FieldUpdate to SQL SET clause and parameters
     !
     ! Returns QueryParts containing:
@@ -145,6 +164,7 @@ section Impl
 
     while i < count do
       val update = updates[i]
+      validateUpdate(update)
       val clause = columnName(update.field) + " = ?"
       if i > 0 then
         setSQL = setSQL + ", " + clause

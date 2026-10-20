@@ -43,7 +43,7 @@ type UpdateColumn = Title | Content | Draft
 
 //[ Single field update: field + new value
   !
-  ! Value can be String, Int, or Bool depending on the field
+  ! The runtime checks that the value matches the field before writing.
 //]
 class FieldUpdate(field: UpdateColumn, value: Value)
 
@@ -169,7 +169,7 @@ param db: DB
 
 //[ Query and Update DSL - Operators for building filter conditions and updates
   !
-  ! These infix operators provide a natural syntax for building queries and updates:
+  ! These infix operators build conditions for queries and updates:
   !
   ! Query example:
   ! val cond = (Title like "%report%") && (CreatedAt > "2024-01-01")
