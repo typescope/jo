@@ -8,7 +8,8 @@ import jo.runtime.native.GC
 // Platform layer for 32-bit Linux with raw system calls.
 //
 // The common runtime expects every platform layer to provide `intToLong`,
-// `exitImpl`, `writeFd`, `floatToStr` and the program entry `start`.
+// `exitImpl`, `writeFd`, `floatToStr`, the memory primitives `allocBuffer`,
+// `bytesClassId` and `writeRef`, and the program entry `start`.
 
 //[ cast non-primitive type to Int   //]
 @intrinsic
@@ -24,6 +25,21 @@ private def exitImpl(code: Int): Bottom receives none = Syscall.sys_exit code
 
 private def writeFd(fd: Int, content: Addr, len: Int): Int receives none =
   Syscall.sys_write fd content len
+
+//------------------------------------------------------------------------------
+//
+// memory
+//
+
+// A byte buffer of `size` bytes. Raw memory: nothing reclaims it.
+private def allocBuffer(size: Int): Addr receives none = GC.alloc size
+
+// The class id written in the header of `Bytes` objects (unused)
+private def bytesClassId: Int receives none = 0
+
+// Store a reference into the object `obj` at byte offset `offset`
+private def writeRef(obj: Addr, offset: Int, value: Addr): Unit receives none =
+  writeAddr (addAddr obj offset) value
 
 //------------------------------------------------------------------------------
 //

@@ -8,7 +8,8 @@ import jo.runtime.native.GC
 // Platform layer on top of the C library
 //
 // The common runtime expects every platform layer to provide `intToLong`,
-// `exitImpl`, `writeFd`, `floatToStr` and the program entry `start`.
+// `exitImpl`, `writeFd`, `floatToStr`, the memory primitives `allocBuffer`,
+// `bytesClassId` and `writeRef`, and the program entry `start`.
 
 @intrinsic
 private def intToLong(a: Int): Long receives none = ...
@@ -17,6 +18,45 @@ private def exitImpl(code: Int): Bottom receives none = LibC.exit code
 
 private def writeFd(fd: Int, content: Addr, len: Int): Int receives none =
   (LibC.write fd content len.toLong).toInt
+
+//------------------------------------------------------------------------------
+//
+// memory
+//
+// Every allocation is an object with a header, so the garbage collector can
+// find its layout. A field of type `Addr` points just past the header of a
+// buffer object, or of a static buffer emitted by the backend.
+
+@intrinsic
+private def bufferClassId: Int receives none = ...
+
+@intrinsic
+private def bytesClassId: Int receives none = ...
+
+// A byte buffer of `size` bytes. Returns the address of its first byte.
+private def allocBuffer(size: Int): Addr receives none =
+  val obj = GC.alloc (size + wordSize)
+  writeInt obj bufferClassId
+  addAddr obj wordSize
+
+// Store a reference into the object `obj` at byte offset `offset`
+private def writeRef(obj: Addr, offset: Int, value: Addr): Unit receives none =
+  writeAddr (addAddr obj offset) value
+
+// Copy a null-terminated C string into a buffer
+private def copyCString(str: Addr): Addr receives none =
+  var len = 0
+  while (readByte (addAddr str len)).toInt != 0 do
+    len = len + 1
+  end
+
+  val buf = allocBuffer (len + 1)
+  var i = 0
+  while i <= len do
+    writeByte(addAddr buf i, readByte (addAddr str i))
+    i = i + 1
+  end
+  buf
 
 //------------------------------------------------------------------------------
 //
@@ -47,7 +87,6 @@ private def state: State receives none =
 
 //[ Program entry, called by the C `main` function //]
 private def start(argc: Int, argv: Addr): Unit receives none =
-  // GC must be up before installStackOverflowHandler (which uses GC.alloc).
   GC.init()
 
   // Install SIGSEGV handler so stack overflow prints a clear message.
@@ -64,7 +103,7 @@ private def start(argc: Int, argv: Addr): Unit receives none =
   // skip the first arg: program name
   for i in 1 until argc do
     val addr = readAddr: addAddr argv (i * wordSize)
-    strArr[i - 1] = StringOps.fromCString addr
+    strArr[i - 1] = StringOps.fromCString (copyCString addr)
 
   with
     IO.stdout = createStdOut(),
@@ -102,8 +141,8 @@ private def floatToStr(f: Float): String =
   if f < -maxFloat then return "-Infinity"
 
   val bufSize = 32
-  val buf = GC.alloc bufSize
-  val format = GC.alloc 8
+  val buf = allocBuffer bufSize
+  val format = allocBuffer 8
 
   var precision = 15
   var done = false
@@ -134,12 +173,12 @@ private def floatToStr(f: Float): String =
 private def parseFloat(s: String): Float receives none =
   val n = StringOps.byteSize s
   val content = StringOps.bytes s
-  val buf = GC.alloc (n + 1)
+  val buf = allocBuffer (n + 1)
   var i = 0
   while i < n do
     writeByte(addAddr buf i, readByte (addAddr content i))
     i = i + 1
   end
+  writeByte(addAddr buf n, 0.toByte)
 
-  // The allocator returns zeroed memory, so `buf` is null-terminated.
   LibC.strtod buf nullAddr
