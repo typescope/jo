@@ -102,6 +102,7 @@ git rebase --signoff HEAD~3
   - [ ] python backend
   - [ ] stack machine
   - [ ] register machine
+  - [ ] llvm backend
 - tools
   - [ ] emacs
   - [ ] vscode
