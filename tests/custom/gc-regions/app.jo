@@ -1,0 +1,27 @@
+namespace gcapp
+
+// Each call of `step` allocates garbage in its own region. Without
+// reclamation the loop needs far more memory than the test allows.
+
+class Node(value: Int, next: Option[Node])
+
+def step(seed: Int): Int =
+  var list: Option[Node] = None
+  var i = 0
+  while i < 100 do
+    list = Some(new Node(seed + i, list))
+    i = i + 1
+  end
+
+  match list
+    case Some(node) => node.value
+    case None => 0
+
+def main =
+  var total = 0
+  var k = 0
+  while k < 200000 do
+    total = (total + step(k)) % 1000003
+    k = k + 1
+  end
+  println total

@@ -23,8 +23,13 @@ import scala.collection.mutable
   * Locals and parameters live in `alloca` slots of the entry block. LLVM
   * promotes them to registers.
   */
-class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
+class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[String])(using defn: Definitions):
   import CodeGen.*
+
+  /** Region functions that were compiled */
+  private val compiledRegions = mutable.Set.empty[String]
+
+  def unusedRegionFunctions: Set[String] = regionFunctions -- compiledRegions
 
   /** Worklist to add all reachable functions */
   private val workList = new WorkList[Symbol]
@@ -108,6 +113,9 @@ class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
     // Jo eliminates tail calls itself. LLVM would also turn accumulating
     // recursion into loops, so deep recursion would no longer overflow.
     module ++= "\nattributes #0 = { \"disable-tail-calls\"=\"true\" }\n"
+
+    // Region boundaries stay opaque calls, so no memory access moves across them
+    module ++= "attributes #1 = { noinline \"disable-tail-calls\"=\"true\" }\n"
 
     module.toString
 
@@ -302,6 +310,11 @@ class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
 
     given ctx: FunContext = new FunContext(sym)
 
+    if regionFunctions.contains(sym.fullName) then
+      compiledRegions += sym.fullName
+      ctx.isRegion = true
+      callFun(runtime.Regions_enter, Nil)
+
     val paramTypes = procType.allParamTypes.map(llvmType)
     val resType = retType(procType.resultType)
 
@@ -314,7 +327,8 @@ class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
     val res = compile(fdef.body)
     ret(res, resType)
 
-    functions ++= s"define internal $resType $name(${paramDecls.mkString(", ")}) #0 {\n"
+    val attrs = if sym == runtime.Regions_enter || sym == runtime.Regions_leave then "#1" else "#0"
+    functions ++= s"define internal $resType $name(${paramDecls.mkString(", ")}) $attrs {\n"
     functions ++= "entry:\n"
     functions ++= ctx.allocas
     functions ++= ctx.body
@@ -326,7 +340,14 @@ class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
 
   def ret(res: V, resType: String)(using ctx: FunContext): Unit =
     if !ctx.terminated then
-      terminate(s"ret ${coerce(res, resType).text}")
+      val value = coerce(res, resType)
+
+      // close the region, keeping the result
+      if ctx.isRegion then
+        val result = if resType == "ptr" then value else V("ptr", "null")
+        callFun(runtime.Regions_leave, result :: Nil)
+
+      terminate(s"ret ${value.text}")
 
   //----------------------------------------------------------------------------
   // Instructions
@@ -403,12 +424,17 @@ class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
 
   /** Store a value in a field of a heap object
     *
-    * Initialization stores fill a freshly allocated object. Other stores mutate
-    * an existing object, where a GC write barrier goes.
+    * Initialization stores fill a freshly allocated object and need no barrier:
+    * the object is in the current region, which everything it can refer to
+    * outlives. Other stores of a reference go through the write barrier. An
+    * `Addr` field holds memory outside the regions or an interior pointer,
+    * which is never mutated.
     */
-  def storeField(obj: V, offset: Int, value: V, ty: String, isInit: Boolean)(using FunContext): Unit =
-    // no write barrier yet: the allocator never frees
-    val _ = isInit
+  def storeField(obj: V, offset: Int, value: V, fieldType: Type, isInit: Boolean)(using FunContext): Unit =
+    val ty = llvmType(fieldType)
+    if !isInit && ty == "ptr" && !isAddr(fieldType) && value.v != "null" then
+      callFun(runtime.Regions_barrier, coerce(obj, "ptr") :: coerce(value, "ptr") :: Nil)
+
     val addr = fieldAddr(obj, offset)
     emit(s"store ${coerce(value, ty).text}, ${addr.text}, align ${align(ty)}")
 
@@ -482,8 +508,7 @@ class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
         val recordType = recordTypeOf(qual)
         val obj = compile(qual)
         val value = compile(rhs)
-        val ty = llvmType(Layout.fieldType(recordType, name))
-        storeField(obj, Layout.fieldOffset(recordType, name), value, ty, isInit = false)
+        storeField(obj, Layout.fieldOffset(recordType, name), value, Layout.fieldType(recordType, name), isInit = false)
         V.Void
 
       case _: Def         | _: With      | _: Allow  | _: Match  | _: PatValDef |
@@ -491,7 +516,7 @@ class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
       =>
         throw new Exception("Unexpected " + word)
 
-  def compile(c: Constant)(using FunContext): V =
+  def compile(c: Constant): V =
     c match
       case Constant.Bool(b)   => V("i1", if b then "true" else "false")
       case Constant.Byte(n)   => V("i8", (n & 0xFF).toString)
@@ -607,8 +632,7 @@ class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
 
     for (name, rhs) <- rec.args do
       val value = compile(rhs)
-      val ty = llvmType(Layout.fieldType(recordType, name))
-      storeField(obj, Layout.fieldOffset(recordType, name), value, ty, isInit = true)
+      storeField(obj, Layout.fieldOffset(recordType, name), value, Layout.fieldType(recordType, name), isInit = true)
 
     obj
 
@@ -729,6 +753,9 @@ class CodeGen(runtime: LLVMRuntime)(using defn: Definitions):
 
     else if sym == defn.jo_pass then
       V.Unit
+
+    else if sym == runtime.Regions_layoutTable then
+      V("ptr", "@gc.layouts")
 
     else if sym == runtime.Core_bufferClassId then
       V("i32", runtime.BufferClassId.toString)
@@ -917,6 +944,9 @@ object CodeGen:
     var terminated = false
     val slots = mutable.Map.empty[Symbol, Slot]
     val localReturnTargets = mutable.Map.empty[Symbol, String]
+
+    /** Whether the function opens a region */
+    var isRegion = false
 
   def isInt(ty: String): Boolean = ty == "i1" || ty == "i8" || ty == "i32" || ty == "i64"
 
