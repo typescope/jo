@@ -1,6 +1,6 @@
 # LangChain
 
-Connect LangChain to Jo with one tool that compiles and runs model-generated Jo programs.
+Add Jo to LangChain with one tool that compiles and runs model-generated Jo programs.
 This example uses the tool to query a user-scoped SQLite database.
 
 ## The compile-and-run tool
@@ -22,8 +22,7 @@ result = agent.invoke({"messages": [{"role": "user", "content": args.prompt}]})
 ```
 
 Only `code` is a model tool argument. The Python host chooses `user_id` with the CLI
-flag in this example. In a service, derive it from the authenticated request. Other
-Python tools exposed to the agent have their own authority outside Jo's boundary.
+flag in this example. In a service, derive it from the authenticated request. 
 LangChain documents this `@tool` and `create_agent` pattern in its
 [agent guide](https://docs.langchain.com/oss/python/langchain/agents).
 
