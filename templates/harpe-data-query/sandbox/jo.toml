@@ -1,0 +1,24 @@
+jo = "0.14"
+
+[module.api]
+kind = "lib"
+platform = "pure"
+src = ["DatabaseAPI.jo"]
+
+[module.runtime]
+kind = "lib"
+platform = "python"
+enable-ffi = true
+src = ["os.jo", "sqlite3.jo", "Runtime.jo"]
+modules = ["api"]
+
+[module.guest]
+kind = "app"
+platform = "python"
+src = ["Task.jo"]
+modules = ["api", { id = "runtime", link = true }]
+
+links = [
+  { from = "jo.main", to = "DatabaseRuntime.platformMain" },
+  { from = "DatabaseAPI.analyzeDocuments", to = "UserTask.analyzeDocuments" },
+]

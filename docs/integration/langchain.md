@@ -37,8 +37,8 @@ implements `run_jo(code, user_id)` behind the tool:
    as `--link-lib`. Link the generated `UserTask.analyzeDocuments` to the API's entry
    point and the runtime's `platformMain` to `jo.main`. Return compiler errors to the
    agent so it can revise the source.
-3. Run the compiled Python program with the host-selected user ID, database path, and
-   skills path. Return its output or runtime error to the agent.
+3. Run the compiled Python program with the host-selected user ID and database path.
+   Return its output or runtime error to the agent.
 
 The compiler rejects imports or capabilities outside the API. The trusted runtime adds
 the current user's `owner_id` condition to database operations.
@@ -73,4 +73,12 @@ documents for users 1, 2, and 3. `prepare.sh` compiles the confined
 `data/DatabaseAPI.jo` and trusted `data/Runtime.jo`, then copies the sample database
 to `out/`. Run it again to reset any changes made by the agent.
 
+## For production
 
+Give the model a Jo coding skill based on the
+[cheat sheet](https://github.com/typescope/jo/blob/main/docs/overview/cheat-sheet.md)
+and [standard library reference](https://github.com/typescope/jo/blob/main/docs/overview/stdlib.md).
+Make that guidance available through agent instructions or retrieval before the model
+writes code. You can also expose `jo compile --query jo.String` as a read-only tool
+for looking up API signatures and documentation. To query the confined API, pass its
+source file, for example `jo compile --query DatabaseAPI.DB data/DatabaseAPI.jo`.
