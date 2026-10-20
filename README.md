@@ -150,6 +150,14 @@ is mechanized in Coq.
     <td><a href="https://jo-lang.org/usage/getting-started">Build Tool</a></td>
     <td>Project setup, dependencies, commands</td>
   </tr>
+  <tr>
+    <td><a href="https://jo-lang.org/integration/">Agent Framework Integrations</a></td>
+    <td>
+      <a href="https://jo-lang.org/integration/langchain">LangChain</a><br>
+      <a href="https://jo-lang.org/integration/openai-agents-sdk">OpenAI Agents SDK</a><br>
+      <a href="https://jo-lang.org/integration/harpe">Harpe</a>
+    </td>
+  </tr>
 </table>
 
 ## Contributing
