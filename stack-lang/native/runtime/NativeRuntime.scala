@@ -41,6 +41,12 @@ extends Linker:
   val Core_readInt   = Native.termMember("readInt")
   val Core_writeByte = Native.termMember("writeByte")
   val Core_readByte  = Native.termMember("readByte")
+  val Core_readAddr  = Native.termMember("readAddr")
+  val Core_writeAddr = Native.termMember("writeAddr")
+  val Core_nullAddr  = Native.termMember("nullAddr")
+  val Core_isNull    = Native.termMember("isNull")
+  val Core_sameRef   = Native.termMember("sameRef")
+  val Core_wordSize  = Native.termMember("wordSize")
 
   val Core_findInterfaceMethod = Native.termMember("findInterfaceMethod")
   val Core_getInterfaceTable   = Native.termMember("getInterfaceTable")
