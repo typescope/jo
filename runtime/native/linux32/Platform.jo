@@ -1,0 +1,95 @@
+namespace jo.runtime.native
+
+import jo.compile.intrinsic
+
+import jo.runtime.native.Syscall
+import jo.runtime.native.GC
+
+// Platform layer for 32-bit Linux with raw system calls.
+//
+// The common runtime expects every platform layer to provide `intToLong`,
+// `exitImpl`, `writeFd`, `floatToStr` and the program entry `start`.
+
+//[ cast non-primitive type to Int   //]
+@intrinsic
+def castInt(arr: Any): Int receives none = abort("runtime cast")
+
+//[ cast Int to Addr   //]
+@intrinsic
+def intToAddr(n: Int): Addr receives none = abort("runtime cast")
+
+private def intToLong(a: Int): Long receives none = LongOps.fromInt a
+
+private def exitImpl(code: Int): Bottom receives none = Syscall.sys_exit code
+
+private def writeFd(fd: Int, content: Addr, len: Int): Int receives none =
+  Syscall.sys_write fd content len
+
+//------------------------------------------------------------------------------
+//
+// program life time
+//
+
+//[
+  ! This object cannot be allocated by GC because the GC initialization needs to
+  ! record GC state inside it.
+  !
+  ! The class may not implement interfaces as the interface table is created
+  ! later.
+  !
+  ! The class initialization code is simply ignored --- it should not require
+  ! any initialization.
+  !
+  ! Breaking the invariants will lead to segmentation fault.
+  !
+  ! See `NativeRuntime.linkData`
+//]
+private class State
+  // GC
+  var freeFrom: Int = -1
+  var freeUntil: Int = -1
+end
+
+@intrinsic
+private def state: State receives none =
+  abort "native state"
+
+private def start(argsRaw: Addr): Unit receives none =
+  // GC must be up before installStackOverflowHandler (which uses GC.alloc).
+  GC.init()
+
+  // Install SIGSEGV handler so stack overflow prints a clear message.
+  installStackOverflowHandler()
+
+  // Must not use any global objects before batch initialization
+  // (GC is now up but singleton objects are not yet initialized)
+
+  // Initialize singleton object after runtime is ready
+  initObjects()
+
+  // Convert arguments from C string to Jo string
+  val size = readInt argsRaw
+  val strArr = Array.create[String](size - 1)
+  // skip the first arg: program name
+  for i in 1 until size do
+    val addr = readInt: addAddr argsRaw (i * 4 + 4)
+    val str = StringOps.fromCString(intToAddr addr)
+    strArr[i - 1] = str
+
+  with
+    IO.stdout = createStdOut(),
+    IO.stderr = createStdErr(),
+    IO.args = strArr
+  in
+    jo.main()
+
+  finish()
+
+private def finish: Unit receives none =
+  Syscall.sys_exit 0
+
+private def floatToStr(f: Float): String =
+  // TODO: Implement proper float to string conversion
+  // This requires proper formatting with decimal points and exponents
+  // For now, just return a placeholder
+  "<float>"

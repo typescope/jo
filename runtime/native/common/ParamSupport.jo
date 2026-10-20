@@ -24,7 +24,7 @@ private def getParam[T](ctx: Ctx, key: Addr): T receives none =
   def loop(cur: Ctx): T =
     match cur
       case Entry(curKey, value, next) =>
-        if (native.castInt curKey) == (native.castInt key) then
+        if native.sameRef(curKey, key) then
           native.cast[T] value
         else
           loop(next)
