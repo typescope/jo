@@ -19,11 +19,17 @@ val guestEnv = Map:
 val tools = runCode.toolset(guestEnv)
 ```
 
+`approvalDeadline` is a watchdog, in seconds, for generated code that waits on a
+[human approval](https://harpe.jo-lang.org/concepts/approvals/). This example does
+not request approvals.
+
 When the model calls `runCode`, `RunCodeTool` compiles its Jo source against the prepared
 guest module and returns compiler errors for revision. On success, the
 [sandbox runner](https://github.com/typescope/jo/blob/main/templates/harpe-data-query/sandbox/run.sh)
 executes the compiled program with the user ID and database path supplied
-by the driver. The compiler rejects imports or capabilities outside `DatabaseAPI.jo`.
+by the driver. The generated program can use only `DatabaseAPI.jo`, the standard
+library, and the capabilities in the entry point's signature. The compiler rejects
+everything else.
 The trusted runtime adds the current user's `owner_id` condition to database operations.
 The model controls only the Jo source passed to `runCode`. The CLI environment variable
 stands in for an authenticated identity. In a service, derive the user ID from the
@@ -58,8 +64,9 @@ JO_USER_ID=1 MODEL=gpt-5.6-terra jo run
 
 Ask “List my documents.” Run the same question with
 `JO_USER_ID=2 MODEL=gpt-5.6-terra jo run` to compare results. The sample database has
-documents for users 1, 2, and 3. `prepare.sh` copies `data/DatabaseAPI.jo` and
-`data/Runtime.jo` into the guest module, builds it, and refreshes the database in
+documents for users 1, 2, and 3. `prepare.sh` copies the confined
+`data/DatabaseAPI.jo`, the trusted `data/Runtime.jo`, and its `os.jo` and `sqlite3.jo`
+bindings into the guest module, builds it, and refreshes the database in
 `out/`. Run it again to reset any changes made by the agent.
 
 ## For production

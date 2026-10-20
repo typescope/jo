@@ -62,12 +62,15 @@ def run_jo(code: str, user_id: int) -> str:
         except FileNotFoundError:
             return "Jo executable not found. Install Jo and add jo to PATH."
         if compiled.returncode:
+            if "Incompatible SAST file version" in compiled.stdout + compiled.stderr:
+                return "Jo libraries were built by a different Jo version. Run: bash prepare.sh"
             return "Jo compilation failed:\n" + (compiled.stdout + compiled.stderr).strip()
 
         try:
             result = subprocess.run(
                 [sys.executable, str(output), str(user_id), str(DATABASE)],
-                capture_output=True, text=True, timeout=30, cwd=DATA,
+                capture_output=True, text=True, encoding="utf-8", timeout=30,
+                cwd=directory, env={"PYTHONIOENCODING": "utf-8"},
             )
         except subprocess.TimeoutExpired:
             return "Jo program timed out after 30 seconds."

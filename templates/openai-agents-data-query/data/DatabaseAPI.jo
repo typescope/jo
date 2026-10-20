@@ -109,7 +109,8 @@ union Cond =
 interface DB
   //[ Query documents with filtering, optional ordering, and pagination
     !
-    ! Ordering and pagination are optional arguments with conventional defaults
+    ! Ordering and pagination are optional arguments with conventional defaults.
+    ! limit and offset must be non-negative.
   //]
   def query(condition: Cond, ordering: OrderBy = NoOrder, limit: Int = 100, offset: Int = 0): List[Document]
 

@@ -6,12 +6,14 @@ PROJECT_ROOT="$(cd "$TEST_DIR/../../.." && pwd)"
 TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/jo-agent-update.XXXXXX")"
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
-for file in DatabaseAPI.jo Runtime.jo; do
+for file in DatabaseAPI.jo Runtime.jo os.jo sqlite3.jo database.db; do
   cmp "$PROJECT_ROOT/templates/langchain-data-query/data/$file" \
     "$PROJECT_ROOT/templates/openai-agents-data-query/data/$file"
   cmp "$PROJECT_ROOT/templates/langchain-data-query/data/$file" \
     "$PROJECT_ROOT/templates/harpe-data-query/data/$file"
 done
+cmp "$PROJECT_ROOT/templates/langchain-data-query/jo_bridge.py" \
+  "$PROJECT_ROOT/templates/openai-agents-data-query/jo_bridge.py"
 
 HARPE_JO="$(command -v jo || true)"
 export PATH="$PROJECT_ROOT/bin:$PATH"
@@ -63,6 +65,9 @@ assert result.endswith('true'), result
 
 result = run_jo(prefix + '  for doc in db.query(All) do println(doc.title)\n', 1)
 assert 'Valid Title' in result, result
+
+result = run_jo(prefix + '  println(db.query(All, limit = -1).size)\n', 1)
+assert result.startswith('Jo program failed:') and 'non-negative' in result, result
 
 print('Invalid updates cannot write, and valid updates preserve readable documents')
 PY

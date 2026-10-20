@@ -16,9 +16,6 @@ import DatabaseAPI.*
 // Helper type to hold SQL and parameters during query building
 class QueryParts(sql: String, params: List[Value])
 
-// Helper type for building SET clause parts
-class SetParts(clauses: List[String], params: List[Any])
-
 //[ Implementation functions for database operations
   !
   ! All operations enforce row-level security by including userId in queries
@@ -195,8 +192,11 @@ section Impl
         clause
     end
 
-  // Build LIMIT and OFFSET clause
+  // Build LIMIT and OFFSET clause. SQLite treats a negative LIMIT as no limit.
   def buildLimitOffsetClause(limit: Int, offset: Int): String =
+    if limit < 0 then abort "limit must be non-negative"
+    if offset < 0 then abort "offset must be non-negative"
+
     var clause = " LIMIT " + limit
     if offset > 0 then
       clause = clause + " OFFSET " + offset
@@ -238,7 +238,7 @@ section Impl
   =
     // Build WHERE clause with condition
     val condParts = condToSQL(condition)
-    val whereClause = "(" + condParts.sql + ")  AND owner_id = ?"
+    val whereClause = "(" + condParts.sql + ") AND owner_id = ?"
     val params = condParts.params + IntValue(userId)
 
     // Build ORDER BY clause
@@ -441,7 +441,8 @@ def platformMain: Unit receives stdout =
   with DatabaseAPI.db = secureDb in
     DatabaseAPI.analyzeDocuments()
 
-  // Close database and commit any changes
+  // Commit only after the user task finishes. Python's sqlite3 opens a transaction
+  // before the first write, so an abort rolls back every write from this run.
   connection.commit()
   connection.close()
 end
