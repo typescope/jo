@@ -11,7 +11,7 @@ tool calling code. Add one tool that accepts a Jo program and returns its output
 3. The tool runs the compiled program with capabilities chosen by the host, then
    returns its output.
 
-![An agent sends Jo source to a tool that compiles against a confined API, runs with trusted capabilities, and returns a result or error.](/img/integration-flow.svg)
+![An agent sends Jo source to a tool that compiles against a confined API, links a trusted API implementation, runs the program, and returns a result or error.](/img/integration-flow.svg)
 
 The framework does not need to understand Jo. It only calls the tool and handles the
 result.
