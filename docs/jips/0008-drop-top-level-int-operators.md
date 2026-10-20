@@ -133,6 +133,11 @@ def square(n: Int): Int = n * n
 val quad = x => square(square(x))   // `x` inferred as `Int`
 ```
 
-In the test suite, 3 of 308 positive tests needed changes. The
+In the test suite, 3 of 308 positive tests needed changes. No published
+library depends on the removed functions. The
 diagnostic for the rejected form is currently `Undefined term name +`. A
 message suggesting a parameter annotation would be a useful improvement.
+
+## Implementation
+
+Implemented in [#174](https://github.com/typescope/jo/pull/174).
