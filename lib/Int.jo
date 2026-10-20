@@ -145,36 +145,6 @@ class Int
   def min(other: Int): Int = if this <= other then this else other
 end
 
-//------------------------------------------------------------------------------
-// primitive functions for integers
-//
-// Expose common operator on Int to facilitate type inference
-
-//[ Integer addition, as a top-level function. See `Int.+`. //]
-def (a: Int) + (b: Int): Int = a + b
-//[ Integer subtraction, as a top-level function. See `Int.-`. //]
-def (a: Int) - (b: Int): Int = a - b
-//[ Integer multiplication, as a top-level function. See `Int.*`. //]
-def (a: Int) * (b: Int): Int = a * b
-//[ Truncating integer division, as a top-level function. See `Int./`. //]
-def (a: Int) / (b: Int): Int = a / b
-//[ Remainder of truncated division, as a top-level function. See `Int.%`. //]
-def (a: Int) % (b: Int): Int = a % b
-
-//[ True if this value is greater than `other`, as a top-level function. See `Int.>`. //]
-def (a: Int) > (b: Int): Bool = a > b
-//[ True if this value is less than `other`, as a top-level function. See `Int.<`. //]
-def (a: Int) < (b: Int): Bool = a < b
-//[ True if this value is greater than or equal to `other`, as a top-level function. See `Int.>=`. //]
-def (a: Int) >= (b: Int): Bool = a >= b
-//[ True if this value is less than or equal to `other`, as a top-level function. See `Int.<=`. //]
-def (a: Int) <= (b: Int): Bool = a <= b
-//[ True if the two values are equal, as a top-level function. See `Int.==`. //]
-def (a: Int) == (b: Int): Bool = a == b
-//[ True if the two values differ, as a top-level function. See `Int.!=`. //]
-def (a: Int) != (b: Int): Bool = ! (a == b)
-
-
 //[ Operations on `Int` that are not methods. //]
 section Int
   //[ Parse signed decimal integer. Returns None on invalid input.
