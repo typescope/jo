@@ -26,8 +26,10 @@ Lambda parameters must either all have type annotations or all omit them.
 When annotations are omitted, their types can be inferred from usage or from the expected type:
 
 ```jo
-// `x` inferred to have type `Int`
-val double = x => x * 2
+def square(n: Int): Int = n * n
+
+// `x` inferred to have type `Int` from its use as an argument of `square`
+val quad = x => square(square(x))
 
 // `x` inferred to have type `String`
 val log: String => Unit = x => println(x)
