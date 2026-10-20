@@ -23,8 +23,8 @@ database.db (SQLite)
 The agent has one tool: **`runCode(code)`** — write a Jo program, compile it
 to Python, and run it against the database as the current user.
 
-Row-level security is enforced at the type level: all queries are automatically
-scoped to the current user's `owner_id`.
+Jo's type checker confines generated code to the database API. Its trusted
+implementation scopes every query to the current user's `owner_id`.
 
 ## Quick Start
 

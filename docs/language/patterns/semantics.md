@@ -223,7 +223,7 @@ case _ => ...  // Catches Warning and Error
 ### Exhaustiveness in `for` Loops
 
 A pattern in a `for` loop is also checked for exhaustiveness. A non-exhaustive pattern
-produces a warning; the preferred fix is to use a guard instead:
+produces a warning. The preferred fix is to use a guard instead:
 
 ```jo
 // ⚠ Warning - non-exhaustive pattern

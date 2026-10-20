@@ -34,7 +34,7 @@ bin/jo compile --python app.jo --link jo.main=MyApp.startup -o app.py
 
 ## Rules
 
-- The linked target must conform to the deferred function's type signature; mismatches
+- The linked target must conform to the deferred function's type signature. Mismatches
   are reported at compile time.
 - A deferred function with no `--link` binding and no default implementation is a
   compile-time error.

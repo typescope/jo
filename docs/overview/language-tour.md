@@ -5,7 +5,7 @@ A quick tour of Jo's syntax and key features. Each section is self-contained —
 
 ## Hello World
 
-Every Jo program starts with `main`. The `def` keyword defines a function; `println` writes a line to stdout.
+Every Jo program starts with `main`. The `def` keyword defines a function. `println` writes a line to stdout.
 
 ```jo
 def main = println "Hello, Jo!"

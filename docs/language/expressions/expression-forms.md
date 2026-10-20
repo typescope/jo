@@ -26,7 +26,7 @@ Words are the smallest expression units. No space is allowed between a word and 
 | Prefix application | `!flag`, `-n` |
 
 `e as T` asserts that `e` conforms to `T` and changes the static type of the expression
-to `T`. It is a compile-time upcast — not a runtime cast. The value is unchanged; only
+to `T`. It is a compile-time upcast — not a runtime cast. The value is unchanged. Only
 the static type narrows. The compiler rejects `e as T` if `e`'s type does not conform
 to `T`.
 
@@ -67,7 +67,7 @@ val eligible =
   || user.isAdmin
 ```
 
-A continuation line must be **aligned with, or more indented than**, the first line of the expression; a line that is *less* indented ends it. Continuation also requires an operator boundary, so consecutive statements at the same indentation stay separate:
+A continuation line must be **aligned with, or more indented than**, the first line of the expression. A line that is *less* indented ends it. Continuation also requires an operator boundary, so consecutive statements at the same indentation stay separate:
 
 ```jo
 println total

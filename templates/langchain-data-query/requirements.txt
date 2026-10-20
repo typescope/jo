@@ -1,0 +1,2 @@
+langchain>=1.0
+langchain-openai>=1.0

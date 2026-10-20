@@ -77,7 +77,6 @@ export default defineConfig({
 
     nav: [
       { text: 'Overview', link: '/overview/index' },
-      { text: 'Security', link: '/security/security-problem' },
       { text: 'Build Tool', link: '/usage/install' },
       { text: 'Language Reference', link: '/language/design-principles' },
       ...stdlibNav,
@@ -93,11 +92,28 @@ export default defineConfig({
             { text: 'Language Tour', link: '/overview/language-tour' },
             { text: 'Compile-Time Sandboxing', link: '/overview/capabilities' },
             { text: 'Cheat Sheet', link: '/overview/cheat-sheet' },
-            { text: 'Get Started', link: '/usage/install' },
           ]
         },
         {
-          text: 'Guides',
+          text: 'Security',
+          items: [
+            { text: 'Popular languages are unsafe', link: '/security/security-problem' },
+            { text: 'Two-world architecture', link: '/security/two-worlds' },
+            { text: 'Secure language design', link: '/security/language-design' },
+            { text: 'Data Query Agent', link: '/security/examples/data-query-agent' },
+          ]
+        },
+        {
+          text: 'Integration',
+          items: [
+            { text: 'Overview', link: '/integration/' },
+            { text: 'LangChain', link: '/integration/langchain' },
+            { text: 'OpenAI Agents SDK', link: '/integration/openai-agents-sdk' },
+            { text: 'Harpe', link: '/integration/harpe' },
+          ]
+        },
+        {
+          text: 'Language Guides',
           items: [
             { text: 'Algebraic Data Types', link: '/guides/adt' },
             { text: 'Pattern-Oriented Programming', link: '/guides/patterns' },
@@ -115,46 +131,6 @@ export default defineConfig({
             { text: 'Python', link: '/guides/python-interoperability' },
             { text: 'Ruby', link: '/guides/ruby-interoperability' },
             { text: 'JavaScript', link: '/guides/javascript-interoperability' },
-          ]
-        }
-      ],
-
-      '/security/': [
-        {
-          text: 'Security',
-          items: [
-            { text: 'The Security Problem', link: '/security/security-problem' },
-            { text: 'Two-World Architecture', link: '/security/two-worlds' },
-            { text: 'Language Design', link: '/security/language-design' },
-          ]
-        },
-        {
-          text: 'Security Examples',
-          items: [
-            { text: 'Overview', link: '/security/examples/index' },
-            { text: 'Process Monitor', link: '/security/examples/process-monitor' },
-            { text: 'Data Query Agent', link: '/security/examples/data-query-agent' },
-            { text: 'Sandbox Agent', link: '/security/examples/sandbox-agent' },
-          ]
-        }
-      ],
-
-      '/security/examples/': [
-        {
-          text: 'Security',
-          items: [
-            { text: 'The Security Problem', link: '/security/security-problem' },
-            { text: 'Two-World Architecture', link: '/security/two-worlds' },
-            { text: 'Language Design', link: '/security/language-design' },
-          ]
-        },
-        {
-          text: 'Security Examples',
-          items: [
-            { text: 'Overview', link: '/security/examples/index' },
-            { text: 'Process Monitor', link: '/security/examples/process-monitor' },
-            { text: 'Data Query Agent', link: '/security/examples/data-query-agent' },
-            { text: 'Sandbox Agent', link: '/security/examples/sandbox-agent' },
           ]
         }
       ],

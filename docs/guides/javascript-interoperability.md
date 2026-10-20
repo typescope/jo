@@ -99,7 +99,7 @@ val s: String = v.asString
 val b: Bool   = v.asBool
 ```
 
-Each shortcut validates the JavaScript value and aborts with a descriptive error on mismatch. Because JavaScript represents both Jo `Int` and `Float` values as numbers, `asFloat` accepts any number; `asInt` additionally requires `Number.isInteger(value)`. The generic `cast[T]` remains unchecked.
+Each shortcut validates the JavaScript value and aborts with a descriptive error on mismatch. Because JavaScript represents both Jo `Int` and `Float` values as numbers, `asFloat` accepts any number. `asInt` additionally requires `Number.isInteger(value)`. The generic `cast[T]` remains unchecked.
 
 Use `asString` when you know the value is already a JavaScript `string`. Use `toString` (see below) when you want a human-readable representation of an arbitrary value.
 

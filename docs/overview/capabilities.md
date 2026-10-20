@@ -157,7 +157,7 @@ The following is the trace that leads to the problem:
 
 The compiler statically verifies that
 
-1. all required capabilities (direct and indirect) must be provided;
+1. all required capabilities (direct and indirect) must be provided.
 2. the specification in `allow` and explicit `receives` is followed.
 
 ## Fine-grained Confinement

@@ -91,7 +91,7 @@ the registry.
 
 Which version a project needs is declared by the `jo` field in its build spec — see
 [Build Spec](../reference/build-spec.md). Jo checks that constraint against the running
-compiler and stops if it is not satisfied; it never switches versions on its own.
+compiler and stops if it is not satisfied. It never switches versions on its own.
 
 ## See Also
 

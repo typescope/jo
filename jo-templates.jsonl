@@ -1,0 +1,3 @@
+{"name":"langchain-data-query","path":"templates/langchain-data-query","description":"LangChain agent with a Jo-secured data query tool"}
+{"name":"openai-agents-data-query","path":"templates/openai-agents-data-query","description":"OpenAI Agents SDK agent with a Jo-secured data query tool"}
+{"name":"harpe-data-query","path":"templates/harpe-data-query","description":"Harpe agent with a Jo-secured data query tool"}

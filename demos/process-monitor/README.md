@@ -166,7 +166,7 @@ bin/jo compile --python \
 
 Context parameters provide strong security guarantees:
 
-1. **User code cannot access undeclared capabilities** — only `process`, `system`, `logger`, and `alerter` are exposed; the user never sees the script path or any credentials
+1. **User code cannot access undeclared capabilities** — only `process`, `system`, `logger`, and `alerter` are exposed. The user never sees the script path or any credentials
 2. **Platform controls the check interval** — user code has no way to change the 30 s period
 3. **Type-safe capability access** — enforced at compile time
-4. **Alert mechanism is fully swappable** — the platform wires in any `Alerter` implementation; user code is oblivious to whether alerts go to email, Slack, PagerDuty, or anywhere else
+4. **Alert mechanism is fully swappable** — the platform wires in any `Alerter` implementation. User code is oblivious to whether alerts go to email, Slack, PagerDuty, or anywhere else

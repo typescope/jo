@@ -1,0 +1,9 @@
+.venv/
+out/
+logs/
+jo.lock
+.build/
+sandbox/DatabaseAPI.jo
+sandbox/Runtime.jo
+sandbox/os.jo
+sandbox/sqlite3.jo

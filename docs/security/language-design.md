@@ -1,6 +1,6 @@
 # Language Design
 
-This page describes the language facilities that make secure programming practical in Jo. Each section addresses one of the three challenges from [The Security Problem](security-problem.md).
+This page describes the language facilities that make secure programming practical in Jo. Each section addresses a requirement from [Popular languages are unsafe](security-problem.md).
 
 ## Eliminating Ambient Authorities
 
@@ -47,7 +47,7 @@ def main() =
   allow none in analyze(input)          // ERROR: logger and db not allowed
 ```
 
-The `receives` clause specifies required capabilities; the `allow` clause at the call site enforces that only permitted capabilities are used. Both are verified at compile time. This makes capability flow explicit and auditable while keeping the common case concise.
+The `receives` clause specifies required capabilities. The `allow` clause at the call site enforces that only permitted capabilities are used. Both are verified at compile time. This makes capability flow explicit and auditable while keeping the common case concise.
 
 More details of the capability model can be found in the paper [_A mathematical model of contextual capabilities_](https://github.com/typescope/contextual-capability).
 

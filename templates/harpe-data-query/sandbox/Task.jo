@@ -1,0 +1,9 @@
+namespace UserTask
+
+import jo.IO.stdout
+import DatabaseAPI.*
+import DatabaseAPI.QueryDSL.*
+
+// Build-time placeholder. Harpe replaces this source for each runCode call.
+def analyzeDocuments(): Unit receives stdout, db =
+  for doc in db.query(All) do println doc.title

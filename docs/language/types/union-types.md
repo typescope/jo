@@ -282,7 +282,7 @@ val x = s.width  // Error: Cannot access member on union type
 
 **Rationale:**
 
-1. **Type safety**: Different branches have different members; which one to access?
+1. **Type safety**: Different branches have different members. Which one can be accessed?
 2. **Clarity**: Pattern matching makes the branch selection explicit
 3. **No implicit consensus**: Unlike interfaces (where all implementors agree on member signatures), union branches are independent
 
@@ -310,6 +310,6 @@ def foo[T](x: T | Int): Unit = ...
 
 This is prohibited because:
 
-1. **Type erasure**: In generic code, `T` is erased at runtime; no way to perform type tests against unknown type
+1. **Type erasure**: In generic code, `T` is erased at runtime. There is no way to perform type tests against unknown type
 2. **Unbounded alternatives**: `T` could be instantiated with infinitely many types
 3. **Exhaustiveness**: Cannot check if all cases are covered when `T` is unknown

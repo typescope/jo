@@ -51,7 +51,7 @@ with `List.builder[T]()` — see `ListBuilder`.
 - `.get(i)`: T — element at index
 - `.+(v)`: List[T] — append
 - `.++(other)`: List[T] — concatenate
-- `.updated(i, value)`: List[T] — O(n), copies the list; use `mutable.List` to
+- `.updated(i, value)`: List[T] — O(n), copies the list. Use `mutable.List` to
   change elements by index
 - `.slice(from, len)`: List[T]
 - `.take(n)`, `.drop(n)`: List[T]
@@ -90,7 +90,7 @@ Create with `List.builder[T]()`.
 - `.addAll(it: Iterator[T])`: ListBuilder[T] — append everything `it` yields
 - `.addList(l: List[T])`: ListBuilder[T] — append every element of `l`
 - `.size`: Int — elements added so far
-- `.result`: List[T] — the list of everything added; finishes the builder, so
+- `.result`: List[T] — the list of everything added. It finishes the builder, so
   adding to it afterwards aborts
 
 `add`, `addAll` and `addList` return the builder, so a list can be collected in

@@ -92,7 +92,7 @@ Unsupported:
 ## Portability
 
 - `\d`, `\w`, `\s` and their negations are expanded by Jo before backend compilation — identical behavior on all backends.
-- `\b` and `\B` are passed to the backend as-is; all current backends treat them as ASCII word boundaries.
+- `\b` and `\B` are passed to the backend as-is. All current backends treat them as ASCII word boundaries.
 - Positions (`from`, `length`) are in code points.
 - Zero-width behavior for `matchAll`, `replaceAll`, and `splitBy` is defined by Jo and does not depend on host-engine defaults.
 

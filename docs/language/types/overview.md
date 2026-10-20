@@ -27,7 +27,7 @@ Types enriched with a fixed set of extension methods, enabling dot syntax on typ
 Types that accept arguments with automatic conversion through a declared adapter list.
 
 ### [Annotation Types](annotation-types.md)
-Types with compiler or backend hints attached; transparent to the type system.
+These types carry compiler or backend hints and are transparent to the type system.
 
 ### [Type Inference](type-inference.md)
 Local, bidirectional type inference rules.

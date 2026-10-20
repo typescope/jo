@@ -1,0 +1,56 @@
+namespace data.query.harpe
+
+import jo.IO.stdout
+import harpe.*
+import harpe.Model.UserInput
+import harpe.context.FullContext
+import harpe.util.File
+import harpe.ffi.os
+import harpe.logging.Logging
+import harpe.logging.JsonlLogger
+import harpe.logging.logger
+import harpe.tools.RunCodeTool
+import harpe.turns.TurnResult
+
+def main(): Unit receives stdout =
+  val home = os.path.abspath(".")
+  val data = os.path.abspath("data")
+  val userId = os.getenv("JO_USER_ID", "1")
+  val prompt = File.read("prompts/SYSTEM.md") + "\n" + File.read(os.path.join(data, "DatabaseAPI.jo"))
+  val context = new FullContext:
+    baseSystem = prompt
+    initial = []
+
+  val runCode = RunCodeTool(os.path.join(home, "sandbox"), approvalDeadline = 610)
+  val guestEnv = Map:
+    "HARPE_USER_ID" ~ userId
+    "HARPE_DB_PATH" ~ os.path.abspath("out/database.db")
+
+  Logging.withLogger(new JsonlLogger("logs/agent.jsonl"), () => chat(context, runCode, guestEnv))
+
+private def chat(context: FullContext, runCode: RunCodeTool, guestEnv: Map[String, String])
+: Unit receives stdout, logger =
+  val brain = Model.default()
+  val tools = runCode.toolset(guestEnv)
+
+  println "Ask about your documents. Type 'quit' to stop."
+
+  while true do
+    val input = py.input("\nYou ▸ ").trim
+    if input == "quit" then break
+    if input == "" then continue
+
+    val result =
+      Agent.ask:
+        input
+        brain = brain
+        tools = tools
+        context = context
+        maxToolRounds = 10
+        maxRetries = 2
+
+    match result.result
+    case TurnResult.Success => println "\nAgent ▸ \{result.text}"
+    case _ => println "\nThe turn failed. Try again."
+  end
+end

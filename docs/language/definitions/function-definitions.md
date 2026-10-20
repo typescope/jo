@@ -140,7 +140,7 @@ greet("World")          // "Hello, World!"
 greet("World", "Hi")    // "Hi, World!"
 ```
 
-Multiple trailing parameters may have defaults; the caller can omit any suffix of them:
+Multiple trailing parameters may have defaults. The caller can omit any suffix of them:
 
 ```jo
 def connect(host: String, port: Int = 5432, timeout: Int = 30): Connection =
