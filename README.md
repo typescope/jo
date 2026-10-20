@@ -141,6 +141,17 @@ Jo's capability model is grounded in `λCC`, a formally verified calculus of
 `λCC` provides a mathematical account of static capability tracking and the proof
 is mechanized in Coq.
 
+To cite the model:
+
+```bibtex
+@misc{lambda-cc,
+  author = {Fengyun Liu and Ond{\v{r}}ej Lhot{\'a}k},
+  title = {A Mathematical Model of Contextual Capabilities},
+  note = {Mechanized Coq development and accompanying paper},
+  year = {2026}
+}
+```
+
 ## Learn More
 
 <table>
@@ -162,11 +173,7 @@ is mechanized in Coq.
   </tr>
   <tr>
     <td><a href="https://jo-lang.org/integration/">Agent Framework Integrations</a></td>
-    <td>
-      <a href="https://jo-lang.org/integration/langchain">LangChain</a><br>
-      <a href="https://jo-lang.org/integration/openai-agents-sdk">OpenAI Agents SDK</a><br>
-      <a href="https://jo-lang.org/integration/harpe">Harpe</a>
-    </td>
+    <td>LangChain, OpenAI Agents SDK, and Harpe</td>
   </tr>
 </table>
 
