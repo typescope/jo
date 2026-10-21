@@ -323,7 +323,9 @@ This changes only the allocator, not the region design.
 ## Implementation
 
 The runtime is `runtime/native/libc/Regions.jo`. A region descriptor and its
-segments come from `calloc`. A segment is 512 bytes and holds 62 objects.
+segments come from `calloc`. A segment is 512 bytes: a `next` pointer and 63 objects.
+Only the last segment of a region is partly filled, so the region descriptor
+keeps its count, and the other segments need none.
 Released segments go to a pool of at most 64 for reuse, so a region call does
 not allocate a segment in the common case. Objects are allocated with `calloc`
 and freed with `free`.
@@ -345,21 +347,20 @@ themselves.
      │                     └──► free segment ──► free segment ──► …   (at most 64)
      ▼
 region descriptor (calloc, 32 bytes)
-┌──────────┬───────────┬────────────┬───────────┐
-│ parent ● │ depth i32 │ firstSeg ● │ lastSeg ● │
-└────┼─────┴───────────┴─────┼──────┴─────┼─────┘
-     │                       │            └─────────────────────────┐
-     ▼                       ▼                                      ▼
-parent region         segment (512 bytes)         segment          segment (last)
-  …                   ┌────────┬──────────┐       ┌────────┐       ┌────────┐
-runtime region        │ next ● ├─────────────────►│ next ● ├─► … ─►│ null   │
-(depth 0)             │ count  │ pad      │       │ 62     │       │ k < 62 │
-                      ├────────┴──────────┤       ├────────┤       ├────────┤
-                      │ object 0 ●        │       │ …      │       │ …      │
-                      │ object 1 ●        │       │        │       │        │
-                      │ … 62 entries      │       │ full   │       │ partly │
-                      └─────────┼─────────┘       └────────┘       └────────┘
-                                ▼
+┌──────────┬───────────┬───────────────┬────────────┬───────────┐
+│ parent ● │ depth i32 │ lastCount i32 │ firstSeg ● │ lastSeg ● │
+└────┼─────┴───────────┴───────────────┴─────┼──────┴─────┼─────┘
+     │                                       │            └───────────────┐
+     ▼                                       ▼                            ▼
+parent region                  segment (512 bytes)     segment     segment (last)
+  …                            ┌──────────────┐        ┌────────┐       ┌───────────┐
+runtime region                 │ next ●       ├───────►│ next ● ├─► … ─►│ null      │
+(depth 0)                      ├──────────────┤        ├────────┤       ├───────────┤
+                               │ object 0 ●   │        │ …      │       │ lastCount │
+                               │ object 1 ●   │        │        │       │ objects   │
+                               │ … 63 entries │        │ full   │       │ partly    │
+                               └──────┼───────┘        └────────┘       └───────────┘
+                                      ▼
 heap object (calloc), 8-byte slots
 ┌─────────┬───────────────────────────┬────────┬────────┬─────
 │ cid i32 │ gc i32                    │ slot 1 │ slot 2 │ …
@@ -382,14 +383,14 @@ parent's new last segment. The other segments of `r` go back to the pool.
 ```
 before close
 
-  parent:  first ─► [ A: 62 ] ─► [ B: 40 ] ◄─ last
-  r:       first ─► [ S1: 62 ] ─► [ S2: 30 ] ─► [ S3: 0 ] ◄─ last
+  parent:  first ─► [ A: 63 ] ─► [ B: 40 ] ◄─ last
+  r:       first ─► [ S1: 63 ] ─► [ S2: 30 ] ─► [ S3: 0 ] ◄─ last
                      survivors, packed          emptied by the sweep
 
 after close
 
-  parent:  first ─► [ S1: 62 ] ─► [ A: 62 ] ─► [ B: 62 ] ─► [ S2: 8 ] ◄─ last
-                                                 +22 from S2
+  parent:  first ─► [ S1: 63 ] ─► [ A: 63 ] ─► [ B: 63 ] ─► [ S2: 7 ] ◄─ last
+                                                 +23 from S2
   pool:    [ S3 ] ─► …
   r:       descriptor freed
 ```
