@@ -100,7 +100,11 @@ class Float
   private def floorFinite: Float = ...
 
   // Conversion methods
-  //[ Truncates toward zero. //]
+  //[ Truncates toward zero.
+    !
+    ! The behavior is undefined when the truncated value is outside the `Int`
+    ! range or the value is NaN.
+  //]
   @intrinsic
   def toInt: Int = ...
 
