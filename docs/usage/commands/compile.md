@@ -122,6 +122,13 @@ LLVM IR and calls clang 15 or newer to build it.
 method. It lowers the peak memory of long-running programs and never changes
 what a program computes. See [Memory in Native Programs](../guides/memory.md).
 
+The backend has no foreign function interface. A program can read its
+arguments, compute and print to standard output and standard error, but it has
+no access to files, the network or other system resources. This makes it
+suitable for confined programs that compute on their input and print the result.
+
+Concurrency is planned but not yet implemented.
+
 ## Examples
 
 Type-check a library and emit `.sast`:
