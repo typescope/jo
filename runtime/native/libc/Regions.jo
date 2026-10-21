@@ -175,15 +175,18 @@ private section Regions
     val r = callocOrAbort 32
     writeAddr r parent
     writeInt (addAddr r 8) depth
-    val seg = newSegment()
-    setFirstSeg(r, seg)
-    setLastSeg(r, seg)
     r
 
+  // A region gets its first segment on its first object
   private def append(r: Addr, obj: Addr): Unit =
     var seg = lastSeg r
     var n = lastCount r
-    if n == segCapacity then
+    if isNull seg then
+      seg = newSegment()
+      setFirstSeg(r, seg)
+      setLastSeg(r, seg)
+
+    else if n == segCapacity then
       val next = newSegment()
       writeAddr seg next
       setLastSeg(r, next)
@@ -246,6 +249,12 @@ private section Regions
   // Cleanup: allocates nothing and runs no user code
 
   private def close(r: Addr): Unit =
+    if !(isNull (firstSeg r)) then sweep r
+    LibC.free r
+
+  // Free the dead objects of a region with segments, and hand the survivors
+  // to its parent
+  private def sweep(r: Addr): Unit =
     val d = depthOf r
 
     // Spread the requirements of escape roots
@@ -304,28 +313,36 @@ private section Regions
     // Hand the survivors to the parent. The full segments go to the front of
     // its list, and the partly filled one tops up the parent's last segment,
     // so the parent still has only one partly filled segment.
-    val parent = parentOf r
-    if !(isNull wprev) then
-      writeAddr wprev (firstSeg parent)
-      setFirstSeg(parent, firstSeg r)
-
-    val last = lastSeg parent
-    var p = lastCount parent
-    while w > 0 && p < segCapacity do
-      w = w - 1
-      writeAddr (segEntry last p) (readAddr (segEntry wseg w))
-      p = p + 1
-    end
-
     if w == 0 then
-      setLastCount(parent, p)
       releaseSegment wseg
     else
-      writeAddr last wseg
-      setLastSeg(parent, wseg)
-      setLastCount(parent, w)
+      val parent = parentOf r
+      if !(isNull wprev) then
+        writeAddr wprev (firstSeg parent)
+        setFirstSeg(parent, firstSeg r)
 
-    LibC.free r
+      val last = lastSeg parent
+      if isNull last then
+        // the parent has no segment yet: the partly filled one is its last
+        if isNull wprev then setFirstSeg(parent, wseg) else writeAddr wprev wseg
+        setLastSeg(parent, wseg)
+        setLastCount(parent, w)
+
+      else
+        var p = lastCount parent
+        while w > 0 && p < segCapacity do
+          w = w - 1
+          writeAddr (segEntry last p) (readAddr (segEntry wseg w))
+          p = p + 1
+        end
+
+        if w == 0 then
+          setLastCount(parent, p)
+          releaseSegment wseg
+        else
+          writeAddr last wseg
+          setLastSeg(parent, wseg)
+          setLastCount(parent, w)
 
   // Lower `req` to `d` for the objects of the region at depth `rd` reachable
   // from `root`, a depth-first traversal with pointer reversal: the slot that
