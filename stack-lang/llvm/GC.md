@@ -9,7 +9,7 @@ promotion, and changes it in four places:
 2. Cleanup traces only the objects of the closing region.
 3. Cleanup allocates nothing. The trace reverses pointers instead of keeping a
    work list.
-4. Survivors move to the parent region by splicing storage segments.
+4. Survivors move to the parent region by handing over storage segments.
 
 The design is single-threaded, like the rest of the native runtime.
 
@@ -106,6 +106,11 @@ object to the current region.
 A region stores its objects in a linked list of fixed-size segments. Each
 segment is an array of object pointers. Allocation adds a segment when the
 last one is full. This is the only place the region storage grows.
+
+Only the last segment of a region is ever partly filled. The segment size is
+therefore not a tuning knob: the index costs one word per object, plus at most
+one partly filled segment per open region. A small segment keeps that waste
+low for deep recursion through region functions.
 
 Every heap allocation must be an object with a header. Today the runtime also
 allocates raw byte buffers, for example in `StringOps.bytes`, `floatToStr` and
@@ -215,7 +220,8 @@ close(r):
       o.phys = depth(r) - 1
       keep o                      // pack survivors at the front
   release the empty segments
-  splice the remaining segments onto r.parent
+  move the full segments to the front of r.parent's list
+  top up r.parent's last segment from the partly filled one
   current region = r.parent
 ```
 
@@ -314,8 +320,10 @@ This changes only the allocator, not the region design.
 ## Implementation
 
 The runtime is `runtime/native/libc/Regions.jo`. A region descriptor and its
-segments come from `calloc`, and a segment holds 510 objects. Objects are
-allocated with `calloc` and freed with `free`.
+segments come from `calloc`. A segment is 512 bytes and holds 62 objects.
+Released segments go to a pool of at most 64 for reuse, so a region call does
+not allocate a segment in the common case. Objects are allocated with `calloc`
+and freed with `free`.
 
 Codegen calls `Regions.enter` at the start of a region function and
 `Regions.leave` before each `ret`, passing the result or `null`. Both are
