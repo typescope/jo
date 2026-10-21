@@ -126,11 +126,7 @@ private def start(argc: Int, argv: Addr): Unit receives none =
     IO.stderr = createStdErr(),
     IO.args = strArr
   in
-    // The runtime region (depth 0) holds what is set up above. The program
-    // runs in a region of its own.
-    Regions.enter()
     jo.main()
-    Regions.leave nullAddr
 
   finish()
 
