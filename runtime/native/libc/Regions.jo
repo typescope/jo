@@ -96,12 +96,14 @@ private section Regions
   //
   // Memory for regions and segments comes from the C library.
   //
-  //   region    { parent, depth, first segment, last segment }
-  //   segment   { next, count, objects... }
+  //   region    { parent, depth: i32, lastCount: i32, first segment, last segment }
+  //   segment   { next, objects... }
+  //
+  // Only the last segment of a region is ever partly filled. The others hold
+  // `segCapacity` objects, so the region keeps the one count it needs.
 
-  // A segment is 512 bytes. Its size bounds the waste: only the last segment
-  // of a region is ever partly filled.
-  private def segCapacity: Int = 62
+  // A segment is 512 bytes. Its size bounds the waste of a partly filled one.
+  private def segCapacity: Int = 63
 
   // Free segments kept for reuse, at most this many
   private def poolLimit: Int = 64
@@ -109,6 +111,10 @@ private section Regions
   private def parentOf(r: Addr): Addr = readAddr r
 
   private def depthOf(r: Addr): Int = readInt (addAddr r 8)
+
+  private def lastCount(r: Addr): Int = readInt (addAddr r 12)
+
+  private def setLastCount(r: Addr, n: Int): Unit = writeInt (addAddr r 12) n
 
   private def firstSeg(r: Addr): Addr = readAddr (addAddr r 16)
 
@@ -120,11 +126,11 @@ private section Regions
 
   private def segNext(s: Addr): Addr = readAddr s
 
-  private def segCount(s: Addr): Int = readInt (addAddr s 8)
+  // The number of objects in the segment `s` of the region `r`
+  private def segCount(r: Addr, s: Addr): Int =
+    if sameRef(s, lastSeg r) then lastCount r else segCapacity
 
-  private def setSegCount(s: Addr, n: Int): Unit = writeInt (addAddr s 8) n
-
-  private def segEntry(s: Addr, i: Int): Addr = addAddr s (16 + i * wordSize)
+  private def segEntry(s: Addr, i: Int): Addr = addAddr s ((1 + i) * wordSize)
 
   // Out of memory: report without allocating, since `abort` builds its
   // message on the heap
@@ -148,12 +154,11 @@ private section Regions
     val st = state
     val seg = st.segPool
     if isNull seg then
-      callocOrAbort (16 + segCapacity * wordSize)
+      callocOrAbort ((1 + segCapacity) * wordSize)
     else
       st.segPool = segNext seg
       st.segPoolSize = st.segPoolSize - 1
       writeAddr seg nullAddr
-      setSegCount(seg, 0)
       seg
 
   // Return a segment to the pool, or to the C library when the pool is full
@@ -171,13 +176,13 @@ private section Regions
     writeAddr r parent
     writeInt (addAddr r 8) depth
     val seg = newSegment()
-    writeAddr (addAddr r 16) seg
+    setFirstSeg(r, seg)
     setLastSeg(r, seg)
     r
 
   private def append(r: Addr, obj: Addr): Unit =
     var seg = lastSeg r
-    var n = segCount seg
+    var n = lastCount r
     if n == segCapacity then
       val next = newSegment()
       writeAddr seg next
@@ -186,7 +191,7 @@ private section Regions
       n = 0
 
     writeAddr (segEntry seg n) obj
-    setSegCount(seg, n + 1)
+    setLastCount(r, n + 1)
 
   //----------------------------------------------------------------------------
   // API
@@ -246,7 +251,7 @@ private section Regions
     // Spread the requirements of escape roots
     var seg = firstSeg r
     while !(isNull seg) do
-      val n = segCount seg
+      val n = segCount(r, seg)
       var i = 0
       while i < n do
         val o = readAddr (segEntry seg i)
@@ -258,14 +263,14 @@ private section Regions
     end
 
     // Free dead objects and pack survivors at the front. The writer never
-    // passes the reader, and each segment's count is read before it changes.
+    // passes the reader.
     val parentDepth = d - 1
     var wprev = nullAddr
     var wseg = firstSeg r
     var w = 0
     seg = firstSeg r
     while !(isNull seg) do
-      val n = segCount seg
+      val n = segCount(r, seg)
       var i = 0
       while i < n do
         val o = readAddr (segEntry seg i)
@@ -275,7 +280,6 @@ private section Regions
         else
           setGcHalf(o, normal(parentDepth, req))
           if w == segCapacity then
-            setSegCount(wseg, w)
             wprev = wseg
             wseg = segNext wseg
             w = 0
@@ -287,7 +291,6 @@ private section Regions
       end
       seg = segNext seg
     end
-    setSegCount(wseg, w)
 
     // Release the segments after the survivors
     var rest = segNext wseg
@@ -307,20 +310,20 @@ private section Regions
       setFirstSeg(parent, firstSeg r)
 
     val last = lastSeg parent
-    var p = segCount last
+    var p = lastCount parent
     while w > 0 && p < segCapacity do
       w = w - 1
       writeAddr (segEntry last p) (readAddr (segEntry wseg w))
       p = p + 1
     end
-    setSegCount(last, p)
-    setSegCount(wseg, w)
 
     if w == 0 then
+      setLastCount(parent, p)
       releaseSegment wseg
     else
       writeAddr last wseg
       setLastSeg(parent, wseg)
+      setLastCount(parent, w)
 
     LibC.free r
 
