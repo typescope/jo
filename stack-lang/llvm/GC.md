@@ -325,7 +325,9 @@ This changes only the allocator, not the region design.
 The runtime is `runtime/native/libc/Regions.jo`. A region descriptor and its
 segments come from `calloc`. A segment is 512 bytes: a `next` pointer and 63 objects.
 Only the last segment of a region is partly filled, so the region descriptor
-keeps its count, and the other segments need none.
+keeps its count, and the other segments need none. A region gets its first segment on
+its first object, so a region that allocates nothing costs only its 32-byte
+descriptor.
 Released segments go to a pool of at most 64 for reuse, so a region call does
 not allocate a segment in the common case. Objects are allocated with `calloc`
 and freed with `free`.
