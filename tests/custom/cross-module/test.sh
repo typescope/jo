@@ -29,21 +29,12 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
     exit 1
 }
 
-# Test with register machine
-echo "  - Building with register machine"
-bin/jo compile --reg "$DIR/app.jo" --lib "$BUILD_MATH" --lib "$BUILD_GRAPHICS" -o "$DIR/app.run"
+# Test with LLVM
+echo "  - Building with LLVM"
+bin/jo compile --llvm --clang "${CLANG:-clang}" "$DIR/app.jo" --lib "$BUILD_MATH" --lib "$BUILD_GRAPHICS" -o "$DIR/app.run"
 "$DIR/app.run" > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
-    echo "[error] Register machine test failed for $TEST_NAME"
-    exit 1
-}
-
-# Test with stack machine
-echo "  - Building with stack machine"
-bin/jo compile --stack "$DIR/app.jo" --lib "$BUILD_MATH" --lib "$BUILD_GRAPHICS" -o "$DIR/app.run"
-"$DIR/app.run" > "$DIR/actual.out" 2>&1
-diff "$DIR/actual.out" "$DIR/expect.check" || {
-    echo "[error] Stack machine test failed for $TEST_NAME"
+    echo "[error] LLVM test failed for $TEST_NAME"
     exit 1
 }
 
