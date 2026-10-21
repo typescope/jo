@@ -478,15 +478,3 @@ Tests: `tests/gc` checks that escaping objects survive, and
 errors, keep the IR with `--keep-ll`, add `sanitize_address` to the attribute
 groups and compile it with `clang -fsanitize=address`. With clang 15 on recent
 kernels, AddressSanitizer itself needs `setarch -R`.
-
-## Plan
-
-Each step ends with verification and a commit, as for the backend.
-
-1. Headers and layouts. Header fields, static headers for literals, headers on
-   raw buffers, the layout table, and `writeRef`. No region functions yet, so
-   behavior is unchanged.
-2. Regions. Segments, `enter`, `close`, `lower`, the barrier and `--region`.
-   Tests: escapes through fields, arrays, closures, strings and results,
-   nested regions, cycles that escape and cycles that do not, and repeated
-   region calls.

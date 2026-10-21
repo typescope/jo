@@ -112,23 +112,3 @@ added without touching codegen:
   works. The driver then passes `-mllvm -opaque-pointers`.
 - `./ci` runs the `llvm` mode with `$CLANG`, which defaults to `clang`. Set
   `CLANG=clang-15` where the default clang is older.
-
-## Milestones
-
-Each milestone ends with verification and a commit.
-
-1. **Hello world.** Pipeline, clang driver, runtime skeleton, core codegen:
-   literals, locals, `if`, `while`, blocks, labeled returns, direct and
-   indirect calls, records, class tests, closures, singleton objects, string
-   literals. Verify: `tests/pos/hello.jo` and `tests/pos/fact.jo` print the
-   expected output.
-2. **Parity with `--reg`.** Interfaces, arrays, `Long` as `i64`, `Bytes`,
-   regex, program arguments, stack overflow message. Verify: every test in
-   `tests/pos` and `tests/stdlib` that passes with `--reg` passes with
-   `--llvm`.
-3. **Float.** `double` arithmetic, comparisons, conversions, boxing, and a
-   `Float.toString` that matches the other backends. Verify: `tests/numeric`
-   passes with `--llvm`.
-4. **Integration.** `bin/jo compile --llvm`, the `build` script builds
-   `libs/runtime-llvm`, the `ci` script runs an `llvm` mode, docs updated.
-   Verify: `./ci` passes the `llvm` suites.
