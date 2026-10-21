@@ -4,13 +4,19 @@ import jo.compile.intrinsic
 
 import jo.runtime.native.LibC
 
-// Signal handler registered for SIGSEGV.
+// Signal handler registered for SIGSEGV, called as an `SA_SIGINFO` handler.
 //
-// The C library calls it with the signal number as argument. The handler takes
-// no parameter and never returns, so the extra argument does no harm.
-private def stackOverflowHandler(): Bottom receives none =
-  writeString: 2, cast[StringRepr] "Stack overflow\n"
-  LibC.exit 1
+// A fault in the address range of the main stack is a stack overflow. The
+// handler only writes static strings and exits, which is safe in a handler.
+private def stackOverflowHandler(sig: Int, info: Addr, context: Addr): Bottom receives none =
+  // siginfo_t: { si_signo: int, si_errno: int, si_code: int, pad, si_addr: ptr }
+  val fault = addrToLong (readAddr (addAddr info 16))
+  val st = state
+  if fault >= st.stackLow && fault < st.stackTop then
+    writeString: 2, cast[StringRepr] "Stack overflow\n"
+  else
+    writeString: 2, cast[StringRepr] "Invalid memory access\n"
+  LibC._exit 1
 
 // Backend intrinsifies this to the address of stackOverflowHandler.
 @intrinsic
@@ -21,7 +27,24 @@ private def stackOverflowHandlerAddress: Addr = ...
 //
 // The struct layouts are those of glibc on 64-bit Linux. The C library keeps
 // the alternate stack, so this memory comes from C, not from the GC.
-private def installStackOverflowHandler(): Unit receives none =
+//
+// `argv` lies at the top of the main stack, which can grow down to the stack
+// size limit plus the guard gap below it.
+private def installStackOverflowHandler(argv: Addr): Unit receives none =
+  val st = state
+  val guardGap = 1048576
+  st.stackTop = addrToLong argv
+
+  // rlimit: { rlim_cur: u64, rlim_max: u64 }, RLIMIT_STACK = 3
+  val rlim = LibC.calloc 1 16
+  val unlimited = (LibC.getrlimit 3 rlim) != 0 || (readInt (addAddr rlim 4)) != 0
+  if unlimited then
+    st.stackLow = 0
+  else
+    val limit = (readInt rlim).toLong & 4294967295
+    st.stackLow = st.stackTop - limit - guardGap.toLong
+  LibC.free rlim
+
   // Alternate stack: 64 KB (> SIGSTKSZ)
   val altSize = 65536
   val altMem = LibC.calloc 1 altSize.toLong
@@ -36,5 +59,5 @@ private def installStackOverflowHandler(): Unit receives none =
   // sigaction: { sa_handler: ptr, sa_mask: 128 bytes, sa_flags: int, sa_restorer: ptr }
   val act = LibC.calloc 1 152
   writeAddr act stackOverflowHandlerAddress   // sa_handler
-  writeInt (addAddr act 136) 0x08000000       // sa_flags = SA_ONSTACK
+  writeInt (addAddr act 136) 0x08000004       // sa_flags = SA_ONSTACK | SA_SIGINFO
   val _ = LibC.sigaction 11 act nullAddr      // SIGSEGV = 11
