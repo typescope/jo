@@ -203,7 +203,7 @@ the closing region `r`.
 
 ### Why tracing stops at the region
 
-The gist's algorithm follows pointers into ancestor regions. That is not
+The earlier design follows pointers into ancestor regions. That is not
 needed. When the trace reaches an object `e` in an ancestor region `Q`, it
 lowers `e.req` and stops. Then `e.req < depth(Q)`, so `e` is an escape root of
 `Q`, and its children are traced when `Q` closes. Until then they stay in a
@@ -275,7 +275,7 @@ cursor covers any array. The tag bit is checked first, because the depths of
 an object on the path are not stored.
 
 The traversal descends only into an object with `req > d`. That condition also
-replaces the gist's `processed` map: an object already lowered to `d` or
+replaces the `processed` map of the earlier design: an object already lowered to `d` or
 shallower has nothing left to propagate. Cycles end at objects on the path.
 
 ### Cost
@@ -354,7 +354,7 @@ The barrier may be inlined.
   Moving the loop body into a region function reclaims it per iteration.
 - Survivors are traced again at every enclosing close, so a region function
   whose results are large and pass through many regions is slow (see Cost).
-- A removed escape stays promoted until its destination closes, as in the gist.
+- A removed escape stays promoted until its destination closes, as in the earlier design.
 - `malloc` per object is slower than the current bump allocator.
 
 ## Later: a faster allocator
