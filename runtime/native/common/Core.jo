@@ -393,6 +393,12 @@ end
 // Offset of the content of arrays and bytes: after the cid and size words
 private def contentOffset: Int = 2 * wordSize
 
+// Check that `count` elements of `unit` bytes, after the cid and size words,
+// fit in an `Int` allocation size. A wrapped size would allocate too little.
+private def checkAllocCount(count: Int, unit: Int): Unit =
+  if count < 0 || count > (2147483647 - contentOffset) / unit then
+    abort "Allocation of \{count} elements is negative or too large"
+
 private def base64Char(v: Int): Int =
   if v < 26 then 65 + v               // 'A'..'Z'
   else if v < 52 then 97 + (v - 26)   // 'a'..'z'
@@ -448,6 +454,7 @@ private section RawBytes
     cast[String]: Raw(outLen, outLen, out)
 
   def fill(size: Int, values: Int => Byte): Bytes =
+    checkAllocCount(size, 1)
     val start = contentOffset
     val dst = GC.alloc (size + start)
     writeInt dst bytesClassId
@@ -466,6 +473,7 @@ private section RefArray
   def ArrayClassId: Int = ...
 
   def create[T](size: Int): Array[T] =
+    checkAllocCount(size, wordSize)
     val arr = GC.alloc (size * wordSize + contentOffset)
     writeInt arr ArrayClassId
     writeInt:
