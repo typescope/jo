@@ -322,15 +322,21 @@ This changes only the allocator, not the region design.
 
 ## Implementation
 
-The runtime is `runtime/native/libc/Regions.jo`. A region descriptor and its
-segments come from `calloc`. A segment is 512 bytes: a `next` pointer and 63 objects.
-Only the last segment of a region is partly filled, so the region descriptor
-keeps its count, and the other segments need none. A region gets its first segment on
-its first object, so a region that allocates nothing costs only its 32-byte
-descriptor.
-Released segments go to a pool of at most 64 for reuse, so a region call does
-not allocate a segment in the common case. Objects are allocated with `calloc`
-and freed with `free`.
+The runtime is `runtime/native/libc/Regions.jo`. Region descriptors and
+segments come from `calloc`, and both are reused:
+
+- A region descriptor is 32 bytes. A closed one goes to a free list, and the
+  next region takes it. Regions nest, so the list never holds more descriptors
+  than the deepest nesting so far.
+- A segment is 512 bytes: a `next` pointer and 63 objects. Only the last
+  segment of a region is partly filled, so the region descriptor keeps its
+  count, and the other segments need none. Released segments go to a pool of
+  at most 64.
+- A region gets its first segment on its first object.
+
+A region call that allocates nothing therefore allocates nothing at all in the
+common case. It costs the two calls of `enter` and `leave` and a few loads and
+stores. Objects are allocated with `calloc` and freed with `free`.
 
 ### Memory structure
 
@@ -343,12 +349,13 @@ themselves.
 
 ```
 @runtime.state (static, zeroed)
-┌──────────┬─────────┬───────────┬─────────────┬──────────┬──────────┐
-│ region ● │ skipped │ segPool ● │ segPoolSize │ stackLow │ stackTop │
-└────┼─────┴─────────┴─────┼─────┴─────────────┴──────────┴──────────┘
-     │                     └──► free segment ──► free segment ──► …   (at most 64)
+┌──────────┬─────────┬───────────┬─────────────┬──────────────┬──────────┬──────────┐
+│ region ● │ skipped │ segPool ● │ segPoolSize │ regionPool ● │ stackLow │ stackTop │
+└────┼─────┴─────────┴────┼──────┴─────────────┴────┼─────────┴──────────┴──────────┘
+     │                    │                         └──► closed descriptor ──► …   (deepest nesting so far)
+     │                    └──► free segment ──► free segment ──► …   (at most 64)
      ▼
-region descriptor (calloc, 32 bytes)
+region descriptor (32 bytes)
 ┌──────────┬───────────┬───────────────┬────────────┬───────────┐
 │ parent ● │ depth i32 │ lastCount i32 │ firstSeg ● │ lastSeg ● │
 └────┼─────┴───────────┴───────────────┴─────┼──────┴─────┼─────┘
@@ -394,7 +401,7 @@ after close
   parent:  first ─► [ S1: 63 ] ─► [ A: 63 ] ─► [ B: 63 ] ─► [ S2: 7 ] ◄─ last
                                                  +23 from S2
   pool:    [ S3 ] ─► …
-  r:       descriptor freed
+  r:       descriptor to the free list
 ```
 
 The parent again has only one partly filled segment, its last one. If `B` had
