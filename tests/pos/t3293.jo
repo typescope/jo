@@ -5,7 +5,3 @@ def main: Unit =
   val _ = foo:
     (a: Int) => a + 4
     b => b > 3
-
-  val _ = foo:
-    a => a + 4
-    b => b > 3

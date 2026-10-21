@@ -1,0 +1,31 @@
+---------- Error at tests/warn/lambda-param-infer-operator.jo:6:18 ---------------
+|   val f = x => x + x
+|                  ^
+|                  Undefined term name +
+
+---------- Error at tests/warn/lambda-param-infer-operator.jo:6:18 ---------------
+|   val f = x => x + x
+|                  ^
+|                  Expect a function, found = +: Error
+
+---------- Error at tests/warn/lambda-param-infer-operator.jo:6:11 ---------------
+|   val f = x => x + x
+|           ^
+|           Cannot infer a type for type variable ?x
+
+---------- Error at tests/warn/lambda-param-infer-operator.jo:7:24 ---------------
+|   val n = app2 (x => x * x) 5
+|                        ^
+|                        Undefined term name *
+
+---------- Error at tests/warn/lambda-param-infer-operator.jo:7:24 ---------------
+|   val n = app2 (x => x * x) 5
+|                        ^
+|                        Expect a function, found = *: Error
+
+---------- Error at tests/warn/lambda-param-infer-operator.jo:7:15 ---------------
+|   val n = app2 (x => x * x) 5
+|               ^
+|               Cannot infer a type for type variable ?Y
+
+6 error(s), 0 warning(s)

@@ -27,7 +27,7 @@ val process = (x: Int) =>
   val doubled = x * 2
   doubled + 1
 
-val classify = n =>
+val classify = (n: Int) =>
   if n > 0 then "positive"
   else if n < 0 then "negative"
   else "zero"
