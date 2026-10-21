@@ -75,20 +75,21 @@ private section Regions
         readAddr (addAddr o (s * wordSize))
       else
         val p = readAddr (addAddr o ((s - interiorFlag) * wordSize))
-        if isNull p then p else addAddr p (0 - wordSize)
+        if isNull p then p
+        else
+          val buffer = addAddr p (0 - wordSize)
+          if (readInt buffer) != bufferClassId then notABuffer()
+          buffer
 
-  // Make pointer slot `i` of `o` refer to the object `v`
+  // Make pointer slot `i` of `o` refer to the object `v`. The trace never
+  // reverses an interior slot, since it points to a buffer without pointers.
   private def setRef(o: Addr, i: Int, v: Addr): Unit =
     val layout = layoutOf o
     if (readInt layout) == -1 then
       writeAddr (addAddr o ((i + 2) * wordSize)) v
     else
       val s = readInt (addAddr layout ((i + 1) * 4))
-      if (s & interiorFlag) == 0 then
-        writeAddr (addAddr o (s * wordSize)) v
-      else
-        val p = if isNull v then v else addAddr v wordSize
-        writeAddr (addAddr o ((s - interiorFlag) * wordSize)) p
+      writeAddr (addAddr o (s * wordSize)) v
 
   //----------------------------------------------------------------------------
   // Regions and segments
@@ -129,6 +130,12 @@ private section Regions
   // message on the heap
   private def outOfMemory(): Bottom =
     writeString: 2, cast[StringRepr] "Out of memory\n"
+    LibC.exit 1
+
+  // An `Addr` field must point just past the header of a buffer. Anything
+  // else would make the trace read and write a header that does not exist.
+  private def notABuffer(): Bottom =
+    writeString: 2, cast[StringRepr] "Internal error: an Addr field does not point to a buffer\n"
     LibC.exit 1
 
   private def callocOrAbort(size: Int): Addr =
@@ -331,14 +338,16 @@ private section Regions
       if i < (slotCount cur) then
         val c = getRef(cur, i)
         if !(isNull c) && !(isOnPath c) && (reqOf c) > d then
-          if (physOf c) == rd then
-            // descend, reversing the slot
+          if (physOf c) == rd && (slotCount c) > 0 then
+            // descend, reversing the slot. A buffer has no slots, so an
+            // interior slot is never reversed.
             setRef(cur, i, prev)
             prev = cur
             cur = c
             setGcHalf(cur, onPath 0)
           else
-            // in an ancestor region: its own cleanup traces it
+            // without pointers, or in an ancestor region, whose own cleanup
+            // traces it: lower it only
             setReq(c, d)
             setGcHalf(cur, onPath (i + 1))
         else
