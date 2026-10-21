@@ -51,7 +51,7 @@ slot 1..   fields, one slot each
 - Class instances: `{ header, itable: ptr, fields... }`.
 - Closures: `{ header, apply: ptr, underlying: ptr }`.
 - Arrays: `{ header, size: i32, elements: ptr... }`.
-- Bytes: `{ header, size: i32, bytes... }`.
+- Bytes: `{ header, size: i32, bytes... }`, with the bytes after the size slot.
 
 The `gc` half of the header is reserved for the garbage collector. Uniform
 slots keep the layout table for the GC trivial: a slot is either a pointer or

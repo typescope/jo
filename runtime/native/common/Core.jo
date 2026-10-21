@@ -386,9 +386,9 @@ private section ListClaim
 end
 
 // Bytes operations. Bytes.Repr is an Addr to a `[cid: word][size: word][bytes...]`
-// block. The leading `cid` word is reserved for layout uniformity with other heap
-// objects (arrays lead with ArrayClassId); the allocator never reads it, so it
-// is written as 0 for now. The bytes therefore start at offset `contentOffset`.
+// block. The leading `cid` word is `bytesClassId`, which the LLVM garbage
+// collector reads to find the layout. The 32-bit platform writes 0. The bytes
+// start at offset `contentOffset`.
 
 // Offset of the content of arrays and bytes: after the cid and size words
 private def contentOffset: Int = 2 * wordSize
