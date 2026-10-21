@@ -13,6 +13,12 @@ promotion, and changes it in four places:
 
 The design is single-threaded, like the rest of the native runtime.
 
+Regions are an optimization of peak memory, the resident set size (RSS). A
+program without region functions is correct and frees nothing before it exits.
+Regions let memory be reused, so a long-running program can stay within a
+bounded RSS. Like other optimizations, they never change what a program does,
+only how much memory and time it takes.
+
 ## Overview
 
 The heap is a stack of regions. A call to a region function opens a child
@@ -274,13 +280,54 @@ shallower has nothing left to propagate. Cycles end at objects on the path.
 
 ### Cost
 
-- Space: none beyond the objects themselves.
-- Time: an object of `r` is traversed once per lowering of its `req` within one
-  close. `req` only decreases, so this is bounded by the region depth, and it is
-  once in the common case. Objects outside `r` are never traversed.
-- A survivor moves up one region per close. At each later close it is an escape
-  root again, but its children are already lowered, so its trace costs one
-  pass over its fields.
+- Space: none beyond the objects themselves. Cleanup allocates nothing.
+- Opening and closing a region that allocates nothing costs two calls and a few
+  loads and stores. Descriptors and segments are reused, so it does not call the
+  C allocator.
+- Closing a region visits each of its objects twice, once to find the escape
+  roots and once to free or keep them. Each dead object costs one `free`.
+- The trace visits the objects of the region reachable from escape roots. Within
+  one close, an object is traversed once per lowering of its `req`, which is
+  once in the common case. Objects outside the region are never traversed.
+- A survivor pays again at every enclosing close. It moves up one region per
+  close and is visited by the sweep of each. While escaping data still reaches
+  it, it is also traced again: its `req` was lowered only to the depth of the
+  closing region's parent, which is too deep for the next close.
+
+So an object costs work at every region boundary it passes through alive. A
+region pays off when most of what it allocates dies before it closes. It costs
+more than it saves when most of what it allocates survives, and the cost grows
+with the number of nested regions the survivors pass through.
+
+The worst case is a recursive function that is a region and returns what it
+builds, for example
+
+```
+def build(n: Int): Option[Node] =
+  if n == 0 then None
+  else Some(new Node(n, build(n - 1)))
+```
+
+Every node survives every enclosing close, so building a list of `n` nodes
+costs O(n²). On an x86-64 machine, `n = 20000` takes 0.02 seconds without
+regions and 92 seconds with `build` as a region function. Such a function frees
+nothing, so it gains nothing from being a region.
+
+### Choosing region functions
+
+Region functions are chosen for their effect on peak RSS:
+
+- Good: a function called repeatedly, for example from a loop, that allocates
+  temporaries and returns a small result, such as a number or `Unit`. Its
+  garbage dies when it returns, and the memory is reused by the next call.
+- Bad: a function that returns most of what it allocates, such as a builder or
+  a parser that returns its result. Above all, a recursive one, as shown above.
+- Neutral: a function that allocates little. It costs two calls per call and
+  frees little.
+
+Measure peak RSS and time with and without a region function. A future
+profiling build could report, for each function, how much of the memory
+allocated during its calls survives them, which ranks the candidates.
 
 ## Interaction with the optimizer
 
@@ -304,6 +351,9 @@ The barrier may be inlined.
   returns. This is the current behavior.
 - Objects promoted to the runtime region stay until the program exits.
 - Garbage accumulates inside a long-running region, for example in a loop.
+  Moving the loop body into a region function reclaims it per iteration.
+- Survivors are traced again at every enclosing close, so a region function
+  whose results are large and pass through many regions is slow (see Cost).
 - A removed escape stays promoted until its destination closes, as in the gist.
 - `malloc` per object is slower than the current bump allocator.
 
