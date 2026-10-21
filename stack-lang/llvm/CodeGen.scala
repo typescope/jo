@@ -332,8 +332,10 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[String])(using defn: De
 
     given ctx: FunContext = new FunContext(sym)
 
-    if regionFunctions.contains(sym.fullName) then
-      compiledRegions += sym.fullName
+    // A lifted method `pkg.Class$method` is named `pkg.Class.method`
+    val regionName = sym.fullName.replace('$', '.')
+    if regionFunctions.contains(regionName) then
+      compiledRegions += regionName
       ctx.isRegion = true
       callFun(runtime.Regions_enter, Nil)
 
