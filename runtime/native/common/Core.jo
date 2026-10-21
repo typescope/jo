@@ -410,9 +410,16 @@ private section RawBytes
   def size(repr: Bytes.Repr): Int = readInt (addAddr (cast[Addr] repr) wordSize)
 
   def get(repr: Bytes.Repr, index: Int): Byte =
+    val n = size repr
+    assert: index >= 0 && index < n, "Index \{index} out of bounds, size = \{n}"
     readByte (addAddr (cast[Addr] repr) (index + contentOffset))
 
   def slice(repr: Bytes.Repr, offset: Int, length: Int): Bytes =
+    val n = size repr
+    assert:
+      offset >= 0 && length >= 0 && offset <= n - length
+      "Slice at \{offset} of length \{length} out of bounds, size = \{n}"
+
     val src = cast[Addr] repr
     val start = contentOffset
     val dst = GC.alloc (length + start)
