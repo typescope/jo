@@ -328,6 +328,75 @@ Released segments go to a pool of at most 64 for reuse, so a region call does
 not allocate a segment in the common case. Objects are allocated with `calloc`
 and freed with `free`.
 
+### Memory structure
+
+![Regions, segments and objects, and a close](gc-regions.svg)
+
+The runtime state is a static global. It points to the current region, and
+each region points to its parent, down to the runtime region at depth 0.
+Segments index the objects of a region. They hold pointers, never the objects
+themselves.
+
+```
+@runtime.state (static, zeroed)
+┌──────────┬─────────┬───────────┬─────────────┬──────────┬──────────┐
+│ region ● │ skipped │ segPool ● │ segPoolSize │ stackLow │ stackTop │
+└────┼─────┴─────────┴─────┼─────┴─────────────┴──────────┴──────────┘
+     │                     └──► free segment ──► free segment ──► …   (at most 64)
+     ▼
+region descriptor (calloc, 32 bytes)
+┌──────────┬───────────┬────────────┬───────────┐
+│ parent ● │ depth i32 │ firstSeg ● │ lastSeg ● │
+└────┼─────┴───────────┴─────┼──────┴─────┼─────┘
+     │                       │            └─────────────────────────┐
+     ▼                       ▼                                      ▼
+parent region         segment (512 bytes)         segment          segment (last)
+  …                   ┌────────┬──────────┐       ┌────────┐       ┌────────┐
+runtime region        │ next ● ├─────────────────►│ next ● ├─► … ─►│ null   │
+(depth 0)             │ count  │ pad      │       │ 62     │       │ k < 62 │
+                      ├────────┴──────────┤       ├────────┤       ├────────┤
+                      │ object 0 ●        │       │ …      │       │ …      │
+                      │ object 1 ●        │       │        │       │        │
+                      │ … 62 entries      │       │ full   │       │ partly │
+                      └─────────┼─────────┘       └────────┘       └────────┘
+                                ▼
+heap object (calloc), 8-byte slots
+┌─────────┬───────────────────────────┬────────┬────────┬─────
+│ cid i32 │ gc i32                    │ slot 1 │ slot 2 │ …
+│         │ normal [0|phys:15|req:16] │        │        │
+│         │ on path [1|cursor:31]     │        │        │
+└─────────┴───────────────────────────┴────────┴────────┴─────
+  class instance: itable, fields…      closure: apply, underlying
+  array: size, elements…               buffer: bytes, where Addr fields point
+```
+
+Static objects, such as string literals, parameter keys and the runtime state,
+are in no segment. Their `gc` half is 0, so they count as `phys = 0` and
+`req = 0`.
+
+When region `r` closes, the sweep packs the survivors into the front of its own
+segments. The full ones go to the front of the parent's list. The partly filled
+one tops up the parent's last segment, and what is left of it becomes the
+parent's new last segment. The other segments of `r` go back to the pool.
+
+```
+before close
+
+  parent:  first ─► [ A: 62 ] ─► [ B: 40 ] ◄─ last
+  r:       first ─► [ S1: 62 ] ─► [ S2: 30 ] ─► [ S3: 0 ] ◄─ last
+                     survivors, packed          emptied by the sweep
+
+after close
+
+  parent:  first ─► [ S1: 62 ] ─► [ A: 62 ] ─► [ B: 62 ] ─► [ S2: 8 ] ◄─ last
+                                                 +22 from S2
+  pool:    [ S3 ] ─► …
+  r:       descriptor freed
+```
+
+The parent again has only one partly filled segment, its last one. If `B` had
+room for all of `S2`, `S2` would go back to the pool and `B` would stay last.
+
 Codegen calls `Regions.enter` at the start of a region function and
 `Regions.leave` before each `ret`, passing the result or `null`. Both are
 `noinline`. The barrier `Regions.barrier` is an ordinary function, which LLVM
