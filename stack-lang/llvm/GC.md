@@ -39,8 +39,8 @@ every frame that can see it.
 honor it. Region functions are backend configuration instead:
 
 - `--region <function>` makes a function a region function. The flag can be
-  repeated, and a project can list region functions in `jo.toml`, like
-  `--link` mappings.
+  repeated. Listing region functions in `jo.toml`, like `--link` mappings, is
+  not implemented yet.
 
 The backend does not choose region functions itself. Users who want to reduce
 memory use pick them. Choosing them automatically is a separate concern that
@@ -163,9 +163,6 @@ Stores performed by the runtime also need the barrier:
 - `RefArray.set` writes array elements with `writeAddr`. It gets a
   barrier-aware primitive `writeRef`, which the 32-bit backends rewrite to a
   plain store.
-- Context parameters provided with `with ... in` are stored in runtime
-  structures. Those stores go through the barrier too.
-
 The barrier changes only the stored object. Propagation to its children is
 deferred to cleanup.
 
@@ -342,8 +339,10 @@ Usage:
 jo compile --llvm --region app.process --region app.step app.jo -o app
 ```
 
-The names are full names, as in `--link`. The compiler warns about a name that
-matches no compiled function.
+The names are full names, as in `--link`, and a method is named
+`pkg.Class.method`. The compiler warns about a name that matches no compiled
+function, and about a function of the runtime, which manages the regions and
+cannot open one.
 
 Tests: `tests/gc` checks that escaping objects survive, and
 `tests/custom/gc-regions` checks that memory is reclaimed. To check for memory
