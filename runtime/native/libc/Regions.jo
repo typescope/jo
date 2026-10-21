@@ -171,10 +171,22 @@ private section Regions
     else
       LibC.free seg
 
+  // A region descriptor, reusing a closed one if possible. Closed descriptors
+  // are linked through their parent field. Regions nest, so there are never
+  // more of them than the deepest nesting so far.
   private def newRegion(parent: Addr, depth: Int): Addr =
-    val r = callocOrAbort 32
+    val st = state
+    var r = st.regionPool
+    if isNull r then
+      r = callocOrAbort 32
+    else
+      st.regionPool = parentOf r
+
     writeAddr r parent
     writeInt (addAddr r 8) depth
+    setLastCount(r, 0)
+    setFirstSeg(r, nullAddr)
+    setLastSeg(r, nullAddr)
     r
 
   // A region gets its first segment on its first object
@@ -250,7 +262,10 @@ private section Regions
 
   private def close(r: Addr): Unit =
     if !(isNull (firstSeg r)) then sweep r
-    LibC.free r
+
+    val st = state
+    writeAddr r st.regionPool
+    st.regionPool = r
 
   // Free the dead objects of a region with segments, and hand the survivors
   // to its parent
