@@ -54,13 +54,13 @@ can be improved later without changing this design.
 
 ### The runtime region
 
-The runtime marks one region explicitly, the same way. Depth 0 is the runtime
-region. It holds what the runtime sets up before the program starts: singleton
-objects, program arguments and the standard streams. The entry `start` opens
-region 1 before it calls the user's `main` and closes it after.
+Depth 0 is the runtime region. It holds what the runtime sets up before the
+program starts, such as singleton objects, program arguments and the standard
+streams, and everything `main` allocates outside region functions. The runtime
+region never closes: the program exits instead, so freeing it would gain
+nothing.
 
-An object that escapes to depth 0 is held by runtime state, so it must live
-until the program exits.
+An object that escapes to depth 0 lives until the program exits.
 
 ### Tail-recursive functions
 
