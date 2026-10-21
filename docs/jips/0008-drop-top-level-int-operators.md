@@ -1,6 +1,6 @@
 ---
 author: Fengyun Liu
-status: Draft
+status: Accepted
 created: 2026-10-20
 title: Drop top-level Int operators
 ---
