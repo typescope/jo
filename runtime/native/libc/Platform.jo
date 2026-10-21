@@ -14,6 +14,10 @@ import jo.runtime.native.GC
 @intrinsic
 private def intToLong(a: Int): Long receives none = ...
 
+//[ The numeric value of an address //]
+@intrinsic
+private def addrToLong(a: Addr): Long receives none = ...
+
 private def exitImpl(code: Int): Bottom receives none = LibC.exit code
 
 private def writeFd(fd: Int, content: Addr, len: Int): Int receives none =
@@ -84,6 +88,10 @@ private class State
   // the pool of free region segments
   var segPool: Addr = nullAddr
   var segPoolSize: Int = 0
+
+  // the address range of the main stack, to recognize a stack overflow
+  var stackLow: Long = 0
+  var stackTop: Long = 0
 end
 
 @intrinsic
@@ -95,7 +103,7 @@ private def start(argc: Int, argv: Addr): Unit receives none =
   GC.init()
 
   // Install SIGSEGV handler so stack overflow prints a clear message.
-  installStackOverflowHandler()
+  installStackOverflowHandler(argv)
 
   // Must not use any global objects before batch initialization
   // (GC is now up but singleton objects are not yet initialized)
