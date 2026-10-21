@@ -6,6 +6,11 @@ DIR=$(dirname "$0")
 CLANG=${CLANG:-clang}
 export CLANG
 
+# The 32-bit backends (stac, reg) run only when NATIVE32 is set, as in the
+# weekly CI run. Otherwise LLVM is the only native backend.
+NATIVE32_MODES=${NATIVE32:+stac reg}
+REG_MODE=${NATIVE32:+reg}
+
 retcode=0
 failed_tests=()
 error_file=""
@@ -203,8 +208,6 @@ background_task() {
     bin/rbc  --report-time  tests/pos/fact.jo  || error "bin/rbc"
     bin/pyc  --report-time  tests/pos/fact.jo  || error "bin/pyc"
     bin/jsc  --report-time  tests/pos/fact.jo  || error "bin/jsc"
-    bin/stac --report-time  tests/pos/fact.jo  || error "bin/stac"
-    bin/regc --report-time  tests/pos/fact.jo  || error "bin/regc"
     bin/llvmc --clang "$CLANG" --report-time tests/pos/fact.jo || error "bin/llvmc"
     bin/jo.dev compile --ruby --report-time  tests/pos/fact.jo  || error "bin/jo.dev"
 
@@ -212,9 +215,14 @@ background_task() {
     bin/jo compile --ruby --report-time tests/pos/fact.jo || error "jo compile --ruby"
     bin/jo compile --python --report-time tests/pos/fact.jo || error "jo compile --python"
     bin/jo compile --js --report-time tests/pos/fact.jo || error "jo compile --js"
-    bin/jo compile --stack --report-time tests/pos/fact.jo || error "jo compile --stack"
-    bin/jo compile --reg --report-time tests/pos/fact.jo || error "jo compile --reg"
     bin/jo compile --llvm --clang "$CLANG" --report-time tests/pos/fact.jo || error "jo compile --llvm"
+
+    if [[ -n "$NATIVE32" ]]; then
+        bin/stac --report-time tests/pos/fact.jo || error "bin/stac"
+        bin/regc --report-time tests/pos/fact.jo || error "bin/regc"
+        bin/jo compile --stack --report-time tests/pos/fact.jo || error "jo compile --stack"
+        bin/jo compile --reg --report-time tests/pos/fact.jo || error "jo compile --reg"
+    fi
 
     # check doc
     #
@@ -316,12 +324,12 @@ background_task() {
     # Stdlib tests
 
 
-    run_suite "stdlib" "$DIR/tests/stdlib/*/*.jo" "eval js ruby python reg llvm"
+    run_suite "stdlib" "$DIR/tests/stdlib/*/*.jo" "eval js ruby python llvm $REG_MODE"
 
     ################################################################################
     # Performance tests
 
-    run_suite "performance" "$DIR/tests/performance/*.jo" "js ruby python reg"
+    run_suite "performance" "$DIR/tests/performance/*.jo" "js ruby python llvm $REG_MODE"
 
 }
 
@@ -338,7 +346,7 @@ start_background_task
 # Positive tests
 
 
-run_suite "positive" "$DIR/tests/pos/*" "eval stac reg llvm js ruby python"
+run_suite "positive" "$DIR/tests/pos/*" "eval llvm js ruby python $NATIVE32_MODES"
 
 
 ################################################################################
