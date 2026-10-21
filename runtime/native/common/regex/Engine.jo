@@ -124,7 +124,16 @@ section Engine
       atLineEnd: Bool): mutable.Map[Int, Thread] =
     val result: mutable.Map[Int, Thread] = mutable.Map()
     val work: mutable.Map[Int, Thread] = initial
-    val seen: mutable.Set[Int] = mutable.Set()
+
+    // The earliest start of the threads expanded from each state. Among
+    // threads with the same start, the first to reach a state wins. A thread
+    // that started earlier reaches it again, since the leftmost match wins.
+    val seen: mutable.Map[Int, Int] = mutable.Map()
+
+    def startsEarlier(t: Thread, state: Int): Bool =
+      match seen.getOpt(state)
+        case Some(start) => t.start < start
+        case None => true
 
     def follow(edge: Edge, t: Thread): Option[Int ~ Thread] =
       match edge.label
@@ -151,8 +160,8 @@ section Engine
       work.clear()
 
       for state ~ thread in todo do
-        if !seen.contains(state) then
-          seen += state
+        if startsEarlier(thread, state) then
+          seen[state] = thread.start
         assert(!thread.used, "thread should be free")
         if isActiveState(nfa, state) then
           keepBetter(result, state, thread.markUsed())
@@ -165,7 +174,7 @@ section Engine
           idx = idx + 1
           match follow(edge, t)
             case Some(nextState ~ nextThread) =>
-              if !result.contains(nextState) && !seen.contains(nextState) then
+              if startsEarlier(nextThread, nextState) then
                 keepBetter(work, nextState, nextThread)
             case None =>
               pass
