@@ -4,11 +4,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-10-22
+
 ### Changed
 
 - `List.join` uses native array joining on JavaScript, Ruby, and Python,
   avoiding quadratic string concatenation on Ruby and on Python with nonempty
-  separators.
+  separators. ([#171])
 
 ### Removed
 
@@ -16,8 +18,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `==`, and `!=` are removed. The `Int` methods remain. A lambda parameter
   whose type was inferred only from arithmetic or comparison, such as
   `x => x + 1` without an expected type, now needs a type annotation. See
-  [JIP-0008].
+  [JIP-0008]. ([#174])
 
+### Security
+
+- No security-relevant changes.
+
+### Compatibility
+
+- Programs that relied on the removed top-level `Int` operators no longer
+  type-check. This includes lambda parameters typed only through arithmetic
+  or comparison, and arithmetic with a `Char` on the left, such as
+  `c - '0'`, which resolved through the top-level functions because `Char`
+  widens to `Int`. Annotate the parameter, or convert explicitly with
+  `c.toInt - '0'.toInt`. ([#174])
+- SAST format 2.0 remains compatible in both directions with Jo 0.14.0 and
+  0.14.1. No published library depends on the removed operators, so existing
+  libraries do not require recompilation. Build specifications and `.joy`
+  package formats are unchanged.
+
+[#171]: https://github.com/typescope/jo/pull/171
+[#174]: https://github.com/typescope/jo/pull/174
 [JIP-0008]: https://jo-lang.org/jips/0008-drop-top-level-int-operators
 
 ## [0.14.1] - 2026-10-18
