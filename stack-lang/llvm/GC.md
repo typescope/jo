@@ -468,9 +468,12 @@ Usage:
 jo compile --llvm --region app.process --region app.step app.jo -o app
 ```
 
-The names are full names, as in `--link`, and a method is named
-`pkg.Class.method`. The compiler warns about a name that matches no compiled
-function, and about a function of the runtime, which manages the regions and
+The names are full names, as in `--link`. Only top-level functions, defined
+directly in a namespace or a section, can be region functions. Class methods
+cannot, because `pkg.C.f` could name either a method of class `C` or a function
+of section `C`. The driver resolves each name to a symbol before lowering, and
+codegen compares symbols. A name that matches no top-level function is an
+error, and so is a function of the runtime, which manages the regions and
 cannot open one.
 
 Tests: `tests/gc` checks that escaping objects survive, and
