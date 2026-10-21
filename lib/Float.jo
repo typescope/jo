@@ -6,10 +6,6 @@ import jo.compile.intrinsic
   !
   ! Float is a class (like String) to avoid operator namespace pollution.
   !
-  ! Not available on the 32-bit native backends: compiling any use of `Float`
-  ! with `--reg` or `--stack` fails with "Floating point not supported for
-  ! native backend". The 64-bit `--llvm` backend supports it.
-  !
   ! IEEE 754 semantics apply, so `0.0 / 0.0` is NaN and NaN compares false
   ! against every value, itself included.
 //]

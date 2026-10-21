@@ -1,0 +1,52 @@
+name: Weekly
+
+# The full test suite, including the 32-bit native backends (stac, reg),
+# which the CI run on each push skips.
+on:
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      LANG: en_US.UTF-8
+      LC_ALL: en_US.UTF-8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Ivy, Maven, Coursier
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.ivy2/cache
+            ~/.m2/repository
+            ~/.cache/coursier
+            ~/.cache/scalacli/local-repo
+            ~/.cache/bloop
+          key: build-cache-${{ hashFiles('project.scala') }}
+
+      # scala-cli also queries the Scala nightlies repository, which we never
+      # need. When that host stops responding, every lookup waits for a
+      # timeout and the job times out. Make those lookups fail immediately.
+      - name: Skip Scala nightlies repository
+        run: echo "127.0.0.1 repo.scala-lang.org" | sudo tee -a /etc/hosts
+
+      - uses: VirtusLab/scala-cli-setup@main
+        with:
+          jvm: liberica:17
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+
+      - name: build
+        run: ./build --native
+
+      - name: run tests
+        run: NATIVE32=1 ./ci

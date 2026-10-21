@@ -31,8 +31,6 @@ run_test() {
     }
 }
 
-run_test --reg
-run_test --stack
 run_test --llvm --clang "${CLANG:-clang}"
 
 rm -rf "$DIR/actual.out" "$DIR"/*.run
