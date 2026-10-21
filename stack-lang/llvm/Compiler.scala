@@ -1,6 +1,7 @@
 package llvm
 
 import sast.*
+import sast.Symbols.Symbol
 import phases.*
 
 import reporting.Reporter
@@ -116,17 +117,10 @@ object Compiler:
         val boxing = new Boxing(runtime)
         val encodeClass = new EncodeClass(runtime)
 
-        // The runtime manages the regions, so it cannot open one
-        val (runtimeRegions, regions) = regionFunctions.value.toSet.partition(_.startsWith("jo.runtime."))
-        for name <- runtimeRegions do
-          Reporter.warn(s"--region $name: a runtime function cannot be a region function")
+        val regions = regionFunctions.value.toSet.flatMap(resolveRegion)
 
         val codegen = Step("codegen", (units: List[sast.Trees.FileUnit]) =>
-          val gen = new CodeGen(runtime, regions)
-          val ir = gen.compile(units)
-          for name <- gen.unusedRegionFunctions do
-            Reporter.warn(s"--region $name: no function of this name is compiled")
-          ir
+          new CodeGen(runtime, regions).compile(units)
         )
         val clangStep = Step("clang", (ir: String) => link(ir, outFile))
 
@@ -139,6 +133,21 @@ object Compiler:
         codegen            |>
         clangStep
       } <| "Backend"
+
+  /** The top-level function named by `--region name` */
+  def resolveRegion(name: String)(using defn: Definitions, rp: Reporter): Option[Symbol] =
+    defn.resolveTermOpt(name) match
+      // The runtime manages the regions, so it cannot open one
+      case Some(sym) if sym.fullName.startsWith("jo.runtime.") =>
+        Reporter.error(s"--region $name: a runtime function cannot be a region function")
+        None
+
+      case Some(sym) if sym.is(Flags.Fun) && sym.isTopLevel =>
+        Some(sym)
+
+      case _ =>
+        Reporter.error(s"--region $name: no top-level function of this name")
+        None
 
   /** Compile the IR with clang into an executable */
   def link(ir: String, outFile: String)(using Config, Reporter): Unit =

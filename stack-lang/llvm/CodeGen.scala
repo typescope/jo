@@ -23,13 +23,8 @@ import scala.collection.mutable
   * Locals and parameters live in `alloca` slots of the entry block. LLVM
   * promotes them to registers.
   */
-class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[String])(using defn: Definitions):
+class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol])(using defn: Definitions):
   import CodeGen.*
-
-  /** Region functions that were compiled */
-  private val compiledRegions = mutable.Set.empty[String]
-
-  def unusedRegionFunctions: Set[String] = regionFunctions -- compiledRegions
 
   /** Worklist to add all reachable functions */
   private val workList = new WorkList[Symbol]
@@ -332,10 +327,7 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[String])(using defn: De
 
     given ctx: FunContext = new FunContext(sym)
 
-    // A lifted method `pkg.Class$method` is named `pkg.Class.method`
-    val regionName = sym.fullName.replace('$', '.')
-    if regionFunctions.contains(regionName) then
-      compiledRegions += regionName
+    if regionFunctions.contains(sym) then
       ctx.isRegion = true
       callFun(runtime.Regions_enter, Nil)
 
