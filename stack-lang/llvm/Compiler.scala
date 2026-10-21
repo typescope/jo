@@ -116,7 +116,11 @@ object Compiler:
         val boxing = new Boxing(runtime)
         val encodeClass = new EncodeClass(runtime)
 
-        val regions = regionFunctions.value.toSet
+        // The runtime manages the regions, so it cannot open one
+        val (runtimeRegions, regions) = regionFunctions.value.toSet.partition(_.startsWith("jo.runtime."))
+        for name <- runtimeRegions do
+          Reporter.warn(s"--region $name: a runtime function cannot be a region function")
+
         val codegen = Step("codegen", (units: List[sast.Trees.FileUnit]) =>
           val gen = new CodeGen(runtime, regions)
           val ir = gen.compile(units)
@@ -138,17 +142,21 @@ object Compiler:
 
   /** Compile the IR with clang into an executable */
   def link(ir: String, outFile: String)(using Config, Reporter): Unit =
-    val llFile = outFile + ".ll"
-    IO.writeFile(llFile, ir.getBytes("UTF-8"))
-
     val cc = clang.value
-    val version = clangMajorVersion(cc)
+    val version = clangMajorVersion(cc) match
+      case Some(version) => version
+      case None =>
+        Reporter.error(s"Cannot run $cc. The LLVM backend needs clang 15 or newer, which --clang selects.")
+        return
 
     // clang 14 reads opaque pointers only behind a flag, and its optimizer
     // crashes on them. Unoptimized builds work.
     if version < 15 && optLevel.value != "0" then
       Reporter.error(s"The LLVM backend needs clang 15 or newer for optimized builds, found clang $version. Install a newer clang or pass --opt 0.")
       return
+
+    val llFile = outFile + ".ll"
+    IO.writeFile(llFile, ir.getBytes("UTF-8"))
 
     val opaquePointers =
       if version < 15 then List("-mllvm", "-opaque-pointers") else Nil
@@ -164,10 +172,14 @@ object Compiler:
     if status != 0 then
       Reporter.error(s"clang failed with exit code $status:\n$output")
 
-  def clangMajorVersion(cc: String): Int =
-    val version = List(cc, "--version").!!
-    val pattern = raw"version (\d+)\.".r
-    pattern.findFirstMatchIn(version) match
-      case Some(m) => m.group(1).toInt
-      case None => 0
+  /** The major version of clang, or `None` if it cannot be run */
+  def clangMajorVersion(cc: String): Option[Int] =
+    try
+      val version = List(cc, "--version").!!
+      val pattern = raw"version (\d+)\.".r
+      pattern.findFirstMatchIn(version) match
+        case Some(m) => Some(m.group(1).toInt)
+        case None => Some(0)
+    catch
+      case _: Exception => None
 end Compiler
