@@ -37,6 +37,7 @@ class LLVMRuntime(val rewire: Map[Symbol, Symbol])(using defn: Definitions):
   val Core_sameRef   = Native.termMember("sameRef")
   val Core_wordSize  = Native.termMember("wordSize")
   val Core_intToLong = Native.termMember("intToLong")
+  val Core_addrToLong = Native.termMember("addrToLong")
 
   val Core_findInterfaceMethod = Native.termMember("findInterfaceMethod")
   val Core_getInterfaceTable   = Native.termMember("getInterfaceTable")

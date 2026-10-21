@@ -853,6 +853,8 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[String])(using defn: De
 
       case runtime.Core_intToLong => coerce(args.head, "i64")
 
+      case runtime.Core_addrToLong => coerce(args.head, "i64")
+
       case runtime.Core_cast => coerce(args.head, "ptr")
 
       case _ =>
