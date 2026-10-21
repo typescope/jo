@@ -40,6 +40,9 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[String])(using defn: De
   /** Static string objects of string constants */
   private val stringTable = mutable.LinkedHashMap.empty[String, String]
 
+  /** Static keys of context parameters, by full name */
+  private val paramKeys = mutable.LinkedHashMap.empty[String, String]
+
   /** Declarations of C functions */
   private val cDecls = mutable.LinkedHashMap.empty[String, String]
 
@@ -82,6 +85,9 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[String])(using defn: De
 
     for (value, name) <- stringTable do
       module ++= staticStringGlobals(name, value)
+
+    for (fullName, name) <- paramKeys do
+      module ++= paramKeyGlobal(name, fullName)
 
     for holder <- runtime.objectHolders do
       module ++= s"$holder = internal global ptr null, align 8\n"
@@ -193,6 +199,22 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[String])(using defn: De
       case "ptr" | "i64" => (value.ty, value.text)
       case "i32" => ("i32, i32", s"${value.text}, i32 0")
       case ty => throw new Exception("Unsupported static slot type: " + ty)
+
+  /** The key of a context parameter, an address unique to the parameter */
+  def paramKey(fullName: String): String =
+    val name = paramKeys.getOrElseUpdate(fullName, "@key." + paramKeys.size)
+    s"getelementptr inbounds (i8, ptr $name, i64 ${Layout.SlotSize})"
+
+  /** A static buffer holding the name of a context parameter as `[size: i32][bytes]`
+    *
+    * The key points past the header, like any `Addr` field. The runtime reads
+    * the name with `StringOps.fromByteString` to report an unbound parameter.
+    */
+  def paramKeyGlobal(name: String, fullName: String): String =
+    val bytes = fullName.getBytes("UTF-8")
+    val n = bytes.length
+    s"$name = private constant <{ i32, i32, i32, [$n x i8] }> " +
+    s"<{ i32 ${runtime.BufferClassId}, i32 0, i32 $n, [$n x i8] c\"${escapeBytes(bytes)}\" }>, align 8\n"
 
   /** Pointer layout of every class id, for the garbage collector
     *
@@ -733,7 +755,7 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[String])(using defn: De
         case Encoded(Apply(_, Ident(paramSym) :: Nil, Nil)) => paramSym
         case arg => throw new Exception("Unsupported argument to paramKey: " + arg)
 
-      V("ptr", stringContent(paramSym.fullName))
+      V("ptr", paramKey(paramSym.fullName))
 
     else if sym == runtime.Core_state then
       V("ptr", StateGlobal)
