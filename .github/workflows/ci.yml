@@ -44,6 +44,12 @@ jobs:
             ~/.cache/bloop
           key: build-cache-${{ hashFiles('project.scala') }}
 
+      # scala-cli also queries the Scala nightlies repository, which we never
+      # need. When that host stops responding, every lookup waits for a
+      # timeout and the job times out. Make those lookups fail immediately.
+      - name: Skip Scala nightlies repository
+        run: echo "127.0.0.1 repo.scala-lang.org" | sudo tee -a /etc/hosts
+
       - uses: VirtusLab/scala-cli-setup@main
         with:
           jvm: liberica:17
