@@ -118,7 +118,12 @@ allocates raw byte buffers, for example in `StringOps.bytes`, `floatToStr` and
 
 A string's `content` field points into its buffer, past the header. The layout
 table marks such a slot as interior with a fixed offset, and the trace
-subtracts the offset to find the object.
+subtracts the offset to find the object. Every `Addr` field is such a slot,
+so an `Addr` stored in a heap object must point into a buffer or a static
+buffer, never into C memory or past the start of the content. The trace checks
+the class id of the buffer and stops the program if the rule is broken.
+Buffers hold no pointers, so the trace lowers them without descending, and an
+interior slot is never reversed.
 
 `malloc` keeps object addresses stable and frees objects one at a time. A
 size-class allocator can replace it later without changing the design.
@@ -240,14 +245,15 @@ lower(root, d):
     i = cur.cursor
     if i < pointerCount(cur):
       c = field(cur, i)
-      if c != null and not c.onPath and c.phys == depth(r) and c.req > d:
+      if c != null and not c.onPath and c.phys == depth(r) and c.req > d
+          and pointerCount(c) > 0:
         field(cur, i) = prev      // reverse the edge
         prev = cur
         cur = c
         cur.gc = onPath(cursor = 0)
       else:
         if c != null and not c.onPath and c.req > d:
-          c.req = d               // in an ancestor: lower only
+          c.req = d               // in an ancestor or a leaf: lower only
         cur.cursor = i + 1
     else:
       cur.gc = normal(phys = depth(r), req = d)
