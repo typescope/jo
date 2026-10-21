@@ -118,9 +118,15 @@ private section Regions
 
   private def segEntry(s: Addr, i: Int): Addr = addAddr s (16 + i * wordSize)
 
+  // Out of memory: report without allocating, since `abort` builds its
+  // message on the heap
+  private def outOfMemory(): Bottom =
+    writeString: 2, cast[StringRepr] "Out of memory\n"
+    LibC.exit 1
+
   private def callocOrAbort(size: Int): Addr =
     val mem = LibC.calloc 1 size.toLong
-    if isNull mem then abort "Unable to alloc memory from system"
+    if isNull mem then outOfMemory()
     mem
 
   private def newSegment(): Addr = callocOrAbort (16 + segCapacity * wordSize)
