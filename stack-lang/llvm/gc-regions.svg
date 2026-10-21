@@ -27,33 +27,42 @@
 
   <!-- runtime state -->
   <text x="20" y="62" class="label">@runtime.state (static global, zeroed)</text>
-  <rect x="20" y="70" width="570" height="40" class="static"/>
-  <line x1="115" y1="70" x2="115" y2="110" class="div"/>
-  <line x1="210" y1="70" x2="210" y2="110" class="div"/>
-  <line x1="305" y1="70" x2="305" y2="110" class="div"/>
-  <line x1="400" y1="70" x2="400" y2="110" class="div"/>
-  <line x1="495" y1="70" x2="495" y2="110" class="div"/>
-  <text x="34" y="95" class="t">region</text><circle cx="98" cy="90" r="3.5" class="dot"/>
-  <text x="130" y="95" class="t">skipped</text>
-  <text x="222" y="95" class="t">segPool</text><circle cx="290" cy="90" r="3.5" class="dot"/>
-  <text x="313" y="95" class="t">segPoolSize</text>
-  <text x="414" y="95" class="t">stackLow</text>
-  <text x="509" y="95" class="t">stackTop</text>
+  <rect x="20" y="70" width="680" height="40" class="static"/>
+  <line x1="110" y1="70" x2="110" y2="110" class="div"/>
+  <line x1="195" y1="70" x2="195" y2="110" class="div"/>
+  <line x1="290" y1="70" x2="290" y2="110" class="div"/>
+  <line x1="390" y1="70" x2="390" y2="110" class="div"/>
+  <line x1="500" y1="70" x2="500" y2="110" class="div"/>
+  <line x1="600" y1="70" x2="600" y2="110" class="div"/>
+  <text x="32" y="95" class="t">region</text><circle cx="98" cy="90" r="3.5" class="dot"/>
+  <text x="124" y="95" class="t">skipped</text>
+  <text x="207" y="95" class="t">segPool</text><circle cx="275" cy="90" r="3.5" class="dot"/>
+  <text x="300" y="95" class="t">segPoolSize</text>
+  <text x="400" y="95" class="t">regionPool</text><circle cx="485" cy="90" r="3.5" class="dot"/>
+  <text x="514" y="95" class="t">stackLow</text>
+  <text x="614" y="95" class="t">stackTop</text>
+
+  <!-- descriptor free list -->
+  <text x="730" y="56" class="label">closed descriptors</text>
+  <path d="M485,110 L485,122 L712,122 L712,80 L728,80" class="edge"/>
+  <rect x="730" y="64" width="80" height="32" class="box"/>
+  <text x="742" y="85" class="t">descriptor</text>
+  <path d="M810,80 L828,80" class="edge"/>
+  <text x="834" y="85" class="t">… deepest nesting</text>
 
   <!-- segment pool -->
-  <path d="M290,110 L290,128 L640,128 L640,112" class="edge"/>
-  <rect x="610" y="72" width="80" height="36" class="empty"/>
-  <text x="623" y="95" class="t">free seg</text>
-  <path d="M690,90 L718,90" class="edge"/>
-  <rect x="720" y="72" width="80" height="36" class="empty"/>
-  <text x="733" y="95" class="t">free seg</text>
-  <path d="M800,90 L828,90" class="edge"/>
-  <text x="834" y="95" class="t">… at most 64</text>
-  <text x="610" y="62" class="label">segment pool</text>
+  <text x="730" y="114" class="label">segment pool</text>
+  <path d="M275,110 L275,140 L720,140 L720,136 L728,136" class="edge"/>
+  <rect x="730" y="120" width="80" height="32" class="empty"/>
+  <text x="743" y="141" class="t">free seg</text>
+  <path d="M810,136 L828,136" class="edge"/>
+  <rect x="830" y="120" width="80" height="32" class="empty"/>
+  <text x="843" y="141" class="t">free seg</text>
+  <text x="834" y="172" class="t">… at most 64</text>
 
   <!-- region descriptor -->
   <path d="M98,90 L98,168" class="edge"/>
-  <text x="110" y="160" class="label">current region: descriptor (calloc, 32 bytes)</text>
+  <text x="110" y="160" class="label">current region: descriptor (32 bytes)</text>
   <rect x="20" y="170" width="560" height="40" class="box"/>
   <line x1="130" y1="170" x2="130" y2="210" class="div"/>
   <line x1="240" y1="170" x2="240" y2="210" class="div"/>
@@ -165,7 +174,7 @@
   <rect x="610" y="794" width="80" height="28" class="empty"/><text x="637" y="813" class="t">S3</text>
   <path d="M690,808 L718,808" class="edge"/>
   <text x="724" y="813" class="t">…</text>
-  <text x="560" y="848" class="t">r: descriptor freed</text>
+  <text x="560" y="848" class="t">r: descriptor to the free list</text>
 
   <text x="20" y="880" class="label">The full survivor segments go to the front of the parent's list. The partly filled one tops up the parent's last segment,</text>
   <text x="20" y="898" class="label">and what is left of it becomes the new last segment. Empty segments return to the pool. The parent again has only one partly</text>
