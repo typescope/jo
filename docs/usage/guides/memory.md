@@ -88,10 +88,12 @@ maximum resident set size and the running time.
 
 ## Notes
 
-- Methods are named `namespace.Class.method`, for example
-  `--region app.Parser.parse`.
-- The compiler warns about a name that matches no compiled function.
-- Functions of the runtime cannot be region functions.
+- Only top-level functions can be region functions, named with their
+  namespace, for example `--region app.handleRequest`. A function in a section
+  is named `namespace.Section.function`. Class methods cannot be region
+  functions: call a top-level function from the method instead.
+- A name that matches no top-level function, or names a function of the
+  runtime, is a compile error.
 - Garbage created inside one long-running loop is freed only when the function
   that runs the loop returns. Move the loop body into a function and make that
   function a region.

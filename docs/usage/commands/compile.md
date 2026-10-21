@@ -118,8 +118,8 @@ LLVM IR and calls clang 15 or newer to build it.
 | `--keep-ll` | Keep the generated `.ll` file next to the executable |
 | `--region <function>` | Run each call of `<function>` in a memory region of its own (can be repeated) |
 
-`--region` takes a full name such as `app.process`, or `app.Parser.parse` for a
-method. It lowers the peak memory of long-running programs and never changes
+`--region` takes the full name of a top-level function, such as `app.process`.
+Class methods cannot be region functions. It lowers the peak memory of long-running programs and never changes
 what a program computes. See [Memory in Native Programs](../guides/memory.md).
 
 The backend has no foreign function interface. A program can read its
