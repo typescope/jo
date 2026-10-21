@@ -1,0 +1,19 @@
+namespace gcapp
+
+// Each call of `step` returns one small object to its caller. The survivors
+// themselves need a few MB, so handing them to the parent region must not
+// cost much more than the objects.
+
+class Box(value: Int)
+
+def step(seed: Int): Box =
+  new Box(seed)
+
+def main =
+  var total = 0
+  var k = 0
+  while k < 200000 do
+    total = (total + step(k).value) % 1000003
+    k = k + 1
+  end
+  println total

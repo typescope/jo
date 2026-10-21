@@ -80,6 +80,10 @@ private class State
   // regions: the current region and the `enter` calls merged at the depth limit
   var region: Addr = nullAddr
   var skipped: Int = 0
+
+  // the pool of free region segments
+  var segPool: Addr = nullAddr
+  var segPoolSize: Int = 0
 end
 
 @intrinsic
