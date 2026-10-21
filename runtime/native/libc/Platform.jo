@@ -89,6 +89,9 @@ private class State
   var segPool: Addr = nullAddr
   var segPoolSize: Int = 0
 
+  // closed region descriptors kept for reuse
+  var regionPool: Addr = nullAddr
+
   // the address range of the main stack, to recognize a stack overflow
   var stackLow: Long = 0
   var stackTop: Long = 0
