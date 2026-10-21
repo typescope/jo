@@ -194,7 +194,7 @@ object Format:
   // Update this table when releasing a compiler with a new SAST format.
   private val compilerCompatibility: Map[(Int, Int), String] = Map(
     (1, 1) -> "Jo 0.13.x",
-    (2, 0) -> "Jo 0.14.x"
+    (2, 0) -> "Jo 0.14.x and 0.15.x"
   )
 
   def incompatibleVersionMessage(major: Int, minor: Int): String =
