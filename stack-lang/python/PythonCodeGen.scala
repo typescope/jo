@@ -1319,7 +1319,7 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
         (stats, P.BinOp(qualExpr, name, argExpr))
 
-      case "toInt" =>
+      case "toInt" | "truncateToLong" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.Call(None, "int", List(expr)))
 

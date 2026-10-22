@@ -68,6 +68,23 @@ class Float
   @intrinsic
   def toInt: Int = ...
 
+  //[ Truncate toward zero to a signed 64-bit integer.
+    !
+    ! Values at or above 2^63, including positive infinity, return 2^63 - 1.
+    ! Values at or below -2^63, including negative infinity, return -2^63.
+    ! NaN returns 0. Both positive and negative finite values are supported.
+  //]
+  def toLong: Long =
+    if this != this then 0
+    else if this >= 9223372036854775808.0 then 9223372036854775807
+    else if this <= -9223372036854775808.0 then -9223372036854775808
+    else this.truncateToLong
+
+  // Convert a finite value strictly between -2^63 and 2^63.
+  // `toLong` handles NaN and saturation before calling this primitive.
+  @intrinsic
+  private def truncateToLong: Long = ...
+
   //[ Decimal representation. The exact spelling is backend dependent: the JavaScript backend prints `7` where the others print `7.0`. //]
   @intrinsic
   def toString: String = ...

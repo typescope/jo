@@ -741,6 +741,10 @@ object Interpreter:
                   assert(argVals.isEmpty)
                   IntVal(floatVal.value.toInt) :: Nil
 
+                else if name == "truncateToLong" then
+                  assert(argVals.isEmpty)
+                  LongVal(floatVal.value.toLong) :: Nil
+
                 else if name == "~-" then
                   assert(argVals.isEmpty)
                   FloatVal(-floatVal.value) :: Nil

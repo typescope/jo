@@ -894,7 +894,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         val arg :: Nil = args: @unchecked
         R.BinOp(compileExpr(qual), name, compileExpr(arg))
 
-      case "toInt" =>
+      case "toInt" | "truncateToLong" =>
         R.Select(compileExpr(qual), "to_i")
 
       case "~-" =>

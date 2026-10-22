@@ -1,0 +1,42 @@
+def show(value: Float): Unit = println value.toLong
+
+def main =
+  show(0.0)
+  show(-0.0)
+  show(0.9)
+  show(-0.9)
+  show(2.7)
+  show(-2.7)
+  show(2147483647.9)
+  show(2147483648.9)
+  show(-2147483649.9)
+  show(4294967295.9)
+  show(4294967296.9)
+  show(-4294967296.9)
+  show(9007199254740991.0)
+  show(9007199254740992.0)
+  show(-9007199254740992.0)
+  show(9223372036854774784.0)
+  show(-9223372036854774784.0)
+  show(9223372036854775808.0)
+  show(-9223372036854775808.0)
+  show(9223372036854777856.0)
+  show(-9223372036854777856.0)
+  show(1.0e300)
+  show(-1.0e300)
+  val infinity = Float.parse("1e999").success
+  show(infinity)
+  show(-infinity)
+  show(infinity - infinity)
+  show(5.0e-324)
+  show(-5.0e-324)
+
+  val calls = Array.fill(1, 0)
+  val source: () => Float = () =>
+    calls[0] = calls[0] + 1
+    -12.75
+
+  println source().toLong
+  println calls[0]
+  println (source().toLong + source().toLong)
+  println calls[0]
