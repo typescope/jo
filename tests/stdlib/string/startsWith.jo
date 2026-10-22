@@ -19,3 +19,17 @@ def testStartsWith =
   println s.startsWith("\u{1F680}")            // true
   println s.startsWith("a")                   // false
 
+  // Empty strings, exact matches, and a mismatch after a shared prefix.
+  println "".startsWith("")                   // true
+  println "".startsWith("a")                  // false
+  println "hello".startsWith("hello")         // true
+  println "hello".startsWith("help")          // false
+  println "ababc".startsWith("abc")           // false, despite a later match
+
+  // Preserve code point boundaries and embedded NUL characters.
+  println "é\u{1F680}abc".startsWith("é\u{1F680}a") // true
+  println "é\u{1F680}".startsWith("é\u{1F680}a")    // false
+  println "\u{1F680}a".startsWith("\u{1F681}")     // false
+  println "a\u{0}b".startsWith("a\u{0}")           // true
+  println "a\u{0}b".startsWith("a\u{0}c")          // false
+

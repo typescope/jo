@@ -142,10 +142,17 @@ class String
   //[ True if `other` appears in this string.    //]
   def contains(other: String): Bool = this.indexOf(other) >= 0
 
-  //[ True if string starts with `prefix`.    //]
+  //[ True if string starts with `prefix`. Stops at the first unequal code point. //]
   def startsWith(prefix: String): Bool =
-    val pLen = prefix.size
-    pLen <= this.size && this.indexOf(prefix) == 0
+    val source = this.iterator
+    val start = prefix.iterator
+    var matches = true
+
+    while matches && start.hasNext do
+      matches = source.hasNext && source.next == start.next
+    end
+
+    matches
 
   //[ True if string ends with `suffix`.    //]
   def endsWith(suffix: String): Bool =

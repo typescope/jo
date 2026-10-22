@@ -4,6 +4,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `String.startsWith` stops comparing at the first unequal code point, avoiding
+  full-string searches and quadratic failed prefix checks on JavaScript.
+
 ## [0.14.2] - 2026-10-22
 
 ### Changed
