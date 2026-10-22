@@ -1,0 +1,162 @@
+namespace jo
+
+private section FloatFormatting
+  //[ Validate the format specification and return its precision. //]
+  def precision(spec: String): Int =
+    val chars = spec.iterator
+    if !chars.hasNext || chars.next != '.' then abort "Invalid Float format specification"
+
+    var precision = 0
+    var count = 0
+
+    while chars.hasNext do
+      val c = chars.next
+
+      if !chars.hasNext then
+        if count == 0 || (c != 'f' && c != 'e') then abort "Invalid Float format specification"
+        return precision
+      end
+
+      if c < '0' || c > '9' then abort "Invalid Float format specification"
+      precision = precision * 10 + c.toInt - '0'.toInt
+      if precision > 10000 then abort "Float format precision must be between 0 and 10000"
+      count = count + 1
+    end
+
+    abort "Invalid Float format specification"
+
+  //[ The magnitude of a finite value as an exact decimal coefficient and point.
+    !
+    ! `bits` is the IEEE 754 binary64 representation of the value. The result
+    ! satisfies x = integer(digits) * 10^(point - digits.size), where x is
+    ! the magnitude of the value.
+    !
+    ! Like numbers' scaledRound, first recover the exact binary rational value.
+    ! Since its denominator is a power of two, multiplying by a power of five
+    ! gives a terminating decimal; rounding then only needs digit inspection.
+  //]
+  def exactDigits(bits: Long): String ~ Int =
+    val biasedExponent = ((bits >> 52) & 2047).toInt
+    var significand = bits & 4503599627370495
+    var exponent = -1074
+
+    if biasedExponent != 0 then
+      significand = significand | 4503599627370496
+      exponent = biasedExponent - 1075
+    end
+
+    if significand == 0 then return "0" ~ 1
+
+    while significand % 2 == 0 do
+      significand = significand / 2
+      exponent = exponent + 1
+    end
+
+    // Binary64 coefficients have fewer than 800 decimal digits. Base 10^9
+    // limbs and chunks of 5^12 or 2^29 keep every product plus carry below
+    // 5.37 * 10^17, within Long range. Each multiplier is below the limb base,
+    // so the final carry also fits one limb.
+    val limbs = Array.fill(128, 0)
+    var size = 0
+
+    while significand > 0 do
+      limbs[size] = (significand % 1000000000).toInt
+      significand = significand / 1000000000
+      size = size + 1
+    end
+
+    val scale = if exponent < 0 then -exponent else 0
+    var power = if exponent < 0 then -exponent else exponent
+    val factor = if exponent < 0 then 5 else 2
+    val chunk = if exponent < 0 then 12 else 29
+
+    while power > 0 do
+      val steps = power.min(chunk)
+      var multiplier = 1
+
+      for i in 0 until steps do
+        multiplier = multiplier * factor
+      end
+
+      var carry = 0
+      var i = 0
+
+      while i < size do
+        val product = limbs[i].toLong * multiplier.toLong + carry.toLong
+        limbs[i] = (product % 1000000000).toInt
+        carry = (product / 1000000000).toInt
+        i = i + 1
+      end
+
+      if carry != 0 then
+        limbs[size] = carry
+        size = size + 1
+      end
+
+      power = power - steps
+    end
+
+    val parts = List.builder[String]()
+    parts += limbs[size - 1].toString
+    var i = size - 2
+
+    while i >= 0 do
+      val text = limbs[i].toString
+      parts += ("0" * (9 - text.size) + text)
+      i = i - 1
+    end
+
+    val digits = parts.result.join("")
+    digits ~ (digits.size - scale)
+
+  //[ Round a decimal coefficient to `keep` leading digits, ties to even.
+    !
+    ! A carry may produce keep + 1 digits. Positions before the first digit
+    ! are implicit zeros; padding only happens after the exact rounding.
+  //]
+  def rounded(digits: String, keep: Int): String =
+    if keep >= digits.size then return digits + "0" * (keep - digits.size)
+    if keep < 0 then return "0"
+
+    val next = digits[keep]
+    var sticky = false
+    var i = keep + 1
+
+    while i < digits.size && !sticky do
+      sticky = digits[i] != '0'
+      i = i + 1
+    end
+
+    val odd = keep > 0 && (digits[keep - 1].toInt - '0'.toInt) % 2 == 1
+    val up = next > '5' || (next == '5' && (sticky || odd))
+    if !up then return if keep == 0 then "0" else digits.substring(0, keep)
+
+    var last = keep - 1
+
+    while last >= 0 && digits[last] == '9' do
+      last = last - 1
+    end
+
+    if last < 0 then "1" + "0" * keep
+    else digits.substring(0, last) + (digits[last].toInt - '0'.toInt + 1).toString + "0" * (keep - last - 1)
+
+  //[ Fixed notation from an exact coefficient and decimal-point position. //]
+  def fixed(digits: String, point: Int, precision: Int): String =
+    val text = rounded(digits, point + precision)
+    val padded = "0" * (precision + 1 - text.size) + text
+    val whole = padded.substring(0, padded.size - precision)
+    if precision == 0 then whole
+    else whole + "." + padded.substring(padded.size - precision, precision)
+
+  //[ Scientific notation from an exact coefficient and decimal-point position. //]
+  def scientific(digits: String, point: Int, precision: Int): String =
+    val keep = precision + 1
+    val text = rounded(digits, keep)
+    val carry = text.size > keep
+    val coefficient = if carry then text.substring(0, keep) else text
+    val exponent = if digits == "0" then 0 else point - 1 + (if carry then 1 else 0)
+    val whole = coefficient.substring(0, 1)
+    val mantissa = if precision == 0 then whole else whole + "." + coefficient.substring(1, precision)
+    val ed = (if exponent < 0 then -exponent else exponent).toString
+    mantissa + "e" + (if exponent < 0 then "-" else "+") + (if ed.size < 2 then "0" else "") + ed
+end

@@ -1329,6 +1329,13 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val integral = P.Call(Some(module), "floor", List(expr))
         (stats, P.Call(None, "float", List(integral)))
 
+      case "toBits" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        val module = P.Ident(runtime.getOrCreateModuleId("struct"))
+        val packed = P.Call(Some(module), "pack", List(P.StringLit(">d"), expr))
+        val unpacked = P.Call(Some(module), "unpack", List(P.StringLit(">q"), packed))
+        (stats, P.Index(unpacked, P.IntLit(0)))
+
       case "~-" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.UnaryOp("-", expr))

@@ -749,6 +749,10 @@ object Interpreter:
                   assert(argVals.isEmpty)
                   FloatVal(math.floor(floatVal.value)) :: Nil
 
+                else if name == "toBits" then
+                  assert(argVals.isEmpty)
+                  LongVal(java.lang.Double.doubleToRawLongBits(floatVal.value)) :: Nil
+
                 else if name == "~-" then
                   assert(argVals.isEmpty)
                   FloatVal(-floatVal.value) :: Nil
