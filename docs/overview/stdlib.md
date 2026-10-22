@@ -31,8 +31,6 @@ Create: `"hello"`, `"hello \{name}"` (interpolation), `"""` for multi-line (cont
 - `.toLower`, `.toUpper`: String
 - `.replace(target, replacement)`: String — replace all occurrences
 - `.split(separator)`: List[String]
-- `.words`: List[String] — split on runs of ASCII whitespace (the same six
-  characters as `trim`), dropping empty pieces
 - `.splitBy(pat: Regex)`: List[String]
 - `.lines`: List[String]
 - `.toInt`: Int (aborts on invalid input)

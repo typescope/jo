@@ -6,8 +6,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- `String.words` splits on runs of ASCII whitespace, as with `trim`, without
-  empty pieces.
 - `Array.iterator` supports direct `for` loops over arrays.
 - `Float.toLong` truncates toward zero, saturates at the signed 64-bit limits,
   and returns zero for NaN.
