@@ -1,0 +1,20 @@
+def main =
+  val inputs = IO.args
+  var i = 0
+
+  while i < inputs.size do
+    // Prefix arguments so negative values and empty specs pass through eval's
+    // compiler option parser as ordinary nonempty positional arguments.
+    val raw = inputs[i]
+    val text = raw.substring(1, raw.size - 1)
+    val format = inputs[i + 1]
+    val spec = format.substring(1, format.size - 1)
+    val value =
+      if text == "nan" then
+        val infinity = Float.parse("1e999").success
+        infinity - infinity
+      else if text == "inf" then Float.parse("1e999").success
+      else text.toFloat
+    println value.format(spec)
+    i = i + 2
+  end

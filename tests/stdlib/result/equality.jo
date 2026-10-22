@@ -1,0 +1,64 @@
+class Item(id: Int, label: String)
+  def ==(other: Item): Bool = this.id == other.id
+
+def main =
+  val ok: Result[Int, String] = Ok(1)
+  val sameOk: Result[Int, String] = Ok(1)
+  val differentOk: Result[Int, String] = Ok(2)
+  val err: Result[Int, String] = Err("oops")
+  val sameErr: Result[Int, String] = Err("oops")
+  val differentErr: Result[Int, String] = Err("other")
+  println (ok == sameOk)
+  println (ok != sameOk)
+  println (ok == differentOk)
+  println (ok != differentOk)
+  println (err == sameErr)
+  println (err != sameErr)
+  println (err == differentErr)
+  println (err != differentErr)
+  println (ok == err)
+  println (err == ok)
+  println (ok != err)
+  println (err != ok)
+
+  val itemOk: Result[Item, Item] = Ok(new Item(1, "a"))
+  val otherItemOk: Result[Item, Item] = Ok(new Item(1, "b"))
+  val itemErr: Result[Item, Item] = Err(new Item(2, "a"))
+  val otherItemErr: Result[Item, Item] = Err(new Item(2, "b"))
+  println (itemOk == otherItemOk)
+  println (itemErr == otherItemErr)
+  println ([ok, err] == [sameOk, sameErr])
+  val optional: Option[Result[Int, String]] = Some(ok)
+  println (optional == Some(sameOk))
+  val nested: Result[Option[Int], List[Int]] = Ok(Some(1))
+  val sameNested: Result[Option[Int], List[Int]] = Ok(Some(1))
+  val nestedErr: Result[Option[Int], List[Int]] = Err([1, 2])
+  val sameNestedErr: Result[Option[Int], List[Int]] = Err([1, 2])
+  println (nested == sameNested)
+  println (nestedErr == sameNestedErr)
+  testCustomEquality()
+
+def testCustomEquality =
+  val comparisons = Array.fill(2, 0)
+  auto eqInt: Eq[Int] = (a, b) =>
+    comparisons[0] = comparisons[0] + 1
+    a % 10 == b % 10
+
+  auto eqString: Eq[String] = (a, b) =>
+    comparisons[1] = comparisons[1] + 1
+    a.toLower == b.toLower
+
+  val ok: Result[Int, String] = Ok(1)
+  val sameOk: Result[Int, String] = Ok(11)
+  val err: Result[Int, String] = Err("oops")
+  val sameErr: Result[Int, String] = Err("OOPS")
+  println (ok != err)
+  println (err != ok)
+  println comparisons[0]
+  println comparisons[1]
+  println (ok == sameOk)
+  println comparisons[0]
+  println comparisons[1]
+  println (err != sameErr)
+  println comparisons[0]
+  println comparisons[1]

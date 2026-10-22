@@ -63,14 +63,119 @@ class Float
   @intrinsic
   def ~-(): Float = ...
 
+  //[ Nearest integral Float, with halfway values rounded away from zero.
+    !
+    ! Supports positive and negative values across the full Float range.
+    ! NaN returns NaN. Infinities and signed zeros are unchanged.
+    ! Results that round to zero keep the input's sign.
+  //]
+  def round: Float =
+    val negative = this < 0.0
+    val magnitude = if negative then -this else this
+    val lower = magnitude.floor
+    val nearest = if magnitude - lower >= 0.5 then lower + 1.0 else lower
+    if negative then -nearest else nearest
+
+  //[ Greatest integral Float less than or equal to this value.
+    !
+    ! Supports positive and negative values across the full Float range.
+    ! NaN returns NaN. Infinities and signed zeros are unchanged.
+  //]
+  def floor: Float =
+    // At magnitudes of 2^52 or greater, all finite Floats are integral.
+    if this != this || this == 0.0 then this
+    else if this >= 4503599627370496.0 || this <= -4503599627370496.0 then this
+    else this.floorFinite
+
+  //[ Least integral Float greater than or equal to this value.
+    !
+    ! Supports positive and negative values across the full Float range.
+    ! NaN returns NaN. Infinities and signed zeros are unchanged.
+    ! Negative values that round to zero return negative zero.
+  //]
+  def ceil: Float = -((-this).floor)
+
+  //[ Round a finite, nonzero value of magnitude less than 2^52 downward. //]
+  @intrinsic
+  private def floorFinite: Float = ...
+
   // Conversion methods
   //[ Truncates toward zero. //]
   @intrinsic
   def toInt: Int = ...
 
+  //[ Truncate toward zero to a signed 64-bit integer.
+    !
+    ! Values at or above 2^63, including positive infinity, return 2^63 - 1.
+    ! Values at or below -2^63, including negative infinity, return -2^63.
+    ! NaN returns 0. Both positive and negative finite values are supported.
+  //]
+  def toLong: Long =
+    if this != this then 0
+    else if this >= 9223372036854775808.0 then 9223372036854775807
+    else if this <= -9223372036854775808.0 then -9223372036854775808
+    else this.truncateToLong
+
+  //[ Convert a finite value strictly between -2^63 and 2^63.
+    !
+    ! `toLong` handles NaN and saturation before calling this primitive.
+  //]
+  @intrinsic
+  private def truncateToLong: Long = ...
+
   //[ Decimal representation. The exact spelling is backend dependent: the JavaScript backend prints `7` where the others print `7.0`. //]
   @intrinsic
   def toString: String = ...
+
+  //[ Format this value in fixed or scientific decimal notation.
+    !
+    ! Examples:
+    !
+    !     12.375.format(".2f") == "12.38"
+    !     12.0.format(".2e") == "1.20e+01"
+    !     0.125.format(".2f") == "0.12"
+    !     12.0.format(".0f") == "12"
+    !
+    ! `spec` must be "." followed by one or more ASCII decimal digits
+    ! and either "f" or "e". The digits specify a precision from 0 to 10000.
+    ! This is a subset of Python's format-specification mini-language.
+    !
+    ! "f" uses fixed notation, regardless of magnitude.
+    ! "e" uses scientific notation with one digit before the decimal point,
+    ! lowercase "e", and an exponent with a sign and at least two digits.
+    ! The exponent is zero when the formatted value is zero.
+    !
+    ! Both modes produce exactly the specified number of fractional digits,
+    ! retaining trailing zeros. Precision zero omits the decimal point.
+    ! Conversion rounds the exact stored binary value to nearest, with
+    ! halfway cases rounded to even.
+    !
+    ! Supports the full finite Float range, including negative values and
+    ! subnormals. Negative zero and negative values rounded to zero retain
+    ! their minus sign. NaN produces "nan"; infinities produce "inf" or "-inf".
+    !
+    ! Output uses ASCII digits and "." independently of locale and backend.
+    ! Aborts if the specification is invalid or the precision exceeds 10000.
+  //]
+  def format(spec: String): String =
+    val precision = FloatFormatting.precision(spec)
+
+    if this != this then "nan"
+    else if this - this != 0.0 then
+      if this < 0.0 then "-inf" else "inf"
+    else
+      val bits = this.toBits
+      // The sign bit also distinguishes negative zero from positive zero.
+      val sign = if bits < 0 then "-" else ""
+      val digits ~ point = FloatFormatting.exactDigits(bits)
+      val text =
+        if spec[spec.size - 1] == 'f' then FloatFormatting.fixed(digits, point, precision)
+        else FloatFormatting.scientific(digits, point, precision)
+      sign + text
+
+  //[ The IEEE 754 binary64 representation, interpreted as a signed Long. //]
+  @intrinsic
+  private def toBits: Long = ...
 
   //[ Return 1, -1 or 0 as this value is greater than, less than or equal to `other`. Returns 0 if either value is NaN. //]
   def compareTo(other: Float): Int =

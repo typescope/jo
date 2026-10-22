@@ -78,6 +78,25 @@ class List[T]
   //[ True if the list has no elements. //]
   def isEmpty: Bool = _size == 0
 
+  //[ True if both lists have equal elements in the same order. O(n).
+    !
+    ! Uses the element `Eq[T]` instance, synthesized from `T.==` by default.
+  //]
+  def ==(other: List[T])(auto eq: Eq[T] with [[T].==]): Bool =
+    if _size != other.size then return false
+
+    var i = 0
+
+    while i < _size do
+      if !eq.equal(this[i], other[i]) then return false
+      i = i + 1
+    end
+
+    true
+
+  //[ True if the lists differ in length or in any corresponding element. //]
+  def !=(other: List[T])(auto eq: Eq[T] with [[T].==]): Bool = !(this == other)
+
   //[ Returns an iterator over the elements in order. //]
   def iterator: Iterator[T] = new ListImpl.ListIterator(arr, start, start + _size)
 

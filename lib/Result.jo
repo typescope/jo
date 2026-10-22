@@ -16,6 +16,30 @@ union Result[T, E] =
     //[ The failure case, wrapping an error of type `E`. //]
   | Err(error: E)
 
+  //[ True if both results have the same variant and equal payloads.
+    !
+    ! Uses `Eq[T]` for success values and `Eq[E]` for errors, synthesized from
+    ! each type's `==` method by default. Different variants are never equal.
+  //]
+  def ==(other: Result[T, E])
+      (auto eqT: Eq[T] with [[T].==], eqE: Eq[E] with [[E].==])
+  : Bool =
+    match this
+    case Ok(value) =>
+      match other
+      case Ok(otherValue) => eqT.equal(value, otherValue)
+      case _: Err[E] => false
+
+    case Err(error) =>
+      match other
+      case Err(otherError) => eqE.equal(error, otherError)
+      case _: Ok[T] => false
+
+  //[ True if the results differ in variant or payload. //]
+  def !=(other: Result[T, E])
+      (auto eqT: Eq[T] with [[T].==], eqE: Eq[E] with [[E].==])
+  : Bool = !(this == other)
+
   //[ Return the success value. Aborts if the result is an `Err`.
     !
     ! Use it only where failure is impossible; prefer `getOrElse` or a `match`

@@ -1283,6 +1283,23 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, JS.Call(Some(JS.Ident("Math")), "trunc", List(expr)))
 
+      case "truncateToLong" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, numberToBigInt(JS.Call(Some(JS.Ident("Math")), "trunc", List(expr))))
+
+      case "floorFinite" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, JS.Call(Some(JS.Ident("Math")), "floor", List(expr)))
+
+      case "toBits" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        val temp = freshTemp()
+        val buffer = JS.New("ArrayBuffer", List(JS.IntLit(8)))
+        val view = JS.New("DataView", List(buffer))
+        val bind = JS.VarDecl("const", temp, view)
+        val store = JS.ExprStat(JS.Call(Some(JS.Ident(temp)), "setFloat64", List(JS.IntLit(0), expr)))
+        (stats ++ List(bind, store), JS.Call(Some(JS.Ident(temp)), "getBigInt64", List(JS.IntLit(0))))
+
       case "~-" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, JS.UnaryOp("-", expr))

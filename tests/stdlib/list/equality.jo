@@ -1,0 +1,32 @@
+class Item(id: Int, label: String)
+  def ==(other: Item): Bool = this.id == other.id
+
+def main =
+  val empty = List.empty[Int]
+  println (empty == List.empty[Int])
+  println (empty != [1])
+  println ([1] != empty)
+  println ([1, 2, 3] == [1, 2, 3])
+  println ([1, 2, 3] != [1, 2, 3])
+  println ([1, 2, 3] == [3, 2, 1])
+  println ([1, 2, 3] == [1, 2, 4])
+  println ([1, 2] == [1, 2, 3])
+  println ([0, 1, 2, 3, 4].slice(1, 3) == [1, 2, 3])
+  println ([[1, 2], [], [3]] == [[1, 2], [], [3]])
+  println ([[1, 2], [3]] != [[1], [2, 3]])
+  println ([new Item(1, "a")] == [new Item(1, "b")])
+  println ([new Item(1, "a")] != [new Item(2, "a")])
+  testCustomEquality()
+
+def testCustomEquality =
+  val comparisons = Array.fill(1, 0)
+  auto eq: Eq[Int] = (a, b) =>
+    comparisons[0] = comparisons[0] + 1
+    a % 10 == b % 10
+
+  println ([1, 2, 3] == [11, 12, 13])
+  println comparisons[0]
+  println ([1, 2] == [11])
+  println comparisons[0]
+  println ([1, 2, 3] != [11, 14, 13])
+  println comparisons[0]

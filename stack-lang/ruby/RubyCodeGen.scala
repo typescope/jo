@@ -894,8 +894,16 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         val arg :: Nil = args: @unchecked
         R.BinOp(compileExpr(qual), name, compileExpr(arg))
 
-      case "toInt" =>
+      case "toInt" | "truncateToLong" =>
         R.Select(compileExpr(qual), "to_i")
+
+      case "floorFinite" =>
+        R.Select(R.Select(compileExpr(qual), "floor"), "to_f")
+
+      case "toBits" =>
+        val values = R.Call(Some(R.Ident("Array")), "[]", List(compileExpr(qual)))
+        val packed = R.Call(Some(values), "pack", List(R.StringLit("G")))
+        R.Call(Some(packed), "unpack1", List(R.StringLit("q>")))
 
       case "~-" =>
         R.UnaryOp("-", compileExpr(qual))

@@ -38,6 +38,13 @@ class Array[T]
   @intrinsic
   def clone: Array[T] = ...
 
+  //[ Return a fresh iterator over the elements in index order.
+    !
+    ! Reads each element when visited, so changes to unvisited elements are visible.
+    ! Every element must be initialized before it is read.
+  //]
+  def iterator: Iterator[T] = new ArrayImpl.ArrayIterator(this)
+
   //[ Return a string representation, e.g. `[1, 2, 3]`. Shows at most 100 elements. //]
   def toString(auto elementShow: Show[T] with [[T].toString]): String =
     // Show at most 100
@@ -55,6 +62,23 @@ class Array[T]
     res = res + "]"
     res
 
+end
+
+private section ArrayImpl
+  class ArrayIterator[T](arr: Array[T])
+    var index: Int = 0
+
+    def hasNext: Bool = index < arr.size
+
+    def next: T =
+      if !hasNext then abort "iterator exhausted"
+
+      val value = arr[index]
+      index = index + 1
+      value
+
+    view Iterator[T]
+  end
 end
 
 //[ Operations on `Array` that are not methods. //]

@@ -1,0 +1,18 @@
+def main =
+  val math = py.module("math")
+
+  for value in [(-0.0).round, (-0.0).floor, (-0.0).ceil, (-0.25).round, (-0.25).ceil, (-5.0e-324).round, (-5.0e-324).ceil] do
+    val checked = py.dynamic(value).asFloat
+    assert(math.copysign(1.0, checked).asFloat == -1.0, "negative zero")
+  end
+
+  for value in [(0.0).round, (0.0).floor, (0.0).ceil, (0.25).round, (0.25).floor, (5.0e-324).round, (5.0e-324).floor] do
+    val checked = py.dynamic(value).asFloat
+    assert(math.copysign(1.0, checked).asFloat == 1.0, "positive zero")
+  end
+
+  for value in [(2.7).round, (2.7).floor, (2.7).ceil] do
+    assert(py.dynamic(value).asFloat > 0.0, "Float result")
+  end
+
+  println "rounding representation passed"

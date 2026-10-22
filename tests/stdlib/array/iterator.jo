@@ -1,0 +1,32 @@
+def main =
+  val empty = Array.create[Int](0)
+  println empty.iterator.hasNext
+  for value in empty do println value
+
+  val values = Array.tabulate(4, i => i + 1)
+  var sum = 0
+  for value in values do
+    sum = sum + value
+  end
+  println sum
+  println values.iterator.map(n => n * 2).toList
+  println values.iterator.toList
+
+  val first = values.iterator
+  val second = values.iterator
+  println first.hasNext
+  println first.hasNext
+  println first.next
+  values[1] = 20
+  println first.next
+  println second.next
+  println first.toList
+  println first.hasNext
+  println first.hasNext
+  println second.toList
+
+  val text = Array.tabulate(2, i => if i == 0 then "hello" else "world")
+  println text.iterator.toList
+  println copy[String](text)
+
+def copy[T](source: Iterator[T] :- [.iterator]): List[T] = source.toList

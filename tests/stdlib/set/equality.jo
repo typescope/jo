@@ -1,0 +1,27 @@
+class Key(value: Int, label: String)
+  def compareTo(other: Key): Int = this.value.compareTo(other.value)
+
+def main =
+  val empty = Set.empty[Int]
+  println (empty == Set.empty[Int])
+  println (empty != Set(1))
+  println (Set(1) != empty)
+  println (Set(1, 2, 3) == Set(3, 1, 2, 1))
+  println (Set(1, 2, 3) != Set(3, 1, 2))
+  println (Set(1, 2) == Set(1, 3))
+  println (Set(1, 2) == Set(1, 2, 3))
+  println ((Set(1, 2, 3) - 2 + 2) == Set(3, 2, 1))
+  println (Set(new Key(1, "a")) == Set(new Key(1, "b")))
+  println ([Set(1, 2)] == [Set(2, 1)])
+  testDifferentOrderings()
+
+def testDifferentOrderings =
+  val ascending = Set(1, 2, 3)
+  auto reverse: Ord[Int] = (a, b) => b.compareTo(a)
+  val descending = Set(3, 2, 1)
+  println (ascending == descending)
+  println (descending == ascending)
+
+  val different = Set(3, 2, 4)
+  println (ascending == different)
+  println (different == ascending)

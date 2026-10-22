@@ -2,7 +2,12 @@
 
 ## Primitives
 - **Int**: `+`, `-`, `*`, `/`, `%`, comparisons (`<`, `>`, `<=`, `>=`, `==`, `!=`). `.toString`.
-- **Float**: `.toInt`, `.toString`. Same arithmetic operators.
+- **Float**: `.toInt`, `.toLong`, `.toString`. Same arithmetic operators.
+  `.toLong` truncates toward zero, saturates at the signed 64-bit limits, and
+  returns zero for NaN. `.round`, `.floor`, and `.ceil` return integral `Float`
+  values; `.round` breaks halfway ties away from zero. These methods preserve
+  NaN, infinities, and signed zeros. Float is supported by the interpreter,
+  JavaScript, Python, and Ruby backends.
 - **Bool**: `true`, `false`. `&&`, `||`, `!`, `.toString`.
 - **Char**: `.toInt`, `.toString`.
 - **IO**: `println(msg)`, `print(msg)` — available via `receives stdout`.
@@ -26,6 +31,8 @@ Create: `"hello"`, `"hello \{name}"` (interpolation), `"""` for multi-line (cont
 - `.toLower`, `.toUpper`: String
 - `.replace(target, replacement)`: String — replace all occurrences
 - `.split(separator)`: List[String]
+- `.words`: List[String] — split on runs of ASCII whitespace (the same six
+  characters as `trim`), dropping empty pieces
 - `.splitBy(pat: Regex)`: List[String]
 - `.lines`: List[String]
 - `.toInt`: Int (aborts on invalid input)
@@ -49,6 +56,8 @@ with `List.builder[T]()` — see `ListBuilder`.
 - `.size`: Int
 - `.isEmpty`: Bool
 - `.get(i)`: T — element at index
+- `.==(other)`, `.!=(other)`: Bool — compare elements in order using `Eq[T]`,
+  synthesized from the element `.==` method by default
 - `.+(v)`: List[T] — append
 - `.++(other)`: List[T] — concatenate
 - `.updated(i, value)`: List[T] — O(n), copies the list. Use `mutable.List` to
@@ -77,10 +86,33 @@ with `List.builder[T]()` — see `ListBuilder`.
 - `.minOpt`, `.maxOpt`: Option[T]
 - `.iterator`: Iterator[T]
 
+## Array[T]
+Create: `Array.create[T](size)`, `Array.fill(size, value)`, `Array.tabulate(size, f)`.
+Initialize every element before reading it when using `Array.create`.
+
+- `.size`: Int — fixed length
+- `.get(i)`: T — element at index
+- `.set(i, value)`: Unit — update element at index
+- `.clone`: Array[T] — shallow copy
+- `.iterator`: Iterator[T] — visits elements in index order, reading their
+  current values; supports `for value in array do ...`
+
 ## Option[T]
 `Some(value)` or `None` (singleton object).
+- `.==(other)`, `.!=(other)`: Bool — two empty options are equal; two populated
+  options compare their values using `Eq[T]`, synthesized from `.==` by default
 - `.isEmpty`: Bool
 - `.getOrElse(default)`: T
+
+## Result[T, E]
+`Ok(value)` or `Err(error)`.
+
+- `.==(other)`, `.!=(other)`: Bool — matching variants compare their payloads
+  using `Eq[T]` or `Eq[E]`; different variants are unequal
+- `.isOk`, `.isErr`: Bool
+- `.success`: T — aborts on an error
+- `.getOrElse(default)`: T
+- `.map(f)`: Result[U, E] — transform a success value, preserving errors
 
 ## ListBuilder[T]
 Collects elements into a `List`, writing each one straight into the array the
@@ -125,6 +157,9 @@ Create: `Map("key" ~ value, ...)`, `Map.empty[K, V]`.
 Create: `Set(1, 2, 3)`, `Set.empty[T]`.
 - `.size`: Int
 - `.isEmpty`: Bool
+- `.==(other)`, `.!=(other)`: Bool — compare size and membership; orderings
+  must agree on which elements compare equal, though iteration order may differ.
+  Results are undefined for incompatible element equivalence rules
 - `.contains(x)`: Bool
 - `.+(x)`: Set[T] — add
 - `.-(x)`: Set[T] — remove

@@ -17,6 +17,23 @@ union Option[T] =
     //[ The present case, wrapping a value of type `T`. //]
   | Some(value: T)
 
+  //[ True if both options are empty or contain equal values.
+    !
+    ! Uses the element `Eq[T]` instance, synthesized from `T.==` by default.
+    ! The element comparison runs only when both options contain a value.
+  //]
+  def ==(other: Option[T])(auto eq: Eq[T] with [[T].==]): Bool =
+    match this
+    case None => other.isEmpty
+
+    case Some(value) =>
+      match other
+      case None => false
+      case Some(otherValue) => eq.equal(value, otherValue)
+
+  //[ True if the options differ in presence or in their contained values. //]
+  def !=(other: Option[T])(auto eq: Eq[T] with [[T].==]): Bool = !(this == other)
+
   //[ Return the wrapped value. Aborts if the option is `None`.
     !
     ! Use it only where absence is impossible; prefer `getOrElse` or a `match`
