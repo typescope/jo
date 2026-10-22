@@ -170,7 +170,8 @@ object Compiler:
     val opaquePointers =
       if version < 15 then List("-mllvm", "-opaque-pointers") else Nil
 
-    val cmd = List(cc, "-O" + optLevel.value, "-Wno-override-module") ++ opaquePointers ++ List(llFile, "-o", outFile)
+    // libm provides `floor`, which `llvm.floor.f64` lowers to
+    val cmd = List(cc, "-O" + optLevel.value, "-Wno-override-module") ++ opaquePointers ++ List(llFile, "-lm", "-o", outFile)
     val output = new StringBuilder
     val logger = ProcessLogger(line => output ++= line += '\n', line => output ++= line += '\n')
     val status = cmd.!(logger)

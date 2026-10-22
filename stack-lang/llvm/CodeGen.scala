@@ -939,6 +939,12 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol])(using defn: De
       case "!=" => compare("fcmp une", "double", args)
       case "~-" => assign("double", s"fneg ${coerce(args.head, "double").text}")
       case "toInt" => convert("fptosi", "double", "i32", args)
+      case "truncateToLong" => convert("fptosi", "double", "i64", args)
+      case "toBits" => convert("bitcast", "double", "i64", args)
+      case "floorFinite" =>
+        cDecls.getOrElseUpdate("llvm.floor.f64", "declare double @llvm.floor.f64(double)")
+        assign("double", s"call double @llvm.floor.f64(${coerce(args.head, "double").text})")
+
       case _ => throw new Exception("Unknown Float primitive: " + name)
 end CodeGen
 
