@@ -1,0 +1,45 @@
+class Item(id: Int, label: String)
+  def ==(other: Item): Bool = this.id == other.id
+
+def main =
+  val empty: Option[Int] = None
+  val one: Option[Int] = Some(1)
+  println (empty == empty)
+  println (empty != empty)
+  println (empty == one)
+  println (one == empty)
+  println (empty != one)
+  println (one != empty)
+  println (one == Some(1))
+  println (one != Some(1))
+  println (one == Some(2))
+  println (one != Some(2))
+  println (one == one)
+
+  val nested: Option[Option[Int]] = Some(empty)
+  println (nested == Some(empty))
+  println (nested != Some(one))
+  val list: Option[List[Int]] = Some([1, 2])
+  println (list == Some([1, 2]))
+  println ([one, empty] == [Some(1), None])
+  val item: Option[Item] = Some(new Item(1, "a"))
+  println (item == Some(new Item(1, "b")))
+  println (item != Some(new Item(2, "a")))
+  testCustomEquality()
+
+def testCustomEquality =
+  val comparisons = Array.fill(1, 0)
+  auto eq: Eq[Int] = (a, b) =>
+    comparisons[0] = comparisons[0] + 1
+    a % 10 == b % 10
+
+  val empty: Option[Int] = None
+  val one: Option[Int] = Some(1)
+  println (empty == empty)
+  println (empty != one)
+  println (one != empty)
+  println comparisons[0]
+  println (one == Some(11))
+  println comparisons[0]
+  println (one != Some(12))
+  println comparisons[0]

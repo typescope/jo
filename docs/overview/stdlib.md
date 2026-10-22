@@ -81,6 +81,8 @@ with `List.builder[T]()` — see `ListBuilder`.
 
 ## Option[T]
 `Some(value)` or `None` (singleton object).
+- `.==(other)`, `.!=(other)`: Bool — two empty options are equal; two populated
+  options compare their values using `Eq[T]`, synthesized from `.==` by default
 - `.isEmpty`: Bool
 - `.getOrElse(default)`: T
 
