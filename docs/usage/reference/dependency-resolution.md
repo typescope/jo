@@ -24,8 +24,8 @@ Once the compiler is selected, package resolution only considers package version
 Yanked releases are ignored during version selection.
 
 The root build spec may also provide `[pinning]` overrides. A pin such as
-`mustache = "1.2.3"` means that Jo must use exactly that concrete version for
-`mustache` if it is selected at all.
+`ansi = "0.1.1"` means that Jo must use exactly that concrete version for
+`ansi` if it is selected at all.
 
 If no published package version fits the selected compiler, Jo reports the package's
 required `jo` constraint so the reason is visible in the error message.
@@ -49,7 +49,7 @@ that choice is fixed.
 
 At each step:
 
-1. Verify the running compiler satisfies `jo.toml` (using the pinned version from `jo.lock` if present and still compatible).
+1. Verify the running compiler satisfies the `jo` requirement in `jo.toml`.
 2. Start from the direct package dependencies of every source module in the build.
 3. For each package, collect all version constraints discovered so far.
 4. The first time a package is seen, look at its published versions.
@@ -185,8 +185,8 @@ dependencies resolve.
 Two consequences follow:
 
 - **The external project's `jo.lock` is ignored** while it is consumed as a source dependency.
-  That lock governs standalone builds of that project. If it locks `mustache` at `1.5.0` and your
-  build resolves `mustache` to `2.3.1`, your build uses `2.3.1` — the root build is authoritative
+  That lock governs standalone builds of that project. If it locks `ansi` at `0.1.0` and your
+  build resolves `ansi` to `0.1.1`, your build uses `0.1.1` — the root build is authoritative
   for the build it is running.
 - **There is one compiler for the whole source build.** An external project's `jo` requirement must
   accept the selected compiler, and it is an error if it does not.

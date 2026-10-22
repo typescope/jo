@@ -24,10 +24,11 @@ A module id alone would be ambiguous, since two projects in one tree may both de
 
 ```text
 [app]
+  ansi 0.1.1
   [api]
   ../agent-api [api]
-  greeter-pkg 1.0.0
-    jo-core 1.0.0
+  jtest-python 0.2.1
+    jtest 0.2.1
 ```
 
-Here the `app` module of the current project depends on a sibling module `api`, on the `api` module of a separate project at `../agent-api`, and on the registry package `greeter-pkg`.
+Here the `app` module depends on a sibling module `api`, on the `api` module of a separate project at `../agent-api`, and on the registry packages `ansi` and `jtest-python`. The runner depends on the shared `jtest` package. This graph requires `depth = 2` on the app module.

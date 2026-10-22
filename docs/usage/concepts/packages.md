@@ -5,11 +5,10 @@ A Jo package is a `.joy` archive containing compiled `.sast` files and a `meta.t
 ## The `.joy` Format
 
 ```
-agent-api-v1.2.0.joy
+ansi-v0.1.1.joy
   meta.toml          # package metadata
-  agentapi/
-    AgentAPI.sast    # one .sast per source file
-    QueryDSL.sast
+  ansi/
+    Ansi.sast        # one .sast per source file
 ```
 
 `.sast` files are target-independent in format, so the same `.joy` can serve
@@ -23,18 +22,17 @@ When a module lists a dependency, it can play one of two roles:
 its namespaces, use its types, and call its functions.
 
 ```toml
-packages = [{ name = "agent-api", version = "1.0" }]
+packages = [{ name = "ansi", version = "0.1" }]
 ```
 
 **Link library** (`link = true`) — used only at link time to resolve
 `defer def`s. It is hidden from user code. Its namespaces cannot be imported.
 
 ```toml
-packages = [{ name = "agent-runtime-python", version = "1.0", link = true }]
+modules = [{ id = "runtime", link = true }]
 ```
 
-This separation prevents user code from accidentally depending on
-platform-specific implementation details.
+Here `runtime` is a local source module implementing the app's deferred API. The same `link` flag works on registry dependencies when you use a published implementation package. This separation prevents user code from accidentally depending on platform-specific implementation details.
 
 Link libraries are valid only on app modules, since only an app module produces
 an executable to link. A module that depends on an app module inherits that
@@ -76,17 +74,28 @@ written — see [Library Metadata](../reference/library-metadata.md):
 | `"python"` | Requires the Python runtime |
 | `"ruby"`   | Requires the Ruby runtime   |
 
-A package author declares it on the module, not on the package table:
+A package author declares it on the module, not on the package table. Harpe's Python implementation depends on its pure capability API:
 
 ```toml
-[module.runtime]
+[module.caps]
+kind = "lib"
+platform = "pure"
+src = ["caps/"]
+
+[module.caps.package]
+name = "harpe-caps"
+version = "0.14.0"
+
+[module.harpe]
 kind = "lib"
 platform = "python"
 enable-ffi = true
+src = ["agent/"]
+modules = ["caps"]
 
-[module.runtime.package]
-name = "agent-runtime-python"
-version = "1.0.0"
+[module.harpe.package]
+name = "harpe"
+version = "0.14.0"
 ```
 
 `platform` states what the package requires. `enable-ffi` is separate and off by

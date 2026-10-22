@@ -38,16 +38,16 @@ This is intentionally manual because package ownership requires review.
 Each package has one registration file in `registry/`:
 
 ```toml
-namespace = "agentapi.core"
-name = "agent-api"
-repo = "https://github.com/typescope/agent-api"
+namespace = "ansi"
+name = "ansi"
+repo = "https://github.com/liufengyun/ansi"
 
 [owner]
-name  = "Alice"
-email = "alice@example.com"
+name  = "Fengyun Liu"
+email = "fengyun.liu.cs@gmail.com"
 
 [publish]
-github = "typescope/agent-api"
+github = "liufengyun/ansi"
 ```
 
 It defines:
@@ -67,8 +67,8 @@ The publication source is declared in a `[publish]` section. For now, the only s
 Each package has one append-only JSONL file in `releases/`:
 
 ```jsonl
-{"version":"1.0.0","url":"https://.../agent-api-v1.0.0.joy","sha512":"...","source_url":"https://.../agent-api-v1.0.0-sources.zip","source_sha512":"..."}
-{"version":"1.1.0","url":"https://.../agent-api-v1.1.0.joy","sha512":"...","source_url":"https://.../agent-api-v1.1.0-sources.zip","source_sha512":"..."}
+{"version":"0.1.0","url":"https://.../ansi-v0.1.0.joy","sha512":"...","source_url":"https://.../ansi-v0.1.0-sources.zip","source_sha512":"..."}
+{"version":"0.1.1","url":"https://.../ansi-v0.1.1.joy","sha512":"...","source_url":"https://.../ansi-v0.1.1-sources.zip","source_sha512":"..."}
 ```
 
 Each line is one published release.
@@ -161,25 +161,30 @@ Example:
 
 ```text
 registry/
-  ag/
-    agentapi/
-      agent-api.toml
-  jo/
-    jo/
-      jo-http.toml
-  pa/
-    parsing/
-      parsing-lexer.toml
-      parsing-parser.toml
-  sq/
-    sql/
-      jo-sqlite.toml
+  an/
+    ansi/
+      ansi.toml
+  ha/
+    harpe/
+      harpe.toml
+      harpe-caps.toml
+  jt/
+    jtest/
+      jtest.toml
+      jtest-python.toml
+      jtest-ruby.toml
 
 releases/
-  ag/
-    agentapi/
-      agent-api.jsonl
-  jo/
-    jo/
-      jo-http.jsonl
+  an/
+    ansi/
+      ansi.jsonl
+  ha/
+    harpe/
+      harpe.jsonl
+      harpe-caps.jsonl
+  jt/
+    jtest/
+      jtest.jsonl
+      jtest-python.jsonl
+      jtest-ruby.jsonl
 ```

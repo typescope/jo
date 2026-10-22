@@ -54,12 +54,12 @@ Build artifacts are keyed by module id:
 
 ## Publishable Modules
 
-Any module can be publishable by defining `[module.<id>.package]`:
+Any module can be publishable by defining `[module.<id>.package]`. For example, the ansi library declares:
 
 ```toml
-[module.api.package]
-name = "agent-api"
-version = "1.0.0"
+[module.ansi.package]
+name = "ansi"
+version = "0.1.1"
 license = "MIT"
 ```
 

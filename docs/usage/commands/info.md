@@ -11,8 +11,8 @@ jo info <pkg>[@<version>]
 ## Examples
 
 ```sh
-jo info agent-api
-jo info agent-api@1.2.0
+jo info ansi
+jo info ansi@0.1.1
 ```
 
 ## Output

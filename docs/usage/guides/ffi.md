@@ -12,10 +12,6 @@ kind = "lib"
 src = ["src/"]
 platform = "python"
 enable-ffi = true
-
-[module.runtime.package]
-name = "agent-runtime-python"
-version = "1.0.0"
 ```
 
 `platform = "python"` says the module's output requires Python. It is what the
@@ -53,13 +49,13 @@ there is no FFI API to enable.
 
 ## Implementing Deferred Definitions
 
-An FFI package commonly implements `defer def`s from an API package:
+An FFI module commonly implements `defer def`s from a local API module:
 
 ```toml
-packages = [{ name = "agent-api", version = "1.0" }]
+modules = ["api"]
 ```
 
-The app wires implementations through module links:
+Here `api` is a source module in the same project containing the `agentapi` namespace. The app wires implementations through module links:
 
 ```toml
 links = [

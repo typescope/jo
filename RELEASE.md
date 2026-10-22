@@ -26,8 +26,9 @@ Bundle all repository changes for the release into a single PR and merge it to
 
       Use the release's `MAJOR.MINOR` compatibility line in `jo.toml` and
       `meta.toml` examples (for example, `jo = "0.14"`), and update version
-      labels in the getting-started guide. Verify the tutorial's package
-      dependencies still support that compiler version.
+      labels in the getting-started guide. Verify package names and versions
+      in documentation examples against the registry, and check that the
+      tutorial's dependencies still support that compiler version.
 
 - [ ] Update `CHANGELOG.md` with notable changes under the new version heading
 

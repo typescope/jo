@@ -50,7 +50,7 @@ compatibility-line resolution needs a manual override.
 
 ```toml
 [pinning]
-mustache = "1.2.3"
+ansi = "0.1.1"
 ```
 
 Rules:
@@ -131,7 +131,7 @@ kind = "app"
 src = ["app/src", "generated/AppConfig.jo"]
 platform = "python"
 modules = ["api"]
-packages = [{ name = "mustache", version = "1.0" }]
+packages = [{ name = "ansi", version = "0.1" }]
 links = [
   { from = "agentapi.runTask", to = "app.runTask" },
 ]
@@ -211,8 +211,7 @@ modules = [
 
 ```toml
 packages = [
-  { name = "mustache", version = "1.0" },
-  { name = "agent-runtime-python", version = "1.0", link = true },
+  { name = "ansi", version = "0.1" },
 ]
 ```
 
@@ -295,13 +294,14 @@ Any module can be publishable by adding a nested package section.
 | `keywords`    | array of string | no       | Search keywords. |
 
 ```toml
-[module.api]
+[module.ansi]
 kind = "lib"
 platform = "pure"
+src = ["src/"]
 
-[module.api.package]
-name = "agent-api"
-version = "1.2.0"
+[module.ansi.package]
+name = "ansi"
+version = "0.1.1"
 ```
 
 The package table has no `platform` of its own. Generated `meta.toml` takes it from the module, so there is one place to state it and it cannot drift from what was compiled.
