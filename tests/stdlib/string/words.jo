@@ -1,0 +1,38 @@
+def main =
+  println "".words
+  println " \t \t ".words
+  println " \t\n\r\u{B}\u{C}".words
+  println "single".words
+  println " one  two\tthree \t four\t ".words
+  println "\u{1F680}\t\u{4F60}\u{597D}  caf\u{E9}".words
+  println "\none\r\ntwo\rthree\u{B}four\u{C}five\n".words
+  println ("a\u{A0}b\u{3000}c".words == ["a\u{A0}b\u{3000}c"])
+
+  val many = ("\r\n x\t\u{B}\u{C}" * 4096).words
+  println many.size
+  println many.forall(w => w == "x")
+  println (("x" * 4096).words == ["x" * 4096])
+  testSeparators()
+
+def testSeparators =
+  val whitespace = " \t\n\r\u{B}\u{C}"
+
+  for code in 0 until 128 do
+    val ch = code.toChar.toString
+    val text = "left" + ch + "right"
+
+    if whitespace.contains(ch) then
+      assert(ch.words.isEmpty, "whitespace-only input: \{code}")
+      assert(text.words == ["left", "right"], "separator: \{code}")
+    else
+      assert(ch.words == [ch], "non-whitespace input: \{code}")
+      assert(text.words == [text], "not a separator: \{code}")
+    end
+  end
+
+  for ch in ["\u{85}", "\u{A0}", "\u{1680}", "\u{2003}", "\u{2028}", "\u{2029}", "\u{3000}"] do
+    assert(ch.words == [ch], "preserve Unicode whitespace")
+    assert((ch + "word" + ch).words == [ch + "word" + ch], "preserve surrounding Unicode whitespace")
+  end
+
+  println "separator checks passed"
