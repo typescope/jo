@@ -61,9 +61,11 @@ Tests are app modules:
 [module.test]
 kind = "app"
 platform = "python"
+enable-ffi = true
 src = ["tests/"]
+depth = 2
 modules = ["api"]
-packages = [{ name = "jo-test", version = "0.1" }]
+packages = [{ name = "jtest-python", version = "0.2" }]
 ```
 
 Run them with:

@@ -138,10 +138,11 @@ modules = ["core"]
 [module.test]
 kind = "app"
 platform = "python"
+enable-ffi = true
 src = ["tests"]
 depth = 2
 modules = ["core"]
-packages = [{ name = "jo-test", version = "1.0" }]
+packages = [{ name = "jtest-python", version = "0.2" }]
 ```
 
 Here `core` stays at the library default of `0` and the app at `1`, while tests are allowed to depend on a deeper package graph. Each limit is stated where it applies.

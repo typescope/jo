@@ -17,4 +17,4 @@ platform = "python"
 src = ["test/src/"]
 
 modules = ["api"]
-packages = [{ name = "jo-test", version = "0.1" }]
+packages = [{ name = "jtest-python", version = "0.2" }]
