@@ -81,6 +81,17 @@ with `List.builder[T]()` — see `ListBuilder`.
 - `.minOpt`, `.maxOpt`: Option[T]
 - `.iterator`: Iterator[T]
 
+## Array[T]
+Create: `Array.create[T](size)`, `Array.fill(size, value)`, `Array.tabulate(size, f)`.
+Initialize every element before reading it when using `Array.create`.
+
+- `.size`: Int — fixed length
+- `.get(i)`: T — element at index
+- `.set(i, value)`: Unit — update element at index
+- `.clone`: Array[T] — shallow copy
+- `.iterator`: Iterator[T] — visits elements in index order, reading their
+  current values; supports `for value in array do ...`
+
 ## Option[T]
 `Some(value)` or `None` (singleton object).
 - `.==(other)`, `.!=(other)`: Bool — two empty options are equal; two populated

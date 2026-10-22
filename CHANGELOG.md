@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `String.words` splits on runs of ASCII whitespace, as with `trim`, without
   empty pieces.
+- `Array.iterator` supports direct `for` loops over arrays.
 - `List` provides `==` and `!=` for ordered element equality using `Eq[T]`.
 - `Set` provides `==` and `!=` for membership equality. Comparisons require
   orderings that agree on element equivalence.
