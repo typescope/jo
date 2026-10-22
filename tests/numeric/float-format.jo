@@ -1,0 +1,89 @@
+def check(value: Float, spec: String, expected: String): Unit =
+  assert(value.format(spec) == expected, "Float.format: \{value} \{spec}")
+
+def main =
+  check(0.5, ".0f", "0")
+  check(1.5, ".0f", "2")
+  check(2.5, ".0f", "2")
+  check(-0.5, ".0f", "-0")
+  check(-1.5, ".0f", "-2")
+  check(-2.5, ".0f", "-2")
+  check(1.005, ".2f", "1.00")
+  check(2.675, ".2f", "2.67")
+  check(0.125, ".2f", "0.12")
+  check(0.375, ".2f", "0.38")
+  check(0.12499999999999999, ".2f", "0.12")
+  check(0.12500000000000003, ".2f", "0.13")
+  check(-0.001, ".2f", "-0.00")
+  check(12.375, ".2f", "12.38")
+  check(12.0, ".0f", "12")
+  check(12.0, ".02f", "12.00")
+  check(12.0, ".000e", "1e+01")
+  check(0.0, ".0f", "0")
+  check(-0.0, ".0f", "-0")
+  check(0.0, ".2f", "0.00")
+  check(-0.0, ".2f", "-0.00")
+  check(0.0, ".0e", "0e+00")
+  check(-0.0, ".0e", "-0e+00")
+  check(0.0, ".2e", "0.00e+00")
+  check(-0.0, ".2e", "-0.00e+00")
+  check(12.0, ".2e", "1.20e+01")
+  check(1.25, ".1e", "1.2e+00")
+  check(1.75, ".1e", "1.8e+00")
+  check(-1.25, ".1e", "-1.2e+00")
+  check(9.5, ".0e", "1e+01")
+  check(98.5, ".1e", "9.8e+01")
+  check(99.5, ".0e", "1e+02")
+  check(9.9999999, ".3e", "1.000e+01")
+  check(2147483647.5, ".2f", "2147483647.50")
+  check(9007199254740992.0, ".0f", "9007199254740992")
+  check(9.223372036854776e+18, ".0f", "9223372036854775808")
+  check(1e+21, ".2f", "1000000000000000000000.00")
+  check(1.7976931348623157e+308, ".0f", "179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368")
+  check(1.7976931348623157e+308, ".16e", "1.7976931348623157e+308")
+  check(2.2250738585072014e-308, ".16e", "2.2250738585072014e-308")
+  check(2.225073858507201e-308, ".16e", "2.2250738585072009e-308")
+  check(5e-324, ".0e", "5e-324")
+  check(5e-324, ".16e", "4.9406564584124654e-324")
+  check(-5e-324, ".16e", "-4.9406564584124654e-324")
+  check(1e-310, ".0e", "1e-310")
+  check(0.1, ".25f", "0.1000000000000000055511151")
+  check(0.1, ".25e", "1.0000000000000000555111512e-01")
+  check(1.0000000000000002, ".16f", "1.0000000000000002")
+  println "rounding and notation passed"
+
+  val tiny = (5.0e-324).format(".324f")
+  assert(tiny == "0." + "0" * 323 + "5", "smallest subnormal fixed")
+  assert((5.0e-324).format(".323f") == "0." + "0" * 323, "subnormal rounded to zero")
+  assert((-5.0e-324).format(".323f") == "-0." + "0" * 323, "negative subnormal rounded to zero")
+  println "subnormal fixed passed"
+
+  val infinity = Float.parse("1e999").success
+  val nan = infinity - infinity
+  for spec in [".0f", ".2f", ".0e", ".2e", ".10000f", ".10000e"] do
+    check(infinity, spec, "inf")
+    check(-infinity, spec, "-inf")
+    check(nan, spec, "nan")
+    check(-nan, spec, "nan")
+  end
+  println "special values passed"
+
+  assert((1.25).format(".10000f") == "1.25" + "0" * 9998, "maximum fixed precision")
+  assert((1.25).format(".10000e") == "1.25" + "0" * 9998 + "e+00", "maximum scientific precision")
+  assert((-0.0).format(".10000f") == "-0." + "0" * 10000, "maximum zero precision")
+  assert((1.7976931348623157e308).format(".10000e").size == 10007, "maximum scientific magnitude and precision")
+  assert((5.0e-324).format(".10000f").size == 10002, "minimum fixed magnitude and maximum precision")
+  check(1.25, "." + "0" * 100 + "2f", "1.25")
+  println "precision boundaries passed"
+
+  val calls = Array.fill(1, 0)
+  val value: () => Float = () =>
+    calls[0] = calls[0] + 1
+    1.25
+  val spec: () => String = () =>
+    calls[0] = calls[0] + 1
+    ".2f"
+  assert(value().format(spec()) == "1.25", "receiver and argument")
+  assert(calls[0] == 2, "each expression evaluated once")
+  assert("loss=\{(1.25).format(".2f")}" == "loss=1.25", "formatted interpolation")
+  println "evaluation count passed"
