@@ -451,6 +451,18 @@ div[class*='language-'] {
   overflow: hidden;
 }
 
+@media (max-width: 959px) {
+  .VPHero .image {
+    margin: 0 0 32px;
+  }
+
+  .VPHero .image-container {
+    width: 100%;
+    max-width: 500px;
+    height: auto;
+  }
+}
+
 
 /* Hero text animations */
 .VPHero .name,

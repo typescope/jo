@@ -122,6 +122,8 @@ onUnmounted(() => clearInterval(timer))
 <style scoped>
 .hero-code {
   width: 500px;
+  max-width: 100%;
+  text-align: left;
   margin-top: 56px;
   border-radius: 10px;
   overflow: hidden;
@@ -136,6 +138,12 @@ onUnmounted(() => clearInterval(timer))
 .dark .hero-code {
   background: #1e1e2e;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+@media (max-width: 959px) {
+  .hero-code {
+    margin-top: 0;
+  }
 }
 
 .hero-code-header {
@@ -166,7 +174,8 @@ onUnmounted(() => clearInterval(timer))
 .hero-code-body {
   padding: 16px 18px;
   height: 242px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 pre {
