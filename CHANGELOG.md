@@ -4,6 +4,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `List` provides `==` and `!=` for ordered element equality using `Eq[T]`.
+
 ### Fixed
 
 - `String.startsWith` stops comparing at the first unequal code point, avoiding

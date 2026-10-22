@@ -49,6 +49,8 @@ with `List.builder[T]()` — see `ListBuilder`.
 - `.size`: Int
 - `.isEmpty`: Bool
 - `.get(i)`: T — element at index
+- `.==(other)`, `.!=(other)`: Bool — compare elements in order using `Eq[T]`,
+  synthesized from the element `.==` method by default
 - `.+(v)`: List[T] — append
 - `.++(other)`: List[T] — concatenate
 - `.updated(i, value)`: List[T] — O(n), copies the list. Use `mutable.List` to
