@@ -12,7 +12,7 @@ transitive graph is known.
 
 Jo also resolves the compiler version before package selection:
 
-- `jo.toml` declares a compatibility requirement such as `jo = "1.0"`
+- `jo.toml` declares a compatibility requirement such as `jo = "0.14"`
 - the running compiler must satisfy it — if it does not, Jo errors and asks you to switch with `jo versions use`
 
 The compiler version is not recorded in `jo.lock`. Compatibility is a `MAJOR.MINOR`

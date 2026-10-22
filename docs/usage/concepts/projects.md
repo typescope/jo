@@ -7,7 +7,7 @@ A Jo project is a directory containing a build spec (`jo.toml`) and one or more 
 Modules are either libraries or apps:
 
 ```toml
-jo = "1.0"
+jo = "0.14"
 default = "app"
 
 [module.api]

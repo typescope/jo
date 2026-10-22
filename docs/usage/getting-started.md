@@ -20,10 +20,10 @@ hello/
     main.jo
 ```
 
-`jo.toml`:
+`jo.toml` (for Jo 0.14.x):
 
 ```toml
-jo = "1.0"
+jo = "0.14"
 
 [module.app]
 kind = "app"
@@ -50,58 +50,16 @@ Hello, world!
 
 ## Adding a Dependency
 
-Add `mustache` to the app module:
+Use [jtest](https://github.com/typescope/jtest) to test the app. Tests are ordinary app modules, so add a `test` module that depends on the `app` module and the published `jtest-python` package:
 
 ```toml
-jo = "1.0"
-
-[module.app]
-kind = "app"
-src = ["src/"]
-platform = "python"
-packages = [{ name = "mustache", version = "1.0" }]
-```
-
-Use it in `src/main.jo`. Give the module a namespace so other modules can import it:
-
-```jo
-namespace Hello
-
-import Template
-
-def greet(name: String): String =
-  val tmpl = Template.parse("Hello, {{name}}!")
-  tmpl.render({ "name": name })
-
-def main() =
-  println: greet "world"
-```
-
-Run it:
-
-```sh
-jo run
-```
-
-```
-Hello, world!
-```
-
-`jo run` fetches packages automatically. If `jo.lock` is missing, Jo creates it. After that, run `jo lock` when you change package dependencies.
-
-## Testing
-
-Tests are ordinary app modules. Add a `test` module that depends on the `app` module it tests and uses [jtest](https://github.com/typescope/jtest):
-
-```toml
-jo = "1.0"
+jo = "0.14"
 default = "app"
 
 [module.app]
 kind = "app"
 src = ["src/"]
 platform = "python"
-packages = [{ name = "mustache", version = "1.0" }]
 
 [module.test]
 kind = "app"
@@ -116,6 +74,25 @@ packages = [{ name = "jtest-python", version = "0.2" }]
 `modules = ["app"]` gives the tests access to everything in `src/`. Both modules are apps, and `jo run test` runs the test's `main` — an app module's own `main` is only used when you build that module.
 
 `jtest-python` provides the Python runner and depends on the shared `jtest` package, so the test module needs `depth = 2`. The runner also requires `enable-ffi = true`.
+
+`jo run test` fetches packages automatically if `jo.lock` is missing and creates it. Since `jo run` already created a lock file for the app, run `jo lock` after adding the test dependency:
+
+```sh
+jo lock
+```
+
+## Testing
+
+Give the app a function to test. Update `src/main.jo` with a namespace so the tests can import it:
+
+```jo
+namespace Hello
+
+def greet(name: String): String = "Hello, \{name}!"
+
+def main() =
+  println: greet "world"
+```
 
 Write a test in `tests/Main.jo`. It imports the app's namespace and tests the app's own function:
 

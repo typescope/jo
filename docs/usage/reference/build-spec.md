@@ -6,7 +6,7 @@ The build spec is a TOML file (`jo.toml` by default) that describes one project.
 
 | Field     | Type    | Required | Description |
 |-----------|---------|----------|-------------|
-| `jo`      | string  | yes      | Compiler compatibility line, e.g. `"1.0"`. Uses `MAJOR.MINOR` format. |
+| `jo`      | string  | yes      | Compiler compatibility line, e.g. `"0.14"`. Uses `MAJOR.MINOR` format. |
 | `default` | string  | no       | Default module id. If omitted, the first `[module.<id>]` section is the default. |
 
 Module declaration order is part of the spec's meaning: it selects the default module when `default` is absent, and it fixes the order of diagnostics.
@@ -119,7 +119,7 @@ Reaching a runtime API is a capability, so it is granted explicitly rather than 
 Example:
 
 ```toml
-jo = "1.0"
+jo = "0.14"
 default = "app"
 
 [module.api]

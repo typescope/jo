@@ -84,7 +84,7 @@ Higher depths are permitted by raising the value explicitly. The defaults ensure
 A depth-0 library — no registry dependencies:
 
 ```toml
-jo = "1.0"
+jo = "0.14"
 
 [module.mustache]
 kind = "lib"
@@ -97,7 +97,7 @@ version = "1.0.0"
 A depth-1 library — depends directly on a leaf package:
 
 ```toml
-jo = "1.0"
+jo = "0.14"
 
 [module.api]
 kind = "lib"
@@ -112,7 +112,7 @@ version = "1.0.0"
 An app using a package with one level of transitive package dependencies — raises its own depth to accommodate the full tree:
 
 ```toml
-jo = "1.0"
+jo = "0.14"
 
 [module.app]
 kind = "app"
@@ -124,7 +124,7 @@ packages = [{ name = "agent-api", version = "1.0" }]
 Tests may use a different depth than the code they test:
 
 ```toml
-jo = "1.0"
+jo = "0.14"
 default = "app"
 
 [module.core]

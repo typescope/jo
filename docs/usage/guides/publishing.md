@@ -5,7 +5,7 @@
 Add `[module.<id>.package]` to the module you want to publish:
 
 ```toml
-jo = "1.0"
+jo = "0.14"
 
 [module.api]
 kind = "lib"

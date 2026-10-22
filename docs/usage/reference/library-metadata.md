@@ -59,7 +59,7 @@ under that namespace root.
 ```toml
 namespace = "agentapi"
 name = "agent-api"
-jo = "1.0"
+jo = "0.14"
 version = "1.0.0"
 runtime = "pure"
 description = "Sandbox agent framework API"
