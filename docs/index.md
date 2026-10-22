@@ -65,11 +65,7 @@ features:
   <p class="integrations-eyebrow">Integrations</p>
   <h2 class="integrations-title">Integrate Jo with Agent Frameworks</h2>
   <p class="integrations-lede">Keep your model, agent loop, and tool calling code. Add one tool that compiles and runs Jo programs, and the compiler confines every generated program before it runs.</p>
-  <ol class="integrations-flow">
-    <li><span class="flow-step">1</span><div><strong>Agent writes Jo</strong><span>The model sends Jo source to your tool.</span></div></li>
-    <li><span class="flow-step">2</span><div><strong>Compiler checks it</strong><span>Code outside the confined API is rejected and errors go back to the agent.</span></div></li>
-    <li><span class="flow-step">3</span><div><strong>Host runs it</strong><span>The program runs with only the capabilities you grant.</span></div></li>
-  </ol>
+  <img class="integrations-diagram" src="/img/integration-flow.svg" width="960" height="440" alt="An agent sends Jo source to a tool that compiles against a confined API and returns compiler errors, links a trusted API implementation, runs the program, and returns its output or runtime error.">
   <div class="integration-grid">
     <a class="integration-card" href="/integration/langchain">
       <div class="integration-head">

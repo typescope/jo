@@ -1,5 +1,7 @@
 /* ── Brand colors ────────────────────────────────────────────────────────── */
 :root {
+  /* Keep embedded SVGs in sync with manual light/dark theme selection. */
+  color-scheme: light;
   --vp-c-brand-1: #047857;
   --vp-c-brand-2: #065F46;
   --vp-c-brand-3: #064E3B;
@@ -259,66 +261,12 @@ div[class*='language-'] {
   line-height: 1.65;
 }
 
-/* How-it-works strip */
-.vp-doc .integrations-flow {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+/* Shared integration flow diagram */
+.integrations-diagram {
+  display: block;
+  width: 100%;
+  height: auto;
   margin: 28px 0 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: none;
-}
-
-.vp-doc .integrations-flow li {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  margin: 0;
-  padding: 14px 16px;
-  border: 1px dashed var(--vp-c-divider);
-  border-radius: 14px;
-  background: var(--vp-c-bg-soft);
-}
-
-.vp-doc .integrations-flow li + li::before {
-  position: absolute;
-  top: 50%;
-  left: -12px;
-  width: 12px;
-  height: 1px;
-  background: var(--vp-c-brand-1);
-  content: '';
-}
-
-.flow-step {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--vp-c-brand-1), #0e7490);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.integrations-flow strong {
-  display: block;
-  color: var(--vp-c-text-1);
-  font-size: 14px;
-  line-height: 1.4;
-}
-
-.integrations-flow li span:not(.flow-step) {
-  display: block;
-  margin-top: 2px;
-  color: var(--vp-c-text-2);
-  font-size: 13px;
-  line-height: 1.5;
 }
 
 /* Framework cards */
@@ -452,13 +400,8 @@ div[class*='language-'] {
 }
 
 @media (max-width: 960px) {
-  .integration-grid,
-  .vp-doc .integrations-flow {
+  .integration-grid {
     grid-template-columns: 1fr;
-  }
-
-  .vp-doc .integrations-flow li + li::before {
-    display: none;
   }
 }
 
@@ -506,6 +449,18 @@ div[class*='language-'] {
 .VPHero {
   padding: 80px 24px !important;
   overflow: hidden;
+}
+
+@media (max-width: 959px) {
+  .VPHero .image {
+    margin: 0 0 32px;
+  }
+
+  .VPHero .image-container {
+    width: 100%;
+    max-width: 500px;
+    height: auto;
+  }
 }
 
 
