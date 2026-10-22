@@ -7,6 +7,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - `List` provides `==` and `!=` for ordered element equality using `Eq[T]`.
+- `Set` provides `==` and `!=` for membership equality. Comparisons require
+  orderings that agree on element equivalence.
 
 ### Fixed
 

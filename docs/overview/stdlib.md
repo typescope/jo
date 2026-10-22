@@ -127,6 +127,9 @@ Create: `Map("key" ~ value, ...)`, `Map.empty[K, V]`.
 Create: `Set(1, 2, 3)`, `Set.empty[T]`.
 - `.size`: Int
 - `.isEmpty`: Bool
+- `.==(other)`, `.!=(other)`: Bool — compare size and membership; orderings
+  must agree on which elements compare equal, though iteration order may differ.
+  Results are undefined for incompatible element equivalence rules
 - `.contains(x)`: Bool
 - `.+(x)`: Set[T] — add
 - `.-(x)`: Set[T] — remove

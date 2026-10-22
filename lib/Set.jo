@@ -41,6 +41,18 @@ class Set[T]
   //[ True if the set has no elements. //]
   def isEmpty: Bool = _size == 0
 
+  //[ True if the sets have the same members. O(n log n).
+    !
+    ! The sets' orderings must agree on which pairs compare as zero.
+    ! Their iteration orders may differ. With incompatible equivalence rules,
+    ! the result is undefined.
+  //]
+  def ==(other: Set[T]): Bool =
+    _size == other.size && this.subsetOf(other)
+
+  //[ Negation of `==`, with the same ordering requirements. //]
+  def !=(other: Set[T]): Bool = !(this == other)
+
   //[ True if `x` is a member of the set. O(log n). //]
   def contains(x: T): Bool = SetTree.contains tree x ord
 
