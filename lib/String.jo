@@ -231,38 +231,6 @@ class String
       end
       parts + this.substring(start, sLen - start)
 
-  //[ Split on runs of ASCII whitespace, discarding empty pieces.
-    !
-    ! Separators are space, tab, newline, carriage return, vertical tab, and
-    ! form feed, as with `trim`. Other characters remain part of the words.
-    ! Empty input or input containing only whitespace returns an empty list.
-  //]
-  def words: List[String] =
-    // Repeated substrings may rescan UTF-8/UTF-16 prefixes. Collect each
-    // word's characters instead, then join them without copying prefixes.
-    val out = List.builder[String]
-    val chars = this.iterator
-    var word = List.builder[Char]
-
-    while chars.hasNext do
-      val ch = chars.next
-
-      if StringOps.isWhitespace(ch) then
-        if word.size > 0 then
-          out += word.result.join("")
-          word = List.builder[Char]
-        end
-      else
-        word += ch
-      end
-    end
-
-    if word.size > 0 then
-      out += word.result.join("")
-    end
-
-    out.result
-
   //[ Lazy iterator over lines using '\n' and '\r\n' separators.
     ! Empty input has no lines; a final separator adds no extra empty line.
   //]
@@ -362,7 +330,8 @@ private section StringOps
     else if start == 0 && stop == i then str
     else str.substring(start, stop - start)
 
-  private[jo] def isWhitespace(c: Char): Bool = c == ' ' || c >= '\t' && c <= '\r'
+  //[ True for one of the six ASCII whitespace characters. //]
+  private def isWhitespace(c: Char): Bool = c == ' ' || c >= '\t' && c <= '\r'
 
   defer def compareTo(str: String, other: String): Int =
     val left = str.iterator
