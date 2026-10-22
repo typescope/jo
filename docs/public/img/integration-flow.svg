@@ -6,7 +6,7 @@
     :root {
       color-scheme: light dark;
       --surface: #f6f6f7;
-      --surface-inset: #ffffff;
+      --compile-surface: #edf4f1;
       --border: #e2e2e3;
       --border-strong: #b8b8bd;
       --text: #3c3c43;
@@ -27,7 +27,7 @@
     @media (prefers-color-scheme: dark) {
       :root {
         --surface: #202127;
-        --surface-inset: #1b1b1f;
+        --compile-surface: #252f2b;
         --border: #2e2e32;
         --border-strong: #56565e;
         --text: #dfdfd6;
@@ -67,7 +67,7 @@
   <text x="304" y="73" font-family="system-ui, sans-serif" font-size="17" font-weight="700" fill="var(--text)">One tool: <tspan fill="var(--green)">run_jo_program(source)</tspan></text>
   <line x1="304" y1="93" x2="894" y2="93" stroke="var(--border)"/>
 
-  <rect x="292" y="103" width="420" height="238" rx="14" fill="var(--surface-inset)" stroke="var(--border-strong)" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <rect x="292" y="103" width="420" height="238" rx="14" fill="var(--compile-surface)" stroke="var(--border-strong)" stroke-width="1.5" stroke-dasharray="6 5"/>
   <text x="308" y="125" font-family="system-ui, sans-serif" font-size="15" font-weight="700" fill="var(--text)">Compile</text>
 
   <rect x="308" y="135" width="180" height="100" rx="12" fill="var(--amber-surface)" stroke="var(--amber-border)" stroke-width="1.8"/>
