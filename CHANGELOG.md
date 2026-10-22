@@ -4,6 +4,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.14.3] - 2026-10-23
+
 ### Added
 
 - `Array.iterator` supports direct `for` loops over arrays.
@@ -11,17 +13,48 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and returns zero for NaN.
 - `Float.round`, `floor`, and `ceil` return integral `Float` values, preserving
   NaN, infinities, and signed zeros. Halfway values round away from zero.
+- `Float.format` supports fixed (`.nf`) and scientific (`.ne`) notation with
+  precision from 0 to 10000, rounding the exact binary value to nearest with
+  ties to even. Signed zeros, NaN, and infinities are preserved. ([#181])
 - `List` provides `==` and `!=` for ordered element equality using `Eq[T]`.
 - `Set` provides `==` and `!=` for membership equality. Comparisons require
   orderings that agree on element equivalence.
 - `Option` provides `==` and `!=`, comparing contained values with `Eq[T]`.
 - `Result` provides `==` and `!=`, comparing matching variants' payloads
-  with their `Eq` instances.
+  with their `Eq` instances. ([#181])
+
+### Changed
+
+- Documentation uses published `ansi`, `jtest`, and `harpe` packages and the
+  Jo 0.14 compatibility line. The home page shows the integration diagram and
+  improves code snippet styling on phones. ([#178], [#179])
 
 ### Fixed
 
 - `String.startsWith` stops comparing at the first unequal code point, avoiding
-  full-string searches and quadratic failed prefix checks on JavaScript.
+  full-string searches and quadratic failed prefix checks on JavaScript. ([#180])
+
+### Security
+
+- No security-relevant changes.
+
+### Compatibility
+
+- Existing source programs and published packages remain compatible. New
+  standard library APIs require the updated standard library; use the compiler,
+  standard library, and runtimes from this release together. Floating-point
+  operations remain available on the interpreter, JavaScript, Ruby, and Python
+  backends; native backends do not support `Float`. ([#181])
+- SAST format 2.0, build specifications, and `.joy` package formats are unchanged.
+  Existing libraries do not require recompilation for format compatibility.
+- `String.words` was withdrawn before release; use `split` or `splitBy` with
+  explicit separator semantics instead. ([#182])
+
+[#178]: https://github.com/typescope/jo/pull/178
+[#179]: https://github.com/typescope/jo/pull/179
+[#180]: https://github.com/typescope/jo/pull/180
+[#181]: https://github.com/typescope/jo/pull/181
+[#182]: https://github.com/typescope/jo/pull/182
 
 ## [0.14.2] - 2026-10-22
 
