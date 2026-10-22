@@ -10,6 +10,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Set` provides `==` and `!=` for membership equality. Comparisons require
   orderings that agree on element equivalence.
 - `Option` provides `==` and `!=`, comparing contained values with `Eq[T]`.
+- `Result` provides `==` and `!=`, comparing matching variants' payloads
+  with their `Eq` instances.
 
 ### Fixed
 

@@ -86,6 +86,16 @@ with `List.builder[T]()` — see `ListBuilder`.
 - `.isEmpty`: Bool
 - `.getOrElse(default)`: T
 
+## Result[T, E]
+`Ok(value)` or `Err(error)`.
+
+- `.==(other)`, `.!=(other)`: Bool — matching variants compare their payloads
+  using `Eq[T]` or `Eq[E]`; different variants are unequal
+- `.isOk`, `.isErr`: Bool
+- `.success`: T — aborts on an error
+- `.getOrElse(default)`: T
+- `.map(f)`: Result[U, E] — transform a success value, preserving errors
+
 ## ListBuilder[T]
 Collects elements into a `List`, writing each one straight into the array the
 list will use. Unlike `acc = acc + v`, it allocates no `List` per element.
