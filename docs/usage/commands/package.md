@@ -48,11 +48,11 @@ In other words, source module dependencies must also be publishable modules unle
 ## Output
 
 ```
-.build/api/release/
-  agent-api-v1.0.0.joy
-  agent-api-v1.0.0.joy.sha512
-  agent-api-v1.0.0-sources.zip
-  agent-api-v1.0.0-sources.zip.sha512
+.build/ansi/release/
+  ansi-v0.1.1.joy
+  ansi-v0.1.1.joy.sha512
+  ansi-v0.1.1-sources.zip
+  ansi-v0.1.1-sources.zip.sha512
 ```
 
 The version is taken from `[module.<id>.package].version` in the build spec.
@@ -61,5 +61,5 @@ The version is taken from `[module.<id>.package].version` in the build spec.
 
 ```sh
 jo package
-jo package api
+jo package ansi
 ```

@@ -133,23 +133,31 @@ src = ["src/"]
 kind = "app"
 platform = "python"
 src = ["app/"]
-modules = ["core"]
-packages = [{ name = "agent-runtime-python", version = "1.0", link = true }]
+modules = ["core", { id = "runtime", link = true }]
 
 [module.test]
 kind = "app"
 platform = "python"
 enable-ffi = true
 src = ["tests/"]
-modules = ["core"]
+modules = ["core", { id = "test-runtime", link = true }]
 depth = 2
-packages = [
-  { name = "jtest-python", version = "0.2" },
-  { name = "agent-runtime-test", version = "1.0", link = true },
-]
+packages = [{ name = "jtest-python", version = "0.2" }]
+
+[module.runtime]
+kind = "lib"
+platform = "python"
+src = ["runtime/"]
+modules = ["core"]
+
+[module.test-runtime]
+kind = "lib"
+platform = "python"
+src = ["test-runtime/"]
+modules = ["core"]
 ```
 
-Lib modules carry no links and no link libraries, so depending on one inherits nothing. Each app module states its own runtime.
+Here `runtime` and `test-runtime` are local implementation modules for the deferred API in `core`. Lib modules carry no links and no link libraries, so depending on one inherits nothing. Each app module states its own runtime.
 
 Link dependencies are used only at link time and are not written to package metadata.
 

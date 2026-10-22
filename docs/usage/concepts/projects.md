@@ -7,7 +7,7 @@ A Jo project is a directory containing a build spec (`jo.toml`) and one or more 
 Modules are either libraries or apps:
 
 ```toml
-jo = "1.0"
+jo = "0.14"
 default = "app"
 
 [module.api]
@@ -54,12 +54,12 @@ Build artifacts are keyed by module id:
 
 ## Publishable Modules
 
-Any module can be publishable by defining `[module.<id>.package]`:
+Any module can be publishable by defining `[module.<id>.package]`. For example, the ansi library declares:
 
 ```toml
-[module.api.package]
-name = "agent-api"
-version = "1.0.0"
+[module.ansi.package]
+name = "ansi"
+version = "0.1.1"
 license = "MIT"
 ```
 

@@ -45,8 +45,8 @@ Dots in the namespace become directory separators. The compiler locates `.sast`
 files under the path derived from the declared namespace:
 
 ```
-namespace = "agentapi"       ->  agentapi/
-namespace = "parsing.lexer"  ->  parsing/lexer/
+namespace = "ansi"        ->  ansi/
+namespace = "harpe.caps"  ->  harpe/caps/
 ```
 
 The release archive contains the packaged module's own compiled `.sast` files
@@ -56,31 +56,30 @@ under that namespace root.
 
 ### Example `meta.toml`
 
-```toml
-namespace = "agentapi"
-name = "agent-api"
-jo = "1.0"
-version = "1.0.0"
-runtime = "pure"
-description = "Sandbox agent framework API"
-authors = ["Alice <alice@example.com>"]
-license = "MIT"
-homepage = "https://github.com/alice/agent-api"
-keywords = ["agent", "framework"]
+The published `ansi` package contains:
 
-[dependencies]
-mustache = "1.0"
+```toml
+namespace = "ansi"
+name = "ansi"
+jo = "0.14"
+version = "0.1.1"
+runtime = "pure"
+description = "ANSI terminal escape codes for styled text output"
+authors = ["Fengyun Liu <fengyun.liu.cs@gmail.com>"]
+homepage = "https://github.com/liufengyun/ansi"
+license = "MIT"
 ```
 
 ### Example Archive Layout
 
 ```
-agent-api-v1.2.0.joy
+ansi-v0.1.1.joy
   meta.toml          # package metadata
-  agentapi/
-    AgentAPI.sast    # one .sast per source file
-    QueryDSL.sast
+  ansi/
+    Ansi.sast        # one .sast per source file
 ```
+
+The `ansi` library has no package dependencies. A package with dependencies records them in a `[dependencies]` table; for example, `harpe` declares `harpe-caps = "0.14"`.
 
 `.sast` files are target-independent in format, so the same `.joy` can serve
 multiple backends.

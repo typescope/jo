@@ -7,7 +7,7 @@ Example:
 
 ```toml
 [pinning]
-mustache = "1.2.3"
+ansi = "0.1.1"
 ```
 
 ## Role
@@ -20,8 +20,8 @@ Normal Jo dependency constraints stay simple:
 Pinning is the explicit escape hatch. It says:
 
 - for this root build only
-- if package `mustache` is selected
-- it must be exactly `1.2.3`
+- if package `ansi` is selected
+- it must be exactly `0.1.1`
 
 ## Scope
 
@@ -40,8 +40,8 @@ Pinning uses exact concrete versions in `MAJOR.MINOR.PATCH` format:
 
 ```toml
 [pinning]
-mustache = "1.2.3"
-json = "2.0.1"
+ansi = "0.1.1"
+jtest = "0.2.1"
 ```
 
 Unlike normal dependency constraints, pinning does not use `MAJOR.MINOR`.
@@ -76,7 +76,7 @@ If `[pinning]` contains a package name that is never selected during resolution,
 Jo issues a warning:
 
 ```text
-warning: unused [pinning] entry mustache = "1.2.3"
+warning: unused [pinning] entry ansi = "0.1.1"
 ```
 
 This helps catch typos and stale overrides.

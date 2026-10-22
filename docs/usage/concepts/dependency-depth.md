@@ -58,7 +58,7 @@ Zero-dependency libraries are the default. They are easier to audit, more portab
 
 Only registry package dependencies count toward dependency depth. Source module dependencies are code you build, not artifacts you pull in, so the edge to one costs nothing.
 
-The packages *behind* that edge still count. If your app depends on a source module that depends on `mustache`, that is a package your build acquired, and it counts toward your app's depth. This holds whether the source module sits in your own `jo.toml` or in another project reached through `path`. Otherwise `depth` would mean very little: any limit could be evaded by moving dependencies into a sibling directory.
+The packages *behind* that edge still count. If your app depends on a source module that depends on `ansi`, that is a package your build acquired, and it counts toward your app's depth. This holds whether the source module sits in your own `jo.toml` or in another project reached through `path`. Otherwise `depth` would mean very little: any limit could be evaded by moving dependencies into a sibling directory.
 
 For a module, the actual package depth is the longest path from that module through registry package dependencies, counting source module edges as zero. A direct dependency on a leaf package has depth 1. A package that depends on another package creates depth 2, and so on.
 
@@ -81,50 +81,52 @@ Higher depths are permitted by raising the value explicitly. The defaults ensure
 
 ## Examples
 
-A depth-0 library — no registry dependencies:
+A depth-0 library — the published `ansi` library has no registry dependencies:
 
 ```toml
-jo = "1.0"
+jo = "0.14"
 
-[module.mustache]
+[module.ansi]
 kind = "lib"
+src = ["src/"]
 
-[module.mustache.package]
-name = "mustache"
-version = "1.0.0"
+[module.ansi.package]
+name = "ansi"
+version = "0.1.1"
 ```
 
-A depth-1 library — depends directly on a leaf package:
+A depth-1 library — depends directly on the pure `harpe-caps` API, which has no package dependencies:
 
 ```toml
-jo = "1.0"
+jo = "0.14"
 
 [module.api]
 kind = "lib"
+src = ["api/src/"]
 depth = 1
-packages = [{ name = "mustache", version = "1.0" }]
-
-[module.api.package]
-name = "agent-api"
-version = "1.0.0"
+packages = [{ name = "harpe-caps", version = "0.14" }]
 ```
 
 An app using a package with one level of transitive package dependencies — raises its own depth to accommodate the full tree:
 
 ```toml
-jo = "1.0"
+jo = "0.14"
 
 [module.app]
 kind = "app"
 platform = "python"
+enable-ffi = true
+src = ["src/"]
 depth = 2
-packages = [{ name = "agent-api", version = "1.0" }]
+packages = [{ name = "harpe", version = "0.14" }]
 ```
+
+The Python package `harpe` depends on the pure `harpe-caps` package, so the path from the app through those two published packages has depth 2.
 
 Tests may use a different depth than the code they test:
 
 ```toml
-jo = "1.0"
+jo = "0.14"
 default = "app"
 
 [module.core]
@@ -138,10 +140,11 @@ modules = ["core"]
 [module.test]
 kind = "app"
 platform = "python"
+enable-ffi = true
 src = ["tests"]
 depth = 2
 modules = ["core"]
-packages = [{ name = "jo-test", version = "1.0" }]
+packages = [{ name = "jtest-python", version = "0.2" }]
 ```
 
 Here `core` stays at the library default of `0` and the app at `1`, while tests are allowed to depend on a deeper package graph. Each limit is stated where it applies.

@@ -8,7 +8,7 @@ schemas, templates, fixtures, and other files.
 Add `resources` to the module that owns the files:
 
 ```toml
-jo = "1.0"
+jo = "0.14"
 default = "app"
 
 [module.web]

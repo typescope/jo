@@ -22,6 +22,14 @@ Bundle all repository changes for the release into a single PR and merge it to
 
       Both the badge image URL and the release tag link.
 
+- [ ] Update the Jo version in documentation examples under `docs/usage/`.
+
+      Use the release's `MAJOR.MINOR` compatibility line in `jo.toml` and
+      `meta.toml` examples (for example, `jo = "0.14"`), and update version
+      labels in the getting-started guide. Verify package names and versions
+      in documentation examples against the registry, and check that the
+      tutorial's dependencies still support that compiler version.
+
 - [ ] Update `CHANGELOG.md` with notable changes under the new version heading
 
       In particular, there should be a section for security and a section for

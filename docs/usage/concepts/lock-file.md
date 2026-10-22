@@ -44,8 +44,9 @@ Package dependency depth is checked separately. `jo lock` checks every module. B
 The file is TOML with one key per resolved registry package:
 
 ```toml
-greeter-pkg = { version = "1.0.0", sha512 = "4b5f..." }
-mustache = { version = "2.3.1", sha512 = "8c12..." }
+ansi = { version = "0.1.1", sha512 = "06f8..." }
+jtest = { version = "0.2.1", sha512 = "c454..." }
+jtest-python = { version = "0.2.1", sha512 = "f1cd..." }
 ```
 
 A project with no registry dependencies gets an empty lock file.

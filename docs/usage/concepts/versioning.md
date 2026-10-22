@@ -42,7 +42,7 @@ If a root build needs an exact package version, use `[pinning]` in `jo.toml`:
 
 ```toml
 [pinning]
-mustache = "1.2.3"
+ansi = "0.1.1"
 ```
 
 That is a root-level override, not part of the normal dependency constraint model.

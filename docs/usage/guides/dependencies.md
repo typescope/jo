@@ -8,7 +8,7 @@ kind = "app"
 platform = "python"
 src = ["src/"]
 modules = ["api"]
-packages = [{ name = "mustache", version = "1.0" }]
+packages = [{ name = "ansi", version = "0.1" }]
 ```
 
 ## Registry Packages
@@ -16,8 +16,19 @@ packages = [{ name = "mustache", version = "1.0" }]
 Every package needs a name and a compatibility line:
 
 ```toml
-packages = [{ name = "mustache", version = "1.0" }]
+packages = [{ name = "ansi", version = "0.1" }]
 ```
+
+[ansi](https://github.com/liufengyun/ansi) is a published, dependency-free library for terminal styles. Import its namespace in your app:
+
+```jo
+import ansi
+
+def main() =
+  println: ansi.bold("Hello, world!")
+```
+
+Run `jo lock` after adding the dependency, then `jo run app`.
 
 ## Source Module Dependencies
 
@@ -44,14 +55,13 @@ Its own `jo.lock` is ignored while you consume it as source. That lock is for bu
 
 ## Link Dependencies
 
-Add `link = true` for a dependency that resolves `defer def`s at link time but is hidden from user code. It works on either array:
+Add `link = true` for a dependency that resolves `defer def`s at link time but is hidden from user code. For a local `runtime` module:
 
 ```toml
 modules = [{ id = "runtime", link = true }]
-packages = [{ name = "agent-runtime-python", version = "1.0", link = true }]
 ```
 
-Link dependencies are ignored when generating package metadata.
+The same flag is available on registry package dependencies when you use a published implementation of your API. Link dependencies are ignored when generating package metadata.
 
 ## Test Dependencies
 
@@ -61,9 +71,11 @@ Tests are app modules:
 [module.test]
 kind = "app"
 platform = "python"
+enable-ffi = true
 src = ["tests/"]
+depth = 2
 modules = ["api"]
-packages = [{ name = "jo-test", version = "0.1" }]
+packages = [{ name = "jtest-python", version = "0.2" }]
 ```
 
 Run them with:
@@ -95,7 +107,7 @@ project needs an explicit override, add `[pinning]` to `jo.toml`:
 
 ```toml
 [pinning]
-mustache = "1.2.3"
+ansi = "0.1.1"
 ```
 
 This is a hard exact requirement for the root project. If it conflicts with the

@@ -11,7 +11,7 @@ jo run
 `jo.toml`:
 
 ```toml
-jo = "1.0"
+jo = "0.14"
 
 [module.app]
 kind = "app"
@@ -30,7 +30,7 @@ jo build
 `jo.toml`:
 
 ```toml
-jo = "1.0"
+jo = "0.14"
 
 [module.lib]
 kind = "lib"

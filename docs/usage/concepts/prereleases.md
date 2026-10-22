@@ -25,11 +25,11 @@ a `1.2` constraint picks `1.2.0`, not the pre-releases.
 
 ## Opting In With Pinning
 
-To use a pre-release, pin it explicitly in the root build spec:
+To use a pre-release, pin a version that appears in the package's registry release log. The following is a template; replace both placeholders with the published package name and pre-release version:
 
-```toml
+```text
 [pinning]
-mustache = "1.2.0-rc1"
+<package-name> = "<published-prerelease-version>"
 ```
 
 Pinning is local to the root project and not propagated to published packages.

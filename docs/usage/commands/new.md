@@ -103,7 +103,7 @@ my-agent/
 **App** (`my-agent/jo.toml`):
 
 ```toml
-jo = "1.0"
+jo = "0.14"
 
 [module.app]
 kind = "app"
@@ -143,7 +143,7 @@ my-lib/
 **Library** (`my-lib/jo.toml`):
 
 ```toml
-jo = "1.0"
+jo = "0.14"
 
 [module.lib]
 kind = "lib"

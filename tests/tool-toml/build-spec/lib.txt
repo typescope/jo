@@ -15,4 +15,4 @@ module.test:
   modules:
     - "api"
   packages:
-    - "jo-test" "0.1"
+    - "jtest-python" "0.2"

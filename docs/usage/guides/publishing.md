@@ -1,55 +1,58 @@
 # Publishing a Package
 
+This guide uses the published [ansi](https://github.com/liufengyun/ansi) library as an example. When publishing your own library, use your own package name, repository, and release version.
+
 ## 1. Prepare the Module
 
 Add `[module.<id>.package]` to the module you want to publish:
 
 ```toml
-jo = "1.0"
+jo = "0.14"
 
-[module.api]
+[module.ansi]
 kind = "lib"
 src = ["src/"]
 
-[module.api.package]
-name = "agent-api"
-version = "1.0.0"
-description = "Sandbox agent framework API"
-authors = ["Alice <alice@example.com>"]
+[module.ansi.package]
+name = "ansi"
+version = "0.1.1"
+description = "ANSI terminal escape codes for styled text output"
+authors = ["Fengyun Liu <fengyun.liu.cs@gmail.com>"]
 license = "MIT"
-homepage = "https://github.com/alice/agent-api"
-keywords = ["agent", "framework"]
+homepage = "https://github.com/liufengyun/ansi"
 ```
 
 ## 2. Build the Release Artifact
 
 ```sh
-jo package api
+jo package ansi
 ```
 
-This writes artifacts under `.build/api/release/`:
+This writes artifacts under `.build/ansi/release/`:
 
 ```
-agent-api-v1.0.0.joy
-agent-api-v1.0.0-sources.zip
-agent-api-v1.0.0.joy.sha512
-agent-api-v1.0.0-sources.zip.sha512
+ansi-v0.1.1.joy
+ansi-v0.1.1-sources.zip
+ansi-v0.1.1.joy.sha512
+ansi-v0.1.1-sources.zip.sha512
 ```
 
-The version is taken from `[module.api.package].version`.
+The version is taken from `[module.ansi.package].version`.
 
 ## 3. Publish
 
 Create and push a release tag, then upload the artifacts:
 
 ```sh
-git tag v1.0.0
-git push origin v1.0.0
-gh release create v1.0.0 \
-  .build/api/release/agent-api-v1.0.0.joy \
-  .build/api/release/agent-api-v1.0.0-sources.zip \
+git tag v0.1.1
+git push origin v0.1.1
+gh release create v0.1.1 \
+  .build/ansi/release/ansi-v0.1.1.joy \
+  .build/ansi/release/ansi-v0.1.1.joy.sha512 \
+  .build/ansi/release/ansi-v0.1.1-sources.zip \
+  .build/ansi/release/ansi-v0.1.1-sources.zip.sha512 \
   --verify-tag \
-  --title "v1.0.0" \
+  --title "v0.1.1" \
   --notes-from-tag
 ```
 
@@ -65,8 +68,8 @@ Open a pull request to add the package registration metadata to the registry rep
 
 For subsequent releases, only steps 1–3 are needed:
 
-1. Bump `version` in `[module.api.package]`
-2. `jo package api`
+1. Bump `version` in `[module.ansi.package]`
+2. `jo package ansi`
 3. create and push `v<version>`
 4. `gh release create ...`
 
