@@ -1,0 +1,20 @@
+def main() =
+  // Short prefixes must not search a long source for later occurrences.
+  val source = "a" * 50000 + "z"
+  var matches = 0
+  var i = 0
+
+  while i < 100 do
+    if source.startsWith("z") then matches = matches + 1
+    if source.startsWith("zz") then matches = matches + 1
+    if source.startsWith("aa") then matches = matches + 1
+    i = i + 1
+  end
+
+  println matches
+
+  // Comparing a long Unicode prefix must not repeatedly index from the start.
+  val prefix = "é\u{1F680}" * 20000
+  val text = prefix + "tail"
+  println text.startsWith(prefix)
+  println text.startsWith(prefix + "x")
