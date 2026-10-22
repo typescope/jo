@@ -1,0 +1,70 @@
+def check(value: Float, rounded: Float, lower: Float, upper: Float): Unit =
+  assert(value.round == rounded, "round: \{value}")
+  assert(value.floor == lower, "floor: \{value}")
+  assert(value.ceil == upper, "ceil: \{value}")
+
+def main =
+  check(-2.7, -3.0, -3.0, -2.0)
+  check(-2.5, -3.0, -3.0, -2.0)
+  check(-2.3, -2.0, -3.0, -2.0)
+  check(-1.5, -2.0, -2.0, -1.0)
+  check(-0.5000000000000001, -1.0, -1.0, -0.0)
+  check(-0.5, -1.0, -1.0, -0.0)
+  check(-0.49999999999999994, -0.0, -1.0, -0.0)
+  check(-0.1, -0.0, -1.0, -0.0)
+  check(-0.0, -0.0, -0.0, -0.0)
+  check(0.0, 0.0, 0.0, 0.0)
+  check(0.1, 0.0, 0.0, 1.0)
+  check(0.49999999999999994, 0.0, 0.0, 1.0)
+  check(0.5, 1.0, 0.0, 1.0)
+  check(0.5000000000000001, 1.0, 0.0, 1.0)
+  check(1.5, 2.0, 1.0, 2.0)
+  check(2.3, 2.0, 2.0, 3.0)
+  check(2.5, 3.0, 2.0, 3.0)
+  check(2.7, 3.0, 2.0, 3.0)
+  check(2147483647.5, 2147483648.0, 2147483647.0, 2147483648.0)
+  check(4294967295.5, 4294967296.0, 4294967295.0, 4294967296.0)
+  check(4503599627370495.5, 4503599627370496.0, 4503599627370495.0, 4503599627370496.0)
+  check(-4503599627370495.5, -4503599627370496.0, -4503599627370496.0, -4503599627370495.0)
+
+  for value in [4503599627370496.0, 9007199254740991.0, 9007199254740994.0, 9223372036854775808.0, 1.0e300, 1.7976931348623157e308] do
+    check(value, value, value, value)
+    check(-value, -value, -value, -value)
+  end
+
+  check(5.0e-324, 0.0, 0.0, 1.0)
+  check(-5.0e-324, -0.0, -1.0, -0.0)
+  println "rounding boundaries passed"
+
+  val infinity = Float.parse("1e999").success
+  check(infinity, infinity, infinity, infinity)
+  check(-infinity, -infinity, -infinity, -infinity)
+  val nan = infinity - infinity
+  val roundedNaN = nan.round
+  val floorNaN = nan.floor
+  val ceilNaN = nan.ceil
+  assert(roundedNaN != roundedNaN, "round NaN")
+  assert(floorNaN != floorNaN, "floor NaN")
+  assert(ceilNaN != ceilNaN, "ceil NaN")
+  println "special values passed"
+
+  for numerator in -100 until 101 do
+    val value = numerator.toFloat / 8.0
+    val nearest = if numerator < 0 then (numerator - 4) / 8 else (numerator + 4) / 8
+    val lower = if numerator < 0 then (numerator - 7) / 8 else numerator / 8
+    val upper = if numerator > 0 then (numerator + 7) / 8 else numerator / 8
+    check(value, nearest.toFloat, lower.toFloat, upper.toFloat)
+  end
+  println "fraction grid passed"
+
+  val calls = Array.fill(1, 0)
+  val source: () => Float = () =>
+    calls[0] = calls[0] + 1
+    calls[0].toFloat + 0.25
+
+  assert(source().round == 1.0, "round evaluates receiver once")
+  assert(source().floor == 2.0, "floor evaluates receiver once")
+  assert(source().ceil == 4.0, "ceil evaluates receiver once")
+  assert(source().floor + source().ceil == 10.0, "evaluation order")
+  assert(calls[0] == 5, "receiver evaluation count")
+  println "evaluation order passed"

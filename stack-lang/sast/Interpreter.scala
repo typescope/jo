@@ -745,6 +745,10 @@ object Interpreter:
                   assert(argVals.isEmpty)
                   LongVal(floatVal.value.toLong) :: Nil
 
+                else if name == "floorFinite" then
+                  assert(argVals.isEmpty)
+                  FloatVal(math.floor(floatVal.value)) :: Nil
+
                 else if name == "~-" then
                   assert(argVals.isEmpty)
                   FloatVal(-floatVal.value) :: Nil

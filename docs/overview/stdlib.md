@@ -4,8 +4,10 @@
 - **Int**: `+`, `-`, `*`, `/`, `%`, comparisons (`<`, `>`, `<=`, `>=`, `==`, `!=`). `.toString`.
 - **Float**: `.toInt`, `.toLong`, `.toString`. Same arithmetic operators.
   `.toLong` truncates toward zero, saturates at the signed 64-bit limits, and
-  returns zero for NaN. Float is supported by the interpreter, JavaScript,
-  Python, and Ruby backends.
+  returns zero for NaN. `.round`, `.floor`, and `.ceil` return integral `Float`
+  values; `.round` breaks halfway ties away from zero. These methods preserve
+  NaN, infinities, and signed zeros. Float is supported by the interpreter,
+  JavaScript, Python, and Ruby backends.
 - **Bool**: `true`, `false`. `&&`, `||`, `!`, `.toString`.
 - **Char**: `.toInt`, `.toString`.
 - **IO**: `println(msg)`, `print(msg)` — available via `receives stdout`.

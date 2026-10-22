@@ -214,6 +214,7 @@ private section FloatOps
   @intrinsic def ~- (a: Float): Float = abort "native Float.~-"
   @intrinsic def (a: Float) toInt: Int = abort "native Float.toInt"
   @intrinsic def (a: Float) truncateToLong: Long = abort "native Float.truncateToLong"
+  @intrinsic def (a: Float) floorFinite: Float = abort "native Float.floorFinite"
   def (a: Float) toString: String = floatToStr a
 end
 

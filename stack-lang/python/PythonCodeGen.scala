@@ -1323,6 +1323,12 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.Call(None, "int", List(expr)))
 
+      case "floorFinite" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        val module = P.Ident(runtime.getOrCreateModuleId("math"))
+        val integral = P.Call(Some(module), "floor", List(expr))
+        (stats, P.Call(None, "float", List(integral)))
+
       case "~-" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, P.UnaryOp("-", expr))

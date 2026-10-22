@@ -897,6 +897,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
       case "toInt" | "truncateToLong" =>
         R.Select(compileExpr(qual), "to_i")
 
+      case "floorFinite" =>
+        R.Select(R.Select(compileExpr(qual), "floor"), "to_f")
+
       case "~-" =>
         R.UnaryOp("-", compileExpr(qual))
 

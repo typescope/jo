@@ -11,6 +11,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `Array.iterator` supports direct `for` loops over arrays.
 - `Float.toLong` truncates toward zero, saturates at the signed 64-bit limits,
   and returns zero for NaN.
+- `Float.round`, `floor`, and `ceil` return integral `Float` values, preserving
+  NaN, infinities, and signed zeros. Halfway values round away from zero.
 - `List` provides `==` and `!=` for ordered element equality using `Eq[T]`.
 - `Set` provides `==` and `!=` for membership equality. Comparisons require
   orderings that agree on element equivalence.

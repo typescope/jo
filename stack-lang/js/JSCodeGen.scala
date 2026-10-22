@@ -1287,6 +1287,10 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, numberToBigInt(JS.Call(Some(JS.Ident("Math")), "trunc", List(expr))))
 
+      case "floorFinite" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        (stats, JS.Call(Some(JS.Ident("Math")), "floor", List(expr)))
+
       case "~-" =>
         val (stats, expr) = compileExpr(qual, enforcePurity)
         (stats, JS.UnaryOp("-", expr))
