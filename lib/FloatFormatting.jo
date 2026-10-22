@@ -4,6 +4,7 @@ private section FloatFormatting
   //[ Validate the format specification and return its precision. //]
   def precision(spec: String): Int =
     val chars = spec.iterator
+
     if !chars.hasNext || chars.next != '.' then abort "Invalid Float format specification"
 
     var precision = 0
@@ -14,12 +15,16 @@ private section FloatFormatting
 
       if !chars.hasNext then
         if count == 0 || (c != 'f' && c != 'e') then abort "Invalid Float format specification"
+
         return precision
       end
 
       if c < '0' || c > '9' then abort "Invalid Float format specification"
+
       precision = precision * 10 + c.toInt - '0'.toInt
+
       if precision > 10000 then abort "Float format precision must be between 0 and 10000"
+
       count = count + 1
     end
 
@@ -31,9 +36,10 @@ private section FloatFormatting
     ! satisfies x = integer(digits) * 10^(point - digits.size), where x is
     ! the magnitude of the value.
     !
-    ! Like numbers' scaledRound, first recover the exact binary rational value.
-    ! Since its denominator is a power of two, multiplying by a power of five
-    ! gives a terminating decimal; rounding then only needs digit inspection.
+    ! First recover the exact binary rational value from the significand
+    ! and exponent. Since its denominator is a power of two, multiplying
+    ! by a power of five gives a terminating decimal; rounding then only
+    ! needs digit inspection.
   //]
   def exactDigits(bits: Long): String ~ Int =
     val biasedExponent = ((bits >> 52) & 2047).toInt
