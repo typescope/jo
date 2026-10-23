@@ -127,7 +127,7 @@ class Float
   @intrinsic
   def toString: String = ...
 
-  //[ Format this value in fixed or scientific decimal notation.
+  //[ Format this value in fixed, scientific or general decimal notation.
     !
     ! Examples:
     !
@@ -135,9 +135,12 @@ class Float
     !     12.0.format(".2e") == "1.20e+01"
     !     0.125.format(".2f") == "0.12"
     !     12.0.format(".0f") == "12"
+    !     12.345.format(".4g") == "12.35"
+    !     12.0.format(".4g") == "12"
+    !     12345.0.format(".3g") == "1.23e+04"
     !
     ! `spec` must be "." followed by one or more ASCII decimal digits
-    ! and either "f" or "e". The digits specify a precision from 0 to 10000.
+    ! and "f", "e" or "g". The digits specify a precision from 0 to 10000.
     ! This is a subset of Python's format-specification mini-language.
     !
     ! "f" uses fixed notation, regardless of magnitude.
@@ -145,8 +148,14 @@ class Float
     ! lowercase "e", and an exponent with a sign and at least two digits.
     ! The exponent is zero when the formatted value is zero.
     !
-    ! Both modes produce exactly the specified number of fractional digits,
+    ! "f" and "e" produce exactly the specified number of fractional digits,
     ! retaining trailing zeros. Precision zero omits the decimal point.
+    ! "g" specifies significant digits, treating precision zero as one. It
+    ! uses scientific notation if the decimal exponent after rounding is
+    ! below -4 or at least the precision, and fixed notation otherwise.
+    ! Trailing fractional zeros and an unnecessary decimal point are removed.
+    ! Zero is "0" or "-0".
+    !
     ! Conversion rounds the exact stored binary value to nearest, with
     ! halfway cases rounded to even.
     !
@@ -170,7 +179,8 @@ class Float
       val digits ~ point = FloatFormatting.exactDigits(bits)
       val text =
         if spec[spec.size - 1] == 'f' then FloatFormatting.fixed(digits, point, precision)
-        else FloatFormatting.scientific(digits, point, precision)
+        else if spec[spec.size - 1] == 'e' then FloatFormatting.scientific(digits, point, precision)
+        else FloatFormatting.general(digits, point, precision)
       sign + text
 
   //[ The IEEE 754 binary64 representation, interpreted as a signed Long. //]
