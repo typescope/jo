@@ -23,7 +23,7 @@ import scala.collection.mutable
   * Locals and parameters live in `alloca` slots of the entry block. LLVM
   * promotes them to registers.
   */
-class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol])(using defn: Definitions):
+class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGen.RegionPolicy)(using defn: Definitions):
   import CodeGen.*
 
   /** Worklist to add all reachable functions */
@@ -327,7 +327,7 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol])(using defn: De
 
     given ctx: FunContext = new FunContext(sym)
 
-    if regionFunctions.contains(sym) then
+    if opensRegion(sym, procType.resultType) then
       ctx.isRegion = true
       callFun(runtime.Regions_enter, Nil)
 
@@ -353,6 +353,18 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol])(using defn: De
     case e: Throwable =>
       println("Failed to compile " + fdef.symbol.fullName + ": " + fdef.show)
       throw e
+
+  /** Whether a function opens a region, by `--region` or the region policy */
+  def opensRegion(sym: Symbol, resultType: Type): Boolean =
+    // The runtime manages the regions, and main runs in no region
+    def selectable =
+      !sym.fullName.startsWith("jo.runtime.") && !runtime.rewire.get(defn.main).contains(sym)
+
+    regionFunctions.contains(sym) || selectable && (policy match
+      case RegionPolicy.None => false
+      case RegionPolicy.Scalar => !Set("ptr", "void").contains(llvmType(resultType))
+      case RegionPolicy.All => true
+    )
 
   def ret(res: V, resType: String)(using ctx: FunContext): Unit =
     if !ctx.terminated then
@@ -959,6 +971,15 @@ object CodeGen:
 
   /** A stack slot of a local variable */
   case class Slot(name: String, ty: String)
+
+  /** The functions that open a region besides those named by `--region`
+   *
+   *  - None: no other function
+   *  - Scalar: functions returning a primitive value, not `Unit`
+   *  - All: every function
+   */
+  enum RegionPolicy:
+    case None, Scalar, All
 
   class FunContext(val fun: Symbol):
     val allocas = new StringBuilder
