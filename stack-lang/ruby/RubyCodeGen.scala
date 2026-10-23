@@ -977,6 +977,11 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
             R.Ident(idxName)) ::
           Nil)
 
+      case "startsWith" =>
+        val prefix :: Nil = args: @unchecked
+        // A UTF-8 prefix ends with a complete character, so a byte match is code point aligned
+        R.Call(Some(compileExpr(qual)), "start_with?", List(compileExpr(prefix)))
+
       case "endsWith" =>
         val suffix :: Nil = args: @unchecked
         // A UTF-8 suffix starts with a lead byte, so a byte match is code point aligned

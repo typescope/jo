@@ -35,6 +35,10 @@ class String
   @intrinsic
   def indexOf(other: String, from: Int = 0): Int = ...
 
+  //[ True if string starts with `prefix`.    //]
+  @intrinsic
+  def startsWith(prefix: String): Bool = ...
+
   //[ True if string ends with `suffix`.    //]
   @intrinsic
   def endsWith(suffix: String): Bool = ...
@@ -145,18 +149,6 @@ class String
 
   //[ True if `other` appears in this string.    //]
   def contains(other: String): Bool = this.indexOf(other) >= 0
-
-  //[ True if string starts with `prefix`. Stops at the first unequal code point. //]
-  def startsWith(prefix: String): Bool =
-    val source = this.iterator
-    val start = prefix.iterator
-    var matches = true
-
-    while matches && start.hasNext do
-      matches = source.hasNext && source.next == start.next
-    end
-
-    matches
 
   //[ Remove leading ASCII whitespace: space, tab, newline, carriage return, vertical tab, and form feed. //]
   def trimStart: String = StringOps.trim(this, leading = true, trailing = false)

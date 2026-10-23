@@ -1387,11 +1387,12 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         val startExpr = P.Call(None, "min", List(lowerBounded, upperBound))
         (stats, P.Call(Some(qualExpr), "find", List(otherExpr, startExpr)))
 
-      case "endsWith" =>
-        val suffix :: Nil = args: @unchecked
-        val (stats, exprs) = compileExprList(List(qual, suffix), enforcePurity)
-        val qualExpr :: suffixExpr :: Nil = exprs: @unchecked
-        (stats, P.Call(Some(qualExpr), "endswith", List(suffixExpr)))
+      case "startsWith" | "endsWith" =>
+        val affix :: Nil = args: @unchecked
+        val (stats, exprs) = compileExprList(List(qual, affix), enforcePurity)
+        val qualExpr :: affixExpr :: Nil = exprs: @unchecked
+        val method = if name == "startsWith" then "startswith" else "endswith"
+        (stats, P.Call(Some(qualExpr), method, List(affixExpr)))
 
       case "iterator" =>
         val (stats, exprs) = compileExprList(List(qual), enforcePurity = false)

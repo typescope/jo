@@ -191,22 +191,37 @@ private section StringOps
 
   private def isWhitespace(c: Int): Bool = c == 32 || c >= 9 && c <= 13
 
-  private interface JsSuffixString
+  private interface JsAffixString
+    def startsWith(prefix: String): Bool
     def endsWith(suffix: String): Bool
     def charCodeAt(index: Int): Int
   end
 
+  // Compare host UTF-16 units without counting code points.
+  // A match is rejected only when it ends inside a surrogate pair.
+  def startsWith(str: String, prefix: String): Bool receives none =
+    val host = js.dynamic(str).cast[JsAffixString]
+    val n = utf16Length(str)
+    val m = utf16Length(prefix)
+
+    if m > n || !host.startsWith(prefix) then return false
+    if m == 0 || m == n then return true
+
+    val last = js.dynamic(prefix).cast[JsAffixString].charCodeAt(m - 1)
+    val after = host.charCodeAt(m)
+    !(last >= 55296 && last <= 56319 && after >= 56320 && after <= 57343)
+
   // Compare host UTF-16 units from the end without counting code points.
   // A match is rejected only when it starts inside a surrogate pair.
   def endsWith(str: String, suffix: String): Bool receives none =
-    val host = js.dynamic(str).cast[JsSuffixString]
+    val host = js.dynamic(str).cast[JsAffixString]
     val n = utf16Length(str)
     val m = utf16Length(suffix)
 
     if m > n || !host.endsWith(suffix) then return false
     if m == 0 || m == n then return true
 
-    val first = js.dynamic(suffix).cast[JsSuffixString].charCodeAt(0)
+    val first = js.dynamic(suffix).cast[JsAffixString].charCodeAt(0)
     val before = host.charCodeAt(n - m - 1)
     !(first >= 56320 && first <= 57343 && before >= 55296 && before <= 56319)
 
