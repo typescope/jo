@@ -406,13 +406,27 @@ case _ => "positive and even"
 **Syntax:** `(pattern)`
 
 Groups a pattern. Useful for:
+
 - Controlling precedence
 - Adding guards to nested patterns
+- Splitting a pattern expression across lines
+
+Inside parentheses, pattern expressions may span lines. This also applies to
+constructor-pattern arguments. Outside parentheses, a newline ends a pattern
+expression.
 
 ```jo
 // Control precedence
 match x
 case (0 | 1) & Positive => ...  // (0 | 1) grouped
+
+// Split alternatives across lines inside parentheses
+match tag
+case (
+  "address" | "article"
+  | "aside" | "blockquote"
+) => "block"
+case _ => "other"
 
 // Guard on nested pattern
 match x

@@ -2352,13 +2352,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def patternArgs(): List[Pattern] =
     val nested = new mutable.ArrayBuffer[Pattern]
     eat(Token.LPAREN)
-    nested += pattern()
+    nested += pattern(inParens = true)
     var token = peek()
     while
       token == Token.COMMA
     do
       eat(Token.COMMA)
-      nested += pattern()
+      nested += pattern(inParens = true)
       token = peek()
 
     eat(Token.RPAREN)
@@ -2397,14 +2397,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case _ =>
         AtomItem(pattern())
 
-  def exprPattern(): Pattern =
+  def exprPattern(inParens: Boolean = false): Pattern =
     val patterns = new mutable.ArrayBuffer[Pattern]
     var pat = simplePattern(prevPattern = null)
 
     while pat != null do
       patterns += pat
       val item = peekItem()
-      if item.indent.isFirstOfLine then
+      if item.indent.isFirstOfLine && !inParens then
         pat = null
       else
         pat = simplePattern(prevPattern = pat)
@@ -2422,10 +2422,8 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         if pats.size == 1 then pats.head
         else ExprPattern(pats)(pats.head.span | pats.last.span)
 
-  def pattern(): Pattern = pattern(_ => true)
-
-  def pattern(validIndent: Indent => Boolean): Pattern =
-    val exprPat = exprPattern()
+  def pattern(validIndent: Indent => Boolean = _ => true, inParens: Boolean = false): Pattern =
+    val exprPat = exprPattern(inParens)
 
     val item1 = peekItem()
     val pat1 = if item1.token == Token.IF && validIndent(item1.indent) then
@@ -2511,7 +2509,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case Token.LPAREN =>
         next()
-        val pat = pattern()
+        val pat = pattern(inParens = true)
         eat(Token.RPAREN)
         pat
 

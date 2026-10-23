@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   precision, choosing fixed or scientific notation after rounding and removing
   trailing fractional zeros. Precision zero is treated as one significant digit.
 
+### Fixed
+
+- Pattern expressions inside parentheses can span lines, including
+  constructor-pattern arguments.
+
 ## [0.14.3] - 2026-10-23
 
 ### Added
