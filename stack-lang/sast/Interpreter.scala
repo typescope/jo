@@ -672,6 +672,30 @@ object Interpreter:
                   if foundOffset < 0 then IntVal(-1) :: Nil
                   else IntVal(str.codePointCount(0, foundOffset)) :: Nil
 
+                else if name == "startsWith" then
+                  val (other: StringVal) :: Nil = argVals: @unchecked
+                  val str = strVal.value
+                  val prefix = other.value
+                  val end = prefix.length
+                  // Reject a UTF-16 match that ends inside a surrogate pair
+                  val splitsPair =
+                    end < str.length && prefix.nonEmpty
+                    && Character.isHighSurrogate(prefix.charAt(end - 1))
+                    && Character.isLowSurrogate(str.charAt(end))
+                  BoolVal(str.startsWith(prefix) && !splitsPair) :: Nil
+
+                else if name == "endsWith" then
+                  val (other: StringVal) :: Nil = argVals: @unchecked
+                  val str = strVal.value
+                  val suffix = other.value
+                  val start = str.length - suffix.length
+                  // Reject a UTF-16 match that starts inside a surrogate pair
+                  val splitsPair =
+                    start > 0 && suffix.nonEmpty
+                    && Character.isLowSurrogate(suffix.charAt(0))
+                    && Character.isHighSurrogate(str.charAt(start - 1))
+                  BoolVal(str.endsWith(suffix) && !splitsPair) :: Nil
+
                 else if name == "toLower" then
                   assert(argVals.isEmpty)
                   StringVal(strVal.value.toLowerCase) :: Nil
