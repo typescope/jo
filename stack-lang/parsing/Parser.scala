@@ -2352,13 +2352,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def patternArgs(): List[Pattern] =
     val nested = new mutable.ArrayBuffer[Pattern]
     eat(Token.LPAREN)
-    nested += pattern(inParens = true)
+    nested += multilinePattern()
     var token = peek()
     while
       token == Token.COMMA
     do
       eat(Token.COMMA)
-      nested += pattern(inParens = true)
+      nested += multilinePattern()
       token = peek()
 
     eat(Token.RPAREN)
@@ -2422,9 +2422,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         if pats.size == 1 then pats.head
         else ExprPattern(pats)(pats.head.span | pats.last.span)
 
-  def pattern(validIndent: Indent => Boolean = _ => true, inParens: Boolean = false): Pattern =
-    val exprPat = exprPattern(inParens)
+  def pattern(validIndent: Indent => Boolean = _ => true): Pattern =
+    patternContinue(exprPattern(), validIndent)
 
+  def multilinePattern(): Pattern =
+    patternContinue(exprPattern(inParens = true))
+
+  private def patternContinue(exprPat: Pattern, validIndent: Indent => Boolean = _ => true): Pattern =
     val item1 = peekItem()
     val pat1 = if item1.token == Token.IF && validIndent(item1.indent) then
       val keyword = next()
@@ -2509,7 +2513,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case Token.LPAREN =>
         next()
-        val pat = pattern(inParens = true)
+        val pat = multilinePattern()
         eat(Token.RPAREN)
         pat
 
