@@ -146,6 +146,11 @@ private section FloatFormatting
     if last < 0 then "1" + "0" * keep
     else digits.substring(0, last) + (digits[last].toInt - '0'.toInt + 1).toString + "0" * (keep - last - 1)
 
+  //[ Scientific exponent with "e", a sign and at least two digits. //]
+  def exponentSuffix(exponent: Int): String =
+    val ed = (if exponent < 0 then -exponent else exponent).toString
+    "e" + (if exponent < 0 then "-" else "+") + (if ed.size < 2 then "0" else "") + ed
+
   //[ Fixed notation from an exact coefficient and decimal-point position. //]
   def fixed(digits: String, point: Int, precision: Int): String =
     val text = rounded(digits, point + precision)
@@ -163,8 +168,7 @@ private section FloatFormatting
     val exponent = if digits == "0" then 0 else point - 1 + (if carry then 1 else 0)
     val whole = coefficient.substring(0, 1)
     val mantissa = if precision == 0 then whole else whole + "." + coefficient.substring(1, precision)
-    val ed = (if exponent < 0 then -exponent else exponent).toString
-    mantissa + "e" + (if exponent < 0 then "-" else "+") + (if ed.size < 2 then "0" else "") + ed
+    mantissa + exponentSuffix(exponent)
 
   //[ General notation with significant digits and no trailing fractional zeros. //]
   def general(digits: String, point: Int, precision: Int): String =
@@ -180,6 +184,7 @@ private section FloatFormatting
 
     while length > 1 && text[length - 1] == '0' do
       length = length - 1
+    end
 
     val coefficient = text.substring(0, length)
 
@@ -194,6 +199,5 @@ private section FloatFormatting
       val mantissa =
         if length == 1 then coefficient
         else coefficient.substring(0, 1) + "." + coefficient.substring(1, length - 1)
-      val ed = (if exponent < 0 then -exponent else exponent).toString
-      mantissa + "e" + (if exponent < 0 then "-" else "+") + (if ed.size < 2 then "0" else "") + ed
+      mantissa + exponentSuffix(exponent)
 end
