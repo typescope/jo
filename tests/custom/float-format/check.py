@@ -19,7 +19,7 @@ values += [tiny, largest]
 
 # Exercise neighbors on either side of powers of ten, where the rounded
 # coefficient can carry into a new exponent.
-for exponent in [-308, -100, -5, -1, 0, 1, 20, 100, 308]:
+for exponent in [-308, -100, -5, -4, -1, 0, 1, 6, 20, 100, 308]:
     value = 10.0 ** exponent
     values += [math.nextafter(value, 0.0), value,
                math.nextafter(value, math.inf)]
@@ -32,14 +32,20 @@ for _ in range(64):
 cases = []
 for value in values:
     precision = rng.choice([0, 1, 2, 6, 17, 30])
-    cases += [(value, f".{precision}{mode}") for mode in "fe"]
+    cases += [(value, f".{precision}{mode}") for mode in "feg"]
+
+for value in [0.0, -0.0, 1.25, 1.75, 9.5, 98.5, 99.5, 999.5,
+              0.00009994, 0.00009999, 0.0001, 0.00001, 100000.0, 1000000.0]:
+    for precision in [0, 1, 2, 3, 4, 6, 17]:
+        cases += [(value, f".{precision}g"), (-value, f".{precision}g")]
 
 for value in [0.1, tiny, largest]:
     for precision in [100, 324, 767, 1074, 10000]:
-        cases += [(value, f".{precision}{mode}") for mode in "fe"]
+        cases += [(value, f".{precision}{mode}") for mode in "feg"]
 
-invalid = ["", ".", "f", ".f", "2f", "%.2f", ".-1f", ".2g", ".2F",
-           ".2eextra", ".２f", ".10001f", ".2147483648e", ".999999999999999999999f"]
+invalid = ["", ".", "f", ".f", ".g", "2f", "%.2f", ".-1f", ".-1g", ".2G", ".2F",
+           ".2eextra", ".2gextra", ".２f", ".10001f", ".10001g",
+           ".2147483648e", ".999999999999999999999f"]
 
 
 def run(command):
@@ -84,7 +90,7 @@ def check_backend(backend, directory):
 
     # Validate before handling special values, too.
     for value in ["nan", "inf"]:
-        actual = run(command + ["v" + value, "s.2g"])
+        actual = run(command + ["v" + value, "s.2G"])
         assert actual.returncode != 0, (backend, value, "unexpected success")
         assert "Invalid Float format specification" in actual.stdout + actual.stderr
 

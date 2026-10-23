@@ -52,6 +52,35 @@ def main =
   check(1.0000000000000002, ".16f", "1.0000000000000002")
   println "rounding and notation passed"
 
+  check(12.345, ".4g", "12.35")
+  check(12.0, ".4g", "12")
+  check(12345.0, ".3g", "1.23e+04")
+  check(100000.0, ".6g", "100000")
+  check(1000000.0, ".6g", "1e+06")
+  check(0.0001, ".6g", "0.0001")
+  check(0.00001, ".6g", "1e-05")
+  check(0.0, ".0g", "0")
+  check(-0.0, ".6g", "-0")
+  check(1.25, ".2g", "1.2")
+  check(1.75, ".2g", "1.8")
+  check(-1.25, ".2g", "-1.2")
+  check(9.5, ".1g", "1e+01")
+  check(9.5, ".0g", "1e+01")
+  check(98.5, ".2g", "98")
+  check(99.5, ".2g", "1e+02")
+  check(0.00009999, ".3g", "0.0001")
+  check(-0.00009999, ".3g", "-0.0001")
+  check(0.00009994, ".3g", "9.99e-05")
+  check(999.5, ".3g", "1e+03")
+  check(999.4, ".3g", "999")
+  check(0.1, ".17g", "0.10000000000000001")
+  check(1.0000000000000002, ".17g", "1.0000000000000002")
+  check(1.7976931348623157e308, ".17g", "1.7976931348623157e+308")
+  check(2.2250738585072014e-308, ".17g", "2.2250738585072014e-308")
+  check(5e-324, ".1g", "5e-324")
+  check(-5e-324, ".17g", "-4.9406564584124654e-324")
+  println "general notation passed"
+
   val tiny = (5.0e-324).format(".324f")
   assert(tiny == "0." + "0" * 323 + "5", "smallest subnormal fixed")
   assert((5.0e-324).format(".323f") == "0." + "0" * 323, "subnormal rounded to zero")
@@ -60,7 +89,7 @@ def main =
 
   val infinity = Float.parse("1e999").success
   val nan = infinity - infinity
-  for spec in [".0f", ".2f", ".0e", ".2e", ".10000f", ".10000e"] do
+  for spec in [".0f", ".2f", ".0e", ".2e", ".0g", ".2g", ".10000f", ".10000e", ".10000g"] do
     check(infinity, spec, "inf")
     check(-infinity, spec, "-inf")
     check(nan, spec, "nan")
@@ -74,6 +103,11 @@ def main =
   assert((1.7976931348623157e308).format(".10000e").size == 10007, "maximum scientific magnitude and precision")
   assert((5.0e-324).format(".10000f").size == 10002, "minimum fixed magnitude and maximum precision")
   check(1.25, "." + "0" * 100 + "2f", "1.25")
+  check(1.25, "." + "0" * 100 + "3g", "1.25")
+  check(1.25, ".10000g", "1.25")
+  check(-0.0, ".10000g", "-0")
+  assert((5.0e-324).format(".10000g").size == 757, "exact subnormal at maximum general precision")
+  assert((1.7976931348623157e308).format(".10000g") == (1.7976931348623157e308).format(".0f"), "exact integer at maximum general precision")
   println "precision boundaries passed"
 
   val calls = Array.fill(1, 0)
@@ -86,4 +120,5 @@ def main =
   assert(value().format(spec()) == "1.25", "receiver and argument")
   assert(calls[0] == 2, "each expression evaluated once")
   assert("loss=\{(1.25).format(".2f")}" == "loss=1.25", "formatted interpolation")
+  assert("loss=\{(1.25).format(".2g")}" == "loss=1.2", "general formatted interpolation")
   println "evaluation count passed"
