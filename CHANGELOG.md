@@ -4,6 +4,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `Float.format` supports general (`.3g`) notation with significant-digit
+  precision, choosing fixed or scientific notation after rounding and removing
+  trailing fractional zeros. Precision zero is treated as one significant digit.
+
 ## [0.14.3] - 2026-10-23
 
 ### Added
@@ -13,7 +19,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and returns zero for NaN.
 - `Float.round`, `floor`, and `ceil` return integral `Float` values, preserving
   NaN, infinities, and signed zeros. Halfway values round away from zero.
-- `Float.format` supports fixed (`.nf`) and scientific (`.ne`) notation with
+- `Float.format` supports fixed (`.3f`) and scientific (`.3e`) notation with
   precision from 0 to 10000, rounding the exact binary value to nearest with
   ties to even. Signed zeros, NaN, and infinities are preserved. ([#181])
 - `List` provides `==` and `!=` for ordered element equality using `Eq[T]`.
