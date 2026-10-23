@@ -1,0 +1,117 @@
+pattern BlockTag: Partial[String] =
+  case (
+    "address" |
+    "article"
+    | "aside"
+  )
+
+pattern Positive: Partial[Int] = case n if n > 0
+pattern Even: Partial[Int] = case n if n % 2 == 0
+
+class Pairing(left: String, right: String)
+
+def classify(name: String): String =
+  match name
+  case (
+    "address" |
+    "article"
+    | "aside"
+  ) => "block"
+  case _ => "other"
+
+def nested(value: Option[String]): Bool =
+  match value
+  case Some(
+    "a" |
+    "b"
+    | "c"
+  ) => true
+  case _ => false
+
+def unpack(value: Option[Int]): Int =
+  match value
+  case (Some(x)
+    | (None then x = 0)) => x
+
+def paired(value: Pairing): Bool =
+  match value
+  case Pairing(
+    "a" | "b",
+    "c"
+    | "d"
+  ) => true
+  case _ => false
+
+def guardedArgs(value: Pairing): Bool =
+  match value
+  case Pairing(
+    left if left.size > 0,
+    right if right.size > 0
+  ) => true
+  case _ => false
+
+def shape(value: Option[Int]): Int =
+  match value
+  case (Some
+    x) => x
+  case None => -1
+
+def guarded(value: Option[Int]): Bool =
+  match value
+  case (Some(x)
+    if x > 0) => true
+  case _ => false
+
+def main =
+  for name in ["address", "article", "aside", "span"] do
+    println classify(name)
+    println (name is BlockTag)
+  end
+
+  val values: List[Option[String]] = [Some("a"), Some("b"), Some("c"), Some("z"), None]
+
+  for value in values do
+    println nested(value)
+  end
+
+  println unpack(Some(3))
+  println unpack(None)
+  println paired(Pairing("a", "d"))
+  println paired(Pairing("b", "c"))
+  println paired(Pairing("z", "d"))
+  println guardedArgs(Pairing("a", "b"))
+  println guardedArgs(Pairing("", "b"))
+  println guardedArgs(Pairing("a", ""))
+  println shape(Some(5))
+  println shape(None)
+  println guarded(Some(1))
+  println guarded(Some(0))
+  println guarded(None)
+  println (2 is (Positive
+    & Even))
+  println (1 is (Positive &
+    Even))
+  println ("a" is ("a" |
+    !"b"))
+  println ("b" is ("a" |
+    !"b"))
+
+  // Parenthesized pattern expressions can span lines.
+  val (left ~
+    right) = 1 ~ 2
+  println (left + right)
+
+  val numbers: List[Option[Int]] = [Some(4), None]
+
+  for (Some(x) |
+    (None then x = 0)) in numbers
+  do
+    println x
+  end
+
+  // The closing parenthesis is followed by another case and a statement.
+  match classify("z")
+  case ("a" |
+    "b") => println "matched"
+  case _ => println "fallback"
+  println "done"
