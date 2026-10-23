@@ -23,6 +23,7 @@ object Compiler:
   val clang: Config.StringSetting = Config.StringSetting("--clang", "clang", "the clang executable")
   val optLevel: Config.StringSetting = Config.StringSetting("--opt", "2", "clang optimization level")
   val regionFunctions: Config.MultiStringSetting = Config.MultiStringSetting("--region", "make a function open a memory region, e.g., --region app.process")
+  val regionPolicy: Config.StringSetting = Config.StringSetting("--region-policy", "none", "the functions that open a memory region besides --region: none, scalar or all")
 
   // Default link mappings for the runtime
   val defaultLinkMappings = Map(
@@ -67,7 +68,7 @@ object Compiler:
       if useNativeApi then args.patch(runtimeApi, Array("--lib", Config.LLVMRuntimePath), 2)
       else args
 
-    val options = keepLL :: clang :: optLevel :: regionFunctions :: Config.appOptions
+    val options = keepLL :: clang :: optLevel :: regionFunctions :: regionPolicy :: Config.appOptions
     val (config, sources) = cli.OptionParser.parseConfig(args1, options)
 
     given Config = config
@@ -118,9 +119,10 @@ object Compiler:
         val encodeClass = new EncodeClass(runtime)
 
         val regions = regionFunctions.value.toSet.flatMap(resolveRegion)
+        val policy = resolvePolicy(regionPolicy.value)
 
         val codegen = Step("codegen", (units: List[sast.Trees.FileUnit]) =>
-          new CodeGen(runtime, regions).compile(units)
+          new CodeGen(runtime, regions, policy).compile(units)
         )
         val clangStep = Step("clang", (ir: String) => link(ir, outFile))
 
@@ -148,6 +150,14 @@ object Compiler:
       case _ =>
         Reporter.error(s"--region $name: no top-level function of this name")
         None
+
+  /** The policy named by `--region-policy name` */
+  def resolvePolicy(name: String)(using Reporter): CodeGen.RegionPolicy =
+    CodeGen.RegionPolicy.values.find(_.toString.toLowerCase == name) match
+      case Some(policy) => policy
+      case None =>
+        Reporter.error(s"--region-policy $name: expect none, scalar or all")
+        CodeGen.RegionPolicy.None
 
   /** Compile the IR with clang into an executable */
   def link(ir: String, outFile: String)(using Config, Reporter): Unit =
