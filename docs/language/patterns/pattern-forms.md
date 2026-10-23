@@ -422,10 +422,9 @@ case (0 | 1) & Positive => ...  // (0 | 1) grouped
 
 // Split alternatives across lines inside parentheses
 match tag
-case (
-  "address" | "article"
-  | "aside" | "blockquote"
-) => "block"
+case ("address" | "article" |
+      "aside"   | "blockquote") => "block"
+
 case _ => "other"
 
 // Guard on nested pattern
