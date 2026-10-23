@@ -17,6 +17,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Erasure adapts a `return` value to the result type of the function it
   returns from, rather than to an enclosing label's type. Early returns inside
   tail-call-optimized functions no longer fail tree checking.
+- `String.endsWith` is a backend intrinsic that uses the host string's suffix
+  check, avoiding repeated code point counting and indexing of the whole string
+  on JavaScript and reducing per-call overhead on Ruby and Python.
 
 ## [0.14.3] - 2026-10-23
 

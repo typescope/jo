@@ -191,6 +191,25 @@ private section StringOps
 
   private def isWhitespace(c: Int): Bool = c == 32 || c >= 9 && c <= 13
 
+  private interface JsSuffixString
+    def endsWith(suffix: String): Bool
+    def charCodeAt(index: Int): Int
+  end
+
+  // Compare host UTF-16 units from the end without counting code points.
+  // A match is rejected only when it starts inside a surrogate pair.
+  def endsWith(str: String, suffix: String): Bool receives none =
+    val host = js.dynamic(str).cast[JsSuffixString]
+    val n = utf16Length(str)
+    val m = utf16Length(suffix)
+
+    if m > n || !host.endsWith(suffix) then return false
+    if m == 0 || m == n then return true
+
+    val first = js.dynamic(suffix).cast[JsSuffixString].charCodeAt(0)
+    val before = host.charCodeAt(n - m - 1)
+    !(first >= 56320 && first <= 57343 && before >= 55296 && before <= 56319)
+
   // Walk host UTF-16 offsets directly, preserving exact code point differences.
   // Native string ordering compares UTF-16 code units.
   def compareTo(str: String, other: String): Int =

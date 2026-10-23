@@ -35,6 +35,10 @@ class String
   @intrinsic
   def indexOf(other: String, from: Int = 0): Int = ...
 
+  //[ True if string ends with `suffix`.    //]
+  @intrinsic
+  def endsWith(suffix: String): Bool = ...
+
   //[ Unicode lowercase mapping.    //]
   @intrinsic
   def toLower: String = ...
@@ -153,15 +157,6 @@ class String
     end
 
     matches
-
-  //[ True if string ends with `suffix`.    //]
-  def endsWith(suffix: String): Bool =
-    val sLen = this.size
-    val sfLen = suffix.size
-    if sfLen > sLen then false
-    else
-      val start = sLen - sfLen
-      this.indexOf(suffix, start) == start
 
   //[ Remove leading ASCII whitespace: space, tab, newline, carriage return, vertical tab, and form feed. //]
   def trimStart: String = StringOps.trim(this, leading = true, trailing = false)

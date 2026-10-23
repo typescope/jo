@@ -1363,6 +1363,16 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         else
           (stats, call)
 
+      case "endsWith" =>
+        val suffix :: Nil = args: @unchecked
+        val (stats, exprs) = compileExprList(qual :: suffix :: Nil, enforcePurity = false)
+        val call = JS.Call(None, functionName(runtime.String_endsWith), exprs)
+        if enforcePurity then
+          val tempName = freshTemp()
+          (stats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
+        else
+          (stats, call)
+
       case "iterator" =>
         val (stats, exprs) = compileExprList(qual :: Nil, enforcePurity = false)
         val call = JS.Call(None, functionName(runtime.String_iterator), exprs)

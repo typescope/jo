@@ -977,6 +977,11 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
             R.Ident(idxName)) ::
           Nil)
 
+      case "endsWith" =>
+        val suffix :: Nil = args: @unchecked
+        // A UTF-8 suffix starts with a lead byte, so a byte match is code point aligned
+        R.Call(Some(compileExpr(qual)), "end_with?", List(compileExpr(suffix)))
+
       case "iterator" =>
         R.Call(None, functionName(runtime.String_iterator), List(compileExpr(qual)))
 
