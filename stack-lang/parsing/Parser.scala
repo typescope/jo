@@ -2352,13 +2352,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
   def patternArgs(): List[Pattern] =
     val nested = new mutable.ArrayBuffer[Pattern]
     eat(Token.LPAREN)
-    nested += pattern()
+    nested += multilinePattern()
     var token = peek()
     while
       token == Token.COMMA
     do
       eat(Token.COMMA)
-      nested += pattern()
+      nested += multilinePattern()
       token = peek()
 
     eat(Token.RPAREN)
@@ -2397,14 +2397,14 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
       case _ =>
         AtomItem(pattern())
 
-  def exprPattern(): Pattern =
+  def exprPattern(inParens: Boolean = false): Pattern =
     val patterns = new mutable.ArrayBuffer[Pattern]
     var pat = simplePattern(prevPattern = null)
 
     while pat != null do
       patterns += pat
       val item = peekItem()
-      if item.indent.isFirstOfLine then
+      if item.indent.isFirstOfLine && !inParens then
         pat = null
       else
         pat = simplePattern(prevPattern = pat)
@@ -2422,11 +2422,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
         if pats.size == 1 then pats.head
         else ExprPattern(pats)(pats.head.span | pats.last.span)
 
-  def pattern(): Pattern = pattern(_ => true)
+  def pattern(validIndent: Indent => Boolean = _ => true): Pattern =
+    patternContinue(exprPattern(), validIndent)
 
-  def pattern(validIndent: Indent => Boolean): Pattern =
-    val exprPat = exprPattern()
+  def multilinePattern(): Pattern =
+    patternContinue(exprPattern(inParens = true))
 
+  private def patternContinue(exprPat: Pattern, validIndent: Indent => Boolean = _ => true): Pattern =
     val item1 = peekItem()
     val pat1 = if item1.token == Token.IF && validIndent(item1.indent) then
       val keyword = next()
@@ -2511,7 +2513,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
       case Token.LPAREN =>
         next()
-        val pat = pattern()
+        val pat = multilinePattern()
         eat(Token.RPAREN)
         pat
 

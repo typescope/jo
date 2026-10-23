@@ -1,0 +1,6 @@
+---------- Error at tests/warn/pattern-multiline-trailing.jo:4:5 ---------------
+|     "b" => true
+|     ^
+|     Unexpected token, found = StringStart(1), expect = RARROW
+
+1 error(s), 0 warning(s)

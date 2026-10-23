@@ -1,0 +1,6 @@
+---------- Error at tests/warn/pattern-multiline-after-parens.jo:4:5 ---------------
+|     | "b" => true
+|     ^
+|     Unexpected token, found = Operator(|), expect = RARROW
+
+1 error(s), 0 warning(s)

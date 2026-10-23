@@ -1,0 +1,5 @@
+def classify(name: String): Bool =
+  match name
+  case "a" |
+    "b" => true
+  case _ => false

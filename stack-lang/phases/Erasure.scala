@@ -220,10 +220,10 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
         adapt(Apply(value, args, autos = Nil)(value.span), resType2)
       })(using Erasure.prevDefinitions.value)
 
-  def eraseWord(word: Word, expectedType: Type, returnType: Type | Null)(using Context): Word = common.Debug.trace("erase " + word.show, (_: Word).show, enable = false):
+  def eraseWord(word: Word, expectedType: Type, returnTypes: Map[Symbol, Type])(using Context): Word = common.Debug.trace("erase " + word.show, (_: Word).show, enable = false):
     word match
       case Select(qual, name) =>
-        val qual2 = eraseWord(qual, expectedType = eraseType(qual.tpe).widen, returnType)
+        val qual2 = eraseWord(qual, expectedType = eraseType(qual.tpe).widen, returnTypes)
         val select2 =
           if qual2.eq(qual) then word
           else Select(qual2, name)(word.span)
@@ -238,7 +238,7 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
             val interfaceType = eraseType(word.tpe)
             val Some(lambdaType) = interfaceType.getLambdaInterfaceType.runtimeChecked
             // Return cannot cross lambda boundary
-            eraseWord(lambda, expectedType = lambdaType, returnType = null) match
+            eraseWord(lambda, expectedType = lambdaType, returnTypes = Map.empty) match
               case Encoded(lambda2: Lambda) =>
                 Encoded(lambda2)(interfaceType)
 
@@ -254,21 +254,21 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
             if isVoid then
               // value drop
               assert(expectedType.isVoidType, "expected type is non-void: " + expectedType.show)
-              val repr2 = eraseWord(repr, expectedType = eraseType(repr.tpe).widen, returnType)
+              val repr2 = eraseWord(repr, expectedType = eraseType(repr.tpe).widen, returnTypes)
 
               if repr2.eq(repr) then word else Encoded(repr2)(VoidType)
 
             else
               // pattern type cast, pattern desugaring array result cast
-              val word2 = eraseWord(repr, expectedType = eraseType(repr.tpe).widen, returnType)
+              val word2 = eraseWord(repr, expectedType = eraseType(repr.tpe).widen, returnTypes)
               val encodedType2 = eraseType(word.tpe)
               val encoded = adapt(word2, encodedType2)
               adapt(encoded, expectedType)
 
       case apply @ Apply(fun, args, autos) =>
         val fun2 = fun match
-          case TypeApply(funInner, _) => eraseWord(funInner, expectedType = eraseType(fun.tpe).widen, returnType)
-          case _ => eraseWord(fun, expectedType = eraseType(fun.tpe).widen, returnType)
+          case TypeApply(funInner, _) => eraseWord(funInner, expectedType = eraseType(fun.tpe).widen, returnTypes)
+          case _ => eraseWord(fun, expectedType = eraseType(fun.tpe).widen, returnTypes)
 
         val invokeType =
           try
@@ -280,12 +280,12 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
         var changed = fun2 `ne` fun
 
         val args2 = args.zip(invokeType.paramTypes).map: (arg, paramType) =>
-          val arg2 = eraseWord(arg, paramType, returnType)
+          val arg2 = eraseWord(arg, paramType, returnTypes)
           changed ||= arg2 `ne` arg
           arg2
 
         val autos2 = autos.zip(invokeType.autoTypes).map: (auto, autoType) =>
-          val auto2 = eraseWord(auto, autoType, returnType)
+          val auto2 = eraseWord(auto, autoType, returnTypes)
           changed ||= auto2 `ne` auto
           auto2
 
@@ -307,14 +307,14 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
           New(TypeTree(tp2)(tpt.span))(word.span)
 
       case Assign(id, rhs, isDefined) =>
-        val rhs2 = eraseWord(rhs, id.symbol.tpe, returnType)
+        val rhs2 = eraseWord(rhs, id.symbol.tpe, returnTypes)
         if rhs.eq(rhs2) then word else Assign(id, rhs2, isDefined)
 
       case FieldAssign(select @ Select(qual, name), rhs) =>
-        val qual2 = eraseWord(qual, expectedType = eraseType(qual.tpe).widen, returnType)
+        val qual2 = eraseWord(qual, expectedType = eraseType(qual.tpe).widen, returnTypes)
         val select2 = if qual2.eq(qual) then select else Select(qual2, name)(word.span)
         val expectType = select2.tpe.widen
-        val rhs2 = eraseWord(rhs, expectType, returnType)
+        val rhs2 = eraseWord(rhs, expectType, returnTypes)
 
         if select2.eq(select) && rhs2.eq(rhs) then word
         else FieldAssign(select2, rhs2)
@@ -323,9 +323,9 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
 
       case ifElse: If =>
         val If(cond, thenp, elsep) = ifElse
-        val cond2 = eraseWord(cond, expectedType = defn.BoolType, returnType)
-        val thenp2 = eraseWord(thenp, expectedType, returnType)
-        val elsep2 = eraseWord(elsep, expectedType, returnType)
+        val cond2 = eraseWord(cond, expectedType = defn.BoolType, returnTypes)
+        val thenp2 = eraseWord(thenp, expectedType, returnTypes)
+        val elsep2 = eraseWord(elsep, expectedType, returnTypes)
 
         // adaptation happens in each branch
         // TODO: set type to expectedType?
@@ -333,8 +333,8 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
 
       case whileDo: While =>
         val While(cond, body) = whileDo
-        val cond2 = eraseWord(cond, expectedType = defn.BoolType, returnType)
-        val body2 = eraseWord(body, expectedType = VoidType, returnType)
+        val cond2 = eraseWord(cond, expectedType = defn.BoolType, returnTypes)
+        val body2 = eraseWord(body, expectedType = VoidType, returnTypes)
         if cond2.eq(cond) && body2.eq(body) then
           whileDo
         else
@@ -342,7 +342,7 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
 
       case Labeled(label, resultType, body) =>
         val resultType2 = eraseType(resultType)
-        val body2 = eraseWord(body, resultType2, resultType2)
+        val body2 = eraseWord(body, resultType2, returnTypes.updated(label, resultType2))
 
         val word2 =
           if body2.eq(body) && resultType2.eq(resultType) then
@@ -353,13 +353,13 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
         adapt(word2, expectedType)
 
       case ret @ Return(label, value) =>
-        assert(returnType != null, "return type is null")
-        val value2 = eraseWord(ret.value, returnType, returnType)
+        assert(returnTypes.contains(label), "unknown return target: " + label)
+        val value2 = eraseWord(ret.value, returnTypes(label), returnTypes)
         if value2.eq(value) then word
         else Return(label, value2)(word.span)
 
       case classTest @ ClassTest(value, cls) =>
-        val value2 = eraseWord(value, expectedType = eraseType(value.tpe).widen, returnType)
+        val value2 = eraseWord(value, expectedType = eraseType(value.tpe).widen, returnTypes)
         if value2.eq(value) then
           adapt(classTest, expectedType)
         else
@@ -372,19 +372,19 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
           case init :+ last =>
             var changed = false
             val init2 = init.map: word =>
-              val word2 = eraseWord(word, expectedType = VoidType, returnType)
+              val word2 = eraseWord(word, expectedType = VoidType, returnTypes)
               changed ||= word2 `ne` word
               word2
 
             // adaptation happens recursively
-            val last2 = eraseWord(last, expectedType, returnType)
+            val last2 = eraseWord(last, expectedType, returnTypes)
             changed ||= last2 `ne` last
 
             if changed then Block(init2 :+ last2)(word.span) else word
 
       case lambda @ Lambda(symbol, params, receives, body) =>
         // Return may not cross lambda boundary
-        val body2 = eraseWord(body, eraseType(body.tpe).widen, returnType = null)
+        val body2 = eraseWord(body, eraseType(body.tpe).widen, returnTypes = Map.empty)
 
         val paramChanged = params.exists: param =>
           val tp1 = defn.index.prevInfo(param).asType
@@ -413,7 +413,7 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
         val targetRef = Ident(classSym.classInfo.self)(bridgeSym.span).select(targetSym.name)
         val app = Apply(targetRef, paramRefs, autoRefs)(bridgeSym.span)
         val resType = procType.resultType
-        eraseWord(app, expectedType = resType, returnType = resType)
+        eraseWord(app, expectedType = resType, returnTypes = Map(bridgeSym -> resType))
       })(using Erasure.prevDefinitions.value)
     end for
 
@@ -440,7 +440,7 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
 
     val body2 =
       val resType = sym.tpe.asProcType.resultType
-      eraseWord(fdef.body, expectedType = resType, returnType = resType)
+      eraseWord(fdef.body, expectedType = resType, returnTypes = Map(sym -> resType))
 
     fdef.copy(body = body2)(fdef.annots, fdef.span)
   catch case ex =>
