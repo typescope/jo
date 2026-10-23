@@ -25,6 +25,13 @@ def search(n: Int, target: Int, steps: Int): Int =
   if n == target then return steps
   search(n - 1, target, steps + 1)
 
+// Case 5: early return whose value is a non-tail if/else
+// TCO: Return(fun_label, If(...)) kept inside the loop label, whose type is void
+def classify(n: Int): Int =
+  if n > 5 then
+    return if n == 6 then 6 else 7
+  if n == 0 then classify(1) else 3
+
 def main(): Unit =
   // Large n verifies TCO actually eliminates stack frames
   println(sumAcc(10000, 0))         // 50005000
@@ -37,3 +44,8 @@ def main(): Unit =
   println(countDown(3))             // 0
   println(evenCount(6, 0))          // 4
   println(search(5, 3, 0))          // 2
+
+  // Early return from inside the TCO loop
+  println(classify(6))              // 6
+  println(classify(7))              // 7
+  println(classify(0))              // 3
