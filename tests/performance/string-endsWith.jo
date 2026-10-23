@@ -1,0 +1,20 @@
+def main() =
+  // Short suffixes must not count or index the code points of a long source.
+  val source = "é\u{1F680}" * 25000 + "tail"
+  var matches = 0
+  var i = 0
+
+  while i < 1000 do
+    if source.endsWith("tail") then matches = matches + 1
+    if source.endsWith("x") then matches = matches + 1
+    if source.endsWith("\u{1F680}tail") then matches = matches + 1
+    i = i + 1
+  end
+
+  println matches
+
+  // Comparing a long Unicode suffix needs only one comparison.
+  val suffix = "é\u{1F680}" * 20000
+  val text = "head" + suffix
+  println text.endsWith(suffix)
+  println text.endsWith("x" + suffix)
