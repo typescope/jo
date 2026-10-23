@@ -14,6 +14,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Pattern expressions inside parentheses can span lines, including
   constructor-pattern arguments.
+- Erasure adapts a `return` value to the result type of the function it
+  returns from, rather than to an enclosing label's type. Early returns inside
+  tail-call-optimized functions no longer fail tree checking.
 
 ## [0.14.3] - 2026-10-23
 
