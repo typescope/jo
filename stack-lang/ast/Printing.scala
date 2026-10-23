@@ -467,6 +467,9 @@ object Printing:
       case defn: Def =>
         showDef(defn)
 
+  /** Source parentheses are not retained in the AST. Group compound patterns
+    * when printing to preserve infix grouping and guard/assignment scope.
+    */
   def showPattern(pat: Pattern): Text =
     pat match
       case ref: RefTree =>
@@ -497,14 +500,14 @@ object Printing:
         "[" ~ items.map(showSequenceItem).join(", ") ~ "]"
 
       case GuardPattern(pattern, guard) =>
-        showPattern(pattern) ~ " if " ~ showWord(guard)
+        "(" ~ showPattern(pattern) ~ " if " ~ showWord(guard) ~ ")"
 
       case AssignPattern(pattern, assignments) =>
         val assigns = assignments.map { case (id, value) => id.name ~ " = " ~ showWord(value) }.join(", ")
-        showPattern(pattern) ~ " then " ~ assigns
+        "(" ~ showPattern(pattern) ~ " then " ~ assigns ~ ")"
 
       case ExprPattern(patterns) =>
-        patterns.map(showPattern).join(" ")
+        "(" ~ patterns.map(showPattern).join(" ") ~ ")"
 
   def showSequenceItem(item: SequenceItem): Text =
     item match

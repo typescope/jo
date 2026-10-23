@@ -95,6 +95,7 @@ def main =
     !"b"))
   println ("b" is ("a" |
     !"b"))
+  println (1 is (1 | (Positive & Even)))
 
   // Parenthesized pattern expressions can span lines.
   val (left ~
