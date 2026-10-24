@@ -672,6 +672,14 @@ object Interpreter:
                   if foundOffset < 0 then IntVal(-1) :: Nil
                   else IntVal(str.codePointCount(0, foundOffset)) :: Nil
 
+                else if name == "startsWith" then
+                  val (other: StringVal) :: Nil = argVals: @unchecked
+                  BoolVal(strVal.value.startsWith(other.value)) :: Nil
+
+                else if name == "endsWith" then
+                  val (other: StringVal) :: Nil = argVals: @unchecked
+                  BoolVal(strVal.value.endsWith(other.value)) :: Nil
+
                 else if name == "toLower" then
                   assert(argVals.isEmpty)
                   StringVal(strVal.value.toLowerCase) :: Nil

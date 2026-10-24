@@ -19,3 +19,17 @@ def testEndsWith =
   println s.endsWith("\u{1F389}")              // true
   println s.endsWith("c")                     // false
 
+
+  // Empty strings, exact matches, and a mismatch before a shared suffix.
+  println "".endsWith("")                     // true
+  println "".endsWith("a")                    // false
+  println "hello".endsWith("hello")           // true
+  println "hello".endsWith("jello")           // false
+  println "abcab".endsWith("abc")             // false, despite an earlier match
+
+  // Preserve code point boundaries and embedded NUL characters.
+  println "abcé\u{1F680}".endsWith("cé\u{1F680}")   // true
+  println "\u{1F680}".endsWith("a\u{1F680}")        // false
+  println "a\u{1F680}".endsWith("\u{1F681}")        // false
+  println "b\u{0}a".endsWith("\u{0}a")              // true
+  println "b\u{0}a".endsWith("c\u{0}a")             // false
