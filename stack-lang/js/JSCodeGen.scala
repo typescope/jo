@@ -1365,14 +1365,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case "startsWith" | "endsWith" =>
         val affix :: Nil = args: @unchecked
-        val (stats, exprs) = compileExprList(qual :: affix :: Nil, enforcePurity = false)
-        val fun = if name == "startsWith" then runtime.String_startsWith else runtime.String_endsWith
-        val call = JS.Call(None, functionName(fun), exprs)
-        if enforcePurity then
-          val tempName = freshTemp()
-          (stats :+ JS.VarDecl("const", tempName, call), JS.Ident(tempName))
-        else
-          (stats, call)
+        val (stats, exprs) = compileExprList(qual :: affix :: Nil, enforcePurity)
+        val qualExpr :: affixExpr :: Nil = exprs: @unchecked
+        (stats, JS.Call(Some(qualExpr), name, List(affixExpr)))
 
       case "iterator" =>
         val (stats, exprs) = compileExprList(qual :: Nil, enforcePurity = false)

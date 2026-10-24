@@ -45,8 +45,6 @@ class JSRuntime(using defn: Definitions):
   val String_get = StringOps.termMember("get")
   val String_substring = StringOps.termMember("substring")
   val String_indexOf = StringOps.termMember("indexOf")
-  val String_startsWith = StringOps.termMember("startsWith")
-  val String_endsWith = StringOps.termMember("endsWith")
   val String_iterator = StringOps.termMember("iterator")
 
   // jo.js FFI symbols
