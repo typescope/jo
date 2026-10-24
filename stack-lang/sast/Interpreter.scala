@@ -22,7 +22,6 @@ object Interpreter:
   val defaultLinkMappings = Map(
     "jo.abortImpl" -> "jo.runtime.interpreter.abort",
     "jo.Array.create" -> "jo.runtime.interpreter.RefArray.create",
-    "jo.Array.clear"  -> "jo.runtime.interpreter.RefArray.clear",
     "jo.Bytes.size"     -> "jo.runtime.interpreter.RawBytes.size",
     "jo.Bytes.get"      -> "jo.runtime.interpreter.RawBytes.get",
     "jo.Bytes.slice"    -> "jo.runtime.interpreter.RawBytes.slice",
@@ -38,7 +37,6 @@ object Interpreter:
 
   // Runtime definitions for the frontend
   val runtimeConfig = FrontEnd.RuntimeConfig(
-    arrayOpsSection = "jo.runtime.interpreter.RefArray",
     isLambdaValue   = "jo.runtime.interpreter.isLambdaValue",
   )
 
@@ -200,34 +198,6 @@ object Interpreter:
       "createRefArray" -> { (args: List[Value]) =>
         val IntVal(size) :: Nil = args: @unchecked
         ArrayVal(new Array[Value](size)) :: Nil
-      },
-
-      "getRefArray" -> { (args: List[Value]) =>
-        val (arrayVal: ArrayVal) :: IntVal(index) :: Nil = args: @unchecked
-        arrayVal.content(index).asInstanceOf[Value] :: Nil
-      },
-
-      "clearRefArray" -> { (args: List[Value]) =>
-        val (arrayVal: ArrayVal) :: IntVal(index) :: Nil = args: @unchecked
-        arrayVal.content.asInstanceOf[Array[Value]](index) = null
-        UnitValue
-      },
-
-
-      "setRefArray" -> { (args: List[Value]) =>
-        val (arrayVal: ArrayVal) :: IntVal(index) :: v :: Nil = args: @unchecked
-        arrayVal.content.asInstanceOf[Array[Value]](index) = v
-        UnitValue
-      },
-
-      "sizeArray" -> { (args: List[Value]) =>
-        val (arrayVal: ArrayVal) :: Nil = args: @unchecked
-        IntVal(arrayVal.content.length) :: Nil
-      },
-
-      "cloneRefArray" -> { (args: List[Value]) =>
-        val (arrayVal: ArrayVal) :: Nil = args: @unchecked
-        ArrayVal(arrayVal.content.clone()) :: Nil
       },
 
       "bytesSize" -> { (args: List[Value]) =>
@@ -628,6 +598,13 @@ object Interpreter:
 
                     call(fdef, argVals)(using env2)
 
+
+              case ArrayVal(content) =>
+                assert(args.isEmpty && autos.isEmpty, "Unexpected arguments for Array." + name)
+
+                if name == "size" then IntVal(content.length) :: Nil
+                else if name == "clone" then ArrayVal(content.clone()) :: Nil
+                else err("Unknown Array intrinsic: " + name)
 
               case strVal: StringVal =>
                 assert(autos.isEmpty, "autos non empty")
@@ -1046,6 +1023,20 @@ object Interpreter:
                 else if sym == defn.Float_parseFloatDecimal then
                   val StringVal(value) :: Nil = argVals: @unchecked
                   FloatVal(java.lang.Double.parseDouble(value)) :: Nil
+
+                else if sym == defn.Array_getUnchecked then
+                  val ArrayVal(content) :: IntVal(index) :: Nil = argVals: @unchecked
+                  content(index).asInstanceOf[Value] :: Nil
+
+                else if sym == defn.Array_setUnchecked then
+                  val ArrayVal(content) :: IntVal(index) :: value :: Nil = argVals: @unchecked
+                  content.asInstanceOf[Array[Value]](index) = value
+                  UnitValue
+
+                else if sym == defn.Array_clearUnchecked then
+                  val ArrayVal(content) :: IntVal(index) :: Nil = argVals: @unchecked
+                  content.asInstanceOf[Array[Value]](index) = null
+                  UnitValue
 
                 else
                   val fdef = defn.index.getCode(sym)
