@@ -2,7 +2,7 @@
 
 This document designs memory reclamation for the 64-bit LLVM backend. It
 builds on an earlier design, explicit function regions with deferred
-promotion, and changes it in four places:
+promotion, and changes it in five places:
 
 1. Region functions are chosen by the user in backend configuration, not by a
    language annotation.
@@ -10,6 +10,8 @@ promotion, and changes it in four places:
 3. Cleanup allocates nothing. The trace reverses pointers instead of keeping a
    work list.
 4. Survivors move to the parent region by handing over storage segments.
+5. A region from which something escapes merges into its parent while a
+   budget allows, and only collects when the budget is used up.
 
 The design is single-threaded, like the rest of the native runtime.
 
@@ -24,16 +26,18 @@ only how much memory and time it takes.
 The heap is a stack of regions. A call to a region function opens a child
 region and closes it on return. All allocations go into the current region.
 
-Every object records two region depths:
+Every object records two region levels. Levels number the open regions from
+the oldest, like depths (see [Levels](#levels)):
 
 - `phys`: the region whose storage holds the object.
-- `req`: the shallowest region the object must outlive. Always `req <= phys`.
+- `req`: the oldest region the object must outlive. Always `req <= phys`.
 
 A heap store `b.f = c` lowers `c.req` to `b.req` if needed. When a region
-closes, objects whose `req` is shallower than the region are escape roots.
-Their requirement spreads to the region's objects they reach. Then the region
-frees every object still required only by itself and hands the survivors to
-its parent.
+closes and nothing escapes it, it frees all its objects. Otherwise it merges
+into its parent while a budget allows, or collects: objects whose `req` is
+older than the region are escape roots, their requirement spreads to the
+region's objects they reach, and the region frees every object still required
+only by itself and hands the survivors to its parent.
 
 Safety does not depend on scanning the stack. A frame only ever holds
 pointers into its own region or an ancestor region, and a region outlives
@@ -54,13 +58,13 @@ can be improved later without changing this design.
 
 ### The runtime region
 
-Depth 0 is the runtime region. It holds what the runtime sets up before the
+Level 0 is the runtime region. It holds what the runtime sets up before the
 program starts, such as singleton objects, program arguments and the standard
 streams, and everything `main` allocates outside region functions. The runtime
 region never closes: the program exits instead, so freeing it would gain
 nothing.
 
-An object that escapes to depth 0 lives until the program exits.
+An object that escapes to level 0 lives until the program exits.
 
 ### Tail-recursive functions
 
@@ -70,7 +74,7 @@ can warn that the region marking is ignored for such a function.
 
 Merging regions is always safe. It only delays reclamation. The backend
 therefore may ignore a region boundary when it is inconvenient, for example
-beyond the depth limit.
+beyond the level limit.
 
 ## Object header
 
@@ -84,12 +88,12 @@ on path   [1 | cursor: 31]
 
 The on-path form is used only during cleanup (see below).
 
-Depth 0 is the runtime region. Region depth is limited to 32767 by the `phys`
+Level 0 is the runtime region. Levels are limited to 32767 by the `phys`
 field. A region function called at the limit runs in the current region
 instead of opening a new one.
 
 Since active regions form a chain, the lowest common ancestor of two active
-regions is the shallower one. The barrier therefore compares depths. A region
+regions is the older one. The barrier therefore compares levels. A region
 descriptor is never needed per object.
 
 ## Static data
@@ -106,14 +110,15 @@ library, such as the alternate signal stack, comes from `calloc`.
 ## Allocation
 
 `GC.alloc` stays the single allocation entry point. It allocates the object
-with `malloc`, writes `phys` and `req` as the current depth, and appends the
+with `malloc`, writes `phys` and `req` as the current level, and appends the
 object to the current region.
 
 A region stores its objects in a linked list of fixed-size segments. Each
-segment is an array of object pointers. Allocation adds a segment when the
-last one is full. This is the only place the region storage grows.
+segment is an array of object pointers with a count. Allocation fills the
+first segment and puts a new one in front when it is full. This is the only
+place the region storage grows.
 
-Only the last segment of a region is ever partly filled. The segment size is
+Only the first segment of a region is ever partly filled. The segment size is
 therefore not a tuning knob: the index costs one word per object, plus at most
 one partly filled segment per open region. A small segment keeps that waste
 low for deep recursion through region functions.
@@ -154,12 +159,16 @@ Only mutation stores need the barrier:
 store(b, slot, c):
   if c != null and c.req > b.req:
     c.req = b.req
+    regions[c.phys].min = min(regions[c.phys].min, b.req)
   slot = c
 ```
 
+The last line records the promotion for the close of `c`'s region (see
+[Knowing that nothing escapes](#knowing-that-nothing-escapes)).
+
 Initialization stores need no barrier. A new object `b` has `req` equal to the
-current depth, and any `c` it can refer to already has `c.req` at that depth or
-shallower.
+current level, and any `c` it can refer to already has `c.req` at that level or
+older.
 
 Codegen already routes every field store through one helper, `storeField`,
 which tells initialization from mutation. The barrier goes there.
@@ -181,10 +190,10 @@ mutated.
 A region function compiles to:
 
 ```
-enter()                     // push a region at depth + 1
+enter()                     // push a region above the current one's levels
 result = body
 if result is a pointer:
-  require(result, depth - 1)    // result.req = min(result.req, depth - 1)
+  require(result, p)        // p: the parent's level, recorded like the barrier
 close()
 return result
 ```
@@ -205,7 +214,7 @@ the closing region `r`.
 
 The earlier design follows pointers into ancestor regions. That is not
 needed. When the trace reaches an object `e` in an ancestor region `Q`, it
-lowers `e.req` and stops. Then `e.req < depth(Q)`, so `e` is an escape root of
+lowers `e.req` and stops. Then `e.req` is below `Q`'s level, so `e` is an escape root of
 `Q`, and its children are traced when `Q` closes. Until then they stay in a
 live region and are safe.
 
@@ -215,22 +224,22 @@ closes, the trace from `e` reaches `d` and lowers it further.
 
 ### Algorithm
 
+A close that collects (see [Merging regions](#merging-regions) for when):
+
 ```
-close(r):
+collect(r):
   for o in r.objects:
-    if o.req < depth(r):          // escape root
+    if o.req < r.num:             // escape root
       lower(o, o.req)
 
   for o in r.objects:             // sweep
-    if o.req == depth(r):
+    if o.req >= r.num:
       free(o)                     // never dereferences other objects
     else:
-      o.phys = depth(r) - 1
+      o.phys = r.parent.num
       keep o                      // pack survivors at the front
   release the empty segments
-  move the full segments to the front of r.parent's list
-  top up r.parent's last segment from the partly filled one
-  current region = r.parent
+  give the survivor segments to r.parent
 ```
 
 `lower(root, d)` lowers `req` to `d` for everything in `r` reachable from
@@ -248,7 +257,7 @@ lower(root, d):
     i = cur.cursor
     if i < pointerCount(cur):
       c = field(cur, i)
-      if c != null and not c.onPath and c.phys == depth(r) and c.req > d
+      if c != null and not c.onPath and c.phys >= r.num and c.req > d
           and pointerCount(c) > 0:
         field(cur, i) = prev      // reverse the edge
         prev = cur
@@ -259,7 +268,7 @@ lower(root, d):
           c.req = d               // in an ancestor or a leaf: lower only
         cur.cursor = i + 1
     else:
-      cur.gc = normal(phys = depth(r), req = d)
+      cur.gc = normal(phys = r.num, req = d)
       if prev == null: return
       j = prev.cursor
       up = field(prev, j)         // restore the reversed edge
@@ -271,8 +280,12 @@ lower(root, d):
 
 An object on the path is always in `r`, and its `req` is the current `d`. Both
 are implied, so its whole `gc` half is free to hold the cursor. A 31-bit
-cursor covers any array. The tag bit is checked first, because the depths of
+cursor covers any array. The tag bit is checked first, because the levels of
 an object on the path are not stored.
+
+All younger regions are closed, so an object is in `r` exactly when its
+`phys` is `r.num` or above. On the way back the trace writes `r.num`, which
+compares like the object's former `phys`.
 
 The traversal descends only into an object with `req > d`. That condition also
 replaces the `processed` map of the earlier design: an object already lowered to `d` or
@@ -284,17 +297,22 @@ shallower has nothing left to propagate. Cycles end at objects on the path.
 - Opening and closing a region that allocates nothing costs two calls and a few
   loads and stores. Descriptors and segments are reused, so it does not call the
   C allocator.
-- Closing a region visits each of its objects twice, once to find the escape
-  roots and once to free or keep them. Each dead object costs one `free`.
+- Closing a region from which nothing escapes visits each object once, to free
+  it. Each dead object costs one `free`.
+- A merge costs the scan of the region's levels and at most one segment's worth
+  of copied pointers, however many objects the region has.
+- A collect visits each object of the region twice, once to find the escape
+  roots and once to free or keep them.
 - The trace visits the objects of the region reachable from escape roots. Within
   one close, an object is traversed once per lowering of its `req`, which is
   once in the common case. Objects outside the region are never traversed.
-- A survivor pays again at every enclosing close. It moves up one region per
-  close and is visited by the sweep of each. While escaping data still reaches
-  it, it is also traced again: its `req` was lowered only to the depth of the
-  closing region's parent, which is too deep for the next close.
+- A survivor pays again at every enclosing close that collects. It moves up
+  one region per collect and is visited by the sweep of each. While escaping
+  data still reaches it, it is also traced again: its `req` was lowered only to
+  the level of the closing region's parent, which is too young for the next
+  close.
 
-So an object costs work at every region boundary it passes through alive. A
+So an object costs work at every collecting boundary it passes through alive. A
 region pays off when most of what it allocates dies before it closes. It costs
 more than it saves when most of what it allocates survives, and the cost grows
 with the number of nested regions the survivors pass through.
@@ -308,9 +326,12 @@ def build(n: Int): Option[Node] =
   else Some(new Node(n, build(n - 1)))
 ```
 
-Every node survives every enclosing close, so building a list of `n` nodes
-costs O(n²). On an x86-64 machine, `n = 20000` takes 0.02 seconds without
-regions and 92 seconds with `build` as a region function. Such a function frees
+Every node survives every enclosing close. The first closes merge, until the
+list exceeds the merge budget of about 500 objects. From then on every close
+collects and traces the whole list, so building a list of `n` nodes costs
+O(n²). On an x86-64 machine, `n = 20000` takes 0.02 seconds without regions
+and 40 seconds with `build` as a region function, down from 92 seconds before
+merging. Such a function frees
 nothing, so it gains nothing from being a region.
 
 ### Choosing region functions
@@ -328,6 +349,130 @@ Region functions are chosen for their effect on peak RSS:
 Measure peak RSS and time with and without a region function. A future
 profiling build could report, for each function, how much of the memory
 allocated during its calls survives them, which ranks the candidates.
+
+## Merging regions
+
+A close does not have to collect. It can merge the region into its parent and
+leave the work to a later close. This makes small regions cheap, which a
+policy that opens a region in every function needs.
+
+### When to merge
+
+| At close | Action |
+|---|---|
+| Nothing escapes | Free all objects |
+| Something escapes, and the merge budget allows it | Merge into the parent |
+| Something escapes, and the budget is used up | Collect |
+
+Merging a region with no escapes gains nothing. Each dead object costs one
+`free` either way, and merging only holds the memory longer.
+
+Merging pays when something escapes. The close skips the trace and the sweep.
+A survivor is then visited at one collecting close, not at every enclosing
+close. A recursive builder costs O(n) until the budget is reached.
+
+The budget bounds the garbage held by merging. A region merges only if it and
+its parent have at most 8 segments together, about 500 objects. Otherwise it
+collects. A loop whose own region never closes therefore holds at most about
+500 merged objects.
+
+A merge hands the region's segments to the parent like a collect hands the
+survivors: the partly filled first segment tops up the parent's, and the full
+ones are spliced in. It copies at most one segment's worth of pointers.
+
+### Levels
+
+A merge splices the region's segment list into the parent's. That is O(1), but
+the merged objects keep their `phys` and `req`. With plain depths, the next
+child reuses the merged region's depth and the barrier misses an escape:
+
+```
+b: merged object, stale req = d+1, really lives until d closes
+c: new object in the new child, req = d+1
+b.f = c   →  c.req > b.req is false, so c is not lowered
+the child closes  →  c is freed, and b.f dangles
+```
+
+Rewriting the merged headers would cost O(N). Instead, `phys` and `req` hold
+levels. Each region has a level `num` and the highest level merged into it,
+`hi`:
+
+```
+enter:            child.num = parent.hi + 1
+                  child.hi  = child.num
+merge c into p:   if c is non-empty: p.hi = max(p.hi, c.hi)
+collect r:        survivors get phys = parent.num
+```
+
+Every object's `phys` and `req` lie in `[owner.num, owner.hi]`, and new
+children are numbered above `owner.hi`. So no open region has a level in
+`(owner.num, owner.hi]`, and a stale level compares like `owner.num` against
+every open or future region. The barrier stays unchanged. If the real owner of
+`c` is younger than that of `b`, then `b.req < c.owner.num <= c.req`, so the
+barrier fires. Between stale levels of the same owner, it may lower `req`
+without need, which is safe.
+
+Close tests levels against the range of the closing region `r`. All younger
+regions are closed, so an object is in `r` exactly when `phys >= r.num`. An
+escape root has `req < r.num`. The sweep frees objects with `req >= r.num`.
+
+Levels grow only when a non-empty region merges, and they are reused when a
+region closes, like depths. A region's levels above its `num` number at most
+its merged objects, so with the budget they stay far below the limit of 32767,
+and the header keeps its layout. At the limit, `enter` stays in the current
+region, as for depths before.
+
+### Knowing that nothing escapes
+
+Pass 1 of a collect finds the escape roots by scanning every header. To know
+whether anything escapes without it, each region descriptor records `min`, the lowest level an object of
+the region was promoted to. `enter` sets `min` to the region's own `num`. The
+barrier records the promotion without a second branch:
+
+```
+store(b, slot, c):
+  if c != null and c.req > b.req:
+    c.req = b.req
+    regions[c.phys].min = min(regions[c.phys].min, b.req)
+  slot = c
+```
+
+`require` on the result records its promotion the same way. The `min` is a
+backend intrinsic of the LLVM runtime that emits `llvm.smin.i32`, so it lowers
+to `cmp` and `cmov` at every optimization level, not to a branch. A promotion
+that stays within the owner region records a level at or above its `num`,
+which signals nothing.
+
+The descriptors form an array indexed by level, `regions[level]`. So `enter`
+takes `&regions[parent.hi + 1]`, and the barrier finds the descriptor with one
+address computation. At 32768 levels and 32 bytes per descriptor, the array
+takes 1 MB of address space, and only the pages for the levels in use become
+resident.
+
+At the close of `r`, let `m` be the minimum of `min` over `[r.num, r.hi]`.
+After a merge, the barrier may record into the slot of a merged child, at a
+level in `(p.num, p.hi]`. No open region uses those slots, so the scan of the
+range finds it. Something escapes `r` exactly when `m < r.num`. Both collect
+and merge then pass `m` up:
+
+```
+parent.min = min(parent.min, m)
+```
+
+An object can escape several regions at once, but the barrier records only at
+the innermost one. Passing `m` up covers the others. The invariant is: if an
+object `o` has `req` below the `num` of its owner region, the minimum over the
+owner's range is at most `o.req`. It holds for every step that lowers a `req`
+or moves an object:
+
+- The barrier and `require` record the new `req` at the owner.
+- The survivors of a collect move to the parent. Their `req` was set by a
+  barrier, `require` or `lower`, so it is at least `m`, which the parent
+  receives.
+- `lower` lowers an object `e` in an ancestor `Q` to the `req` of its root,
+  which is at least `m`. Every close between `r` and `Q` passes `m` up, so `Q`
+  sees it and runs pass 1.
+- A merge keeps the child's records in the parent's range.
 
 ## Interaction with the optimizer
 
@@ -352,8 +497,12 @@ The barrier may be inlined.
 - Objects promoted to the runtime region stay until the program exits.
 - Garbage accumulates inside a long-running region, for example in a loop.
   Moving the loop body into a region function reclaims it per iteration.
-- Survivors are traced again at every enclosing close, so a region function
-  whose results are large and pass through many regions is slow (see Cost).
+- Survivors are traced again at every enclosing close that collects. Once a
+  region holds more than the merge budget, every enclosing close collects, so a
+  region function whose results are large and pass through many regions is
+  slow (see Cost).
+- A merge holds the garbage of the merged region until a later close, up to
+  the budget of 8 segments per region.
 - A removed escape stays promoted until its destination closes, as in the earlier design.
 - `malloc` per object is slower than the current bump allocator.
 
@@ -373,53 +522,61 @@ This changes only the allocator, not the region design.
 ## Implementation
 
 The runtime is `runtime/native/libc/Regions.jo`. Region descriptors and
-segments come from `calloc`, and both are reused:
+segments come from `calloc`:
 
-- A region descriptor is 32 bytes. A closed one goes to a free list, and the
-  next region takes it. Regions nest, so the list never holds more descriptors
-  than the deepest nesting so far.
-- A segment is 512 bytes: a `next` pointer and 63 objects. Only the last
-  segment of a region is partly filled, so the region descriptor keeps its
-  count, and the other segments need none. Released segments go to a pool of
-  at most 64.
+- The region descriptors form one array indexed by level, allocated at
+  startup. A descriptor is 32 bytes, so the array takes 1 MB of address space,
+  and only the pages of the levels in use become resident. `enter` takes the
+  descriptor above the current region's levels.
+- A segment is 512 bytes: a `next` pointer, a count and 62 objects. Only the
+  first segment of a region is partly filled. Released segments go to a pool
+  of at most 64.
 - A region gets its first segment on its first object.
+- `min` is computed with an intrinsic of the LLVM runtime, `minInt`, which
+  the backend emits as `llvm.smin.i32`. It lowers to `cmp` and `cmov` at every
+  optimization level.
 
-A region call that allocates nothing therefore allocates nothing at all in the
-common case. It costs the two calls of `enter` and `leave` and a few loads and
-stores. Objects are allocated with `calloc` and freed with `free`.
+A region call that allocates nothing therefore allocates nothing at all. It
+costs the two calls of `enter` and `leave` and a few loads and stores. Objects
+are allocated with `calloc` and freed with `free`.
 
 ### Memory structure
 
 ![Regions, segments and objects, and a close](gc-regions.svg)
 
-The runtime state is a static global. It points to the current region, and
-each region points to its parent, down to the runtime region at depth 0.
-Segments index the objects of a region. They hold pointers, never the objects
-themselves.
+The runtime state is a static global. It points to the descriptor array and
+to the current region, and each region records the level of its parent, down
+to the runtime region at level 0. Segments index the objects of a region. They
+hold pointers, never the objects themselves.
 
 ```
 @runtime.state (static, zeroed)
-┌──────────┬─────────┬───────────┬─────────────┬──────────────┬──────────┬──────────┐
-│ region ● │ skipped │ segPool ● │ segPoolSize │ regionPool ● │ stackLow │ stackTop │
-└────┼─────┴─────────┴────┼──────┴─────────────┴────┼─────────┴──────────┴──────────┘
-     │                    │                         └──► closed descriptor ──► …   (deepest nesting so far)
-     │                    └──► free segment ──► free segment ──► …   (at most 64)
-     ▼
-region descriptor (32 bytes)
-┌──────────┬───────────┬───────────────┬────────────┬───────────┐
-│ parent ● │ depth i32 │ lastCount i32 │ firstSeg ● │ lastSeg ● │
-└────┼─────┴───────────┴───────────────┴─────┼──────┴─────┼─────┘
-     │                                       │            └───────────────┐
-     ▼                                       ▼                            ▼
-parent region                  segment (512 bytes)     segment     segment (last)
-  …                            ┌──────────────┐        ┌────────┐       ┌───────────┐
-runtime region                 │ next ●       ├───────►│ next ● ├─► … ─►│ null      │
-(depth 0)                      ├──────────────┤        ├────────┤       ├───────────┤
-                               │ object 0 ●   │        │ …      │       │ lastCount │
-                               │ object 1 ●   │        │        │       │ objects   │
-                               │ … 63 entries │        │ full   │       │ partly    │
-                               └──────┼───────┘        └────────┘       └───────────┘
-                                      ▼
+┌───────────┬──────────┬───────┬─────────┬───────────┬─────────────┬──────────┬──────────┐
+│ regions ● │ region ● │ level │ skipped │ segPool ● │ segPoolSize │ stackLow │ stackTop │
+└─────┼─────┴────┼─────┴───────┴─────────┴─────┼─────┴─────────────┴──────────┴──────────┘
+      │          │                             └──► free segment ──► …   (at most 64)
+      ▼          ▼
+regions: one descriptor per level (32 bytes each)
+┌───────────┬───┬───┬───┬─────┬─────┬─────┬──────────────────┐
+│ 0 runtime │ 1 │ … │ p │ p+1 │ p+2 │ num │ unused … 32767   │
+└───────────┴───┴───┴───┴─────┴─────┴──┼──┴──────────────────┘
+                     └─ levels of p ─┘ │   p.hi = p+2: the regions merged into p
+                                       ▼
+current region descriptor
+┌────────────┬─────────┬─────────┬──────────┬────────────┬───────────┐
+│ parent i32 │ hi i32  │ min i32 │ segs i32 │ firstSeg ● │ lastSeg ● │
+└────────────┴─────────┴─────────┴──────────┴─────┼──────┴─────┼─────┘
+                                                  │            └───────────────┐
+                                                  ▼                            ▼
+                              segment (512 bytes)     segment     segment (last)
+                              ┌──────────────┐        ┌────────┐       ┌───────────┐
+                              │ next ●       ├───────►│ next ● ├─► … ─►│ null      │
+                              │ count        │        │ 62     │       │ 62        │
+                              ├──────────────┤        ├────────┤       ├───────────┤
+                              │ object 0 ●   │        │ …      │       │ objects   │
+                              │ … up to 62   │        │ full   │       │ full      │
+                              └──────┼───────┘        └────────┘       └───────────┘
+                                     ▼  first, partly filled
 heap object (calloc), 8-byte slots
 ┌─────────┬───────────────────────────┬────────┬────────┬─────
 │ cid i32 │ gc i32                    │ slot 1 │ slot 2 │ …
@@ -434,28 +591,35 @@ Static objects, such as string literals, parameter keys and the runtime state,
 are in no segment. Their `gc` half is 0, so they count as `phys = 0` and
 `req = 0`.
 
-When region `r` closes, the sweep packs the survivors into the front of its own
-segments. The full ones go to the front of the parent's list. The partly filled
-one tops up the parent's last segment, and what is left of it becomes the
-parent's new last segment. The other segments of `r` go back to the pool.
+When region `r` collects, the sweep packs the survivors into the front of its
+own segments, and the other segments go back to the pool. A merge keeps all
+of `r`'s segments. Either way the segments are given to the parent. The partly
+filled one tops up the parent's first segment. If objects are left in it, it
+becomes the parent's first segment, since the old one is full now. Otherwise
+it goes back to the pool. The full ones are spliced in after the parent's
+first segment.
 
 ```
-before close
+before a collect
 
-  parent:  first ─► [ A: 63 ] ─► [ B: 40 ] ◄─ last
-  r:       first ─► [ S1: 63 ] ─► [ S2: 30 ] ─► [ S3: 0 ] ◄─ last
+  parent:  first ─► [ P0: 40 ] ─► [ A: 62 ]
+  r:       first ─► [ S1: 62 ] ─► [ W: 30 ] ─► [ S3: 0 ]
                      survivors, packed          emptied by the sweep
 
-after close
+the survivors given to the parent, the partly filled one first
 
-  parent:  first ─► [ S1: 63 ] ─► [ A: 63 ] ─► [ B: 63 ] ─► [ S2: 7 ] ◄─ last
-                                                 +23 from S2
+           [ W: 30 ] ─► [ S1: 62 ]
+
+after
+
+  parent:  first ─► [ W: 8 ] ─► [ S1: 62 ] ─► [ P0: 62 ] ─► [ A: 62 ]
+                                               +22 from W
   pool:    [ S3 ] ─► …
-  r:       descriptor to the free list
 ```
 
-The parent again has only one partly filled segment, its last one. If `B` had
-room for all of `S2`, `S2` would go back to the pool and `B` would stay last.
+The parent again has only one partly filled segment, its first one. If `P0`
+had room for all of `W`, `W` would go back to the pool, `P0` would stay first,
+and `S1` would follow it.
 
 Codegen calls `Regions.enter` at the start of a region function and
 `Regions.leave` before each `ret`, passing the result or `null`. Both are
@@ -466,7 +630,12 @@ Usage:
 
 ```
 jo compile --llvm --region app.process --region app.step app.jo -o app
+jo compile --llvm --region-policy all app.jo -o app
 ```
+
+`--region-policy` opens regions in more functions besides those named by
+`--region`: `none` (the default), `scalar` for functions returning a primitive
+value other than `Unit`, or `all`.
 
 The names are full names, as in `--link`. Only top-level functions, defined
 directly in a namespace or a section, can be region functions. Class methods
