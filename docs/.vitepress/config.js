@@ -166,6 +166,7 @@ export default defineConfig({
             { text: 'Testing', link: '/usage/guides/testing' },
             { text: 'Publishing a Package', link: '/usage/guides/publishing' },
             { text: 'Writing FFI Packages', link: '/usage/guides/ffi' },
+            { text: 'Memory in Native Programs', link: '/usage/guides/memory' },
           ]
         },
         {

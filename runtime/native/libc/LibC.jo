@@ -1,0 +1,44 @@
+namespace jo.runtime.native.LibC
+
+import jo.compile.intrinsic
+
+import jo.runtime.native.Addr
+
+// Functions of the C library
+//
+// The backend declares each function as an external C function of the same
+// name and calls it directly. `Int` maps to C `int`, `Long` to `long`,
+// `size_t` and `ssize_t`, `Float` to `double` and `Addr` to a pointer.
+
+@intrinsic
+def write(fd: Int, buf: Addr, count: Long): Long receives none = ...
+
+@intrinsic
+def exit(status: Int): Bottom receives none = ...
+
+// Exit without running exit handlers, safe in a signal handler
+@intrinsic
+def _exit(status: Int): Bottom receives none = ...
+
+@intrinsic
+def getrlimit(resource: Int, rlim: Addr): Int receives none = ...
+
+@intrinsic
+def calloc(count: Long, size: Long): Addr receives none = ...
+
+@intrinsic
+def free(ptr: Addr): Unit receives none = ...
+
+@intrinsic
+def sigaltstack(ss: Addr, oldss: Addr): Int receives none = ...
+
+@intrinsic
+def sigaction(signum: Int, act: Addr, oldact: Addr): Int receives none = ...
+
+// Variadic: the backend calls it with the fixed parameters `buf`, `size` and
+// `format`, and passes the rest as variadic arguments.
+@intrinsic
+def snprintf(buf: Addr, size: Long, format: Addr, precision: Int, value: Float): Int receives none = ...
+
+@intrinsic
+def strtod(str: Addr, endptr: Addr): Float receives none = ...

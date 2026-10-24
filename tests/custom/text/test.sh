@@ -27,20 +27,11 @@ run_case() {
         exit 1
     }
 
-    echo "  - $name (register)"
-    bin/jo compile --reg "$src" --lib "$LIB_OUT" -o "$DIR/$name.run"
+    echo "  - $name (llvm)"
+    bin/jo compile --llvm --clang "${CLANG:-clang}" "$src" --lib "$LIB_OUT" -o "$DIR/$name.run"
     "$DIR/$name.run" > "$out" 2>&1
     diff "$out" "$expect" || {
-        echo "[error] Register test failed for $name"
-        cat "$out"
-        exit 1
-    }
-
-    echo "  - $name (stack)"
-    bin/jo compile --stack "$src" --lib "$LIB_OUT" -o "$DIR/$name.run"
-    "$DIR/$name.run" > "$out" 2>&1
-    diff "$out" "$expect" || {
-        echo "[error] Stack test failed for $name"
+        echo "[error] LLVM test failed for $name"
         cat "$out"
         exit 1
     }

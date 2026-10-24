@@ -12,6 +12,9 @@ jo compile [--sast <dir>] [--source-root <dir>] <file.jo>... [--lib <dir>]...
 jo compile --python|--ruby|--js [--sast <dir>] [--source-root <dir>] <file.jo>... \
            [--lib <dir>]... [--link-lib <dir>]... [--link <src>=<tgt>]... -o <output>
 
+# Compile to a native executable through LLVM (experimental)
+jo compile --llvm [--region <function>]... <file.jo>... -o <executable>
+
 # Generate HTML documentation from source files (experimental)
 jo compile --doc [--out <dir>] [--title <name>] [--readme <file>] \
            [--include-private] [--source-root <dir>] \
@@ -102,6 +105,30 @@ Query output includes public symbols only.
 
 When `--use-runtime-api` matches the selected app backend, the compiler uses that runtime API through the check-library path and suppresses the backend's default runtime link library.
 
+### Native compilation (LLVM)
+
+Experimental. The LLVM backend compiles to a 64-bit native executable. It emits
+LLVM IR and calls clang 15 or newer to build it.
+
+| Flag | Description |
+|------|-------------|
+| `--llvm` | Target a native executable through LLVM |
+| `--clang <path>` | The clang executable (default: `clang`) |
+| `--opt <level>` | clang optimization level (default: `2`) |
+| `--keep-ll` | Keep the generated `.ll` file next to the executable |
+| `--region <function>` | Run each call of `<function>` in a memory region of its own (can be repeated) |
+
+`--region` takes the full name of a top-level function, such as `app.process`.
+Class methods cannot be region functions. It lowers the peak memory of long-running programs and never changes
+what a program computes. See [Memory in Native Programs](../guides/memory.md).
+
+The backend has no foreign function interface. A program can read its
+arguments, compute and print to standard output and standard error, but it has
+no access to files, the network or other system resources. This makes it
+suitable for confined programs that compute on their input and print the result.
+
+Concurrency is planned but not yet implemented.
+
 ## Examples
 
 Type-check a library and emit `.sast`:
@@ -140,6 +167,12 @@ jo compile --python --sast .build/app/sast src/App.jo \
   --lib .build/api/sast \
   --link-lib .build/runtime/sast \
   -o .build/app/target/app.py
+```
+
+Compile a native executable, reclaiming the memory of each request:
+
+```sh
+jo compile --llvm --region app.handleRequest src/App.jo -o app
 ```
 
 Generate docs directly from source files:

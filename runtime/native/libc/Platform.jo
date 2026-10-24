@@ -1,0 +1,200 @@
+namespace jo.runtime.native
+
+import jo.compile.intrinsic
+
+import jo.runtime.native.LibC
+import jo.runtime.native.GC
+
+// Platform layer on top of the C library
+//
+// The common runtime expects every platform layer to provide `intToLong`,
+// `exitImpl`, `writeFd`, `floatToStr`, the memory primitives `allocBuffer`,
+// `bytesClassId` and `writeRef`, and the program entry `start`.
+
+@intrinsic
+private def intToLong(a: Int): Long receives none = ...
+
+//[ The numeric value of an address //]
+@intrinsic
+private def addrToLong(a: Addr): Long receives none = ...
+
+private def exitImpl(code: Int): Bottom receives none = LibC.exit code
+
+private def writeFd(fd: Int, content: Addr, len: Int): Int receives none =
+  (LibC.write fd content len.toLong).toInt
+
+//------------------------------------------------------------------------------
+//
+// memory
+//
+// Every allocation is an object with a header, so the garbage collector can
+// find its layout. A field of type `Addr` points just past the header of a
+// buffer object, or of a static buffer emitted by the backend.
+
+@intrinsic
+private def bufferClassId: Int receives none = ...
+
+@intrinsic
+private def bytesClassId: Int receives none = ...
+
+// A byte buffer of `size` bytes. Returns the address of its first byte.
+private def allocBuffer(size: Int): Addr receives none =
+  val obj = GC.alloc (size + wordSize)
+  writeInt obj bufferClassId
+  addAddr obj wordSize
+
+// Store a reference into the object `obj` at byte offset `offset`
+private def writeRef(obj: Addr, offset: Int, value: Addr): Unit receives none =
+  Regions.barrier(obj, value)
+  writeAddr (addAddr obj offset) value
+
+// Copy a null-terminated C string into a buffer
+private def copyCString(str: Addr): Addr receives none =
+  var len = 0
+  while (readByte (addAddr str len)).toInt != 0 do
+    len = len + 1
+  end
+
+  val buf = allocBuffer (len + 1)
+  var i = 0
+  while i <= len do
+    writeByte(addAddr buf i, readByte (addAddr str i))
+    i = i + 1
+  end
+  buf
+
+//------------------------------------------------------------------------------
+//
+// program life time
+//
+
+//[
+  ! This object cannot be allocated by GC because the GC initialization needs to
+  ! record GC state inside it.
+  !
+  ! The class may not implement interfaces as the interface table is created
+  ! later.
+  !
+  ! The class initialization code is simply ignored --- it should not require
+  ! any initialization. The backend reserves zeroed memory for it.
+  !
+  ! Breaking the invariants will lead to segmentation fault.
+//]
+private class State
+  // regions: the descriptors indexed by level, the current region, its
+  // level, and the `enter` calls merged at the level limit
+  var regions: Addr = nullAddr
+  var region: Addr = nullAddr
+  var level: Int = 0
+  var skipped: Int = 0
+
+  // the pool of free region segments
+  var segPool: Addr = nullAddr
+  var segPoolSize: Int = 0
+
+  // the address range of the main stack, to recognize a stack overflow
+  var stackLow: Long = 0
+  var stackTop: Long = 0
+end
+
+@intrinsic
+private def state: State receives none =
+  abort "native state"
+
+//[ Program entry, called by the C `main` function //]
+private def start(argc: Int, argv: Addr): Unit receives none =
+  GC.init()
+
+  // Install SIGSEGV handler so stack overflow prints a clear message.
+  installStackOverflowHandler(argv)
+
+  // Must not use any global objects before batch initialization
+  // (GC is now up but singleton objects are not yet initialized)
+
+  // Initialize singleton object after runtime is ready
+  initObjects()
+
+  // Convert arguments from C string to Jo string
+  val strArr = Array.create[String](argc - 1)
+  // skip the first arg: program name
+  for i in 1 until argc do
+    val addr = readAddr: addAddr argv (i * wordSize)
+    strArr[i - 1] = StringOps.fromCString (copyCString addr)
+
+  with
+    IO.stdout = createStdOut(),
+    IO.stderr = createStdErr(),
+    IO.args = strArr
+  in
+    jo.main()
+
+  finish()
+
+private def finish: Unit receives none =
+  LibC.exit 0
+
+//------------------------------------------------------------------------------
+//
+// Float conversions
+//
+
+// Write the C format string `%.<precision>g` into `buf`
+private def writeFormat(buf: Addr, precision: Int): Unit receives none =
+  writeByte(buf, 37.toByte)                   // %
+  writeByte(addAddr buf 1, 46.toByte)         // .
+  writeByte(addAddr buf 2, 49.toByte)         // 1
+  writeByte(addAddr buf 3, (48 + precision - 10).toByte)
+  writeByte(addAddr buf 4, 103.toByte)        // g
+  writeByte(addAddr buf 5, 0.toByte)
+
+// The shortest of 15, 16 or 17 significant digits that reads back as `f`.
+// Integral values get a trailing `.0`.
+private def floatToStr(f: Float): String =
+  // spelled as the other backends do, not as the C library does
+  val maxFloat: Float = 1.7976931348623157e308
+  if f != f then return "NaN"
+  if f > maxFloat then return "Infinity"
+  if f < -maxFloat then return "-Infinity"
+
+  val bufSize = 32
+  val buf = allocBuffer bufSize
+  val format = allocBuffer 8
+
+  var precision = 15
+  var done = false
+  while !done do
+    writeFormat(format, precision)
+    val _ = LibC.snprintf buf bufSize.toLong format precision f
+    done = precision == 17 || (LibC.strtod buf nullAddr) == f
+    precision = precision + 1
+  end
+
+  // Find the end of the digits and whether it needs `.0`
+  var len = 0
+  var integral = true
+  while (readByte (addAddr buf len)).toInt != 0 do
+    val c = (readByte (addAddr buf len)).toInt
+    if c == 46 || c == 101 || c == 105 || c == 110 then integral = false
+    len = len + 1
+  end
+
+  if integral then
+    writeByte(addAddr buf len, 46.toByte)
+    writeByte(addAddr buf (len + 1), 48.toByte)
+    writeByte(addAddr buf (len + 2), 0.toByte)
+
+  StringOps.fromCString buf
+
+//[ Decimal conversion for `Float.parse`, which validates the syntax //]
+private def parseFloat(s: String): Float receives none =
+  val n = StringOps.byteSize s
+  val content = StringOps.bytes s
+  val buf = allocBuffer (n + 1)
+  var i = 0
+  while i < n do
+    writeByte(addAddr buf i, readByte (addAddr content i))
+    i = i + 1
+  end
+  writeByte(addAddr buf n, 0.toByte)
+
+  LibC.strtod buf nullAddr

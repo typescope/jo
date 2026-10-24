@@ -1,0 +1,51 @@
+namespace jo.runtime.native
+
+import jo.compile.intrinsic
+
+//------------------------------------------------------------------------------
+//
+// Long support
+//
+// Jo Long is a 64-bit machine integer. The backend inlines the operators.
+//
+
+private section LongOps
+  @intrinsic def (a: Long) + (b: Long): Long = abort "native Long.+"
+  @intrinsic def (a: Long) - (b: Long): Long = abort "native Long.-"
+  @intrinsic def (a: Long) * (b: Long): Long = abort "native Long.*"
+  @intrinsic def (a: Long) / (b: Long): Long = abort "native Long./"
+  @intrinsic def (a: Long) % (b: Long): Long = abort "native Long.%"
+  @intrinsic def (a: Long) > (b: Long): Bool = abort "native Long.>"
+  @intrinsic def (a: Long) < (b: Long): Bool = abort "native Long.<"
+  @intrinsic def (a: Long) >= (b: Long): Bool = abort "native Long.>="
+  @intrinsic def (a: Long) <= (b: Long): Bool = abort "native Long.<="
+  @intrinsic def (a: Long) == (b: Long): Bool = abort "native Long.=="
+  @intrinsic def (a: Long) != (b: Long): Bool = abort "native Long.!="
+  @intrinsic def (a: Long) >> (b: Long): Long = abort "native Long.>>"
+  @intrinsic def (a: Long) << (b: Long): Long = abort "native Long.<<"
+  @intrinsic def (a: Long) & (b: Long): Long = abort "native Long.&"
+  @intrinsic def (a: Long) | (b: Long): Long = abort "native Long.|"
+  @intrinsic def (a: Long) ^ (b: Long): Long = abort "native Long.^"
+  @intrinsic def ~- (a: Long): Long = abort "native Long.~-"
+  @intrinsic def ~~ (a: Long): Long = abort "native Long.~~"
+  @intrinsic def (a: Long) toInt: Int = abort "native Long.toInt"
+  @intrinsic def (a: Long) toFloat: Float = abort "native Long.toFloat"
+
+  def (a: Long) toString: String =
+    val zero: Long = 0
+    val ten: Long = 10
+    if a == zero then "0"
+    else
+      // Collect digits from the negative side, which also holds the minimum value
+      val neg = a < zero
+      var n = if neg then a else -a
+      var s = ""
+      while n != zero do
+        val digit = -(n % ten).toInt
+        s = (48 + digit).toChar.toString + s
+        n = n / ten
+      if neg then "-" + s else s
+end
+
+// Box for Long values in union types
+private class LongBox(value: Long)

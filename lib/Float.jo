@@ -6,10 +6,6 @@ import jo.compile.intrinsic
   !
   ! Float is a class (like String) to avoid operator namespace pollution.
   !
-  ! Not available on the native backends: compiling any use of `Float` with
-  ! `--reg` or `--stack` fails with "Floating point not supported for native
-  ! backend".
-  !
   ! IEEE 754 semantics apply, so `0.0 / 0.0` is NaN and NaN compares false
   ! against every value, itself included.
 //]
@@ -100,7 +96,11 @@ class Float
   private def floorFinite: Float = ...
 
   // Conversion methods
-  //[ Truncates toward zero. //]
+  //[ Truncates toward zero.
+    !
+    ! The behavior is undefined when the truncated value is outside the `Int`
+    ! range or the value is NaN.
+  //]
   @intrinsic
   def toInt: Int = ...
 
