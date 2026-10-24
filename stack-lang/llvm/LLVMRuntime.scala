@@ -88,6 +88,7 @@ class LLVMRuntime(val rewire: Map[Symbol, Symbol])(using defn: Definitions):
   val Regions_leave       = Regions.termMember("leave")
   val Regions_barrier     = Regions.termMember("barrier")
   val Regions_layoutTable = Regions.termMember("layoutTable")
+  val Regions_minInt      = Regions.termMember("minInt")
 
   val GC = defn.resolveContainer("jo.runtime.native.GC")
   val GC_alloc = GC.termMember("alloc")

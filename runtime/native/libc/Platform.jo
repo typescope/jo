@@ -81,16 +81,16 @@ private def copyCString(str: Addr): Addr receives none =
   ! Breaking the invariants will lead to segmentation fault.
 //]
 private class State
-  // regions: the current region and the `enter` calls merged at the depth limit
+  // regions: the descriptors indexed by level, the current region, its
+  // level, and the `enter` calls merged at the level limit
+  var regions: Addr = nullAddr
   var region: Addr = nullAddr
+  var level: Int = 0
   var skipped: Int = 0
 
   // the pool of free region segments
   var segPool: Addr = nullAddr
   var segPoolSize: Int = 0
-
-  // closed region descriptors kept for reuse
-  var regionPool: Addr = nullAddr
 
   // the address range of the main stack, to recognize a stack overflow
   var stackLow: Long = 0
