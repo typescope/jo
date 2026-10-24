@@ -4,23 +4,54 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.14.4] - 2026-10-24
+
 ### Added
 
 - `Float.format` supports general (`.3g`) notation with significant-digit
   precision, choosing fixed or scientific notation after rounding and removing
   trailing fractional zeros. Precision zero is treated as one significant digit.
+  ([#184])
+
+### Changed
+
+- Array bounds checks are implemented in the standard library, with private
+  unchecked intrinsics for backend access. Public indexing, assignment, and
+  clearing retain their bounds checks. ([#189])
 
 ### Fixed
 
 - Pattern expressions inside parentheses can span lines, including
-  constructor-pattern arguments.
+  constructor-pattern arguments. ([#185])
 - Erasure adapts a `return` value to the result type of the function it
   returns from, rather than to an enclosing label's type. Early returns inside
-  tail-call-optimized functions no longer fail tree checking.
+  tail-call-optimized functions no longer fail tree checking. ([#187])
 - `String.startsWith` and `endsWith` are backend intrinsics that use the host
   string's prefix and suffix checks. `endsWith` no longer counts and indexes
   code points across the whole string on JavaScript, and `startsWith` no longer
   walks code point iterators, which were especially slow on Ruby and Python.
+  ([#188])
+
+### Security
+
+- No security-relevant changes.
+
+### Compatibility
+
+- Existing source programs and published packages remain compatible. Use the
+  compiler, standard library, and runtimes from this release together for the
+  updated array intrinsics and general floating-point formatting.
+- `String.startsWith` and `endsWith` require both strings to be well-formed
+  Unicode. Behavior for inputs containing unpaired surrogates is undefined.
+  ([#188])
+- SAST format 2.0, build specifications, and `.joy` package formats are unchanged.
+  Existing libraries do not require recompilation for format compatibility.
+
+[#184]: https://github.com/typescope/jo/pull/184
+[#185]: https://github.com/typescope/jo/pull/185
+[#187]: https://github.com/typescope/jo/pull/187
+[#188]: https://github.com/typescope/jo/pull/188
+[#189]: https://github.com/typescope/jo/pull/189
 
 ## [0.14.3] - 2026-10-23
 
