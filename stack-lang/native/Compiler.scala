@@ -32,7 +32,6 @@ object Compiler:
     "jo.abortImpl"      -> "jo.runtime.native.abortImpl",
 
     "jo.Array.create" -> "jo.runtime.native.RefArray.create",
-    "jo.Array.clear"  -> "jo.runtime.native.RefArray.clear",
 
     "jo.Bytes.size"     -> "jo.runtime.native.RawBytes.size",
     "jo.Bytes.get"      -> "jo.runtime.native.RawBytes.get",
@@ -55,7 +54,6 @@ object Compiler:
 
   // Runtime definitions for the frontend
   val runtimeConfig = FrontEnd.RuntimeConfig(
-    arrayOpsSection = "jo.runtime.native.RefArray",
     isLambdaValue   = "jo.runtime.native.isLambdaValue",
   )
 

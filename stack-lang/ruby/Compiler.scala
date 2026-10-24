@@ -23,7 +23,6 @@ object Compiler:
     "jo.abortImpl"      -> "jo.rb.runtime.abort",
 
     "jo.Array.create" -> "jo.rb.runtime.RefArray.create",
-    "jo.Array.clear"  -> "jo.rb.runtime.RefArray.clear",
     "jo.Array.fill" -> "jo.rb.runtime.RefArray.fill",
     "jo.Array.join" -> "jo.rb.runtime.RefArray.join",
 
@@ -47,7 +46,6 @@ object Compiler:
 
   // Runtime definitions for the frontend
   val runtimeConfig = FrontEnd.RuntimeConfig(
-    arrayOpsSection = "jo.rb.runtime.RefArray",
     isLambdaValue   = "jo.rb.runtime.isLambdaValue",
   )
 

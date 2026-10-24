@@ -20,16 +20,18 @@ class Array[T]
   private def Array() = abort("Invalid Array creation")
 
   //[ The element at index `i`, 0-based, bound-checked. //]
-  @intrinsic
-  def get(i: Int): T = ...
+  def get(i: Int): T =
+    assert: i >= 0 && i < size, "Index \{i} out of bounds, size = \{size}"
+    Array.getUnchecked(this, i)
 
   //[ The number of elements. Fixed when the array is created. //]
   @intrinsic
   def size: Int = ...
 
   //[ Store `value` at index `i`, 0-based, bound-checked. //]
-  @intrinsic
-  def set(i: Int, value: T): Unit = ...
+  def set(i: Int, value: T): Unit =
+    assert: i >= 0 && i < size, "Index \{i} out of bounds, size = \{size}"
+    Array.setUnchecked(this, i, value)
 
   //[ Return a new array with the same length and the same elements.
     !
@@ -112,7 +114,27 @@ section Array
     !
     ! Out of bound index will be runtime error/abort.
   //]
-  defer def clear[T](arr: Array[T], at: Int): Unit
+  def clear[T](arr: Array[T], at: Int): Unit =
+    assert: at >= 0 && at < arr.size, "Index \{at} out of bounds, size = \{arr.size}"
+    clearUnchecked(arr, at)
+
+  //[ The element at index `i`, which must be within bounds.
+    !
+    ! Backends compile it to host indexing without a bounds check.
+  //]
+  @intrinsic
+  private[jo] def getUnchecked[T](arr: Array[T], i: Int): T = ...
+
+  //[ Store `value` at index `i`, which must be within bounds.
+    !
+    ! Backends compile it to host indexing without a bounds check.
+  //]
+  @intrinsic
+  private[jo] def setUnchecked[T](arr: Array[T], i: Int, value: T): Unit = ...
+
+  //[ Make the slot at index `i` uninitialized. `i` must be within bounds. //]
+  @intrinsic
+  private[jo] def clearUnchecked[T](arr: Array[T], i: Int): Unit = ...
 
   //[ Create an array containing `size` copies of `value`. //]
   defer def fill[T](size: Int, value: T): Array[T] =

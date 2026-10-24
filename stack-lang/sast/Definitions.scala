@@ -78,6 +78,9 @@ final class Definitions(private var _index: SymbolIndex) extends Definitions.Laz
   val Array_class     =  jo.typeMember("Array")
   val Array_sec       =  jo.containerMember("Array")
   val Array_create    =  Array_sec.termMember("create")
+  val Array_getUnchecked   = Array_sec.termMember("getUnchecked")
+  val Array_setUnchecked   = Array_sec.termMember("setUnchecked")
+  val Array_clearUnchecked = Array_sec.termMember("clearUnchecked")
 
   // Lists
   val List         =  resolveContainer("jo.List")

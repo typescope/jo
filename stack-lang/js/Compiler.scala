@@ -23,7 +23,6 @@ object Compiler:
     "jo.abortImpl"      -> "jo.js.runtime.abort",
 
     "jo.Array.create" -> "jo.js.runtime.RefArray.create",
-    "jo.Array.clear"  -> "jo.js.runtime.RefArray.clear",
     "jo.Array.join" -> "jo.js.runtime.RefArray.join",
 
     "jo.StringOps.compareTo" -> "jo.js.runtime.StringOps.compareTo",
@@ -46,7 +45,6 @@ object Compiler:
 
   // Runtime definitions for the frontend
   val runtimeConfig = FrontEnd.RuntimeConfig(
-    arrayOpsSection = "jo.js.runtime.RefArray",
     isLambdaValue   = "jo.js.runtime.isLambdaValue",
   )
 

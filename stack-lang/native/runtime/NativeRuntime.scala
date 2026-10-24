@@ -54,6 +54,7 @@ extends Linker:
   val Core_FloatOps = Native.containerMember("FloatOps")
   val Core_LongOps  = Native.containerMember("LongOps")
   val Core_StringOps = Native.containerMember("StringOps")
+  val Core_RefArray  = Native.containerMember("RefArray")
 
   // Bool primitive operators (defined in section BoolOps in Native.jo)
   val Bool_and = Core_BoolOps.termMember("&&")

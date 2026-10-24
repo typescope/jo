@@ -216,6 +216,12 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
         case MemberRef(_, sym) => sym.owner.isInterface && sym.is(Flags.Defer)
         case _ => false
 
+    /** Array has intrinsic methods only, see LiftPrimitiveMethods */
+    def isArrayMethod(refType: Type): Boolean =
+      refType match
+        case MemberRef(_, sym) => sym.owner == defn.Array_class
+        case _ => false
+
     def rewriteApply(receiverRef: Word, name: String): Word =
       val memberRef = receiverRef.tpe.termMember(name).as[RefType]
       val isAbstractCall = isAbstractInterfaceMethod(memberRef)
@@ -261,6 +267,10 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
 
     fun match
+      case Ident(sym) if sym.owner == defn.Array_sec && sym.hasAnnotation(defn.intrinsic) =>
+        // Unchecked array access is implemented in the native runtime
+        Ident(runtime.Core_RefArray.termMember(sym.name))(fun.span).appliedTo(args2*)
+
       case Ident(sym) if sym == runtime.Core_isLambdaValue =>
         val arg :: Nil = args: @unchecked
         val classIdRecordType = RecordType(NamedInfo(Memory.ClassID, defn.IntType) :: Nil)
@@ -302,6 +312,11 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
 
           val apply2 = rewriteLambdaApply(receiver)
           Block(assign :: apply2 :: Nil)(apply.span)
+
+      case Select(qual, name) if isArrayMethod(fun.tpe) =>
+        // Array intrinsic methods are implemented in the native runtime
+        val qual2 = this(qual)
+        Ident(runtime.Core_RefArray.termMember(name))(fun.span).appliedTo(qual2 :: args2*)
 
       case Select(qual, name) if qual.tpe.isClassInfoType =>
         // Check if this is a primitive numeric type operator
