@@ -785,6 +785,11 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
     else if sym == runtime.Regions_layoutTable then
       V("ptr", "@gc.layouts")
 
+    else if sym == runtime.Regions_minInt then
+      cDecls.getOrElseUpdate("llvm.smin.i32", "declare i32 @llvm.smin.i32(i32, i32)")
+      val a :: b :: Nil = args: @unchecked
+      assign("i32", s"call i32 @llvm.smin.i32(${coerce(a, "i32").text}, ${coerce(b, "i32").text})")
+
     else if sym == runtime.Core_bufferClassId then
       V("i32", runtime.BufferClassId.toString)
 
