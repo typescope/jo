@@ -57,27 +57,6 @@ private section RefArray
     arr.length = size
     arr.cast[Array[T]]
 
-  //[ Bound check required because JS accept get beyond index //]
-  def get[T](array: Array[T], index: Int): T =
-    assert: index >= 0 && index < array.size, "Index \{index} out of bounds, size = \{array.size}"
-    js.dynamic(array)[index].cast[T]
-
-  //[ Bound check required because JS accept setting beyond index //]
-  def clear[T](array: Array[T], index: Int): Unit =
-    assert: index >= 0 && index < array.size, "Index \{index} out of bounds, size = \{array.size}"
-    js.dynamic(array)[index] = js.null
-
-  //[ Bound check required because JS accept setting beyond index //]
-  def set[T](array: Array[T], index: Int, value: T): Unit =
-    assert: index >= 0 && index < array.size, "Index \{index} out of bounds, size = \{array.size}"
-    js.dynamic(array)[index] = value
-
-  def size[T](array: Array[T]): Int =
-    js.dynamic(array).length.asInt
-
-  def clone[T](array: Array[T]): Array[T] =
-    js.dynamic(array).slice(0).cast[Array[T]]
-
   def join(arr: Array[String], separator: String): String =
     js.dynamic(arr).cast[js.Array].join(separator)
 end

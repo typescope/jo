@@ -20,10 +20,9 @@ object FrontEnd:
 
   /** Runtime definitions of a backend required by the frontend phases
     *
-    * @param arrayOpsSection the full name of the section for array operations
     * @param isLambdaValue   the full name of the intrinsic `isLambdaValue(v: Any): Bool`
     */
-  case class RuntimeConfig(arrayOpsSection: String, isLambdaValue: String)
+  case class RuntimeConfig(isLambdaValue: String)
 
   def run
       (defaultRuntimePackages: List[String], sources: List[String], defaultMappings: Map[String, String], runtimeConfig: RuntimeConfig)
@@ -108,7 +107,7 @@ object FrontEnd:
 
   def translateStep(runtimeConfig: RuntimeConfig)(using defn: Definitions, rp: Reporter, cf: Config): ProcessStep =
     Step("Normalize", (units: List[FileUnit]) => {
-      val liftPrim    = new phases.LiftPrimitiveMethods(runtimeConfig.arrayOpsSection)
+      val liftPrim    = new phases.LiftPrimitiveMethods
       val patmat      = new phases.PatternMatcher(defn.resolveTerm(runtimeConfig.isLambdaValue))
       val tailcallopt = new phases.TailCallOpt
       units        |>

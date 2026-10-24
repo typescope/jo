@@ -427,7 +427,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case Apply(fun, args, autos) =>
         // Function call as statement (for side effects)
         val (stats, expr) = compileCall(fun, args ++ autos, enforcePurity = false)
-        P.Block(stats :+ P.ExprStat(expr))
+        if expr == P.NoneLit then P.Block(stats)
+        else P.Block(stats :+ P.ExprStat(expr))
 
       case _ =>
         // For other expression-like constructs, compile as expression and discard value
@@ -796,6 +797,22 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
           val (stats, expr) = compileExpr(args.head, enforcePurity)
           (stats, P.Call(None, "float", List(expr)))
 
+        else if sym == defn.Array_getUnchecked then
+          val (stats, List(arrExpr, indexExpr)) = compileExprList(args, enforcePurity = false): @unchecked
+          val elem = P.Index(arrExpr, indexExpr)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ P.Assign(tempName, elem), P.Ident(tempName))
+          else
+            (stats, elem)
+
+        else if sym == defn.Array_setUnchecked || sym == defn.Array_clearUnchecked then
+          // Python evaluates the right-hand side of `a[i] = v` before `a` and
+          // `i`, so pure operands are needed to keep the evaluation order.
+          val (stats, arrExpr :: indexExpr :: valueExprs) = compileExprList(args, enforcePurity = true): @unchecked
+          val value = valueExprs.headOption.getOrElse(P.NoneLit)
+          (stats :+ P.IndexAssign(arrExpr, indexExpr, value), P.NoneLit)
+
         else if sym == defn.jo_pass then
           (Nil, P.NoneLit)
 
@@ -926,6 +943,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.FloatType) =>
         compileFloatPrimitive(name, qual, args, enforcePurity)
+
+      case Select(qual, name) if isArrayMethod(fun) =>
+        compileArrayPrimitive(name, qual, enforcePurity)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.StringType) =>
         compileStringPrimitive(name, qual, args, enforcePurity)
@@ -1348,6 +1368,31 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         throw new Exception(s"Unknown Float method: $name")
 
   /** Compile String primitive operations */
+  private def isArrayMethod(fun: Word): Boolean =
+    fun.tpe match
+      case Types.MemberRef(_, sym) => sym.owner == defn.Array_class
+      case _ => false
+
+  private def compileArrayPrimitive(name: String, qual: Word, enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
+    name match
+      case "size" =>
+        // The length of a list used as an array is fixed, so a pure receiver
+        // gives a pure result
+        val (stats, arrExpr) = compileExpr(qual, enforcePurity)
+        (stats, P.Call(None, "len", List(arrExpr)))
+
+      case "clone" =>
+        val (stats, arrExpr) = compileExpr(qual, enforcePurity = false)
+        val copy = P.Call(Some(arrExpr), "copy", Nil)
+        if enforcePurity then
+          val tempName = freshTemp()
+          (stats :+ P.Assign(tempName, copy), P.Ident(tempName))
+        else
+          (stats, copy)
+
+      case _ =>
+        throw new Exception("Unknown Array intrinsic: " + name)
+
   private def compileStringPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
     name match
       case "+" =>

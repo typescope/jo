@@ -49,26 +49,6 @@ private section RefArray
   def create[T](size: Int): Array[T] =
     rb.const("Array").cast[RbArrayClass].arrayNew(size, rb.nil).cast[Array[T]]
 
-  def get[T](arr: Array[T], i: Int): T =
-    assert: i >= 0 && i < arr.size, "Index \{i} out of bounds, size = \{arr.size}"
-    rb.dynamic(arr)[i].cast[T]
-
-  //[ Needs bound check because Ruby allow set beyond bound //]
-  def clear[T](arr: Array[T], i: Int): Unit =
-    assert: i >= 0 && i < arr.size, "Index \{i} out of bounds, size = \{arr.size}"
-    rb.dynamic(arr)[i] = rb.nil
-
-  //[ Needs bound check because Ruby allow set beyond bound //]
-  def set[T](arr: Array[T], i: Int, v: T): Unit =
-    assert: i >= 0 && i < arr.size, "Index \{i} out of bounds, size = \{arr.size}"
-    rb.dynamic(arr)[i] = v
-
-  def size[T](arr: Array[T]): Int =
-    rb.dynamic(arr).length.asInt
-
-  def clone[T](arr: Array[T]): Array[T] =
-    rb.dynamic(arr).dup.cast[Array[T]]
-
   private interface RbJoinArray
     def join(separator: String): String
   end

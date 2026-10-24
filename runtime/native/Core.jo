@@ -751,8 +751,7 @@ private section RefArray
 
     cast[Array[T]] arr
 
-  def get[T](arr: Array[T], i: Int): T =
-    assert: i >= 0 && i < arr.size, "Index \{i} out of bounds, size = \{arr.size}"
+  def getUnchecked[T](arr: Array[T], i: Int): T =
     val addr = intToAddr:
       readInt:
         addAddr:
@@ -761,16 +760,14 @@ private section RefArray
 
     cast[T]: addr
 
-  def clear[T](arr: Array[T], i: Int): Unit =
-    assert: i >= 0 && i < arr.size, "Index \{i} out of bounds, size = \{arr.size}"
+  def clearUnchecked[T](arr: Array[T], i: Int): Unit =
     writeInt:
       addAddr:
         cast[Addr] arr
         i * 4 + 8
       0
 
-  def set[T](arr: Array[T], i: Int, value: T): Unit =
-    assert: i >= 0 && i < arr.size, "Index \{i} out of bounds, size = \{arr.size}"
+  def setUnchecked[T](arr: Array[T], i: Int, value: T): Unit =
     writeInt:
       addAddr:
         cast[Addr] arr
@@ -785,7 +782,7 @@ private section RefArray
     val arr2 = create[T] n
     var i = 0
     while i < n do
-      arr2[i] = arr[i]
+      setUnchecked(arr2, i, getUnchecked(arr, i))
       i = i + 1
     end
     arr2
