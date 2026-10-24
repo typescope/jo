@@ -814,6 +814,20 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
           val (stats, expr) = compileExpr(args.head, enforcePurity)
           (stats, JS.Call(None, "Number", List(expr)))
 
+        else if sym == defn.Array_getUnchecked then
+          val (stats, List(arrExpr, indexExpr)) = compileExprList(args, enforcePurity = false): @unchecked
+          val elem = JS.Index(arrExpr, indexExpr)
+          if enforcePurity then
+            val tempName = freshTemp()
+            (stats :+ JS.VarDecl("const", tempName, elem), JS.Ident(tempName))
+          else
+            (stats, elem)
+
+        else if sym == defn.Array_setUnchecked || sym == defn.Array_clearUnchecked then
+          val (stats, arrExpr :: indexExpr :: valueExprs) = compileExprList(args, enforcePurity = false): @unchecked
+          val value = valueExprs.headOption.getOrElse(JS.NullLit)
+          (stats :+ JS.IndexAssign(arrExpr, indexExpr, value), JS.NullLit)
+
         else if sym == defn.jo_pass then
           (Nil, JS.NullLit)
 
@@ -847,6 +861,9 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.FloatType) =>
         compileFloatPrimitive(name, qual, args, enforcePurity)
+
+      case Select(qual, name) if isArrayMethod(fun) =>
+        compileArrayPrimitive(name, qual, enforcePurity)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.StringType) =>
         compileStringPrimitive(name, qual, args, enforcePurity)
@@ -1312,6 +1329,30 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         throw new Exception(s"Unknown Float method: $name")
 
   /** Compile String primitive operations */
+  private def isArrayMethod(fun: Word): Boolean =
+    fun.tpe match
+      case Types.MemberRef(_, sym) => sym.owner == defn.Array_class
+      case _ => false
+
+  private def compileArrayPrimitive(name: String, qual: Word, enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
+    name match
+      case "size" =>
+        // The length of an array is fixed, so a pure receiver gives a pure result
+        val (stats, arrExpr) = compileExpr(qual, enforcePurity)
+        (stats, JS.Select(arrExpr, "length"))
+
+      case "clone" =>
+        val (stats, arrExpr) = compileExpr(qual, enforcePurity = false)
+        val copy = JS.Call(Some(arrExpr), "slice", Nil)
+        if enforcePurity then
+          val tempName = freshTemp()
+          (stats :+ JS.VarDecl("const", tempName, copy), JS.Ident(tempName))
+        else
+          (stats, copy)
+
+      case _ =>
+        throw new Exception("Unknown Array intrinsic: " + name)
+
   private def compileStringPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using uniq: UniqueName, ctx: Context): (List[JS.Stat], JS.Expr) =
     name match
       case "+" =>

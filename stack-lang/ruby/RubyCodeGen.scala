@@ -533,6 +533,18 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         else if sym == defn.Float_parseFloatDecimal then
           R.Call(Some(compileExpr(args.head)), "to_f", Nil)
 
+        else if sym == defn.Array_getUnchecked then
+          val arr :: index :: Nil = args: @unchecked
+          R.Index(compileExpr(arr), List(compileExpr(index)))
+
+        else if sym == defn.Array_setUnchecked then
+          val arr :: index :: value :: Nil = args: @unchecked
+          R.IndexAssign(compileExpr(arr), List(compileExpr(index)), compileExpr(value))
+
+        else if sym == defn.Array_clearUnchecked then
+          val arr :: index :: Nil = args: @unchecked
+          R.IndexAssign(compileExpr(arr), List(compileExpr(index)), R.Nil)
+
         else if sym == defn.jo_pass then
           R.Nil
 
@@ -628,6 +640,9 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.FloatType) =>
         compileFloatPrimitive(name, qual, args)
+
+      case Select(qual, name) if isArrayMethod(fun) =>
+        compileArrayPrimitive(name, qual)
 
       case Select(qual, name) if qual.tpe.isSubtype(defn.StringType) =>
         compileStringPrimitive(name, qual, args)
@@ -941,6 +956,17 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
         throw new Exception(s"Unknown Char method: $name")
 
   /** Compile String primitive operations */
+  private def isArrayMethod(fun: Word): Boolean =
+    fun.tpe match
+      case Types.MemberRef(_, sym) => sym.owner == defn.Array_class
+      case _ => false
+
+  private def compileArrayPrimitive(name: String, qual: Word)(using scope: UniqueName, ctx: Context): R.Tree =
+    name match
+      case "size"  => R.Call(Some(compileExpr(qual)), "length", Nil)
+      case "clone" => R.Call(Some(compileExpr(qual)), "dup", Nil)
+      case _ => throw new Exception("Unknown Array intrinsic: " + name)
+
   private def compileStringPrimitive(name: String, qual: Word, args: List[Word])(using scope: UniqueName, ctx: Context): R.Tree =
     name match
       case "+" =>

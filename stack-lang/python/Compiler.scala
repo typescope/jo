@@ -24,7 +24,6 @@ object Compiler:
     "jo.abortImpl"      -> "jo.py.runtime.abort",
 
     "jo.Array.create" -> "jo.py.runtime.RefArray.create",
-    "jo.Array.clear"  -> "jo.py.runtime.RefArray.clear",
     "jo.Array.fill" -> "jo.py.runtime.RefArray.fill",
     "jo.Array.join" -> "jo.py.runtime.RefArray.join",
 
@@ -49,7 +48,6 @@ object Compiler:
 
   // Runtime definitions for the frontend
   val runtimeConfig = FrontEnd.RuntimeConfig(
-    arrayOpsSection = "jo.py.runtime.RefArray",
     isLambdaValue   = "jo.py.runtime.isLambdaValue",
   )
 
