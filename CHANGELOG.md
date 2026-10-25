@@ -4,6 +4,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Lambdas with `receives` clauses compile correctly when returned by functions,
+  passed through generic calls, or called directly from indexed collections
+  such as `ts[0]()`. These cases no longer cause stale-type errors with
+  `--check-tree` or compiler crashes.
+
 ## [0.14.4] - 2026-10-24
 
 ### Added
