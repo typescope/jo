@@ -542,7 +542,12 @@ object Printing:
         "(" ~ branches.map(branchText).join(" | ") ~ ")"
 
       case ExprType(types) =>
-        types.join(" ")
+        // Lambda operands need grouping so their arrows stay inside the operand.
+        val operands = types.map:
+          case tp: LambdaType => "(" ~ showType(tp) ~ ")"
+          case tp => showType(tp)
+
+        operands.join(" ")
 
       case AppliedType(Ident(".."), targ :: Nil) =>
         // Vararg type: surface syntax is the prefix `..T`, not `..[T]`.
