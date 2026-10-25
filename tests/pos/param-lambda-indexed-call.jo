@@ -1,0 +1,12 @@
+param base: Int
+
+def thunks: List[() => Int receives base] = [() => base + 1]
+
+def main() =
+  val ts = thunks
+
+  with base = 10 in
+    println(ts[0]())
+
+  with base = 20 in
+    println(ts[0]())
