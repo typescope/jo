@@ -1,3 +1,5 @@
+// options: --check-tree
+
 param base: Int
 
 def thunks: List[() => Int receives base] = [() => base + 1]

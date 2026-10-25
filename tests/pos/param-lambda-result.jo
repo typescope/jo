@@ -1,3 +1,5 @@
+// options: --check-tree
+
 param base: Int
 
 // Calls must refresh result types even when no context argument is added.
