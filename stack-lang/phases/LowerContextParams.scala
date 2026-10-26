@@ -193,33 +193,29 @@ extends Phase:
           else None
 
     val changed = (fun2 ne fun) || args2.zip(args).exists((a, b) => a ne b) || autos2.zip(autos).exists((a, b) => a ne b)
-    if changed || !ctxParamOpt.isEmpty then
-      Apply(fun2, args2 ++ ctxParamOpt.toList, autos2)(apply.span, apply.isPartialApply)
+    val apply2 = Apply(fun2, args2 ++ ctxParamOpt.toList, autos2)(apply.span)
+
+    // Symbol infos can change without changing the callee tree's identity.
+    if changed || ctxParamOpt.nonEmpty || !Subtyping.conforms(apply2.tpe, apply.tpe) then
+      apply2
     else
       apply
 
   override def transformTypeApply(tapply: TypeApply)(using Context): Word =
     val TypeApply(fun, targs) = tapply
-    val procType = tapply.tpe.asProcType
-
-    var changed =
-      procType.receives.nonEmpty || {
-        tapply.memberSymbol match
-          case Some(meth) => implementedDefersReceives(meth)
-          case _ => false
-      }
-
     val fun2 = this(fun)
-
-    changed ||= fun2 ne fun
+    var changed = fun2 ne fun
 
     val targs2 = targs.map: targ =>
-      val tp = targ.tpe
-      val tp2 = typeMap(tp)(using ())
-      changed ||= tp ne tp2
+      val tp2 = typeMap(targ.tpe)(using ())
+      changed ||= tp2 ne targ.tpe
       TypeTree(tp2)(targ.span)
 
-    if changed then TypeApply(fun2, targs2)(tapply.span) else tapply
+    val tapply2 = TypeApply(fun2, targs2)(tapply.span)
+
+    // The instantiated signature can change in its parameter or result types.
+    if changed || !Subtyping.conforms(tapply2.tpe, tapply.tpe) then tapply2
+    else tapply
 
   override def transformIf(ifElse: If)(using Context): Word =
     val If(cond, thenp, elsep) = ifElse

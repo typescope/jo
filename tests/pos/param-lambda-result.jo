@@ -1,0 +1,35 @@
+// options: --check-tree
+
+param base: Int
+
+// Calls must refresh result types even when no context argument is added.
+def thunk(): () => Int receives base = () => base + 1
+
+// Instantiation must refresh the result even when the type argument is unchanged.
+def genericThunk[T](value: T): () => T receives base = () => value
+
+// A cached generic callee type can change only in its parameter types.
+def keep[T](value: T, thunk: () => Int receives base): T = value
+
+// Nested result types and parameterless calls need the same lowering.
+def groups: List[String ~ (() => Int receives base)] =
+  ["first" ~ (() => base + 1), "second" ~ (() => base + 2)]
+
+def main() =
+  val t = thunk()
+  val generic = genericThunk[Int](42)
+  val chosen = groups.select(group => group.fst == "second")
+
+  println(keep[Int](44, t))
+
+  with base = 10 in
+    println(t())
+    println(thunk()())
+    println(generic())
+    println(genericThunk[Int](43)())
+    println:
+      chosen.fold: 0, (sum, group) => sum + group.snd()
+
+  // Context is supplied at each invocation, including after returning a lambda.
+  with base = 20 in
+    println(t())
