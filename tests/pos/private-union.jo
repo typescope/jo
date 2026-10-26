@@ -1,0 +1,10 @@
+private class Tag(name: String)
+
+private class Box(tag: Tag)
+
+private union Token = TText(text: String) | TTag(tag: Tag)
+
+def main() =
+  println: new Box(new Tag("box")).tag.name
+  val t: Token = TTag(new Tag("x"))
+  if t is TTag(tag) then println tag.name

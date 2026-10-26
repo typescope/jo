@@ -1,0 +1,11 @@
+---------- Error at tests/warn/private-union-branches.jo:6:11 ---------------
+|   val _ = Hidden.Text("x")
+|           ^^^^^^^^^^^
+|           Cannot access the private member Text, limit = Hidden, site = main
+
+---------- Error at tests/warn/private-union-branches.jo:7:11 ---------------
+|   val _ = Hidden.Empty
+|           ^^^^^^^^^^^^
+|           Cannot access the private member Empty, limit = Hidden, site = main
+
+2 error(s), 0 warning(s)

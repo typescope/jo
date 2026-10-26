@@ -1,0 +1,23 @@
+section Outer
+  private class Tag(name: String)
+
+  section Inner
+    private[Outer] union Token[T] = Value(value: T, tag: Tag) | Empty
+      def name: String =
+        match this
+          case Value(_, tag) => tag.name
+          case Empty => "empty"
+    end
+  end
+
+  def show(): Unit =
+    val token: Inner.Token[String] = Inner.Value("value", new Tag("tag"))
+    if token is Inner.Value(value, tag) then
+      println value
+      println tag.name
+    println token.name
+    val empty: Inner.Token[String] = Inner.Empty
+    println empty.name
+end
+
+def main() = Outer.show()
