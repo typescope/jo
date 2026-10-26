@@ -48,9 +48,10 @@ jo versions remove 0.10.0
 error: Jo 0.10.0 is not installed
 '
 
-jo versions use 0.10.0
+jo versions use 9.9.9
 : '
-error: Jo 0.10.0 is not installed — run 'jo versions install 0.10.0' first
+Installing Jo 9.9.9 ...
+error: version 9.9.9 not found
 '
 
 jo versions install 0.10.0
