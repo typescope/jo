@@ -288,7 +288,7 @@ object Main:
       |  jo exec <name> [args...]               Run a [commands] entry, bypassing builtins
       |  jo versions                            List installed and available compiler versions
       |  jo versions install <version>          Download and install a compiler version
-      |  jo versions use <version>              Switch the active compiler version
+      |  jo versions use <version>              Switch the active compiler version, installing if needed
       |  jo versions remove <version>           Remove an installed compiler version
       |  jo compile [options] <source.jo>       Compile application or library
       |  jo compile --query <selectors> [files...] Query documentation from source files or SAST libraries
