@@ -4,12 +4,29 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.14.5] - 2026-10-26
+
 ### Fixed
 
 - Lambdas with `receives` clauses compile correctly when returned by functions,
   passed through generic calls, or called directly from indexed collections
   such as `ts[0]()`. These cases no longer cause stale-type errors with
-  `--check-tree` or compiler crashes.
+  `--check-tree` or compiler crashes. ([#192])
+- Function types used as operands in type expressions are parenthesized when
+  printed, preserving the grouping of their arrows. ([#192])
+
+### Security
+
+- No security-relevant changes.
+
+### Compatibility
+
+- Existing source programs, standard libraries, runtimes, and published packages
+  remain compatible.
+- SAST format 2.0, build specifications, and `.joy` package formats are unchanged.
+  Existing libraries do not require recompilation for format compatibility.
+
+[#192]: https://github.com/typescope/jo/pull/192
 
 ## [0.14.4] - 2026-10-24
 

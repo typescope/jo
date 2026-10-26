@@ -20,7 +20,7 @@ hello/
     main.jo
 ```
 
-`jo.toml` (for Jo 0.14.4):
+`jo.toml` (for Jo 0.14.5):
 
 ```toml
 jo = "0.14"
