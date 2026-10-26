@@ -24,7 +24,7 @@ Examples: `42`, `0xFF`, `3.14`, `-17`, `6.022e23`, `true`, `'a'`, `"hello"`
 Decimal integer literals default to `Int` and must be in the range
 `-2147483648..2147483647`. When `Long` is expected, the range is
 `-9223372036854775808..9223372036854775807`. Out-of-range literals are rejected
-at compile time; calling `.toLong` on a literal does not give it a `Long`
+at compile time. Calling `.toLong` on a literal does not give it a `Long`
 expected type. Use a type annotation or ascription for larger values:
 
 ```jo
