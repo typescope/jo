@@ -142,7 +142,7 @@ object NumericTyper:
     try java.lang.Integer.parseInt(cleaned)
     catch
       case _: NumberFormatException =>
-        rp.error(s"Integer literal overflow: $str", span.toPos)
+        rp.error("Integer literal overflow", span.toPos)
         0
   end str2Int
 
@@ -189,7 +189,7 @@ object NumericTyper:
     try java.lang.Long.parseLong(cleaned)
     catch
       case _: NumberFormatException =>
-        rp.error(s"Integer literal overflow: $str", span.toPos)
+        rp.error("Integer literal overflow", span.toPos)
         0L
   end str2Long
 
