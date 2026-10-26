@@ -1,76 +1,76 @@
 ---------- Error at tests/warn/int-literal-wraparound.jo:2:11 ---------------
 |   val a = 4294967296
 |           ^^^^^^^^^^
-|           Integer literal overflow: 4294967296
+|           Integer literal overflow
 
 ---------- Error at tests/warn/int-literal-wraparound.jo:4:16 ---------------
 |   val b: Int = 4294967296
 |                ^^^^^^^^^^
-|                Integer literal overflow: 4294967296
+|                Integer literal overflow
 
 ---------- Error at tests/warn/int-literal-wraparound.jo:6:11 ---------------
 |   println(4294967296.toLong)
 |           ^^^^^^^^^^
-|           Integer literal overflow: 4294967296
+|           Integer literal overflow
 
 ---------- Error at tests/warn/int-literal-wraparound.jo:7:11 ---------------
 |   println(4294967297.toString)
 |           ^^^^^^^^^^
-|           Integer literal overflow: 4294967297
+|           Integer literal overflow
 
 ---------- Error at tests/warn/int-literal-wraparound.jo:9:13 ---------------
 |   val one = 4294967297
 |             ^^^^^^^^^^
-|             Integer literal overflow: 4294967297
+|             Integer literal overflow
 
 ---------- Error at tests/warn/int-literal-wraparound.jo:10:13 ---------------
 |   val max = 6442450943
 |             ^^^^^^^^^^
-|             Integer literal overflow: 6442450943
+|             Integer literal overflow
 
 ---------- Error at tests/warn/int-literal-wraparound.jo:11:22 ---------------
 |   val negativeZero = -4294967296
 |                      ^^^^^^^^^^^
-|                      Integer literal overflow: -4294967296
+|                      Integer literal overflow
 
 ---------- Error at tests/warn/int-literal-wraparound.jo:12:21 ---------------
 |   val negativeOne = -4294967297
 |                     ^^^^^^^^^^^
-|                     Integer literal overflow: -4294967297
+|                     Integer literal overflow
 
 ---------- Error at tests/warn/int-literal-wraparound.jo:13:21 ---------------
 |   val negativeMax = -6442450943
 |                     ^^^^^^^^^^^
-|                     Integer literal overflow: -6442450943
+|                     Integer literal overflow
 
 ---------- Error at tests/warn/int-literal-wraparound.jo:14:17 ---------------
 |   val grouped = 4_294_967_296
 |                 ^^^^^^^^^^^^^
-|                 Integer literal overflow: 4_294_967_296
+|                 Integer literal overflow
 
 ---------- Error at tests/warn/int-literal-wraparound.jo:15:14 ---------------
 |   val huge = 100000000000000000000000000000000000000000000
 |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-|              Integer literal overflow: 100000000000000000000000000000000000000000000
+|              Integer literal overflow
 
 ---------- Error at tests/warn/int-literal-wraparound.jo:17:20 ---------------
 |   val byte: Byte = 4294967296
 |                    ^^^^^^^^^^
-|                    Integer literal overflow: 4294967296
+|                    Integer literal overflow
 
 ---------- Error at tests/warn/int-literal-wraparound.jo:18:20 ---------------
 |   val char: Char = 4294967296
 |                    ^^^^^^^^^^
-|                    Integer literal overflow: 4294967296
+|                    Integer literal overflow
 
 ---------- Error at tests/warn/int-literal-wraparound.jo:20:31 ---------------
 | def defaultValue(value: Int = 4294967296): Int = value
 |                               ^^^^^^^^^^
-|                               Integer literal overflow: 4294967296
+|                               Integer literal overflow
 
 ---------- Error at tests/warn/int-literal-wraparound.jo:24:10 ---------------
 |     case 4294967296 => "wrapped"
 |          ^^^^^^^^^^
-|          Integer literal overflow: 4294967296
+|          Integer literal overflow
 
 15 error(s), 0 warning(s)
