@@ -51,6 +51,7 @@ class LLVMRuntime(val rewire: Map[Symbol, Symbol])(using defn: Definitions):
   val Core_FloatOps  = Native.containerMember("FloatOps")
   val Core_LongOps   = Native.containerMember("LongOps")
   val Core_StringOps = Native.containerMember("StringOps")
+  val Core_RefArray  = Native.containerMember("RefArray")
 
   val Bool_and = Core_BoolOps.termMember("&&")
   val Bool_or  = Core_BoolOps.termMember("||")

@@ -175,7 +175,7 @@ which tells initialization from mutation. The barrier goes there.
 
 Stores performed by the runtime also need the barrier:
 
-- `RefArray.set` writes array elements with `writeAddr`. It gets a
+- `RefArray.setUnchecked` writes array elements with `writeAddr`. It gets a
   barrier-aware primitive `writeRef`, which the 32-bit backends rewrite to a
   plain store.
 The barrier changes only the stored object. Propagation to its children is
