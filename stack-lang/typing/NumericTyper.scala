@@ -137,32 +137,13 @@ object NumericTyper:
 
   /** Parse decimal integer literal with overflow detection */
   private def str2Int(str: String, span: Span)(using rp: Reporter, src: Source): Int =
-    // Strip underscores first
     val cleaned = str.replace("_", "")
 
-    val first = cleaned(0)
-    val length = cleaned.size
-    val isNegative = first == '-'
-
-    var sum: Int = 0
-    if !isNegative then sum = first - '0'
-    var overflow = false
-
-    var i = 1
-    while i < length do
-      val c = cleaned(i)
-      val v = c - '0'
-      sum = sum * 10 + (if isNegative then -v else v)
-
-      if !isNegative && sum < 0 then overflow = true
-      if isNegative && sum > 0 then overflow = true
-
-      i += 1
-
-    if overflow then
-      rp.error(s"Integer literal overflow: $str", span.toPos)
-
-    sum
+    try java.lang.Integer.parseInt(cleaned)
+    catch
+      case _: NumberFormatException =>
+        rp.error(s"Integer literal overflow: $str", span.toPos)
+        0
   end str2Int
 
   /** Parse an integer literal as a signed 64-bit value (for `Long`).
@@ -205,29 +186,11 @@ object NumericTyper:
   private def str2Long(str: String, span: Span)(using rp: Reporter, src: Source): Long =
     val cleaned = str.replace("_", "")
 
-    val first = cleaned(0)
-    val length = cleaned.size
-    val isNegative = first == '-'
-
-    var sum: Long = 0
-    if !isNegative then sum = (first - '0').toLong
-    var overflow = false
-
-    var i = 1
-    while i < length do
-      val c = cleaned(i)
-      val v = (c - '0').toLong
-      sum = sum * 10 + (if isNegative then -v else v)
-
-      if !isNegative && sum < 0 then overflow = true
-      if isNegative && sum > 0 then overflow = true
-
-      i += 1
-
-    if overflow then
-      rp.error(s"Integer literal overflow: $str", span.toPos)
-
-    sum
+    try java.lang.Long.parseLong(cleaned)
+    catch
+      case _: NumberFormatException =>
+        rp.error(s"Integer literal overflow: $str", span.toPos)
+        0L
   end str2Long
 
   /** Parse float literal string to Double value */
