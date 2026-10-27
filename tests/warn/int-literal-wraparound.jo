@@ -1,0 +1,25 @@
+def main =
+  val a = 4294967296
+  println(a)
+  val b: Int = 4294967296
+  println(b)
+  println(4294967296.toLong)
+  println(4294967297.toString)
+
+  val one = 4294967297
+  val max = 6442450943
+  val negativeZero = -4294967296
+  val negativeOne = -4294967297
+  val negativeMax = -6442450943
+  val grouped = 4_294_967_296
+  val huge = 100000000000000000000000000000000000000000000
+
+  val byte: Byte = 4294967296
+  val char: Char = 4294967296
+
+def defaultValue(value: Int = 4294967296): Int = value
+
+def classify(value: Int): String =
+  match value
+    case 4294967296 => "wrapped"
+    case _ => "other"

@@ -1,0 +1,40 @@
+def keepLong(value: Long = 4294967296): Long = value
+
+def classify(value: Long): String =
+  match value
+    case 4294967297 => "long pattern"
+    case _ => "other"
+
+def main =
+  val max = 2147483647
+  val min = -2147483648
+  println max
+  println min
+  val typedMax: Int = 2_147_483_647
+  val typedMin: Int = -2_147_483_648
+  println typedMax
+  println typedMin
+
+  val wide: Long = 4294967296
+  println wide
+  println (4294967297 as Long)
+  println (6442450943 as Long)
+  println (-4294967296 as Long)
+  println keepLong()
+  println keepLong(6442450943)
+  println classify(4294967297)
+
+  val longMax: Long = 9_223_372_036_854_775_807
+  val longMin: Long = -9_223_372_036_854_775_808
+  println longMax
+  println longMin
+
+  // Leading zeros do not change the literal's range.
+  val paddedMax = 000000000000000000000000000000000000002147483647
+  val paddedMin = -000000000000000000000000000000000000002147483648
+  val paddedLongMax: Long = 000000000000000000000000000009223372036854775807
+  val paddedLongMin: Long = -000000000000000000000000000009223372036854775808
+  println paddedMax
+  println paddedMin
+  println paddedLongMax
+  println paddedLongMin

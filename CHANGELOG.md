@@ -16,6 +16,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   including generated factory functions and patterns. Branches can carry
   private payload types without reporting false visibility leaks.
 
+- Decimal `Int` and `Long` literals are checked against their full signed ranges.
+  Out-of-range values that previously wrapped to zero or another value with the
+  same sign now report an integer literal overflow error. Larger decimal
+  literals require a `Long` expected type; hexadecimal bit patterns are unchanged.
+
 ## [0.14.5] - 2026-10-26
 
 ### Fixed
