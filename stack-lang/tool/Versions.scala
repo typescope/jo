@@ -82,15 +82,19 @@ object Versions:
 
   private def install(args: Array[String], installer: Installer): Result[Unit] =
     parseVersion(args, "install").flatMap: version =>
-      print(s"Installing Jo $version ...")
-      installer.install(version) match
-        case Result.Ok(_) =>
-          println(s" ${Ansi.green("done")}")
-          println(s"\nRun 'jo versions use $version' to activate it.")
-          Result.Ok(())
-        case Result.Err(msg) =>
-          println()
-          Result.Err(msg)
+      installVersion(version, installer).map: _ =>
+        println(s"\nRun 'jo versions use $version' to activate it.")
+
+  private def installVersion(version: Version, installer: Installer): Result[Unit] =
+    print(s"Installing Jo $version ...")
+    installer.install(version) match
+      case Result.Ok(_) =>
+        println(s" ${Ansi.green("done")}")
+        Result.unit
+
+      case Result.Err(msg) =>
+        println()
+        Result.Err(msg)
 
   private def remove(args: Array[String], installer: Installer): Result[Unit] =
     parseVersion(args, "remove").flatMap: version =>
@@ -104,9 +108,14 @@ object Versions:
 
   private def use(args: Array[String], installer: Installer): Result[Unit] =
     parseVersion(args, "use").flatMap: version =>
-      installer.use(version) match
-        case Result.Ok(_)    => println(s"Now using Jo $version"); Result.Ok(())
-        case Result.Err(msg) => Result.Err(msg)
+      installer.getInstalledVersions().flatMap: installed =>
+        val ready =
+          if installed.contains(version) then Result.unit
+          else installVersion(version, installer)
+
+        ready.flatMap: _ =>
+          installer.use(version).map: _ =>
+            println(s"Now using Jo $version")
 
   private def parseVersion(args: Array[String], cmd: String): Result[Version] =
     args.headOption match
@@ -121,7 +130,7 @@ object Versions:
        |  jo versions                      List installed and available compiler versions
        |  jo versions list                 (same as above)
        |  jo versions install <version>    Download and install a compiler version
-       |  jo versions use <version>        Switch the active compiler version
+       |  jo versions use <version>        Switch the active compiler version, installing if needed
        |  jo versions remove <version>     Remove an installed compiler version
        |""".stripMargin
 

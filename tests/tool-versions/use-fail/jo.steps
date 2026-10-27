@@ -11,4 +11,23 @@ jo versions use 0.10.0
 : '
 error: permission denied
 '
+
+# A newly installed version must report activation failures without switching.
+mkdir -p compilers/0.9.0
+echo 0.9.0 > active
+
+jo versions use 0.10.1
+: '
+Installing Jo 0.10.1 ... done
+error: permission denied
+'
+
+cat active
+: '
+0.9.0
+'
+
+test -d compilers/0.10.1
+: ''
+
 rm -rf compilers active

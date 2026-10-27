@@ -4,6 +4,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- `jo versions use <version>` installs a published compiler version when it is
+  not already installed, then activates it. Installation failures leave the
+  active compiler unchanged.
+
 ## [0.14.5] - 2026-10-26
 
 ### Fixed

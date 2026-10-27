@@ -4,3 +4,8 @@ jo versions list
 : '
 error: disk error
 '
+
+jo versions use 0.10.0
+: '
+error: disk error
+'

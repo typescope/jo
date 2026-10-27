@@ -5,3 +5,23 @@ jo versions install 0.10.0
 Installing Jo 0.10.0 ...
 error: permission denied
 '
+
+# An installation failure during use leaves the existing active version intact.
+mkdir -p compilers/0.9.0
+echo 0.9.0 > active
+
+jo versions use 0.10.0
+: '
+Installing Jo 0.10.0 ...
+error: permission denied
+'
+
+cat active
+: '
+0.9.0
+'
+
+test ! -d compilers/0.10.0
+: ''
+
+rm -rf compilers active

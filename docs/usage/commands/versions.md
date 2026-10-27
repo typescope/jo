@@ -46,11 +46,13 @@ jo versions install 0.10.0
 
 ### `jo versions use <version>`
 
-Switch the active compiler by rewriting the launcher at `~/.local/bin/jo` to point to the specified version. The version must already be installed.
+Switch the active compiler by rewriting the launcher at `~/.local/bin/jo` to point to the specified version. If the version is not installed, download and install it from the Jo release index first. Already installed versions can be activated without network access.
 
 ```sh
 jo versions use 0.9.0
 ```
+
+If the version is unavailable or installation fails, the active compiler remains unchanged.
 
 ### `jo versions remove <version>`
 
