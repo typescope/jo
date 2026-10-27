@@ -1,0 +1,9 @@
+class Node(value: Int, next: Option[Node])
+
+def main =
+  var list: Option[Node] = None
+  var i = 0
+  while true do
+    list = Some(new Node(i, list))
+    i = i + 1
+  end

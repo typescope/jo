@@ -1,0 +1,14 @@
+import jo.regex.Regex
+
+// A match that starts earlier wins, even when a later alternative reaches the
+// end of the pattern first.
+
+def show(input: String, pat: Regex): Unit =
+  println: input + ": " + input.matchAll(pat).map(m => "[" + m[0] + "]").join(" ")
+
+def main =
+  show("1 + 2 * 10 / 345", `\d+|\S`)
+  show("12.5 / 3", `\d+(?:\.\d+)?|\S`)
+  show("ab 10", `\d+(?:\.\d+)?|\S`)
+  show("aaab", `a+b|\w`)
+  show("ab", `a|ab`)

@@ -1,0 +1,368 @@
+package llvm
+
+import ast.Positions.Source
+import sast.*
+import sast.Trees.*
+import sast.Symbols.*
+import sast.Types.*
+import sast.Denotations.*
+
+import phases.Phase
+
+
+import scala.collection.mutable
+
+/** The compiler phase encode class methods and fields
+  *
+  * A class instance is encoded as follows:
+  *
+  *     {
+  *        cid = ...,
+  *        itable = ...,
+  *        a = ...,
+  *        b = ...,
+  *     }
+  *
+  * Note that all method calls and concrete interface calls are dispatched
+  * statically.
+  *
+  * Class methods and concrete interface methods are lifted to top-level and
+  * augmented with the `this` parameter.
+  */
+class EncodeClass(runtime: LLVMRuntime)(using defn: Definitions) extends phases.Phase:
+  export runtime.getClassId
+  export runtime.getInterfaceId
+
+  val AddrType = StaticRef(runtime.Core_Addr)
+
+  private def getLiftedFunSymbol(methodSym: Symbol): Symbol =
+    runtime.getLiftedMethodOrUpdate(methodSym, createLiftedFunSymbol(methodSym))
+
+  override def transformDefs(defs: List[Def])(using Context): List[Def] =
+    defs.flatMap:
+      case cdef: ClassDef => flattenClass(cdef)
+
+      case idef: InterfaceDef => flattenInterface(idef)
+
+      case defn => super.transformDef(defn) :: Nil
+
+  override def transformFunDef(fdef: FunDef)(using Context): FunDef = try
+    val sym = fdef.symbol
+
+    // transform object accessor -- accessor calls will be rewired in backend.
+    if sym.is(Flags.Object) then
+      val body = New(fdef.resultType)(fdef.body.span).select(Names.Constructor).appliedTo()
+      Phase.owner.set(sym)
+      val body2 = transform(body)
+      fdef.copy(body = body2)(fdef.annots, fdef.span)
+
+    else if sym == runtime.Core_initObjects then
+      val body = Ident(runtime.objectInitProcSym)(fdef.body.span).appliedTo()
+      fdef.copy(body = body)(fdef.annots, fdef.span)
+
+    else
+      super.transformFunDef(fdef)
+
+  catch case ex: Exception =>
+    println("Failed transform function in EncodeClass: " + fdef.show)
+    throw ex
+
+  private def createLiftedFunSymbol(methodSym: Symbol): Symbol =
+    val classSym = methodSym.owner
+    val oldProcType = methodSym.tpe.asProcType
+    val thisInfo = classSym.classInfo.self.tpe
+    val paramInfo = ParamInfo("this", thisInfo)
+    val funType = oldProcType.prepend(paramInfo :: Nil)
+
+    TermSymbol.create(
+      classSym.name + "$" + methodSym.name,
+      funType,
+      Flags.Fun | Flags.Synthetic,
+      Visibility.Default,
+      classSym.owner,
+      methodSym.sourcePos
+    )
+
+  private def flattenInterface(idef: InterfaceDef)(using Context): List[Def] =
+    val self = idef.self
+    for fdef <- idef.methods if !fdef.symbol.is(Flags.Defer) yield
+      val liftedSym = getLiftedFunSymbol(fdef.symbol)
+      val body2 =
+        Phase.owner.set(liftedSym)
+        this.transform(fdef.body)
+
+      FunDef(
+        liftedSym, tparams = Nil,
+        self :: fdef.params,
+        fdef.autos,
+        fdef.resultType,
+        fdef.effectPolicy,
+        body2
+      )(fdef.annots, fdef.span)
+
+  private def flattenClass(cdef: ClassDef)(using Context): List[Def] =
+    val self = cdef.self
+    for fdef <- cdef.funs yield try
+      val liftedSym = getLiftedFunSymbol(fdef.symbol)
+
+      val body2 =
+        Phase.owner.set(liftedSym)
+        this.transform(fdef.body)
+
+      FunDef(
+        liftedSym, tparams = Nil,
+        self :: fdef.params,
+        fdef.autos,
+        fdef.resultType,
+        fdef.effectPolicy,
+        body2
+      )(fdef.annots, fdef.span)
+    catch case ex: Exception =>
+      println("Failed transform function in EncodeClass: " + fdef.show)
+      throw ex
+
+  override def transformEncoded(encoded: Encoded)(using ctx: Context): Word =
+    val Encoded(repr) = encoded
+
+    // Encode closure as { cid = ..., apply = ..., underlying = ... }
+    if encoded.tpe.isLambdaType && repr.tpe.isClassType then
+      val repr2 = super.transform(repr)
+
+      val classSym = repr.tpe.classSymbol
+
+      val applySym = classSym.termMember(Layout.Apply)
+      val liftedApplySym = getLiftedFunSymbol(applySym)
+
+      val classId = Layout.ClassID -> IntLit(getClassId(runtime.Core_ClosureTag))(repr.span)
+      val underlying = Layout.Underlying -> repr2
+      val apply = Layout.Apply -> Ident(liftedApplySym)(repr.span)
+
+      val repr3 = RecordLit(classId :: apply :: underlying :: Nil)(repr.span)
+      Encoded(repr3)(encoded.tpe)
+    else
+      super.transformEncoded(encoded)
+
+  override def transformNew(newExpr: New)(using ctx: Context): Word =
+    val classSym = newExpr.tpe.classSymbol
+    val members = new mutable.ArrayBuffer[(String, Word)]
+
+    val classId = IntLit(getClassId(classSym))(newExpr.span)
+    members += Layout.ClassID -> classId
+
+    // Add interface table
+    val itable = Ident(runtime.Core_getInterfaceTable)(newExpr.span).appliedTo(classId)
+    members += Layout.ITable -> itable
+
+    for field <- classSym.classInfo.fields yield
+      members += field.name -> Encoded(IntLit(0)(newExpr.span))(field.tpe)
+
+    Encoded(RecordLit(members.toList)(newExpr.span))(newExpr.tpe)
+
+  override def transformClassTest(classTest: ClassTest)(using ctx: Context): Word =
+    val ClassTest(arg, cls) = classTest
+    val span = classTest.span
+
+    val classIdRecordType = RecordType(NamedInfo(Layout.ClassID, defn.IntType) :: Nil)
+
+    // Handle type test
+    val valueClassId = Encoded(arg)(classIdRecordType).select(Layout.ClassID)
+
+    if cls == defn.String_type then
+      // String type is represented by union type Raw | Concat
+      val classId1 = IntLit(getClassId(runtime.Core_String_Raw))(span)
+      val classId2 = IntLit(getClassId(runtime.Core_String_Concat))(span)
+      val test1 = transform(valueClassId.isEqualTo(classId1))
+      val test2 = transform(valueClassId.isEqualTo(classId2))
+      Ident(runtime.Bool_or)(span).appliedTo(test1, test2)
+
+    else if cls == defn.Bool_type then
+      val classId = IntLit(getClassId(runtime.Core_BoolBox))(span)
+      transform(valueClassId.isEqualTo(classId))
+
+    else if cls == defn.Int_type then
+      val classId = IntLit(getClassId(runtime.Core_IntBox))(span)
+      transform(valueClassId.isEqualTo(classId))
+
+    else if cls == defn.Byte_type then
+      val classId = IntLit(getClassId(runtime.Core_ByteBox))(span)
+      transform(valueClassId.isEqualTo(classId))
+
+    else if cls == defn.Char_type then
+      val classId = IntLit(getClassId(runtime.Core_CharBox))(span)
+      transform(valueClassId.isEqualTo(classId))
+
+    else if cls == defn.Float_type then
+      val classId = IntLit(getClassId(runtime.Core_FloatBox))(span)
+      transform(valueClassId.isEqualTo(classId))
+
+    else if cls == defn.Long_type then
+      val classId = IntLit(getClassId(runtime.Core_LongBox))(span)
+      transform(valueClassId.isEqualTo(classId))
+
+    else
+      val classId = IntLit(getClassId(cls))(span)
+      transform(valueClassId.isEqualTo(classId))
+
+  override def transformApply(apply: Apply)(using ctx: Context): Word =
+    val Apply(fun, args, autos) = apply
+
+    val args2 = args.map(this.transform)
+    val autos2 = autos.map(this.transform)
+
+    /** Deferred interface calls have special semantics */
+    def isAbstractInterfaceMethod(refType: Type): Boolean =
+      refType match
+        case MemberRef(_, sym) => sym.owner.isInterface && sym.is(Flags.Defer)
+        case _ => false
+
+    /** Array has intrinsic methods only, see LiftPrimitiveMethods */
+    def isArrayMethod(refType: Type): Boolean =
+      refType match
+        case MemberRef(_, sym) => sym.owner == defn.Array_class
+        case _ => false
+
+    def rewriteApply(receiverRef: Word, name: String): Word =
+      val memberRef = receiverRef.tpe.termMember(name).as[RefType]
+      val isAbstractCall = isAbstractInterfaceMethod(memberRef)
+
+      val procType = memberRef.asProcType
+
+      val liftedFun =
+        if isAbstractCall then
+          // Use runtime helper to find method in interface table
+          val interfaceInfo = memberRef.symbol.owner.classInfo
+          val interfaceId = getInterfaceId(interfaceInfo.classSymbol)
+
+          // Find method order in interface
+          val deferredMethods = interfaceInfo.methods.filter(_.is(Flags.Defer))
+          val methodOrder = deferredMethods.indexWhere(_ == memberRef.symbol)
+          assert(methodOrder >= 0, s"Method $name not found in interface ${interfaceInfo.classSymbol}")
+
+          // Get itable from receiver
+          // Create a minimal record type with just cid and itable fields to access itable
+          val itableRecordType = RecordType(
+            NamedInfo(Layout.ClassID, defn.IntType) ::
+            NamedInfo(Layout.ITable, AddrType) ::
+            Nil
+          )
+          val itable = Select(Encoded(receiverRef)(itableRecordType), Layout.ITable)(fun.span)
+
+          // Call findInterfaceMethod(itable, interfaceId, methodOrder)
+          val findMethod = Ident(runtime.Core_findInterfaceMethod)(fun.span)
+          val methodPtr = findMethod.appliedTo(
+            itable,
+            IntLit(interfaceId)(fun.span),
+            IntLit(methodOrder)(fun.span)
+          )
+
+          methodPtr
+        else
+          Ident(getLiftedFunSymbol(memberRef.symbol))(fun.span)
+
+      val liftedProcType = procType.prepend(ParamInfo("this", receiverRef.tpe.widen) :: Nil)
+      val liftedFunEncoded = Encoded(liftedFun)(liftedProcType)
+
+      Apply(liftedFunEncoded, receiverRef :: args2, autos2)(apply.span)
+
+
+    fun match
+      case Ident(sym) if sym.owner == defn.Array_sec && sym.hasAnnotation(defn.intrinsic) =>
+        // Unchecked array access is implemented in the native runtime
+        Ident(runtime.Core_RefArray.termMember(sym.name))(fun.span).appliedTo(args2*)
+
+      case Ident(sym) if sym == runtime.Core_isLambdaValue =>
+        val arg :: Nil = args: @unchecked
+        val classIdRecordType = RecordType(NamedInfo(Layout.ClassID, defn.IntType) :: Nil)
+        val valueClassId = Encoded(arg)(classIdRecordType).select(Layout.ClassID)
+        val classId = IntLit(getClassId(runtime.Core_ClosureTag))(apply.span)
+        transform(valueClassId.isEqualTo(classId))
+
+      case lambda if lambda.tpe.isLambdaType =>
+        val encodedType = Layout.encodeLambdaType(lambda.tpe.asLambdaType)
+
+        val lambda2 = this(lambda)
+        val qual2 = Encoded(lambda2)(encodedType)
+
+        def rewriteLambdaApply(lambdaEncoded: Word): Word =
+          val procType = lambdaEncoded.tpe.termMember(Layout.Apply).asProcType
+
+          val liftedFun = lambdaEncoded.select(Layout.Apply)
+          val thisObj = lambdaEncoded.select(Layout.Underlying)
+
+          val liftedProcType =
+              // The `this` of an abstract interface method is the implementation class
+              procType.prepend(ParamInfo("this", AnyType) :: Nil)
+
+          val liftedFunEncoded = Encoded(liftedFun)(liftedProcType)
+
+          Apply(liftedFunEncoded, thisObj :: args2, autos2)(apply.span)
+
+        if lambda2.isIdempotent then
+          rewriteLambdaApply(qual2)
+
+        else
+          val receiverSym =
+            val owner = Phase.owner.value
+            given Source = Phase.source.value
+            TermSymbol.create("o", qual2.tpe.widen, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
+
+          val receiver = Ident(receiverSym)(qual2.span)
+          val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
+
+          val apply2 = rewriteLambdaApply(receiver)
+          Block(assign :: apply2 :: Nil)(apply.span)
+
+      case Select(qual, name) if isArrayMethod(fun.tpe) =>
+        // Array intrinsic methods are implemented in the native runtime
+        val qual2 = this(qual)
+        Ident(runtime.Core_RefArray.termMember(name))(fun.span).appliedTo(qual2 :: args2*)
+
+      case Select(qual, name) if qual.tpe.isClassInfoType =>
+        // Check if this is a primitive numeric type operator
+        val isPrimitiveNumeric = qual.tpe.isNumericOrBoolType
+
+        if isPrimitiveNumeric then
+          // Transform to runtime primitive function call
+          val section =
+            if qual.tpe.isSubtype(defn.BoolType) then runtime.Core_BoolOps
+            else if qual.tpe.isSubtype(defn.IntType) then runtime.Core_IntOps
+            else if qual.tpe.isSubtype(defn.ByteType) then runtime.Core_ByteOps
+            else if qual.tpe.isSubtype(defn.CharType) then runtime.Core_CharOps
+            else if qual.tpe.isSubtype(defn.LongType) then runtime.Core_LongOps
+            else runtime.Core_FloatOps
+
+          // Try to find operator in section - use operator name directly
+          val primitiveSym = section.termMember(name)
+          val qual2 = this(qual)
+          Apply(Ident(primitiveSym)(fun.span), qual2 :: args2, autos2)(apply.span)
+
+        else if qual.tpe.isSubtype(defn.StringType) then
+          val qual2 = this(qual)
+          val argsAll = qual2 :: args2
+
+          Ident(runtime.Core_StringOps.termMember(name))(fun.span).appliedTo(argsAll*)
+
+        else
+          val qual2 = this(qual)
+
+          if qual2.isIdempotent then
+            rewriteApply(qual2, name)
+
+          else
+            val receiverSym =
+              val owner = Phase.owner.value
+              given Source = Phase.source.value
+              TermSymbol.create("o", qual2.tpe.widen, Flags.Synthetic, Visibility.Default, owner, qual2.pos)
+
+            val receiver = Ident(receiverSym)(qual2.span)
+            val assign = Assign(Ident(receiverSym)(qual2.span), qual2)
+
+            val apply2 = rewriteApply(receiver, name)
+            Block(assign :: apply2 :: Nil)(apply.span)
+
+      case Ident(sym) if sym == runtime.Core_cast =>
+        assert(!args2.head.isInstanceOf[Encoded], "Unexpected encoded for cast (primitives not allowed): " + args2.head)
+        args2.head
+
+      case _ =>
+        Apply(transform(fun), args2, autos2)(apply.span)
