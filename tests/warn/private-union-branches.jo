@@ -1,0 +1,7 @@
+section Hidden
+  private union Token = Text(value: String) | Empty
+end
+
+def main() =
+  val _ = Hidden.Text("x")
+  val _ = Hidden.Empty

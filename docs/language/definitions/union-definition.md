@@ -14,6 +14,8 @@ methods   = {method_def}
 ## Desugaring
 
 A `union` desugars into a union type alias and a class (or object) per branch.
+The union's visibility modifier (`private` or `private[Scope]`) also applies to
+each branch and its generated factory function and pattern.
 
 **Parameterless branch** → object:
 

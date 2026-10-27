@@ -10,6 +10,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   not already installed, then activates it. Installation failures leave the
   active compiler unchanged.
 
+### Fixed
+
+- Private union definitions pass their visibility modifiers to all branches,
+  including generated factory functions and patterns. Branches can carry
+  private payload types without reporting false visibility leaks.
+
 ## [0.14.5] - 2026-10-26
 
 ### Fixed

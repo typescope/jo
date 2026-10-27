@@ -267,9 +267,12 @@ object Desugaring:
 
       if classDef.params.isEmpty then
         val objDef = ObjectDef(classDef.ident, views = Nil, funs = classDef.funs)(classDef.span)
+          .withMods(enumDef.modifiers)
         classDefs += objDef
       else
-        val updatedClassDef = classDef.copy(tparams = tparamsReferred)(classDef.span)
+        val updatedClassDef = ClassDef(
+          classDef.ident, tparamsReferred, classDef.params, classDef.views, classDef.vals, classDef.funs
+        )(classDef.span).withMods(enumDef.modifiers)
         classDefs += updatedClassDef
     end for
 
