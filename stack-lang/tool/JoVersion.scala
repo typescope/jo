@@ -1,4 +1,4 @@
 package tool
 
 object JoVersion:
-  val current: Version = Version(0, 14, 5)
+  val current: Version = Version(0, 14, 6)

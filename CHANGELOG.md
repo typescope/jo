@@ -4,22 +4,42 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.14.6] - 2026-10-27
+
 ### Changed
 
 - `jo versions use <version>` installs a published compiler version when it is
   not already installed, then activates it. Installation failures leave the
-  active compiler unchanged.
+  active compiler unchanged. ([#194])
 
 ### Fixed
 
 - Private union definitions pass their visibility modifiers to all branches,
   including generated factory functions and patterns. Branches can carry
-  private payload types without reporting false visibility leaks.
+  private payload types without reporting false visibility leaks. ([#195])
 
 - Decimal `Int` and `Long` literals are checked against their full signed ranges.
   Out-of-range values that previously wrapped to zero or another value with the
-  same sign now report an integer literal overflow error. Larger decimal
-  literals require a `Long` expected type; hexadecimal bit patterns are unchanged.
+  same sign now report an integer literal overflow error. ([#196])
+
+### Security
+
+- No security-relevant changes.
+
+### Compatibility
+
+- Decimal literals must fit the signed `Int` range unless `Long` is expected,
+  in which case they must fit its signed 64-bit range. Use a `Long` annotation
+  or ascription for larger values. Hexadecimal bit patterns are unchanged.
+  ([#196])
+- Branches of private unions follow the union's declared visibility. Access
+  outside that scope is rejected. ([#195])
+- SAST format 2.0, build specifications, and `.joy` package formats are unchanged.
+  Existing libraries do not require recompilation for format compatibility.
+
+[#194]: https://github.com/typescope/jo/pull/194
+[#195]: https://github.com/typescope/jo/pull/195
+[#196]: https://github.com/typescope/jo/pull/196
 
 ## [0.14.5] - 2026-10-26
 
