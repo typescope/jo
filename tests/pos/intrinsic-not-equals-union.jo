@@ -1,0 +1,46 @@
+union Switch = Enabled | Disabled
+  def ==(other: Switch): Bool =
+    (this is Enabled) == (other is Enabled)
+
+union Choice[T] = Present(value: T) | Absent
+  def ==(other: Choice[T])(auto eq: Eq[T] with [[T].==]): Bool =
+    match this
+    case Present(value) =>
+      match other
+      case Present(otherValue) => eq.equal(value, otherValue)
+      case Absent => false
+
+    case Absent => other is Absent
+
+def contextualEquality =
+  auto modulo: Eq[Int] = (a, b) => a % 10 == b % 10
+  auto neverEqual: Eq[Choice[Int]] = (a, b) => false
+  val one: Choice[Int] = Present(1)
+  val eleven: Choice[Int] = Present(11)
+  assert(!(one != eleven), "union equality resolves its component auto")
+
+def main =
+  val enabled: Switch = Enabled
+  val disabled: Switch = Disabled
+  assert(!(enabled != enabled), "equal singleton branches")
+  assert(enabled != disabled, "different singleton branches")
+  assert(disabled != enabled, "reversed singleton branches")
+
+  val one: Choice[Int] = Present(1)
+  val same: Choice[Int] = Present(1)
+  val two: Choice[Int] = Present(2)
+  val absent: Choice[Int] = Absent
+  assert(!(one != same), "equal payloads")
+  assert(one != two, "different payloads")
+  assert(one != absent, "payload and singleton branches")
+  assert(absent != one, "singleton and payload branches")
+  assert(!(absent != absent), "equal absent branches")
+
+  val nested: Choice[Choice[Int]] = Present(one)
+  val sameNested: Choice[Choice[Int]] = Present(same)
+  val otherNested: Choice[Choice[Int]] = Present(two)
+  assert(!(nested != sameNested), "nested union equality autos")
+  assert(nested != otherNested, "nested union inequality")
+
+  contextualEquality()
+  println "intrinsic union not-equals: OK"
