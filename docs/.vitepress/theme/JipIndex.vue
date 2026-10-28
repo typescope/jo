@@ -20,6 +20,13 @@ function formatDate(date) {
     <div class="jip-header">
       <h1>Jo Improvement Proposals</h1>
       <p>Design proposals for significant changes to the Jo language and toolchain.</p>
+      <blockquote class="jip-quote">
+        <p>
+          There is no royal road to logic, and really valuable ideas can only be
+          had at the price of close attention.
+        </p>
+        <footer>— C. S. Peirce, <cite>How to make our ideas clear</cite></footer>
+      </blockquote>
     </div>
 
     <div class="jip-list">
@@ -77,6 +84,23 @@ function formatDate(date) {
   margin: 0;
   color: var(--vp-c-text-2);
   font-size: 1.05rem;
+}
+
+.jip-quote {
+  margin: 24px 0 0;
+  padding-left: 16px;
+  border-left: 2px solid var(--vp-c-brand-1);
+}
+
+.jip-quote p {
+  font-style: italic;
+  line-height: 1.65;
+}
+
+.jip-quote footer {
+  margin-top: 8px;
+  color: var(--vp-c-text-3);
+  font-size: 0.875rem;
 }
 
 .jip-list {
