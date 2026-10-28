@@ -19,9 +19,9 @@ def (a: T) != [T](b: T)(auto eq: Eq[T] with [[T].==]): Bool = !eq.equal(a, b)
 
 A class's own `!=` method takes precedence, following the existing rules for
 infix operators. When the global function is used, ordinary auto resolution
-selects an `Eq[T]`, synthesizing it from `T.==` by default. The type checker
+selects an `Eq[T]`, synthesizing it from `T.==` by default. The compiler
 optimizes a call whose equality instance is the compiler-generated adapter
-`(a, b) => a == b` into `!(a == b)`
+`(a, b) => a == b` into `!(a == b)`.
 
 ## Motivation
 
@@ -30,14 +30,10 @@ library does this for primitive types and for `List`, `Option`, `Result`, and
 `Set`. A class that defines only `==` can participate in equality-based
 collections but still cannot use the corresponding infix `!=` expression.
 
-Pairs illustrate the gap: adding component equality allows lists of pairs to
-compare for equality, but a separate wrapper is still needed to write
-`pair1 != pair2`.
-
 A global function expresses this default once, using Jo's existing `Eq`
 interface and member-first lookup. Optimizing the synthesized adapter removes
-the extra function call, equality adapter, and interface dispatch from the
-common case.
+the extra function call, equality adapter, and interface dispatch for
+common cases.
 
 ## Proposal
 
@@ -70,45 +66,20 @@ equality operations. This is a consequence of honoring contextual `Eq`
 instances, and the optimization must preserve it. A class's own `!=` method
 continues to control its infix inequality independently of the global default.
 
-### Type checker optimization
+### Compiler optimization
 
-The optimization applies after operator lookup, type inference, and auto
-resolution. Recognize a fully applied call to the exact standard library
-function `jo.!=`, with an equality argument synthesized from the `[[T].==]`
-member candidate. Auto resolution already constructs an eta-expanded lambda
-for this candidate and adapts it to the single-method `Eq[T]` interface.
-
-For the schematic call:
-
-```jo
-notEquals(a, b, synthesizedEq((x, y) => x == y))
-```
-
-produce the equivalent typed expression:
+When a call to the global `jo.!=` receives the compiler-synthesized equality
+adapter `(x, y) => x == y`, inline the function and adapter to produce:
 
 ```jo
 !(a == b)
 ```
 
-The transformation substitutes the operands into the already-resolved
-equality call. It preserves that call's receiver, method symbol, type
-arguments, and resolved auto arguments. It must not perform a new lookup of
-`==` or a new auto search in the caller's scope.
+This removes the wrapper call and adapter overhead. The unoptimized library
+function has the same semantics, so correctness does not depend on inlining.
 
-Preserve the original application's evaluation order and evaluate each
-operand once. Retain observable evaluation of any captured auto arguments,
-using temporary bindings when needed. Preserve effects, result adaptation,
-and source positions for diagnostics.
-
-Recognition should use the compiler-generated adapter's structure or
-provenance, including the interface adaptation. A synthetic-lambda flag alone
-does not establish that an arbitrary equality argument is this adapter.
-An explicitly supplied equality value, a custom auto instance, a class's own
-`!=`, or another global function named `!=` keeps its ordinary behavior.
-
-The optimization is optional for correctness: without it, the library
-function and adapter implement the same semantics. Backends consume the
-resulting ordinary equality call and negation without new primitives.
+Calls using custom equality instances or a class's own `!=`
+retain their ordinary behavior.
 
 ## Justification
 
@@ -118,16 +89,10 @@ the programmer still supplies equality through a method or an `Eq` instance.
 The global function provides its negation, while existing member definitions
 remain authoritative.
 
+We avoid adding global operators to standard library.
 [JIP 0008](./0008-drop-top-level-int-operators.md) removed monomorphic `Int`
-operator fallbacks because they guessed `Int` when an operand's type was
-unknown. This proposal introduces a polymorphic function that works uniformly
-for types with an `Eq` instance. It must not choose `Int`, or another concrete
-type, merely because `!=` appears in an untyped lambda. When the program does
-not determine `T`, a type annotation is still required.
-
-An unconditional rewrite of every `a != b` into `!(a == b)` would give a
-stronger complement guarantee, but would bypass both custom `Eq` instances
-and existing `!=` methods. This proposal preserves those extension points.
+operator fallbacks.
+However, we believe adding `!=` is justified given its universality for all types and wide usage.
 
 ## Compatibility
 
@@ -139,9 +104,7 @@ qualification.
 
 Existing standard library `!=` methods can remain. Their removal is a
 separate API change, especially for explicit member calls and view types.
-There is no new syntax, backend primitive, or SAST format requirement. Code
-using the fallback requires the updated standard library; the optimization
-requires the updated compiler.
+There is no new syntax, backend primitive, or SAST format requirement.
 
 ## Related work
 
@@ -161,6 +124,3 @@ supplies a default inequality operation while allowing explicit definitions.
 Jo uses an auto `Eq[T]` argument and its existing global-operator fallback,
 then removes the synthesized adapter at the typed call site.
 
-## Implementation
-
-Proposed; not yet implemented.
