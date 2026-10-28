@@ -5,7 +5,7 @@ created: 2026-10-28
 title: Default equality operators
 ---
 
-# JIP 0009 — Default equality operators through Eq
+# JIP 0009 — Default equality operators
 
 <JipMeta />
 
@@ -50,30 +50,6 @@ common cases.
 The functions are defined in namespace `jo`. Lookup, type inference, and auto
 resolution follow the existing rules. A class's own operator method takes
 precedence over the corresponding global function as usual.
-
-### Custom equality instances
-
-Both global functions use the selected `Eq[T]`, which can differ from a
-direct call to the class's `==` method. Member precedence still applies, so
-adding the global `==` preserves the following behavior:
-
-```jo
-class Key(value: Int)
-  def ==(other: Key): Bool = this.value == other.value
-
-def example: Unit =
-  auto byLastDigit: Eq[Key] = (a, b) => a.value % 10 == b.value % 10
-  val a = new Key(1)
-  val b = new Key(11)
-
-  assert(!(a == b), "the member compares the complete values")
-  assert(!(a != b), "the global function uses byLastDigit")
-```
-
-Both comparisons above return `false`. The two expressions use different
-equality operations. This is a consequence of honoring contextual `Eq`
-instances, and the optimization must preserve it. A class's own `==` or `!=`
-method continues to control its respective infix operator.
 
 ### Compiler optimization
 
