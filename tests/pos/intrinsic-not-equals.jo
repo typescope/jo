@@ -5,9 +5,6 @@ class Own
   def ==(other: Own): Bool = true
   def !=(other: Own): Bool = true
 
-class GenericEquality
-  def ==[T](other: T): Bool = false
-
 class Loud
   def ==(other: Loud): Bool =
     println "equality effect"
@@ -16,6 +13,10 @@ class Loud
 class Box[T](value: T)
   def ==(other: Box[T])(auto eq: Eq[T] with [[T].==]): Bool =
     eq.equal(value, other.value)
+
+class TextKey(value: Int)
+  def toString: String = value.toString
+  def ==(other: String :- [.toString]): Bool = value.toString == other
 
 class Probe(value: Int, trace: Array[Int])
   def ==(other: Probe): Bool =
@@ -42,10 +43,11 @@ def main =
   assert(!(one != new Key(1)), "equal values")
   assert(one != new Key(2), "different values")
   assert(new Own() != new Own(), "explicit inequality takes precedence")
-  assert(new GenericEquality() != new GenericEquality(), "polymorphic equality method")
   assert(!(new Loud() != new Loud()), "equality effects are propagated")
   assert(new Box(1) != new Box(2), "synthesized component equality")
   assert(!(new Box(new Box(1)) != new Box(new Box(1))), "nested equality autos")
+  assert(new TextKey(1) != new TextKey(2), "equality argument adaptation")
+  assert(!(new TextKey(1) != new TextKey(1)), "adapted equal argument")
 
   val trace = Array.fill(1, 0)
   assert(probe(1, 1, trace) != probe(2, 2, trace), "effectful comparison")

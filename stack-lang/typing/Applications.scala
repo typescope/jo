@@ -283,7 +283,7 @@ trait Applications extends DynamicTyper:
         If(cond, unitValue(word.span), failure)(defn.UnitType, word.span)
 
       case Apply(TypeApply(Ident(sym), tpt :: Nil), lhs :: rhs :: Nil, Nil)
-          if defn.jo_notEquals.contains(sym) =>
+          if sym == defn.jo_notEquals =>
         expandNotEquals(lhs, rhs, TypeOps.normalize(tpt.tpe), word.span)
 
       case _ => word
@@ -301,34 +301,33 @@ trait Applications extends DynamicTyper:
       Reporter.error(s"Type ${operandType.show} has no equality method == required by !=", span.toPos)
       return errorWord(span)
 
-    val receiver = lhs.encodedAs(operandType)
-    var equality = resolveTypedSelect(receiver, "==", span, allowAdapt = false)
+    val equality = resolveTypedSelect(lhs, "==", span, allowAdapt = false)
 
     if !equality.tpe.isProcType then
       Reporter.error("The member == required by != is not a method", span.toPos)
       return errorWord(span)
 
-    if equality.tpe.isPolyType then
-      equality = TreeOps.instantiatePoly(equality.tpe.asProcType, equality)
-
     val procType = equality.tpe.asProcType
+
+    if procType.tparams.nonEmpty then
+      Reporter.error("The equality method == required by != cannot be polymorphic", span.toPos)
+      return errorWord(span)
 
     if procType.preParamCount != 0 || procType.paramCount != 1 then
       Reporter.error("The equality method == required by != must take one argument", span.toPos)
       return errorWord(span)
 
-    Inference.conditionalInstantiate(procType.resultType, TargetType.Known(defn.BoolType))
     val paramType = procType.paramTypes.head
+    val argumentReporter = rp.fresh()
     val arg =
-      if paramType.isFullyInstantiated then
-        Checker.adapt(rhs, TargetType.Known(paramType))
-      else if Subtyping.conforms(rhs.tpe, paramType) then
-        rhs
-      else
-        Reporter.error(s"Expect type ${paramType.show}, found = ${rhs.tpe.show}", span.toPos)
-        errorWord(span)
+      given Reporter = argumentReporter
+      Checker.adapt(rhs, TargetType.Known(paramType))
 
-    if arg.tpe.isError then return errorWord(span)
+    if argumentReporter.hasErrors then
+      Reporter.error(s"The equality method == required by != expects an argument of type ${paramType.show}, found = ${rhs.tpe.widen.show}", rhs.pos)
+      return errorWord(span)
+
+    argumentReporter.commit(rp)
 
     if !procType.resultType.isBoolType then
       Reporter.error(s"The equality method == required by != must return Bool, found = ${procType.resultType.show}", span.toPos)

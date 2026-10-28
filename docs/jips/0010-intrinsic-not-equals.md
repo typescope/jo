@@ -19,8 +19,9 @@ def (a: T) != [T](b: T): Bool = ...
 ```
 
 After type checking a call, the compiler intrinsifies it into `!(a == b)`.
-The comparison must use a `==` member defined on the instantiated `T` and
-return `Bool`. A missing or invalid equality method is a compile-time error.
+The comparison must use a non-polymorphic `==` member defined on the
+instantiated `T` and return `Bool`. A missing or invalid equality method is
+a compile-time error.
 
 This provides the usual negation of equality without requiring each class
 to repeat a `!=` wrapper.

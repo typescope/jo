@@ -26,7 +26,7 @@ type Bottom
 //[ Negate the operand type's `==` method when it has no `!=` method.
   !
   ! The compiler expands this call to `!(a == b)`. The type must provide a
-  ! suitable `==` member to make `a == b` type check, autos are allowed.
+  ! suitable non-polymorphic `==` member to make `a == b` type check; autos are allowed.
 //]
 @intrinsic
 def (a: T) != [T](b: T): Bool = ...
