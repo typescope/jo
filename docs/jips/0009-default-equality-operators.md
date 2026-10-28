@@ -18,12 +18,12 @@ This proposal is rejected for the following reasons:
    proposal into generic comparison through an implicit `Eq[T]`. This goes
    against Jo's principle of explicitness over implicitness. Generic code
    should make its equality operation explicit, rather than acquire concise
-   but indirect operator syntax from an ambient instance.
+   but indirect operator syntax from an ambient implicit.
 2. **Semantic clarity.** A simple `a == b` can mean a member call or a global
    function using an auto instance, depending on lookup and the operand
    types. The interaction between `jo.==` and `a.==` makes the expression
    harder to understand. It can also make `==` and `!=` use different equality
-   operations.
+   operations, depending on the subtle precedence rules in resolving `==`.
 3. **Engineering simplicity.** Introducing implicit instances and synthesized
    adapters, then teaching the compiler to undo them, adds unnecessary
    complexity. Specializing an intrinsic `!=` into a direct equality call and
