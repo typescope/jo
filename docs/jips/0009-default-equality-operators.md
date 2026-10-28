@@ -47,9 +47,9 @@ common cases.
 
 ### Global definitions
 
-The functions are defined in namespace `jo`. Lookup, type inference, and auto
-resolution follow the existing rules. A class's own operator method takes
-precedence over the corresponding global function as usual.
+The functions are defined the standard library, which are imported by default.
+Lookup, type inference, and auto resolution follow the existing rules.
+A class's own operator method takes precedence over the corresponding global function as usual.
 
 ### Compiler optimization
 
