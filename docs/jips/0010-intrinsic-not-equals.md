@@ -125,16 +125,8 @@ and [engineering simplicity](../language/design-principles.md).
 
 ## Compatibility
 
-Existing `!=` members retain their precedence and behavior. Classes with
-`==` but no `!=` gain the infix operation. Existing standard library `!=`
-methods may remain; removing them is separate API cleanup, particularly for
-explicit member calls and view requirements.
-
-The intrinsic adds a global function, not a member to every class. Explicit
-member selection and view requirements keep their existing rules. There is
-no new syntax or backend operation. Programs using the intrinsic require a
-compiler that implements its expansion and a standard library that declares
-it.
+Existing code is unaffected. Classes with `==` but no `!=` gain infix
+inequality. Existing `!=` methods retain precedence.
 
 ## Related work
 
