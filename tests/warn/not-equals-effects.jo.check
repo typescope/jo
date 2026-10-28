@@ -1,0 +1,13 @@
+---------- Error at tests/warn/not-equals-effects.jo:6:5 ---------------
+| def denied(a: Loud, b: Loud): Bool receives none = a != b
+|     ^^^^^^
+|     Context parameter not provided: stdout
+
+The following is the trace that leads to the problem:
+├── def denied(a: Loud, b: Loud): Bool receives none = a != b	[ tests/warn/not-equals-effects.jo:6:52 ]
+│                                                      ^^^^^^
+└──     println "comparing"	[ tests/warn/not-equals-effects.jo:3:5 ]
+        ^^^^^^^
+
+
+1 error(s), 0 warning(s)

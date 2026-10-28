@@ -1,0 +1,24 @@
+---------- Error at tests/warn/not-equals-invalid-equality.jo:15:52 ---------------
+| def result(a: WrongResult, b: WrongResult): Bool = a != b
+|                                                    ^^^^^^
+|                                                    The equality method == required by != must return Bool, found = Int
+
+---------- Error at tests/warn/not-equals-invalid-equality.jo:16:63 ---------------
+| def argument(a: WrongArgument, b: WrongArgument): Bool = a != b
+|                                                               ^
+|                                                               Expect type Int, found = WrongArgument
+
+---------- Error at tests/warn/not-equals-invalid-equality.jo:17:64 ---------------
+| def visibility(a: PrivateEquality, b: PrivateEquality): Bool = a != b
+|                                                                ^^^^^^
+|                                                                Cannot access the private member ==, limit = PrivateEquality, site = visibility
+
+---------- Error at tests/warn/not-equals-invalid-equality.jo:18:53 ---------------
+| def missing(a: MissingAuto, b: MissingAuto): Bool = a != b
+|                                                     ^^^^^^
+|                                                     Failed to find auto of the type Marker
+? Marker
+  ✗ (no candidates)
+
+
+4 error(s), 0 warning(s)

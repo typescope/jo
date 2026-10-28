@@ -1,0 +1,14 @@
+class Opaque
+
+// A global == and an Eq instance do not provide a member on Opaque.
+def (a: Opaque) == (b: Opaque): Bool = true
+
+def opaque(a: Opaque, b: Opaque)(auto eq: Eq[Opaque]): Bool = a != b
+
+// An unconstrained type parameter has no equality member.
+def generic[T](a: T, b: T)(auto eq: Eq[T]): Bool = a != b
+
+// The global operator must not guess Int from an ambient instance.
+def unknown =
+  auto eqInt: Eq[Int] = (a, b) => a == b
+  val compare = x => x != x

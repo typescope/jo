@@ -1,0 +1,6 @@
+class Loud
+  def ==(other: Loud): Bool =
+    println "comparing"
+    true
+
+def denied(a: Loud, b: Loud): Bool receives none = a != b
