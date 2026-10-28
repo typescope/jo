@@ -1,0 +1,43 @@
+def checkLines(text: String, expected: List[String]): Unit =
+  assert(text.lines == expected, "lines")
+
+  val iter = text.lineIterator
+
+  for line in expected do
+    assert(iter.hasNext, "line available")
+    assert(iter.hasNext, "hasNext does not consume a line")
+    assert(iter.next == line, "line content")
+  end
+
+  assert(!iter.hasNext, "iterator exhausted")
+  assert(!iter.hasNext, "exhaustion is stable")
+
+def main =
+  checkLines("", [])
+  checkLines("one", ["one"])
+  checkLines("\n", [""])
+  checkLines("\r\n", [""])
+  checkLines("\n\n", ["", ""])
+  checkLines("\r\n\r\n", ["", ""])
+  checkLines("\r", ["\r"])
+  checkLines("one\rtwo\r", ["one\rtwo\r"])
+  checkLines("one\r\r\n", ["one\r"])
+  checkLines("\none\r\ntwo\nthree\rfour\r\n\n", ["", "one", "two", "three\rfour", ""])
+  checkLines("\u{1F680}\r\n你好\né\u{0}tail\r", ["\u{1F680}", "你好", "é\u{0}tail\r"])
+
+  // Only LF and CRLF separate lines; other Unicode line breaks stay in the text.
+  val otherBreaks = "a\u{B}\u{C}\u{1C}\u{1D}\u{1E}\u{85}\u{2028}\u{2029}b"
+  checkLines(otherBreaks, [otherBreaks])
+
+  // A lazy wrapper consumes just the requested prefix of the original iterator.
+  val iter = "first\r\nsecond\nthird".lineIterator
+  assert(iter.take(1).toList == ["first"], "partial consumption")
+  assert(iter.hasNext, "remaining lines")
+  assert(iter.next == "second", "resume original iterator")
+  assert(iter.toList == ["third"], "collect remaining lines")
+
+  val left = "a\nb".lineIterator
+  val right = "a\nb".lineIterator
+  assert(left.next == "a" && left.next == "b", "first iterator")
+  assert(right.next == "a", "independent iterator")
+  println "string lines: OK"

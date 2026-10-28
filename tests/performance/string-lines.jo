@@ -1,0 +1,14 @@
+def main =
+  val text = List.tabulate(1000, i => "line number \{i} with some padding text here, more and more text").join("\n")
+  println text.size
+  println text.lines.size
+
+  // A single long line should use a host search, not one Jo call per character.
+  val longLine = "é\u{1F680}" * 100000
+  val oneLine = longLine.lines
+  assert(oneLine.size == 1 && oneLine[0] == longLine, "one long line")
+  println oneLine[0].size
+
+  // Taking a short prefix must not split the large suffix eagerly.
+  val partial = ("head\r\n" + longLine).lineIterator
+  println partial.take(1).toList
