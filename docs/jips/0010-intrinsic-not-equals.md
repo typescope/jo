@@ -147,4 +147,4 @@ approaches with default methods and equality protocols in other languages.
 
 ## Implementation
 
-Implemented in the shared compiler frontend after argument type checking.
+Implemented in [#201](https://github.com/typescope/jo/pull/201).
