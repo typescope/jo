@@ -19,12 +19,16 @@ This proposal is rejected for the following reasons:
    against Jo's principle of explicitness over implicitness. Generic code
    should make its equality operation explicit, rather than acquire concise
    but indirect operator syntax from an ambient implicit.
-2. **Semantic clarity.** A simple `a == b` can mean a member call or a global
+2. Jo's design also intentionally guards against language-level universal equality between
+   two arbitrary values or an arbitrary type. Equality is an important program
+   design decision that belongs to programmers. Adding a universal `==` and
+   `!=` operators blurs the line, even if they are guarded by `Eq[T]`.
+3. **Semantic clarity.** A simple `a == b` can mean a member call or a global
    function using an auto instance, depending on lookup and the operand
    types. The interaction between `jo.==` and `a.==` makes the expression
    harder to understand. It can also make `==` and `!=` use different equality
    operations, depending on the subtle precedence rules in resolving `==`.
-3. **Engineering simplicity.** Introducing implicit instances and synthesized
+4. **Engineering simplicity.** Introducing implicit instances and synthesized
    adapters, then teaching the compiler to undo them, adds unnecessary
    complexity. Specializing an intrinsic `!=` into a direct equality call and
    negation expresses the original requirement more simply.
