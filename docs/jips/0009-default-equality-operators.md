@@ -2,26 +2,27 @@
 author: Fengyun Liu
 status: Proposed
 created: 2026-10-28
-title: Default not-equals through Eq
+title: Default equality operators
 ---
 
-# JIP 0009 — Default not-equals through Eq
+# JIP 0009 — Default equality operators through Eq
 
 <JipMeta />
 
 ## Summary
 
-Add a global `!=` function to the standard library:
+Add global `==` and `!=` functions to the standard library:
 
 ```jo
+def (a: T) == [T](b: T)(auto eq: Eq[T] with [[T].==]): Bool = eq.equal(a, b)
 def (a: T) != [T](b: T)(auto eq: Eq[T] with [[T].==]): Bool = !eq.equal(a, b)
 ```
 
-A class's own `!=` method takes precedence, following the existing rules for
-infix operators. When the global function is used, ordinary auto resolution
-selects an `Eq[T]`, synthesizing it from `T.==` by default. The compiler
-optimizes a call whose equality instance is the compiler-generated adapter
-`(a, b) => a == b` into `!(a == b)`.
+A class's own `==` or `!=` method takes precedence over the corresponding
+global function, following the existing rules for infix operators. Ordinary
+auto resolution selects an `Eq[T]`, synthesizing it from `T.==` by default. The compiler
+optimizes global calls whose equality instance is the compiler-generated
+adapter `(a, b) => a == b` into `a == b` or `!(a == b)`, respectively.
 
 ## Motivation
 
@@ -30,23 +31,31 @@ library does this for primitive types and for `List`, `Option`, `Result`, and
 `Set`. A class that defines only `==` can participate in equality-based
 collections but still cannot use the corresponding infix `!=` expression.
 
-A global function expresses this default once, using Jo's existing `Eq`
+The matching global `==` provides symmetry and lets generic code use operator
+syntax with an `Eq[T]` instance:
+
+```jo
+def same[T](a: T, b: T)(auto eq: Eq[T]): Bool = a == b
+```
+
+The global functions express both operations through Jo's existing `Eq`
 interface and member-first lookup. Optimizing the synthesized adapter removes
 the extra function call, equality adapter, and interface dispatch for
 common cases.
 
 ## Proposal
 
-### Global definition
+### Global definitions
 
-The function is defined in namespace `jo`. Lookup, type inference, and auto
-resolution follow the existing rules. A class's own `!=` method takes
-precedence over the global function as usual.
+The functions are defined in namespace `jo`. Lookup, type inference, and auto
+resolution follow the existing rules. A class's own operator method takes
+precedence over the corresponding global function as usual.
 
 ### Custom equality instances
 
-The global function negates the selected `Eq[T]`, which can differ from a
-direct call to the class's `==` method:
+Both global functions use the selected `Eq[T]`, which can differ from a
+direct call to the class's `==` method. Member precedence still applies, so
+adding the global `==` preserves the following behavior:
 
 ```jo
 class Key(value: Int)
@@ -63,22 +72,26 @@ def example: Unit =
 
 Both comparisons above return `false`. The two expressions use different
 equality operations. This is a consequence of honoring contextual `Eq`
-instances, and the optimization must preserve it. A class's own `!=` method
-continues to control its infix inequality independently of the global default.
+instances, and the optimization must preserve it. A class's own `==` or `!=`
+method continues to control its respective infix operator.
 
 ### Compiler optimization
 
-When a call to the global `jo.!=` receives the compiler-synthesized equality
-adapter `(x, y) => x == y`, inline the function and adapter to produce:
+When a call to the global `jo.==` or `jo.!=` receives the compiler-synthesized
+equality adapter `(x, y) => x == y`, inline the function and adapter to produce,
+respectively:
 
 ```jo
+a == b
 !(a == b)
 ```
 
-This removes the wrapper call and adapter overhead. The unoptimized library
-function has the same semantics, so correctness does not depend on inlining.
+The equality shown here is the already-resolved member call.
 
-Calls using custom equality instances or a class's own `!=`
+This removes the wrapper call and adapter overhead. The unoptimized library
+functions have the same semantics, so correctness does not depend on inlining.
+
+Calls using custom equality instances or a class's own `==` or `!=`
 retain their ordinary behavior.
 
 ## Justification
@@ -86,21 +99,22 @@ retain their ordinary behavior.
 The proposal follows
 [explicitness over implicitness](../language/design-principles.md#_4-explicitness-over-implicitness):
 the programmer still supplies equality through a method or an `Eq` instance.
-The global function provides its negation, while existing member definitions
-remain authoritative.
+The global functions expose that equality and its negation, while existing
+member definitions remain authoritative.
 
 We avoid adding global operators to standard library.
 [JIP 0008](./0008-drop-top-level-int-operators.md) removed monomorphic `Int`
 operator fallbacks.
-However, we believe adding `!=` is justified given its universality for all types and wide usage.
+However, adding generic `==` and `!=` is justified by their applicability to
+any type with an `Eq` instance, their symmetry, and their wide usage.
 
 ## Compatibility
 
 Existing member implementations and successfully resolved operator calls
-retain their behavior. Code that previously failed because `!=` was missing
-can now use the global fallback. Ordinary import and shadowing rules apply to
-the additional standard library name; conflicting imports may need explicit
-qualification.
+retain their behavior. Code that previously failed because `==` or `!=` was
+missing can now use the global fallback when an `Eq[T]` is available. Ordinary
+import and shadowing rules apply to the additional standard library names;
+conflicting imports may need explicit qualification.
 
 Existing standard library `!=` methods can remain. Their removal is a
 separate API change, especially for explicit member calls and view types.
@@ -118,9 +132,4 @@ There is no new syntax, backend primitive, or SAST format requirement.
 | [Python](https://docs.python.org/3/reference/datamodel.html#object.__ne__) | The default `__ne__` delegates to `__eq__` and negates its result, with special handling for `NotImplemented`. Classes can override inequality independently. |
 | [C++](https://eel.is/c++draft/over.match.oper#10) | Operator resolution can rewrite `!=` through a suitable Boolean `operator==`. Explicit `operator!=` overloads remain supported; rewriting does not declare a missing member. |
 | [C#](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/operator-overloading#overloadable-operators) | Manual equality-operator overloading requires declaring both `==` and `!=`, rather than supplying the missing implementation. |
-
-Rust and Swift provide the closest library precedent: an equality abstraction
-supplies a default inequality operation while allowing explicit definitions.
-Jo uses an auto `Eq[T]` argument and its existing global-operator fallback,
-then removes the synthesized adapter at the typed call site.
 
