@@ -1,0 +1,135 @@
+class Key(value: Int)
+  def ==(other: Key): Bool = this.value == other.value
+  def compareTo(other: Key): Int = this.value - other.value
+  def hashCode: Int = value
+
+class Label(value: String)
+
+def main =
+  assert((1 ~ 2) == (1 ~ 2), "equal pairs")
+  assert(!((1 ~ 2) == (2 ~ 2)), "different first components")
+  assert(!((1 ~ 2) == (1 ~ 3)), "different second components")
+  assert((1 ~ "a") == (1 ~ "a"), "independent component types")
+  assert((new Key(1) ~ new Key(2)) == (new Key(1) ~ new Key(2)),
+    "component equality methods")
+
+  assert((1 ~ 9).compareTo(2 ~ 0) < 0, "first component orders first")
+  assert((2 ~ 0).compareTo(1 ~ 9) > 0, "greater first component")
+  assert((1 ~ 2).compareTo(1 ~ 3) < 0, "second component breaks ties")
+  assert((1 ~ 3).compareTo(1 ~ 2) > 0, "greater second component")
+  assert((1 ~ 2).compareTo(1 ~ 2) == 0, "equal ordering")
+  assert((1 ~ "a").compareTo(1 ~ "b") < 0, "mixed component ordering")
+  assert((new Key(1) ~ 9).compareTo(new Key(4) ~ 0) == -3,
+    "preserve component comparison result")
+
+  val pairs = [2 ~ 0, 1 ~ 3, 1 ~ 2, 1 ~ 3]
+  assert(pairs == [2 ~ 0, 1 ~ 3, 1 ~ 2, 1 ~ 3], "list equality")
+  assert(!(pairs == [2 ~ 0, 1 ~ 3, 1 ~ 2, 1 ~ 4]), "list inequality")
+  assert(pairs.contains(1 ~ 2), "synthesized pair equality")
+  assert(pairs.sort == [1 ~ 2, 1 ~ 3, 1 ~ 3, 2 ~ 0], "list sorting")
+
+  val nested = [(1 ~ "b") ~ 0, (1 ~ "a") ~ 2, (1 ~ "a") ~ 1]
+  assert(nested.sort == [(1 ~ "a") ~ 1, (1 ~ "a") ~ 2, (1 ~ "b") ~ 0],
+    "recursive pair equality and ordering")
+
+  testDistinct()
+  testHashing()
+  testCustomHashing()
+  testHashCollisions()
+  testCustomEquality()
+  testCustomOrdering()
+  println "pair comparisons: OK"
+
+def testDistinct =
+  assert([2 ~ 0, 1 ~ 3, 2 ~ 0, 1 ~ 2, 1 ~ 3].distinct == [2 ~ 0, 1 ~ 3, 1 ~ 2],
+    "distinct with synthesized pair equality and hashing")
+  assert(List.empty[Int ~ Int].distinct.isEmpty, "distinct of empty pair list")
+  assert([1 ~ "a", 1 ~ "a", 2 ~ "a", 1 ~ "b"].distinct == [1 ~ "a", 2 ~ "a", 1 ~ "b"],
+    "distinct with independent component types")
+  val nested = [(1 ~ "a") ~ 2, (1 ~ "a") ~ 2, (1 ~ "b") ~ 2]
+  assert(nested.distinct == [(1 ~ "a") ~ 2, (1 ~ "b") ~ 2], "nested pair hashing")
+  assert([new Key(1) ~ new Key(2), new Key(1) ~ new Key(2)].distinct.size == 1,
+    "component hashCode methods")
+
+def testHashing =
+  assert((1 ~ 2).hashCode == (1 ~ 2).hashCode, "equal pairs hash equally")
+  assert((1 ~ 2).hashCode != (2 ~ 1).hashCode, "hashing uses component order")
+  assert((1 ~ 2).hashCode != (1 ~ 3).hashCode, "hashing uses the second component")
+  assert((1 ~ 2).hashCode != (3 ~ 2).hashCode, "hashing uses the first component")
+
+  // Every signed Int is a valid component hash, including the range boundaries.
+  val values = [-2147483648, -1, 0, 1, 2147483647]
+
+  for first in values do
+    for second in values do
+      val pair = first ~ second
+      val hash = pair.hashCode
+      assert(hash >= -2147483648 && hash <= 2147483647, "hash stays in the Int range")
+      assert([pair, first ~ second].distinct.size == 1, "boundary pair distinct")
+    end
+  end
+
+def testCustomHashing =
+  val calls = Array.fill(2, 0)
+  auto keyEq: Eq[Key] = (a, b) => a.value % 10 == b.value % 10
+  auto labelEq: Eq[Label] = (a, b) => a.value.toLower == b.value.toLower
+  auto keyHash: Hash[Key] = key =>
+    calls[0] = calls[0] + 1
+    (key.value % 10).hashCode
+
+  auto labelHash: Hash[Label] = label =>
+    calls[1] = calls[1] + 1
+    label.value.toLower.hashCode
+
+  val pair = new Key(1) ~ new Label("a")
+  val equal = new Key(11) ~ new Label("A")
+  val otherFirst = new Key(2) ~ new Label("a")
+  val otherSecond = new Key(1) ~ new Label("b")
+  assert(pair == equal, "custom component equality")
+  assert(pair.hashCode == equal.hashCode, "custom equal pairs hash equally")
+  assert(calls[0] == 2 && calls[1] == 2, "both component hash instances used once")
+  assert([pair, equal, otherFirst, otherSecond, pair].distinct == [pair, otherFirst, otherSecond],
+    "distinct respects custom component equality and hashes")
+
+def testHashCollisions =
+  auto constantHash: Hash[Int] = value => 0
+  assert([1 ~ 2, 2 ~ 1, 1 ~ 2, 1 ~ 3].distinct == [1 ~ 2, 2 ~ 1, 1 ~ 3],
+    "distinct resolves hash collisions with pair equality")
+
+def testCustomEquality =
+  val calls = Array.fill(2, 0)
+  auto keyEq: Eq[Key] = (a, b) =>
+    calls[0] = calls[0] + 1
+    a.value % 10 == b.value % 10
+
+  auto labelEq: Eq[Label] = (a, b) =>
+    calls[1] = calls[1] + 1
+    a.value.toLower == b.value.toLower
+
+  val pair = new Key(1) ~ new Label("a")
+  assert(!(pair == (new Key(2) ~ new Label("A"))), "custom first equality")
+  assert(calls[0] == 1 && calls[1] == 0, "equality short circuits")
+  assert([pair] == [new Key(11) ~ new Label("A")], "custom component equality")
+  assert(calls[0] == 2 && calls[1] == 1, "both equality instances used")
+  assert(!(pair == (new Key(11) ~ new Label("b"))), "custom second equality")
+
+def testCustomOrdering =
+  val calls = Array.fill(2, 0)
+  auto keyOrd: Ord[Key] = (a, b) =>
+    calls[0] = calls[0] + 1
+    b.value - a.value
+
+  auto labelOrd: Ord[Label] = (a, b) =>
+    calls[1] = calls[1] + 1
+    b.value.compareTo(a.value)
+
+  val pair = new Key(1) ~ new Label("a")
+  assert(pair.compareTo(new Key(4) ~ new Label("b")) == 3, "custom first ordering")
+  assert(calls[0] == 1 && calls[1] == 0, "ordering short circuits")
+  assert(pair.compareTo(new Key(1) ~ new Label("b")) > 0, "custom second ordering")
+  assert(calls[0] == 2 && calls[1] == 1, "both ordering instances used")
+
+  val pairs = [pair, new Key(4) ~ new Label("a"), new Key(1) ~ new Label("b")]
+  val sorted = pairs.sort
+  assert(sorted[0].fst.value == 4, "synthesized ordering uses custom first instance")
+  assert(sorted[1].snd.value == "b", "synthesized ordering uses custom second instance")
