@@ -234,6 +234,18 @@ value.cast[String]  // cast is polymorphic → type application
 map["key"]          // map is not polymorphic → bracket application: map.get("key")
 ```
 
+## Equality and Inequality
+
+An infix `a != b` calls the operand type's `!=` method when one is defined.
+Otherwise, the standard library's global intrinsic expands to `!(a == b)`.
+The operand type must provide an accessible `==` method accepting the right
+operand and returning `Bool`. Any auto parameters required by that method
+are resolved normally.
+
+An `Eq[T]` instance alone does not enable comparison of an unconstrained
+`T`. Generic code using an equality instance calls `eq.equal(a, b)`
+explicitly. The intrinsic adds no global `==` or implicit identity comparison.
+
 ## See Also
 
 - [Expression Forms](expression-forms.md) - Closed and open expression forms

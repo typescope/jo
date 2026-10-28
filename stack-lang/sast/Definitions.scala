@@ -142,6 +142,7 @@ final class Definitions(private var _index: SymbolIndex) extends Definitions.Laz
   val main = jo.termMember("main")
   val abort = jo.termMember("abort")
   val jo_assert = jo.termMember("assert")
+  lazy val jo_notEquals = resolveTermOpt("jo.!=")
   val abortImpl = jo.termMember("abortImpl")
 
   val IntType     = StaticRef(Int_type)

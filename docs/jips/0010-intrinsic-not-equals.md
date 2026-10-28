@@ -1,6 +1,6 @@
 ---
 author: Fengyun Liu
-status: Proposed
+status: Accepted
 created: 2026-10-28
 title: Intrinsic not-equals
 ---
@@ -146,4 +146,4 @@ approaches with default methods and equality protocols in other languages.
 
 ## Implementation
 
-Proposed; not yet implemented.
+Implemented in the shared compiler frontend after argument type checking.
