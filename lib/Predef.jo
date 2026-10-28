@@ -24,8 +24,9 @@ type Any
 type Bottom
 
 //[ Negate the operand type's `==` method when it has no `!=` method.
+  !
   ! The compiler expands this call to `!(a == b)`. The type must provide a
-  ! suitable `==` member; an `Eq[T]` instance alone is not sufficient.
+  ! suitable `==` member to make `a == b` type check, autos are allowed.
 //]
 @intrinsic
 def (a: T) != [T](b: T): Bool = ...
