@@ -41,34 +41,11 @@ common case.
 
 ## Proposal
 
-### Global definition and lookup
+### Global definition
 
-The new function belongs to namespace `jo` and is available through the usual
-standard library imports. Its auto parameter has type `Eq[T]`: a value of
-type `T` itself does not provide the `equal(a, b)` operation.
-
-For an infix expression `a != b`:
-
-1. Resolve a callable member `!=` on the receiver using the existing operator
-   rules. When present, use that member, including its own auto parameters.
-2. Otherwise, resolve the operator in the surrounding scope as today. The
-   standard library's global `!=` supplies the default when selected.
-3. Infer `T` from the operands and other available type information, then
-   resolve `Eq[T]` using the ordinary auto rules. A local instance can take
-   precedence over the `[[T].==]` candidate.
-4. Return the negation of the selected instance's `equal(a, b)` result.
-
-An inaccessible member, an invalid argument, or a failed auto search on a
-selected member remains an error. Such errors do not trigger a retry through
-the global function.
-
-The fallback requires an `Eq[T]` for the inferred operand type. It supplies
-neither universal equality nor a default identity comparison. A type without
-an applicable instance or `==` method still receives an auto-resolution error.
-
-This adds an ordinary global function, rather than a synthesized member to
-every class. Explicit member selection such as `a.!=(b)` and view requirements
-for a member named `!=` retain their existing rules.
+The function is defined in namespace `jo`. Lookup, type inference, and auto
+resolution follow the existing rules. A class's own `!=` method takes
+precedence over the global function as usual.
 
 ### Custom equality instances
 
