@@ -228,11 +228,13 @@ class String
 
   //[ Lazy iterator over lines using '\n' and '\r\n' separators.
     ! Empty input has no lines; a final separator adds no extra empty line.
+    ! A bare '\r' is preserved in the line.
   //]
-  def lineIterator: Iterator[String] = new String.LineIterator(this)
+  def lineIterator: Iterator[String] = StringOps.lineIterator(this)
 
   //[ Split into lines using '\n' and '\r\n' separators.
     ! Empty input has no lines; a final separator adds no extra empty line.
+    ! A bare '\r' is preserved in the line.
   //]
   def lines: List[String] =
     this.lineIterator.toList
@@ -281,6 +283,9 @@ end
 
 // Backend runtimes can replace these string operations.
 private section StringOps
+  defer def lineIterator(str: String): Iterator[String] =
+    new String.LineIterator(str)
+
   // Use an iterator in the portable fallback: indexed access may rescan
   // UTF-8/UTF-16 prefixes and become quadratic for long whitespace runs.
   defer def trim(str: String, leading: Bool, trailing: Bool): String =

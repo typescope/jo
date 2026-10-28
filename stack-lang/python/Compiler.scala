@@ -28,6 +28,7 @@ object Compiler:
     "jo.Array.join" -> "jo.py.runtime.RefArray.join",
 
     "jo.StringOps.compareTo" -> "jo.py.runtime.StringOps.compareTo",
+    "jo.StringOps.lineIterator" -> "jo.py.runtime.StringOps.lineIterator",
     "jo.StringOps.trim" -> "jo.py.runtime.StringOps.trim",
 
     // Bytes operations
