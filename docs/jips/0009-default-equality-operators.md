@@ -1,6 +1,6 @@
 ---
 author: Fengyun Liu
-status: Proposed
+status: Rejected
 created: 2026-10-28
 title: Default equality operators
 ---
@@ -8,6 +8,34 @@ title: Default equality operators
 # JIP 0009 — Default equality operators
 
 <JipMeta />
+
+::: info Decision
+
+This proposal is rejected for the following reasons:
+
+1. **Feature creep.** The original goal was to avoid repeating the negation of
+   `==` in every `!=` method. Adding a global `==` for symmetry expanded the
+   proposal into generic comparison through an implicit `Eq[T]`. This goes
+   against Jo's principle of explicitness over implicitness. Generic code
+   should make its equality operation explicit, rather than acquire concise
+   but indirect operator syntax from an ambient instance.
+2. **Semantic clarity.** A simple `a == b` can mean a member call or a global
+   function using an auto instance, depending on lookup and the operand
+   types. The interaction between `jo.==` and `a.==` makes the expression
+   harder to understand. It can also make `==` and `!=` use different equality
+   operations.
+3. **Engineering simplicity.** Introducing implicit instances and synthesized
+   adapters, then teaching the compiler to undo them, adds unnecessary
+   complexity. Specializing an intrinsic `!=` into a direct equality call and
+   negation expresses the original requirement more simply.
+
+Generality and symmetry alone do not justify a feature. Semantic clarity and
+engineering simplicity take precedence.
+
+[JIP 0010](./0010-intrinsic-not-equals.md) proposes the narrower intrinsic
+design. The original proposal is retained below as a record of this decision.
+
+:::
 
 ## Summary
 
