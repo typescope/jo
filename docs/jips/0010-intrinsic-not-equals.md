@@ -114,10 +114,14 @@ or a synthesized structural comparison.
 
 ### Engineering simplicity
 
-The compiler specializes one intrinsic at a typed call site. It needs no
-equality dictionary, synthesized adapter, or recognition pass to recover a
-direct call from those abstractions. This requires no general-purpose
-specialization framework.
+[JIP 0009](./0009-default-equality-operators.md) introduces an `Eq[T]` instance and a wrapper around `==`. To recover
+a direct comparison, the compiler must recognize the generated wrapper,
+preserve any arguments it captures, and remove it while leaving custom
+equality instances intact. These are extra cases to implement and test.
+
+The intrinsic uses the `==` method on `T` directly. The compiler checks the
+method and negates its result.
+This avoids introducing an abstraction only to undo it later.
 
 The design follows the principles of
 [explicitness over implicitness](../language/design-principles.md#_4-explicitness-over-implicitness)
