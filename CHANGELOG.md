@@ -12,6 +12,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 [JIP 0010]: docs/jips/0010-intrinsic-not-equals.md
 
+### Fixed
+
+- Python `String.lines` and `String.lineIterator` search for newlines with the
+  host string operations instead of iterating over every code point. Line
+  separators and lazy iteration behavior are unchanged.
+
 ## [0.14.6] - 2026-10-27
 
 ### Changed

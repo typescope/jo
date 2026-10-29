@@ -168,7 +168,34 @@ private class StringIterator
     builtins.ord(current).toChar
 end
 
+// Python string indices are code point offsets, so searches and slices can
+// stay in the host without decoding every character through StringIterator.
+private class LineIterator(s: String)
+  private var pos: Int = 0
+  private val limit: Int = s.size
+
+  def hasNext: Bool = pos < limit
+
+  def next: String =
+    if !hasNext then abort "iterator exhausted"
+
+    val start = pos
+    val newline = s.indexOf("\n", start)
+    var stop = if newline < 0 then limit else newline
+
+    if newline > start && s[newline - 1] == '\r' then
+      stop = newline - 1
+    end
+
+    pos = if newline < 0 then limit else newline + 1
+    s.substring(start, stop - start)
+
+  view Iterator[String]
+end
+
 private section StringOps
+  def lineIterator(str: String): Iterator[String] = new LineIterator(str)
+
   // Fixed-arity calls avoid assembling vararg lists for host trimming.
   @py.interop
   private interface PyTrimString
