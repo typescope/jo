@@ -4,11 +4,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.14.7] - 2026-10-29
+
 ### Added
 
 - Types with a `==` method can use infix `!=` without defining it separately.
   The compiler expands the global intrinsic to the negation of that equality
-  method. Existing `!=` methods retain precedence. ([JIP 0010])
+  method. Existing `!=` methods retain precedence. ([#201], [JIP 0010])
 
 [JIP 0010]: docs/jips/0010-intrinsic-not-equals.md
 
@@ -16,12 +18,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Python `String.lines` and `String.lineIterator` search for newlines with the
   host string operations instead of iterating over every code point. Line
-  separators and lazy iteration behavior are unchanged.
+  separators and lazy iteration behavior are unchanged. ([#200])
 
 - Pairs support component-wise equality, lexicographic ordering, and hashing
   through `==`, `compareTo`, and `hashCode`. Collections can synthesize
   `Eq[S ~ T]`, `Ord[S ~ T]`, and `Hash[S ~ T]` from the component instances,
-  enabling list equality, sorting, and `distinct` for pairs.
+  enabling list equality, sorting, and `distinct` for pairs. ([#199])
+
+### Security
+
+- No security-relevant changes.
+
+### Compatibility
+
+- Intrinsic `!=` requires a suitable non-polymorphic `==` member. An `Eq[T]`
+  instance alone does not enable it; existing `!=` methods retain precedence.
+- The new equality operators and Pair methods require the updated bundled
+  standard library. Use the compiler and runtime libraries from this release
+  together.
+- SAST format 2.0, build specifications, and `.joy` package formats are unchanged.
+  Existing libraries do not require recompilation for format compatibility.
+
+[#199]: https://github.com/typescope/jo/pull/199
+[#200]: https://github.com/typescope/jo/pull/200
+[#201]: https://github.com/typescope/jo/pull/201
 
 ## [0.14.6] - 2026-10-27
 
