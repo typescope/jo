@@ -32,6 +32,7 @@ def main =
   assert(nested.sort == [(1 ~ "a") ~ 1, (1 ~ "a") ~ 2, (1 ~ "b") ~ 0],
     "recursive pair equality and ordering")
 
+  testInequality()
   testDistinct()
   testHashing()
   testCustomHashing()
@@ -39,6 +40,15 @@ def main =
   testCustomEquality()
   testCustomOrdering()
   println "pair comparisons: OK"
+
+def testInequality =
+  assert(!((1 ~ 2) != (1 ~ 2)), "equal pairs are not unequal")
+  assert((1 ~ 2) != (2 ~ 2), "inequality in the first component")
+  assert((1 ~ 2) != (1 ~ 3), "inequality in the second component")
+  assert((1 ~ "a") != (1 ~ "b"), "inequality with independent component types")
+  assert(((1 ~ "a") ~ 2) != ((1 ~ "b") ~ 2), "nested pair inequality")
+  assert(!((new Key(1) ~ new Key(2)) != (new Key(1) ~ new Key(2))),
+    "inequality uses component equality methods")
 
 def testDistinct =
   assert([2 ~ 0, 1 ~ 3, 2 ~ 0, 1 ~ 2, 1 ~ 3].distinct == [2 ~ 0, 1 ~ 3, 1 ~ 2],
@@ -112,6 +122,9 @@ def testCustomEquality =
   assert([pair] == [new Key(11) ~ new Label("A")], "custom component equality")
   assert(calls[0] == 2 && calls[1] == 1, "both equality instances used")
   assert(!(pair == (new Key(11) ~ new Label("b"))), "custom second equality")
+  assert(!(pair != (new Key(11) ~ new Label("A"))), "inequality respects custom equality")
+  assert(pair != (new Key(2) ~ new Label("A")), "inequality respects custom first equality")
+  assert(pair != (new Key(11) ~ new Label("b")), "inequality respects custom second equality")
 
 def testCustomOrdering =
   val calls = Array.fill(2, 0)
