@@ -1,0 +1,21 @@
+---------- Error at tests/warn/not-equals-no-equality.jo:6:63 ---------------
+| def opaque(a: Opaque, b: Opaque)(auto eq: Eq[Opaque]): Bool = a != b
+|                                                               ^^^^^^
+|                                                               Type Opaque has no equality method == required by !=
+
+---------- Error at tests/warn/not-equals-no-equality.jo:9:52 ---------------
+| def generic[T](a: T, b: T)(auto eq: Eq[T]): Bool = a != b
+|                                                    ^^^^^^
+|                                                    Type T has no equality method == required by !=
+
+---------- Error at tests/warn/not-equals-no-equality.jo:14:22 ---------------
+|   val compare = x => x != x
+|                      ^^^^^^
+|                      Cannot infer the operand type for !=
+
+---------- Error at tests/warn/not-equals-no-equality.jo:14:17 ---------------
+|   val compare = x => x != x
+|                 ^
+|                 Cannot infer a type for type variable ?x
+
+4 error(s), 0 warning(s)

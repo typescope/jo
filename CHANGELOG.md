@@ -4,6 +4,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Types with a `==` method can use infix `!=` without defining it separately.
+  The compiler expands the global intrinsic to the negation of that equality
+  method. Existing `!=` methods retain precedence. ([JIP 0010])
+
+[JIP 0010]: docs/jips/0010-intrinsic-not-equals.md
+
 ## [0.14.6] - 2026-10-27
 
 ### Changed

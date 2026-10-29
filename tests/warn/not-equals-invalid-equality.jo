@@ -1,0 +1,24 @@
+class WrongResult
+  def ==(other: WrongResult): Int = 0
+
+class WrongArgument
+  def ==(other: Int): Bool = true
+
+class PrivateEquality
+  private def ==(other: PrivateEquality): Bool = true
+
+class Marker
+
+class MissingAuto
+  def ==(other: MissingAuto)(auto marker: Marker): Bool = true
+
+def result(a: WrongResult, b: WrongResult): Bool = a != b
+def argument(a: WrongArgument, b: WrongArgument): Bool = a != b
+def visibility(a: PrivateEquality, b: PrivateEquality): Bool = a != b
+def missing(a: MissingAuto, b: MissingAuto): Bool = a != b
+
+class PolymorphicEquality
+  def ==[T](other: T): Bool = false
+
+def ordinary(a: PolymorphicEquality, b: PolymorphicEquality): Bool = a == b
+def polymorphic(a: PolymorphicEquality, b: PolymorphicEquality): Bool = a != b

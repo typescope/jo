@@ -1,31 +1,10 @@
 import { defineConfig } from 'vitepress'
-import { readFileSync, readdirSync } from 'fs'
+import { readFileSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const joGrammar = JSON.parse(readFileSync(resolve(__dirname, '../../tools/vscode/syntaxes/jo.tmLanguage.json'), 'utf-8'))
-
-// Discover proposals like the JIP index does, instead of maintaining a list.
-const jipDir = resolve(__dirname, '../jips')
-const jipSidebar = readdirSync(jipDir)
-  .filter(file => /^\d{4}-.+\.md$/.test(file))
-  .sort()
-  .map(file => {
-    const number = file.slice(0, 4)
-    const source = readFileSync(resolve(jipDir, file), 'utf-8')
-    const heading = source.match(/^#[ \t]+([^\r\n]+)$/m)?.[1]
-
-    if (!heading) {
-      throw new Error(`Missing title heading in jips/${file}`)
-    }
-
-    const title = heading.replace(new RegExp(`^JIP\\s+${number}\\s*[-–—:]\\s*`), '').trim()
-    return {
-      text: `JIP-${number}: ${title}`,
-      link: `/jips/${file.slice(0, -3)}`,
-    }
-  })
 
 // Written by .github/scripts/fetch-stdlib-docs.sh, newest version first. Absent
 // on a local build and until a release ships a docs asset, in which case the
@@ -208,12 +187,7 @@ export default defineConfig({
         }
       ],
 
-      '/jips/': [
-        {
-          text: 'Jo Improvement Proposals',
-          items: jipSidebar,
-        }
-      ],
+      '/jips/': [],
 
       '/language/': [
         {

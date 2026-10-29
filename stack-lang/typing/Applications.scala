@@ -274,13 +274,67 @@ trait Applications extends DynamicTyper:
 
       expandIntrinsic(Autos.resolve(fun, preArgs2 ++ postArgs2, call.span, config)).adapt
 
-  private def expandIntrinsic(word: Word)(using defn: Definitions): Word =
+  private def expandIntrinsic(word: Word)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, cs: ControlScope)
+  : Word =
     word match
       case Apply(Ident(sym), cond :: message :: Nil, location :: Nil) if sym == defn.jo_assert =>
         val failure = Apply(Ident(defn.abort)(word.span), message :: Nil, location :: Nil)(word.span)
         If(cond, unitValue(word.span), failure)(defn.UnitType, word.span)
 
+      case Apply(TypeApply(Ident(sym), tpt :: Nil), lhs :: rhs :: Nil, Nil)
+          if sym == defn.jo_notEquals =>
+        expandNotEquals(lhs, rhs, TypeOps.normalize(tpt.tpe), word.span)
+
       case _ => word
+
+  private def expandNotEquals(lhs: Word, rhs: Word, operandType: Type, span: Span)
+      (using defn: Definitions, sc: Scope, rp: Reporter, so: Source, tvars: TypeVars, cs: ControlScope)
+  : Word =
+    if lhs.tpe.isError || rhs.tpe.isError || operandType.isError then return errorWord(span)
+
+    if !operandType.isFullyInstantiated then
+      Reporter.error("Cannot infer the operand type for !=", span.toPos)
+      return errorWord(span)
+
+    if operandType.getTermMember("==").isEmpty then
+      Reporter.error(s"Type ${operandType.show} has no equality method == required by !=", span.toPos)
+      return errorWord(span)
+
+    val equality = resolveTypedSelect(lhs, "==", span, allowAdapt = false)
+
+    if !equality.tpe.isProcType then
+      Reporter.error("The member == required by != is not a method", span.toPos)
+      return errorWord(span)
+
+    val procType = equality.tpe.asProcType
+
+    if procType.tparams.nonEmpty then
+      Reporter.error("The equality method == required by != cannot be polymorphic", span.toPos)
+      return errorWord(span)
+
+    if procType.preParamCount != 0 || procType.paramCount != 1 then
+      Reporter.error("The equality method == required by != must take one argument", span.toPos)
+      return errorWord(span)
+
+    val paramType = procType.paramTypes.head
+    val argumentReporter = rp.fresh()
+    val arg =
+      given Reporter = argumentReporter
+      Checker.adapt(rhs, TargetType.Known(paramType))
+
+    if argumentReporter.hasErrors then
+      Reporter.error(s"The equality method == required by != expects an argument of type ${paramType.show}, found = ${rhs.tpe.widen.show}", rhs.pos)
+      return errorWord(span)
+
+    argumentReporter.commit(rp)
+
+    if !procType.resultType.isBoolType then
+      Reporter.error(s"The equality method == required by != must return Bool, found = ${procType.resultType.show}", span.toPos)
+      return errorWord(span)
+
+    val result = Autos.resolve(equality, arg :: Nil, span, config)
+    Apply(Select(result, "~!")(span), Nil, Nil)(span)
 
   /** Assumes that the argument count requirement is satisfied */
   def transformArgs
