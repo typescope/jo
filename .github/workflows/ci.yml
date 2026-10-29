@@ -23,7 +23,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     env:
@@ -31,10 +31,10 @@ jobs:
       LC_ALL: en_US.UTF-8
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Cache Ivy, Maven, Coursier
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.ivy2/cache
