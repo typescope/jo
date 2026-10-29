@@ -18,6 +18,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   host string operations instead of iterating over every code point. Line
   separators and lazy iteration behavior are unchanged.
 
+- Pairs support component-wise equality, lexicographic ordering, and hashing
+  through `==`, `compareTo`, and `hashCode`. Collections can synthesize
+  `Eq[S ~ T]`, `Ord[S ~ T]`, and `Hash[S ~ T]` from the component instances,
+  enabling list equality, sorting, and `distinct` for pairs.
+
 ## [0.14.6] - 2026-10-27
 
 ### Changed

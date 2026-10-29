@@ -9,6 +9,40 @@ namespace jo
   ! `Map` uses it for key-value pairs, so `map.toList` yields `K ~ V`.
 //]
 class Pair[S, T](fst: S, snd: T)
+  //[ True if both corresponding components are equal, using their `Eq` instances. //]
+  def ==(other: Pair[S, T])
+        (auto
+           lhsEq: Eq[S] with [[S].==],
+           rhsEq: Eq[T] with [[T].==])
+  : Bool =
+    lhsEq.equal(fst, other.fst) && rhsEq.equal(snd, other.snd)
+
+  //[ Compare lexicographically: first components, then second components on a tie.
+    ! Uses each component's `Ord` instance. Returns a negative value, zero or a
+    ! positive value as this pair is less than, equal to or greater than `other`.
+  //]
+  def compareTo(other: Pair[S, T])
+        (auto
+           lhsOrd: Ord[S] with [[S].compareTo],
+           rhsOrd: Ord[T] with [[T].compareTo])
+  : Int =
+    val first = lhsOrd.compare(fst, other.fst)
+
+    if first != 0 then first else rhsOrd.compare(snd, other.snd)
+
+  //[ Combine the component hashes using a 32-bit rotation and XOR.
+    ! Component `Hash` instances must agree with their `Eq` instances.
+    ! The value is not stable across releases and must not be persisted.
+  //]
+  def hashCode
+        (auto
+           lhsHash: Hash[S] with [[S].hashCode],
+           rhsHash: Hash[T] with [[T].hashCode])
+  : Int =
+    val first = lhsHash.hashCode(fst)
+    val rotated = (first << 5) | ((first >> 27) & 0x1f)
+    rotated ^ rhsHash.hashCode(snd)
+
   //[ Return `"a ~ b"` with both components shown. //]
   def toString(auto
       lhsShow: Show[S] with [[S].toString],
