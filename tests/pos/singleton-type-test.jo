@@ -1,0 +1,38 @@
+object Empty
+object Done
+// Referenced only by type tests; its singleton must still be initialized.
+object TestOnly
+class Box(value: Int)
+class Marker
+
+type Value = Empty | Done | TestOnly | Box | Marker
+type EmptyAlias = Empty
+
+def classify(value: Value): String =
+  match value
+  case Empty => "empty"
+  case Done => "done"
+  case TestOnly => "test only"
+  case Box(n) => "box " + n
+  case _: Marker => "marker"
+  end
+
+def isEmpty(value: Value): Bool = value is _: EmptyAlias
+def isTestOnly(value: Value): Bool = value is _: TestOnly
+
+def observed(value: Value): Value receives IO.stdout =
+  println("evaluated")
+  value
+
+def check(value: Value): Unit receives IO.stdout =
+  println(classify(value))
+  println(isEmpty(value))
+  println(isTestOnly(value))
+
+def main receives IO.stdout =
+  check(Empty)
+  check(Done)
+  check(Box(42))
+  check(new Marker())
+  println(observed(Empty) is _: Empty)
+  println(observed(Done) is _: Empty)
