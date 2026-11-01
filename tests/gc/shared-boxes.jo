@@ -1,0 +1,48 @@
+namespace gctest
+
+// Shared boxes are static data, reached by the barrier and the cleanup of
+// closing regions. `build` returns a list of Ints in and out of the shared
+// range, with enough garbage to make the close collect. `keep` stores some
+// elements into an array of the runtime region, created by `main`.
+
+def noise(i: Int): Int =
+  val text = "item-" + i.toString + "-" + (i * 7).toString
+  text.length
+
+def element(i: Int): Int =
+  if i % 3 == 0 then i - 200
+  else if i % 3 == 1 then i * 5
+  else noise(i)
+
+def build(n: Int): List[Int] =
+  var list: List[Int] = []
+  var i = 0
+  while i < n do
+    list = list + element(i)
+    i = i + 1
+  end
+  list
+
+def keep(cells: Array[Int], i: Int, list: List[Int], k: Int): Unit =
+  cells[i] = list.get(k) + 0
+
+def checksum(list: List[Int]): Int =
+  var sum = 0
+  for x in list do sum = (sum * 31 + x) % 1000003
+  sum
+
+def main =
+  val cells = Array.create[Int](4)
+
+  var total = 0
+  for round in 0 until 3 do
+    val list = build(700 + round * 100)
+    println: "length " + list.length + " checksum " + checksum(list)
+    keep(cells, 0, list, 1)
+    keep(cells, 1, list, 3)
+    keep(cells, 2, list, 500)
+    cells[3] = list.get(0)
+    total = total + list.length
+
+  println: cells
+  println: "total " + total

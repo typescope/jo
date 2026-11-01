@@ -42,6 +42,17 @@ object Layout:
   /** The size of a slot in bytes */
   val SlotSize = 8
 
+  /** The Int values with a shared static box: [IntBoxLow, IntBoxLow + IntBoxCount)
+    *
+    * The ranges cover bytes, characters, small counters and lengths. Every
+    * Byte and both Bools have a shared box too. See "Shared boxes" in GC.md.
+    */
+  val IntBoxLow = -128
+  val IntBoxCount = 1152
+
+  /** The Char values with a shared static box: [0, CharBoxCount) */
+  val CharBoxCount = 256
+
   def encodeClassType(classInfo: ClassInfo)(using defn: Definitions): RecordType =
     val memberTypes = new mutable.ArrayBuffer[NamedInfo[Type]]
     memberTypes += NamedInfo(ClassID, defn.IntType)

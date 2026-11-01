@@ -38,8 +38,8 @@ field writes directly to typed `getelementptr`, `load` and `store`.
 
 Numeric values are boxed only when they flow into a union or `Any`, as in the
 32-bit backends. A `Bool`, a `Byte`, a `Char` below 256 and an `Int` in
-[-128, 1024) get a box shared by the whole program, allocated at startup (see
-Shared boxes in `GC.md`).
+[-128, 1024) get a shared box, emitted as static data (see Shared boxes in
+`GC.md`).
 
 ## Memory layout
 
