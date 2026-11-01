@@ -161,6 +161,11 @@ The barrier never lowers a shared box, since its `req` is 0. The trace of a
 closing region never enters it, since its `phys` is 0. The arrays are in
 read-only memory, so a stray write to a header faults.
 
+Only the arrays of reachable box functions are emitted. They take about 60 KB
+of the executable, mostly the `Int` array, and the loader relocates their
+interface table pointers at startup. A hello world grows from 38 KB to 96 KB
+and still starts faster than with boxes allocated at startup.
+
 Sharing is invisible to programs. A box is immutable: its constructor writes
 `value` once, and nothing writes into a box afterwards. Jo has no reference
 equality and no identity hash. Equality, hashing, ordering and printing go
