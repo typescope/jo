@@ -59,7 +59,9 @@ class Allocations(funDefs: collection.Map[Symbol, FunDef], runtime: LLVMRuntime,
 
         case If(cond, thenp, elsep) =>
           this(cond)
+
           if !stops(thenp) then this(thenp)
+
           if !stops(elsep) then this(elsep)
 
         case app: Apply =>
@@ -71,15 +73,12 @@ class Allocations(funDefs: collection.Map[Symbol, FunDef], runtime: LLVMRuntime,
 
           funSym match
             case Some(sym) =>
-              if sym.is(Flags.Object) || sym.owner == runtime.LibC then
-                // an object accessor reads the object, a C function allocates no object
-                ()
-
-              else if sym.hasAnnotation(defn.intrinsic) then
+              if sym.hasAnnotation(defn.intrinsic) then
                 if sym == defn.Float_parseFloatDecimal then callees += runtime.Core_parseFloat
                 else if sym == runtime.Core_initObjects then direct = true
 
-              else
+              // An object accessor reads the object, a C function allocates no object
+              else if !sym.is(Flags.Object) && sym.owner != runtime.LibC then
                 val target = resolve(sym)
                 if allocators.contains(target) then direct = true
                 else callees += target

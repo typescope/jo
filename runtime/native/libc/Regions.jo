@@ -437,10 +437,11 @@ private section Regions
         if req >= num then
           LibC.free o
         else if req < p then
-          // goes directly to the region owning its level
+          // goes directly to the region owning its level. A lower level is
+          // owned by the last owner or one of its ancestors.
           if req != ownerReq then
+            owner = ownerOf(req, if req < ownerReq then owner else p)
             ownerReq = req
-            owner = ownerOf(req, p)
 
           setGcHalf(o, normal(owner, req))
           append(descOf owner, o)
