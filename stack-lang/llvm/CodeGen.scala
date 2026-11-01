@@ -339,7 +339,8 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
     *
     * Under `--mem-profile`, `@gc.funNames` names `main` and then the region
     * functions by number, as `name at=path:line`, and `@gc.classNames` names
-    * the classes by class id. Otherwise both are empty.
+    * the classes by class id. Otherwise both are empty. The runtime takes a
+    * function whose name starts with `jo.` for a library function.
     */
   def nameTableGlobals(): String =
     val buf = new StringBuilder
@@ -354,15 +355,11 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
       val all = entries :+ "ptr null"
       buf ++= s"$name = internal constant [${all.size} x ptr] [${all.mkString(", ")}], align 8\n"
 
+    // The line only: the column would read the source file, which a library may not have
     def label(sym: Symbol): String =
-      val at =
-        try
-          val pos = sym.sourcePos
-          val text = pos.toString
-          " at=" + text.substring(0, text.lastIndexOf(':'))
-        catch case _: Exception => ""
-
-      sym.fullName + at
+      val pos = sym.sourcePos
+      if pos == null then sym.fullName
+      else s"${sym.fullName} at=${pos.displayPath}:${pos.startLine + 1}"
 
     if memProfile then
       val main = runtime.rewire.get(defn.main).map(label).getOrElse("main")

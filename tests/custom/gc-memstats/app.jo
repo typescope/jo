@@ -1,13 +1,21 @@
 namespace memapp
 
+import jo.mutable
+
 // `remember` stores a new node into an array created by `main`, so each node
-// is promoted to the runtime region by a store. `accumulate` builds a list in
-// its own region, which holds all the nodes at once until it returns.
+// is promoted to the runtime region by a store. `note` does the same through
+// the library: the store in `List.append`, called by `List.+=`, is charged to
+// `append`, and its caller is `note`. `accumulate` builds a list in its own
+// region, which holds all the nodes at once until it returns. The last loop
+// of `main` allocates directly in the runtime region.
 
 class Node(value: Int, next: Option[Node])
 
 def remember(nodes: Array[Node], i: Int): Unit =
   nodes[i] = new Node(i, None)
+
+def note(log: mutable.List[Node], i: Int): Unit =
+  log += new Node(i, None)
 
 def accumulate(n: Int): Int =
   var list: Option[Node] = None
@@ -41,4 +49,20 @@ def main =
     i = i + 1
   end
 
+  val log = new mutable.List[Node]
+  i = 0
+  while i < 3000 do
+    note(log, i)
+    i = i + 1
+  end
+
   println: accumulate 5000
+
+  var last = new Node(0, None)
+  i = 0
+  while i < 3000 do
+    last = new Node(i, Some(last))
+    i = i + 1
+  end
+
+  println: log.size + last.value

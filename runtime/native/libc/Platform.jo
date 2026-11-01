@@ -67,6 +67,7 @@ private def cString(s: String): Addr receives none =
     writeByte(addAddr buf i, readByte (addAddr content i))
     i = i + 1
   end
+  writeByte(addAddr buf n, 0.toByte)
   buf
 
 // Copy a null-terminated C string into a buffer
@@ -112,17 +113,20 @@ private class State
   var inherit: Bool = false
 
   // memory statistics, counted always and printed when `JO_MEMSTATS` is set:
-  // objects allocated and freed, objects promoted to the runtime region by a
-  // store, a trace and a return, and the outcomes of closing a region
+  // objects allocated and freed, objects allocated directly in the runtime
+  // region, objects promoted there by a store, a trace and a return, the
+  // outcomes of closing a region, and the enters skipped at the level limit
   var memStats: Bool = false
   var allocs: Long = 0
   var freed: Long = 0
+  var direct: Long = 0
   var toRuntimeStore: Long = 0
   var toRuntimeTrace: Long = 0
   var toRuntimeReturn: Long = 0
   var frees: Long = 0
   var merges: Long = 0
   var collects: Long = 0
+  var skips: Long = 0
 
   // the statistics of each region function, under `--mem-profile` only
   var funStats: Addr = nullAddr

@@ -256,6 +256,7 @@ private section Regions
     val st = state
     st.allocs = st.allocs + 1
     val l = st.level
+    if l == 0 then st.direct = st.direct + 1
     setGcHalf(obj, normal(l, l))
     append(st.region, obj)
     obj
@@ -271,6 +272,7 @@ private section Regions
     val st = state
     st.allocs = st.allocs + 1
     val l = if st.skipped > 0 then st.level else resultOf st.region
+    if l == 0 then st.direct = st.direct + 1
     setGcHalf(obj, normal(l, l))
     append(descOf l, obj)
     obj
@@ -300,6 +302,7 @@ private section Regions
     st.inherit = false
     if l > maxLevel then
       st.skipped = st.skipped + 1
+      st.skips = st.skips + 1
     else
       val r = descOf l
       writeInt r st.level
@@ -573,9 +576,10 @@ private section Regions
   //
   // `store` and `trace` count the objects its stores and the trace of its
   // region promoted to the runtime region. `into` is the class of the object
-  // stored into last, and `caller` the function of the parent region at the
-  // last promotion. `peakSegs` is the most segments its region had, and
-  // `peakCaller` the function of the parent region then.
+  // stored into last, and `caller` the caller at the last promotion.
+  // `peakSegs` is the most segments its region had, and `peakCaller` the
+  // caller then. The caller is the nearest function of an enclosing region
+  // that is not a library function, so that a row names user code.
 
   //[ The names of the region functions, a null-terminated array of C strings //]
   @intrinsic
@@ -587,13 +591,42 @@ private section Regions
 
   private def statsSize: Int = 24
 
+  private def storeField: Int = 0
+
+  private def traceField: Int = 4
+
+  private def peakSegsField: Int = 8
+
+  private def peakCallerField: Int = 12
+
+  private def intoField: Int = 16
+
+  private def callerField: Int = 20
+
   private def statsOf(fun: Int): Addr = addAddr state.funStats (fun * statsSize)
 
-  private def bump(e: Addr, offset: Int): Unit =
-    writeInt (addAddr e offset) ((readInt (addAddr e offset)) + 1)
+  private def field(e: Addr, offset: Int): Int = readInt (addAddr e offset)
 
-  // The function of the parent of region `r`
-  private def callerOf(r: Addr): Int = funOf (descOf (parentOf r))
+  private def setField(e: Addr, offset: Int, v: Int): Unit = writeInt (addAddr e offset) v
+
+  private def bump(e: Addr, offset: Int): Unit = setField(e, offset, (field(e, offset)) + 1)
+
+  private def funName(fun: Int): Addr = readAddr (addAddr funNames (fun * wordSize))
+
+  // Whether the region function `fun` is in the library, named `jo.*`. The
+  // bytes 106, 111 and 46 are `j`, `o` and `.`.
+  private def isLibrary(fun: Int): Bool =
+    val name = funName fun
+    (readByte name).toInt == 106 && (readByte (addAddr name 1)).toInt == 111 && (readByte (addAddr name 2)).toInt == 46
+
+  // The function of the nearest region enclosing `r` that is not a library
+  // function, or 0 for main
+  private def callerOf(r: Addr): Int =
+    var l = parentOf r
+    while l > 0 && (isLibrary (funOf (descOf l))) do
+      l = parentOf (descOf l)
+    end
+    funOf (descOf l)
 
   // A store into `obj`, in the runtime region, promoted a value there
   private def promotedByStore(obj: Addr): Unit =
@@ -601,9 +634,9 @@ private section Regions
     st.toRuntimeStore = st.toRuntimeStore + 1
     if !(isNull st.funStats) then
       val e = statsOf (funOf st.region)
-      bump(e, 0)
-      writeInt (addAddr e 16) (readInt obj)
-      writeInt (addAddr e 20) (callerOf st.region)
+      bump(e, storeField)
+      setField(e, intoField, readInt obj)
+      setField(e, callerField, callerOf st.region)
 
   // The trace of the closing region at level `num` promoted an object to the
   // runtime region
@@ -613,22 +646,22 @@ private section Regions
     if !(isNull st.funStats) then
       val r = descOf num
       val e = statsOf (funOf r)
-      bump(e, 4)
-      writeInt (addAddr e 20) (callerOf r)
+      bump(e, traceField)
+      setField(e, callerField, callerOf r)
 
   // The region `r` gained segments: record the peak of its function
   private def grew(r: Addr): Unit =
     val st = state
     if !(isNull st.funStats) && !(sameRef(r, st.regions)) then
       val e = statsOf (funOf r)
-      if (segsOf r) > (readInt (addAddr e 8)) then
-        writeInt (addAddr e 8) (segsOf r)
-        writeInt (addAddr e 12) (callerOf r)
+      if (segsOf r) > (field(e, peakSegsField)) then
+        setField(e, peakSegsField, segsOf r)
+        setField(e, peakCallerField, callerOf r)
 
   //[ Count per function if the backend emitted names. Called at startup when `JO_MEMSTATS` is set. //]
   def startStats(): Unit receives none =
     var n = 0
-    while !(isNull (readAddr (addAddr funNames (n * wordSize)))) do
+    while !(isNull (funName n)) do
       n = n + 1
     end
 
@@ -659,19 +692,25 @@ private section Regions
     end
     val _ = LibC.write 2 name n.toLong
 
+  // What `printTop` printed: rows, and a row naming a library function
+  private def printedRows: Int = 1
+
+  private def printedLibrary: Int = 2
+
   // Print up to 10 rows of the function statistics at `offset`, the largest
-  // first, leaving out values under 1000 after scaling. Returns whether any
-  // row was printed. Printing clears the values.
-  private def printTop(head: String, offset: Int, scale: Int): Bool =
+  // first, leaving out values under 1000 after scaling. Returns the flags of
+  // what it printed. Printing clears the values.
+  private def printTop(head: String, offset: Int, scale: Int): Int =
     val st = state
     var printed = 0
+    var flags = 0
     var more = true
     while more && printed < 10 do
       var best = 0
       var max = 0
       var f = 0
       while f < st.funCount do
-        val v = readInt (addAddr (statsOf f) offset)
+        val v = field(statsOf f, offset)
         if v > max then
           best = f
           max = v
@@ -681,45 +720,73 @@ private section Regions
       if max * scale < 1000 then more = false
       else
         val e = statsOf best
-        writeInt (addAddr e offset) 0
+        setField(e, offset, 0)
         writeString: 2, cast[StringRepr] "jo-mem \{head}=\{max * scale} fun="
-        writeName(readAddr (addAddr funNames (best * wordSize)), false)
-        if offset == 0 then
+        writeName(funName best, false)
+        if offset == storeField then
           writeString: 2, cast[StringRepr] " into="
-          writeName(readAddr (addAddr classNames ((readInt (addAddr e 16)) * wordSize)), false)
+          writeName(readAddr (addAddr classNames ((field(e, intoField)) * wordSize)), false)
 
         if best > 0 then
           writeString: 2, cast[StringRepr] " caller="
-          val caller = readInt (addAddr e (if offset == 8 then 12 else 20))
-          writeName(readAddr (addAddr funNames (caller * wordSize)), true)
+          val caller = field(e, if offset == peakSegsField then peakCallerField else callerField)
+          writeName(funName caller, true)
 
         line ""
         printed = printed + 1
+        flags = flags | printedRows
+
+        if isLibrary best then flags = flags | printedLibrary
     end
-    printed > 0
+    flags
 
   //[ Print the memory statistics on stderr //]
   def report(): Unit receives none =
+    // read the counts before printing, which allocates
     val st = state
+    val allocs = st.allocs
+    val freed = st.freed
+    val runtime = countAt 0
+    val direct = st.direct
+    val store = st.toRuntimeStore
+    val trace = st.toRuntimeTrace
+    val ret = st.toRuntimeReturn
+    val frees = st.frees
+    val merges = st.merges
+    val collects = st.collects
+    val skips = st.skips
+
+    // 0 is RUSAGE_SELF. The buffer is larger than `struct rusage`, whose
+    // `ru_maxrss` is at offset 32 on 64-bit Linux, in KB.
     val usage = callocOrAbort 256
     val _ = LibC.getrusage 0 usage
     val rss = addrToLong (readAddr (addAddr usage 32))
-    line "jo-mem summary peak-rss-kb=\{rss} allocated=\{st.allocs} freed=\{st.freed} runtime-region=\{countAt 0}"
-    line "jo-mem to-runtime store=\{st.toRuntimeStore} trace=\{st.toRuntimeTrace} return=\{st.toRuntimeReturn}"
-    line "jo-mem closes free=\{st.frees} merge=\{st.merges} collect=\{st.collects}"
-    if isNull (readAddr funNames) then
+    LibC.free usage
+
+    line "jo-mem summary peak-rss-kb=\{rss} allocated=\{allocs} freed=\{freed} runtime-region=\{runtime} skipped-enters=\{skips}"
+    line "jo-mem to-runtime direct=\{direct} store=\{store} trace=\{trace} return=\{ret}"
+    line "jo-mem closes free=\{frees} merge=\{merges} collect=\{collects}"
+
+    if isNull (funName 0) then
       line "jo-mem hint rebuild with --mem-profile to attribute these to functions"
 
     else if !(isNull st.funStats) then
-      val store = printTop("promoted kind=store count", 0, 1)
-      val trace = printTop("promoted kind=trace count", 4, 1)
-      val region = printTop("region objects", 8, segCapacity)
-      if store then
-        line "jo-mem hint store: a value stored into an object of the runtime region lives until exit, even after it is overwritten. That object was created in main or returned to it. Create the container in a function that does the work and returns only its result. Or store values that need no allocation: small Int, Char, Bool and Byte values have shared boxes. Or keep per-step values in locals instead of fields."
+      val storeRows = printTop("promoted kind=store count", storeField, 1)
+      val traceRows = printTop("promoted kind=trace count", traceField, 1)
+      val regionRows = printTop("region objects", peakSegsField, segCapacity)
+      val rows = storeRows | traceRows | regionRows
+      if (storeRows & printedRows) != 0 then
+        line "jo-mem hint store: a value stored into a container in the runtime region stays until exit, even after it is overwritten. Moving the container into a function helps only if that function returns well before the program ends, as in phases or batches. Otherwise avoid a new object per store. Mutate the existing object, or store values that need no allocation. Int in [\{intBoxLow}, \{intBoxLow + intBoxCount}), Char in [0, \{charBoxCount}), Byte and Bool have shared boxes."
 
-      if trace then
-        line "jo-mem hint trace: when the region of this function closed, a structure reachable from the runtime region moved there with everything it reaches. Find the store that linked it and apply the fix for stores."
+      if (traceRows & printedRows) != 0 then
+        line "jo-mem hint trace: when the region of this function closed, a structure reachable from the runtime region moved there with everything it reaches. Find the store that linked it and apply the hint for stores."
 
-      if region then
-        line "jo-mem hint region: the region of this function held this many objects at once. What its body allocates and the results returned to it stay until it returns. If it loops, move the loop body into a separate function. Then the garbage of each iteration is freed when that function returns."
+      if (regionRows & printedRows) != 0 then
+        line "jo-mem hint region: the region of this function held this many objects at once. What it allocates and the results returned to it stay until it returns. If it loops, move the loop body into a function, so the garbage of each iteration is freed when that function returns. If the body already is a function, its stores into containers of this function keep the objects, or what it returns does. The hint for stores applies to these containers too."
+
+      if (rows & printedLibrary) != 0 then
+        line "jo-mem hint library: fun names a jo.* library function. Change how the caller uses it. For example, replace Iterator.fold over a long input with a while loop whose body calls a function."
+
+    if direct >= 1000 then
+      line "jo-mem hint main: main runs in the runtime region, so what it allocates stays until exit, with the results of the functions it calls. Move its loops into functions."
 end

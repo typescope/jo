@@ -444,27 +444,31 @@ out where the memory of a program goes, see [Memory statistics](#memory-statisti
 
 ## Memory statistics
 
-The runtime always counts allocations, frees, promotions to the runtime region
-and the outcomes of closes. The counts are kept in the slow paths, except two
-increments in the allocation functions. With the environment variable
-`JO_MEMSTATS` set, a program prints them on stderr when it exits normally or
-by `abort`. It does not print them when it runs out of memory or overflows the
-stack, because printing allocates.
+The runtime always counts allocations, frees, objects that go to the runtime
+region and the outcomes of closes. The counts are kept in the slow paths,
+except a few increments in the allocation functions. With the environment
+variable `JO_MEMSTATS` set, a program prints them on stderr when it exits
+normally or by `abort`. It does not print them when it runs out of memory or
+overflows the stack, because printing allocates.
 
 The report has one record per line, a kind followed by `key=value` fields:
 
 ```
-jo-mem summary peak-rss-kb=30080 allocated=1482780 freed=900795 runtime-region=582028
-jo-mem to-runtime store=438205 trace=143581 return=1
+jo-mem summary peak-rss-kb=30080 allocated=1482754 freed=900795 runtime-region=581959 skipped-enters=0
+jo-mem to-runtime direct=60 store=438205 trace=143581 return=1
 jo-mem closes free=303955 merge=91433 collect=469477
 jo-mem hint rebuild with --mem-profile to attribute these to functions
 ```
 
-- `summary`: the peak RSS in KB, the objects allocated and freed, and the
-  objects in the runtime region at exit.
-- `to-runtime`: the objects promoted to the runtime region by a store into an
-  object there, by the trace of a closing region, and by a return to `main`.
-  These stay until the program exits.
+- `summary`: the peak RSS in KB, the objects allocated and freed, the
+  objects in the runtime region at exit, and the enters skipped at the level
+  limit. After an `abort`, the objects of the open regions are neither freed
+  nor in the runtime region, so `allocated - freed` exceeds `runtime-region`.
+- `to-runtime`: the objects allocated directly in the runtime region, and
+  those promoted to it by a store into an object there, by the trace of a
+  closing region, and by a return to `main`. These stay until the program
+  exits. `direct` counts what `main` allocates, since it runs in the runtime
+  region, and the results of the functions it calls.
 - `closes`: the closes that freed everything, merged and collected.
 
 Built with `--mem-profile`, the program also reports the region functions
@@ -489,34 +493,43 @@ jo-mem region objects=10044 fun=memapp.accumulate at=app.jo:12 caller=memapp.mai
   measured in segments, so `objects` is the segment count times 62, and
   overestimates by up to 61.
 
-`caller` is the function of the parent region, at the last promotion or at
-the peak. Each kind has up to 10 rows, the largest first, and leaves out rows
-under 1000 objects. After the rows of a kind comes a hint:
+`fun` is the innermost region function. `caller` is the nearest function of
+an enclosing region that is not a library function, at the last promotion or
+at the peak, so it names user code even when `fun` is in the library. A
+function whose name starts with `jo.` counts as a library function. Each kind
+has up to 10 rows, the largest first, and leaves out rows under 1000 objects.
 
-- `store`: a value stored into an object of the runtime region lives until
-  exit, even after it is overwritten. That object was created in main or
-  returned to it. Create the container in a function that does the work and
-  returns only its result. Or store values that need no allocation: small
-  Int, Char, Bool and Byte values have shared boxes. Or keep per-step values
-  in locals instead of fields.
-- `trace`: when the region of this function closed, a structure reachable
-  from the runtime region moved there with everything it reaches. Find the
-  store that linked it and apply the fix for stores.
-- `region`: the region of this function held this many objects at once. What
-  its body allocates and the results returned to it stay until it returns. If
-  it loops, move the loop body into a separate function. Then the garbage of
-  each iteration is freed when that function returns.
+Past the level limit, `enter` opens no region, so the calls of a deep
+recursion share the region at the limit. A nonzero `skipped-enters` then
+explains a large `region` row of a recursive function.
+
+After the rows come hints, written in the runtime. Each hint is printed only
+when a row of its kind is:
+
+- `store`: a value stored into a container of the runtime region stays even
+  after it is overwritten. Moving the container helps only if its function
+  returns well before the program ends. Otherwise avoid a new object per
+  store. The hint lists the values with shared boxes, taken from the ranges
+  of `Layout`.
+- `trace`: a structure reachable from the runtime region moved there when
+  the region closed. The store that linked it is to blame.
+- `region`: what the function allocates and the results returned to it stay
+  until it returns. A loop body moved into a function frees its garbage per
+  iteration. If the body already is one, stores into this function's
+  containers or the results of the body keep the objects.
+- `library`: a row names a `jo.*` function. The fix is in how the caller uses
+  it, for example a `while` loop in place of `Iterator.fold` over a long
+  input.
+- `main`: printed when `direct` is at least 1000, also without names. What
+  `main` allocates stays until exit, so its loops belong in functions.
 
 To reduce the peak RSS of a program:
 
-1. Run it with `JO_MEMSTATS=1`. Large `to-runtime` counts or a large
-   `runtime-region` point to promotions.
+1. Run it with `JO_MEMSTATS=1`. A large `direct` points to allocation in
+   `main`. Large `store`, `trace` or `return` counts point to promotions.
 2. Rebuild it with `--mem-profile` and run it again.
 3. Fix the top row, following its hint.
 4. Run it again and compare `peak-rss-kb`.
-
-Rows go to the innermost region function, which may be a callee of the
-function that has to change. `caller` names one level up.
 
 ## Merging regions
 
@@ -733,7 +746,8 @@ The barrier may be inlined.
 - A removed escape stays promoted until its destination closes, as in the earlier design.
 - `malloc` per object is slower than the current bump allocator.
 - Memory statistics charge a promotion to the innermost region function, and
-  count objects, not bytes.
+  count objects, not bytes. Telling library functions apart by the `jo.`
+  prefix of their names is a heuristic.
 
 ## Later: a faster allocator
 
