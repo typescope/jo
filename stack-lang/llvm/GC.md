@@ -128,6 +128,55 @@ buffer object. Context parameter keys point into static buffers too. Program
 arguments are copied into heap buffers at startup, and memory handed to the C
 library, such as the alternate signal stack, comes from `calloc`.
 
+## Shared boxes
+
+A primitive value is boxed when it flows into `Any`, for example into a
+generic container. A program that stores numbers in an `Array[Int]` or folds
+over characters allocates a box for every such value, and these boxes make up
+much of the heap. In deflate, 1.7 million of 2 million allocations were boxes
+of `Int`.
+
+Most boxed values are small, so the runtime boxes them once. At startup, after
+`GC.init` and before singleton objects, `initBoxes` allocates a box for each
+of these values:
+
+- `Int` in [-128, 1024)
+- `Char` in [0, 256)
+- every `Byte`
+- `false` and `true`
+
+That is 1666 boxes, under 100 KB with the overhead of `malloc`. A table in C
+memory, `state.boxes`, holds their addresses. The `Boxing` phase calls
+`boxInt`, `boxChar`, `boxByte` and `boxBool` of `Platform.jo` instead of the
+box constructors. They return the shared box of a value in range and allocate
+a new box otherwise. `Long` and `Float` are always boxed anew. The runtime
+itself never boxes a value, and the 32-bit backends do not share boxes.
+
+The shared boxes are ordinary objects of the runtime region, at level 0, like
+singleton objects. The runtime region never closes, so they are never freed.
+Their `req` is 0, so the barrier never lowers it, and the trace of a closing
+region never enters them, since they are not in that region. Static data with
+`gc = 0` would behave the same, but it would need codegen to emit the boxes
+with their class ids. Allocating them at startup reuses the box constructors.
+
+Sharing is invisible to programs. A box is immutable: its constructor
+writes `value` once, and nothing writes into a box afterwards. Jo has no
+reference equality and no identity hash. Nothing can be done with an `Any`
+except pass it on. Equality, hashing, ordering and printing go through the
+methods of the unboxed type, and a pattern match reads the class id and the
+value. The runtime compares addresses with `sameRef` only for context
+parameter keys and region segments, never for boxes.
+
+On the jtk projects, under the default policy, shared boxes halve the peak
+RSS or better and make the programs faster, with the same output:
+
+| Project | Time before → after | Peak RSS before → after |
+|---|---|---|
+| html5 smoke | 2.6–2.8 → 1.9–2.2 s | 186 → 93 MB |
+| deflate bench | 0.60–0.73 → 0.25–0.28 s | 60 → 34 MB |
+| forth smoke | 0.22–0.23 → 0.17–0.18 s | 37 → 29 MB |
+| sat smoke | 0.22–0.25 → 0.06–0.07 s | 30 → 7 MB |
+
 ## Allocation
 
 `GC.alloc` stays the single allocation entry point. It allocates the object
@@ -372,7 +421,8 @@ temporaries, and the same run takes 0.07 seconds.
 
 The default policy `all` gives the lowest peak RSS. On the jtk projects it
 costs between nothing and 1.4 times the time without regions, and cuts peak
-RSS by 1.4 to 19 times:
+RSS by 1.4 to 19 times. These numbers were taken before shared boxes (see
+[Shared boxes](#shared-boxes)):
 
 | Project | Time none → all | Peak RSS none → all |
 |---|---|---|
@@ -593,8 +643,8 @@ The barrier may be inlined.
   Moving the loop body into a region function reclaims it per iteration.
 - A value stored into a long-lived object is promoted to that object's region,
   and stays there after the field is overwritten. For an object created by
-  `main`, that is the runtime region. Most of the peak RSS of html5 under
-  `all` is such values, about 1.5 million objects.
+  `main`, that is the runtime region. Before shared boxes, most of the peak
+  RSS of html5 under `all` was such values, about 1.5 million objects.
 - A returned value that placing results misses, for example one built in a
   loop, is traced again at every enclosing close that collects (see Cost).
 - A merge holds the garbage of the merged region until a later close, up to
@@ -647,9 +697,10 @@ hold pointers, never the objects themselves.
 
 ```
 @runtime.state (static, zeroed)
-┌───────────┬──────────┬───────┬─────────┬─────────┬───────────┬─────────────┬──────────┬──────────┐
-│ regions ● │ region ● │ level │ skipped │ inherit │ segPool ● │ segPoolSize │ stackLow │ stackTop │
-└─────┼─────┴────┼─────┴───────┴─────────┴─────────┴─────┼─────┴─────────────┴──────────┴──────────┘
+┌───────────┬──────────┬───────┬─────────┬─────────┬───────────┬─────────────┬──────────┬──────────┬─────────┐
+│ regions ● │ region ● │ level │ skipped │ inherit │ segPool ● │ segPoolSize │ stackLow │ stackTop │ boxes ● │
+└─────┼─────┴────┼─────┴───────┴─────────┴─────────┴─────┼─────┴─────────────┴──────────┴──────────┴────┼────┘
+      │          │                                       │          table of shared boxes (C memory) ◄─┘
       │          │                                       └──► free segment ──► …   (at most 64)
       ▼          ▼
 regions: one descriptor per level (40 bytes each)

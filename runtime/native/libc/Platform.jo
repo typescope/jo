@@ -97,15 +97,90 @@ private class State
   // the address range of the main stack, to recognize a stack overflow
   var stackLow: Long = 0
   var stackTop: Long = 0
+
+  // the table of shared boxes, see `initBoxes`
+  var boxes: Addr = nullAddr
 end
 
 @intrinsic
 private def state: State receives none =
   abort "native state"
 
+//------------------------------------------------------------------------------
+//
+// shared boxes
+//
+
+//[
+  ! Boxes of small values are allocated once, at startup, in the runtime region
+  ! (level 0), and boxing such a value returns the shared box instead of a new
+  ! one. The runtime region never closes, so a shared box is never freed. Its
+  ! `req` is 0, so the write barrier never lowers it, and the trace of a closing
+  ! region never enters it. Boxes are immutable, and Jo cannot observe the
+  ! identity of a boxed value, so sharing is invisible to programs.
+  !
+  ! `state.boxes` is a table of box addresses, in C memory, laid out as:
+  !
+  !   Int in [intBoxLow, intBoxLow + intBoxCount), then
+  !   Char in [0, 256), then Byte in [0, 256), then false and true.
+//]
+private def intBoxLow: Int receives none = -128
+private def intBoxCount: Int receives none = 1152
+private def charBoxStart: Int receives none = intBoxCount
+private def byteBoxStart: Int receives none = intBoxCount + 256
+private def boolBoxStart: Int receives none = intBoxCount + 512
+private def boxTableSize: Int receives none = intBoxCount + 514
+
+private def setBox(index: Int, box: Addr): Unit receives none =
+  writeAddr(addAddr state.boxes (index * wordSize), box)
+
+private def sharedBox(index: Int): Addr receives none =
+  readAddr (addAddr state.boxes (index * wordSize))
+
+//[ Allocate the shared boxes, at level 0 before any boxing //]
+private def initBoxes(): Unit receives none =
+  state.boxes = Regions.callocOrAbort (boxTableSize * wordSize)
+
+  var i = 0
+  while i < intBoxCount do
+    setBox(i, cast[Addr] (IntBox (intBoxLow + i)))
+    i = i + 1
+  end
+
+  i = 0
+  while i < 256 do
+    setBox(charBoxStart + i, cast[Addr] (CharBox i.toChar))
+    setBox(byteBoxStart + i, cast[Addr] (ByteBox i.toByte))
+    i = i + 1
+  end
+
+  setBox(boolBoxStart, cast[Addr] (BoolBox false))
+  setBox(boolBoxStart + 1, cast[Addr] (BoolBox true))
+
+//[ Box an Int, sharing the boxes of small values //]
+private def boxInt(v: Int): IntBox receives none =
+  val k = v - intBoxLow
+  if k >= 0 && k < intBoxCount then cast[IntBox] (sharedBox k)
+  else IntBox v
+
+//[ Box a Char, sharing the boxes of the first 256 code points //]
+private def boxChar(c: Char): CharBox receives none =
+  val k = c.toInt
+  if k >= 0 && k < 256 then cast[CharBox] (sharedBox (charBoxStart + k))
+  else CharBox c
+
+//[ Box a Byte with its shared box //]
+private def boxByte(b: Byte): ByteBox receives none =
+  cast[ByteBox] (sharedBox (byteBoxStart + b.toInt))
+
+//[ Box a Bool with its shared box //]
+private def boxBool(b: Bool): BoolBox receives none =
+  cast[BoolBox] (sharedBox (if b then boolBoxStart + 1 else boolBoxStart))
+
 //[ Program entry, called by the C `main` function //]
 private def start(argc: Int, argv: Addr): Unit receives none =
   GC.init()
+  initBoxes()
 
   // Install SIGSEGV handler so stack overflow prints a clear message.
   installStackOverflowHandler(argv)
