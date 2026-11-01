@@ -98,7 +98,7 @@ private section Regions
   //----------------------------------------------------------------------------
   // Regions and segments
   //
-  //   region    { parent: i32, hi: i32, min: i32, segs: i32, first segment, last segment, result: i32 }
+  //   region    { parent: i32, hi: i32, min: i32, segs: i32, first segment, last segment, result: i32, fun: i32 }
   //   segment   { next, count: i32, objects... }
   //
   // The region descriptors form an array indexed by level, so the descriptor
@@ -107,7 +107,8 @@ private section Regions
   // regions merged into it. `min` is the lowest level an object recorded at
   // this level was promoted to. `segs` counts the segments of the region.
   // `result` is the level of the region the result of the function goes to,
-  // an open ancestor.
+  // an open ancestor. `fun` numbers the function that opened the region, from
+  // 1, and is 0 for the runtime region.
   //
   // Only the first segment of a region is ever partly filled. Objects go into
   // it, and a full one gets a new segment in front of it. So a merge tops up
@@ -158,6 +159,10 @@ private section Regions
   private def resultOf(r: Addr): Int = readInt (addAddr r 32)
 
   private def setResult(r: Addr, l: Int): Unit = writeInt (addAddr r 32) l
+
+  private def funOf(r: Addr): Int = readInt (addAddr r 36)
+
+  private def setFun(r: Addr, f: Int): Unit = writeInt (addAddr r 36) f
 
   private def segNext(s: Addr): Addr = readAddr s
 
@@ -220,12 +225,14 @@ private section Regions
       setFirstSeg(r, seg)
       setLastSeg(r, seg)
       setSegs(r, 1)
+      grew r
 
     else if (segCount seg) == segCapacity then
       val front = newSegment()
       writeAddr front seg
       setFirstSeg(r, front)
       setSegs(r, (segsOf r) + 1)
+      grew r
       seg = front
 
     val n = segCount seg
@@ -247,6 +254,7 @@ private section Regions
   def alloc(size: Int): Addr receives none =
     val obj = callocOrAbort size
     val st = state
+    st.allocs = st.allocs + 1
     val l = st.level
     setGcHalf(obj, normal(l, l))
     append(st.region, obj)
@@ -261,6 +269,7 @@ private section Regions
   def allocResult(size: Int): Addr receives none =
     val obj = callocOrAbort size
     val st = state
+    st.allocs = st.allocs + 1
     val l = if st.skipped > 0 then st.level else resultOf st.region
     setGcHalf(obj, normal(l, l))
     append(descOf l, obj)
@@ -273,6 +282,7 @@ private section Regions
       if (reqOf value) > req then
         setReq(value, req)
         record(physOf value, req)
+        if req == 0 then promotedByStore obj
 
   //[ Make the next `enter` inherit the result region of the current function //]
   def inherit(): Unit receives none =
@@ -283,7 +293,7 @@ private section Regions
     ! The result of the function goes to the current region, or to the result
     ! region of the current function after `inherit`.
   //]
-  def enter(): Unit receives none =
+  def enter(fun: Int): Unit receives none =
     val st = state
     val l = (hiOf st.region) + 1
     val result = if st.inherit then resultOf st.region else st.level
@@ -294,6 +304,7 @@ private section Regions
       val r = descOf l
       writeInt r st.level
       setResult(r, result)
+      setFun(r, fun)
       setHi(r, l)
       setMin(r, l)
       setSegs(r, 0)
@@ -313,6 +324,7 @@ private section Regions
       if !(isNull result) && (reqOf result) > p then
         setReq(result, p)
         record(physOf result, p)
+        if p == 0 then st.toRuntimeReturn = st.toRuntimeReturn + 1
 
       close(r, st.level, p)
       st.region = descOf p
@@ -335,15 +347,19 @@ private section Regions
       end
 
       val parent = descOf p
+      val st = state
       if m >= num then
+        st.frees = st.frees + 1
         freeAll r
 
       else
         if (segsOf parent) + (segsOf r) <= mergeLimit then
+          st.merges = st.merges + 1
           setMin(parent, minInt(minOf parent, m))
           setHi(parent, maxInt(hiOf parent, hi))
           give(parent, firstSeg r, lastSeg r, segsOf r)
         else
+          st.collects = st.collects + 1
           sweep(r, num, p, parent)
 
   // Free all objects of a region from which nothing escapes
@@ -351,6 +367,7 @@ private section Regions
     var seg = firstSeg r
     while !(isNull seg) do
       val n = segCount seg
+      state.freed = state.freed + n.toLong
       var i = 0
       while i < n do
         LibC.free (readAddr (segEntry seg i))
@@ -401,6 +418,8 @@ private section Regions
         setFirstSeg(parent, first)
         setSegs(parent, (segsOf parent) + n)
 
+    grew parent
+
   // Free the dead objects of the region `r` at level `num`, and hand the
   // survivors to its parent at level `p`. A survivor required by an older
   // region goes directly to it, so the closes in between do not visit it again.
@@ -427,6 +446,7 @@ private section Regions
     var kept = 1
     var ownerReq = p
     var owner = p
+    var dead = 0
     seg = firstSeg r
     while !(isNull seg) do
       val n = segCount seg
@@ -436,6 +456,7 @@ private section Regions
         val req = reqOf o
         if req >= num then
           LibC.free o
+          dead = dead + 1
         else if req < p then
           // goes directly to the region owning its level. A lower level is
           // owned by the last owner or one of its ancestors.
@@ -461,6 +482,8 @@ private section Regions
       end
       seg = segNext seg
     end
+
+    state.freed = state.freed + dead.toLong
 
     // Release the segments after the survivors
     setSegCount(wseg, w)
@@ -519,11 +542,13 @@ private section Regions
             // traces it: lower it only, and record it for that cleanup
             setReq(c, d)
             record(physOf c, d)
+            if d == 0 then promotedByTrace num
             setGcHalf(cur, onPath (i + 1))
         else
           setGcHalf(cur, onPath (i + 1))
       else
         setGcHalf(cur, normal(num, d))
+        if d == 0 && !(isNull prev) then promotedByTrace num
         if isNull prev then
           done = true
         else
@@ -535,4 +560,166 @@ private section Regions
           prev = up
           setGcHalf(cur, onPath (j + 1))
     end
+
+  //----------------------------------------------------------------------------
+  // Memory statistics, see "Memory statistics" in GC.md
+  //
+  // The counts of `State` are always kept. Under `--mem-profile` the backend
+  // emits the names of the region functions, by number, and of the classes,
+  // by class id. With names and `JO_MEMSTATS`, each region function gets an
+  // entry of `funStats`, of 6 `i32` fields:
+  //
+  //   { store, trace, peakSegs, peakCaller, into, caller }
+  //
+  // `store` and `trace` count the objects its stores and the trace of its
+  // region promoted to the runtime region. `into` is the class of the object
+  // stored into last, and `caller` the function of the parent region at the
+  // last promotion. `peakSegs` is the most segments its region had, and
+  // `peakCaller` the function of the parent region then.
+
+  //[ The names of the region functions, a null-terminated array of C strings //]
+  @intrinsic
+  private def funNames: Addr = ...
+
+  //[ The names of the classes by class id, under `--mem-profile` //]
+  @intrinsic
+  private def classNames: Addr = ...
+
+  private def statsSize: Int = 24
+
+  private def statsOf(fun: Int): Addr = addAddr state.funStats (fun * statsSize)
+
+  private def bump(e: Addr, offset: Int): Unit =
+    writeInt (addAddr e offset) ((readInt (addAddr e offset)) + 1)
+
+  // The function of the parent of region `r`
+  private def callerOf(r: Addr): Int = funOf (descOf (parentOf r))
+
+  // A store into `obj`, in the runtime region, promoted a value there
+  private def promotedByStore(obj: Addr): Unit =
+    val st = state
+    st.toRuntimeStore = st.toRuntimeStore + 1
+    if !(isNull st.funStats) then
+      val e = statsOf (funOf st.region)
+      bump(e, 0)
+      writeInt (addAddr e 16) (readInt obj)
+      writeInt (addAddr e 20) (callerOf st.region)
+
+  // The trace of the closing region at level `num` promoted an object to the
+  // runtime region
+  private def promotedByTrace(num: Int): Unit =
+    val st = state
+    st.toRuntimeTrace = st.toRuntimeTrace + 1
+    if !(isNull st.funStats) then
+      val r = descOf num
+      val e = statsOf (funOf r)
+      bump(e, 4)
+      writeInt (addAddr e 20) (callerOf r)
+
+  // The region `r` gained segments: record the peak of its function
+  private def grew(r: Addr): Unit =
+    val st = state
+    if !(isNull st.funStats) && !(sameRef(r, st.regions)) then
+      val e = statsOf (funOf r)
+      if (segsOf r) > (readInt (addAddr e 8)) then
+        writeInt (addAddr e 8) (segsOf r)
+        writeInt (addAddr e 12) (callerOf r)
+
+  //[ Count per function if the backend emitted names. Called at startup when `JO_MEMSTATS` is set. //]
+  def startStats(): Unit receives none =
+    var n = 0
+    while !(isNull (readAddr (addAddr funNames (n * wordSize)))) do
+      n = n + 1
+    end
+
+    if n > 0 then
+      val st = state
+      st.funStats = callocOrAbort (n * statsSize)
+      st.funCount = n
+
+  // The number of objects in the region at level `l`
+  private def countAt(l: Int): Long =
+    var n: Long = 0
+    var seg = firstSeg (descOf l)
+    while !(isNull seg) do
+      n = n + (segCount seg).toLong
+      seg = segNext seg
+    end
+    n
+
+  private def line(s: String): Unit = writeString: 2, cast[StringRepr] (s + "\n")
+
+  // Write the C string `name`, up to the first space if `short`
+  private def writeName(name: Addr, short: Bool): Unit =
+    var n = 0
+    var c = (readByte (addAddr name n)).toInt
+    while c != 0 && !(short && c == 32) do
+      n = n + 1
+      c = (readByte (addAddr name n)).toInt
+    end
+    val _ = LibC.write 2 name n.toLong
+
+  // Print up to 10 rows of the function statistics at `offset`, the largest
+  // first, leaving out values under 1000 after scaling. Returns whether any
+  // row was printed. Printing clears the values.
+  private def printTop(head: String, offset: Int, scale: Int): Bool =
+    val st = state
+    var printed = 0
+    var more = true
+    while more && printed < 10 do
+      var best = 0
+      var max = 0
+      var f = 0
+      while f < st.funCount do
+        val v = readInt (addAddr (statsOf f) offset)
+        if v > max then
+          best = f
+          max = v
+        f = f + 1
+      end
+
+      if max * scale < 1000 then more = false
+      else
+        val e = statsOf best
+        writeInt (addAddr e offset) 0
+        writeString: 2, cast[StringRepr] "jo-mem \{head}=\{max * scale} fun="
+        writeName(readAddr (addAddr funNames (best * wordSize)), false)
+        if offset == 0 then
+          writeString: 2, cast[StringRepr] " into="
+          writeName(readAddr (addAddr classNames ((readInt (addAddr e 16)) * wordSize)), false)
+
+        if best > 0 then
+          writeString: 2, cast[StringRepr] " caller="
+          val caller = readInt (addAddr e (if offset == 8 then 12 else 20))
+          writeName(readAddr (addAddr funNames (caller * wordSize)), true)
+
+        line ""
+        printed = printed + 1
+    end
+    printed > 0
+
+  //[ Print the memory statistics on stderr //]
+  def report(): Unit receives none =
+    val st = state
+    val usage = callocOrAbort 256
+    val _ = LibC.getrusage 0 usage
+    val rss = addrToLong (readAddr (addAddr usage 32))
+    line "jo-mem summary peak-rss-kb=\{rss} allocated=\{st.allocs} freed=\{st.freed} runtime-region=\{countAt 0}"
+    line "jo-mem to-runtime store=\{st.toRuntimeStore} trace=\{st.toRuntimeTrace} return=\{st.toRuntimeReturn}"
+    line "jo-mem closes free=\{st.frees} merge=\{st.merges} collect=\{st.collects}"
+    if isNull (readAddr funNames) then
+      line "jo-mem hint rebuild with --mem-profile to attribute these to functions"
+
+    else if !(isNull st.funStats) then
+      val store = printTop("promoted kind=store count", 0, 1)
+      val trace = printTop("promoted kind=trace count", 4, 1)
+      val region = printTop("region objects", 8, segCapacity)
+      if store then
+        line "jo-mem hint store: a value stored into an object of the runtime region lives until exit, even after it is overwritten. That object was created in main or returned to it. Create the container in a function that does the work and returns only its result. Or store values that need no allocation: small Int, Char, Bool and Byte values have shared boxes. Or keep per-step values in locals instead of fields."
+
+      if trace then
+        line "jo-mem hint trace: when the region of this function closed, a structure reachable from the runtime region moved there with everything it reaches. Find the store that linked it and apply the fix for stores."
+
+      if region then
+        line "jo-mem hint region: the region of this function held this many objects at once. What its body allocates and the results returned to it stay until it returns. If it loops, move the loop body into a separate function. Then the garbage of each iteration is freed when that function returns."
 end

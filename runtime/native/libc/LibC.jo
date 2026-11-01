@@ -42,3 +42,9 @@ def snprintf(buf: Addr, size: Long, format: Addr, precision: Int, value: Float):
 
 @intrinsic
 def strtod(str: Addr, endptr: Addr): Float receives none = ...
+
+@intrinsic
+def getenv(name: Addr): Addr receives none = ...
+
+@intrinsic
+def getrusage(who: Int, usage: Addr): Int receives none = ...

@@ -18,7 +18,16 @@ private def intToLong(a: Int): Long receives none = ...
 @intrinsic
 private def addrToLong(a: Addr): Long receives none = ...
 
-private def exitImpl(code: Int): Bottom receives none = LibC.exit code
+// Print the memory statistics first if `JO_MEMSTATS` is set. After `abort`,
+// whose message has no newline, start them on a new line.
+private def exitImpl(code: Int): Bottom receives none =
+  val st = state
+  if st.memStats then
+    st.memStats = false
+    if code != 0 then writeString: 2, cast[StringRepr] "\n"
+    Regions.report()
+
+  LibC.exit code
 
 private def writeFd(fd: Int, content: Addr, len: Int): Int receives none =
   (LibC.write fd content len.toLong).toInt
@@ -47,6 +56,18 @@ private def allocBuffer(size: Int): Addr receives none =
 private def writeRef(obj: Addr, offset: Int, value: Addr): Unit receives none =
   Regions.barrier(obj, value)
   writeAddr (addAddr obj offset) value
+
+// A null-terminated copy of a string, for the C library
+private def cString(s: String): Addr receives none =
+  val n = StringOps.byteSize s
+  val content = StringOps.bytes s
+  val buf = allocBuffer (n + 1)
+  var i = 0
+  while i < n do
+    writeByte(addAddr buf i, readByte (addAddr content i))
+    i = i + 1
+  end
+  buf
 
 // Copy a null-terminated C string into a buffer
 private def copyCString(str: Addr): Addr receives none =
@@ -89,6 +110,23 @@ private class State
   var level: Int = 0
   var skipped: Int = 0
   var inherit: Bool = false
+
+  // memory statistics, counted always and printed when `JO_MEMSTATS` is set:
+  // objects allocated and freed, objects promoted to the runtime region by a
+  // store, a trace and a return, and the outcomes of closing a region
+  var memStats: Bool = false
+  var allocs: Long = 0
+  var freed: Long = 0
+  var toRuntimeStore: Long = 0
+  var toRuntimeTrace: Long = 0
+  var toRuntimeReturn: Long = 0
+  var frees: Long = 0
+  var merges: Long = 0
+  var collects: Long = 0
+
+  // the statistics of each region function, under `--mem-profile` only
+  var funStats: Addr = nullAddr
+  var funCount: Int = 0
 
   // the pool of free region segments
   var segPool: Addr = nullAddr
@@ -167,6 +205,10 @@ private def boxBool(b: Bool): BoolBox receives none = sharedBoolBox b
 private def start(argc: Int, argv: Addr): Unit receives none =
   GC.init()
 
+  val st = state
+  st.memStats = !(isNull (LibC.getenv (cString "JO_MEMSTATS")))
+  if st.memStats then Regions.startStats()
+
   // Install SIGSEGV handler so stack overflow prints a clear message.
   installStackOverflowHandler(argv)
 
@@ -193,7 +235,7 @@ private def start(argc: Int, argv: Addr): Unit receives none =
   finish()
 
 private def finish: Unit receives none =
-  LibC.exit 0
+  exitImpl 0
 
 //------------------------------------------------------------------------------
 //
@@ -249,14 +291,4 @@ private def floatToStr(f: Float): String =
 
 //[ Decimal conversion for `Float.parse`, which validates the syntax //]
 private def parseFloat(s: String): Float receives none =
-  val n = StringOps.byteSize s
-  val content = StringOps.bytes s
-  val buf = allocBuffer (n + 1)
-  var i = 0
-  while i < n do
-    writeByte(addAddr buf i, readByte (addAddr content i))
-    i = i + 1
-  end
-  writeByte(addAddr buf n, 0.toByte)
-
-  LibC.strtod buf nullAddr
+  LibC.strtod (cString s) nullAddr
