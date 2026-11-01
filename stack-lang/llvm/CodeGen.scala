@@ -23,7 +23,7 @@ import scala.collection.mutable
   * Locals and parameters live in `alloca` slots of the entry block. LLVM
   * promotes them to registers.
   */
-class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGen.RegionPolicy)(using defn: Definitions):
+class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGen.RegionPolicy, placeResults: Boolean)(using defn: Definitions):
   import CodeGen.*
 
   /** Worklist to add all reachable functions */
@@ -48,26 +48,30 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
 
   private var isLoweringObjectInitProc = false
 
+  /** Function definitions by symbol */
+  private val funDefs = mutable.Map.empty[Symbol, FunDef]
+
+  /** The result regions of the analyzed functions, `None` while analyzing */
+  private val resultRegionsCache = mutable.Map.empty[Symbol, Option[ResultRegions]]
+
   private val StateGlobal = "@runtime.state"
 
   //----------------------------------------------------------------------------
   // Module
 
   def compile(units: List[FileUnit]): String =
-    val symbolDefMap = mutable.Map.empty[Symbol, FunDef]
-
     for
       unit <- units
       defn <- unit
     do
       defn match
-        case fdef: FunDef => symbolDefMap(fdef.symbol) = fdef
+        case fdef: FunDef => funDefs(fdef.symbol) = fdef
         case _ =>
 
     val startName = funRef(runtime.Core_start)
 
     workList.run: sym =>
-      compileFunDef(symbolDefMap(sym))
+      compileFunDef(funDefs(sym))
 
     // must come last after traversing the whole universe
     //
@@ -331,6 +335,9 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
       ctx.isRegion = true
       callFun(runtime.Regions_enter, Nil)
 
+      if placeResults && llvmType(procType.resultType) == "ptr" then
+        ctx.placement = resultRegions(sym)
+
     val paramTypes = procType.allParamTypes.map(llvmType)
     val resType = retType(procType.resultType)
 
@@ -353,6 +360,18 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
     case e: Throwable =>
       println("Failed to compile " + fdef.symbol.fullName + ": " + fdef.show)
       throw e
+
+  /** The result regions of a function. A recursive call sees no summary. */
+  def resultRegions(sym: Symbol): Option[ResultRegions] =
+    val target = resolve(sym)
+    resultRegionsCache.get(target) match
+      case Some(res) => res
+      case None =>
+        funDefs.get(target).flatMap: fdef =>
+          resultRegionsCache(target) = None
+          val res = new ResultRegions(fdef, callee => resultRegions(callee).map(_.params).getOrElse(Set.empty))
+          resultRegionsCache(target) = Some(res)
+          Some(res)
 
   /** Whether a function opens a region, by `--region` or the region policy */
   def opensRegion(sym: Symbol, resultType: Type): Boolean =
@@ -653,16 +672,29 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
     val ty = llvmType(Layout.fieldType(recordType, name))
     loadField(obj, Layout.fieldOffset(recordType, name), ty)
 
-  def compile(rec: RecordLit)(using FunContext): V =
+  def compile(rec: RecordLit)(using ctx: FunContext): V =
     val recordType = rec.tpe.asRecordType
     val size = V("i32", Layout.size(recordType).toString)
-    val obj = callFun(runtime.GC_alloc, size :: Nil)
+
+    // An object in the result region is older than the current region, so
+    // its fields need the barrier even when initialized. A function, like
+    // the `apply` of a closure, is not a heap object.
+    val inResult = ctx.placement.exists(_.allocations.contains(rec))
+    val alloc = if inResult then runtime.Regions_allocResult else runtime.GC_alloc
+    val obj = callFun(alloc, size :: Nil)
 
     for (name, rhs) <- rec.args do
       val value = compile(rhs)
-      storeField(obj, Layout.fieldOffset(recordType, name), value, Layout.fieldType(recordType, name), isInit = true)
+      val isInit = !inResult || isFunRef(rhs)
+      storeField(obj, Layout.fieldOffset(recordType, name), value, Layout.fieldType(recordType, name), isInit)
 
     obj
+
+  def isFunRef(word: Word): Boolean =
+    word match
+      case Encoded(repr) => isFunRef(repr)
+      case Ident(sym) => sym.is(Flags.Fun)
+      case _ => false
 
   //----------------------------------------------------------------------------
   // Calls
@@ -691,7 +723,14 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
           callIntrinsic(sym, app)
 
         else
-          callFun(sym, app.allArgs.map(compile))
+          val args = app.allArgs.map(compile)
+
+          // The callee puts its result in the result region of this function
+          val target = resolve(sym)
+          if ctx.placement.exists(_.calls.contains(app)) && opensRegion(target, target.tpe.asProcType.resultType) then
+            callFun(runtime.Regions_inherit, Nil)
+
+          callFun(sym, args)
 
       case None =>
         val fun = coerce(compile(app.fun), "ptr")
@@ -997,6 +1036,9 @@ object CodeGen:
 
     /** Whether the function opens a region */
     var isRegion = false
+
+    /** The allocations and calls that go to the result region */
+    var placement: Option[ResultRegions] = None
 
   def isInt(ty: String): Boolean = ty == "i1" || ty == "i8" || ty == "i32" || ty == "i64"
 

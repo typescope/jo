@@ -24,6 +24,7 @@ object Compiler:
   val optLevel: Config.StringSetting = Config.StringSetting("--opt", "2", "clang optimization level")
   val regionFunctions: Config.MultiStringSetting = Config.MultiStringSetting("--region", "make a function open a memory region, e.g., --region app.process")
   val regionPolicy: Config.StringSetting = Config.StringSetting("--region-policy", "none", "the functions that open a memory region besides --region: none, scalar or all")
+  val placeResults: Config.BooleanSetting = Config.BooleanSetting("--place-results", false, "allocate the result of a region function directly in its result region")
 
   // Default link mappings for the runtime
   val defaultLinkMappings = Map(
@@ -66,7 +67,7 @@ object Compiler:
       if useNativeApi then args.patch(runtimeApi, Array("--lib", Config.LLVMRuntimePath), 2)
       else args
 
-    val options = keepLL :: clang :: optLevel :: regionFunctions :: regionPolicy :: Config.appOptions
+    val options = keepLL :: clang :: optLevel :: regionFunctions :: regionPolicy :: placeResults :: Config.appOptions
     val (config, sources) = cli.OptionParser.parseConfig(args1, options)
 
     given Config = config
@@ -120,7 +121,7 @@ object Compiler:
         val policy = resolvePolicy(regionPolicy.value)
 
         val codegen = Step("codegen", (units: List[sast.Trees.FileUnit]) =>
-          new CodeGen(runtime, regions, policy).compile(units)
+          new CodeGen(runtime, regions, policy, placeResults.value).compile(units)
         )
         val clangStep = Step("clang", (ir: String) => link(ir, outFile))
 
