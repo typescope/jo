@@ -52,12 +52,12 @@ For a source file without a namespace declaration:
    underscores. If the result begins with a digit, prefix it with one underscore
    so the generated name is a valid identifier.
 4. Compute the SHA-256 digest of the complete source text encoded as UTF-8,
-   including comments and whitespace, and encode the digest as lowercase
-   hexadecimal.
+   including comments and whitespace. Use its first 64 bits, encoded as 16
+   lowercase hexadecimal characters.
 5. Form `<normalized-file-name>_<content-hash>`.
 
 For example, `Array-Utils.jo` receives a name of the form
-`array_utils_<content-hash>`. The hash in the actual name is the full digest.
+`array_utils_<content-hash>`. The hash suffix contains 16 hexadecimal characters.
 Directories and absolute paths do not contribute to the name.
 
 Existing rules for name lookup, visibility, duplicate definitions, and entry-point
@@ -108,6 +108,7 @@ definition-name conflicts and implicit sharing. Sharing should be made explicit.
 
 A content hash provides a deterministic way to give files with the same
 name different namespaces to avoid accidental sharing.
+Using a 64-bit prefix keeps generated names shorter than using the full digest.
 
 The hash makes it impossible to reference the generated name as a stable cross-file API.
 An explicit namespace declaration provides stable name using the existing language mechanism.

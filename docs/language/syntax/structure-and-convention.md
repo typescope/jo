@@ -34,7 +34,8 @@ A file without a namespace declaration receives a **default namespace**
 named `<normalized-file-name>_<content-hash>`. The filename component is the lowercase
 filename without its extension, with non-identifier characters replaced by
 underscores. A filename component beginning with a digit is prefixed with one
-underscore. The hash is the SHA-256 digest of the source file's UTF-8 contents.
+underscore. The hash is the first 16 hexadecimal characters (64 bits) of the
+SHA-256 digest of the source file's UTF-8 contents.
 
 See [JIP 0011](../../jips/0011-default-namespace-names.md) for the design rationale.
 
