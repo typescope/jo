@@ -87,6 +87,8 @@ class LLVMRuntime(val rewire: Map[Symbol, Symbol])(using defn: Definitions):
   val Regions = Native.containerMember("Regions")
   val Regions_enter       = Regions.termMember("enter")
   val Regions_leave       = Regions.termMember("leave")
+  val Regions_inherit     = Regions.termMember("inherit")
+  val Regions_allocResult = Regions.termMember("allocResult")
   val Regions_barrier     = Regions.termMember("barrier")
   val Regions_layoutTable = Regions.termMember("layoutTable")
   val Regions_minInt      = Regions.termMember("minInt")

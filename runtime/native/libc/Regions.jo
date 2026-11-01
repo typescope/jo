@@ -98,7 +98,7 @@ private section Regions
   //----------------------------------------------------------------------------
   // Regions and segments
   //
-  //   region    { parent: i32, hi: i32, min: i32, segs: i32, first segment, last segment }
+  //   region    { parent: i32, hi: i32, min: i32, segs: i32, first segment, last segment, result: i32 }
   //   segment   { next, count: i32, objects... }
   //
   // The region descriptors form an array indexed by level, so the descriptor
@@ -106,12 +106,14 @@ private section Regions
   // owns the levels `num` to `hi`: the levels above `num` are those of the
   // regions merged into it. `min` is the lowest level an object recorded at
   // this level was promoted to. `segs` counts the segments of the region.
+  // `result` is the level of the region the result of the function goes to,
+  // an open ancestor.
   //
   // Only the first segment of a region is ever partly filled. Objects go into
   // it, and a full one gets a new segment in front of it. So a merge tops up
   // the parent's first segment and splices in the others.
 
-  private def descSize: Int = 32
+  private def descSize: Int = 40
 
   // A segment is 512 bytes. Its size bounds the waste of a partly filled one.
   private def segCapacity: Int = 62
@@ -152,6 +154,10 @@ private section Regions
   private def setFirstSeg(r: Addr, s: Addr): Unit = writeAddr (addAddr r 16) s
 
   private def setLastSeg(r: Addr, s: Addr): Unit = writeAddr (addAddr r 24) s
+
+  private def resultOf(r: Addr): Int = readInt (addAddr r 32)
+
+  private def setResult(r: Addr, l: Int): Unit = writeInt (addAddr r 32) l
 
   private def segNext(s: Addr): Addr = readAddr s
 
@@ -246,6 +252,20 @@ private section Regions
     append(st.region, obj)
     obj
 
+  //[ Allocate a zeroed object in the result region of the current function
+    !
+    ! Past the level limit, the current function opened no region, and the
+    ! result region of the current one may be older than its own. Allocate in
+    ! the current region then.
+  //]
+  def allocResult(size: Int): Addr receives none =
+    val obj = callocOrAbort size
+    val st = state
+    val l = if st.skipped > 0 then st.level else resultOf st.region
+    setGcHalf(obj, normal(l, l))
+    append(descOf l, obj)
+    obj
+
   //[ The write barrier: `value` must live as long as `obj` //]
   def barrier(obj: Addr, value: Addr): Unit receives none =
     if !(isNull value) then
@@ -254,15 +274,26 @@ private section Regions
         setReq(value, req)
         record(physOf value, req)
 
-  //[ Open a region above the levels of the current one. At the level limit, stay in the current region. //]
+  //[ Make the next `enter` inherit the result region of the current function //]
+  def inherit(): Unit receives none =
+    state.inherit = true
+
+  //[ Open a region above the levels of the current one. At the level limit, stay in the current region.
+    !
+    ! The result of the function goes to the current region, or to the result
+    ! region of the current function after `inherit`.
+  //]
   def enter(): Unit receives none =
     val st = state
     val l = (hiOf st.region) + 1
+    val result = if st.inherit then resultOf st.region else st.level
+    st.inherit = false
     if l > maxLevel then
       st.skipped = st.skipped + 1
     else
       val r = descOf l
       writeInt r st.level
+      setResult(r, result)
       setHi(r, l)
       setMin(r, l)
       setSegs(r, 0)

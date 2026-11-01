@@ -82,11 +82,13 @@ private def copyCString(str: Addr): Addr receives none =
 //]
 private class State
   // regions: the descriptors indexed by level, the current region, its
-  // level, and the `enter` calls merged at the level limit
+  // level, the `enter` calls merged at the level limit, and whether the next
+  // `enter` inherits the result region of the current one
   var regions: Addr = nullAddr
   var region: Addr = nullAddr
   var level: Int = 0
   var skipped: Int = 0
+  var inherit: Bool = false
 
   // the pool of free region segments
   var segPool: Addr = nullAddr
