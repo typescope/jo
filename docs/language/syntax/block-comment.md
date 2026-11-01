@@ -3,12 +3,14 @@
 Block comments are delimited by `//[` and `//]`:
 
 ```jo
-//[ This is a block comment
-    that spans multiple lines
+//[ Compute factorial of `n`
+  !
+  ! `n` must not be negative.
 //]
-
-def foo = 42
+def fact(n: Int) = if n == 0 then 1 else n * fact(n - 1)
 ```
+
+It's Jo's convention to use `!` for document comments.
 
 ## Syntax
 
