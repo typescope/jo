@@ -9,7 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Files without a namespace declaration receive default namespace names based on
   the normalized filename and source content hash, preventing filename-derived
   names such as `Array` from shadowing the standard library. Default namespaces
-  follow the ordinary namespace rules.
+  follow the ordinary namespace rules. ([JIP 0011])
 
 - Singleton object type tests use reference equality in the Python and JavaScript
   backends, avoiding `isinstance` and `instanceof` checks.
@@ -20,6 +20,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   names. A user namespace named `regex` can be referenced as `regex.Regex`
   without resolving to `jo.regex.Regex`. Explicit imports can select the
   standard-library name when a top-level namespace has the same name.
+
+[JIP 0011]: docs/jips/0011-default-namespace-names.md
 
 ## [0.14.7] - 2026-10-29
 

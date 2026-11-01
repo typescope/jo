@@ -35,6 +35,8 @@ named `__<normalized-file-name>_<content-hash>`. The filename component is the l
 filename without its extension, with non-identifier characters replaced by
 underscores. The hash is the SHA-256 digest of the source file's UTF-8 contents.
 
+See [JIP 0011](../../jips/0011-default-namespace-names.md) for the design rationale.
+
 ### Imports
 
 Import statements make names from other namespaces available in the current file:
