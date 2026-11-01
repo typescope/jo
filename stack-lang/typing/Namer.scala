@@ -47,7 +47,8 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
 
     given SymbolIndex = defnLazy.index
 
-    /** The prelude a file unit sits in: the root, with `jo` opened.
+    /** The prelude a file unit sits in: the root, with `jo` opened outside it.
+      * Root namespaces take precedence over the implicit standard-library names.
       *
       * This is what lets a nested namespace such as `jo.mutable` or `jo.py` see
       * the standard library without importing it, however the stdlib reached
@@ -63,10 +64,13 @@ class Namer(using val config: Config) extends Applications with SelectionTyper:
       * registered later are still visible through it.
       */
     def prelude: Scope =
-      val root = new Scope.RootScope(rootNameTable, owner = null)
       Definitions.resolveStatic(rootNameTable, List("jo"), SymbolKind.Container) match
-        case Some(joSym) => root.fresh(joSym, joSym.nameTable)
-        case None => root
+        case Some(joSym) =>
+          val defaults = new Scope.RootScope(joSym.nameTable, owner = joSym)
+          defaults.fresh(owner = null, nameTable = rootNameTable)
+
+        case None =>
+          new Scope.RootScope(rootNameTable, owner = null)
 
     val delayedImports = new mutable.ArrayBuffer[() => Unit]
     val delayedUnits = new mutable.ArrayBuffer[(() => FileUnit, Source)]
