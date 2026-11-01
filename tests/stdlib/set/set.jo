@@ -1,3 +1,5 @@
+namespace settest
+
 def main receives IO.stdout =
   println "=== Immutable Set (Binary Search Tree) ==="
   println ""

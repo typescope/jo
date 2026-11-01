@@ -1,3 +1,5 @@
+namespace arraytest
+
 def main =
   testIntArray()
   testByteArray()

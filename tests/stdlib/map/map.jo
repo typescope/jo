@@ -1,3 +1,5 @@
+namespace maptest
+
 def main receives IO.stdout =
   println "=== Immutable Map (Binary Search Tree) ==="
   println ""

@@ -1,0 +1,5 @@
+namespace importedprelude
+
+import jo.regex as regex
+
+def source: String = regex.Regex.compileChecked("imported standard", "").source
