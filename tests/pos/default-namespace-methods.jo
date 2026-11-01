@@ -1,0 +1,14 @@
+def greeting(value: String): String = "hello from " + value
+
+class Box(value: String)
+  def text: String = greeting(value)
+  def copy: Box = new Box(value)
+end
+
+object Empty
+  def box: Box = new Box("singleton")
+end
+
+def main(): Unit =
+  println((new Box("lib")).copy.text)
+  println(Empty.box.text)

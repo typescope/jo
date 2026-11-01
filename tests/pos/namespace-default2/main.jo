@@ -1,6 +1,0 @@
-import TestLib
-
-def concat(a: Int, l: TestLib.List[Int]): TestLib.List[Int] = TestLib.Cons(a, l)
-
-def main =
-  println (TestLib.double 10)
