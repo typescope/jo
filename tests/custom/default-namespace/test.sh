@@ -37,7 +37,8 @@ def library(files, output):
 with tempfile.TemporaryDirectory(prefix="jo-default-namespace-") as directory:
     work = Path(directory)
     content = "def value: Int = 7\n"
-    expected = "__array_utils_a4212db8da0a5060b5880908f808606c432f9ffcf21f95be5401d35de826c1dd"
+    digest = "a4212db8da0a5060b5880908f808606c432f9ffcf21f95be5401d35de826c1dd"
+    expected = "array_utils_" + digest
     original = source(work / "original" / "Array-Utils.jo", content)
     assert library([original], work / "library") == {expected}
 
@@ -46,10 +47,20 @@ with tempfile.TemporaryDirectory(prefix="jo-default-namespace-") as directory:
         moved = source(work / f"moved-{index}" / name, content)
         assert library([moved], work / f"library-{index}") == {expected}
 
+    # Only digit-leading filenames need an added underscore to form a valid identifier.
+    for index, (name, stem) in enumerate([
+        ("123.jo", "_123"),
+        ("_Array-Utils.jo", "_array_utils"),
+        ("__Array-Utils.jo", "__array_utils"),
+        (".jo", ""),
+    ]):
+        unusual = source(work / f"unusual-{index}" / name, content)
+        assert library([unusual], work / f"unusual-library-{index}") == {stem + "_" + digest}
+
     # Content, including UTF-8 comments, determines the suffix. Same-named files coexist.
     changed_content = content + "// café\n"
     changed = source(work / "changed" / "Array-Utils.jo", changed_content)
-    changed_name = "__array_utils_" + hashlib.sha256(changed_content.encode("utf-8")).hexdigest()
+    changed_name = "array_utils_" + hashlib.sha256(changed_content.encode("utf-8")).hexdigest()
     assert changed_name != expected
     assert library([original, changed], work / "combined") == {expected, changed_name}
 

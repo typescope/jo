@@ -6,8 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- Files without a namespace declaration receive default namespace names based on
-  the normalized filename and source content hash, preventing filename-derived
+- Files without a namespace declaration receive default namespace names of the
+  form `<normalized-file-name>_<content-hash>`, preventing filename-derived
   names such as `Array` from shadowing the standard library. Default namespaces
   follow the ordinary namespace rules. ([JIP 0011])
 

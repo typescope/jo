@@ -15,7 +15,7 @@ Keep namespace declarations optional. When a file has no declaration, generate
 its default namespace name from its normalized filename and source content:
 
 ```text
-__<normalized-file-name>_<content-hash>
+<normalized-file-name>_<content-hash>
 ```
 
 The generated namespace follows the ordinary namespace rules. This proposal
@@ -59,14 +59,15 @@ For a source file without a namespace declaration:
 1. Take the filename without its directory and final extension.
 2. Convert it to lowercase using locale-independent casing.
 3. Replace characters other than ASCII letters, digits, and underscores with
-   underscores.
+   underscores. If the result begins with a digit, prefix it with one underscore
+   so the generated name is a valid identifier.
 4. Compute the SHA-256 digest of the complete source text encoded as UTF-8,
    including comments and whitespace, and encode the digest as lowercase
    hexadecimal.
-5. Form `__<normalized-file-name>_<content-hash>`.
+5. Form `<normalized-file-name>_<content-hash>`.
 
 For example, `Array-Utils.jo` receives a name of the form
-`__array_utils_<content-hash>`. The hash in the actual name is the full digest.
+`array_utils_<content-hash>`. The hash in the actual name is the full digest.
 Directories and absolute paths do not contribute to the name.
 
 An explicit namespace declaration continues to determine the namespace directly:
@@ -80,8 +81,7 @@ def make: Array[Int] = Array.fill(3, 0)
 ### Ordinary namespace behavior
 
 A generated namespace is registered and resolved like any other root namespace.
-Its definitions can be imported or qualified using its generated name. The `__`
-prefix is a naming convention, not a new reserved syntax or an access restriction.
+Its definitions can be imported or qualified using its generated name.
 
 Existing rules for name lookup, visibility, duplicate definitions, and entry-point
 discovery continue to apply. In particular, the compiler can still find `main`
@@ -117,8 +117,8 @@ another resolution rule and still leave same-basename files merged.
 
 The normalized filename retains a readable component in generated names. The
 content hash distinguishes files with different contents, including files with
-the same basename. The generated prefix and digest avoid introducing ordinary
-names such as `Array` as defaults.
+the same basename. The digest avoids introducing ordinary names such as `Array`
+as defaults, without needing a fixed prefix to mark generated names.
 
 ### Why not use an empty namespace?
 
@@ -190,10 +190,11 @@ The parser computes the name in `parsing.Parser.defaultNamespaceName` when no
 namespace declaration is present. The existing namespace indexing and resolution
 code handles the result.
 
-Python and Ruby code generation encode the new underscore-prefixed names into
-valid host-language identifiers. Python avoids double-underscore name mangling
-inside methods; Ruby ensures generated class constants start with an uppercase
-letter. These are backend naming details and add no namespace rules.
+Python and Ruby code generation encode the names into valid host-language
+identifiers, including names derived from underscore-prefixed filenames. Python
+avoids double-underscore name mangling inside methods; Ruby ensures generated
+class constants start with an uppercase letter. These are backend naming details
+and add no namespace rules.
 
 The regression tests cover normalization, the content digest, relocation,
 same-basename files with different contents, explicit declarations, imports from

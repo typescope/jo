@@ -136,7 +136,7 @@ class RubyCodeGen(runtime: RubyRuntime, rewire: Map[Symbol, Symbol])(using defn:
               else
                 val rawName = sym.fullName.replace(".", "_")
                 val encodedName = RubyCodeGen.encodeSymbolic(rawName)
-                // Generated namespaces start with underscores, but class constants cannot.
+                // Namespace names may start with underscores, but class constants cannot.
                 val globalName = if sym.isClass && encodedName.startsWith("_") then "Jo" + encodedName else encodedName
                 val baseName = globalScope.freshName(globalName)
                 // Ruby requires class names to start with uppercase letter

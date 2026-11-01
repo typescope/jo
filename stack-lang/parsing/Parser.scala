@@ -99,10 +99,11 @@ object Parser:
     val normalized = fileName.toLowerCase(java.util.Locale.ROOT).map: ch =>
       if Naming.isNameRest(ch) then ch else '_'
 
+    val prefix = if normalized.headOption.exists(ch => Naming.isDigit(ch)) then "_" else ""
     val bytes = code.getBytes(java.nio.charset.StandardCharsets.UTF_8)
     val digest = java.security.MessageDigest.getInstance("SHA-256").digest(bytes)
     val hash = java.util.HexFormat.of().formatHex(digest)
-    s"__${normalized}_$hash"
+    s"$prefix${normalized}_$hash"
 end Parser
 
 class Parser(code: String)(using reporter: Reporter, source: Source):

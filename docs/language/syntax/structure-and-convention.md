@@ -31,9 +31,10 @@ def connect(conn: Connection): Unit = ...
 #### Default Namespaces
 
 A file without a namespace declaration receives a **default namespace**
-named `__<normalized-file-name>_<content-hash>`. The filename component is the lowercase
+named `<normalized-file-name>_<content-hash>`. The filename component is the lowercase
 filename without its extension, with non-identifier characters replaced by
-underscores. The hash is the SHA-256 digest of the source file's UTF-8 contents.
+underscores. A filename component beginning with a digit is prefixed with one
+underscore. The hash is the SHA-256 digest of the source file's UTF-8 contents.
 
 See [JIP 0011](../../jips/0011-default-namespace-names.md) for the design rationale.
 
