@@ -73,6 +73,12 @@ class LLVMRuntime(val rewire: Map[Symbol, Symbol])(using defn: Definitions):
   val Core_LongBox_fun  = Native.termMember("LongBox")
   val Core_FloatBox_fun = Native.termMember("FloatBox")
 
+  // Box functions that share the boxes of small values
+  val Core_boxBool = Native.termMember("boxBool")
+  val Core_boxByte = Native.termMember("boxByte")
+  val Core_boxChar = Native.termMember("boxChar")
+  val Core_boxInt  = Native.termMember("boxInt")
+
   val Core_bufferClassId = Native.termMember("bufferClassId")
   val Core_bytesClassId  = Native.termMember("bytesClassId")
 

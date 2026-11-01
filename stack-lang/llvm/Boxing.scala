@@ -58,21 +58,25 @@ class Boxing(runtime: LLVMRuntime)(using defn: Definitions) extends Phase:
     reprType.approx.isAnyType
       && targetType.isNumericOrBoolType
 
-  /** Box a numeric value into a union type */
+  /** Box a numeric value into a union type
+    *
+    * Bool, Byte, Char and Int go through runtime functions that return a
+    * shared box for small values (see "Shared boxes" in GC.md).
+    */
   private def boxValue(word: Word, unionType: Type, span: Span): Word =
-    // Determine which box constructor to use based on numeric type
-    val boxConstructor = word.tpe match
-      case tpe if Subtyping.conforms(tpe, defn.BoolType) => runtime.Core_BoolBox_fun
-      case tpe if Subtyping.conforms(tpe, defn.ByteType) => runtime.Core_ByteBox_fun
-      case tpe if Subtyping.conforms(tpe, defn.CharType) => runtime.Core_CharBox_fun
-      case tpe if Subtyping.conforms(tpe, defn.IntType) => runtime.Core_IntBox_fun
+    // Determine which box function to use based on numeric type
+    val boxFun = word.tpe match
+      case tpe if Subtyping.conforms(tpe, defn.BoolType) => runtime.Core_boxBool
+      case tpe if Subtyping.conforms(tpe, defn.ByteType) => runtime.Core_boxByte
+      case tpe if Subtyping.conforms(tpe, defn.CharType) => runtime.Core_boxChar
+      case tpe if Subtyping.conforms(tpe, defn.IntType) => runtime.Core_boxInt
       case tpe if Subtyping.conforms(tpe, defn.LongType) => runtime.Core_LongBox_fun
       case tpe if Subtyping.conforms(tpe, defn.FloatType) => runtime.Core_FloatBox_fun
       case _ => throw new Exception(s"Unexpected numeric/bool type for boxing: ${word.tpe}")
 
-    // Create: BoxClass(word)
-    val constructorCall = Ident(boxConstructor)(span).appliedTo(word)
-    Encoded(constructorCall)(unionType)
+    // Create: box(word)
+    val boxCall = Ident(boxFun)(span).appliedTo(word)
+    Encoded(boxCall)(unionType)
 
   /** Unbox a union value to extract numeric */
   private def unboxValue(word: Word, numericType: Type, span: Span): Word =
