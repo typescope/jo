@@ -2,16 +2,20 @@
 
 This document designs memory reclamation for the 64-bit LLVM backend. It
 builds on an earlier design, explicit function regions with deferred
-promotion, and changes it in five places:
+promotion, and changes it in these places:
 
-1. Region functions are chosen by the user in backend configuration, not by a
-   language annotation.
+1. Region functions are chosen by the backend, by default every function that
+   can allocate, and adjusted in backend configuration, not by a language
+   annotation.
 2. Cleanup traces only the objects of the closing region.
 3. Cleanup allocates nothing. The trace reverses pointers instead of keeping a
    work list.
-4. Survivors move to the parent region by handing over storage segments.
+4. Survivors move to the region that requires them by handing over storage
+   segments.
 5. A region from which something escapes merges into its parent while a
    budget allows, and only collects when the budget is used up.
+6. An object that makes up the result of a function is allocated directly in
+   the region the result goes to.
 
 The design is single-threaded, like the rest of the native runtime.
 
@@ -46,15 +50,30 @@ every frame that can see it.
 ## Region boundaries
 
 `@region` cannot be part of the language because only the native backend can
-honor it. Region functions are backend configuration instead:
+honor it. Region functions are chosen by the backend and adjusted in backend
+configuration instead:
 
-- `--region <function>` makes a function a region function. The flag can be
-  repeated. Listing region functions in `jo.toml`, like `--link` mappings, is
-  not implemented yet.
+- `--region-policy all`, the default, makes every function a region function,
+  except `main`, the functions of the runtime, and the functions that cannot
+  allocate (see [Functions that cannot allocate](#functions-that-cannot-allocate)).
+- `--region-policy scalar` makes only the functions returning a primitive
+  value other than `Unit` region functions, and `--region-policy none` none.
+- `--region <function>` makes a function a region function under any policy.
+  The flag can be repeated. Listing region functions in `jo.toml`, like
+  `--link` mappings, is not implemented yet.
 
-The backend does not choose region functions itself. Users who want to reduce
-memory use pick them. Choosing them automatically is a separate concern that
-can be improved later without changing this design.
+### Functions that cannot allocate
+
+A function that cannot allocate would always close an empty region, so it
+opens none. Before codegen, a fixpoint over the call graph finds the functions
+that may allocate: they build a record, call the allocator of the runtime,
+call a function indirectly, or call a function that may allocate. A branch that
+ends in a call that never returns, like the failure of an assertion, does not
+count, since the program stops there. Without that rule, the message of the
+bounds check would make every array access open a region.
+
+Leaving out a region is always safe. It only merges the function's
+allocations into its caller's region.
 
 ### The runtime region
 
@@ -235,12 +254,22 @@ collect(r):
   for o in r.objects:             // sweep
     if o.req >= r.num:
       free(o)                     // never dereferences other objects
-    else:
+    else if o.req >= r.parent.num:
       o.phys = r.parent.num
       keep o                      // pack survivors at the front
+    else:
+      q = owner(o.req)            // required by an older region
+      o.phys = q.num
+      append o to q
   release the empty segments
   give the survivor segments to r.parent
 ```
+
+`owner(l)` is the open region whose levels contain `l`. It walks the parent
+levels up from `r.parent` until it reaches a level at or below `l`. The sweep
+caches the last answer, since survivors often share a `req`. A survivor that
+goes directly to an older region is not visited again by the closes in
+between.
 
 `lower(root, d)` lowers `req` to `d` for everything in `r` reachable from
 `root`. It is a depth-first traversal with pointer reversal
@@ -266,6 +295,7 @@ lower(root, d):
       else:
         if c != null and not c.onPath and c.req > d:
           c.req = d               // in an ancestor or a leaf: lower only
+          record(c.phys, d)       // for the cleanup of its owner
         cur.cursor = i + 1
     else:
       cur.gc = normal(phys = r.num, req = d)
@@ -306,19 +336,20 @@ shallower has nothing left to propagate. Cycles end at objects on the path.
 - The trace visits the objects of the region reachable from escape roots. Within
   one close, an object is traversed once per lowering of its `req`, which is
   once in the common case. Objects outside the region are never traversed.
-- A survivor pays again at every enclosing close that collects. It moves up
-  one region per collect and is visited by the sweep of each. While escaping
-  data still reaches it, it is also traced again: its `req` was lowered only to
-  the level of the closing region's parent, which is too young for the next
-  close.
+- A survivor required by an older region moves there directly, and the
+  closes in between do not visit it again.
+- A survivor required only by the parent, such as a returned value, moves up
+  one region per collect and is visited by the sweep of each. While it is
+  returned further, it is also traced again: `require` lowered its `req` only
+  to the level of the parent, which is too young for the next close.
 
-So an object costs work at every collecting boundary it passes through alive. A
-region pays off when most of what it allocates dies before it closes. It costs
-more than it saves when most of what it allocates survives, and the cost grows
-with the number of nested regions the survivors pass through.
+So a returned object costs work at every collecting boundary it passes through
+alive, unless it was allocated in its final region (see
+[Placing results](#placing-results)). A region pays off when most of what it
+allocates dies before it closes.
 
-The worst case is a recursive function that is a region and returns what it
-builds, for example
+The worst case is a recursive function that returns what it builds, for
+example
 
 ```
 def build(n: Int): Option[Node] =
@@ -326,29 +357,32 @@ def build(n: Int): Option[Node] =
   else Some(new Node(n, build(n - 1)))
 ```
 
-Every node survives every enclosing close. The first closes merge, until the
-list exceeds the merge budget of about 500 objects. From then on every close
-collects and traces the whole list, so building a list of `n` nodes costs
-O(n²). On an x86-64 machine, `n = 20000` takes 0.02 seconds without regions
-and 40 seconds with `build` as a region function, down from 92 seconds before
-merging. Such a function frees
-nothing, so it gains nothing from being a region.
+Without placing results, every node survives every enclosing close. The first
+closes merge, until the list exceeds the merge budget of about 500 objects.
+From then on every close collects and traces the whole list, so building a
+list of `n` nodes costs O(n²). With temporaries at every level, `n = 16000`
+takes 4.35 seconds on an x86-64 machine. With placing results, the nodes are
+allocated in the region of the first caller, each level frees only its
+temporaries, and the same run takes 0.07 seconds.
 
-### Choosing region functions
+### Choosing the policy
 
-Region functions are chosen for their effect on peak RSS:
+The default policy `all` gives the lowest peak RSS. On the jtk projects it
+costs between nothing and 1.4 times the time without regions, and cuts peak
+RSS by 1.4 to 19 times:
 
-- Good: a function called repeatedly, for example from a loop, that allocates
-  temporaries and returns a small result, such as a number or `Unit`. Its
-  garbage dies when it returns, and the memory is reused by the next call.
-- Bad: a function that returns most of what it allocates, such as a builder or
-  a parser that returns its result. Above all, a recursive one, as shown above.
-- Neutral: a function that allocates little. It costs two calls per call and
-  frees little.
+| Project | Time none → all | Peak RSS none → all |
+|---|---|---|
+| html5 smoke | 1.9–2.5 → 2.3–2.8 s | 985 → 186 MB |
+| crypto smoke | 0.32 → 0.29–0.32 s | 172 → 9 MB |
+| deflate bench | 0.31 → 0.45 s | 85 → 60 MB |
+| forth smoke | 0.15 → 0.21 s | 73 → 37 MB |
+| sat smoke | 0.13 → 0.18 s | 56 → 30 MB |
+| url smoke | 1.24–1.50 → 1.21–1.34 s | 53 → 16 MB |
 
-Measure peak RSS and time with and without a region function. A future
+`none` with `--region` remains for measuring a few chosen functions. A future
 profiling build could report, for each function, how much of the memory
-allocated during its calls survives them, which ranks the candidates.
+allocated during its calls survives them.
 
 ## Merging regions
 
@@ -445,34 +479,83 @@ which signals nothing.
 
 The descriptors form an array indexed by level, `regions[level]`. So `enter`
 takes `&regions[parent.hi + 1]`, and the barrier finds the descriptor with one
-address computation. At 32768 levels and 32 bytes per descriptor, the array
-takes 1 MB of address space, and only the pages for the levels in use become
+address computation. At 32768 levels and 40 bytes per descriptor, the array
+takes 1.25 MB of address space, and only the pages for the levels in use become
 resident.
 
 At the close of `r`, let `m` be the minimum of `min` over `[r.num, r.hi]`.
 After a merge, the barrier may record into the slot of a merged child, at a
 level in `(p.num, p.hi]`. No open region uses those slots, so the scan of the
-range finds it. Something escapes `r` exactly when `m < r.num`. Both collect
-and merge then pass `m` up:
+range finds it. Something escapes `r` exactly when `m < r.num`. A merge then
+passes `m` up:
 
 ```
 parent.min = min(parent.min, m)
 ```
 
 An object can escape several regions at once, but the barrier records only at
-the innermost one. Passing `m` up covers the others. The invariant is: if an
-object `o` has `req` below the `num` of its owner region, the minimum over the
-owner's range is at most `o.req`. It holds for every step that lowers a `req`
-or moves an object:
+the innermost one. The invariant is: if an object `o` has `req` below the
+`num` of its owner region, the minimum over the owner's range is at most
+`o.req`. It holds for every step that lowers a `req` or moves an object:
 
 - The barrier and `require` record the new `req` at the owner.
-- The survivors of a collect move to the parent. Their `req` was set by a
-  barrier, `require` or `lower`, so it is at least `m`, which the parent
-  receives.
-- `lower` lowers an object `e` in an ancestor `Q` to the `req` of its root,
-  which is at least `m`. Every close between `r` and `Q` passes `m` up, so `Q`
-  sees it and runs pass 1.
-- A merge keeps the child's records in the parent's range.
+- A merge keeps the child's records in the parent's range, and passes `m` up
+  for the objects that escape the parent too.
+- A collect moves a survivor to the parent only if its `req` is at or above
+  the parent's `num`, so it does not escape the parent. Any other survivor
+  moves to the region owning its `req`, where it does not escape either.
+- `lower` lowers an object `e` in an ancestor to the `req` of its root, and
+  records it at `e`'s owner like the barrier.
+
+## Placing results
+
+Without help, a returned object is allocated in the callee's region and
+promoted at its close. If it is returned again, it is promoted again, one
+level per close. Placing results allocates it directly in the region the
+result goes to.
+
+Each region records its **result level**, the level of the open region its
+function's result goes to. By default that is the caller's level. A call whose
+result becomes part of the caller's result inherits the caller's result level
+instead, so a value returned through many levels is allocated where the
+outermost of them keeps it.
+
+A flow-insensitive analysis marks the values that must end up in the result
+region of a function:
+
+- the returned values
+- the values assigned to a marked variable
+- the fields of a marked object
+- the values stored into the object of a marked variable
+- the arguments of a marked call that flow into the callee's result
+
+The marked parameters are the summary of a function for its callers. A
+constructor stores its parameters into `this` and returns it, so the summary
+covers constructors too. A recursive call sees no summary.
+
+A marked allocation goes to the result level, and a marked call makes its
+callee inherit it. Allocations and calls inside a loop stay in the current
+region, since a loop may allocate many values of which only one is returned.
+
+```
+call f, marked:   inherit()          // the next enter takes the result level
+                  f(args)
+enter:            child.result = inherit ? current.result : current.num
+marked alloc:     allocResult(size)  // in regions[current.result]
+```
+
+A call site sets `inherit` only when the callee opens a region, so the flag is
+always consumed by the callee's `enter`. Past the level limit, the current
+function opened no region, and `allocResult` allocates in the current region.
+
+Placement only affects performance. An object in the result region is older
+than the current region, so its initializing stores go through the barrier,
+except a function reference, like the `apply` of a closure, which is not a
+heap object. If a marked value does not escape after all, it stays in the
+result region until that region closes.
+
+Placing results is on under `--region-policy all`, and `--place-results` turns
+it on for the other policies.
 
 ## Interaction with the optimizer
 
@@ -492,15 +575,17 @@ The barrier may be inlined.
 
 ## Limitations
 
-- Programs without configured region functions free nothing before `main`
-  returns. This is the current behavior.
+- Under `--region-policy none` without `--region`, a program frees nothing
+  before `main` returns.
 - Objects promoted to the runtime region stay until the program exits.
 - Garbage accumulates inside a long-running region, for example in a loop.
   Moving the loop body into a region function reclaims it per iteration.
-- Survivors are traced again at every enclosing close that collects. Once a
-  region holds more than the merge budget, every enclosing close collects, so a
-  region function whose results are large and pass through many regions is
-  slow (see Cost).
+- A value stored into a long-lived object is promoted to that object's region,
+  and stays there after the field is overwritten. For an object created by
+  `main`, that is the runtime region. Most of the peak RSS of html5 under
+  `all` is such values, about 1.5 million objects.
+- A returned value that placing results misses, for example one built in a
+  loop, is traced again at every enclosing close that collects (see Cost).
 - A merge holds the garbage of the merged region until a later close, up to
   the budget of 8 segments per region.
 - A removed escape stays promoted until its destination closes, as in the earlier design.
@@ -525,7 +610,7 @@ The runtime is `runtime/native/libc/Regions.jo`. Region descriptors and
 segments come from `calloc`:
 
 - The region descriptors form one array indexed by level, allocated at
-  startup. A descriptor is 32 bytes, so the array takes 1 MB of address space,
+  startup. A descriptor is 40 bytes, so the array takes 1.25 MB of address space,
   and only the pages of the levels in use become resident. `enter` takes the
   descriptor above the current region's levels.
 - A segment is 512 bytes: a `next` pointer, a count and 62 objects. Only the
@@ -551,21 +636,21 @@ hold pointers, never the objects themselves.
 
 ```
 @runtime.state (static, zeroed)
-┌───────────┬──────────┬───────┬─────────┬───────────┬─────────────┬──────────┬──────────┐
-│ regions ● │ region ● │ level │ skipped │ segPool ● │ segPoolSize │ stackLow │ stackTop │
-└─────┼─────┴────┼─────┴───────┴─────────┴─────┼─────┴─────────────┴──────────┴──────────┘
-      │          │                             └──► free segment ──► …   (at most 64)
+┌───────────┬──────────┬───────┬─────────┬─────────┬───────────┬─────────────┬──────────┬──────────┐
+│ regions ● │ region ● │ level │ skipped │ inherit │ segPool ● │ segPoolSize │ stackLow │ stackTop │
+└─────┼─────┴────┼─────┴───────┴─────────┴─────────┴─────┼─────┴─────────────┴──────────┴──────────┘
+      │          │                                       └──► free segment ──► …   (at most 64)
       ▼          ▼
-regions: one descriptor per level (32 bytes each)
+regions: one descriptor per level (40 bytes each)
 ┌───────────┬───┬───┬───┬─────┬─────┬─────┬──────────────────┐
 │ 0 runtime │ 1 │ … │ p │ p+1 │ p+2 │ num │ unused … 32767   │
 └───────────┴───┴───┴───┴─────┴─────┴──┼──┴──────────────────┘
                      └─ levels of p ─┘ │   p.hi = p+2: the regions merged into p
                                        ▼
 current region descriptor
-┌────────────┬─────────┬─────────┬──────────┬────────────┬───────────┐
-│ parent i32 │ hi i32  │ min i32 │ segs i32 │ firstSeg ● │ lastSeg ● │
-└────────────┴─────────┴─────────┴──────────┴─────┼──────┴─────┼─────┘
+┌────────────┬─────────┬─────────┬──────────┬────────────┬───────────┬────────────┐
+│ parent i32 │ hi i32  │ min i32 │ segs i32 │ firstSeg ● │ lastSeg ● │ result i32 │
+└────────────┴─────────┴─────────┴──────────┴─────┼──────┴─────┼─────┴────────────┘
                                                   │            └───────────────┐
                                                   ▼                            ▼
                               segment (512 bytes)     segment     segment (last)
@@ -629,13 +714,16 @@ inlines.
 Usage:
 
 ```
-jo compile --llvm --region app.process --region app.step app.jo -o app
-jo compile --llvm --region-policy all app.jo -o app
+jo compile --llvm app.jo -o app
+jo compile --llvm --region-policy none --region app.process --region app.step app.jo -o app
 ```
 
 `--region-policy` opens regions in more functions besides those named by
-`--region`: `none` (the default), `scalar` for functions returning a primitive
-value other than `Unit`, or `all`.
+`--region`: `all` (the default), `scalar` for functions returning a primitive
+value other than `Unit`, or `none`. A function that cannot allocate opens no
+region under any policy, unless `--region` names it. Under `all`, the result
+of a region function is allocated directly in its result region, which
+`--place-results` also turns on for the other policies.
 
 The names are full names, as in `--link`. Only top-level functions, defined
 directly in a namespace or a section, can be region functions. Class methods

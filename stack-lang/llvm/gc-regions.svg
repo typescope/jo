@@ -32,25 +32,27 @@
   <!-- runtime state -->
   <text x="20" y="62" class="label">@runtime.state (static global, zeroed)</text>
   <rect x="20" y="70" width="920" height="40" class="static"/>
-  <line x1="135" y1="70" x2="135" y2="110" class="div"/>
-  <line x1="250" y1="70" x2="250" y2="110" class="div"/>
-  <line x1="365" y1="70" x2="365" y2="110" class="div"/>
-  <line x1="480" y1="70" x2="480" y2="110" class="div"/>
-  <line x1="595" y1="70" x2="595" y2="110" class="div"/>
-  <line x1="710" y1="70" x2="710" y2="110" class="div"/>
-  <line x1="825" y1="70" x2="825" y2="110" class="div"/>
-  <text x="32" y="95" class="t">regions</text><circle cx="118" cy="90" r="3.5" class="dot"/>
-  <text x="147" y="95" class="t">region</text><circle cx="233" cy="90" r="3.5" class="dot"/>
-  <text x="262" y="95" class="t">level = num</text>
-  <text x="377" y="95" class="t">skipped</text>
-  <text x="492" y="95" class="t">segPool</text><circle cx="578" cy="90" r="3.5" class="dot"/>
-  <text x="607" y="95" class="t">segPoolSize</text>
-  <text x="722" y="95" class="t">stackLow</text>
-  <text x="837" y="95" class="t">stackTop</text>
+  <line x1="122" y1="70" x2="122" y2="110" class="div"/>
+  <line x1="224" y1="70" x2="224" y2="110" class="div"/>
+  <line x1="327" y1="70" x2="327" y2="110" class="div"/>
+  <line x1="429" y1="70" x2="429" y2="110" class="div"/>
+  <line x1="531" y1="70" x2="531" y2="110" class="div"/>
+  <line x1="633" y1="70" x2="633" y2="110" class="div"/>
+  <line x1="736" y1="70" x2="736" y2="110" class="div"/>
+  <line x1="838" y1="70" x2="838" y2="110" class="div"/>
+  <text x="30" y="95" class="t">regions</text><circle cx="108" cy="90" r="3.5" class="dot"/>
+  <text x="132" y="95" class="t">region</text><circle cx="210" cy="90" r="3.5" class="dot"/>
+  <text x="234" y="95" class="t">level = num</text>
+  <text x="337" y="95" class="t">skipped</text>
+  <text x="439" y="95" class="t">inherit</text>
+  <text x="541" y="95" class="t">segPool</text><circle cx="619" cy="90" r="3.5" class="dot"/>
+  <text x="643" y="95" class="t">segPoolSize</text>
+  <text x="746" y="95" class="t">stackLow</text>
+  <text x="848" y="95" class="t">stackTop</text>
 
   <!-- segment pool -->
   <text x="700" y="126" class="label">segment pool</text>
-  <path d="M578,110 L578,146 L698,146" class="edge"/>
+  <path d="M619,110 L619,146 L698,146" class="edge"/>
   <rect x="700" y="132" width="80" height="28" class="empty"/>
   <text x="713" y="151" class="t">free seg</text>
   <path d="M780,146 L798,146" class="edge"/>
@@ -59,8 +61,8 @@
   <text x="886" y="151" class="t">… 64</text>
 
   <!-- descriptor array -->
-  <path d="M118,110 L118,178" class="edge"/>
-  <path d="M233,110 L233,128 L500,128 L500,178" class="edge"/>
+  <path d="M108,110 L108,178" class="edge"/>
+  <path d="M210,110 L210,128 L500,128 L500,178" class="edge"/>
   <rect x="20" y="180" width="110" height="34" class="static"/><text x="34" y="202" class="t">0: runtime</text>
   <rect x="135" y="180" width="60" height="34" class="box"/><text x="160" y="202" class="t">1</text>
   <rect x="200" y="180" width="40" height="34" class="box"/><text x="213" y="202" class="t">…</text>
@@ -69,7 +71,7 @@
   <rect x="385" y="180" width="70" height="34" class="merged"/><text x="405" y="202" class="t">p+2</text>
   <rect x="460" y="180" width="80" height="34" class="current"/><text x="478" y="202" class="t">num</text>
   <rect x="545" y="180" width="200" height="34" class="empty"/><text x="560" y="202" class="t">unused levels … 32767</text>
-  <text x="760" y="194" class="label">regions: one 32-byte</text>
+  <text x="760" y="194" class="label">regions: one 40-byte</text>
   <text x="760" y="210" class="label">descriptor per level</text>
 
   <!-- levels of the parent -->
@@ -79,8 +81,8 @@
 
   <!-- current descriptor, expanded -->
   <path d="M500,214 L500,276" class="expand"/>
-  <text x="510" y="262" class="label">current region: descriptor (32 bytes)</text>
-  <rect x="20" y="278" width="700" height="40" class="current"/>
+  <text x="510" y="262" class="label">current region: descriptor (40 bytes)</text>
+  <rect x="20" y="278" width="820" height="40" class="current"/>
   <line x1="136" y1="278" x2="136" y2="318" class="div"/>
   <line x1="252" y1="278" x2="252" y2="318" class="div"/>
   <line x1="368" y1="278" x2="368" y2="318" class="div"/>
@@ -92,6 +94,8 @@
   <text x="380" y="303" class="t">segs</text>
   <text x="496" y="303" class="t">firstSeg</text><circle cx="588" cy="298" r="3.5" class="dot"/>
   <text x="614" y="303" class="t">lastSeg</text><circle cx="705" cy="298" r="3.5" class="dot"/>
+  <line x1="720" y1="278" x2="720" y2="318" class="div"/>
+  <text x="732" y="303" class="t">result</text>
 
   <!-- segments -->
   <path d="M588,318 L588,338 L330,338 L330,366" class="edge"/>
