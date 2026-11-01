@@ -23,8 +23,8 @@ object Compiler:
   val clang: Config.StringSetting = Config.StringSetting("--clang", "clang", "the clang executable")
   val optLevel: Config.StringSetting = Config.StringSetting("--opt", "2", "clang optimization level")
   val regionFunctions: Config.MultiStringSetting = Config.MultiStringSetting("--region", "make a function open a memory region, e.g., --region app.process")
-  val regionPolicy: Config.StringSetting = Config.StringSetting("--region-policy", "none", "the functions that open a memory region besides --region: none, scalar or all")
-  val placeResults: Config.BooleanSetting = Config.BooleanSetting("--place-results", false, "allocate the result of a region function directly in its result region")
+  val regionPolicy: Config.StringSetting = Config.StringSetting("--region-policy", "all", "the functions that open a memory region besides --region: none, scalar or all")
+  val placeResults: Config.BooleanSetting = Config.BooleanSetting("--place-results", false, "allocate the result of a region function directly in its result region, always on under --region-policy all")
 
   // Default link mappings for the runtime
   val defaultLinkMappings = Map(
@@ -119,9 +119,10 @@ object Compiler:
 
         val regions = regionFunctions.value.toSet.flatMap(resolveRegion)
         val policy = resolvePolicy(regionPolicy.value)
+        val place = placeResults.value || policy == CodeGen.RegionPolicy.All
 
         val codegen = Step("codegen", (units: List[sast.Trees.FileUnit]) =>
-          new CodeGen(runtime, regions, policy, placeResults.value).compile(units)
+          new CodeGen(runtime, regions, policy, place).compile(units)
         )
         val clangStep = Step("clang", (ir: String) => link(ir, outFile))
 
