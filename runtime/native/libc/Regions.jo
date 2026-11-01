@@ -184,8 +184,7 @@ private section Regions
     writeString: 2, cast[StringRepr] "Internal error: an Addr field does not point to a buffer\n"
     LibC.exit 1
 
-  //[ Zeroed C memory, outside the regions //]
-  def callocOrAbort(size: Int): Addr receives none =
+  private def callocOrAbort(size: Int): Addr =
     val mem = LibC.calloc 1 size.toLong
     if isNull mem then outOfMemory()
     mem

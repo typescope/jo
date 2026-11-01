@@ -72,7 +72,8 @@ that may allocate: they build a record, call the allocator of the runtime,
 call a function indirectly, or call a function that may allocate. A branch that
 ends in a call that never returns, like the failure of an assertion, does not
 count, since the program stops there. Without that rule, the message of the
-bounds check would make every array access open a region.
+bounds check would make every array access open a region. Boxing a `Bool` or
+a `Byte` does not allocate: it returns a shared box.
 
 Leaving out a region is always safe. It only merges the function's
 allocations into its caller's region.
@@ -119,8 +120,8 @@ descriptor is never needed per object.
 
 ## Static data
 
-String literals, interface tables and other globals are not heap objects. They
-carry a header with `phys = 0` and `req = 0`, so the barrier never lowers them
+String literals, shared boxes, interface tables and other globals are not heap
+objects. They carry a header with `phys = 0` and `req = 0`, so the barrier never lowers them
 and the trace never enters them.
 
 A string literal is a static `Raw` object whose `content` points into a static
@@ -136,36 +137,36 @@ over characters allocates a box for every such value, and these boxes make up
 much of the heap. In deflate, 1.7 million of 2 million allocations were boxes
 of `Int`.
 
-Most boxed values are small, so the runtime boxes them once. At startup, after
-`GC.init` and before singleton objects, `initBoxes` allocates a box for each
-of these values:
+Most boxed values are small, so codegen emits their boxes as static data, one
+constant array per box class:
 
 - `Int` in [-128, 1024)
 - `Char` in [0, 256)
 - every `Byte`
 - `false` and `true`
 
-That is 1666 boxes, under 100 KB with the overhead of `malloc`. A table in C
-memory, `state.boxes`, holds their addresses. The `Boxing` phase calls
-`boxInt`, `boxChar`, `boxByte` and `boxBool` of `Platform.jo` instead of the
-box constructors. They return the shared box of a value in range and allocate
-a new box otherwise. `Long` and `Float` are always boxed anew. The runtime
-itself never boxes a value, and the 32-bit backends do not share boxes.
+The ranges cover bytes, characters, small counters and the lengths of deflate.
+They hold 55% of the boxed `Int` values in deflate and 27% in forth, and every
+boxed `Char` in deflate and html5. `Layout.scala` defines them.
 
-The shared boxes are ordinary objects of the runtime region, at level 0, like
-singleton objects. The runtime region never closes, so they are never freed.
-Their `req` is 0, so the barrier never lowers it, and the trace of a closing
-region never enters them, since they are not in that region. Static data with
-`gc = 0` would behave the same, but it would need codegen to emit the boxes
-with their class ids. Allocating them at startup reuses the box constructors.
+A shared box is laid out like a heap object of its class, with `gc = 0` in the
+header like a string literal. The `Boxing` phase calls `boxInt`, `boxChar`,
+`boxByte` and `boxBool` of `Platform.jo` instead of the box constructors. For a
+value in range they return the address of its box in the array, and otherwise
+allocate a new box. Once optimized, boxing a small `Int` is an add, a compare
+and an address computation. `Long` and `Float` are always boxed anew. The
+32-bit backends do not share boxes.
 
-Sharing is invisible to programs. A box is immutable: its constructor
-writes `value` once, and nothing writes into a box afterwards. Jo has no
-reference equality and no identity hash. Nothing can be done with an `Any`
-except pass it on. Equality, hashing, ordering and printing go through the
-methods of the unboxed type, and a pattern match reads the class id and the
-value. The runtime compares addresses with `sameRef` only for context
-parameter keys and region segments, never for boxes.
+The barrier never lowers a shared box, since its `req` is 0. The trace of a
+closing region never enters it, since its `phys` is 0. The arrays are in
+read-only memory, so a stray write to a header faults.
+
+Sharing is invisible to programs. A box is immutable: its constructor writes
+`value` once, and nothing writes into a box afterwards. Jo has no reference
+equality and no identity hash. Equality, hashing, ordering and printing go
+through the methods of the unboxed type, and a pattern match reads the class
+id and the value. The runtime compares addresses with `sameRef` only for
+context parameter keys and region segments, never for boxes.
 
 On the jtk projects, under the default policy, shared boxes halve the peak
 RSS or better and make the programs faster, with the same output:
@@ -697,10 +698,9 @@ hold pointers, never the objects themselves.
 
 ```
 @runtime.state (static, zeroed)
-┌───────────┬──────────┬───────┬─────────┬─────────┬───────────┬─────────────┬──────────┬──────────┬─────────┐
-│ regions ● │ region ● │ level │ skipped │ inherit │ segPool ● │ segPoolSize │ stackLow │ stackTop │ boxes ● │
-└─────┼─────┴────┼─────┴───────┴─────────┴─────────┴─────┼─────┴─────────────┴──────────┴──────────┴────┼────┘
-      │          │                                       │          table of shared boxes (C memory) ◄─┘
+┌───────────┬──────────┬───────┬─────────┬─────────┬───────────┬─────────────┬──────────┬──────────┐
+│ regions ● │ region ● │ level │ skipped │ inherit │ segPool ● │ segPoolSize │ stackLow │ stackTop │
+└─────┼─────┴────┼─────┴───────┴─────────┴─────────┴─────┼─────┴─────────────┴──────────┴──────────┘
       │          │                                       └──► free segment ──► …   (at most 64)
       ▼          ▼
 regions: one descriptor per level (40 bytes each)

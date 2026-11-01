@@ -44,6 +44,9 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
   /** Interface tables of classes */
   private val itables = mutable.LinkedHashMap.empty[Symbol, String]
 
+  /** Static tables of shared boxes, by box class */
+  private val sharedBoxTables = mutable.LinkedHashMap.empty[Symbol, String]
+
   private val functions = new StringBuilder
 
   private var isLoweringObjectInitProc = false
@@ -90,6 +93,9 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
 
     for (fullName, name) <- paramKeys do
       module ++= paramKeyGlobal(name, fullName)
+
+    for (cls, name) <- sharedBoxTables do
+      module ++= sharedBoxGlobal(cls, name)
 
     for holder <- runtime.objectHolders do
       module ++= s"$holder = internal global ptr null, align 8\n"
@@ -181,26 +187,91 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
       s"<{ i32 ${runtime.BufferClassId}, i32 0, [$n x i8] c\"${escapeBytes(bytes)}\" }>, align 8\n"
 
     val rawCls = runtime.Core_String_Raw
-    val values = Map(
-      Layout.ClassID -> V("i32", runtime.getClassId(rawCls).toString),
-      Layout.ITable  -> V("ptr", interfaceTable(rawCls)),
-      "byteSize"     -> V("i32", n.toString),
-      "cpCount"      -> V("i32", value.codePointCount(0, value.length).toString),
-      "content"      -> V("ptr", stringContent(value)),
+    val fields = Map(
+      "byteSize" -> V("i32", n.toString),
+      "cpCount"  -> V("i32", value.codePointCount(0, value.length).toString),
+      "content"  -> V("ptr", stringContent(value)),
     )
 
-    val recordType = Layout.encodeClassType(rawCls.classInfo)
-    val slots = recordType.fields.map(field => staticSlot(values(field.name)))
-    val types = slots.map(_._1).mkString(", ")
-    val inits = slots.map(_._2).mkString(", ")
-    buffer + s"$name = private unnamed_addr constant <{ $types }> <{ $inits }>, align 8\n"
+    val ty = staticObjectType(rawCls)
+    val init = staticObjectInit(rawCls, fields)
+    buffer + s"$name = private unnamed_addr constant $ty $init, align 8\n"
 
-  /** The type and initializer of one 8-byte slot of a static object */
-  def staticSlot(value: V): (String, String) =
+  /** The LLVM type of a static object of a class, laid out like a heap object */
+  def staticObjectType(cls: Symbol): String =
+    val recordType = Layout.encodeClassType(cls.classInfo)
+    recordType.fields.map(field => staticSlotType(llvmType(field.info))).mkString("<{ ", ", ", " }>")
+
+  /** The initializer of a static object of a class, with `gc = 0` in the header */
+  def staticObjectInit(cls: Symbol, fields: Map[String, V]): String =
+    val header = Map(
+      Layout.ClassID -> V("i32", runtime.getClassId(cls).toString),
+      Layout.ITable  -> V("ptr", interfaceTable(cls)),
+    )
+
+    val values = header ++ fields
+    val recordType = Layout.encodeClassType(cls.classInfo)
+    recordType.fields.map(field => staticSlotInit(values(field.name))).mkString("<{ ", ", ", " }>")
+
+  /** The type of one 8-byte slot of a static object holding a value of type `ty` */
+  def staticSlotType(ty: String): String =
+    ty match
+      case "ptr" | "i64" => ty
+      case "i32" => "i32, i32"
+      case "i8" | "i1" => s"$ty, [7 x i8]"
+      case _ => throw new Exception("Unsupported static slot type: " + ty)
+
+  /** The initializer of one 8-byte slot of a static object */
+  def staticSlotInit(value: V): String =
     value.ty match
-      case "ptr" | "i64" => (value.ty, value.text)
-      case "i32" => ("i32, i32", s"${value.text}, i32 0")
+      case "ptr" | "i64" => value.text
+      case "i32" => s"${value.text}, i32 0"
+      case "i8" | "i1" => s"${value.text}, [7 x i8] zeroinitializer"
       case ty => throw new Exception("Unsupported static slot type: " + ty)
+
+  /** The static table of the shared boxes of a box class
+    *
+    * The module is emitted after codegen, when the class id and the interface
+    * table can no longer make methods reachable, so they are requested here.
+    */
+  def sharedBoxTable(cls: Symbol): String =
+    sharedBoxTables.get(cls) match
+      case Some(name) => name
+      case None =>
+        val name = "@box." + sharedBoxTables.size
+        sharedBoxTables(cls) = name
+        runtime.getClassId(cls)
+        interfaceTable(cls)
+        name
+
+  /** The values that have a shared box of a box class, in table order */
+  def sharedBoxValues(cls: Symbol): Seq[V] =
+    if cls == runtime.Core_IntBox then
+      for i <- 0 until Layout.IntBoxCount yield V("i32", (Layout.IntBoxLow + i).toString)
+    else if cls == runtime.Core_CharBox then
+      for i <- 0 until Layout.CharBoxCount yield V("i32", i.toString)
+    else if cls == runtime.Core_ByteBox then
+      for i <- 0 until 256 yield V("i8", i.toByte.toString)
+    else
+      V("i1", "false") :: V("i1", "true") :: Nil
+
+  /** A constant array of the shared boxes of a box class, laid out like heap objects
+    *
+    * The boxes are in read-only memory, so a stray write to their header
+    * faults. With `gc = 0` they belong to the runtime region, like string
+    * literals, so the garbage collector never lowers, moves or frees them.
+    */
+  def sharedBoxGlobal(cls: Symbol, name: String): String =
+    val ty = staticObjectType(cls)
+    val values = sharedBoxValues(cls)
+    val inits = values.map(value => ty + " " + staticObjectInit(cls, Map("value" -> value)))
+    s"$name = private unnamed_addr constant [${values.size} x $ty] [${inits.mkString(", ")}], align 8\n"
+
+  /** The address of the shared box at `index` in the table of a box class */
+  def sharedBox(cls: Symbol, index: V)(using FunContext): V =
+    val table = sharedBoxTable(cls)
+    val i = assign("i64", s"zext ${index.text} to i64")
+    assign("ptr", s"getelementptr inbounds ${staticObjectType(cls)}, ptr $table, i64 ${i.v}")
 
   /** The key of a context parameter, an address unique to the parameter */
   def paramKey(fullName: String): String =
@@ -828,6 +899,27 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
 
     else if sym == runtime.Regions_layoutTable then
       V("ptr", "@gc.layouts")
+
+    else if sym == runtime.Core_intBoxLow then
+      V("i32", Layout.IntBoxLow.toString)
+
+    else if sym == runtime.Core_intBoxCount then
+      V("i32", Layout.IntBoxCount.toString)
+
+    else if sym == runtime.Core_charBoxCount then
+      V("i32", Layout.CharBoxCount.toString)
+
+    else if sym == runtime.Core_sharedIntBox then
+      sharedBox(runtime.Core_IntBox, args.head)
+
+    else if sym == runtime.Core_sharedCharBox then
+      sharedBox(runtime.Core_CharBox, args.head)
+
+    else if sym == runtime.Core_sharedByteBox then
+      sharedBox(runtime.Core_ByteBox, args.head)
+
+    else if sym == runtime.Core_sharedBoolBox then
+      sharedBox(runtime.Core_BoolBox, args.head)
 
     else if sym == runtime.Regions_minInt then
       cDecls.getOrElseUpdate("llvm.smin.i32", "declare i32 @llvm.smin.i32(i32, i32)")

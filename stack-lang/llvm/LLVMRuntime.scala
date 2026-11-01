@@ -66,10 +66,6 @@ class LLVMRuntime(val rewire: Map[Symbol, Symbol])(using defn: Definitions):
   val Core_ClosureTag = Native.typeMember("ClosureTag")
 
   // Boxing class constructors (synthesized by the compiler)
-  val Core_BoolBox_fun  = Native.termMember("BoolBox")
-  val Core_ByteBox_fun  = Native.termMember("ByteBox")
-  val Core_CharBox_fun  = Native.termMember("CharBox")
-  val Core_IntBox_fun   = Native.termMember("IntBox")
   val Core_LongBox_fun  = Native.termMember("LongBox")
   val Core_FloatBox_fun = Native.termMember("FloatBox")
 
@@ -78,6 +74,15 @@ class LLVMRuntime(val rewire: Map[Symbol, Symbol])(using defn: Definitions):
   val Core_boxByte = Native.termMember("boxByte")
   val Core_boxChar = Native.termMember("boxChar")
   val Core_boxInt  = Native.termMember("boxInt")
+
+  // The shared boxes, static data emitted by codegen
+  val Core_intBoxLow     = Native.termMember("intBoxLow")
+  val Core_intBoxCount   = Native.termMember("intBoxCount")
+  val Core_charBoxCount  = Native.termMember("charBoxCount")
+  val Core_sharedIntBox  = Native.termMember("sharedIntBox")
+  val Core_sharedCharBox = Native.termMember("sharedCharBox")
+  val Core_sharedByteBox = Native.termMember("sharedByteBox")
+  val Core_sharedBoolBox = Native.termMember("sharedBoolBox")
 
   val Core_bufferClassId = Native.termMember("bufferClassId")
   val Core_bytesClassId  = Native.termMember("bytesClassId")
