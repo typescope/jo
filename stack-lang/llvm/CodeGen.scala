@@ -23,7 +23,7 @@ import scala.collection.mutable
   * Locals and parameters live in `alloca` slots of the entry block. LLVM
   * promotes them to registers.
   */
-class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGen.RegionPolicy, placeResults: Boolean)(using defn: Definitions):
+class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGen.RegionPolicy, placeResults: Boolean, memProfile: Boolean)(using defn: Definitions):
   import CodeGen.*
 
   /** Worklist to add all reachable functions */
@@ -31,6 +31,9 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
 
   /** LLVM names of Jo functions */
   private val funNames = mutable.Map.empty[Symbol, String]
+
+  /** Region functions, numbered from 1 in `Regions.enter`. 0 is the runtime region. */
+  private val regionIds = mutable.LinkedHashMap.empty[Symbol, Int]
 
   /** Static string objects of string constants */
   private val stringTable = mutable.LinkedHashMap.empty[String, String]
@@ -107,6 +110,7 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
       module ++= interfaceTableGlobal(cls, name)
 
     module ++= layoutTableGlobals()
+    module ++= nameTableGlobals()
 
     module += '\n'
 
@@ -331,6 +335,52 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
     buf ++= s"@gc.layouts = internal constant [${entries.size} x ptr] [${entries.mkString(", ")}], align 8\n"
     buf.toString
 
+  /** Names for the memory statistics, null-terminated arrays of C strings
+    *
+    * Under `--mem-profile`, `@gc.funNames` names `main` and then the region
+    * functions by number, as `name at=path:line`, and `@gc.classNames` names
+    * the classes by class id. Otherwise both are empty.
+    */
+  def nameTableGlobals(): String =
+    val buf = new StringBuilder
+
+    def table(name: String, labels: Seq[String]): Unit =
+      val entries =
+        for (label, i) <- labels.zipWithIndex yield
+          val bytes = label.getBytes("UTF-8") :+ 0.toByte
+          buf ++= s"$name.$i = private unnamed_addr constant [${bytes.length} x i8] c\"${escapeBytes(bytes)}\", align 1\n"
+          s"ptr $name.$i"
+
+      val all = entries :+ "ptr null"
+      buf ++= s"$name = internal constant [${all.size} x ptr] [${all.mkString(", ")}], align 8\n"
+
+    def label(sym: Symbol): String =
+      val at =
+        try
+          val pos = sym.sourcePos
+          val text = pos.toString
+          " at=" + text.substring(0, text.lastIndexOf(':'))
+        catch case _: Exception => ""
+
+      sym.fullName + at
+
+    if memProfile then
+      val main = runtime.rewire.get(defn.main).map(label).getOrElse("main")
+      table("@gc.funNames", main +: regionIds.keys.toSeq.map(label))
+      val classes =
+        for id <- 0 until runtime.classIdCount yield
+          if id == runtime.BufferClassId then "buffer"
+          else if id == runtime.BytesClassId then "jo.Bytes"
+          else runtime.getClassSymbol(id).fullName
+
+      table("@gc.classNames", classes)
+
+    else
+      table("@gc.funNames", Nil)
+      table("@gc.classNames", Nil)
+
+    buf.toString
+
   def isAddr(tp: Type): Boolean =
     tp.approx match
       case StaticRef(sym) => sym == runtime.Core_Addr
@@ -407,7 +457,9 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
 
     if opensRegion(sym, procType.resultType) then
       ctx.isRegion = true
-      callFun(runtime.Regions_enter, Nil)
+      val id = regionIds.size + 1
+      regionIds(sym) = id
+      callFun(runtime.Regions_enter, V("i32", id.toString) :: Nil)
 
       if placeResults && llvmType(procType.resultType) == "ptr" then
         ctx.placement = resultRegions(sym)
@@ -899,6 +951,12 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
 
     else if sym == runtime.Regions_layoutTable then
       V("ptr", "@gc.layouts")
+
+    else if sym == runtime.Regions_funNames then
+      V("ptr", "@gc.funNames")
+
+    else if sym == runtime.Regions_classNames then
+      V("ptr", "@gc.classNames")
 
     else if sym == runtime.Core_intBoxLow then
       V("i32", Layout.IntBoxLow.toString)

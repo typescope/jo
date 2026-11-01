@@ -439,9 +439,84 @@ RSS by 1.4 to 19 times. These numbers were taken before shared boxes (see
 | sat smoke | 0.13 → 0.18 s | 56 → 30 MB |
 | url smoke | 1.24–1.50 → 1.21–1.34 s | 53 → 16 MB |
 
-`none` with `--region` remains for measuring a few chosen functions. A future
-profiling build could report, for each function, how much of the memory
-allocated during its calls survives them.
+`none` with `--region` remains for measuring a few chosen functions. To find
+out where the memory of a program goes, see [Memory statistics](#memory-statistics).
+
+## Memory statistics
+
+The runtime always counts allocations, frees, promotions to the runtime region
+and the outcomes of closes. The counts are kept in the slow paths, except two
+increments in the allocation functions. With the environment variable
+`JO_MEMSTATS` set, a program prints them on stderr when it exits normally or
+by `abort`. It does not print them when it runs out of memory or overflows the
+stack, because printing allocates.
+
+The report has one record per line, a kind followed by `key=value` fields:
+
+```
+jo-mem summary peak-rss-kb=30080 allocated=1482780 freed=900795 runtime-region=582028
+jo-mem to-runtime store=438205 trace=143581 return=1
+jo-mem closes free=303955 merge=91433 collect=469477
+jo-mem hint rebuild with --mem-profile to attribute these to functions
+```
+
+- `summary`: the peak RSS in KB, the objects allocated and freed, and the
+  objects in the runtime region at exit.
+- `to-runtime`: the objects promoted to the runtime region by a store into an
+  object there, by the trace of a closing region, and by a return to `main`.
+  These stay until the program exits.
+- `closes`: the closes that freed everything, merged and collected.
+
+Built with `--mem-profile`, the program also reports the region functions
+responsible, by name. The backend then emits the names of the region
+functions and classes, and nothing else changes. Each region function gets
+counters, allocated at startup only when `JO_MEMSTATS` is set. Codegen
+numbers the region functions and `enter` stores the number in the region
+descriptor, so a store is charged to the function of the current region, and
+a trace to the function of the closing region.
+
+```
+jo-mem promoted kind=store count=5000 fun=memapp.remember at=app.jo:9 into=jo.Array caller=memapp.main
+jo-mem promoted kind=trace count=5999 fun=tr.link at=tr.jo:5 caller=tr.main
+jo-mem region objects=10044 fun=memapp.accumulate at=app.jo:12 caller=memapp.main
+```
+
+- `promoted kind=store`: the objects the function's stores promoted to the
+  runtime region. `into` is the class of the object stored into last.
+- `promoted kind=trace`: the objects the trace of the function's region
+  promoted to the runtime region, besides the escape roots.
+- `region`: the most objects the function's region held at once. It is
+  measured in segments, so `objects` is the segment count times 62, and
+  overestimates by up to 61.
+
+`caller` is the function of the parent region, at the last promotion or at
+the peak. Each kind has up to 10 rows, the largest first, and leaves out rows
+under 1000 objects. After the rows of a kind comes a hint:
+
+- `store`: a value stored into an object of the runtime region lives until
+  exit, even after it is overwritten. That object was created in main or
+  returned to it. Create the container in a function that does the work and
+  returns only its result. Or store values that need no allocation: small
+  Int, Char, Bool and Byte values have shared boxes. Or keep per-step values
+  in locals instead of fields.
+- `trace`: when the region of this function closed, a structure reachable
+  from the runtime region moved there with everything it reaches. Find the
+  store that linked it and apply the fix for stores.
+- `region`: the region of this function held this many objects at once. What
+  its body allocates and the results returned to it stay until it returns. If
+  it loops, move the loop body into a separate function. Then the garbage of
+  each iteration is freed when that function returns.
+
+To reduce the peak RSS of a program:
+
+1. Run it with `JO_MEMSTATS=1`. Large `to-runtime` counts or a large
+   `runtime-region` point to promotions.
+2. Rebuild it with `--mem-profile` and run it again.
+3. Fix the top row, following its hint.
+4. Run it again and compare `peak-rss-kb`.
+
+Rows go to the innermost region function, which may be a callee of the
+function that has to change. `caller` names one level up.
 
 ## Merging regions
 
@@ -657,6 +732,8 @@ The barrier may be inlined.
   the budget of 8 segments per region.
 - A removed escape stays promoted until its destination closes, as in the earlier design.
 - `malloc` per object is slower than the current bump allocator.
+- Memory statistics charge a promotion to the innermost region function, and
+  count objects, not bytes.
 
 ## Later: a faster allocator
 
@@ -677,9 +754,11 @@ The runtime is `runtime/native/libc/Regions.jo`. Region descriptors and
 segments come from `calloc`:
 
 - The region descriptors form one array indexed by level, allocated at
-  startup. A descriptor is 40 bytes, so the array takes 1.25 MB of address space,
-  and only the pages of the levels in use become resident. `enter` takes the
-  descriptor above the current region's levels.
+  startup. A descriptor is 40 bytes, so the array takes 1.25 MB of address
+  space, and only the pages of the levels in use become resident. `enter`
+  takes the descriptor above the current region's levels. The last field,
+  `fun`, numbers the function that opened the region, for the memory
+  statistics.
 - A segment is 512 bytes: a `next` pointer, a count and 62 objects. Only the
   first segment of a region is partly filled. Released segments go to a pool
   of at most 64.
@@ -699,14 +778,15 @@ are allocated with `calloc` and freed with `free`.
 The runtime state is a static global. It points to the descriptor array and
 to the current region, and each region records the level of its parent, down
 to the runtime region at level 0. Segments index the objects of a region. They
-hold pointers, never the objects themselves.
+hold pointers, never the objects themselves. `counters` stands for the fields
+of the memory statistics.
 
 ```
 @runtime.state (static, zeroed)
-┌───────────┬──────────┬───────┬─────────┬─────────┬───────────┬─────────────┬──────────┬──────────┐
-│ regions ● │ region ● │ level │ skipped │ inherit │ segPool ● │ segPoolSize │ stackLow │ stackTop │
-└─────┼─────┴────┼─────┴───────┴─────────┴─────────┴─────┼─────┴─────────────┴──────────┴──────────┘
-      │          │                                       └──► free segment ──► …   (at most 64)
+┌───────────┬──────────┬───────┬─────────┬─────────┬──────────┬───────────┬─────────────┬──────────┬──────────┐
+│ regions ● │ region ● │ level │ skipped │ inherit │ counters │ segPool ● │ segPoolSize │ stackLow │ stackTop │
+└─────┼─────┴────┼─────┴───────┴─────────┴─────────┴──────────┴─────┼─────┴─────────────┴──────────┴──────────┘
+      │          │                                                  └──► free segment ──► …   (at most 64)
       ▼          ▼
 regions: one descriptor per level (40 bytes each)
 ┌───────────┬───┬───┬───┬─────┬─────┬─────┬──────────────────┐
@@ -715,9 +795,9 @@ regions: one descriptor per level (40 bytes each)
                      └─ levels of p ─┘ │   p.hi = p+2: the regions merged into p
                                        ▼
 current region descriptor
-┌────────────┬─────────┬─────────┬──────────┬────────────┬───────────┬────────────┐
-│ parent i32 │ hi i32  │ min i32 │ segs i32 │ firstSeg ● │ lastSeg ● │ result i32 │
-└────────────┴─────────┴─────────┴──────────┴─────┼──────┴─────┼─────┴────────────┘
+┌────────────┬─────────┬─────────┬──────────┬────────────┬───────────┬────────────┬─────────┐
+│ parent i32 │ hi i32  │ min i32 │ segs i32 │ firstSeg ● │ lastSeg ● │ result i32 │ fun i32 │
+└────────────┴─────────┴─────────┴──────────┴─────┼──────┴─────┼─────┴────────────┴─────────┘
                                                   │            └───────────────┐
                                                   ▼                            ▼
                               segment (512 bytes)     segment     segment (last)
@@ -783,6 +863,7 @@ Usage:
 ```
 jo compile --llvm app.jo -o app
 jo compile --llvm --region-policy none --region app.process --region app.step app.jo -o app
+jo compile --llvm --mem-profile app.jo -o app && JO_MEMSTATS=1 ./app
 ```
 
 `--region-policy` opens regions in more functions besides those named by
@@ -790,7 +871,8 @@ jo compile --llvm --region-policy none --region app.process --region app.step ap
 value other than `Unit`, or `none`. A function that cannot allocate opens no
 region under any policy, unless `--region` names it. Under `all`, the result
 of a region function is allocated directly in its result region, which
-`--place-results` also turns on for the other policies.
+`--place-results` also turns on for the other policies. `--mem-profile` names
+the functions in the memory statistics.
 
 The names are full names, as in `--link`. Only top-level functions, defined
 directly in a namespace or a section, can be region functions. Class methods
