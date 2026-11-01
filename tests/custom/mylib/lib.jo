@@ -1,3 +1,5 @@
+namespace lib
+
 // A simple library with utility functions
 
 def double(x: Int): Int = x + x
