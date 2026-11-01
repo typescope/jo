@@ -51,6 +51,9 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
   /** Function definitions by symbol */
   private val funDefs = mutable.Map.empty[Symbol, FunDef]
 
+  /** The functions that may allocate, after all definitions are known */
+  private lazy val allocations = new Allocations(funDefs, runtime, resolve)
+
   /** The result regions of the analyzed functions, `None` while analyzing */
   private val resultRegionsCache = mutable.Map.empty[Symbol, Option[ResultRegions]]
 
@@ -379,11 +382,12 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
     def selectable =
       !sym.fullName.startsWith("jo.runtime.") && !runtime.rewire.get(defn.main).contains(sym)
 
+    // A function that cannot allocate would always have an empty region
     regionFunctions.contains(sym) || selectable && (policy match
       case RegionPolicy.None => false
       case RegionPolicy.Scalar => !Set("ptr", "void").contains(llvmType(resultType))
       case RegionPolicy.All => true
-    )
+    ) && allocations.mayAllocate(sym)
 
   def ret(res: V, resType: String)(using ctx: FunContext): Unit =
     if !ctx.terminated then
