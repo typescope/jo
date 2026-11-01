@@ -7,7 +7,7 @@ basic lexical structure and organizational principles.
 
 A Jo source file consists of the following syntactic elements in order:
 
-- namespace declaration
+- optional namespace declaration
 - imports
 - top-level definitions
 
@@ -26,8 +26,14 @@ class Connection(host: String, port: Int)
 def connect(conn: Connection): Unit = ...
 ```
 
-- If no namespace is declared, the filename becomes the default namespace.
 - Multiple source files can belong to the same namespace.
+
+#### Default Namespaces
+
+A file without a namespace declaration receives a **default namespace**
+named `__<normalized-file-name>_<content-hash>`. The filename component is the lowercase
+filename without its extension, with non-identifier characters replaced by
+underscores. The hash is the SHA-256 digest of the source file's UTF-8 contents.
 
 ### Imports
 
