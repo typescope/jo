@@ -9,6 +9,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Singleton object type tests use reference equality in the Python and JavaScript
   backends, avoiding `isinstance` and `instanceof` checks.
 
+### Fixed
+
+- Top-level namespaces take precedence over implicitly imported standard-library
+  names. A user namespace named `regex` can be referenced as `regex.Regex`
+  without resolving to `jo.regex.Regex`. Explicit imports can select the
+  standard-library name when a top-level namespace has the same name.
+
 ## [0.14.7] - 2026-10-29
 
 ### Added

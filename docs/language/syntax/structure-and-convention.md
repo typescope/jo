@@ -47,6 +47,19 @@ import app.foo as bar   // Rename an import
 - Names from the standard library namespace `jo` are pre-imported in an outer scope,
   available without an explicit import.
 
+Name lookup follows this order, from highest to lowest priority:
+
+1. **Definitions** — local bindings, parameters, and enclosing definitions, searched
+   from innermost outward through the current namespace.
+2. **Explicit imports** — names imported in the current file.
+3. **Root namespaces** — top-level namespaces, including those from libraries.
+4. **Implicit `jo` names** — names pre-imported from the standard library namespace.
+
+The first match in the relevant name universe wins, shadowing any lower-priority
+match. For example, a user namespace named `regex` takes precedence over the
+implicit `jo.regex`, while an explicit `import jo.regex` takes precedence over that
+user namespace.
+
 ### Top-level Definitions
 
 Only the following definitions are allowed at top level:
