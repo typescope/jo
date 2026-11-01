@@ -34,6 +34,17 @@ def library(files, output):
     return {p.parent.relative_to(output).as_posix() for p in output.rglob("*.sast")}
 
 
+def check_import(namespace, library_output, directory):
+    consumer = source(
+        directory / "consumer.jo",
+        f"import {namespace}.value\n\ndef main(): Unit = println(value)\n",
+    )
+    output = directory / "consumer.py"
+    compile_jo("--python", "--lib", library_output, consumer, "-o", output)
+    result = subprocess.run([sys.executable, str(output)], check=True, capture_output=True, text=True)
+    assert result.stdout == "7\n", (namespace, result.stdout)
+
+
 with tempfile.TemporaryDirectory(prefix="jo-default-namespace-") as directory:
     work = Path(directory)
     content = "def value: Int = 7\n"
@@ -48,14 +59,21 @@ with tempfile.TemporaryDirectory(prefix="jo-default-namespace-") as directory:
         assert library([moved], work / f"library-{index}") == {expected}
 
     # Only digit-leading filenames need an added underscore to form a valid identifier.
+    # Keyword stems are valid once the hash is appended; imports exercise the lexer too.
     for index, (name, stem) in enumerate([
+        ("class.jo", "class"),
+        ("namespace.jo", "namespace"),
+        ("if.jo", "if"),
         ("123.jo", "_123"),
         ("_Array-Utils.jo", "_array_utils"),
         ("__Array-Utils.jo", "__array_utils"),
         (".jo", ""),
     ]):
         unusual = source(work / f"unusual-{index}" / name, content)
-        assert library([unusual], work / f"unusual-library-{index}") == {stem + "_" + digest}
+        namespace = stem + "_" + digest
+        library_output = work / f"unusual-library-{index}"
+        assert library([unusual], library_output) == {namespace}
+        check_import(namespace, library_output, work / f"unusual-import-{index}")
 
     # Content, including UTF-8 comments, determines the suffix. Same-named files coexist.
     changed_content = content + "// café\n"
@@ -69,14 +87,7 @@ with tempfile.TemporaryDirectory(prefix="jo-default-namespace-") as directory:
     assert library([explicit], work / "explicit-library") == {"example/library"}
 
     # Generated namespaces are ordinary namespaces and can be imported from SAST libraries.
-    consumer = source(
-        work / "consumer.jo",
-        f"import {expected}.value\n\ndef main(): Unit = println(value)\n",
-    )
-    output = work / "consumer.py"
-    compile_jo("--python", "--lib", work / "library", consumer, "-o", output)
-    result = subprocess.run([sys.executable, str(output)], check=True, capture_output=True, text=True)
-    assert result.stdout == "7\n", result.stdout
+    check_import(expected, work / "library", work / "canonical-import")
 
 print("PASS: default namespace naming and compiled-library imports")
 PY
