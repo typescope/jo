@@ -40,7 +40,7 @@ A precedence expression is an expression where all infix operators are **precede
 
 | Precedence Level | Operators |
 |-----------------|-----------|
-| Lowest | `||` |
+| Lowest | `\|\|` |
 | ↓ | `&&` |
 | ↓ | `>`, `<`, `>=`, `<=`, `==`, `!=` |
 | ↓ | `+`, `-` |
