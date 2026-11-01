@@ -12,10 +12,15 @@ import scala.collection.mutable
   * result region of the function:
   *
   *   - the returned values
-  *   - the values assigned to a marked variable
+  *   - the value assigned to a marked variable
   *   - the fields of a marked object
   *   - the values stored into the object of a marked variable
   *   - the arguments of a marked call that flow into the callee's result
+  *
+  * A variable assigned more than once is never marked: the analysis cannot
+  * tell which of its values is returned, and marking all of them would keep
+  * the overwritten ones in the result region. A parameter is assigned by the
+  * call, so a reassigned parameter is not marked either.
   *
   * The marked parameters are the summary of the function for its callers.
   * `resultParams` gives the summary of a callee, by the positions of the
@@ -52,6 +57,8 @@ class ResultRegions(fdef: FunDef, resultParams: Symbol => Set[Int]):
   private val inLoop: mutable.Set[Word] = identitySet()
 
   private val marked = mutable.Set.empty[Symbol]
+
+  private val paramSyms = fdef.allParams.toSet
 
   private def identitySet[T <: AnyRef](): mutable.Set[T] =
     import scala.jdk.CollectionConverters.*
@@ -113,6 +120,10 @@ class ResultRegions(fdef: FunDef, resultParams: Symbol => Set[Int]):
 
       case _ =>
 
+  private def reassigned(sym: Symbol): Boolean =
+    val n = assigns.getOrElse(sym, Nil).size
+    if paramSyms.contains(sym) then n > 0 else n > 1
+
   /** The function a call calls directly, if any */
   private def callee(app: Apply): Option[Symbol] =
     app.fun match
@@ -139,7 +150,7 @@ class ResultRegions(fdef: FunDef, resultParams: Symbol => Set[Int]):
         mark(elsep)
 
       case Ident(sym) if !sym.is(Flags.Fun) =>
-        if marked.add(sym) then
+        if !reassigned(sym) && marked.add(sym) then
           assigns.getOrElse(sym, Nil).foreach(mark)
           stores.getOrElse(sym, Nil).foreach(mark)
 

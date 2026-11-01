@@ -382,12 +382,13 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
     def selectable =
       !sym.fullName.startsWith("jo.runtime.") && !runtime.rewire.get(defn.main).contains(sym)
 
-    // A function that cannot allocate would always have an empty region
-    regionFunctions.contains(sym) || selectable && (policy match
+    def byPolicy = policy match
       case RegionPolicy.None => false
       case RegionPolicy.Scalar => !Set("ptr", "void").contains(llvmType(resultType))
       case RegionPolicy.All => true
-    ) && allocations.mayAllocate(sym)
+
+    // A function that cannot allocate would always have an empty region
+    regionFunctions.contains(sym) || (selectable && byPolicy && allocations.mayAllocate(sym))
 
   def ret(res: V, resType: String)(using ctx: FunContext): Unit =
     if !ctx.terminated then
@@ -689,16 +690,11 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
 
     for (name, rhs) <- rec.args do
       val value = compile(rhs)
-      val isInit = !inResult || isFunRef(rhs)
-      storeField(obj, Layout.fieldOffset(recordType, name), value, Layout.fieldType(recordType, name), isInit)
+      val fieldType = Layout.fieldType(recordType, name)
+      val isInit = !inResult || fieldType.isProcType
+      storeField(obj, Layout.fieldOffset(recordType, name), value, fieldType, isInit)
 
     obj
-
-  def isFunRef(word: Word): Boolean =
-    word match
-      case Encoded(repr) => isFunRef(repr)
-      case Ident(sym) => sym.is(Flags.Fun)
-      case _ => false
 
   //----------------------------------------------------------------------------
   // Calls
@@ -731,7 +727,12 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
 
           // The callee puts its result in the result region of this function
           val target = resolve(sym)
-          if ctx.placement.exists(_.calls.contains(app)) && opensRegion(target, target.tpe.asProcType.resultType) then
+          val resultType = target.tpe.asProcType.resultType
+          val inherits =
+            ctx.placement.exists(_.calls.contains(app)) &&
+            llvmType(resultType) == "ptr" && opensRegion(target, resultType)
+
+          if inherits then
             callFun(runtime.Regions_inherit, Nil)
 
           callFun(sym, args)

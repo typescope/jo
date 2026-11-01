@@ -34,7 +34,9 @@ Every object records two region levels. Levels number the open regions from
 the oldest, like depths (see [Levels](#levels)):
 
 - `phys`: the region whose storage holds the object.
-- `req`: the oldest region the object must outlive. Always `req <= phys`.
+- `req`: the oldest region the object must outlive. It compares like `phys`
+  or an older level. A level owned by the same region as `phys` compares like
+  `phys`, even when it is numerically higher (see [Levels](#levels)).
 
 A heap store `b.f = c` lowers `c.req` to `b.req` if needed. When a region
 closes and nothing escapes it, it frees all its objects. Otherwise it merges
@@ -187,7 +189,8 @@ The last line records the promotion for the close of `c`'s region (see
 
 Initialization stores need no barrier. A new object `b` has `req` equal to the
 current level, and any `c` it can refer to already has `c.req` at that level or
-older.
+older. An object placed in an older region is the exception (see
+[Placing results](#placing-results)).
 
 Codegen already routes every field store through one helper, `storeField`,
 which tells initialization from mutation. The barrier goes there.
@@ -524,14 +527,22 @@ A flow-insensitive analysis marks the values that must end up in the result
 region of a function:
 
 - the returned values
-- the values assigned to a marked variable
+- the value assigned to a marked variable
 - the fields of a marked object
 - the values stored into the object of a marked variable
 - the arguments of a marked call that flow into the callee's result
 
+A variable assigned more than once is never marked, nor is a parameter that
+is assigned. The analysis cannot tell which of its values is returned, and
+marking all of them would keep the overwritten ones in the result region,
+up to one per iteration of a loop around the call.
+
 The marked parameters are the summary of a function for its callers. A
 constructor stores its parameters into `this` and returns it, so the summary
-covers constructors too. A recursive call sees no summary.
+covers constructors too. Summaries are computed on demand and cached. A call
+back into a function whose summary is still being computed sees no summary,
+so under mutual recursion the summaries depend on the order of analysis.
+Like the rest of the analysis, this only affects performance.
 
 A marked allocation goes to the result level, and a marked call makes its
 callee inherit it. Allocations and calls inside a loop stay in the current
@@ -561,16 +572,16 @@ it on for the other policies.
 
 The design holds under LLVM's optimizations:
 
-- Inlining a region function keeps `enter` and `close`, which are explicit
+- Inlining a region function keeps `enter` and `leave`, which are explicit
   calls. Losing a boundary would only merge regions, which is safe.
 - The barrier is inlined code with a store. Removing a dead heap store leaves
   the barrier's promotion in place, which is conservative.
-- No load can move across `close`, because LLVM sees an opaque call that may
+- No load can move across `leave`, because LLVM sees an opaque call that may
   write memory.
 - Allocations are never removed, because every object escapes into its region's
   segment.
 
-`enter`, `close` and `lower` are marked `noinline` to keep the boundary opaque.
+`enter` and `leave` are marked `noinline` to keep the boundary opaque.
 The barrier may be inlined.
 
 ## Limitations
