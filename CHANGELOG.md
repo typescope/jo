@@ -4,6 +4,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Singleton object type tests use reference equality in the Python and JavaScript
+  backends, avoiding `isinstance` and `instanceof` checks.
+
 ## [0.14.7] - 2026-10-29
 
 ### Added

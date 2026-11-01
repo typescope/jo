@@ -139,6 +139,11 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     universe.useConstructor(cls)
     pythonName(cls)
 
+  /** Type tests also need an initialized singleton, even without an accessor call. */
+  private def singletonReference(cls: Symbol): P.Expr =
+    universe.useConstructor(cls)
+    P.Ident(runtime.getOrCreateSingletonId(cls))
+
   //----------------------------------------------------------------------------
   // Compilation
   //----------------------------------------------------------------------------
@@ -586,16 +591,22 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
         // Type test for union types - this is pure
         val (argStats, argExpr) = compileExpr(arg, enforcePurity)
 
-        val className =
-          if cls == defn.String_type then "str"
-          else if cls == defn.Float_type then "float"
-          else if cls == defn.Int_type || cls == defn.Long_type || cls == defn.Byte_type || cls == defn.Char_type then "int"
-          else if cls == defn.Bool_type then "bool"
-          else if cls == defn.Array_class then "list"
-          else classReferenceName(cls)
+        val test =
+          if cls.is(Flags.Object) then
+            P.BinOp(argExpr, "is", singletonReference(cls))
 
-        // Type test is pure if argxpr is pure
-        (argStats, P.InstanceOf(argExpr, className))
+          else
+            val className =
+              if cls == defn.String_type then "str"
+              else if cls == defn.Float_type then "float"
+              else if cls == defn.Int_type || cls == defn.Long_type || cls == defn.Byte_type || cls == defn.Char_type then "int"
+              else if cls == defn.Bool_type then "bool"
+              else if cls == defn.Array_class then "list"
+              else classReferenceName(cls)
+
+            P.InstanceOf(argExpr, className)
+
+        (argStats, test)
 
       case Apply(fun, args, autos) =>
         // Function/method calls are generally impure, wrap if purity needed
@@ -774,16 +785,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
     fun match
       case Ident(sym) if sym.isFunction =>
         if sym.is(Flags.Object) then
-          // direct singleton object access
           val funType = sym.tpe.asProcType
           val classSym = funType.resultType.classSymbol
-
-          // Singleton initialization constructs this class.
-          universe.useConstructor(classSym)
-
-          // Get or create the global singleton variable name
-          val singletonVar = runtime.getOrCreateSingletonId(classSym)
-          (Nil, P.Ident(singletonVar))
+          (Nil, singletonReference(classSym))
 
         else if sym == runtime.paramKey then
           val paramSym = args.head match

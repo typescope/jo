@@ -529,7 +529,11 @@ class JSCodeGen(runtime: JSRuntime, rewire: Map[Symbol, Symbol])(using defn: Def
         val (argStats, argExpr) = compileExpr(arg, enforcePurity)
 
         val test =
-          if cls == defn.String_type then
+          if cls.is(Flags.Object) then
+            val singleton = JS.Select(JS.Ident(classReferenceName(cls)), SingletonFieldName)
+            JS.BinOp(argExpr, "===", singleton)
+
+          else if cls == defn.String_type then
             val cond1 = JS.BinOp(JS.UnaryOp("typeof", argExpr), "==", JS.StringLit("string"))
             JS.BinOp(cond1, "||", JS.InstanceOf(argExpr, "String"))
 
