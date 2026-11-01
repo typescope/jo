@@ -339,8 +339,8 @@ private section Regions
         freeAll r
 
       else
-        setMin(parent, minInt(minOf parent, m))
         if (segsOf parent) + (segsOf r) <= mergeLimit then
+          setMin(parent, minInt(minOf parent, m))
           setHi(parent, maxInt(hiOf parent, hi))
           give(parent, firstSeg r, lastSeg r, segsOf r)
         else
@@ -402,7 +402,8 @@ private section Regions
         setSegs(parent, (segsOf parent) + n)
 
   // Free the dead objects of the region `r` at level `num`, and hand the
-  // survivors to its parent at level `p`
+  // survivors to its parent at level `p`. A survivor required by an older
+  // region goes directly to it, so the closes in between do not visit it again.
   private def sweep(r: Addr, num: Int, p: Int, parent: Addr): Unit =
     // Spread the requirements of escape roots
     var seg = firstSeg r
@@ -424,6 +425,8 @@ private section Regions
     var wseg = firstSeg r
     var w = 0
     var kept = 1
+    var ownerReq = p
+    var owner = p
     seg = firstSeg r
     while !(isNull seg) do
       val n = segCount seg
@@ -433,6 +436,14 @@ private section Regions
         val req = reqOf o
         if req >= num then
           LibC.free o
+        else if req < p then
+          // goes directly to the region owning its level
+          if req != ownerReq then
+            ownerReq = req
+            owner = ownerOf(req, p)
+
+          setGcHalf(o, normal(owner, req))
+          append(descOf owner, o)
         else
           setGcHalf(o, normal(p, req))
           if w == segCapacity then
@@ -470,6 +481,15 @@ private section Regions
       writeAddr wseg (firstSeg r)
       give(parent, wseg, wprev, kept)
 
+  // The level of the open region owning the level `l`, an ancestor of the
+  // region at level `p` or that region
+  private def ownerOf(l: Int, p: Int): Int =
+    var o = p
+    while o > l do
+      o = parentOf (descOf o)
+    end
+    o
+
   // Lower `req` to `d` for the objects of the region at level `num` reachable
   // from `root`, a depth-first traversal with pointer reversal: the slot that
   // led to the current object holds its parent until the traversal returns.
@@ -495,8 +515,9 @@ private section Regions
             setGcHalf(cur, onPath 0)
           else
             // without pointers, or in an ancestor region, whose own cleanup
-            // traces it: lower it only
+            // traces it: lower it only, and record it for that cleanup
             setReq(c, d)
+            record(physOf c, d)
             setGcHalf(cur, onPath (i + 1))
         else
           setGcHalf(cur, onPath (i + 1))
