@@ -4,28 +4,50 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.14.8] - 2026-11-02
+
 ### Changed
 
 - Files without a namespace declaration receive default namespace names of the
   form `<normalized-file-name>_<content-hash>`, using a 16-character hexadecimal
   prefix of SHA-256. This prevents filename-derived names such as `Array` from
   shadowing the standard library. Default namespaces follow the ordinary namespace
-  rules. ([JIP 0011])
-
+  rules. ([#208], [JIP 0011])
 - Singleton object type tests use reference equality in the Python and JavaScript
-  backends, avoiding `isinstance` and `instanceof` checks.
+  backends, avoiding `isinstance` and `instanceof` checks. ([#204])
 
 ### Fixed
 
-- Native function-value boxing adapters evaluate the supplied function once when
-  the adapter is created. Generic calls no longer repeat or skip function-factory
-  effects, and callbacks read from mutable fields retain their value at conversion.
-
+- Function-value boxing adapters in the experimental native backends evaluate the
+  supplied function once when the adapter is created. Generic calls no longer
+  repeat or skip function-factory effects, and callbacks read from mutable fields
+  retain their value at conversion. ([#210])
 - Top-level namespaces take precedence over implicitly imported standard-library
   names. A user namespace named `regex` can be referenced as `regex.Regex`
   without resolving to `jo.regex.Regex`. Explicit imports can select the
-  standard-library name when a top-level namespace has the same name.
+  standard-library name when a top-level namespace has the same name. ([#208])
 
+### Security
+
+- No security-relevant changes.
+
+### Compatibility
+
+- The default namespace naming change is source-incompatible with references to
+  the old filename-derived namespaces. Give shared source files explicit
+  namespaces and update their imports and qualified references. For example,
+  a library in `test-lib.jo` previously reached as `TestLib` can declare
+  `namespace testlib`, with callers updated to use `testlib`.
+- Root namespaces now shadow implicitly imported names from `jo`. Use an
+  explicit import to select a standard-library name that conflicts with a root
+  namespace.
+- The standard library, runtimes, build specifications, and `.joy` package formats
+  are unchanged. SAST remains at format 2.0; existing libraries do not require
+  recompilation for format compatibility.
+
+[#204]: https://github.com/typescope/jo/pull/204
+[#208]: https://github.com/typescope/jo/pull/208
+[#210]: https://github.com/typescope/jo/pull/210
 [JIP 0011]: docs/jips/0011-default-namespace-names.md
 
 ## [0.14.7] - 2026-10-29
