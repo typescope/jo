@@ -1,14 +1,16 @@
+namespace graphics
+
 // Graphics library that depends on Math
 
 class Color(r: Int, g: Int, b: Int)
 
-class Shape(center: Math.Point, color: Color)
+class Shape(center: math.Point, color: Color)
 
 def createShape(x: Int, y: Int, r: Int, g: Int, b: Int): Shape =
-  Shape(Math.Point(x, y), Color(r, g, b))
+  Shape(math.Point(x, y), Color(r, g, b))
 
 def shapeDistance(s: Shape): Int =
-  Math.distance(s.center)
+  math.distance(s.center)
 
 def colorSum(c: Color): Int =
-  Math.add(Math.add(c.r, c.g), c.b)
+  math.add(math.add(c.r, c.g), c.b)

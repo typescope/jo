@@ -62,7 +62,7 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
 # Test with Python
 echo "  - Building with Python"
 bin/jo compile --python "$DIR/app.jo" --lib "$BUILD" -o "$DIR/app.py"
-python "$DIR/app.py" > "$DIR/actual.out" 2>&1
+python3 "$DIR/app.py" > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] Python test failed for $TEST_NAME"
     exit 1

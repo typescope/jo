@@ -1,0 +1,10 @@
+namespace app
+
+def main(): Unit =
+  val r: regex.Regex = new regex.Regex("lib")
+  println(r.hello)
+
+  val standard: jo.regex.Regex = jo.regex.Regex.compileChecked("standard", "")
+  println(standard.source)
+  println(importedprelude.source)
+  println(localprelude.source)

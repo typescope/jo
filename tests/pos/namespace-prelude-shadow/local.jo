@@ -1,0 +1,9 @@
+namespace localprelude
+
+import jo.regex as regex
+
+section regex
+  def source: String = "local section"
+end
+
+def source: String = regex.source

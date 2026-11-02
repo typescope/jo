@@ -1,0 +1,5 @@
+namespace regex
+
+class Regex(source: String)
+  def hello: String = "hello from " + source
+end

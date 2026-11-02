@@ -1,0 +1,5 @@
+namespace preludefallback
+
+def main(): Unit =
+  val standard: regex.Regex = regex.Regex.compileChecked("standard", "")
+  println(standard.source)

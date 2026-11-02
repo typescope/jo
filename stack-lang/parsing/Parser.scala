@@ -50,9 +50,9 @@ object Parser:
   /** Parse the supplied code */
   def parse(path: String)(using rp: Reporter): FileUnit = try
     val source = Reporter.source(path)
-    val defaultModuleName = StringUtil.toPascalCase(IO.fileNameNoExt(path))
+    val fileName = IO.fileNameNoExt(path)
     val parser = new Parser(source.content)(using rp, source)
-    parser.parse(defaultModuleName)
+    parser.parse(fileName)
 
   catch
     case _: java.nio.file.NoSuchFileException =>
@@ -93,6 +93,17 @@ object Parser:
   end LookAheadScanner
 
   class SyntaxError extends Exception
+
+  /** Keep generated namespaces readable and reproducible without shadowing common names. */
+  private def defaultNamespaceName(fileName: String, code: String): String =
+    val normalized = fileName.toLowerCase(java.util.Locale.ROOT).map: ch =>
+      if Naming.isNameRest(ch) then ch else '_'
+
+    val prefix = if normalized.headOption.exists(ch => Naming.isDigit(ch)) then "_" else ""
+    val bytes = code.getBytes(java.nio.charset.StandardCharsets.UTF_8)
+    val digest = java.security.MessageDigest.getInstance("SHA-256").digest(bytes)
+    val hash = java.util.HexFormat.of().formatHex(digest, 0, 8)
+    s"$prefix${normalized}_$hash"
 end Parser
 
 class Parser(code: String)(using reporter: Reporter, source: Source):
@@ -401,13 +412,13 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
 
     items.toList
 
-  def parse(defaultModuleName: String): FileUnit =
-    val unit = fileUnit(defaultModuleName)
+  def parse(fileName: String): FileUnit =
+    val unit = fileUnit(fileName)
     // With parsing errors, ensure finish scanning
     skipUntilEnd()
     unit
 
-  def fileUnit(defaultModuleName: String): FileUnit =
+  def fileUnit(fileName: String): FileUnit =
     val item = peek()
     val id =
       item match
@@ -416,7 +427,7 @@ class Parser(code: String)(using reporter: Reporter, source: Source):
           qualid()
 
         case _ =>
-          Ident(defaultModuleName)(Span(0, 0))
+          Ident(Parser.defaultNamespaceName(fileName, code))(Span(0, 0))
 
     val imports = repeated:
       if peek() == Token.IMPORT then Some(importStat())

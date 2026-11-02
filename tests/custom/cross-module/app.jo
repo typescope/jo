@@ -1,11 +1,11 @@
 // Application using both libraries
 
 def main =
-  val p = Math.Point(3, 4)
-  println(Math.distance p)
+  val p = math.Point(3, 4)
+  println(math.distance p)
 
-  val shape = Graphics.createShape(5, 10, 255, 128, 64)
-  println(Graphics.shapeDistance shape)
+  val shape = graphics.createShape(5, 10, 255, 128, 64)
+  println(graphics.shapeDistance shape)
 
-  val color = Graphics.Color(100, 150, 200)
-  println(Graphics.colorSum color)
+  val color = graphics.Color(100, 150, 200)
+  println(graphics.colorSum color)

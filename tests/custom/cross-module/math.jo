@@ -1,3 +1,5 @@
+namespace math
+
 // Math library with types and functions
 
 class Point(x: Int, y: Int)

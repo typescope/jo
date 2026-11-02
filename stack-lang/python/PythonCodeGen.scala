@@ -114,7 +114,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
               else
                 val rawName = sym.fullName.replace(".", "_")
-                val baseName = globalScope.freshName(PythonCodeGen.encodeSymbolic(rawName))
+                // Double-underscore globals would be mangled inside class methods.
+                val globalName = if rawName.startsWith("__") then "jo" + rawName else rawName
+                val baseName = globalScope.freshName(PythonCodeGen.encodeSymbolic(globalName))
                 baseName
 
             symbol2UniqueName(sym) = uniqueName

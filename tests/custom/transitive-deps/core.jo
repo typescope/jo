@@ -1,3 +1,5 @@
+namespace core
+
 // Core library - foundation
 
 union Result[T] = Success(value: T) | Failure(message: String)

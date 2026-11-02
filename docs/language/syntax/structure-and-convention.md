@@ -7,7 +7,7 @@ basic lexical structure and organizational principles.
 
 A Jo source file consists of the following syntactic elements in order:
 
-- namespace declaration
+- optional namespace declaration
 - imports
 - top-level definitions
 
@@ -26,8 +26,18 @@ class Connection(host: String, port: Int)
 def connect(conn: Connection): Unit = ...
 ```
 
-- If no namespace is declared, the filename becomes the default namespace.
 - Multiple source files can belong to the same namespace.
+
+#### Default Namespaces
+
+A file without a namespace declaration receives a **default namespace**
+named `<normalized-file-name>_<content-hash>`. The filename component is the lowercase
+filename without its extension, with non-identifier characters replaced by
+underscores. A filename component beginning with a digit is prefixed with one
+underscore. The hash is the first 16 hexadecimal characters (64 bits) of the
+SHA-256 digest of the source file's UTF-8 contents.
+
+See [JIP 0011](../../jips/0011-default-namespace-names.md) for the design rationale.
 
 ### Imports
 
@@ -46,6 +56,19 @@ import app.foo as bar   // Rename an import
 - Private members are not imported.
 - Names from the standard library namespace `jo` are pre-imported in an outer scope,
   available without an explicit import.
+
+Name lookup follows this order, from highest to lowest priority:
+
+1. **Definitions** — local bindings, parameters, and enclosing definitions, searched
+   from innermost outward through the current namespace.
+2. **Explicit imports** — names imported in the current file.
+3. **Root namespaces** — top-level namespaces, including those from libraries.
+4. **Implicit `jo` names** — names pre-imported from the standard library namespace.
+
+The first match in the relevant name universe wins, shadowing any lower-priority
+match. For example, a user namespace named `regex` takes precedence over the
+implicit `jo.regex`, while an explicit `import jo.regex` takes precedence over that
+user namespace.
 
 ### Top-level Definitions
 
