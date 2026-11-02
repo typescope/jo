@@ -86,7 +86,7 @@ file names such as `array.jo`, `list.jo`, and `utils.jo` can shadow standard-lib
 names or merge definitions from unrelated directories, which create surprises for
 programmers.
 
-Reusing the file name as namespace name is alway against Jo's design principle of
+Reusing the file name as a namespace name is against Jo's design principle of
 _explicitness over implicitness_.
 
 ### Why not use an empty namespace?
@@ -111,7 +111,7 @@ name different namespaces to avoid accidental sharing.
 Using a 64-bit prefix keeps generated names shorter than using the full digest.
 
 The hash makes it impossible to reference the generated name as a stable cross-file API.
-An explicit namespace declaration provides stable name using the existing language mechanism.
+An explicit namespace declaration provides a stable name for sharing.
 That is the purpose of the design: sharing should be made explicit.
 
 ## Compatibility
