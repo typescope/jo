@@ -1,0 +1,20 @@
+jo = "1.0"
+
+[module.ffi]
+kind = "lib"
+platform = "python"
+enable-ffi = true
+src = ["ffi/"]
+
+[module.plain]
+kind = "lib"
+platform = "python"
+src = ["plain/"]
+modules = ["ffi"]
+
+[module.ok]
+kind = "lib"
+platform = "python"
+enable-ffi = true
+src = ["ok/"]
+modules = ["ffi"]

@@ -1,0 +1,7 @@
+jo build plain
+: '
+error: module 'plain' does not enable FFI but depends on module 'ffi' which has enable-ffi = true; set enable-ffi = true on module 'plain' or remove the dependency
+'
+
+jo build ok
+test -d .build/ok/jo-1.0/sast

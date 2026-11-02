@@ -1,0 +1,5 @@
+namespace repro.ffi
+
+class Box(value: py.Dynamic)
+  def size: Int = 1
+end
