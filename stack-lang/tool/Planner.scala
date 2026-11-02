@@ -49,7 +49,7 @@ object Planner:
                 makePlan(dep.project.getOrElse(project0), dep.module).flatMap: plan =>
                   acc.map(plans => plan :: plans)
 
-              depPlansResult.flatMap: depPlans =>
+              depPlansResult.flatMap(depPlans => checkFfiDeps(project0, id, spec).map(_ => depPlans)).flatMap: depPlans =>
                 val checkLibs = checkLibsOf(project0, id)
 
                 SourcePaths.expand(spec.src, project0.dir).flatMap: sources =>
@@ -299,6 +299,22 @@ object Planner:
                  |
                  |Declare an explicit module.${id.value}.links entry for '$from' to override.""".stripMargin
             )
+
+    /** A module without FFI may not depend on a module with FFI, as FFI types leak through its public API. */
+    private def checkFfiDeps(project: Project, id: ModuleId, spec: ModuleSpec): Result[Unit] =
+      if spec.enableFfi then
+        Result.unit
+      else
+        project.moduleDepsOf(id).foldLeft(Result.unit): (acc, dep) =>
+          acc.flatMap: _ =>
+            dep.project.getOrElse(project).requireModule(dep.module).flatMap: depSpec =>
+              if depSpec.enableFfi then
+                Result.Err(
+                  s"module '${id.value}' does not enable FFI but depends on module '${dep.module.value}' which has enable-ffi = true; " +
+                  s"set enable-ffi = true on module '${id.value}' or remove the dependency"
+                )
+              else
+                Result.unit
 
     private def moduleLabel(project: Project, id: ModuleId): String =
       project.moduleLabel(root, id)
