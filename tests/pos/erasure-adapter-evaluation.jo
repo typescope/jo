@@ -1,0 +1,64 @@
+def makeFold(label: String): (Int, Int) => Int =
+  println(label)
+  (a, b) => a + b
+
+def makeUnary(label: String): Int => Int =
+  println(label)
+  x => x + 1
+
+def marker(label: String, value: Int): Int =
+  println(label)
+  value
+
+def ignore[T](f: T => T): Int = 9
+
+def applyFirst[T](f: T => T, first: T, second: T): T = f(first)
+
+class Holder
+  var callback: Int => Int = x => x + 1
+end
+
+def replaceAndApply[T](f: T => T, holder: Holder, value: T): T =
+  holder.callback = x => x + 100
+  f(value)
+
+def makeHigher(): (Int => Int) => Int =
+  println("higher")
+  f => f(5)
+
+def twice[T](f: (T => T) => T, g: T => T): T =
+  val first = f(g)
+  f(g)
+
+interface Equal[T]
+  def equal(x: T, y: T): Bool
+end
+
+def makeEqual(offset: Int): Equal[Int] =
+  println("interface")
+  (x, y) => x + offset == y
+
+def main(): Unit =
+  // A callback factory runs once, even when the callback is never invoked.
+  println([1, 2, 3].fold(0, makeFold("multiple")))
+  println(List.empty[Int].fold(0, makeFold("empty")))
+  println(ignore[Int](makeUnary("unused")))
+  println(applyFirst[Int](makeUnary("factory"), marker("first", 5), marker("second", 8)))
+
+  // Conversion captures the field's current value before the callee replaces it.
+  val holder = new Holder()
+  println(replaceAndApply[Int](holder.callback, holder, 1))
+  println(holder.callback(1))
+
+  // Conversion remains inside the enclosing callback and supports higher-order values.
+  val nested = () => [1, 2, 3].fold(10, makeFold("nested"))
+  println(nested())
+  println(nested())
+  println(twice[Int](makeHigher(), x => x + 1))
+
+  // Lambda-interface encoding must preserve the captured implementation.
+  val equal = makeEqual(1)
+  println(equal.equal(2, 3))
+  println(equal.equal(2, 2))
+  println([1, 2] == [1, 2])
+  println([1, 1, 2].distinct.size)
