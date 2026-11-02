@@ -17,6 +17,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Native function-value boxing adapters evaluate the supplied function once when
+  the adapter is created. Generic calls no longer repeat or skip function-factory
+  effects, and callbacks read from mutable fields retain their value at conversion.
+
 - Top-level namespaces take precedence over implicitly imported standard-library
   names. A user namespace named `regex` can be referenced as `regex.Regex`
   without resolving to `jo.regex.Regex`. Explicit imports can select the

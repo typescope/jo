@@ -212,13 +212,41 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
       if Subtyping.conforms(valueType, expectedType) then value else Encoded(value)(expectedType)
 
     else
-      // New symbols should go to old info, so they can be found during eraseType
-      TreeOps.createLambda(lambdaType2, Phase.owner.value, value.span)(paramRefs => {
-        val args = paramRefs.zip(paramTypes1).map: (paramRef, paramType) =>
-          adapt(paramRef, paramType)
+      def createAdapter(target: Word): Word =
+        // New symbols go to old info so eraseType can find them.
+        TreeOps.createLambda(lambdaType2, Phase.owner.value, value.span)(paramRefs => {
+          val args = paramRefs.zip(paramTypes1).map: (paramRef, paramType) =>
+            adapt(paramRef, paramType)
 
-        adapt(Apply(value, args, autos = Nil)(value.span), resType2)
-      })(using Erasure.prevDefinitions.value)
+          adapt(Apply(target, args, autos = Nil)(value.span), resType2)
+        })(using Erasure.prevDefinitions.value)
+
+      value match
+        case id: Ident if !id.symbol.isMutable => createAdapter(id)
+
+        case _ =>
+          // Capture at conversion time, even if the adapter is never invoked.
+          // Idempotence alone is insufficient: a field can change between calls.
+          val owner = Phase.owner.value
+          val targetSym = TermSymbol.create(
+            "adapted", lambdaType1, Flags.Synthetic, Visibility.Default, owner,
+            value.span.toPos(using owner.source)
+          )(using Erasure.prevDefinitions.value)
+          val target = Ident(targetSym)(value.span)
+          Block(Assign(target, value) :: createAdapter(target) :: Nil)(value.span)
+
+  private def encodeLambdaInterface(value: Word, interfaceType: Type): Word =
+    value match
+      case Encoded(lambda: Lambda) => Encoded(lambda)(interfaceType)
+
+      case lambda: Lambda =>
+        // TODO: JVM may require an adaptation lambda here.
+        Encoded(lambda)(interfaceType)
+
+      case block @ Block(init :+ result) =>
+        Block(init :+ encodeLambdaInterface(result, interfaceType))(block.span)
+
+      case word => throw new Exception("Unexpected lambda interface: " + word.show)
 
   def eraseWord(word: Word, expectedType: Type, returnTypes: Map[Symbol, Type])(using Context): Word = common.Debug.trace("erase " + word.show, (_: Word).show, enable = false):
     word match
@@ -238,17 +266,8 @@ class Erasure(isTagged: Type => Boolean)(using defn: Definitions) extends Phase:
             val interfaceType = eraseType(word.tpe)
             val Some(lambdaType) = interfaceType.getLambdaInterfaceType.runtimeChecked
             // Return cannot cross lambda boundary
-            eraseWord(lambda, expectedType = lambdaType, returnTypes = Map.empty) match
-              case Encoded(lambda2: Lambda) =>
-                Encoded(lambda2)(interfaceType)
-
-              case lambda2: Lambda =>
-                // TODO: This is not good enough for JVM once it's supported
-                //
-                // In that case, an adaptation lambda needs to be created.
-                Encoded(lambda2)(interfaceType)
-
-              case word => throw new Exception("Unexpected lambda interface: " + word.show)
+            val lambda2 = eraseWord(lambda, expectedType = lambdaType, returnTypes = Map.empty)
+            encodeLambdaInterface(lambda2, interfaceType)
 
           case _ =>
             if isVoid then
