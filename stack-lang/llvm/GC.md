@@ -523,6 +523,25 @@ when a row of its kind is:
 - `main`: printed when `direct` is at least 1000, also without names. What
   `main` allocates stays until exit, so its loops belong in functions.
 
+A program that never exits never prints this report, so with `JO_MEMSTATS`
+set the runtime also reports while the region grows. When the runtime region
+reaches 1024 segments, about 63000 objects, and each time it doubles after
+that, the program prints a `growth` line:
+
+```
+jo-mem growth runtime-region=126915 peak-rss-kb=8576 direct=0 store=63488 trace=0 return=0
+jo-mem growth-promoted kind=store count=63488 fun=memsrv.handle at=server.jo:14 into=memsrv.State caller=memsrv.main
+```
+
+`runtime-region` and `peak-rss-kb` are totals, the other counts are the
+promotions since the previous `growth` line. Built with `--mem-profile`, the
+`growth-promoted` rows follow, like the store and trace rows of the exit
+report but counting since the previous growth report, and a `growth` hint on
+what keeps the region growing. Otherwise the first report suggests rebuilding.
+The runtime notes the threshold when a segment is added, and prints the report
+at the next return of a region function, once the state is consistent, in a
+region of its own, so the report does not count itself.
+
 To reduce the peak RSS of a program:
 
 1. Run it with `JO_MEMSTATS=1`. A large `direct` points to allocation in
@@ -748,6 +767,8 @@ The barrier may be inlined.
 - Memory statistics charge a promotion to the innermost region function, and
   count objects, not bytes. Telling library functions apart by the `jo.`
   prefix of their names is a heuristic.
+- A growth report is printed at the next return of a region function, so a
+  loop in `main` that calls none reports late, at the next return or at exit.
 
 ## Later: a faster allocator
 
