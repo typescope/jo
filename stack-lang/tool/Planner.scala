@@ -98,6 +98,24 @@ object Planner:
     private def moduleLabel(project0: Project, id: ModuleId): String =
       project0.moduleLabel(root, id)
 
+    /** A module without FFI may not depend on a module with FFI, as FFI types leak through its public API. */
+    private def checkFFIDeps(project: Project, id: ModuleId, spec: ModuleSpec): Result[Unit] =
+      if spec.enableFfi then return Result.unit
+
+      for dep <- project.moduleDepsOf(id) do
+        dep.project.getOrElse(project).requireModule(dep.module) match
+          case Result.Err(msg) =>
+            return Result.Err(msg)
+
+          case Result.Ok(depSpec) =>
+            if depSpec.enableFfi then
+              return Result.Err(
+                s"module '${id.value}' does not enable FFI but depends on module '${dep.module.value}' which has enable-ffi = true; " +
+                s"set enable-ffi = true on module '${id.value}' or remove the dependency"
+              )
+
+      Result.unit
+
     /** The check libs a module compiles against.
      *
      *  This is its own package deps plus everything reachable via Check-linked module deps
@@ -299,24 +317,6 @@ object Planner:
                  |
                  |Declare an explicit module.${id.value}.links entry for '$from' to override.""".stripMargin
             )
-
-    /** A module without FFI may not depend on a module with FFI, as FFI types leak through its public API. */
-    private def checkFFIDeps(project: Project, id: ModuleId, spec: ModuleSpec): Result[Unit] =
-      if spec.enableFfi then return Result.unit
-
-      for dep <- project.moduleDepsOf(id) do
-        dep.project.getOrElse(project).requireModule(dep.module) match
-          case Result.Err(msg) =>
-            return Result.Err(msg)
-
-          case Result.Ok(depSpec) =>
-            if depSpec.enableFfi then
-              return Result.Err(
-                s"module '${id.value}' does not enable FFI but depends on module '${dep.module.value}' which has enable-ffi = true; " +
-                s"set enable-ffi = true on module '${id.value}' or remove the dependency"
-              )
-
-      Result.unit
 
     private def moduleLabel(project: Project, id: ModuleId): String =
       project.moduleLabel(root, id)
