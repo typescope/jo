@@ -60,7 +60,9 @@ awk '/^jo-mem summary/ { s = NR } /^jo-mem growth/ { g = NR } END { exit !(g > 0
 [ "$(grep -c '^jo-mem growth-promoted' "$DIR/actual.err")" = 3 ] || fail "unexpected growth-promoted rows"
 awk '/^jo-mem growth-promoted / { split($4, a, "="); n++; sum += a[2]; if (a[2] >= 150000) bad = 1 } END { exit !(n == 3 && !bad && sum < 300000) }' "$DIR/actual.err" || fail "growth-promoted counts are not deltas"
 grep -q '^jo-mem promoted kind=store count=300000 fun=memsrv.handle ' "$DIR/actual.err" || fail "exit row is not cumulative"
-[ "$(grep -c '^jo-mem hint growth: ' "$DIR/actual.err")" = 3 ] || fail "expected a growth hint per report"
+[ "$(grep -c '^jo-mem hint growth: ' "$DIR/actual.err")" = 1 ] || fail "expected one growth hint"
+awk '/^jo-mem growth / { n++ } /^jo-mem hint growth: / { if (n != 1) bad = 1 } END { exit bad }' "$DIR/actual.err" || fail "growth hint not at the first report"
+awk '/^jo-mem summary/ { exit } /^jo-mem hint main: / { found = 1 } END { exit found }' "$DIR/actual.err" || fail "main hint in the growth reports of server.jo"
 
 echo "  - Running server.jo without JO_MEMSTATS"
 "$DIR/server.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
@@ -74,6 +76,18 @@ JO_MEMSTATS=1 "$DIR/server.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 ! grep -q '^jo-mem hint growth' "$DIR/actual.err" || fail "growth hint without --mem-profile"
 # one rebuild hint at the first growth report, and the one of the exit report
 awk '/^jo-mem summary/ { s = 1 } /^jo-mem hint rebuild/ { if (s) after++; else before++ } END { exit !(before == 1 && after == 1) }' "$DIR/actual.err" || fail "expected one rebuild hint in the growth reports"
+
+# Growth from `main`: its loop allocates 100000 nodes directly, so the runtime
+# region reaches 1024 segments with no row to show. The growth report prints
+# the main hint once, before the summary.
+echo "  - Building direct.jo with --mem-profile"
+"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" --mem-profile "$DIR/direct.jo" -o "$DIR/direct.run" || exit 1
+JO_MEMSTATS=1 "$DIR/direct.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
+[ "$(cat "$DIR/actual.out")" = "99999" ] || fail "unexpected output of direct.jo"
+awk '/^jo-mem growth / { split($5, a, "="); if (a[2] >= 1000) found = 1 } END { exit !found }' "$DIR/actual.err" || fail "no growth report with direct allocations"
+awk '/^jo-mem summary/ { exit } /^jo-mem hint main: / { n++ } END { exit !(n == 1) }' "$DIR/actual.err" || fail "expected one main hint in the growth reports"
+! grep -q '^jo-mem growth-promoted' "$DIR/actual.err" || fail "growth-promoted rows for direct allocations"
+! grep -q '^jo-mem hint growth' "$DIR/actual.err" || fail "growth hint without rows"
 
 rm -rf "$DIR/actual.out" "$DIR/actual.err" "$DIR"/*.run
 
