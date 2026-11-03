@@ -536,11 +536,19 @@ jo-mem growth-promoted kind=store count=63488 fun=memsrv.handle at=server.jo:14 
 `runtime-region` and `peak-rss-kb` are totals, the other counts are the
 promotions since the previous `growth` line. Built with `--mem-profile`, the
 `growth-promoted` rows follow, like the store and trace rows of the exit
-report but counting since the previous growth report, and a `growth` hint on
-what keeps the region growing. Otherwise the first report suggests rebuilding.
+report but counting since the previous growth report. The first report with
+a row adds a `growth` hint on what keeps the region growing. Without names,
+the first report suggests rebuilding instead. The first report whose `direct`
+is at least 1000 adds the `main` hint.
+
+A single growth report soon after startup can be data the program builds once
+and keeps, such as a table it loads. Repeated reports while the program serves
+requests mean the region grows without bound.
+
 The runtime notes the threshold when a segment is added, and prints the report
-at the next return of a region function, once the state is consistent, in a
-region of its own, so the report does not count itself.
+at the next return of a region function, once the state is consistent. The
+report runs in a region of its own, so it adds nothing to the promotions or to
+the runtime region. Its strings still count in `allocated` and `freed`.
 
 To reduce the peak RSS of a program:
 
