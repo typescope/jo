@@ -249,6 +249,7 @@ private section Regions
     st.region = st.regions
     st.level = 0
     st.skipped = 0
+    st.growthSegs = noGrowth
 
   //[ Allocate a zeroed object in the current region //]
   def alloc(size: Int): Addr receives none =
@@ -332,6 +333,9 @@ private section Regions
       close(r, st.level, p)
       st.region = descOf p
       st.level = p
+
+    // the state is consistent again: print a growth report if one is due
+    if st.growthDue then growthReport()
 
   //----------------------------------------------------------------------------
   // Cleanup: allocates nothing and runs no user code
@@ -570,13 +574,15 @@ private section Regions
   // The counts of `State` are always kept. Under `--mem-profile` the backend
   // emits the names of the region functions, by number, and of the classes,
   // by class id. With names and `JO_MEMSTATS`, each region function gets an
-  // entry of `funStats`, of 6 `i32` fields:
+  // entry of `funStats`, of 8 `i32` fields:
   //
-  //   { store, trace, peakSegs, peakCaller, into, caller }
+  //   { store, trace, peakSegs, peakCaller, into, caller, storeBase, traceBase }
   //
   // `store` and `trace` count the objects its stores and the trace of its
   // region promoted to the runtime region. `into` is the class of the object
   // stored into last, and `caller` the caller at the last promotion.
+  // `storeBase` and `traceBase` are `store` and `trace` at the last growth
+  // report, which prints the promotions since.
   // `peakSegs` is the most segments its region had, and `peakCaller` the
   // caller then. The caller is the nearest function of an enclosing region
   // that is not a library function, so that a row names user code.
@@ -589,7 +595,7 @@ private section Regions
   @intrinsic
   private def classNames: Addr = ...
 
-  private def statsSize: Int = 24
+  private def statsSize: Int = 32
 
   private def storeField: Int = 0
 
@@ -602,6 +608,16 @@ private section Regions
   private def intoField: Int = 16
 
   private def callerField: Int = 20
+
+  private def storeBaseField: Int = 24
+
+  private def traceBaseField: Int = 28
+
+  // The value of `growthSegs` when the statistics are off
+  private def noGrowth: Int = 2147483647
+
+  // The segments of the runtime region that trigger the first growth report
+  private def firstGrowth: Int = 1024
 
   private def statsOf(fun: Int): Addr = addAddr state.funStats (fun * statsSize)
 
@@ -649,10 +665,14 @@ private section Regions
       bump(e, traceField)
       setField(e, callerField, callerOf r)
 
-  // The region `r` gained segments: record the peak of its function
+  // The region `r` gained segments: make a growth report due if it is the
+  // runtime region and reached the threshold, and record the peak of its
+  // function. The report region of `growthReport` has the function 0 and no
+  // peak.
   private def grew(r: Addr): Unit =
     val st = state
-    if !(isNull st.funStats) && !(sameRef(r, st.regions)) then
+    if (segsOf r) >= st.growthSegs && sameRef(r, st.regions) then st.growthDue = true
+    if !(isNull st.funStats) && (funOf r) > 0 then
       val e = statsOf (funOf r)
       if (segsOf r) > (field(e, peakSegsField)) then
         setField(e, peakSegsField, segsOf r)
@@ -665,8 +685,9 @@ private section Regions
       n = n + 1
     end
 
+    val st = state
+    st.growthSegs = firstGrowth
     if n > 0 then
-      val st = state
       st.funStats = callocOrAbort (n * statsSize)
       st.funCount = n
 
@@ -697,10 +718,14 @@ private section Regions
 
   private def printedLibrary: Int = 2
 
+  // No base field: `printTop` prints the cumulative values
+  private def cumulative: Int = -1
+
   // Print up to 10 rows of the function statistics at `offset`, the largest
-  // first, leaving out values under 1000 after scaling. Returns the flags of
-  // what it printed. Printing clears the values.
-  private def printTop(head: String, offset: Int, scale: Int): Int =
+  // first, leaving out values under 1000 after scaling. With a `base` field,
+  // the values are the differences to it. Returns the flags of what it
+  // printed. Printing clears the values, or sets the base to the value.
+  private def printTop(head: String, offset: Int, base: Int, scale: Int): Int =
     val st = state
     var printed = 0
     var flags = 0
@@ -710,7 +735,8 @@ private section Regions
       var max = 0
       var f = 0
       while f < st.funCount do
-        val v = field(statsOf f, offset)
+        val e = statsOf f
+        val v = if base == cumulative then field(e, offset) else field(e, offset) - field(e, base)
         if v > max then
           best = f
           max = v
@@ -720,7 +746,8 @@ private section Regions
       if max * scale < 1000 then more = false
       else
         val e = statsOf best
-        setField(e, offset, 0)
+        if base == cumulative then setField(e, offset, 0)
+        else setField(e, base, field(e, offset))
         writeString: 2, cast[StringRepr] "jo-mem \{head}=\{max * scale} fun="
         writeName(funName best, false)
         if offset == storeField then
@@ -740,6 +767,65 @@ private section Regions
     end
     flags
 
+  // The values with shared boxes, for the hints
+  private def sharedBoxes: String =
+    "Int in [\{intBoxLow}, \{intBoxLow + intBoxCount}), Char in [0, \{charBoxCount}), Byte and Bool have shared boxes."
+
+  // The peak RSS in KB
+  private def peakRssKb(): Long =
+    // 0 is RUSAGE_SELF. The buffer is larger than `struct rusage`, whose
+    // `ru_maxrss` is at offset 32 on 64-bit Linux, in KB.
+    val usage = callocOrAbort 256
+    val _ = LibC.getrusage 0 usage
+    val rss = addrToLong (readAddr (addAddr usage 32))
+    LibC.free usage
+    rss
+
+  // Print a growth report: the runtime region reached `growthSegs`. Called at
+  // the end of `leave`, when the state is consistent. Prints in a region of
+  // its own, so that its strings are freed and the counts stay as they are.
+  private def growthReport(): Unit =
+    val st = state
+    st.growthDue = false
+    val segs = segsOf st.regions
+    st.growthSegs = if segs > noGrowth / 2 then noGrowth else 2 * segs
+
+    // read the counts before printing, which allocates
+    val runtime = countAt 0
+    val direct = st.direct
+    val store = st.toRuntimeStore
+    val trace = st.toRuntimeTrace
+    val ret = st.toRuntimeReturn
+    val first = st.growthReports == 0
+    st.growthReports = st.growthReports + 1
+
+    enter 0
+    val rss = peakRssKb()
+    line "jo-mem growth runtime-region=\{runtime} peak-rss-kb=\{rss} direct=\{direct - st.lastDirect} store=\{store - st.lastStore} trace=\{trace - st.lastTrace} return=\{ret - st.lastReturn}"
+    st.lastDirect = direct
+    st.lastStore = store
+    st.lastTrace = trace
+    st.lastReturn = ret
+
+    if isNull (funName 0) then
+      if first then line "jo-mem hint rebuild with --mem-profile to attribute these to functions"
+
+    else if !(isNull st.funStats) then
+      val storeRows = printTop("growth-promoted kind=store count", storeField, storeBaseField, 1)
+      val traceRows = printTop("growth-promoted kind=trace count", traceField, traceBaseField, 1)
+      var f = 0
+      while f < st.funCount do
+        val e = statsOf f
+        setField(e, storeBaseField, field(e, storeField))
+        setField(e, traceBaseField, field(e, traceField))
+        f = f + 1
+      end
+
+      if ((storeRows | traceRows) & printedRows) != 0 then
+        line "jo-mem hint growth: the runtime region doubled since the last growth report, or reached \{firstGrowth} segments for the first one. A long-running program grows without bound when it keeps promoting objects there. Start with the first growth-promoted row. A trace row means a store linked a structure to the runtime region, so find that store. A value stored into a container of the runtime region stays until exit, even after it is overwritten. Keep per-request state in a function that returns. Mutate the fields of the existing object instead of storing a new one, or store values that need no allocation. \{sharedBoxes} Do not append without bound to a collection owned by main."
+
+    leave nullAddr
+
   //[ Print the memory statistics on stderr //]
   def report(): Unit receives none =
     // read the counts before printing, which allocates
@@ -756,12 +842,7 @@ private section Regions
     val collects = st.collects
     val skips = st.skips
 
-    // 0 is RUSAGE_SELF. The buffer is larger than `struct rusage`, whose
-    // `ru_maxrss` is at offset 32 on 64-bit Linux, in KB.
-    val usage = callocOrAbort 256
-    val _ = LibC.getrusage 0 usage
-    val rss = addrToLong (readAddr (addAddr usage 32))
-    LibC.free usage
+    val rss = peakRssKb()
 
     line "jo-mem summary peak-rss-kb=\{rss} allocated=\{allocs} freed=\{freed} runtime-region=\{runtime} skipped-enters=\{skips}"
     line "jo-mem to-runtime direct=\{direct} store=\{store} trace=\{trace} return=\{ret}"
@@ -771,12 +852,12 @@ private section Regions
       line "jo-mem hint rebuild with --mem-profile to attribute these to functions"
 
     else if !(isNull st.funStats) then
-      val storeRows = printTop("promoted kind=store count", storeField, 1)
-      val traceRows = printTop("promoted kind=trace count", traceField, 1)
-      val regionRows = printTop("region objects", peakSegsField, segCapacity)
+      val storeRows = printTop("promoted kind=store count", storeField, cumulative, 1)
+      val traceRows = printTop("promoted kind=trace count", traceField, cumulative, 1)
+      val regionRows = printTop("region objects", peakSegsField, cumulative, segCapacity)
       val rows = storeRows | traceRows | regionRows
       if (storeRows & printedRows) != 0 then
-        line "jo-mem hint store: a value stored into a container in the runtime region stays until exit, even after it is overwritten. Moving the container into a function helps only if that function returns well before the program ends, as in phases or batches. Otherwise avoid a new object per store. Mutate the existing object, or store values that need no allocation. Int in [\{intBoxLow}, \{intBoxLow + intBoxCount}), Char in [0, \{charBoxCount}), Byte and Bool have shared boxes."
+        line "jo-mem hint store: a value stored into a container in the runtime region stays until exit, even after it is overwritten. Moving the container into a function helps only if that function returns well before the program ends, as in phases or batches. Otherwise avoid a new object per store. Mutate the existing object, or store values that need no allocation. \{sharedBoxes}"
 
       if (traceRows & printedRows) != 0 then
         line "jo-mem hint trace: when the region of this function closed, a structure reachable from the runtime region moved there with everything it reaches. Find the store that linked it and apply the hint for stores."

@@ -132,6 +132,17 @@ private class State
   var funStats: Addr = nullAddr
   var funCount: Int = 0
 
+  // growth reports: whether one is due, the segments of the runtime region
+  // that trigger the next, how many were printed, and the promotions at the
+  // last one
+  var growthDue: Bool = false
+  var growthSegs: Int = 0
+  var growthReports: Int = 0
+  var lastDirect: Long = 0
+  var lastStore: Long = 0
+  var lastTrace: Long = 0
+  var lastReturn: Long = 0
+
   // the pool of free region segments
   var segPool: Addr = nullAddr
   var segPoolSize: Int = 0
