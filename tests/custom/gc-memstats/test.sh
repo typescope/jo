@@ -30,6 +30,7 @@ grep -q '^jo-mem hint store: ' "$DIR/actual.err" || fail "no store hint"
 grep -q '^jo-mem hint library: ' "$DIR/actual.err" || fail "no library hint"
 grep -q '^jo-mem hint main: ' "$DIR/actual.err" || fail "no main hint"
 grep -q '^jo-mem hint region: ' "$DIR/actual.err" || fail "no region hint"
+! grep -q '^jo-mem hint traced: ' "$DIR/actual.err" || fail "traced hint without repeated tracing"
 ! grep -q '^jo-mem growth' "$DIR/actual.err" || fail "growth report for a bounded runtime region"
 
 echo "  - Running without JO_MEMSTATS"
@@ -123,6 +124,23 @@ JO_MEMSTATS=1 "$DIR/serve.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 awk '/^jo-mem summary/ { s = 1 } /^jo-mem hint rebuild/ { if (s) after++; else before++ } END { exit !(before == 1 && after == 1) }' "$DIR/actual.err" || fail "expected one rebuild hint in the growth-region reports"
 "$DIR/serve.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 [ ! -s "$DIR/actual.err" ] || fail "growth-region reports without JO_MEMSTATS"
+
+# Repeated tracing: every level of `build` traces the whole result again, so
+# `traced` in the summary far exceeds `allocated`, the traced row names
+# `build`, and the traced hint fires, also without names.
+echo "  - Building quad.jo with --mem-profile"
+"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" --mem-profile "$DIR/quad.jo" -o "$DIR/quad.run" || exit 1
+JO_MEMSTATS=1 "$DIR/quad.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
+[ "$(cat "$DIR/actual.out")" = "3000" ] || fail "unexpected output of quad.jo"
+awk '/^jo-mem (summary|closes) / { for (i = 3; i <= NF; i++) { split($i, a, "="); v[a[1]] = a[2] } } END { exit !(v["traced"] > 20 * v["allocated"]) }' "$DIR/actual.err" || fail "traced is not far above allocated"
+grep -q '^jo-mem traced objects=[0-9]* fun=memquad.build at=.*quad.jo:[0-9]* caller=memquad.main$' "$DIR/actual.err" || fail "no traced row for build"
+[ "$(grep -c '^jo-mem hint traced: ' "$DIR/actual.err")" = 1 ] || fail "expected one traced hint"
+
+echo "  - Building quad.jo without --mem-profile"
+"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" "$DIR/quad.jo" -o "$DIR/quad.run" || exit 1
+JO_MEMSTATS=1 "$DIR/quad.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
+grep -q '^jo-mem hint traced: ' "$DIR/actual.err" || fail "no traced hint without names"
+! grep -q '^jo-mem traced' "$DIR/actual.err" || fail "traced row without names"
 
 rm -rf "$DIR/actual.out" "$DIR/actual.err" "$DIR"/*.run
 

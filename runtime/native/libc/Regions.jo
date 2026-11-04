@@ -433,6 +433,7 @@ private section Regions
   // region goes directly to it, so the closes in between do not visit it again.
   private def sweep(r: Addr, num: Int, p: Int, parent: Addr): Unit =
     // Spread the requirements of escape roots
+    var traced = 0
     var seg = firstSeg r
     while !(isNull seg) do
       val n = segCount seg
@@ -440,11 +441,13 @@ private section Regions
       while i < n do
         val o = readAddr (segEntry seg i)
         val req = reqOf o
-        if req < num then lower(o, req, num)
+        if req < num then traced = traced + lower(o, req, num)
         i = i + 1
       end
       seg = segNext seg
     end
+
+    tracedBy(r, traced)
 
     // Free dead objects and pack survivors at the front. A segment holds at
     // most `segCapacity` objects, so the writer never passes the reader.
@@ -526,10 +529,14 @@ private section Regions
   // from `root`, a depth-first traversal with pointer reversal: the slot that
   // led to the current object holds its parent until the traversal returns.
   // An object is in the region when its `phys` is `num` or above, since the
-  // younger regions are closed.
-  private def lower(root: Addr, d: Int, num: Int): Unit =
+  // younger regions are closed. Returns the number of objects whose `req` it
+  // lowered, for the memory statistics, not counting the root, which was
+  // lowered before. A region holds fewer than 2^31 objects, and an object is
+  // lowered once per close in the common case, so this does not wrap.
+  private def lower(root: Addr, d: Int, num: Int): Int =
     var prev = nullAddr
     var cur = root
+    var lowered = 0
     setGcHalf(cur, onPath 0)
 
     var done = false
@@ -544,11 +551,13 @@ private section Regions
             setRef(cur, i, prev)
             prev = cur
             cur = c
+            lowered = lowered + 1
             setGcHalf(cur, onPath 0)
           else
             // without pointers, or in an ancestor region, whose own cleanup
             // traces it: lower it only, and record it for that cleanup
             setReq(c, d)
+            lowered = lowered + 1
             record(physOf c, d)
             if d == 0 then promotedByTrace num
             setGcHalf(cur, onPath (i + 1))
@@ -568,6 +577,7 @@ private section Regions
           prev = up
           setGcHalf(cur, onPath (j + 1))
     end
+    lowered
 
   //----------------------------------------------------------------------------
   // Memory statistics, see "Memory statistics" in GC.md
@@ -575,10 +585,10 @@ private section Regions
   // The counts of `State` are always kept. Under `--mem-profile` the backend
   // emits the names of the region functions, by number, and of the classes,
   // by class id. With names and `JO_MEMSTATS`, each region function gets an
-  // entry of `funStats`, of 10 `i32` fields:
+  // entry of `funStats`, of 12 `i32` fields:
   //
   //   { store, trace, peakSegs, peakCaller, into, caller, storeBase, traceBase,
-  //     return, returnBase }
+  //     return, returnBase, traced, tracedCaller }
   //
   // `store` and `trace` count the objects its stores and the trace of its
   // region promoted to the runtime region, and `return` the results it
@@ -588,7 +598,9 @@ private section Regions
   // `store`, `trace` and `return` at the last growth report, which prints the
   // promotions since.
   // `peakSegs` is the most segments its region had, and `peakCaller` the
-  // caller then. The caller is the nearest function of an enclosing region
+  // caller then. `traced` counts the objects the traces of its region
+  // lowered, saturating at the largest `Int`, and `tracedCaller` is the
+  // caller at the last one. The caller is the nearest function of an enclosing region
   // that is not a library function, so that a row names user code.
 
   //[ The names of the region functions, a null-terminated array of C strings //]
@@ -599,7 +611,7 @@ private section Regions
   @intrinsic
   private def classNames: Addr = ...
 
-  private def statsSize: Int = 40
+  private def statsSize: Int = 48
 
   private def storeField: Int = 0
 
@@ -620,6 +632,10 @@ private section Regions
   private def returnField: Int = 32
 
   private def returnBaseField: Int = 36
+
+  private def tracedField: Int = 40
+
+  private def tracedCallerField: Int = 44
 
   // The value of `growthSegs` when the statistics are off
   private def noGrowth: Int = 2147483647
@@ -679,6 +695,16 @@ private section Regions
     val st = state
     st.toRuntimeReturn = st.toRuntimeReturn + 1
     if !(isNull st.funStats) then bump(statsOf (funOf r), returnField)
+
+  // The trace of the closing region `r` lowered the `req` of `n` objects
+  private def tracedBy(r: Addr, n: Int): Unit =
+    val st = state
+    st.traced = st.traced + n.toLong
+    if !(isNull st.funStats) && n > 0 then
+      val e = statsOf (funOf r)
+      val v = field(e, tracedField)
+      setField(e, tracedField, if v > 2147483647 - n then 2147483647 else v + n)
+      setField(e, tracedCallerField, callerOf r)
 
   // The region `r` gained segments: make a growth report due if it reached
   // the threshold of the runtime region or of the other regions, and record
@@ -782,6 +808,7 @@ private section Regions
           // a result is returned to `main`, function 0
           val caller =
             if offset == peakSegsField then field(e, peakCallerField)
+            else if offset == tracedField then field(e, tracedCallerField)
             else if offset == returnField then 0
             else field(e, callerField)
 
@@ -816,6 +843,10 @@ private section Regions
   // The hint for a `region` row and a `growth-region` line
   private def regionHint: String =
     "jo-mem hint region: the region of this function held this many objects at once. What it allocates and the results returned to it stay until it returns. If it loops, move the loop body into a function, so the garbage of each iteration is freed when that function returns. If the body already is a function, its stores into containers of this function keep the objects, or what it returns does. The hint for stores applies to these containers too."
+
+  // The hint for a trace that visits many more objects than were allocated
+  private def tracedHint: String =
+    "jo-mem hint traced: the traces of closing regions lowered many more objects than were allocated, so the same objects were traced at close after close. The likely cause is a recursive function whose result is built in a loop, which the backend does not allocate in the region of the outermost call. Each level then copies the whole result up to its caller and traces it again. A traced row names the function. Build the result with a loop or an accumulator in one function, or build with --region-policy none and a --region for a function that calls the recursive one."
 
   // The peak RSS in KB
   private def peakRssKb(): Long =
@@ -943,12 +974,13 @@ private section Regions
     val merges = st.merges
     val collects = st.collects
     val skips = st.skips
+    val traced = st.traced
 
     val rss = peakRssKb()
 
     line "jo-mem summary peak-rss-kb=\{rss} allocated=\{allocs} freed=\{freed} runtime-region=\{runtime} skipped-enters=\{skips}"
     line "jo-mem to-runtime direct=\{direct} store=\{store} trace=\{trace} return=\{ret}"
-    line "jo-mem closes free=\{frees} merge=\{merges} collect=\{collects}"
+    line "jo-mem closes free=\{frees} merge=\{merges} collect=\{collects} traced=\{traced}"
 
     if isNull (funName 0) then
       line "jo-mem hint rebuild with --mem-profile to attribute these to functions"
@@ -959,12 +991,13 @@ private section Regions
       val traceRows = printTop("promoted kind=trace count", traceField, cumulative, 1)
       val _ = printTop("promoted kind=return count", returnField, cumulative, 1)
       val regionRows = printTop("region objects", peakSegsField, cumulative, segCapacity)
-      val rows = storeRows | traceRows | regionRows
+      val tracedRows = printTop("traced objects", tracedField, cumulative, 1)
+      val rows = storeRows | traceRows | regionRows | tracedRows
       if (storeRows & printedRows) != 0 then
         line "jo-mem hint store: a value stored into a container in the runtime region stays until exit, even after it is overwritten. Moving the container into a function helps only if that function returns well before the program ends, as in phases or batches. Otherwise avoid a new object per store. Mutate the existing object, or store values that need no allocation. \{sharedBoxes}"
 
       if (traceRows & printedRows) != 0 then
-        line "jo-mem hint trace: when the region of this function closed, a structure reachable from the runtime region moved there with everything it reaches. Find the store that linked it and apply the hint for stores."
+        line "jo-mem hint trace: when the region of this function closed, a structure reachable from the runtime region moved there with everything it reaches. Either a store linked it to an object there, or it is a result returned to main, counted in return of to-runtime. For a store, find it and apply the hint for stores. For a result, apply the main hint."
 
       if (regionRows & printedRows) != 0 then line regionHint
 
@@ -972,4 +1005,6 @@ private section Regions
         line "jo-mem hint library: fun names a jo.* library function. Change how the caller uses it. For example, replace Iterator.fold over a long input with a while loop whose body calls a function."
 
     if direct >= 1000 || ret >= 1000 then line mainHint
+
+    if traced > allocs + allocs + allocs + allocs then line tracedHint
 end

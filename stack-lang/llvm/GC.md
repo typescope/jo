@@ -423,6 +423,16 @@ takes 4.35 seconds on an x86-64 machine. With placing results, the nodes are
 allocated in the region of the first caller, each level frees only its
 temporaries, and the same run takes 0.07 seconds.
 
+Placing results misses a result built in a loop, since a variable assigned
+more than once is never marked. A variant of `build` that recurses first and
+then adds 10 nodes to the result in a loop, with a temporary per node, takes
+50.7 seconds for 8000 levels under `all`, and 0.02 seconds under `none`. The
+memory statistics show `traced=640066822` for 240179 allocated objects, and
+print the `traced` hint. Both fixes the hint names help: building the list in
+one loop of a single call takes 0.05 seconds, and `--region-policy none` with
+a `--region` for a function that calls `build` takes 0.02 seconds and frees
+all but 22 objects.
+
 ### Choosing the policy
 
 The default policy `all` gives the lowest peak RSS. On the jtk projects it
@@ -472,9 +482,9 @@ overflows the stack, because printing allocates.
 The report has one record per line, a kind followed by `key=value` fields:
 
 ```
-jo-mem summary peak-rss-kb=30080 allocated=1482754 freed=900795 runtime-region=581959 skipped-enters=0
-jo-mem to-runtime direct=60 store=438205 trace=143581 return=1
-jo-mem closes free=303955 merge=91433 collect=469477
+jo-mem summary peak-rss-kb=4740 allocated=24034 freed=10004 runtime-region=14030 skipped-enters=0
+jo-mem to-runtime direct=6021 store=8009 trace=0 return=0
+jo-mem closes free=3 merge=444 collect=7581 traced=0
 jo-mem hint rebuild with --mem-profile to attribute these to functions
 ```
 
@@ -487,7 +497,12 @@ jo-mem hint rebuild with --mem-profile to attribute these to functions
   closing region, and by a return to `main`. These stay until the program
   exits. `direct` counts what `main` allocates, since it runs in the runtime
   region, and the results of the functions it calls.
-- `closes`: the closes that freed everything, merged and collected.
+- `closes`: the closes that freed everything, merged and collected, and
+  `traced`, the objects whose `req` the traces of collecting closes lowered,
+  besides the escape roots. An object traced at every close it passes through
+  counts once per close, so `traced` far above `allocated` means repeated
+  tracing (see [Cost](#cost)). The trace counts in a local variable and adds
+  it to the total once per collect.
 
 Built with `--mem-profile`, the program also reports the region functions
 responsible, by name. The backend then emits the names of the region
@@ -503,6 +518,7 @@ jo-mem promoted kind=store count=5000 fun=memapp.remember at=app.jo:9 into=jo.Ar
 jo-mem promoted kind=trace count=5999 fun=tr.link at=tr.jo:5 caller=tr.main
 jo-mem promoted kind=return count=3000 fun=jo.Range.RangeIterator$next$bridge at=lib/Range.jo:55 caller=memret.main
 jo-mem region objects=10044 fun=memapp.accumulate at=app.jo:12 caller=memapp.main
+jo-mem traced objects=896724 fun=memquad.build at=quad.jo:10 caller=memquad.main
 ```
 
 - `promoted kind=store`: the objects the function's stores promoted to the
@@ -516,6 +532,8 @@ jo-mem region objects=10044 fun=memapp.accumulate at=app.jo:12 caller=memapp.mai
 - `region`: the most objects the function's region held at once. It is
   measured in segments, so `objects` is the segment count times 62, and
   overestimates by up to 61.
+- `traced`: the objects the traces of the function's region lowered, the
+  per-function share of `traced` in `closes`. It saturates at 2^31 - 1.
 
 `fun` is the innermost region function. `caller` is the nearest function of
 an enclosing region that is not a library function, at the last promotion or
@@ -536,7 +554,9 @@ when a row of its kind is:
   store. The hint lists the values with shared boxes, taken from the ranges
   of `Layout`.
 - `trace`: a structure reachable from the runtime region moved there when
-  the region closed. The store that linked it is to blame.
+  the region closed. Either a store linked it to an object there, or it is a
+  result returned to `main`. The root of a returned result counts in
+  `return`, and the objects it reaches count in `trace`.
 - `region`: what the function allocates and the results returned to it stay
   until it returns. A loop body moved into a function frees its garbage per
   iteration. If the body already is one, stores into this function's
@@ -550,11 +570,18 @@ when a row of its kind is:
   whose results it uses. Moving the whole loop only moves the objects into
   the region of the new function. This hint also covers a `return` row that
   names a `jo.*` function, so the `library` hint is left out for it.
+- `traced`: printed when `traced` is more than 4 times `allocated`, also
+  without names. The likely cause is a recursive function whose result is
+  built in a loop, which placing results misses. The hint suggests building
+  the result with a loop or an accumulator in one function, or
+  `--region-policy none` with a `--region` for a function that calls the
+  recursive one.
 
-The counters of a function are 10 `i32` fields, in this order: `store`,
+The counters of a function are 12 `i32` fields, in this order: `store`,
 `trace`, `peakSegs`, `peakCaller`, `into`, `caller`, `storeBase`,
-`traceBase`, `return` and `returnBase`. The base fields hold the counts at the
-last growth report. `Regions.jo` names the offsets.
+`traceBase`, `return`, `returnBase`, `traced` and `tracedCaller`. The base
+fields hold the counts at the last growth report. `Regions.jo` names the
+offsets.
 
 A program that never exits never prints this report, so with `JO_MEMSTATS`
 set the runtime also reports while the region grows. When the runtime region
