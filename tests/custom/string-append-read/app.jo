@@ -1,0 +1,22 @@
+// Appends interleaved with reads near the end of the string. Each read must
+// not copy the whole string, or the loop takes memory quadratic in its
+// length: about 20 GB here. test.sh runs it under a memory limit.
+def run(n: Int): Unit =
+  var s = ""
+  var last = 0
+  var ends = 0
+  var i = 0
+  while i < n do
+    val piece = if i % 3 == 0 then "é" else "xy"
+    s = s + piece
+    if s[s.size - 1] == (if i % 3 == 0 then 'é' else 'y') then last = last + 1
+    if s.endsWith("éxy") then ends = ends + 1
+    i = i + 1
+  end
+
+  println: s.size
+  println: last
+  println: ends
+
+def main() =
+  run(200000)
