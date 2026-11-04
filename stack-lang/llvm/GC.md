@@ -541,9 +541,9 @@ when a row of its kind is:
   until it returns. A loop body moved into a function frees its garbage per
   iteration. If the body already is one, stores into this function's
   containers or the results of the body keep the objects.
-- `library`: a `store`, `trace` or `region` row names a `jo.*` function. The fix is in how the caller uses
-  it, for example a `while` loop in place of `Iterator.fold` over a long
-  input.
+- `library`: a `store`, `trace` or `region` row names a `jo.*` function. The
+  fix is in how the caller uses it, for example a `while` loop in place of
+  `Iterator.fold` over a long input.
 - `main`: printed when `direct` or `return` is at least 1000, also without
   names. What `main` allocates, and the results returned to it, stay until
   exit. The body of each loop of `main` belongs in a function, with the calls
