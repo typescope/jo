@@ -606,8 +606,9 @@ private section Regions
   // `peakSegs` is the most segments its region had, and `peakCaller` the
   // caller then. `traced` counts the objects the traces of its region
   // lowered, saturating at the largest `Int`, and `tracedCaller` is the
-  // caller at the last one. The caller is the nearest function of an enclosing region
-  // that is not a library function, so that a row names user code.
+  // caller at the last one. The caller is the nearest function of an
+  // enclosing region that is not a library function, so that a row names
+  // user code.
 
   //[ The names of the region functions, a null-terminated array of C strings //]
   @intrinsic
