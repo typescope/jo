@@ -256,9 +256,20 @@ jo-mem to-runtime direct=15 store=0 trace=0 return=0
 jo-mem closes free=1 merge=0 collect=0
 ```
 
-A `while` loop over `(0 until 3000000).iterator` with an `if` is not enough.
-It drops the `Some`s, but each `next` returns a boxed `Int` to `main`, and the
-peak stays at 120192 KB.
+Dropping only `select` is not enough:
+
+```jo
+  val it = (0 until 3000000).iterator
+  while it.hasNext do
+    val i = it.next()
+    if i % 2 == 0 then
+      total = total + i % 7
+    end
+  end
+```
+
+This loop stores no `Some`, but each `next` returns a boxed `Int` to `main`.
+The report shows `return=2998976`, and the peak stays near 120 MB.
 
 ## Long-running programs
 
