@@ -9,8 +9,8 @@ import jo.runtime.native.LibC
   ! See `stack-lang/llvm/GC.md` for the design. In short: allocations go into
   ! the current region, a heap store lowers the required region of the stored
   ! object, and closing a region frees the objects only it requires, or merges
-  ! the region into its parent when something escapes. Cleanup allocates
-  ! nothing and traces only the objects of the closing region.
+  ! the region into its parent when something escapes. Cleanup needs no work
+  ! list and traces only the objects of the closing region.
 //]
 private section Regions
   //----------------------------------------------------------------------------
@@ -59,6 +59,8 @@ private section Regions
   @intrinsic
   private def layoutTable: Addr = ...
 
+  // Must equal `InteriorFlag` in `layoutTableGlobals` of
+  // `stack-lang/llvm/CodeGen.scala`, which writes the table
   private def interiorFlag: Int = 0x40000000
 
   private def layoutOf(o: Addr): Addr =
@@ -339,7 +341,9 @@ private section Regions
     if st.growthDue then growthReport()
 
   //----------------------------------------------------------------------------
-  // Cleanup: allocates nothing and runs no user code
+  // Cleanup: runs no user code and allocates no objects. A collect may take
+  // index segments for the survivors it moves to an older region, one per 62
+  // of them plus one per destination, see `sweep`.
 
   // Close the region `r` at level `num` into its parent at level `p`: free
   // everything if nothing escapes, merge while the budget allows, or collect
@@ -475,6 +479,8 @@ private section Regions
             owner = ownerOf(req, if req < ownerReq then owner else p)
             ownerReq = req
 
+          // the only allocation of cleanup: `append` takes a segment when
+          // the first one of `owner` is full
           setGcHalf(o, normal(owner, req))
           append(descOf owner, o)
         else

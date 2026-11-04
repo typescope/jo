@@ -8,8 +8,9 @@ promotion, and changes it in these places:
    can allocate, and adjusted in backend configuration, not by a language
    annotation.
 2. Cleanup traces only the objects of the closing region.
-3. Cleanup allocates nothing. The trace reverses pointers instead of keeping a
-   work list.
+3. Cleanup needs no work list. The trace reverses pointers instead, and the
+   only memory cleanup can take is index segments for survivors that move to
+   an older region.
 4. Survivors move to the region that requires them by handing over storage
    segments.
 5. A region from which something escapes merges into its parent while a
@@ -186,7 +187,7 @@ RSS or better and make the programs faster, with the same output:
 ## Allocation
 
 `GC.alloc` stays the single allocation entry point. It allocates the object
-with `malloc`, writes `phys` and `req` as the current level, and appends the
+with `calloc`, writes `phys` and `req` as the current level, and appends the
 object to the current region.
 
 A region stores its objects in a linked list of fixed-size segments. Each
@@ -199,9 +200,10 @@ therefore not a tuning knob: the index costs one word per object, plus at most
 one partly filled segment per open region. A small segment keeps that waste
 low for deep recursion through region functions.
 
-Every heap allocation must be an object with a header. Today the runtime also
-allocates raw byte buffers, for example in `StringOps.bytes`, `floatToStr` and
-`RawBytes`. These become objects with a "no pointers" layout.
+Every heap allocation is an object with a header. A byte buffer, for example
+of `StringOps.bytes`, `floatToStr` or `cString`, comes from `allocBuffer` and
+is an object with the buffer class id. `Bytes` are objects with the bytes
+class id. Neither layout has pointers.
 
 A string's `content` field points into its buffer, past the header. The layout
 table marks such a slot as interior with a fixed offset, and the trace
@@ -212,7 +214,8 @@ the class id of the buffer and stops the program if the rule is broken.
 Buffers hold no pointers, so the trace lowers them without descending, and an
 interior slot is never reversed.
 
-`malloc` keeps object addresses stable and frees objects one at a time. A
+`calloc` keeps object addresses stable, and `free` frees objects one at a
+time. A
 size-class allocator can replace it later without changing the design.
 
 ## Pointer layout
@@ -284,8 +287,16 @@ promote.
 
 ## Cleanup
 
-Cleanup runs no user code, allocates nothing and traces only the objects of
-the closing region `r`.
+Cleanup runs no user code and traces only the objects of the closing region
+`r`. It allocates no objects and no work list. The one thing it can allocate
+is an index segment: a collect appends a survivor required by an older region
+to that region (see `append o to q` below), which takes a new segment when
+the first segment of that region is full. The segment comes from the pool,
+or from `calloc` when the pool is empty. This is bounded by the survivors
+that move: one segment per 62 of them, plus one partly filled segment per
+destination region, the same index those objects had in `r`, whose segments
+go back to the pool at the end of the sweep. Merges and the survivors handed
+to the parent reuse the segments of `r`.
 
 ### Why tracing stops at the region
 
@@ -381,7 +392,8 @@ shallower has nothing left to propagate. Cycles end at objects on the path.
 
 ### Cost
 
-- Space: none beyond the objects themselves. Cleanup allocates nothing.
+- Space: no work list. A collect may take index segments for the survivors
+  that move to an older region, as described above.
 - Opening and closing a region that allocates nothing costs two calls and a few
   loads and stores. Descriptors and segments are reused, so it does not call the
   C allocator.
@@ -448,6 +460,14 @@ RSS by 1.4 to 19 times. These numbers were taken before shared boxes (see
 | forth smoke | 0.15 → 0.21 s | 73 → 37 MB |
 | sat smoke | 0.13 → 0.18 s | 56 → 30 MB |
 | url smoke | 1.24–1.50 → 1.21–1.34 s | 53 → 16 MB |
+
+The jtk projects are not the worst case. A small function that is called
+very often and can allocate pays for `enter` and `leave` on every call, even
+if it allocates only on a path that never runs. In a recursive `fib(32)` that
+reads its base cases through such a function, which prints a message for a
+negative value, `all` takes 0.17–0.18 seconds and `none` 0.04 seconds, about
+4 times as long. Such a function is a region function only because it may
+allocate.
 
 To find out where the memory of a program goes, see
 [Memory statistics](#memory-statistics).
@@ -703,10 +723,21 @@ regions are closed, so an object is in `r` exactly when `phys >= r.num`. An
 escape root has `req < r.num`. The sweep frees objects with `req >= r.num`.
 
 Levels grow only when a non-empty region merges, and they are reused when a
-region closes, like depths. A region's levels above its `num` number at most
-its merged objects, so with the budget they stay far below the limit of 32767,
-and the header keeps its layout. At the limit, `enter` stays in the current
-region, as for depths before.
+region closes, like depths. Each merge of a non-empty child uses up a level
+of its parent, until the parent holds 8 segments and its children collect
+instead. A collect does not give levels back while the parent is open. So a
+frame that calls many small region functions whose results it keeps uses
+many levels, and deep recursion through such frames reaches the limit of
+32767. In `wide`, a recursive function that calls a helper 300 times per
+frame and keeps each result, every frame uses about 110 levels, and the limit
+is reached at a recursion depth of about 296.
+
+At the limit, `enter` stays in the current region, as for depths before, and
+counts the call in `skipped-enters`. All deeper calls then share the region
+at the limit, which frees nothing until that frame returns. At depth 2000,
+`wide` skips 1025022 enters, and its region at the limit holds 2048976
+objects at once, so the report shows a large `region` row for `wide` and
+`growth-region` lines while it runs. The header keeps its layout.
 
 ### Knowing that nothing escapes
 
@@ -849,7 +880,7 @@ The barrier may be inlined.
 - A merge holds the garbage of the merged region until a later close, up to
   the budget of 8 segments per region.
 - A removed escape stays promoted until its destination closes, as in the earlier design.
-- `malloc` per object is slower than the current bump allocator.
+- `calloc` per object is slower than the current bump allocator.
 - Memory statistics charge a promotion to the innermost region function, and
   count objects, not bytes. Telling library functions apart by the `jo.`
   prefix of their names is a heuristic.
@@ -859,7 +890,7 @@ The barrier may be inlined.
 
 ## Later: a faster allocator
 
-Allocating each object with `malloc` and freeing it with `free` is simple and
+Allocating each object with `calloc` and freeing it with `free` is simple and
 correct, but slower than the bump allocator the backend uses today.
 
 A faster scheme gives each region its own large chunks and bump-allocates
