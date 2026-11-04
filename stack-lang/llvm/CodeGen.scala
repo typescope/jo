@@ -285,7 +285,7 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
   /** A static buffer holding the name of a context parameter as `[size: i32][bytes]`
     *
     * The key points past the header, like any `Addr` field. The runtime reads
-    * the name with `StringOps.fromByteString` to report an unbound parameter.
+    * the name with `StringOps.copyByteString` to report an unbound parameter.
     */
   def paramKeyGlobal(name: String, fullName: String): String =
     val bytes = fullName.getBytes("UTF-8")

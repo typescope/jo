@@ -529,22 +529,15 @@ end
 // I/O support
 //
 
+// Write the flat form in one call. A literal is already flat, so the
+// messages of a stack overflow or of running out of memory allocate nothing.
 private def writeString(fd: Int, repr: StringRepr): Unit =
-  match repr
-    case Raw(byteN, _, content) =>
-      val bytesWritten = writeFd fd content byteN
-      assert:
-        byteN == bytesWritten
-        "write failed"
-
-    case Concat(_, _, lhs, rhs) =>
-      writeString:
-        fd
-        cast[StringRepr] lhs
-
-      writeString:
-        fd
-        cast[StringRepr] rhs
+  val r = StringOps.flat (cast[String] repr)
+  val byteN = r.byteSize
+  val bytesWritten = writeFd fd r.content byteN
+  assert:
+    byteN == bytesWritten
+    "write failed"
 
 
 private def createStdOut(): String => Unit =

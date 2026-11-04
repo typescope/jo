@@ -5,9 +5,20 @@ namespace jo.runtime.native
 // String support
 //
 
-private[native] union StringRepr =
-    Raw(byteSize: Int, cpCount: Int, content: Addr)
-  | Concat(byteSize: Int, cpCount: Int, lhs: String, rhs: String)
+// A string is a `Raw` or a `Concat`. A `Raw` holds UTF-8 bytes at `content`,
+// which points just past the header of a buffer, as every `Addr` field must.
+// A `Concat` joins two strings without copying them. Readers work on the
+// flat form of a string (see `StringOps.flat`) and read its bytes in place.
+private[native] type StringRepr = Raw | Concat
+
+private[native] class Raw(byteSize: Int, cpCount: Int, content: Addr)
+
+// `flat` caches the flat form of the `Concat`. It starts as the `Concat`
+// itself, and the first reader replaces it with a `Raw`. So the `Concat` is
+// flattened exactly when `flat` is a `Raw`.
+private[native] class Concat(byteSize: Int, cpCount: Int, lhs: String, rhs: String)
+  var flat: StringRepr = this
+end
 
 private[native] section StringOps
   private def utf8SeqLen(firstByte: Byte): Int =
@@ -63,7 +74,16 @@ private[native] section StringOps
       i = i + 1
     end
 
-  // This function is called to convert a UTF-8 string to a proper string object.
+  private def sameBytes(a: Addr, b: Addr, len: Int): Bool =
+    var i = 0
+    while i < len && readByte(addAddr a i) == readByte(addAddr b i) do
+      i = i + 1
+    end
+    i == len
+
+  // Convert a UTF-8 string `[size: Int][bytes]` to a string in place. The
+  // 32-bit backends call it for every string literal. Their static data is
+  // never traced, so the content need not follow a buffer header.
   def fromByteString(byteArray: Addr): String =
     val byteSize = readInt: byteArray
     val contentAddr = addAddr: byteArray, 4
@@ -71,7 +91,18 @@ private[native] section StringOps
 
     cast[String]: Raw(byteSize, cpCount, contentAddr)
 
-  // Convert a null-terminated C UTF-8 string pointer to Jo String.
+  // Copy a UTF-8 string `[size: Int][bytes]` to a new string. The content of
+  // the result points just past a buffer header, so a trace of it is valid.
+  def copyByteString(byteArray: Addr): String =
+    val byteSize = readInt: byteArray
+    val buf = allocBuffer byteSize
+    copyBytes(buf, addAddr(byteArray, 4), byteSize)
+    val cpCount = countUtf8CodePoints(buf, byteSize)
+
+    cast[String]: Raw(byteSize, cpCount, buf)
+
+  // Convert a null-terminated C UTF-8 string pointer to Jo String. On LLVM,
+  // `addr` must point just past a buffer header, like any `Addr` field.
   def fromCString(addr: Addr): String =
     var byteSize = 0
     var cur = addr
@@ -93,26 +124,97 @@ private[native] section StringOps
       case Raw(_, n, _) => n
       case Concat(_, n, _, _) => n
 
-  def get(repr: String, i: Int): Char =
+  //[ The flat form of a string, whose bytes can be read in place.
+    !
+    ! Its content must not be written to: other strings share it.
+  //]
+  def flat(repr: String): Raw =
     match cast[StringRepr] repr
-      case Raw(byteN, cpN, content) =>
-        if i >= cpN || i < 0 then abort "index out of bound"
+      case r: Raw => r
+      case c: Concat => flatten c
 
-        if byteN == cpN then
-          (readByte(addAddr content i).toInt & 0xFF).toChar
-        else
-          val off = codePointToByteOffset(content, byteN, i)
-          decodeCodePoint(content, off)
+  // Flatten `c` once and cache the result in `c.flat`.
+  //
+  // The buffer and the `Raw` come from the region of the first reader. The
+  // store into `c.flat` is a mutation, so the write barrier promotes the
+  // `Raw` to the region of `c`. The cleanup of the reader's region then moves
+  // the buffer along with it.
+  private def flatten(c: Concat): Raw =
+    match c.flat
+      case r: Raw => r
 
-      case Concat(_, cpN, lhs, rhs) =>
-        if i >= cpN || i < 0 then abort "index out of bound"
+      case _ =>
+        val n = c.byteSize
+        val buf = allocBuffer n
+        fill(buf, 0, c.lhs, c.rhs)
+        val r = Raw(n, c.cpCount, buf)
+        c.flat = r
+        r
 
-        if i >= lhs.size then
-          rhs[i - lhs.size]
-        else
-          lhs[i]
+  // Copy the bytes of `lhs + rhs` to `buf` at `start`.
+  //
+  // A rope built by appends is deep on one side. So recurse into the smaller
+  // child of a `Concat` and loop on the larger one. The smaller child has at
+  // most half the bytes, and an empty string stops at once, so the recursion
+  // is at most about 32 deep.
+  private def fill(buf: Addr, start: Int, lhs: String, rhs: String): Unit =
+    var at = start
+    var left = lhs
+    var right = rhs
+    var done = false
+    while !done do
+      val lhsN = byteSize left
+      val rhsN = byteSize right
+      var next = left
+      if lhsN <= rhsN then
+        fillSmall(buf, at, left)
+        at = at + lhsN
+        next = right
+      else
+        fillSmall(buf, at + lhsN, right)
 
-  // The byte size of a string is an `Int`, and `bytes` allocates it in one
+      match cast[StringRepr] next
+        case Raw(n, _, content) =>
+          copyBytes(addAddr buf at, content, n)
+          done = true
+
+        case c: Concat =>
+          if c.byteSize == 0 then
+            done = true
+          else
+            match c.flat
+              case r: Raw =>
+                copyBytes(addAddr buf at, r.content, c.byteSize)
+                done = true
+
+              case _ =>
+                left = c.lhs
+                right = c.rhs
+    end
+
+  // Copy the bytes of `s` to `buf` at `at`
+  private def fillSmall(buf: Addr, at: Int, s: String): Unit =
+    match cast[StringRepr] s
+      case Raw(n, _, content) => copyBytes(addAddr buf at, content, n)
+
+      case c: Concat =>
+        if c.byteSize > 0 then
+          match c.flat
+            case r: Raw => copyBytes(addAddr buf at, r.content, c.byteSize)
+            case _ => fill(buf, at, c.lhs, c.rhs)
+
+  def get(repr: String, i: Int): Char =
+    val cpN = size repr
+    if i >= cpN || i < 0 then abort "index out of bound"
+
+    val r = flat repr
+    if r.byteSize == cpN then
+      (readByte(addAddr r.content i).toInt & 0xFF).toChar
+    else
+      val off = codePointToByteOffset(r.content, r.byteSize, i)
+      decodeCodePoint(r.content, off)
+
+  // The byte size of a string is an `Int`, and `flat` allocates it in one
   // buffer. A wrapped sum would allocate too little, so abort instead. The
   // code point count is at most the byte size, so it cannot wrap either.
   def (lhs: String) + (rhs: String): String =
@@ -126,19 +228,9 @@ private[native] section StringOps
 
   def (lhs: String) == (rhs: String): Bool =
     val bytesN = byteSize(lhs)
-    var isEqual = bytesN == byteSize(rhs) && lhs.size == rhs.size
-    if isEqual then
-      val lhsBytes = bytes(lhs)
-      val rhsBytes = bytes(rhs)
-      var i = 0
-      while isEqual && i < bytesN do
-        val l = readByte: addAddr lhsBytes i
-        val r = readByte: addAddr rhsBytes i
-        isEqual = l == r
-        i = i + 1
-      end
-    end
-    isEqual
+    if bytesN != byteSize(rhs) || lhs.size != rhs.size then false
+    else if sameRef(lhs, rhs) then true
+    else sameBytes((flat lhs).content, (flat rhs).content, bytesN)
 
   def substring(source: String, from: Int, len: Int): String =
     val cpN = source.size
@@ -146,21 +238,27 @@ private[native] section StringOps
     if len < 0 then abort "len should not be negative"
     // `from + len` could wrap, so compare with the room left after `from`
     if from > cpN || len > cpN - from then abort "substring out of range"
+
     if len == 0 then ""
     else
-      val content = bytes(source)
-      val totalByteN = byteSize(source)
-      val startByte =
-        if totalByteN == cpN then from
-        else codePointToByteOffset(content, totalByteN, from)
-      val endByte =
-        if totalByteN == cpN then from + len
-        else codePointToByteOffset(content, totalByteN, from + len)
-      val subByteN = endByte - startByte
-      val buf = allocBuffer subByteN
-      copyBytes(buf, addAddr(content, startByte), subByteN)
-      cast[String] Raw(subByteN, len, buf)
+      val r = flat source
+      if len == cpN then cast[String] r
+      else
+        val content = r.content
+        val totalByteN = r.byteSize
+        val startByte =
+          if totalByteN == cpN then from
+          else codePointToByteOffset(content, totalByteN, from)
+        val endByte =
+          if totalByteN == cpN then from + len
+          else codePointToByteOffset(content, totalByteN, from + len)
+        val subByteN = endByte - startByte
+        val buf = allocBuffer subByteN
+        copyBytes(buf, addAddr(content, startByte), subByteN)
+        cast[String] Raw(subByteN, len, buf)
 
+  // Compare the bytes of `other` at each code point from `from`. In UTF-8,
+  // equal bytes from a code point boundary are equal code points.
   def indexOf(source: String, other: String, from: Int): Int =
     val n = source.size
     val m = other.size
@@ -169,86 +267,69 @@ private[native] section StringOps
     if start > n then start = n
 
     if m == 0 then start
+    else if m > n - start then -1
     else
+      val s = flat source
+      val o = flat other
+      val content = s.content
+      val sN = s.byteSize
+      val oN = o.byteSize
+      val ascii = sN == n
+      var off = if ascii then start else codePointToByteOffset(content, sN, start)
       var result = -1
-      var done = false
       var i = start
-      while i <= n - m && done.~! do
-        if source.substring(i, m) == other then
+      while result < 0 && i <= n - m do
+        if oN <= sN - off && sameBytes(addAddr content off, o.content, oN) then
           result = i
-          done = true
         else
+          off = off + (if ascii then 1 else utf8SeqLen(readByte(addAddr content off)))
           i = i + 1
       end
       result
 
   def startsWith(source: String, prefix: String): Bool =
-    val m = prefix.size
-    m <= source.size && source.substring(0, m) == prefix
+    val sN = byteSize source
+    val pN = byteSize prefix
+    if prefix.size > source.size || pN > sN then false
+    else sameBytes((flat source).content, (flat prefix).content, pN)
 
   def endsWith(source: String, suffix: String): Bool =
-    val n = source.size
-    val m = suffix.size
-    m <= n && source.substring(n - m, m) == suffix
+    val sN = byteSize source
+    val xN = byteSize suffix
+    if suffix.size > source.size || xN > sN then false
+    else sameBytes(addAddr((flat source).content, sN - xN), (flat suffix).content, xN)
 
-  def toLower(source: String): String =
-    val n = source.size
-    var i = 0
-    var result = ""
-    while i < n do
-      val c = source[i]
-      val lower =
-        if c >= 'A' && c <= 'Z' then (c.toInt + 32).toChar
-        else c
-      result = result + lower.toString
-      i = i + 1
-    end
-    result
+  // Change the ASCII letters from `first` to `first + 25` by `delta`. Other
+  // code points keep their bytes, since in UTF-8 every byte of a multi-byte
+  // code point is at least 0x80.
+  private def mapLetters(source: String, first: Int, delta: Int): String =
+    val r = flat source
+    val n = r.byteSize
+    if n == 0 then ""
+    else
+      val buf = allocBuffer n
+      var i = 0
+      while i < n do
+        val b = readByte(addAddr r.content i).toInt & 0xFF
+        val c = if b >= first && b <= first + 25 then b + delta else b
+        writeByte(addAddr buf i, c.toByte)
+        i = i + 1
+      end
+      cast[String] Raw(n, r.cpCount, buf)
 
-  def toUpper(source: String): String =
-    val n = source.size
-    var i = 0
-    var result = ""
-    while i < n do
-      val c = source[i]
-      val upper =
-        if c >= 'a' && c <= 'z' then (c.toInt - 32).toChar
-        else c
-      result = result + upper.toString
-      i = i + 1
-    end
-    result
+  def toLower(source: String): String = mapLetters(source, 65, 32)
+
+  def toUpper(source: String): String = mapLetters(source, 97, -32)
 
   def iterator(source: String): Iterator[Char] =
     new StringIterator(source)
 
-  def bytes(repr: String): Addr =
-    val bytes = allocBuffer byteSize(repr)
-
-    def recur(repr: StringRepr, from: Int): Int =
-      match repr
-        case Raw(byteN, _, content) =>
-          var i = 0
-          while i < byteN do
-            writeByte:
-              addAddr:
-                bytes
-                from + i
-              readByte:
-                addAddr content i
-
-            i = i + 1
-
-          from + byteN
-
-        case Concat(_, _, lhs, rhs) =>
-          val index = recur (cast[StringRepr] lhs) from
-          recur (cast[StringRepr] rhs) index
-
-    val _ = recur (cast[StringRepr] repr) 0
-    bytes
+  //[ The bytes of a string, read in place. Callers must not write to them. //]
+  def bytes(repr: String): Addr = (flat repr).content
 end
 
+// `content` points just past the header of the buffer of the flat form, so
+// it keeps the buffer alive.
 private[native] class StringIterator(source: String)
   val content: Addr = StringOps.bytes(source)
   val byteN: Int = StringOps.byteSize(source)

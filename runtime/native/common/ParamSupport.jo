@@ -30,7 +30,7 @@ private def getParam[T](ctx: Ctx, key: Addr): T receives none =
           loop(next)
 
       case Empty =>
-        val keyStr = native.StringOps.fromByteString: key
+        val keyStr = native.StringOps.copyByteString: key
         native.abortImpl("Unbound parameter " + keyStr)
 
   loop(ctx)
