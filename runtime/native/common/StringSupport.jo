@@ -164,51 +164,115 @@ private[native] section StringOps
     var done = false
     while !done do
       val lhsN = byteSize left
-      val rhsN = byteSize right
       var next = left
-      if lhsN <= rhsN then
+      if lhsN <= byteSize(right) then
         fillSmall(buf, at, left)
         at = at + lhsN
         next = right
       else
         fillSmall(buf, at + lhsN, right)
 
-      match cast[StringRepr] next
-        case Raw(n, _, content) =>
-          copyBytes(addAddr buf at, content, n)
-          done = true
-
-        case c: Concat =>
-          if c.byteSize == 0 then
-            done = true
-          else
-            match c.flat
-              case r: Raw =>
-                copyBytes(addAddr buf at, r.content, c.byteSize)
-                done = true
-
-              case _ =>
-                left = c.lhs
-                right = c.rhs
+      if copyFlat(buf, at, next) then
+        done = true
+      else
+        val c = cast[Concat] next
+        left = c.lhs
+        right = c.rhs
     end
 
   // Copy the bytes of `s` to `buf` at `at`
   private def fillSmall(buf: Addr, at: Int, s: String): Unit =
+    if !(copyFlat(buf, at, s)) then
+      val c = cast[Concat] s
+      fill(buf, at, c.lhs, c.rhs)
+
+  // Copy `s` to `buf` at `at` if it needs no walk: a `Raw`, an empty string
+  // or a `Concat` with a cached flat form. Return whether it did.
+  private def copyFlat(buf: Addr, at: Int, s: String): Bool =
     match cast[StringRepr] s
-      case Raw(n, _, content) => copyBytes(addAddr buf at, content, n)
+      case Raw(n, _, content) =>
+        copyBytes(addAddr buf at, content, n)
+        true
 
       case c: Concat =>
-        if c.byteSize > 0 then
+        if c.byteSize == 0 then true
+        else
           match c.flat
-            case r: Raw => copyBytes(addAddr buf at, r.content, c.byteSize)
-            case _ => fill(buf, at, c.lhs, c.rhs)
+            case r: Raw =>
+              copyBytes(addAddr buf at, r.content, c.byteSize)
+              true
 
+            case _ => false
+
+  // The most levels a read of one position walks down a rope. A deeper read
+  // flattens the rope instead.
+  private def descentLimit: Int = 32
+
+  // Code point `i` of `repr`.
+  //
+  // Walk down to the leaf that holds it: a `Raw` or a `Concat` with a cached
+  // flat form. The sizes of the children are known, so a level costs O(1).
+  // After an append, a read near the end takes a step or two, so appends and
+  // reads can interleave without copying. A read deep in a rope flattens it
+  // once, so later reads are O(1). Reads far from the appends, like `s[0]`
+  // after each `s = s + c`, still copy the whole string every 32 appends.
   def get(repr: String, i: Int): Char =
-    val cpN = size repr
-    if i >= cpN || i < 0 then abort "index out of bound"
+    if i >= size(repr) || i < 0 then abort "index out of bound"
 
-    val r = flat repr
-    if r.byteSize == cpN then
+    var cur = repr
+    var k = i
+    var steps = 0
+    while true do
+      match cast[StringRepr] cur
+        case r: Raw => return charAt(r, k)
+
+        case c: Concat =>
+          match c.flat
+            case r: Raw => return charAt(r, k)
+
+            case _ =>
+              if steps == descentLimit then return charAt(flat repr, i)
+
+              val lhsN = size c.lhs
+              if k < lhsN then
+                cur = c.lhs
+              else
+                k = k - lhsN
+                cur = c.rhs
+
+              steps = steps + 1
+    end
+    abort "unreachable"
+
+  // Byte `off` of `repr`, found like `get` finds a code point
+  private def byteAt(repr: String, off: Int): Byte =
+    var cur = repr
+    var k = off
+    var steps = 0
+    while true do
+      match cast[StringRepr] cur
+        case r: Raw => return readByte(addAddr r.content k)
+
+        case c: Concat =>
+          match c.flat
+            case r: Raw => return readByte(addAddr r.content k)
+
+            case _ =>
+              if steps == descentLimit then return readByte(addAddr (flat repr).content off)
+
+              val lhsN = byteSize c.lhs
+              if k < lhsN then
+                cur = c.lhs
+              else
+                k = k - lhsN
+                cur = c.rhs
+
+              steps = steps + 1
+    end
+    abort "unreachable"
+
+  private def charAt(r: Raw, i: Int): Char =
+    if r.byteSize == r.cpCount then
       (readByte(addAddr r.content i).toInt & 0xFF).toChar
     else
       val off = codePointToByteOffset(r.content, r.byteSize, i)
@@ -287,16 +351,30 @@ private[native] section StringOps
       end
       result
 
+  // An argument of at most this many bytes is compared with `byteAt`, which
+  // reads near an edge of a rope without flattening it
+  private def shortLimit: Int = 32
+
+  // Whether `n` bytes of `s` from `at` equal the first `n` bytes of `t`
+  private def sameBytesAt(s: String, at: Int, t: String, n: Int): Bool =
+    var i = 0
+    while i < n && byteAt(s, at + i) == byteAt(t, i) do
+      i = i + 1
+    end
+    i == n
+
   def startsWith(source: String, prefix: String): Bool =
     val sN = byteSize source
     val pN = byteSize prefix
     if prefix.size > source.size || pN > sN then false
+    else if pN <= shortLimit then sameBytesAt(source, 0, prefix, pN)
     else sameBytes((flat source).content, (flat prefix).content, pN)
 
   def endsWith(source: String, suffix: String): Bool =
     val sN = byteSize source
     val xN = byteSize suffix
     if suffix.size > source.size || xN > sN then false
+    else if xN <= shortLimit then sameBytesAt(source, sN - xN, suffix, xN)
     else sameBytes(addAddr((flat source).content, sN - xN), (flat suffix).content, xN)
 
   // Change the ASCII letters from `first` to `first + 25` by `delta`. Other
