@@ -86,7 +86,7 @@ def (a: Int) ** (b: Int): Int =   // operator definition
   if b == 0 then 1 else a * (a ** (b - 1))
 
 def (xs: List[Int]) sum: Int =    // pre-param, called as `xs sum`
-  xs.fold(0, (a, b) => a + b)
+  xs.fold: 0, (a, b) => a + b
 
 def identity[T](x: T): T = x     // generic
 ```
