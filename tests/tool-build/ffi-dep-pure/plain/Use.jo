@@ -1,0 +1,5 @@
+namespace repro.plain
+
+import repro.ffi.Box
+
+def size(box: Box): Int = box.size

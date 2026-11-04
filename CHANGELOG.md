@@ -4,6 +4,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- The build tool rejects a module without `enable-ffi` that depends on a module
+  with `enable-ffi = true`, instead of crashing the compiler with
+  `cannot find jo.py.Dynamic`. ([#212])
+
 ## [0.14.8] - 2026-11-02
 
 ### Changed
@@ -48,6 +54,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 [#204]: https://github.com/typescope/jo/pull/204
 [#208]: https://github.com/typescope/jo/pull/208
 [#210]: https://github.com/typescope/jo/pull/210
+[#212]: https://github.com/typescope/jo/issues/212
 [JIP 0011]: docs/jips/0011-default-namespace-names.md
 
 ## [0.14.7] - 2026-10-29
