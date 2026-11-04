@@ -32,7 +32,9 @@ private def writeFd(fd: Int, content: Addr, len: Int): Int receives none =
 //
 
 // A byte buffer of `size` bytes. Raw memory: nothing reclaims it.
-private def allocBuffer(size: Int): Addr receives none = GC.alloc size
+private def allocBuffer(size: Int): Addr receives none =
+  checkAllocCount(size, 1)
+  GC.alloc size
 
 // The class id written in the header of `Bytes` objects (unused)
 private def bytesClassId: Int receives none = 0

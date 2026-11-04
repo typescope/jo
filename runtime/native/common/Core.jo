@@ -395,6 +395,8 @@ private def contentOffset: Int = 2 * wordSize
 
 // Check that `count` elements of `unit` bytes, after the cid and size words,
 // fit in an `Int` allocation size. A wrapped size would allocate too little.
+// `allocBuffer` uses it with `unit = 1`. A buffer has one header word, so the
+// bound is a word stricter than needed.
 private def checkAllocCount(count: Int, unit: Int): Unit =
   if count < 0 || count > (2147483647 - contentOffset) / unit then
     abort "Allocation of \{count} elements is negative or too large"
@@ -437,6 +439,10 @@ private section RawBytes
     val src = cast[Addr] repr
     val n = readInt (addAddr src wordSize)
     val content = addAddr src contentOffset
+    // 4 characters per 3 bytes, which wraps for more than about 1.6 GB
+    if n > 2147483647 / 4 * 3 - 2 then
+      abort "Base64 of \{n} bytes is too large"
+
     val outLen = ((n + 2) / 3) * 4
 
     val out = allocBuffer outLen
