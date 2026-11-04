@@ -144,7 +144,8 @@ private[native] section StringOps
     val cpN = source.size
     if from < 0 then abort "from should not be negative"
     if len < 0 then abort "len should not be negative"
-    if from + len > cpN then abort "substring out of range"
+    // `from + len` could wrap, so compare with the room left after `from`
+    if from > cpN || len > cpN - from then abort "substring out of range"
     if len == 0 then ""
     else
       val content = bytes(source)
@@ -172,7 +173,7 @@ private[native] section StringOps
       var result = -1
       var done = false
       var i = start
-      while i + m <= n && done.~! do
+      while i <= n - m && done.~! do
         if source.substring(i, m) == other then
           result = i
           done = true

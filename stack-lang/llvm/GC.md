@@ -215,8 +215,8 @@ Buffers hold no pointers, so the trace lowers them without descending, and an
 interior slot is never reversed.
 
 `calloc` keeps object addresses stable, and `free` frees objects one at a
-time. A
-size-class allocator can replace it later without changing the design.
+time. A size-class allocator can replace it later without changing the
+design.
 
 ## Pointer layout
 
@@ -497,8 +497,9 @@ region and the outcomes of closes. The counts are kept in the slow paths,
 except a few increments in the allocation functions. With the environment
 variable `JO_MEMSTATS` set to a value other than the empty string and `0`,
 a program prints them on stderr when it exits normally or by `abort`.
-`JO_MEMSTATS=0` turns them off, like leaving the variable unset. It does not print them when it runs out of memory or
-overflows the stack, because printing allocates.
+`JO_MEMSTATS=0` turns them off, like leaving the variable unset. It does not
+print them when it runs out of memory or overflows the stack, because printing
+allocates.
 
 The report has one record per line, a kind followed by `key=value` fields:
 
