@@ -79,10 +79,10 @@ private section Iterator
         val v = source.next
 
         if pred(v) then
+          has = true
           match cell
           case None => cell = Some(new Iterator.Cell(v))
           case Some(c) => c.value = v
-          has = true
         end
       end
 

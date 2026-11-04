@@ -494,12 +494,14 @@ responsible, by name. The backend then emits the names of the region
 functions and classes, and nothing else changes. Each region function gets
 counters, allocated at startup only when `JO_MEMSTATS` is set. Codegen
 numbers the region functions and `enter` stores the number in the region
-descriptor, so a store is charged to the function of the current region, and
-a trace to the function of the closing region.
+descriptor, so a store is charged to the function of the current region, a
+trace to the function of the closing region, and a return to `main` to the
+function whose region closes.
 
 ```
 jo-mem promoted kind=store count=5000 fun=memapp.remember at=app.jo:9 into=jo.Array caller=memapp.main
 jo-mem promoted kind=trace count=5999 fun=tr.link at=tr.jo:5 caller=tr.main
+jo-mem promoted kind=return count=3000 fun=jo.Range.RangeIterator$next$bridge at=lib/Range.jo:55 caller=memret.main
 jo-mem region objects=10044 fun=memapp.accumulate at=app.jo:12 caller=memapp.main
 ```
 
@@ -507,6 +509,10 @@ jo-mem region objects=10044 fun=memapp.accumulate at=app.jo:12 caller=memapp.mai
   runtime region. `into` is the class of the object stored into last.
 - `promoted kind=trace`: the objects the trace of the function's region
   promoted to the runtime region, besides the escape roots.
+- `promoted kind=return`: the results the function returned to `main`, which
+  `leave` promoted to the runtime region. `caller` is always `main`. A result
+  allocated in the region of `main`, the common case, counts in `direct`
+  instead.
 - `region`: the most objects the function's region held at once. It is
   measured in segments, so `objects` is the segment count times 62, and
   overestimates by up to 61.
@@ -535,11 +541,20 @@ when a row of its kind is:
   until it returns. A loop body moved into a function frees its garbage per
   iteration. If the body already is one, stores into this function's
   containers or the results of the body keep the objects.
-- `library`: a row names a `jo.*` function. The fix is in how the caller uses
+- `library`: a `store`, `trace` or `region` row names a `jo.*` function. The fix is in how the caller uses
   it, for example a `while` loop in place of `Iterator.fold` over a long
   input.
-- `main`: printed when `direct` is at least 1000, also without names. What
-  `main` allocates stays until exit, so its loops belong in functions.
+- `main`: printed when `direct` or `return` is at least 1000, also without
+  names. What `main` allocates, and the results returned to it, stay until
+  exit. The body of each loop of `main` belongs in a function, with the calls
+  whose results it uses. Moving the whole loop only moves the objects into
+  the region of the new function. This hint also covers a `return` row that
+  names a `jo.*` function, so the `library` hint is left out for it.
+
+The counters of a function are 10 `i32` fields, in this order: `store`,
+`trace`, `peakSegs`, `peakCaller`, `into`, `caller`, `storeBase`,
+`traceBase`, `return` and `returnBase`. The base fields hold the counts at the
+last growth report. `Regions.jo` names the offsets.
 
 A program that never exits never prints this report, so with `JO_MEMSTATS`
 set the runtime also reports while the region grows. When the runtime region
@@ -553,11 +568,11 @@ jo-mem growth-promoted kind=store count=63488 fun=memsrv.handle at=server.jo:14 
 
 `runtime-region` and `peak-rss-kb` are totals, the other counts are the
 promotions since the previous `growth` line. Built with `--mem-profile`, the
-`growth-promoted` rows follow, like the store and trace rows of the exit
-report but counting since the previous growth report. The first report with
+`growth-promoted` rows follow, like the store, trace and return rows of the
+exit report but counting since the previous growth report. The first report with
 a row adds a `growth` hint on what keeps the region growing. Without names,
 the first report suggests rebuilding instead. The first report whose `direct`
-is at least 1000 adds the `main` hint.
+or `return` is at least 1000 adds the `main` hint.
 
 A single growth report soon after startup can be data the program builds once
 and keeps, such as a table it loads. Repeated reports while the program serves

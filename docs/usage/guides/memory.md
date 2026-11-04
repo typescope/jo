@@ -67,12 +67,13 @@ nearest user function around it. Each kind of row comes with a `hint` line.
 
 | Row or hint | Cause | Change |
 |---|---|---|
-| `main` | `direct` is large: `main` allocates in the runtime region. | Move the loops of `main` into functions. |
+| `main` | `direct` or `return` is large: `main` allocates in the runtime region, or keeps the results of the functions it calls. | Move the body of each loop of `main` into a function. Moving the whole loop only moves the objects into the region of the new function. |
 | `store` | A value stored into a container owned by `main` stays until exit, even after it is overwritten. | Mutate the fields of the existing object, or store values that need no allocation. Keep per-request state in a function that returns. |
 | `trace` | A store linked a structure to the runtime region, and the whole structure moved there. The row names no store. | The `store` rows whose `caller` is the `fun` of the `trace` row name the candidate stores. Fix them one at a time and run again. |
 | `region` | The region of `fun` held many objects at once. They stay until `fun` returns. | Move the loop body into a function. If it already is one, its results or its stores into containers of `fun` keep the objects. |
-| `library` | `fun` is a `jo.*` function. | Change how `caller` uses it, for example a `while` loop in place of `Iterator.fold` over a long input. |
-| `growth` | The runtime region keeps growing while the program runs. | Fix the `growth-promoted` rows like `store` and `trace` rows. |
+| `return` | `fun` returned this many results to `main`. They stay until exit. The `main` hint comes with it. | Call `fun` in the function that holds the loop body, with the code that uses its result. Or avoid a new object per call. |
+| `library` | `fun` of a `store`, `trace` or `region` row is a `jo.*` function. | Change how `caller` uses it, for example a `while` loop in place of `Iterator.fold` over a long input. |
+| `growth` | The runtime region keeps growing while the program runs. | Fix the `growth-promoted` rows like `store`, `trace` and `return` rows. |
 
 Primitive values in these ranges need no allocation when stored as `Any` or
 in a generic container: `Int` in [-128, 1024), `Char` in [0, 256), every
@@ -223,11 +224,14 @@ def main =
 
 The iterator that `select` returns keeps its next match in one reusable
 field, so only the first match counts as a `store`. Each match it returns to
-`main` stays:
+`main` stays. The `return` row names the function that returned them:
 
 ```
-jo-mem summary peak-rss-kb=60928 allocated=2999315 freed=1499596 runtime-region=1499719 skipped-enters=0
+jo-mem summary peak-rss-kb=60928 allocated=2999351 freed=1499632 runtime-region=1499719 skipped-enters=0
 jo-mem to-runtime direct=23 store=1 trace=0 return=1499488
+jo-mem closes free=7 merge=4498673 collect=1499281
+jo-mem promoted kind=return count=1499488 fun=jo.Iterator.SelectIterator$next at=lib/Iterator.jo:93 caller=evens.main
+jo-mem hint main: main runs in the runtime region, so what it allocates stays until exit, ...
 ```
 
 Dropping `select` makes it worse, as `next` now returns every number to
@@ -244,12 +248,44 @@ Dropping `select` makes it worse, as `next` now returns every number to
 ```
 
 ```
-jo-mem summary peak-rss-kb=120192 allocated=2999373 freed=380 runtime-region=2998993 skipped-enters=0
+jo-mem summary peak-rss-kb=120192 allocated=2999416 freed=423 runtime-region=2998993 skipped-enters=0
 jo-mem to-runtime direct=17 store=0 trace=0 return=2998976
+jo-mem closes free=7 merge=420 collect=2998556
+jo-mem promoted kind=return count=2998976 fun=jo.Range.RangeIterator$next$bridge at=lib/Range.jo:55 caller=evens.main
 ```
 
-Count in a `while` loop and test each number with an `if`. No element passes
-through an iterator:
+As the `main` hint says, move the loop body into a function, with the call of
+`next`. Each number is then returned to `step`, and freed when `step` returns:
+
+```jo
+namespace evens
+
+def step(it: Iterator[Int]): Int =
+  val i = it.next()
+  if i % 2 == 0 then i % 7 else 0
+
+def main =
+  val it = (0 until 3000000).iterator
+  var total = 0
+  while it.hasNext do
+    total = total + step(it)
+  end
+
+  println total
+```
+
+```
+jo-mem summary peak-rss-kb=4364 allocated=2998995 freed=2998978 runtime-region=17 skipped-enters=0
+jo-mem to-runtime direct=17 store=0 trace=0 return=0
+jo-mem closes free=2998977 merge=2998976 collect=0
+```
+
+Moving the whole loop into a function does not help. The numbers then stay
+in the region of that function until it returns, and a `region` row shows
+them.
+
+A `while` loop that counts and tests each number with an `if` allocates
+nothing. No element passes through an iterator:
 
 ```jo
 namespace evens
@@ -268,8 +304,9 @@ def main =
 ```
 
 ```
-jo-mem summary peak-rss-kb=4364 allocated=17 freed=2 runtime-region=15 skipped-enters=0
+jo-mem summary peak-rss-kb=3724 allocated=17 freed=2 runtime-region=15 skipped-enters=0
 jo-mem to-runtime direct=15 store=0 trace=0 return=0
+jo-mem closes free=1 merge=0 collect=0
 ```
 
 ## Long-running programs
