@@ -134,12 +134,15 @@ private class State
   var funCount: Int = 0
 
   // growth reports: whether one is due, the segments of the runtime region
-  // that trigger the next, whether the growth or rebuild hint and the main
-  // hint were printed, and the promotions at the last one
+  // and of any other region that trigger the next, whether the growth or
+  // rebuild hint, the main hint and the region hint were printed, and the
+  // promotions at the last one
   var growthDue: Bool = false
   var growthSegs: Int = 0
+  var regionGrowthSegs: Int = 0
   var growthHinted: Bool = false
   var mainHinted: Bool = false
+  var regionHinted: Bool = false
   var lastDirect: Long = 0
   var lastStore: Long = 0
   var lastTrace: Long = 0

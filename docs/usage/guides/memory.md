@@ -74,6 +74,7 @@ nearest user function around it. Each kind of row comes with a `hint` line.
 | `return` | `fun` returned this many results to `main`. They stay until exit. The `main` hint comes with it. | Call `fun` in the function that holds the loop body, with the code that uses its result. Or avoid a new object per call. |
 | `library` | `fun` of a `store`, `trace` or `region` row is a `jo.*` function. | Change how `caller` uses it, for example a `while` loop in place of `Iterator.fold` over a long input. |
 | `growth` | The runtime region keeps growing while the program runs. | Fix the `growth-promoted` rows like `store`, `trace` and `return` rows. |
+| `growth-region` | The region of `fun` keeps growing while the program runs. | Fix it like a `region` row. |
 
 Primitive values in these ranges need no allocation when stored as `Any` or
 in a generic container: `Int` in [-128, 1024), `Char` in [0, 256), every
@@ -328,6 +329,20 @@ The counts other than `runtime-region` and `peak-rss-kb` are the objects
 moved since the previous `growth` line. A single report soon after startup can
 be data the program builds once and keeps, such as a table it loads. Repeated
 reports mean the region grows without bound.
+
+A loop in another function can keep objects too. Its region then grows, and
+the runtime region stays small. When a region other than the runtime region
+reaches about 63000 objects, and each time that threshold doubles, the
+runtime prints a `growth-region` line for the largest open region:
+
+```
+jo-mem growth-region objects=63430 peak-rss-kb=4992 fun=memserve.serve at=serve.jo:12 caller=memserve.main
+```
+
+Here `serve` loops over requests and keeps every reply that `handle` returns
+to it. Read the line like a `region` row: what `fun` allocates and the results
+returned to it stay until it returns. The first line comes with the `region`
+hint. Repeated lines for the same `fun` mean its region grows without bound.
 
 A growth report is printed at the next return of a region function, so a loop
 in `main` that calls none reports late.
