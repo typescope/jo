@@ -116,7 +116,8 @@ private class State
   // memory statistics, counted always and printed when `JO_MEMSTATS` is set:
   // objects allocated and freed, objects allocated directly in the runtime
   // region, objects promoted there by a store, a trace and a return, the
-  // outcomes of closing a region, and the enters skipped at the level limit
+  // outcomes of closing a region, the enters skipped at the level limit, and
+  // the objects whose `req` the traces of closing regions lowered
   var memStats: Bool = false
   var allocs: Long = 0
   var freed: Long = 0
@@ -128,6 +129,7 @@ private class State
   var merges: Long = 0
   var collects: Long = 0
   var skips: Long = 0
+  var traced: Long = 0
 
   // the statistics of each region function, under `--mem-profile` only
   var funStats: Addr = nullAddr

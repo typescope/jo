@@ -39,7 +39,7 @@ The report starts with these lines. `growth` lines (see
 ```
 jo-mem summary peak-rss-kb=56704 allocated=1000087 freed=72 runtime-region=1000015 skipped-enters=0
 jo-mem to-runtime direct=1000015 store=0 trace=0 return=0
-jo-mem closes free=2 merge=0 collect=0
+jo-mem closes free=2 merge=0 collect=0 traced=0
 ```
 
 - `peak-rss-kb` is the peak RSS. This is the number to lower.
@@ -50,7 +50,9 @@ jo-mem closes free=2 merge=0 collect=0
 - `store`, `trace` and `return` count the objects moved to the runtime region:
   by a store into an object there, by a structure linked to one, and by a
   return to `main`.
-- `closes` counts how regions ended. You rarely need it.
+- `closes` counts how regions ended. You rarely need it. `traced` counts the
+  objects the region closes traced. Far above `allocated`, it means the same
+  objects are traced again and again (see the `traced` hint).
 
 The samples below leave out most `hint` lines.
 
@@ -69,10 +71,11 @@ nearest user function around it. Each kind of row comes with a `hint` line.
 |---|---|---|
 | `main` | `direct` or `return` is large: `main` allocates in the runtime region, or keeps the results of the functions it calls. | Move the body of each loop of `main` into a function. Moving the whole loop only moves the objects into the region of the new function. |
 | `store` | A value stored into a container owned by `main` stays until exit, even after it is overwritten. | Mutate the fields of the existing object, or store values that need no allocation. Keep per-request state in a function that returns. |
-| `trace` | A store linked a structure to the runtime region, and the whole structure moved there. The row names no store. | The `store` rows whose `caller` is the `fun` of the `trace` row name the candidate stores. Fix them one at a time and run again. |
+| `trace` | A store linked a structure to the runtime region, or `fun` returned it to `main`, and the whole structure moved there. The row names no store. | The `store` rows whose `caller` is the `fun` of the `trace` row name the candidate stores. Fix them one at a time and run again. |
 | `region` | The region of `fun` held many objects at once. They stay until `fun` returns. | Move the loop body into a function. If it already is one, its results or its stores into containers of `fun` keep the objects. |
 | `return` | `fun` returned this many results to `main`. They stay until exit. The `main` hint comes with it. | Call `fun` in the function that holds the loop body, with the code that uses its result. Or avoid a new object per call. |
 | `library` | `fun` of a `store`, `trace` or `region` row is a `jo.*` function. | Change how `caller` uses it, for example a `while` loop in place of `Iterator.fold` over a long input. |
+| `traced` | The traces of closing regions lowered many more objects than were allocated. The likely cause is a recursive function whose result is built in a loop: every level copies the result up to its caller and traces it again. | Build the result with a loop or an accumulator in one function. Or build with `--region-policy none` and a `--region` for a function that calls the recursive one. |
 | `growth` | The runtime region keeps growing while the program runs. | Fix the `growth-promoted` rows like `store`, `trace` and `return` rows. |
 | `growth-region` | The region of `fun` keeps growing while the program runs. | Fix it like a `region` row. |
 
@@ -107,7 +110,7 @@ jo-mem growth runtime-region=1000015 peak-rss-kb=56576 direct=1000015 store=0 tr
 jo-mem hint main: main runs in the runtime region, so what it allocates, and the results ...
 jo-mem summary peak-rss-kb=56704 allocated=1000087 freed=72 runtime-region=1000015 skipped-enters=0
 jo-mem to-runtime direct=1000015 store=0 trace=0 return=0
-jo-mem closes free=2 merge=0 collect=0
+jo-mem closes free=2 merge=0 collect=0 traced=0
 ```
 
 Move the loop body into a function. Its region frees the `Point` of each
@@ -132,7 +135,7 @@ def main =
 ```
 jo-mem summary peak-rss-kb=4240 allocated=1000017 freed=1000002 runtime-region=15 skipped-enters=0
 jo-mem to-runtime direct=15 store=0 trace=0 return=0
-jo-mem closes free=1000001 merge=0 collect=0
+jo-mem closes free=1000001 merge=0 collect=0 traced=0
 ```
 
 ### A value stored into a long-lived object
@@ -166,7 +169,7 @@ even after the next call overwrites it:
 ```
 jo-mem summary peak-rss-kb=56704 allocated=1000305 freed=288 runtime-region=1000017 skipped-enters=0
 jo-mem to-runtime direct=17 store=1000000 trace=0 return=0
-jo-mem closes free=5 merge=420 collect=999580
+jo-mem closes free=5 merge=420 collect=999580 traced=0
 jo-mem promoted kind=store count=1000000 fun=server.handle at=server.jo:9 into=server.Stats caller=server.main
 ```
 
@@ -201,7 +204,7 @@ def main =
 ```
 jo-mem summary peak-rss-kb=3724 allocated=1000018 freed=1000002 runtime-region=16 skipped-enters=0
 jo-mem to-runtime direct=16 store=0 trace=0 return=0
-jo-mem closes free=1000001 merge=0 collect=0
+jo-mem closes free=1000001 merge=0 collect=0 traced=0
 ```
 
 ### Values that reach `main` through an iterator
@@ -230,7 +233,7 @@ field, so only the first match counts as a `store`. Each match it returns to
 ```
 jo-mem summary peak-rss-kb=60928 allocated=2999351 freed=1499632 runtime-region=1499719 skipped-enters=0
 jo-mem to-runtime direct=23 store=1 trace=0 return=1499488
-jo-mem closes free=7 merge=4498673 collect=1499281
+jo-mem closes free=7 merge=4498673 collect=1499281 traced=0
 jo-mem promoted kind=return count=1499488 fun=jo.Iterator.SelectIterator$next at=lib/Iterator.jo:93 caller=evens.main
 jo-mem hint main: main runs in the runtime region, so what it allocates, and the results ...
 ```
@@ -251,7 +254,7 @@ Dropping `select` makes it worse, as `next` now returns every number to
 ```
 jo-mem summary peak-rss-kb=120192 allocated=2999416 freed=423 runtime-region=2998993 skipped-enters=0
 jo-mem to-runtime direct=17 store=0 trace=0 return=2998976
-jo-mem closes free=7 merge=420 collect=2998556
+jo-mem closes free=7 merge=420 collect=2998556 traced=0
 jo-mem promoted kind=return count=2998976 fun=jo.Range.RangeIterator$next$bridge at=lib/Range.jo:55 caller=evens.main
 ```
 
@@ -279,7 +282,7 @@ def main =
 ```
 jo-mem summary peak-rss-kb=4364 allocated=2998995 freed=2998978 runtime-region=17 skipped-enters=0
 jo-mem to-runtime direct=17 store=0 trace=0 return=0
-jo-mem closes free=2998977 merge=2998976 collect=0
+jo-mem closes free=2998977 merge=2998976 collect=0 traced=0
 ```
 
 Moving the whole loop into a function does not help. The numbers then stay
@@ -308,7 +311,7 @@ def main =
 ```
 jo-mem summary peak-rss-kb=3724 allocated=17 freed=2 runtime-region=15 skipped-enters=0
 jo-mem to-runtime direct=15 store=0 trace=0 return=0
-jo-mem closes free=1 merge=0 collect=0
+jo-mem closes free=1 merge=0 collect=0 traced=0
 ```
 
 ## Long-running programs
