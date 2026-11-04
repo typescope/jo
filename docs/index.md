@@ -19,46 +19,25 @@ hero:
 
 features:
   - icon:
+      src: /icons/code.svg
+    title: Expressive
+    details: Functions, collections, loops, pattern matching and published libraries.
+    link: /overview/language-tour
+    linkText: Language tour
+
+  - icon:
       src: /icons/lock.svg
-    title: Compile-Time Sandboxing
-    details: Code can only access what it declares and is granted. Anything beyond that is rejected at compile time, before the program runs.
+    title: Secure
+    details: "No ambient authority: no globals, FFI or reflection in confined code. Capabilities are checked at compile time."
     link: /overview/capabilities
     linkText: Learn more
 
   - icon:
-      src: /icons/shield-check.svg
-    title: Confine Untrusted Code
-    details: Structurally prevent third-party code, plugins, or generated programs from accessing anything beyond what you explicitly grant.
-    link: /security/security-problem
-    linkText: See the problem
-
-  - icon:
-      src: /icons/arrows.svg
-    title: Context Parameters
-    details: Pass capabilities through the call stack implicitly — no boilerplate, no globals, no frameworks.
-    link: /guides/context-parameters
+      src: /icons/plug.svg
+    title: Interoperable
+    details: Compiles to Python and Ruby. Trusted code calls existing Python/Ruby libraries and services.
+    link: /guides/python-interoperability
     linkText: Learn more
-
-  - icon:
-      src: /icons/badge-check.svg
-    title: Type-Safe by Design
-    details: A sound type system is the foundation of Jo's security — types describe not just data, but also effects and capabilities.
-    link: /language/design-principles
-    linkText: Design principles
-
-  - icon:
-      src: /icons/sparkles.svg
-    title: Pattern-Oriented Programming
-    details: Compose reusable pattern predicates with logical operators. Exhaustive matching — the compiler guarantees no case is missed.
-    link: /guides/patterns
-    linkText: Explore patterns
-
-  - icon:
-      src: /icons/layers.svg
-    title: Multiple Backends
-    details: One language, multiple runtimes. Compile to Python or Ruby with the same type guarantees on every platform.
-    link: /usage/getting-started
-    linkText: Get started
 ---
 
 <section class="integrations">
