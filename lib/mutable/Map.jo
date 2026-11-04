@@ -14,6 +14,22 @@ section Map
     : Map[K, V] =
 
     new Map[K, V]()
+
+  // A chain ends in the sentinel `End` and not in `None`. With `Option`,
+  // each link would need a `Some`, so every insert and relink would allocate.
+  private[mutable] object End
+  end
+
+  private[mutable] class Entry[K, V]
+    val key: K
+    var value: V
+    var next: Entry[K, V] | End
+
+    def Entry(key: K, value: V, next: Entry[K, V] | End) =
+      this.key = key
+      this.value = value
+      this.next = next
+  end
 end
 
 //[ Create a `mutable.Map` from the given key-value pairs. //]
@@ -39,7 +55,7 @@ def Map[K, V](elems: ..Pair[K, V])
 class Map[K, V]
   private val eq: Eq[K]
   private val hash: Hash[K]
-  private var buckets: Array[jo.List[K ~ V]]
+  private var buckets: Array[Map.Entry[K, V] | Map.End]
   private var _size: Int
 
   //[ Create an empty map. Non-positive capacities use one bucket. //]
@@ -49,13 +65,7 @@ class Map[K, V]
         hash: Hash[K] with [[K].hashCode]) =
 
     val capacity = if initialCapacity > 0 then initialCapacity else 1
-    val buckets = Array.create[jo.List[K ~ V]](capacity)
-    var i = 0
-    while i < capacity do
-      buckets[i] = jo.List.empty[K ~ V]
-      i = i + 1
-    end
-    this.buckets = buckets
+    this.buckets = Array.fill[Map.Entry[K, V] | Map.End](capacity, Map.End)
     this._size = 0
     this.eq = eq
     this.hash = hash
@@ -84,79 +94,76 @@ class Map[K, V]
     // Grow when load factor exceeds 0.75.
     nextSize * 4 > capacity * 3
 
+  // Return the entry for `k`, or `End` if the key is absent.
+  private def find(k: K): Map.Entry[K, V] | Map.End =
+    var e = buckets[bucketIndex k]
+    while e is cur: Map.Entry[K, V] && !eq.equal(cur.key, k) do
+      e = cur.next
+    end
+    e
+
+  // Link `entry` at the tail of chain `index`, so chains keep insertion order.
+  private def append(table: Array[Map.Entry[K, V] | Map.End], index: Int, entry: Map.Entry[K, V]): Unit =
+    match table[index]
+    case Map.End => table[index] = entry
+    case head: Map.Entry[K, V] =>
+      var last = head
+      while last.next is n: Map.Entry[K, V] do
+        last = n
+      end
+      last.next = entry
+
   private def rehash(newCapacity: Int): Unit =
     val oldBuckets = buckets
-    val oldCapacity = oldBuckets.size
-    val newBuckets = Array.create[jo.List[K ~ V]](newCapacity)
+    val newBuckets = Array.fill[Map.Entry[K, V] | Map.End](newCapacity, Map.End)
     var i = 0
-    while i < newCapacity do
-      newBuckets[i] = jo.List.empty[K ~ V]
-      i = i + 1
-    end
-
-    i = 0
-    while i < oldCapacity do
-      val bucket = oldBuckets[i]
-      for p in bucket do
-        val index = bucketIndexFor(p.fst, newCapacity)
-        newBuckets[index] = newBuckets[index] + p
+    while i < oldBuckets.size do
+      var e = oldBuckets[i]
+      while e is cur: Map.Entry[K, V] do
+        val next = cur.next
+        cur.next = Map.End
+        append(newBuckets, bucketIndexFor(cur.key, newCapacity), cur)
+        e = next
       end
       i = i + 1
     end
-
     buckets = newBuckets
 
   //[ True if `k` is bound in the map. //]
-  def contains(k: K): Bool =
-    val index = bucketIndex k
-    val bucket = buckets[index]
-    bucket.exists(p => eq.equal(p.fst, k))
+  def contains(k: K): Bool = find(k) is _: Map.Entry[K, V]
 
   //[ Return `Some(v)` if `k` is bound to `v`, `None` otherwise. //]
   def getOpt(k: K): Option[V] =
-    val index = bucketIndex k
-    val bucket = buckets[index]
-    var result: Option[V] = None
-    for p in bucket if eq.equal(p.fst, k) do
-      result = Some p.snd
-    end
-    result
+    match find k
+    case e: Map.Entry[K, V] => Some e.value
+    case Map.End => None
 
   //[ Return the value bound to `k`. Aborts if the key is absent. //]
   def get(k: K): V =
-    match getOpt k
-    case Some(v) => v
-    case None => abort "key not found"
+    match find k
+    case e: Map.Entry[K, V] => e.value
+    case Map.End => abort "key not found"
 
   //[ Return the value bound to `k`, or `default` if the key is absent. //]
   def getOrElse(k: K, default: V): V =
-    match getOpt k
-    case Some(v) => v
-    case None => default
+    match find k
+    case e: Map.Entry[K, V] => e.value
+    case Map.End => default
 
   //[ Bind `k` to `v` (alias for `update`). //]
   def set(k: K, v: V): Unit = update(k, v)
 
-  //[ Bind `k` to `v`, replacing any existing binding. Amortized O(1). //]
+  //[ Bind `k` to `v`, replacing any existing binding. Amortized O(1).
+    !
+    ! If `k` is already bound, only the value changes. The map keeps the key
+    ! object it stored first.
+  //]
   def update(k: K, v: V): Unit =
-    var index = bucketIndex k
-    var oldBucket = buckets[index]
-
-    // Check if key exists
-    val existed = oldBucket.exists(p => eq.equal(k, p.fst))
-
-    if existed then
-      // Update existing entry
-      buckets[index] = oldBucket.map: p =>
-        if eq.equal(p.fst, k) then k ~ v else p
-    else
-      if shouldGrow(_size + 1) then
-        rehash(capacity * 2)
-        index = bucketIndex k
-        oldBucket = buckets[index]
-
-      // Add new entry
-      buckets[index] = oldBucket + (k ~ v)
+    match find k
+    case e: Map.Entry[K, V] => e.value = v
+    case Map.End =>
+      if shouldGrow(_size + 1) then rehash(capacity * 2)
+      append(buckets, bucketIndex k, new Map.Entry(k, v, Map.End))
       _size = _size + 1
 
   //[ Bind `k` to `v` (alias for `update`). //]
@@ -175,18 +182,26 @@ class Map[K, V]
   //[ Remove the binding for `k`. Does nothing if the key is absent. //]
   def remove(k: K): Unit =
     val index = bucketIndex k
-    val oldBucket = buckets[index]
-    val existed = oldBucket.exists(p => eq.equal(k, p.fst))
-
-    if existed then
-      buckets[index] = oldBucket.exclude(p => eq.equal(k, p.fst))
-      _size = _size - 1
+    var prev: Map.Entry[K, V] | Map.End = Map.End
+    var e = buckets[index]
+    var done = false
+    while !done && e is cur: Map.Entry[K, V] do
+      if eq.equal(cur.key, k) then
+        match prev
+        case p: Map.Entry[K, V] => p.next = cur.next
+        case Map.End => buckets[index] = cur.next
+        _size = _size - 1
+        done = true
+      else
+        prev = cur
+        e = cur.next
+    end
 
   //[ Remove all bindings. //]
   def clear: Unit =
     var i = 0
     while i < capacity do
-      buckets[i] = jo.List.empty[K ~ V]
+      buckets[i] = Map.End
       i = i + 1
     end
     _size = 0
@@ -199,9 +214,10 @@ class Map[K, V]
     var acc = zero
     var i = 0
     while i < capacity do
-      val bucket = buckets[i]
-      for p in bucket do
-        acc = f acc p.fst p.snd
+      var e = buckets[i]
+      while e is cur: Map.Entry[K, V] do
+        acc = f acc cur.key cur.value
+        e = cur.next
       end
       i = i + 1
     end
@@ -209,33 +225,42 @@ class Map[K, V]
 
   //[ Return all keys as an immutable `List`, in unspecified order. //]
   def keys: jo.List[K] =
-    var keys: jo.List[K] = []
+    val keys = jo.List.builder[K]()
     var i = 0
     while i < capacity do
-      val bucket = buckets[i]
-      keys = keys ++ bucket.map(p => match p case k ~ v => k)
+      var e = buckets[i]
+      while e is cur: Map.Entry[K, V] do
+        keys += cur.key
+        e = cur.next
+      end
       i = i + 1
     end
-    keys
+    keys.result
 
   //[ Return all values as an immutable `List`, in unspecified order. //]
   def values: jo.List[V] =
-    var values: jo.List[V] = []
+    val values = jo.List.builder[V]()
     var i = 0
     while i < capacity do
-      val bucket = buckets[i]
-      values = values ++ bucket.map(p => match p case k ~ v => v)
+      var e = buckets[i]
+      while e is cur: Map.Entry[K, V] do
+        values += cur.value
+        e = cur.next
+      end
       i = i + 1
     end
-    values
+    values.result
 
   //[ Copy all key-value pairs into a new immutable `List`, in unspecified order. //]
   def toList: jo.List[K ~ V] =
-    // Collect all buckets into a single list
     val pairs = jo.List.builder[K ~ V]()
     var i = 0
     while i < capacity do
-      pairs ++= buckets[i]
+      var e = buckets[i]
+      while e is cur: Map.Entry[K, V] do
+        pairs += (cur.key ~ cur.value)
+        e = cur.next
+      end
       i = i + 1
     end
     pairs.result

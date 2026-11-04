@@ -1,0 +1,158 @@
+// Keys 1, 17, 33 and 49 share one chain in a table of 16 buckets.
+
+class Key
+  val id: Int
+  val tag: String
+
+  def Key(id: Int, tag: String) =
+    this.id = id
+    this.tag = tag
+
+  def ==(that: Key): Bool = this.id == that.id
+
+  def hashCode: Int = this.id
+end
+
+def main =
+  testMapUpdate()
+  testMapRemove()
+  testMapRehash()
+  testMapClear()
+  testSetRemove()
+  testSetRehash()
+  testSetClear()
+
+def chain: mutable.Map[Int, String] =
+  val m = new mutable.Map[Int, String](16)
+  m[1] = "a"
+  m[17] = "b"
+  m[33] = "c"
+  m[49] = "d"
+  m
+
+def testMapUpdate =
+  println "--- map update ---"
+  val m = chain
+  m[33] = "C"
+  m[1] = "A"
+  m[49] = "D"
+  println m.size
+  println m.toList
+
+  val k = new mutable.Map[Key, Int](16)
+  k[new Key(1, "first")] = 1
+  k[new Key(1, "second")] = 2
+  println k.size
+  println: k.keys.map(key => key.tag)
+  println: k.values
+
+def testMapRemove =
+  println "--- map remove ---"
+  val head = chain
+  head.remove 1
+  println head.toList
+  println: head.contains 1
+
+  val middle = chain
+  middle.remove 33
+  println middle.toList
+  println middle.getOrElse(49, "?")
+
+  val tail = chain
+  tail.remove 49
+  println tail.toList
+  tail[65] = "e"
+  println tail.toList
+
+  val all = chain
+  all.remove 17
+  all.remove 1
+  all.remove 49
+  all.remove 33
+  all.remove 33
+  println all.size
+  println all.toList
+  all[17] = "x"
+  println all.toList
+
+def testMapRehash =
+  println "--- map rehash ---"
+  val m = new mutable.Map[Int, Int](2)
+  var i = 0
+  while i < 100 do
+    m[i * 16] = i
+    i = i + 1
+  end
+  println m.size
+
+  var ok = true
+  i = 0
+  while i < 100 do
+    if m.getOrElse(i * 16, -1) != i then ok = false
+    i = i + 1
+  end
+  println ok
+  println: m.fold(0, (s, k, v) => s + v)
+  println: m.keys.size == 100
+
+def testMapClear =
+  println "--- map clear ---"
+  val m = chain
+  m.clear()
+  println m.size
+  println m.isEmpty
+  println: m.contains 17
+  println m.toList
+  m[17] = "y"
+  m[1] = "z"
+  println m.size
+  println m.toList
+
+def setChain: mutable.Set[Int] =
+  val s = new mutable.Set[Int](16)
+  s += 1
+  s += 17
+  s += 33
+  s += 49
+  s
+
+def testSetRemove =
+  println "--- set remove ---"
+  val head = setChain
+  head -= 1
+  println head.toList
+
+  val middle = setChain
+  middle -= 33
+  println middle.toList
+
+  val tail = setChain
+  tail -= 49
+  tail += 65
+  tail += 17
+  println tail.toList
+  println tail.size
+
+def testSetRehash =
+  println "--- set rehash ---"
+  val s = new mutable.Set[Int](2)
+  var i = 0
+  while i < 100 do
+    s += (i * 16)
+    i = i + 1
+  end
+  println s.size
+  println: s.forall(x => s.contains x)
+  println: s.exists(x => x == 1584)
+  println: s.exists(x => x == 1585)
+  println: s.fold(0, (acc, x) => acc + x)
+
+def testSetClear =
+  println "--- set clear ---"
+  val s = setChain
+  s.clear()
+  println s.size
+  println s.toList
+  s += 33
+  s += 1
+  println s.toList

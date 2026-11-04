@@ -30,7 +30,7 @@ JO_MEMSTATS=1 ./app
 ```
 
 Stop when the remaining rows are data the program keeps, such as the
-`rehash` rows of a map it needs. Further changes then trade correctness or
+entries of a map it needs. Further changes then trade correctness or
 speed for little memory.
 
 The report starts with these lines. `growth` lines (see
@@ -204,50 +204,61 @@ jo-mem closes free=1000001 merge=0 collect=0
 
 ### A hidden store in a library
 
-Library calls can store too. In `mutable.Map`, `update` on a key that is
-already bound builds a new bucket, with a new key-value pair, and stores it
-into the map's array. A map that counts requests in `main` keeps every one of
-these buckets:
+Library calls can store too. The iterator that `Iterator.select` returns keeps
+the next match in a field, as a new `Some`. An iterator created in `main`
+belongs to the runtime region, so every `Some` stored into it stays until
+exit:
 
 ```jo
-def count(hits: mutable.Map[String, Int], i: Int): Unit =
-  val path = "/item/" + (i % 500).toString
-  hits.update(path, hits.getOrElse(path, 0) + 1)
+namespace evens
+
+def main =
+  val it = (0 until 3000000).iterator.select(i => i % 2 == 0)
+  var total = 0
+  while it.hasNext do
+    total = total + it.next() % 7
+  end
+
+  println total
 ```
 
-With 300000 calls from `main`, the report shows a `store` row in
-`jo.mutable.Map$update` whose `caller` is the `fun` of the `trace` row:
+The report shows a `store` row in `jo.Iterator.SelectIterator$fill`. The
+`trace` row counts the boxed numbers that the `Some`s point to:
 
 ```
-jo-mem summary peak-rss-kb=117632 allocated=8041461 freed=5937076 runtime-region=2104385 skipped-enters=0
-jo-mem promoted kind=store count=300000 fun=jo.mutable.Map$update at=lib/mutable/Map.jo:141 into=jo.Array caller=hits.count
-jo-mem promoted kind=trace count=1797941 fun=hits.count at=hits.jo:3 caller=hits.main
+jo-mem summary peak-rss-kb=120192 allocated=4499571 freed=1500060 runtime-region=2999511 skipped-enters=0
+jo-mem promoted kind=store count=1500000 fun=jo.Iterator.SelectIterator$fill at=lib/Iterator.jo:66 into=jo.Iterator.SelectIterator caller=evens.main
+jo-mem promoted kind=trace count=1499488 fun=jo.Iterator.SelectIterator$hasNext at=lib/Iterator.jo:74 caller=evens.main
 ```
 
-Insert a mutable counter once per key and increment its field:
+Both rows name `jo.*` functions, so change how `main` uses the library. Count
+in a `while` loop and test each number with an `if`:
 
 ```jo
-class Counter
-  var n: Int = 0
-end
+namespace evens
 
-def count(hits: mutable.Map[String, Counter], i: Int): Unit =
-  val path = "/item/" + (i % 500).toString
-  if hits.contains(path) then
-    val c = hits.get(path)
-    c.n = c.n + 1
-  else
-    val c = new Counter
-    c.n = 1
-    hits.update(path, c)
+def main =
+  var total = 0
+  var i = 0
+  while i < 3000000 do
+    if i % 2 == 0 then
+      total = total + i % 7
+    end
+    i = i + 1
+  end
+
+  println total
 ```
 
 ```
-jo-mem summary peak-rss-kb=4632 allocated=4831750 freed=4822167 runtime-region=9583 skipped-enters=0
-jo-mem promoted kind=trace count=5760 fun=jo.mutable.Map$rehash at=lib/mutable/Map.jo:87 caller=hits.count
+jo-mem summary peak-rss-kb=4624 allocated=17 freed=2 runtime-region=15 skipped-enters=0
+jo-mem to-runtime direct=15 store=0 trace=0 return=0
+jo-mem closes free=1 merge=0 collect=0
 ```
 
-The `rehash` row that remains is the map itself, which the program keeps.
+A `while` loop over `(0 until 3000000).iterator` with an `if` is not enough.
+It drops the `Some`s, but each `next` returns a boxed `Int` to `main`, and the
+peak stays at 120192 KB.
 
 ## Long-running programs
 

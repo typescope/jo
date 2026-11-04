@@ -1,0 +1,43 @@
+--- map update ---
+4
+[1 ~ A, 17 ~ b, 33 ~ C, 49 ~ D]
+1
+[first]
+[2]
+--- map remove ---
+[17 ~ b, 33 ~ c, 49 ~ d]
+false
+[1 ~ a, 17 ~ b, 49 ~ d]
+d
+[1 ~ a, 17 ~ b, 33 ~ c]
+[1 ~ a, 17 ~ b, 33 ~ c, 65 ~ e]
+0
+[]
+[17 ~ x]
+--- map rehash ---
+100
+true
+4950
+true
+--- map clear ---
+0
+true
+false
+[]
+2
+[17 ~ y, 1 ~ z]
+--- set remove ---
+[17, 33, 49]
+[1, 17, 49]
+[1, 17, 33, 65]
+4
+--- set rehash ---
+100
+true
+true
+false
+79200
+--- set clear ---
+0
+[]
+[33, 1]
