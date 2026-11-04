@@ -37,6 +37,12 @@ echo "  - Running without JO_MEMSTATS"
 "$DIR/app.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 diff "$DIR/actual.out" "$DIR/expect.check" || fail "unexpected output"
 [ ! -s "$DIR/actual.err" ] || fail "statistics printed without JO_MEMSTATS"
+JO_MEMSTATS=0 "$DIR/app.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
+[ ! -s "$DIR/actual.err" ] || fail "statistics printed with JO_MEMSTATS=0"
+JO_MEMSTATS= "$DIR/app.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
+[ ! -s "$DIR/actual.err" ] || fail "statistics printed with an empty JO_MEMSTATS"
+JO_MEMSTATS=yes "$DIR/app.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
+grep -q '^jo-mem summary ' "$DIR/actual.err" || fail "no statistics with JO_MEMSTATS=yes"
 
 echo "  - Building without --mem-profile"
 "$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" "$DIR/app.jo" -o "$DIR/app.run" || exit 1

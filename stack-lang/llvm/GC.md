@@ -475,8 +475,9 @@ there is no `--no-region`.
 The runtime always counts allocations, frees, objects that go to the runtime
 region and the outcomes of closes. The counts are kept in the slow paths,
 except a few increments in the allocation functions. With the environment
-variable `JO_MEMSTATS` set, a program prints them on stderr when it exits
-normally or by `abort`. It does not print them when it runs out of memory or
+variable `JO_MEMSTATS` set to a value other than the empty string and `0`,
+a program prints them on stderr when it exits normally or by `abort`.
+`JO_MEMSTATS=0` turns them off, like leaving the variable unset. It does not print them when it runs out of memory or
 overflows the stack, because printing allocates.
 
 The report has one record per line, a kind followed by `key=value` fields:
