@@ -1,0 +1,49 @@
+// Reading a string built by many appends must not overflow the stack or take
+// time that grows with the depth of the appends. 300000 appends overflowed
+// the stack of the native backends before. A host string copies on every
+// append, so more would take long there.
+def build(n: Int, first: String, next: String): String =
+  var s = first
+  var i = 0
+  while i < n do
+    s = s + next
+    i = i + 1
+  end
+  s
+
+// Hash and read every character by index. Some backends count code points
+// to index, so keep the string short for them.
+def scan(n: Int): Unit =
+  val s = build(n, "", "x") + "y"
+  val t = "x" * n + "y"
+  println: s.hashCode == t.hashCode
+
+  var count = 0
+  var i = 0
+  while i < s.size do
+    if s[i] == 'x' then count = count + 1
+    i = i + 1
+  end
+  println: count
+
+def main() =
+  val n = 300000
+  val s = build(n, "", "x") + "y"
+  println: s.size
+  println: s == "x" * n + "y"
+  println: s == "x" * n + "z"
+  println: s[0]
+  println: s[n]
+  println: s.substring(n - 3, 4)
+  println: s.endsWith("xy")
+  println: s.startsWith("xxx")
+
+  // Deep ropes of two characters, each read first by one operation
+  println: build(n, "ok", "")
+  println: build(n, "ok", "")[1]
+  println: build(n, "ok", "") == "ok"
+  println: build(n, "ok", "").hashCode == "ok".hashCode
+  println: build(n, "ok", "").substring(1, 1)
+  println: build(n, "", "").size
+
+  scan(5000)
