@@ -362,8 +362,11 @@ class EncodeClass(runtime: NativeRuntime)(using defn: Definitions) extends phase
             Block(assign :: apply2 :: Nil)(apply.span)
 
       case Ident(sym) if sym == runtime.Core_cast =>
-        assert(!args2.head.isInstanceOf[Encoded], "Unexpected encoded for cast (primitives not allowed): " + args2.head)
-        args2.head
+        // An address is an encoded integer, as `nullAddr` and `intToAddr` produce
+        val arg = args2.head
+        val isPrimitive = arg.isInstanceOf[Encoded] && !arg.tpe.isSubtype(AddrType)
+        assert(!isPrimitive, "Unexpected encoded for cast (primitives not allowed): " + arg)
+        arg
 
       case Ident(sym) if sym == runtime.Core_castInt =>
         Encoded(args2.head)(defn.IntType)
