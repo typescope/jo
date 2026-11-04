@@ -202,12 +202,11 @@ jo-mem to-runtime direct=16 store=0 trace=0 return=0
 jo-mem closes free=1000001 merge=0 collect=0
 ```
 
-### A hidden store in a library
+### Values that reach `main` through an iterator
 
-Library calls can store too. The iterator that `Iterator.select` returns keeps
-the next match in a field, as a new `Some`. An iterator created in `main`
-belongs to the runtime region, so every `Some` stored into it stays until
-exit:
+An iterator created in `main` belongs to the runtime region. Each element it
+hands to `main` stays until exit, whether the iterator stores it or returns
+it. Small `Int`s need no allocation, but the larger ones are boxed:
 
 ```jo
 namespace evens
@@ -222,17 +221,35 @@ def main =
   println total
 ```
 
-The report shows a `store` row in `jo.Iterator.SelectIterator$fill`. The
-`trace` row counts the boxed numbers that the `Some`s point to:
+The iterator that `select` returns keeps its next match in one reusable
+field, so only the first match counts as a `store`. Each match it returns to
+`main` stays:
 
 ```
-jo-mem summary peak-rss-kb=120192 allocated=4499571 freed=1500060 runtime-region=2999511 skipped-enters=0
-jo-mem promoted kind=store count=1500000 fun=jo.Iterator.SelectIterator$fill at=lib/Iterator.jo:66 into=jo.Iterator.SelectIterator caller=evens.main
-jo-mem promoted kind=trace count=1499488 fun=jo.Iterator.SelectIterator$hasNext at=lib/Iterator.jo:74 caller=evens.main
+jo-mem summary peak-rss-kb=60928 allocated=2999315 freed=1499596 runtime-region=1499719 skipped-enters=0
+jo-mem to-runtime direct=23 store=1 trace=0 return=1499488
 ```
 
-Both rows name `jo.*` functions, so change how `main` uses the library. Count
-in a `while` loop and test each number with an `if`:
+Dropping `select` makes it worse, as `next` now returns every number to
+`main`:
+
+```jo
+  val it = (0 until 3000000).iterator
+  while it.hasNext do
+    val i = it.next()
+    if i % 2 == 0 then
+      total = total + i % 7
+    end
+  end
+```
+
+```
+jo-mem summary peak-rss-kb=120192 allocated=2999373 freed=380 runtime-region=2998993 skipped-enters=0
+jo-mem to-runtime direct=17 store=0 trace=0 return=2998976
+```
+
+Count in a `while` loop and test each number with an `if`. No element passes
+through an iterator:
 
 ```jo
 namespace evens
@@ -251,25 +268,9 @@ def main =
 ```
 
 ```
-jo-mem summary peak-rss-kb=4624 allocated=17 freed=2 runtime-region=15 skipped-enters=0
+jo-mem summary peak-rss-kb=4364 allocated=17 freed=2 runtime-region=15 skipped-enters=0
 jo-mem to-runtime direct=15 store=0 trace=0 return=0
-jo-mem closes free=1 merge=0 collect=0
 ```
-
-Dropping only `select` is not enough:
-
-```jo
-  val it = (0 until 3000000).iterator
-  while it.hasNext do
-    val i = it.next()
-    if i % 2 == 0 then
-      total = total + i % 7
-    end
-  end
-```
-
-This loop stores no `Some`, but each `next` returns a boxed `Int` to `main`.
-The report shows `return=2998976`, and the peak stays near 120 MB.
 
 ## Long-running programs
 
