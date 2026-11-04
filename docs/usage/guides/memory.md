@@ -1,99 +1,237 @@
-# Memory in Native Programs
+# Lowering Peak Memory in Native Programs
 
 Experimental. This guide covers the LLVM backend (`jo compile --llvm`).
 
-Jo programs compiled to native code allocate freely and never stop to collect
-garbage. For most programs, such as command-line tools, batch jobs and tests,
-memory is simply returned when the program exits. Allocation stays fast, and
-runs never pause.
+A native program frees memory in regions. By default every function that can
+allocate runs in a region of its own. When the call returns, the region frees
+what the call allocated, except what it returned or stored into an older
+object. You need no annotations and no options for this.
 
-When a long-running program needs bounded memory, name the functions whose
-work is done when they return:
+Regions only change peak memory, the resident set size (RSS). They never change
+what a program computes. When a program uses more memory than you expect, the
+runtime tells you where it goes, and a small change to the program usually
+fixes it. This guide is for programmers and for coding agents working on Jo
+programs.
+
+## The loop
+
+1. Run the program with `JO_MEMSTATS=1`. It prints a report on stderr when it
+   exits.
+2. Read the `summary` and `to-runtime` lines.
+3. If they show a problem, rebuild with `--mem-profile` and run again. The
+   report then names the functions responsible.
+4. Take the largest row and apply the fix its hint names.
+5. Run again and compare `peak-rss-kb`.
 
 ```sh
-jo compile --llvm --region app.handleRequest src/App.jo -o app
+jo compile --llvm --mem-profile app.jo -o app
+JO_MEMSTATS=1 ./app
 ```
 
-Each call of `handleRequest` then runs in a memory region of its own. When the
-call returns, what it allocated is freed, except for what it returned or stored
-elsewhere. The next call reuses the memory.
+The first lines of the report are:
 
-Regions are an optimization, like `-O2`. They never change what a program
-computes, only its peak memory. You add them where measurements show they help,
-without annotations in the code.
+```
+jo-mem summary peak-rss-kb=56704 allocated=1000087 freed=72 runtime-region=1000015 skipped-enters=0
+jo-mem to-runtime direct=1000015 store=0 trace=0 return=0
+```
 
-## An example
+- `peak-rss-kb` is the peak RSS. This is the number to lower.
+- `runtime-region` counts the objects that stay until the program exits. The
+  runtime region holds everything `main` allocates.
+- `direct` counts the objects `main` allocated, with the results of the
+  functions it calls.
+- `store`, `trace` and `return` count the objects moved to the runtime region:
+  by a store into an object there, by a structure linked to one, and by a
+  return to `main`.
 
-A server handles one request after another. Each request builds temporary
-strings and lists, and only the response leaves the handler:
+A small `runtime-region` means regions free almost everything. Then look at
+the `region` rows instead (see below).
+
+## Rows and fixes
+
+Built with `--mem-profile`, the report has rows such as
+
+```
+jo-mem promoted kind=store count=1000000 fun=server.handle at=server.jo:9 into=server.Stats caller=server.main
+```
+
+`fun` is the function charged, `at` its source location, and `caller` the
+nearest user function around it. Each kind of row comes with a `hint` line.
+
+| Row or hint | Cause | Change |
+|---|---|---|
+| `main` | `direct` is large: `main` allocates in the runtime region. | Move the loops of `main` into functions. |
+| `store` | A value stored into a container owned by `main` stays until exit, even after it is overwritten. | Mutate the fields of the existing object, or store values that need no allocation. Keep per-request state in a function that returns. |
+| `trace` | A store linked a structure to the runtime region, and the whole structure moved there. | Find the store into the long-lived object and avoid it, as for `store`. |
+| `region` | The region of `fun` held many objects at once. They stay until `fun` returns. | Move the loop body into a function. If it already is one, its results or its stores into containers of `fun` keep the objects. |
+| `library` | `fun` is a `jo.*` function. | Change how `caller` uses it, for example a `while` loop in place of `Iterator.fold` over a long input. |
+| `growth` | The runtime region keeps growing while the program runs. | Fix the `growth-promoted` rows like `store` and `trace` rows. |
+
+Primitive values in these ranges need no allocation when stored as `Any` or
+in a generic container: `Int` in [-128, 1024), `Char` in [0, 256), every
+`Byte` and every `Bool`.
+
+### A loop in `main`
 
 ```jo
-namespace app
+namespace shapes
 
-def handleRequest(request: String): Int =
-  val words = request.split(" ")
-  // ... build temporary data from the words ...
-  words.size
+class Point(x: Int, y: Int)
 
 def main =
   var total = 0
   var i = 0
-  while i < 100000 do
-    total = total + handleRequest("a request with a few words")
+  while i < 1000000 do
+    val p = new Point(i, i + 1)
+    total = total + p.y - p.x
     i = i + 1
   end
+
   println total
 ```
 
-Compiled without regions, its memory grows with every request until the
-program exits. With `--region app.handleRequest`, the temporaries of each
-request are freed when it returns, and peak memory stays at the size of one
-request.
+Every `Point` stays until exit:
 
-On a Linux test machine, the example peaks at 756 MB without the region and at
-3 MB with it.
+```
+jo-mem summary peak-rss-kb=56704 allocated=1000087 freed=72 runtime-region=1000015 skipped-enters=0
+jo-mem to-runtime direct=1000015 store=0 trace=0 return=0
+jo-mem hint main: main runs in the runtime region, so what it allocates stays until exit, ...
+```
 
-## What is kept
+Move the loop body into a function. Its region frees the `Point` of each
+iteration:
 
-A region frees only what can no longer be reached. An object survives the call
-when it is
+```jo
+def step(i: Int): Int =
+  val p = new Point(i, i + 1)
+  p.y - p.x
 
-- the result of the function, or reachable from it,
-- stored into an object that existed before the call, or into an array or a
-  closure that is reached from one, or
-- reachable from such an object.
+def main =
+  var total = 0
+  var i = 0
+  while i < 1000000 do
+    total = total + step(i)
+    i = i + 1
+  end
 
-Survivors move to the caller's memory and are freed when the caller's region,
-if any, finishes with them. You never decide what is kept, so a region cannot
-free something the program still uses.
+  println total
+```
 
-## Choosing region functions
+```
+jo-mem summary peak-rss-kb=4616 allocated=1000017 freed=1000002 runtime-region=15 skipped-enters=0
+jo-mem to-runtime direct=15 store=0 trace=0 return=0
+```
 
-A region pays off when most of what a function allocates is garbage by the time
-it returns.
+### A value stored into a long-lived object
 
-- **Good:** a function called again and again, for example from a loop, that
-  builds temporary data and returns a small result such as a number, a flag or
-  `Unit`. A request handler, a simulation step and the body of a processing
-  loop are typical.
-- **Bad:** a function that returns most of what it builds, such as a parser or
-  a list builder. It frees nothing, and its results are checked again at every
-  enclosing region. A recursive builder that is a region can become much
-  slower.
-- **Neutral:** a function that allocates little. It costs a few instructions
-  per call and frees little.
+```jo
+namespace server
 
-Measure before and after. On Linux, `/usr/bin/time -v ./app` reports the
-maximum resident set size and the running time.
+class Point(x: Int, y: Int)
 
-## Notes
+class Stats(first: Point)
+  var last: Point = first
+end
 
-- Only top-level functions can be region functions, named with their
-  namespace, for example `--region app.handleRequest`. A function in a section
-  is named `namespace.Section.function`. Class methods cannot be region
-  functions: call a top-level function from the method instead.
-- A name that matches no top-level function, or names a function of the
-  runtime, is a compile error.
-- Garbage created inside one long-running loop is freed only when the function
-  that runs the loop returns. Move the loop body into a function and make that
-  function a region.
+def handle(stats: Stats, i: Int): Unit =
+  stats.last = new Point(i, i + 1)
+
+def main =
+  val stats = new Stats(new Point(0, 0))
+  var i = 0
+  while i < 1000000 do
+    handle(stats, i)
+    i = i + 1
+  end
+
+  println stats.last.x
+```
+
+`stats` belongs to `main`, so each `Point` stored into it stays until exit,
+even after the next call overwrites it:
+
+```
+jo-mem summary peak-rss-kb=56704 allocated=1000305 freed=288 runtime-region=1000017 skipped-enters=0
+jo-mem to-runtime direct=17 store=1000000 trace=0 return=0
+jo-mem promoted kind=store count=1000000 fun=server.handle at=server.jo:9 into=server.Stats caller=server.main
+```
+
+Store the numbers instead of a new object:
+
+```jo
+class Stats
+  var lastX: Int = 0
+  var lastY: Int = 0
+end
+
+def handle(stats: Stats, i: Int): Unit =
+  val p = new Point(i, i + 1)
+  stats.lastX = p.x
+  stats.lastY = p.y
+```
+
+```
+jo-mem summary peak-rss-kb=4616 allocated=1000018 freed=1000002 runtime-region=16 skipped-enters=0
+jo-mem to-runtime direct=16 store=0 trace=0 return=0
+```
+
+## Long-running programs
+
+A server that never exits never prints the exit report. With `JO_MEMSTATS=1`
+set, the runtime also prints a `growth` line when the runtime region reaches
+about 63000 objects, and each time it doubles after that. The `server` example
+above prints:
+
+```
+jo-mem growth runtime-region=126915 peak-rss-kb=8576 direct=0 store=63488 trace=0 return=0
+jo-mem growth-promoted kind=store count=63488 fun=server.handle at=server.jo:9 into=server.Stats caller=server.main
+```
+
+The counts other than `runtime-region` and `peak-rss-kb` are the objects
+moved since the previous `growth` line. A single report soon after startup can
+be data the program builds once and keeps, such as a table it loads. Repeated
+reports mean the region grows without bound.
+
+A growth report is printed at the next return of a region function, so a loop
+in `main` that calls none reports late.
+
+## Trading time back
+
+The default policy gives the lowest peak RSS, but opening a region in every
+function can cost time. To get some of it back, open regions only where they
+matter:
+
+1. Build with `--mem-profile` and run with `JO_MEMSTATS=1`.
+2. Take the functions of the `region` rows whose `objects` count is large
+   compared with the peak.
+3. Rebuild with `--region-policy none` and a `--region` for each of them.
+4. Compare the time and `peak-rss-kb` with the default build.
+
+```sh
+jo compile --llvm --region-policy none --region Bench.words app.jo -o app
+```
+
+On a deflate benchmark, this build took 0.82 s and 135.5 MB, against 1.02 s
+and 136 MB by default, and 0.77 s and 163 MB with `--region-policy none` alone.
+
+`--region` takes the full name of a top-level function, such as
+`app.handleRequest`, or `app.Section.f` for a function in a section. Class
+methods and runtime functions cannot be named. When a method's row is large,
+the fix is in the program, for example calling a top-level function from the
+method. There is no option to remove a single region from the default policy.
+Its allocations would merge into the caller's region, so RSS would not drop.
+
+## What the numbers do not mean
+
+- Counts are objects, not bytes.
+- A `region` row counts in segments of 62 objects, so `objects` can be up to
+  61 too high.
+- A row is charged to the innermost region function, `fun`. `caller` is the
+  nearest enclosing function outside the library. A function whose name starts
+  with `jo.` counts as library code.
+- Each kind lists at most 10 rows, the largest first, and leaves out rows
+  under 1000 objects.
+- A program that runs out of memory or overflows the stack prints no report.
+
+The [memory management design](https://github.com/typescope/jo/blob/main/stack-lang/llvm/GC.md)
+describes regions and the report in full.

@@ -13,7 +13,8 @@ jo compile --python|--ruby|--js [--sast <dir>] [--source-root <dir>] <file.jo>..
            [--lib <dir>]... [--link-lib <dir>]... [--link <src>=<tgt>]... -o <output>
 
 # Compile to a native executable through LLVM (experimental)
-jo compile --llvm [--region <function>]... <file.jo>... -o <executable>
+jo compile --llvm [--region-policy <policy>] [--region <function>]... [--mem-profile] \
+           <file.jo>... -o <executable>
 
 # Generate HTML documentation from source files (experimental)
 jo compile --doc [--out <dir>] [--title <name>] [--readme <file>] \
@@ -116,11 +117,16 @@ LLVM IR and calls clang 15 or newer to build it.
 | `--clang <path>` | The clang executable (default: `clang`) |
 | `--opt <level>` | clang optimization level (default: `2`) |
 | `--keep-ll` | Keep the generated `.ll` file next to the executable |
-| `--region <function>` | Run each call of `<function>` in a memory region of its own (can be repeated) |
+| `--region-policy <policy>` | The functions that run in a memory region of their own: `all` (default), `scalar` or `none` |
+| `--region <function>` | Also run each call of `<function>` in a memory region of its own (can be repeated) |
+| `--place-results` | Allocate the result of a region function in the region it is returned to (always on under `all`) |
+| `--mem-profile` | Name the functions in the memory statistics printed under `JO_MEMSTATS=1` |
 
-`--region` takes the full name of a top-level function, such as `app.process`.
-Class methods cannot be region functions. It lowers the peak memory of long-running programs and never changes
-what a program computes. See [Memory in Native Programs](../guides/memory.md).
+By default every function that can allocate runs in a memory region, which
+frees its garbage when it returns. Regions lower peak memory and never change
+what a program computes. `--region` takes the full name of a top-level
+function, such as `app.process`. Class methods cannot be region functions. See
+[Lowering Peak Memory in Native Programs](../guides/memory.md).
 
 The backend has no foreign function interface. A program can read its
 arguments, compute and print to standard output and standard error, but it has
@@ -169,10 +175,10 @@ jo compile --python --sast .build/app/sast src/App.jo \
   -o .build/app/target/app.py
 ```
 
-Compile a native executable, reclaiming the memory of each request:
+Compile a native executable with regions only around each request:
 
 ```sh
-jo compile --llvm --region app.handleRequest src/App.jo -o app
+jo compile --llvm --region-policy none --region app.handleRequest src/App.jo -o app
 ```
 
 Generate docs directly from source files:

@@ -29,6 +29,7 @@ Backend selectors are handled before the shared compiler options are parsed.
 | `--ruby` | Compile a Ruby application. |
 | `--python` | Compile a Python application. |
 | `--js` | Compile a JavaScript application. Experimental. |
+| `--llvm` | Compile a 64-bit native executable through LLVM. Experimental. |
 | `--doc` | Generate HTML documentation from source files. Experimental. |
 | `--query <selectors>` | Query API information and write JSON to stdout. Experimental. |
 
@@ -75,6 +76,27 @@ These options are accepted when compiling an application with an app backend suc
 `--link` values must use `source=target` format. Both sides must be names or
 dot-separated paths whose segments are identifiers, such as
 `jo.Predef.entry=App.main`.
+
+## LLVM Options
+
+These options are accepted with `--llvm`. The `jo` tool does not build LLVM
+apps yet, so they go on the `jo compile --llvm` command line.
+
+| Option | Form | Description |
+|--------|------|-------------|
+| `--clang <path>` | single value | The clang executable, version 15 or newer. Default: `clang`. |
+| `--opt <level>` | single value | The clang optimization level. Default: `2`. |
+| `--keep-ll` | flag | Keep the generated `.ll` file next to the executable. |
+| `--region-policy <policy>` | single value | The functions that open a memory region besides those named by `--region`: `all`, `scalar` or `none`. Default: `all`. |
+| `--region <function>` | repeatable value | Make a top-level function open a memory region under any policy, for example `--region app.handle`. |
+| `--place-results` | flag | Allocate the result of a region function directly in the region it is returned to. Always on under `--region-policy all`. |
+| `--mem-profile` | flag | Name the functions and classes in the memory statistics. |
+
+A program built with `--llvm` prints memory statistics on stderr when it runs
+with the environment variable `JO_MEMSTATS=1`. See
+[Lowering Peak Memory](../guides/memory.md) for how to read them, and the
+[memory management design](https://github.com/typescope/jo/blob/main/stack-lang/llvm/GC.md)
+for how regions work.
 
 ## Compiler Development Options
 
