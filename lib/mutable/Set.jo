@@ -13,6 +13,20 @@ section Set
     : Set[T] =
 
     new Set[T]()
+
+  // A chain ends in the sentinel `End` and not in `None`. With `Option`,
+  // each link would need a `Some`, so every insert and relink would allocate.
+  private[mutable] object End
+  end
+
+  private[mutable] class Entry[T]
+    val elem: T
+    var next: Entry[T] | End
+
+    def Entry(elem: T, next: Entry[T] | End) =
+      this.elem = elem
+      this.next = next
+  end
 end
 
 //[ Create a `mutable.Set` from the given elements. Duplicates are discarded. //]
@@ -38,7 +52,7 @@ def Set[T](elems: ..T)
 class Set[T]
   private val eq: Eq[T]
   private val hash: Hash[T]
-  private var buckets: Array[jo.List[T]]
+  private var buckets: Array[Set.Entry[T] | Set.End]
   private var _size: Int
 
   //[ Create an empty set. Non-positive capacities use one bucket. //]
@@ -48,13 +62,7 @@ class Set[T]
         hash: Hash[T] with [[T].hashCode]) =
 
     val capacity = if initialCapacity > 0 then initialCapacity else 1
-    val buckets = Array.create[jo.List[T]](capacity)
-    var i = 0
-    while i < capacity do
-      buckets[i] = jo.List.empty[T]
-      i = i + 1
-    end
-    this.buckets = buckets
+    this.buckets = Array.fill[Set.Entry[T] | Set.End](capacity, Set.End)
     this._size = 0
     this.eq = eq
     this.hash = hash
@@ -83,50 +91,46 @@ class Set[T]
     // Grow when load factor exceeds 0.75.
     nextSize * 4 > capacity * 3
 
+  // Link `entry` at the tail of chain `index`, so chains keep insertion order.
+  private def append(table: Array[Set.Entry[T] | Set.End], index: Int, entry: Set.Entry[T]): Unit =
+    match table[index]
+    case Set.End => table[index] = entry
+    case head: Set.Entry[T] =>
+      var last = head
+      while last.next is n: Set.Entry[T] do
+        last = n
+      end
+      last.next = entry
+
   private def rehash(newCapacity: Int): Unit =
     val oldBuckets = buckets
-    val oldCapacity = oldBuckets.size
-    val newBuckets = Array.create[jo.List[T]](newCapacity)
+    val newBuckets = Array.fill[Set.Entry[T] | Set.End](newCapacity, Set.End)
     var i = 0
-    while i < newCapacity do
-      newBuckets[i] = jo.List.empty[T]
-      i = i + 1
-    end
-
-    i = 0
-    while i < oldCapacity do
-      val bucket = oldBuckets[i]
-      for x in bucket do
-        val index = bucketIndexFor(x, newCapacity)
-        newBuckets[index] = newBuckets[index] + x
+    while i < oldBuckets.size do
+      var e = oldBuckets[i]
+      while e is cur: Set.Entry[T] do
+        val next = cur.next
+        cur.next = Set.End
+        append(newBuckets, bucketIndexFor(cur.elem, newCapacity), cur)
+        e = next
       end
       i = i + 1
     end
-
     buckets = newBuckets
 
   //[ True if `x` is a member of the set. //]
   def contains(x: T): Bool =
-    val index = bucketIndex x
-    val bucket = buckets[index]
-    bucket.exists(e => eq.equal(e, x))
+    var e = buckets[bucketIndex x]
+    while e is cur: Set.Entry[T] && !eq.equal(cur.elem, x) do
+      e = cur.next
+    end
+    e is _: Set.Entry[T]
 
   //[ Add `x` to the set. Does nothing if it is already present. Amortized O(1). //]
   def add(x: T): Unit =
-    var index = bucketIndex x
-    var oldBucket = buckets[index]
-
-    // Check if element exists
-    val existed = oldBucket.exists(e => eq.equal(x, e))
-
-    if !existed then
-      if shouldGrow(_size + 1) then
-        rehash(capacity * 2)
-        index = bucketIndex x
-        oldBucket = buckets[index]
-
-      // Add new element
-      buckets[index] = oldBucket + x
+    if !contains(x) then
+      if shouldGrow(_size + 1) then rehash(capacity * 2)
+      append(buckets, bucketIndex x, new Set.Entry(x, Set.End))
       _size = _size + 1
 
   //[ Add `x` to the set (alias for `add`). //]
@@ -135,12 +139,20 @@ class Set[T]
   //[ Remove `x` from the set. Does nothing if it is absent. //]
   def remove(x: T): Unit =
     val index = bucketIndex x
-    val oldBucket = buckets[index]
-    val existed = oldBucket.exists(e => eq.equal(x, e))
-
-    if existed then
-      buckets[index] = oldBucket.exclude(e => eq.equal(x, e))
-      _size = _size - 1
+    var prev: Set.Entry[T] | Set.End = Set.End
+    var e = buckets[index]
+    var done = false
+    while !done && e is cur: Set.Entry[T] do
+      if eq.equal(cur.elem, x) then
+        match prev
+        case p: Set.Entry[T] => p.next = cur.next
+        case Set.End => buckets[index] = cur.next
+        _size = _size - 1
+        done = true
+      else
+        prev = cur
+        e = cur.next
+    end
 
   //[ Remove `x` from the set (alias for `remove`). //]
   def -=(x: T): Unit = remove x
@@ -158,7 +170,7 @@ class Set[T]
   def clear: Unit =
     var i = 0
     while i < capacity do
-      buckets[i] = jo.List.empty[T]
+      buckets[i] = Set.End
       i = i + 1
     end
     _size = 0
@@ -171,9 +183,10 @@ class Set[T]
     var acc = zero
     var i = 0
     while i < capacity do
-      val bucket = buckets[i]
-      for e in bucket do
-        acc = f acc e
+      var e = buckets[i]
+      while e is cur: Set.Entry[T] do
+        acc = f acc cur.elem
+        e = cur.next
       end
       i = i + 1
     end
@@ -184,8 +197,11 @@ class Set[T]
     var found = false
     var i = 0
     while i < capacity && !found do
-      val bucket = buckets[i]
-      found = bucket.exists pred
+      var e = buckets[i]
+      while !found && e is cur: Set.Entry[T] do
+        found = pred cur.elem
+        e = cur.next
+      end
       i = i + 1
     end
     found
@@ -195,8 +211,11 @@ class Set[T]
     var result = true
     var i = 0
     while i < capacity && result do
-      val bucket = buckets[i]
-      result = bucket.forall pred
+      var e = buckets[i]
+      while result && e is cur: Set.Entry[T] do
+        result = pred cur.elem
+        e = cur.next
+      end
       i = i + 1
     end
     result
@@ -210,7 +229,11 @@ class Set[T]
     val elements = jo.List.builder[T]()
     var i = 0
     while i < capacity do
-      elements ++= buckets[i]
+      var e = buckets[i]
+      while e is cur: Set.Entry[T] do
+        elements += cur.elem
+        e = cur.next
+      end
       i = i + 1
     end
     elements.result
