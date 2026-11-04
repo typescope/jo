@@ -18,22 +18,19 @@ hero:
       link: /security/security-problem
 
 features:
-  - icon:
-      src: /icons/code.svg
+  - icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5"/></svg>'
     title: Expressive
     details: Functions, collections, loops, pattern matching and published libraries.
     link: /overview/language-tour
     linkText: Language tour
 
-  - icon:
-      src: /icons/lock.svg
+  - icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 10.5V6.75a4.5 4.5 0 0 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25z"/></svg>'
     title: Secure
     details: "No ambient authority: no globals, FFI or reflection in confined code. Capabilities are checked at compile time."
     link: /overview/capabilities
     linkText: Learn more
 
-  - icon:
-      src: /icons/plug.svg
+  - icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#059669" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2.25v4.5m6-4.5v4.5"/><path d="M6 6.75h12v3.75a6 6 0 0 1-12 0V6.75Z"/><path d="M12 16.5v5.25"/></svg>'
     title: Interoperable
     details: Compiles to Python and Ruby. Trusted code calls existing Python/Ruby libraries and services.
     link: /guides/python-interoperability
