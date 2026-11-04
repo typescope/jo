@@ -302,6 +302,7 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
     * all pointers.
     */
   def layoutTableGlobals(): String =
+    // Must equal `interiorFlag` in `runtime/native/libc/Regions.jo`
     val InteriorFlag = 0x40000000
     val buf = new StringBuilder
     val entries = new mutable.ArrayBuffer[String]
