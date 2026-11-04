@@ -87,10 +87,10 @@ apps yet, so they go on the `jo compile --llvm` command line.
 | `--clang <path>` | single value | The clang executable, version 15 or newer. Default: `clang`. |
 | `--opt <level>` | single value | The clang optimization level. Default: `2`. |
 | `--keep-ll` | flag | Keep the generated `.ll` file next to the executable. |
-| `--region-policy <policy>` | single value | The functions that open a memory region besides those named by `--region`: `all`, `scalar` or `none`. Default: `all`. |
-| `--region <function>` | repeatable value | Make a top-level function open a memory region under any policy, for example `--region app.handle`. |
+| `--region-policy <policy>` | single value | The functions that run in a memory region of their own besides those named by `--region`: `all` for every function that can allocate, `scalar` for only the functions that return a primitive value other than `Unit`, or `none`. Default: `all`. |
+| `--region <function>` | repeatable value | Run each call of a top-level function in a memory region of its own under any policy. Can be repeated. |
 | `--place-results` | flag | Allocate the result of a region function directly in the region it is returned to. Always on under `--region-policy all`. |
-| `--mem-profile` | flag | Name the functions and classes in the memory statistics. |
+| `--mem-profile` | flag | Name the functions and classes in the memory statistics printed under `JO_MEMSTATS=1`. |
 
 A program built with `--llvm` prints memory statistics on stderr when it runs
 with the environment variable `JO_MEMSTATS=1`. See

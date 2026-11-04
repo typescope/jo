@@ -442,15 +442,11 @@ RSS by 1.4 to 19 times. These numbers were taken before shared boxes (see
 To find out where the memory of a program goes, see
 [Memory statistics](#memory-statistics).
 
-`all` can cost time. To trade some of it back:
-
-1. Build with `--mem-profile` and run with `JO_MEMSTATS=1`.
-2. Take the functions of the `region` rows whose `objects` count is large
-   compared with the peak.
-3. Rebuild with `--region-policy none --region f ...` for those functions.
-4. Compare the time and `peak-rss-kb` with the build under `all`.
-
-On the deflate bench, `deflate 6 1024`:
+`all` can cost time. `--region-policy none` with a `--region` for a few
+functions trades some of it back. The steps to pick the functions are in the
+[memory guide](../../docs/usage/guides/memory.md#trading-time-back). On the
+jtk deflate bench, `deflate 6 1024`, one region function keeps the peak RSS
+of `all` at nearly the time of `none`:
 
 | Build | Time | Peak RSS |
 |---|---|---|

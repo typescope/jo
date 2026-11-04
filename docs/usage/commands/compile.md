@@ -114,13 +114,13 @@ LLVM IR and calls clang 15 or newer to build it.
 | Flag | Description |
 |------|-------------|
 | `--llvm` | Target a native executable through LLVM |
-| `--clang <path>` | The clang executable (default: `clang`) |
-| `--opt <level>` | clang optimization level (default: `2`) |
-| `--keep-ll` | Keep the generated `.ll` file next to the executable |
-| `--region-policy <policy>` | The functions that run in a memory region of their own: `all` (default), `scalar` or `none` |
-| `--region <function>` | Also run each call of `<function>` in a memory region of its own (can be repeated) |
-| `--place-results` | Allocate the result of a region function in the region it is returned to (always on under `all`) |
-| `--mem-profile` | Name the functions in the memory statistics printed under `JO_MEMSTATS=1` |
+| `--clang <path>` | The clang executable, version 15 or newer. Default: `clang`. |
+| `--opt <level>` | The clang optimization level. Default: `2`. |
+| `--keep-ll` | Keep the generated `.ll` file next to the executable. |
+| `--region-policy <policy>` | The functions that run in a memory region of their own besides those named by `--region`: `all` for every function that can allocate, `scalar` for only the functions that return a primitive value other than `Unit`, or `none`. Default: `all`. |
+| `--region <function>` | Run each call of a top-level function in a memory region of its own under any policy. Can be repeated. |
+| `--place-results` | Allocate the result of a region function directly in the region it is returned to. Always on under `--region-policy all`. |
+| `--mem-profile` | Name the functions and classes in the memory statistics printed under `JO_MEMSTATS=1`. |
 
 By default every function that can allocate runs in a memory region, which
 frees its garbage when it returns. Regions lower peak memory and never change
@@ -175,7 +175,15 @@ jo compile --python --sast .build/app/sast src/App.jo \
   -o .build/app/target/app.py
 ```
 
-Compile a native executable with regions only around each request:
+Compile a native executable with the default regions, and again with the
+functions named in its memory statistics:
+
+```sh
+jo compile --llvm src/App.jo -o app
+jo compile --llvm --mem-profile src/App.jo -o app && JO_MEMSTATS=1 ./app
+```
+
+Trade some memory for time by opening regions only around each request:
 
 ```sh
 jo compile --llvm --region-policy none --region app.handleRequest src/App.jo -o app
