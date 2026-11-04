@@ -85,8 +85,8 @@ def add(x: Int, y: Int) = x + y  // return type inferred
 def (a: Int) ** (b: Int): Int =   // operator definition
   if b == 0 then 1 else a * (a ** (b - 1))
 
-def (xs: List[Int]) sum: Int =    // pre-param (method-style)
-  xs.foldLeft(0, (a, b) => a + b)
+def (xs: List[Int]) sum: Int =    // pre-param, called as `xs sum`
+  xs.fold: 0, (a, b) => a + b
 
 def identity[T](x: T): T = x     // generic
 ```
@@ -97,8 +97,10 @@ def identity[T](x: T): T = x     // generic
 greet("Jo")                       // parenthesized
 greet "Jo"                        // space-separated
 gcd 10 15                         // multiple arguments
-println                           // no arguments
-  "result = " + result            // indented argument
+[1, 2, 3] sum                     // pre-param before the name
+println: "result = " + result     // inline colon call
+println:                          // indented argument
+  "result = " + result
 ```
 
 ## Control Flow
