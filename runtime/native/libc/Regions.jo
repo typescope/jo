@@ -804,7 +804,7 @@ private section Regions
 
   // The hint for allocation in `main` and for the results returned to it
   private def mainHint: String =
-    "jo-mem hint main: main runs in the runtime region, so what it allocates stays until exit, with the results of the functions it calls. A return row names such a function. Move the body of each loop of main into a function, so that what an iteration allocates is freed when that function returns. For a return row, the call of fun goes into that function too, with the code that uses its result. Moving the whole loop into a function only moves the objects into its region. Or avoid a new object per call."
+    "jo-mem hint main: main runs in the runtime region, so what it allocates, and the results of the functions it calls, stay until exit. Move the body of each loop of main into a function, so the objects of an iteration are freed when that function returns. If a return row names a function, move its call into that function too, with the code that uses the result. Moving the whole loop only moves the objects into the region of the new function."
 
   // The peak RSS in KB
   private def peakRssKb(): Long =

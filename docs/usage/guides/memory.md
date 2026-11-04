@@ -103,7 +103,7 @@ Every `Point` stays until exit. The loop calls no region function, so the
 
 ```
 jo-mem growth runtime-region=1000015 peak-rss-kb=56576 direct=1000015 store=0 trace=0 return=0
-jo-mem hint main: main runs in the runtime region, so what it allocates stays until exit, ...
+jo-mem hint main: main runs in the runtime region, so what it allocates, and the results ...
 jo-mem summary peak-rss-kb=56704 allocated=1000087 freed=72 runtime-region=1000015 skipped-enters=0
 jo-mem to-runtime direct=1000015 store=0 trace=0 return=0
 jo-mem closes free=2 merge=0 collect=0
@@ -231,7 +231,7 @@ jo-mem summary peak-rss-kb=60928 allocated=2999351 freed=1499632 runtime-region=
 jo-mem to-runtime direct=23 store=1 trace=0 return=1499488
 jo-mem closes free=7 merge=4498673 collect=1499281
 jo-mem promoted kind=return count=1499488 fun=jo.Iterator.SelectIterator$next at=lib/Iterator.jo:93 caller=evens.main
-jo-mem hint main: main runs in the runtime region, so what it allocates stays until exit, ...
+jo-mem hint main: main runs in the runtime region, so what it allocates, and the results ...
 ```
 
 Dropping `select` makes it worse, as `next` now returns every number to
@@ -254,7 +254,8 @@ jo-mem closes free=7 merge=420 collect=2998556
 jo-mem promoted kind=return count=2998976 fun=jo.Range.RangeIterator$next$bridge at=lib/Range.jo:55 caller=evens.main
 ```
 
-As the `main` hint says, move the loop body into a function, with the call of
+The name `$next$bridge` is the wrapper that boxes the result of `next`. As
+the `main` hint says, move the loop body into a function, with the call of
 `next`. Each number is then returned to `step`, and freed when `step` returns:
 
 ```jo
