@@ -495,6 +495,7 @@ div[class*='language-'] {
   grid-template-columns: auto 1fr;
   column-gap: 8px;
   align-items: center;
+  align-content: start;
 }
 .VPFeature .box > .VPImage {
   grid-column: 1;
@@ -554,4 +555,14 @@ div[class*='language-'] {
   font-size: 14px;
   line-height: 1.65;
   color: var(--vp-c-text-2);
+}
+
+/* Inline SVG feature icons: same placement as .VPImage icons */
+.VPFeature .box > .icon {
+  grid-column: 1;
+  grid-row: 1;
+  width: 24px;
+  height: 24px;
+  margin-bottom: 0;
+  background: none;
 }
