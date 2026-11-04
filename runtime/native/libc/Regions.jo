@@ -250,6 +250,7 @@ private section Regions
     st.level = 0
     st.skipped = 0
     st.growthSegs = noGrowth
+    st.regionGrowthSegs = noGrowth
 
   //[ Allocate a zeroed object in the current region //]
   def alloc(size: Int): Addr receives none =
@@ -679,13 +680,18 @@ private section Regions
     st.toRuntimeReturn = st.toRuntimeReturn + 1
     if !(isNull st.funStats) then bump(statsOf (funOf r), returnField)
 
-  // The region `r` gained segments: make a growth report due if it is the
-  // runtime region and reached the threshold, and record the peak of its
-  // function. The report region of `growthReport` has the function 0 and no
-  // peak.
+  // The region `r` gained segments: make a growth report due if it reached
+  // the threshold of the runtime region or of the other regions, and record
+  // the peak of its function. The report region of `growthReport` has the
+  // function 0 and no peak.
   private def grew(r: Addr): Unit =
     val st = state
-    if (segsOf r) >= st.growthSegs && sameRef(r, st.regions) then st.growthDue = true
+    val segs = segsOf r
+    if sameRef(r, st.regions) then
+      if segs >= st.growthSegs then st.growthDue = true
+    else if segs >= st.regionGrowthSegs then
+      st.growthDue = true
+
     if !(isNull st.funStats) && (funOf r) > 0 then
       val e = statsOf (funOf r)
       if (segsOf r) > (field(e, peakSegsField)) then
@@ -701,6 +707,7 @@ private section Regions
 
     val st = state
     st.growthSegs = firstGrowth
+    st.regionGrowthSegs = firstGrowth
     if n > 0 then
       st.funStats = callocOrAbort (n * statsSize)
       st.funCount = n
@@ -806,6 +813,10 @@ private section Regions
   private def mainHint: String =
     "jo-mem hint main: main runs in the runtime region, so what it allocates, and the results of the functions it calls, stay until exit. Move the body of each loop of main into a function, so the objects of an iteration are freed when that function returns. If a return row names a function, move its call into that function too, with the code that uses the result. Moving the whole loop only moves the objects into the region of the new function."
 
+  // The hint for a `region` row and a `growth-region` line
+  private def regionHint: String =
+    "jo-mem hint region: the region of this function held this many objects at once. What it allocates and the results returned to it stay until it returns. If it loops, move the loop body into a function, so the garbage of each iteration is freed when that function returns. If the body already is a function, its stores into containers of this function keep the objects, or what it returns does. The hint for stores applies to these containers too."
+
   // The peak RSS in KB
   private def peakRssKb(): Long =
     // 0 is RUSAGE_SELF. The buffer is larger than `struct rusage`, whose
@@ -816,12 +827,67 @@ private section Regions
     LibC.free usage
     rss
 
-  // Print a growth report: the runtime region reached `growthSegs`. Called at
-  // the end of `leave`, when the state is consistent. Prints in a region of
-  // its own, so that its strings are freed and the counts stay as they are.
+  // Print the growth reports that are due. Called at the end of `leave`, when
+  // the state is consistent.
   private def growthReport(): Unit =
     val st = state
     st.growthDue = false
+    if (segsOf st.regions) >= st.growthSegs then runtimeGrowthReport()
+    regionGrowthReport()
+
+  // A region other than the runtime region reached `regionGrowthSegs`.
+  // Report the largest open one if it still has that many segments. It may
+  // have closed since. The runtime region has reports of its own.
+  private def regionGrowthReport(): Unit =
+    val st = state
+    var best = 0
+    var bestSegs = 0
+    var l = st.level
+    while l > 0 do
+      val r = descOf l
+      if (segsOf r) > bestSegs then
+        best = l
+        bestSegs = segsOf r
+
+      l = parentOf r
+    end
+
+    if bestSegs >= st.regionGrowthSegs then
+      st.regionGrowthSegs = if bestSegs > noGrowth / 2 then noGrowth else 2 * bestSegs
+      val r = descOf best
+      // read the counts before printing, which allocates
+      val objects = countAt best
+      val named = !(isNull (funName 0))
+      val fun = funOf r
+      // `callerOf` reads the names
+      val caller = if named then callerOf r else 0
+
+      enter 0
+      val rss = peakRssKb()
+      writeString: 2, cast[StringRepr] "jo-mem growth-region objects=\{objects} peak-rss-kb=\{rss}"
+      if named then
+        writeString: 2, cast[StringRepr] " fun="
+        writeName(funName fun, false)
+        writeString: 2, cast[StringRepr] " caller="
+        writeName(funName caller, true)
+
+      line ""
+      if !named then
+        if !st.growthHinted then
+          line "jo-mem hint rebuild with --mem-profile to attribute these to functions"
+          st.growthHinted = true
+
+      else if !st.regionHinted then
+        line regionHint
+        st.regionHinted = true
+
+      leave nullAddr
+
+  // Print a growth report: the runtime region reached `growthSegs`. Prints in
+  // a region of its own, so that its strings are freed and the counts stay as
+  // they are.
+  private def runtimeGrowthReport(): Unit =
+    val st = state
     val segs = segsOf st.regions
     st.growthSegs = if segs > noGrowth / 2 then noGrowth else 2 * segs
 
@@ -900,8 +966,7 @@ private section Regions
       if (traceRows & printedRows) != 0 then
         line "jo-mem hint trace: when the region of this function closed, a structure reachable from the runtime region moved there with everything it reaches. Find the store that linked it and apply the hint for stores."
 
-      if (regionRows & printedRows) != 0 then
-        line "jo-mem hint region: the region of this function held this many objects at once. What it allocates and the results returned to it stay until it returns. If it loops, move the loop body into a function, so the garbage of each iteration is freed when that function returns. If the body already is a function, its stores into containers of this function keep the objects, or what it returns does. The hint for stores applies to these containers too."
+      if (regionRows & printedRows) != 0 then line regionHint
 
       if (rows & printedLibrary) != 0 then
         line "jo-mem hint library: fun names a jo.* library function. Change how the caller uses it. For example, replace Iterator.fold over a long input with a while loop whose body calls a function."

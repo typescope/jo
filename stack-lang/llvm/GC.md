@@ -578,7 +578,24 @@ A single growth report soon after startup can be data the program builds once
 and keeps, such as a table it loads. Repeated reports while the program serves
 requests mean the region grows without bound.
 
-The runtime notes the threshold when a segment is added, and prints the report
+Any other region can grow without bound too, for example the region of a
+function that loops forever and keeps what the calls of the loop return to it.
+When a region other than the runtime region reaches 1024 segments, and each
+time that threshold doubles after that, the program prints a `growth-region`
+line for the largest open region:
+
+```
+jo-mem growth-region objects=63430 peak-rss-kb=4992 fun=memserve.serve at=serve.jo:12 caller=memserve.main
+```
+
+`objects` counts the objects of that region. Built with `--mem-profile`, the
+line names its function and caller, and the first one adds the `region` hint
+of the exit report. Without names, the first report suggests rebuilding
+instead. The threshold is shared by all regions other than the runtime region,
+so a function that builds the same large temporary structure on every call
+is reported once.
+
+The runtime notes the thresholds when a segment is added, and prints the report
 at the next return of a region function, once the state is consistent. The
 report runs in a region of its own, so it adds nothing to the promotions or to
 the runtime region. Its strings still count in `allocated` and `freed`.
@@ -810,6 +827,7 @@ The barrier may be inlined.
   prefix of their names is a heuristic.
 - A growth report is printed at the next return of a region function, so a
   loop in `main` that calls none reports late, at the next return or at exit.
+  A region that reached the threshold and closed before then is not reported.
 
 ## Later: a faster allocator
 
