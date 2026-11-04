@@ -18,8 +18,8 @@ private def intToLong(a: Int): Long receives none = ...
 @intrinsic
 private def addrToLong(a: Addr): Long receives none = ...
 
-// Print the memory statistics first if `JO_MEMSTATS` is set. After `abort`,
-// whose message has no newline, start them on a new line.
+// Print the memory statistics first if `JO_MEMSTATS` turned them on. After
+// `abort`, whose message has no newline, start them on a new line.
 private def exitImpl(code: Int): Bottom receives none =
   val st = state
   if st.memStats then
@@ -223,12 +223,21 @@ private def boxByte(b: Byte): ByteBox receives none = sharedByteBox b
 //[ Box a Bool with its shared box //]
 private def boxBool(b: Bool): BoolBox receives none = sharedBoolBox b
 
+//[ Whether the value of an environment variable turns a feature on: set, not empty and not "0" //]
+private def isSet(value: Addr): Bool receives none =
+  if isNull value then false
+  else
+    // 48 is `0`
+    val c0 = (readByte value).toInt
+    val c1 = if c0 == 0 then 0 else (readByte (addAddr value 1)).toInt
+    c0 != 0 && !(c0 == 48 && c1 == 0)
+
 //[ Program entry, called by the C `main` function //]
 private def start(argc: Int, argv: Addr): Unit receives none =
   GC.init()
 
   val st = state
-  st.memStats = !(isNull (LibC.getenv (cString "JO_MEMSTATS")))
+  st.memStats = isSet (LibC.getenv (cString "JO_MEMSTATS"))
   if st.memStats then Regions.startStats()
 
   // Install SIGSEGV handler so stack overflow prints a clear message.

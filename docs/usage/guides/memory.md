@@ -14,7 +14,7 @@ tells you where it goes, and a small change to the program usually fixes it.
 ## The loop
 
 1. Run the program with `JO_MEMSTATS=1`. It prints a report on stderr when it
-   exits.
+   exits. Any value other than the empty string and `0` turns the report on.
 2. Read the `summary` and `to-runtime` lines. If `runtime-region` is a large
    share of `allocated`, or `hint main` appears, the runtime region is the
    problem. If `runtime-region` is small but `peak-rss-kb` is still high, look
