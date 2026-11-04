@@ -328,7 +328,7 @@ private section Regions
       if !(isNull result) && (reqOf result) > p then
         setReq(result, p)
         record(physOf result, p)
-        if p == 0 then st.toRuntimeReturn = st.toRuntimeReturn + 1
+        if p == 0 then promotedByReturn r
 
       close(r, st.level, p)
       st.region = descOf p
@@ -574,15 +574,18 @@ private section Regions
   // The counts of `State` are always kept. Under `--mem-profile` the backend
   // emits the names of the region functions, by number, and of the classes,
   // by class id. With names and `JO_MEMSTATS`, each region function gets an
-  // entry of `funStats`, of 8 `i32` fields:
+  // entry of `funStats`, of 10 `i32` fields:
   //
-  //   { store, trace, peakSegs, peakCaller, into, caller, storeBase, traceBase }
+  //   { store, trace, peakSegs, peakCaller, into, caller, storeBase, traceBase,
+  //     return, returnBase }
   //
   // `store` and `trace` count the objects its stores and the trace of its
-  // region promoted to the runtime region. `into` is the class of the object
-  // stored into last, and `caller` the caller at the last promotion.
-  // `storeBase` and `traceBase` are `store` and `trace` at the last growth
-  // report, which prints the promotions since.
+  // region promoted to the runtime region, and `return` the results it
+  // returned to `main`. `into` is the class of the object stored into last,
+  // and `caller` the caller at the last store or trace. The caller of a
+  // `return` is always `main`. `storeBase`, `traceBase` and `returnBase` are
+  // `store`, `trace` and `return` at the last growth report, which prints the
+  // promotions since.
   // `peakSegs` is the most segments its region had, and `peakCaller` the
   // caller then. The caller is the nearest function of an enclosing region
   // that is not a library function, so that a row names user code.
@@ -595,7 +598,7 @@ private section Regions
   @intrinsic
   private def classNames: Addr = ...
 
-  private def statsSize: Int = 32
+  private def statsSize: Int = 40
 
   private def storeField: Int = 0
 
@@ -612,6 +615,10 @@ private section Regions
   private def storeBaseField: Int = 24
 
   private def traceBaseField: Int = 28
+
+  private def returnField: Int = 32
+
+  private def returnBaseField: Int = 36
 
   // The value of `growthSegs` when the statistics are off
   private def noGrowth: Int = 2147483647
@@ -664,6 +671,13 @@ private section Regions
       val e = statsOf (funOf r)
       bump(e, traceField)
       setField(e, callerField, callerOf r)
+
+  // The region `r`, whose parent is the runtime region, returned its result
+  // to `main`, which promoted the result there
+  private def promotedByReturn(r: Addr): Unit =
+    val st = state
+    st.toRuntimeReturn = st.toRuntimeReturn + 1
+    if !(isNull st.funStats) then bump(statsOf (funOf r), returnField)
 
   // The region `r` gained segments: make a growth report due if it is the
   // runtime region and reached the threshold, and record the peak of its
@@ -758,14 +772,20 @@ private section Regions
 
         if best > 0 then
           writeString: 2, cast[StringRepr] " caller="
-          val caller = field(e, if offset == peakSegsField then peakCallerField else callerField)
+          // a result is returned to `main`, function 0
+          val caller =
+            if offset == peakSegsField then field(e, peakCallerField)
+            else if offset == returnField then 0
+            else field(e, callerField)
+
           writeName(funName caller, true)
 
         line ""
         printed = printed + 1
         flags = flags | printedRows
 
-        if isLibrary best then flags = flags | printedLibrary
+        // the main hint covers a library function that returns to `main`
+        if (isLibrary best) && offset != returnField then flags = flags | printedLibrary
     end
 
     if base != cumulative then
@@ -782,9 +802,9 @@ private section Regions
   private def sharedBoxes: String =
     "Int in [\{intBoxLow}, \{intBoxLow + intBoxCount}), Char in [0, \{charBoxCount}), Byte and Bool have shared boxes."
 
-  // The hint for allocation in `main`
+  // The hint for allocation in `main` and for the results returned to it
   private def mainHint: String =
-    "jo-mem hint main: main runs in the runtime region, so what it allocates stays until exit, with the results of the functions it calls. Move its loops into functions."
+    "jo-mem hint main: main runs in the runtime region, so what it allocates stays until exit, with the results of the functions it calls. A return row names such a function. Move the body of each loop of main into a function, so that what an iteration allocates is freed when that function returns. For a return row, the call of fun goes into that function too, with the code that uses its result. Moving the whole loop into a function only moves the objects into its region. Or avoid a new object per call."
 
   // The peak RSS in KB
   private def peakRssKb(): Long =
@@ -814,7 +834,8 @@ private section Regions
 
     enter 0
     val rss = peakRssKb()
-    line "jo-mem growth runtime-region=\{runtime} peak-rss-kb=\{rss} direct=\{direct - st.lastDirect} store=\{store - st.lastStore} trace=\{trace - st.lastTrace} return=\{ret - st.lastReturn}"
+    val returned = ret - st.lastReturn
+    line "jo-mem growth runtime-region=\{runtime} peak-rss-kb=\{rss} direct=\{direct - st.lastDirect} store=\{store - st.lastStore} trace=\{trace - st.lastTrace} return=\{returned}"
     st.lastStore = store
     st.lastTrace = trace
     st.lastReturn = ret
@@ -829,11 +850,12 @@ private section Regions
       // the base fields hold the counts at the last growth report
       val storeRows = printTop("growth-promoted kind=store count", storeField, storeBaseField, 1)
       val traceRows = printTop("growth-promoted kind=trace count", traceField, traceBaseField, 1)
+      val _ = printTop("growth-promoted kind=return count", returnField, returnBaseField, 1)
       if ((storeRows | traceRows) & printedRows) != 0 && !st.growthHinted then
         line "jo-mem hint growth: a single report after startup can be data the program keeps. Repeated reports mean the runtime region grows without bound. Start with the largest row. If fun is a jo.* library function, change how caller uses it. A trace row means a store linked a structure to the runtime region, so find that store. A value stored into a container of the runtime region stays until exit, even after it is overwritten. Keep per-request state in a function that returns. Mutate the fields of the existing object instead of storing a new one, or store values that need no allocation. \{sharedBoxes} Do not append without bound to a collection owned by main."
         st.growthHinted = true
 
-    if direct - st.lastDirect >= 1000 && !st.mainHinted then
+    if (direct - st.lastDirect >= 1000 || returned >= 1000) && !st.mainHinted then
       line mainHint
       st.mainHinted = true
 
@@ -869,6 +891,7 @@ private section Regions
       // `cumulative`: the counts since the start, not since a base field
       val storeRows = printTop("promoted kind=store count", storeField, cumulative, 1)
       val traceRows = printTop("promoted kind=trace count", traceField, cumulative, 1)
+      val _ = printTop("promoted kind=return count", returnField, cumulative, 1)
       val regionRows = printTop("region objects", peakSegsField, cumulative, segCapacity)
       val rows = storeRows | traceRows | regionRows
       if (storeRows & printedRows) != 0 then
@@ -883,5 +906,5 @@ private section Regions
       if (rows & printedLibrary) != 0 then
         line "jo-mem hint library: fun names a jo.* library function. Change how the caller uses it. For example, replace Iterator.fold over a long input with a while loop whose body calls a function."
 
-    if direct >= 1000 then line mainHint
+    if direct >= 1000 || ret >= 1000 then line mainHint
 end

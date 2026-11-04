@@ -89,6 +89,18 @@ awk '/^jo-mem summary/ { exit } /^jo-mem hint main: / { n++ } END { exit !(n == 
 ! grep -q '^jo-mem growth-promoted' "$DIR/actual.err" || fail "growth-promoted rows for direct allocations"
 ! grep -q '^jo-mem hint growth' "$DIR/actual.err" || fail "growth hint without rows"
 
+# Results returned to `main`: the iterator returns 3000 boxed numbers. The row
+# names the library function, the caller is `main`, and the main hint covers
+# it without the library hint.
+echo "  - Building ret.jo with --mem-profile"
+"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" --mem-profile "$DIR/ret.jo" -o "$DIR/ret.run" || exit 1
+JO_MEMSTATS=1 "$DIR/ret.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
+[ "$(cat "$DIR/actual.out")" = "10498500" ] || fail "unexpected output of ret.jo"
+grep -q '^jo-mem to-runtime direct=[0-9]* store=0 trace=0 return=3000$' "$DIR/actual.err" || fail "no return count"
+grep -q '^jo-mem promoted kind=return count=3000 fun=jo\.Range\.RangeIterator\$next[$a-z]* at=.*Range.jo:[0-9]* caller=memret\.main$' "$DIR/actual.err" || fail "no return row for the iterator"
+[ "$(grep -c '^jo-mem hint main: ' "$DIR/actual.err")" = 1 ] || fail "expected one main hint for returned results"
+! grep -q '^jo-mem hint library' "$DIR/actual.err" || fail "library hint for a return row"
+
 rm -rf "$DIR/actual.out" "$DIR/actual.err" "$DIR"/*.run
 
 echo "  ✓ All tests passed for $TEST_NAME"
