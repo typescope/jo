@@ -61,8 +61,8 @@ configuration instead:
 - `--region-policy scalar` makes only the functions returning a primitive
   value other than `Unit` region functions, and `--region-policy none` none.
 - `--region <function>` makes a function a region function under any policy.
-  The flag can be repeated. Listing region functions in `jo.toml`, like
-  `--link` mappings, is not implemented yet.
+  The flag can be repeated. The `jo` tool does not build LLVM apps yet, so
+  these options go on the `jo compile --llvm` command line.
 
 ### Functions that cannot allocate
 
@@ -439,8 +439,30 @@ RSS by 1.4 to 19 times. These numbers were taken before shared boxes (see
 | sat smoke | 0.13 → 0.18 s | 56 → 30 MB |
 | url smoke | 1.24–1.50 → 1.21–1.34 s | 53 → 16 MB |
 
-`none` with `--region` remains for measuring a few chosen functions. To find
-out where the memory of a program goes, see [Memory statistics](#memory-statistics).
+To find out where the memory of a program goes, see
+[Memory statistics](#memory-statistics).
+
+`all` can cost time. To trade some of it back:
+
+1. Build with `--mem-profile` and run with `JO_MEMSTATS=1`.
+2. Take the functions of the `region` rows whose `objects` count is large
+   compared with the peak.
+3. Rebuild with `--region-policy none --region f ...` for those functions.
+4. Compare the time and `peak-rss-kb` with the build under `all`.
+
+On the deflate bench, `deflate 6 1024`:
+
+| Build | Time | Peak RSS |
+|---|---|---|
+| `all` | 1.02 s | 136 MB |
+| `none` | 0.77 s | 163 MB |
+| `--region-policy none --region Bench.words` | 0.82 s | 135.5 MB |
+
+`--region` accepts only top-level functions outside the runtime. A row of a
+method, like `forth.Vm$loop`, cannot be named, and the fix there is in the
+program. Removing a single region from `all` does not lower RSS and may not
+save time, since its allocations merge into the caller's region. That is why
+there is no `--no-region`.
 
 ## Memory statistics
 
