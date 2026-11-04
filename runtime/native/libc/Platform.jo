@@ -48,6 +48,7 @@ private def bytesClassId: Int receives none = ...
 
 // A byte buffer of `size` bytes. Returns the address of its first byte.
 private def allocBuffer(size: Int): Addr receives none =
+  checkAllocCount(size, 1)
   val obj = GC.alloc (size + wordSize)
   writeInt obj bufferClassId
   addAddr obj wordSize

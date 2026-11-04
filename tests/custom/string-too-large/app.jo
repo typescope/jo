@@ -1,0 +1,30 @@
+namespace strbig
+
+// Each case builds a string whose byte size passes the largest `Int`. The
+// native runtimes abort with a message instead of wrapping the size.
+// Concatenation shares its operands, so the cases need little memory.
+def main =
+  val n = IO.args[0].toInt
+  if n == 0 then
+    var s = "abc"
+    var i = 0
+    while i < 32 do
+      s = s + s
+      i = i + 1
+    end
+    println: s == s
+  else if n == 1 then
+    println: ("abc" * 1000000000).size
+  else if n == 2 then
+    println: (List.fill(40, "x" * 100000000)).join(",").size
+  else if n == 3 then
+    var s = "ab"
+    var i = 0
+    while i < 31 do
+      s = "\{s}\{s}"
+      i = i + 1
+    end
+    println: s.size
+  else
+    println: ("ab" * 5).size
+    println: "a\{"b" * 3}c"

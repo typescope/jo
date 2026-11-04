@@ -17,10 +17,13 @@ private[native] def alloc(size: Int): Addr receives none =
   var freeFrom = state.freeFrom
   val lastFreeUntil = state.freeUntil
 
-  if freeFrom + size > lastFreeUntil then
-     val pages = (size + 4095) / 4096
+  // Compare differences of addresses, which stay correct where a sum of an
+  // address and a large size would wrap. `brk` returns the old break when it
+  // fails, so check that the new break leaves room for `size` bytes.
+  if size > lastFreeUntil - freeFrom then
+     val pages = size / 4096 + 1
      val newFreeUntil = Syscall.sys_brk (lastFreeUntil + pages * 4096)
-     if newFreeUntil == -1 then
+     if newFreeUntil == -1 || newFreeUntil - lastFreeUntil < size then
        abort "Unable to alloc memory from system"
 
      // Start the allocation at the newly mapped page boundary.

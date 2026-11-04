@@ -112,10 +112,17 @@ private[native] section StringOps
         else
           lhs[i]
 
+  // The byte size of a string is an `Int`, and `bytes` allocates it in one
+  // buffer. A wrapped sum would allocate too little, so abort instead. The
+  // code point count is at most the byte size, so it cannot wrap either.
   def (lhs: String) + (rhs: String): String =
+    val lhsN = byteSize lhs
+    val rhsN = byteSize rhs
+    if lhsN > 2147483647 - rhsN then
+      abort "String of \{lhsN} + \{rhsN} bytes is too large"
+
     val cpN = lhs.size + rhs.size
-    val byteN = byteSize(lhs) + byteSize(rhs)
-    cast[String] Concat(byteN, cpN, lhs, rhs)
+    cast[String] Concat(lhsN + rhsN, cpN, lhs, rhs)
 
   def (lhs: String) == (rhs: String): Bool =
     val bytesN = byteSize(lhs)

@@ -1,0 +1,11 @@
+String of 1610612736 + 1610612736 bytes is too large
+exit=1
+String of 1389387264 + 1610612736 bytes is too large
+exit=1
+String of 2100000021 + 100000000 bytes is too large
+exit=1
+String of 1073741824 + 1073741824 bytes is too large
+exit=1
+10
+abbbc
+exit=0
