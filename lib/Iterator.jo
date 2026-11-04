@@ -60,29 +60,44 @@ private section Iterator
     view Iterator[S]
   end
 
+  // Holds the buffered match of a `SelectIterator`. It keeps the last match
+  // alive until the iterator dies.
+  class Cell[T]
+    var value: T
+
+    def Cell(value: T) =
+      this.value = value
+  end
+
   class SelectIterator[T](source: Iterator[T], pred: T => Bool)
-    var buffered: Option[T] = None
+    // One reusable cell instead of an `Option[T]`, which would allocate per match.
+    var cell: Option[Iterator.Cell[T]] = None
+    var has: Bool = false
 
     private def fill: Unit =
-      while buffered.isEmpty && source.hasNext do
+      while !has && source.hasNext do
         val v = source.next
+
         if pred(v) then
-          buffered = Some(v)
+          match cell
+          case None => cell = Some(new Iterator.Cell(v))
+          case Some(c) => c.value = v
+          has = true
         end
       end
 
     def hasNext: Bool =
       fill()
-      !buffered.isEmpty
+      has
 
     def next: T =
       fill()
 
-      match buffered
-      case Some(v) =>
-        buffered = None
-        v
-      case None =>
+      match cell
+      case Some(c) if has =>
+        has = false
+        c.value
+      case _ =>
         abort "iterator exhausted"
 
     view Iterator[T]
