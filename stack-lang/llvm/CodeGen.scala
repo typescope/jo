@@ -195,6 +195,7 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
       "byteSize" -> V("i32", n.toString),
       "cpCount"  -> V("i32", value.codePointCount(0, value.length).toString),
       "content"  -> V("ptr", stringContent(value)),
+      "capacity" -> V("i32", "0"),
     )
 
     val ty = staticObjectType(rawCls)
@@ -499,7 +500,9 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
 
   /** Whether a function opens a region, by `--region` or the region policy */
   def opensRegion(sym: Symbol, resultType: Type): Boolean =
-    // The runtime manages the regions, and main runs in no region
+    // The runtime manages the regions, and main runs in no region. A runtime
+    // function must not place its result either: `StringOps.+` relies on its
+    // new strings being in the current region.
     def selectable =
       !sym.fullName.startsWith("jo.runtime.") && !runtime.rewire.get(defn.main).contains(sym)
 

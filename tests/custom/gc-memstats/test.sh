@@ -109,14 +109,14 @@ grep -q '^jo-mem promoted kind=return count=3000 fun=jo\.Range\.RangeIterator\$n
 [ "$(grep -c '^jo-mem hint main: ' "$DIR/actual.err")" = 1 ] || fail "expected one main hint for returned results"
 ! grep -q '^jo-mem hint library' "$DIR/actual.err" || fail "library hint for a return row"
 
-# Growth of a region other than the runtime region: `serve` keeps the 300000
-# replies of `handle`, a reply and its string each. Its region reaches 1024,
-# 2048, 4096, 8192 and 16384 segments, so there are 5 reports, and none for
-# the runtime region.
+# Growth of a region other than the runtime region: `serve` keeps the 400000
+# replies of `handle`, a reply, its string and the string's buffer each. Its
+# region reaches 1024, 2048, 4096, 8192 and 16384 segments, so there are 5
+# reports, and none for the runtime region.
 echo "  - Building serve.jo with --mem-profile"
 "$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" --mem-profile "$DIR/serve.jo" -o "$DIR/serve.run" || exit 1
 JO_MEMSTATS=1 "$DIR/serve.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
-[ "$(cat "$DIR/actual.out")" = "60000000" ] || fail "unexpected output of serve.jo"
+[ "$(cat "$DIR/actual.out")" = "80000000" ] || fail "unexpected output of serve.jo"
 [ "$(grep -c '^jo-mem growth-region objects=[0-9]* peak-rss-kb=[0-9]* fun=memserve.serve at=.*serve.jo:[0-9]* caller=memserve.main$' "$DIR/actual.err")" = 5 ] || fail "expected 5 growth-region reports for serve"
 [ "$(grep -c '^jo-mem growth' "$DIR/actual.err")" = 5 ] || fail "unexpected growth reports for serve.jo"
 awk '/^jo-mem growth-region / { split($3, a, "="); if (a[2] < 63000 || a[2] <= last) bad = 1; last = a[2] } END { exit bad }' "$DIR/actual.err" || fail "growth-region counts do not grow"

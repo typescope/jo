@@ -87,8 +87,7 @@ class LLVMRuntime(val rewire: Map[Symbol, Symbol])(using defn: Definitions):
   val Core_bufferClassId = Native.termMember("bufferClassId")
   val Core_bytesClassId  = Native.termMember("bytesClassId")
 
-  val Core_String_Raw    = Native.typeMember("Raw")
-  val Core_String_Concat = Native.typeMember("Concat")
+  val Core_String_Raw = Native.typeMember("Raw")
 
   val Core_RefArray_ArrayClassId = defn.resolveTerm("jo.runtime.native.RefArray.ArrayClassId")
 

@@ -168,12 +168,9 @@ class EncodeClass(runtime: LLVMRuntime)(using defn: Definitions) extends phases.
     val valueClassId = Encoded(arg)(classIdRecordType).select(Layout.ClassID)
 
     if cls == defn.String_type then
-      // String type is represented by union type Raw | Concat
-      val classId1 = IntLit(getClassId(runtime.Core_String_Raw))(span)
-      val classId2 = IntLit(getClassId(runtime.Core_String_Concat))(span)
-      val test1 = transform(valueClassId.isEqualTo(classId1))
-      val test2 = transform(valueClassId.isEqualTo(classId2))
-      Ident(runtime.Bool_or)(span).appliedTo(test1, test2)
+      // String type is represented by the class Raw
+      val classId = IntLit(getClassId(runtime.Core_String_Raw))(span)
+      transform(valueClassId.isEqualTo(classId))
 
     else if cls == defn.Bool_type then
       val classId = IntLit(getClassId(runtime.Core_BoolBox))(span)

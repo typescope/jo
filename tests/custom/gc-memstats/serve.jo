@@ -19,4 +19,4 @@ def serve(n: Int): Int =
   total
 
 def main =
-  println: serve(300000)
+  println: serve(400000)
