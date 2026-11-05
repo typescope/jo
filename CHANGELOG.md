@@ -4,12 +4,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.14.10] - 2026-11-05
+
 ### Fixed
 
 - The build tool again accepts a module without `enable-ffi` that links a module
   with `enable-ffi = true` through a `link = true` dependency. Such a dependency
   is hidden from the dependent module, so no FFI type reaches its code. The check
   added in 0.14.9 applies only to dependencies the module can name.
+
+### Security
+
+- No security-relevant changes.
+
+### Compatibility
+
+- Builds that 0.14.9 rejected because a module without `enable-ffi` links a
+  module with `enable-ffi = true` through a `link = true` dependency build again,
+  as in 0.14.8 and earlier. Modules that depend on an FFI module through an
+  ordinary dependency are still rejected.
+- The standard library, runtimes, build specifications, and `.joy` package formats
+  are unchanged. SAST remains at format 2.0; existing libraries do not require
+  recompilation for format compatibility.
 
 ## [0.14.9] - 2026-11-05
 
