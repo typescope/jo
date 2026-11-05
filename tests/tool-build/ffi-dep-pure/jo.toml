@@ -18,3 +18,9 @@ platform = "python"
 enable-ffi = true
 src = ["ok/"]
 modules = ["ffi"]
+
+[module.guest]
+kind = "app"
+platform = "python"
+src = ["guest/"]
+modules = [{ id = "ffi", link = true }]
