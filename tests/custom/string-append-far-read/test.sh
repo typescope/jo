@@ -8,16 +8,15 @@ echo "Testing $TEST_NAME"
 
 rm -rf "$DIR/actual.out" "$DIR"/*.run
 
-# Run every case of app.jo and strip the source location of the abort
-run_cases() {
-    for n in 0 1 2 3 4; do
-        (ulimit -v 400000; "$1" $n; echo "exit=$?") 2>&1
-    done | sed -E 's/ \([^)]*\.jo:[0-9]+\)exit=/\nexit=/' > "$DIR/actual.out"
+# Under 100 MB: a copy of the string at each read, or every 32 reads,
+# would need several hundred MB
+run_app() {
+    (ulimit -v 100000; "$1"; echo "exit=$?") > "$DIR/actual.out" 2>&1
 }
 
 echo "  - Building with LLVM"
 "$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" "$DIR/app.jo" -o "$DIR/app.run" || exit 1
-run_cases "$DIR/app.run"
+run_app "$DIR/app.run"
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] LLVM test failed for $TEST_NAME"
     exit 1
@@ -25,7 +24,7 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
 
 echo "  - Building with the 32-bit register backend"
 "$PROJECT_ROOT/bin/jo" compile --reg "$DIR/app.jo" -o "$DIR/app.run" || exit 1
-run_cases "$DIR/app.run"
+run_app "$DIR/app.run"
 diff "$DIR/actual.out" "$DIR/expect.check" || {
     echo "[error] register backend test failed for $TEST_NAME"
     exit 1

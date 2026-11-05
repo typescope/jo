@@ -301,7 +301,7 @@ private def charToStr(c: Char): String =
     writeByte (addAddr content 2) (0x80 | ((codePoint >> 6) & 0x3F)).toByte
     writeByte (addAddr content 3) (0x80 | (codePoint & 0x3F)).toByte
 
-  cast[String]: Raw(len, 1, content)
+  cast[String]: Raw(len, 1, content, 0)
 
 private def intToStr(n: Int): String =
   // MAX_VALUE =  2147483647
@@ -342,7 +342,7 @@ private def intToStr(n: Int): String =
         writeByte (addAddr buf copyIndex) c
         copyIndex = copyIndex + 1
 
-    cast[String]: Raw(len, len, buf)
+    cast[String]: Raw(len, len, buf, 0)
 
 //------------------------------------------------------------------------------
 //
@@ -464,7 +464,7 @@ private section RawBytes
       o = o + 4
 
     // Base64 is ASCII: one code point per byte
-    cast[String]: Raw(outLen, outLen, out)
+    cast[String]: Raw(outLen, outLen, out, 0)
 
   def fill(size: Int, values: Int => Byte): Bytes =
     checkAllocCount(size, 1)
@@ -529,12 +529,11 @@ end
 // I/O support
 //
 
-// Write the flat form in one call. A literal is already flat, so the
-// messages of a stack overflow or of running out of memory allocate nothing.
+// Write the bytes in one call. It allocates nothing, so it can write the
+// messages of a stack overflow or of running out of memory.
 private def writeString(fd: Int, repr: StringRepr): Unit =
-  val r = StringOps.flat (cast[String] repr)
-  val byteN = r.byteSize
-  val bytesWritten = writeFd fd r.content byteN
+  val byteN = repr.byteSize
+  val bytesWritten = writeFd fd repr.content byteN
   assert:
     byteN == bytesWritten
     "write failed"

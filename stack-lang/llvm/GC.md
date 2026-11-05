@@ -126,7 +126,8 @@ objects. They carry a header with `phys = 0` and `req = 0`, so the barrier never
 and the trace never enters them.
 
 A string literal is a static `Raw` object whose `content` points into a static
-buffer object. Context parameter keys point into static buffers too. Program
+buffer object. Its `capacity` is 0, so nothing writes to the buffer. Context
+parameter keys point into static buffers too. Program
 arguments are copied into heap buffers at startup, and memory handed to the C
 library, such as the alternate signal stack, comes from `calloc`.
 
@@ -213,6 +214,16 @@ buffer, never into C memory or past the start of the content. The trace checks
 the class id of the buffer and stops the program if the rule is broken.
 Buffers hold no pointers, so the trace lowers them without descending, and an
 interior slot is never reversed.
+
+A string with `capacity > 0` has a growable buffer, the only buffer written
+after a `Raw` refers to it. Its last 4 bytes hold `used`, the number of bytes
+that strings on the buffer hold. An append writes only past `used`, which no
+existing string covers, so no string sees the change. The new `Raw` that
+shares the buffer is allocated in the current region. The buffer belongs to a
+reachable string, so its region is at least as old, and the `content` slot
+needs no barrier. Runtime functions open no regions and place no results, so
+this holds for every append. Writes of bytes need no barrier either, since
+buffers hold no pointers.
 
 `calloc` keeps object addresses stable, and `free` frees objects one at a
 time. A size-class allocator can replace it later without changing the

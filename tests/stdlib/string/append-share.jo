@@ -1,0 +1,85 @@
+// Strings built by appends share buffers. An append must never change a
+// string that already exists.
+def main =
+  forks()
+  literals()
+  inFunction()
+  doubling()
+
+def add(s: String): String = s + "x"
+
+def forks(): Unit =
+  println "--- forks ---"
+  var s = "ab"
+  var i = 0
+  while i < 5 do
+    s = s + "c"
+    i = i + 1
+  end
+
+  // `t` takes the room after `s`, so `s + "x"` must copy
+  val t = s + "!"
+  s = s + "x"
+  println: t                          // abccccc!
+  println: s                          // abcccccx
+
+  val a = s + "x"
+  val b = s + "y"
+  println: a                          // abcccccxx
+  println: b                          // abcccccxy
+  println: s                          // abcccccx
+
+  // Non-ASCII pieces keep the code point counts right
+  val e = s + "é"
+  val f = s + "ü!"
+  println: e.size                     // 9
+  println: f.size                     // 10
+  println: e[8]                       // é
+  println: f[8]                       // ü
+  println: e == "abcccccxé"           // true
+  println: f.endsWith("ü!")           // true
+
+def literals(): Unit =
+  println "--- literals ---"
+  val a = "lit"
+  val b = a + "x"
+  println: a                          // lit
+  println: b                          // litx
+
+  var i = 0
+  while i < 3 do
+    val c = "loop"
+    val d = c + "\{i}"
+    println: c + " " + d
+    i = i + 1
+  end
+
+def inFunction(): Unit =
+  println "--- function ---"
+  var s = "f"
+  var i = 0
+  while i < 4 do
+    val t = add(s)
+    s = s + "y"
+    println: t + " " + s
+    i = i + 1
+  end
+
+def doubling(): Unit =
+  println "--- doubling ---"
+  var chunk = "ab"
+  var i = 0
+  while i < 4 do
+    val before = chunk
+    chunk = chunk + chunk
+    println: before.size.toString + " " + chunk.size.toString
+    i = i + 1
+  end
+
+  println: chunk
+  val other = chunk + "z"
+  val again = chunk + chunk
+  println: other
+  println: again.size                 // 64
+  println: again == chunk + chunk     // true
+  println: chunk.size                 // 32

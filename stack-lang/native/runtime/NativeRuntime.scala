@@ -148,7 +148,6 @@ extends Linker:
   val Core_String_fromByteString = Core_StringOps.termMember("fromByteString")
 
   val Core_String_Raw = Native.typeMember("Raw")
-  val Core_String_Concat = Native.typeMember("Concat")
 
   val Core_RefArray_ArrayClassId = defn.resolveTerm("jo.runtime.native.RefArray.ArrayClassId")
 

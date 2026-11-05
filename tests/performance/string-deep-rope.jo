@@ -1,7 +1,7 @@
 // Reading a string built by many appends must not overflow the stack or take
-// time that grows with the depth of the appends. 300000 appends overflowed
-// the stack of the native backends before. A host string copies on every
-// append, so more would take long there.
+// time that grows with the number of appends. 300000 appends overflowed the
+// stack of the native backends when they kept appends as a tree. A host
+// string copies on every append, so more would take long there.
 def build(n: Int, first: String, next: String): String =
   var s = first
   var i = 0
@@ -38,7 +38,7 @@ def main() =
   println: s.endsWith("xy")
   println: s.startsWith("xxx")
 
-  // Deep ropes of two characters, each read first by one operation
+  // Many empty appends to two characters, each read first by one operation
   println: build(n, "ok", "")
   println: build(n, "ok", "")[1]
   println: build(n, "ok", "") == "ok"

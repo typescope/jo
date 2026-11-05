@@ -350,6 +350,21 @@ hint. Repeated lines for the same `fun` mean its region grows without bound.
 A growth report is printed at the next return of a region function, so a loop
 in `main` that calls none reports late.
 
+## Strings built by appends
+
+In the native backends, `s = s + piece` writes `piece` in place past the end
+of `s` when the buffer of `s` has room, and doubles the buffer when it does
+not. A loop of appends therefore copies each byte a constant number of times
+on average. Two patterns still copy the whole string at each step:
+
+- A prepend, `s = c + s`, copies `s` every time, so a loop of prepends takes
+  time and memory quadratic in the length. 30000 prepends of two bytes keep
+  about 880 MB until the function returns. Append in reverse order, or collect
+  the pieces in a list and join them once.
+- A fork, `t = s + "!"` followed by `s = s + x`, copies `s` at the second
+  append, since `t` already took the room after `s`. A loop that forks at
+  every step copies at every step.
+
 ## Trading time back
 
 The default policy gives the lowest peak RSS, but opening a region in every
