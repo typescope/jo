@@ -98,11 +98,15 @@ object Planner:
     private def moduleLabel(project0: Project, id: ModuleId): String =
       project0.moduleLabel(root, id)
 
-    /** A module without FFI may not depend on a module with FFI, as FFI types leak through its public API. */
+    /** A module without FFI may not depend on a module with FFI, as FFI types leak through its public API.
+     *
+     *  Link-only dependencies (`link = true`) are exempt: their API is hidden from the
+     *  dependent module, so no FFI type can reach its code.
+     */
     private def checkFFIDeps(project: Project, id: ModuleId, spec: ModuleSpec): Result[Unit] =
       if spec.enableFfi then return Result.unit
 
-      for dep <- project.moduleDepsOf(id) do
+      for dep <- project.moduleDepsOf(id) if dep.link == DepLink.Check do
         dep.project.getOrElse(project).requireModule(dep.module) match
           case Result.Err(msg) =>
             return Result.Err(msg)

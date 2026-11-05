@@ -4,6 +4,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- The build tool again accepts a module without `enable-ffi` that links a module
+  with `enable-ffi = true` through a `link = true` dependency. Such a dependency
+  is hidden from the dependent module, so no FFI type reaches its code. The check
+  added in 0.14.9 applies only to dependencies the module can name.
+
 ## [0.14.9] - 2026-11-05
 
 ### Fixed
