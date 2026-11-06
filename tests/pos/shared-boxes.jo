@@ -1,0 +1,120 @@
+// Boxed values at the boundaries of the shared box ranges of the LLVM backend:
+// Int in [-128, 1024), Char and Byte in [0, 256), and Bool. Sharing a box
+// must not change equality, hashing, pattern matching or printing.
+
+type IntOrString = Int | String
+
+type CharOrString = Char | String
+
+type ByteOrString = Byte | String
+
+type BoolOrString = Bool | String
+
+def describeInt(v: IntOrString): String =
+  match v
+    case i: Int => "Int " + i
+    case s: String => "String " + s
+
+def describeChar(v: CharOrString): String =
+  match v
+    case c: Char => "Char " + c.toInt
+    case s: String => "String " + s
+
+def describeByte(v: ByteOrString): String =
+  match v
+    case b: Byte => "Byte " + b.toInt
+    case s: String => "String " + s
+
+def describeBool(v: BoolOrString): String =
+  match v
+    case b: Bool => "Bool " + b
+    case s: String => "String " + s
+
+def twice[T](x: T): List[T] = [x, x]
+
+def unwrap(o: Option[Int]): Int =
+  match o
+    case Some(n) => n
+    case None => -1
+
+def ints: List[Int] = [-130, -129, -128, -127, -1, 0, 1, 255, 256, 1022, 1023, 1024, 1025, 100000]
+
+def chars: List[Char] = [0, 65, 255, 256, 20013]
+
+def bytes: List[Byte] = [0.toByte, 127.toByte, 128.toByte, 255.toByte]
+
+def main =
+  // through a union type and pattern matching
+  for i in ints do println: describeInt i
+  for c in chars do println: describeChar c
+  for b in bytes do println: describeByte b
+  println: describeBool true
+  println: describeBool (1 > 2)
+
+  // printing through generic containers
+  println: ints
+  println: chars.map(c => c.toInt)
+  println: bytes.map(b => b.toInt)
+  println: [true, false, 1 < 2]
+  println: twice 1023
+  println: twice 1024
+  println: twice 1024.toLong
+  println: twice 1.5
+
+  // equality of values boxed in different places
+  val computed = ints.map(i => i - 1 + 1)
+  println: computed == ints
+  println: ints.contains (1000 + 23)
+  println: ints.contains (1000 + 24)
+  println: ints.contains (-100 - 28)
+  println: ints.contains (-100 - 29)
+  println: ints.contains 1026
+  println: chars.contains (200 + 55).toChar
+  println: chars.contains (200 + 56).toChar
+  println: bytes.contains (100 + 28).toByte
+  println: [true, true].contains (1 > 2)
+  println: (twice (0 - 129)) == (twice (-128 - 1))
+  println: (twice 1023) == (twice 1024)
+
+  // hashing: mutable maps and sets keyed by boxed values
+  val counts = mutable.Map.empty[Int, Int]
+  for i in ints ++ ints.map(i => i + 0) do
+    counts.update(i, counts.getOrElse(i, 0) + 1)
+
+  for i in ints do println: "count " + i + " = " + counts.get(i)
+
+  val charSet = mutable.Set.empty[Char]
+  for c in chars ++ chars do charSet.add c
+  println: "chars " + charSet.size
+
+  val byteSet = mutable.Set.empty[Byte]
+  for b in bytes ++ bytes do byteSet.add b
+  println: "bytes " + byteSet.size
+
+  val flags = mutable.Map.empty[Int, Bool]
+  for i in ints do flags.update(i, i >= 0)
+  println: "flags " + flags.get(-129) + " " + flags.get(1024) + " " + flags.size
+
+  // ordered maps and sets
+  val ordered = Map.empty[Int, Char].update(1024, 'B').update(1023, 'A').update(-129, 'C')
+  println: ordered.keys
+  println: ordered.values
+  println: (Set.empty[Int] + 0 + 1023 + 1024 + 1023 + 0).size
+  println: (ints ++ ints).distinct.size
+
+  // overwriting an element replaces the box, never its contents
+  val a = Array.create[Int] 3
+  val b = Array.create[Int] 3
+  a[0] = 7
+  b[0] = 7
+  a[0] = 8
+  a[1] = 1024
+  b[1] = 1024
+  a[1] = 1025
+  a[2] = -129
+  b[2] = -128
+  println: a
+  println: b
+
+  val opts: List[Option[Int]] = [Some(5), Some(1023), Some(1024), None]
+  println: opts.map(o => unwrap o)

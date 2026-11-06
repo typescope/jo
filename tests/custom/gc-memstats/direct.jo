@@ -1,0 +1,18 @@
+namespace memdirect
+
+// A loop in `main` that allocates: the nodes go straight to the runtime
+// region, with no function to charge them to.
+
+class Node(value: Int, next: Option[Node])
+
+def main =
+  var lst: Option[Node] = None
+  var i = 0
+  while i < 100000 do
+    lst = Some(new Node(i, lst))
+    i = i + 1
+  end
+
+  match lst
+  case Some(n) => println: n.value
+  case None => println: "empty"

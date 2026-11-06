@@ -126,6 +126,7 @@ object Main:
               case Backend.JS             => js.Compiler.main(flags.args)
               case Backend.LinuxX86Stack  => native.stack.StackMachine.main(flags.args)
               case Backend.LinuxX86Reg    => native.register.RegisterMachine.main(flags.args)
+              case Backend.LLVM           => llvm.Compiler.main(flags.args)
 
       case "doc" =>
         val parsed = tool.Build.parseProjectArgs(args.drop(1)).orExit
@@ -210,6 +211,7 @@ object Main:
     case JS
     case LinuxX86Stack
     case LinuxX86Reg
+    case LLVM
 
   case class CompileFlags(backend: Option[Backend], args: Array[String])
 
@@ -263,6 +265,10 @@ object Main:
           selectBackend(Backend.LinuxX86Reg)
           i += 1
 
+        case "--llvm" =>
+          selectBackend(Backend.LLVM)
+          i += 1
+
         case other =>
           remaining = remaining :+ other
           i += 1
@@ -303,6 +309,7 @@ object Main:
       |  --ruby           Compile Ruby application (default)
       |  --python         Compile Python application
       |  --js             Compile JavaScript application (experimental, no build tool support)
+      |  --llvm           Compile 64-bit native application with clang (experimental)
       |  -o <out>         Output file path
       |  --lib <dir>      Use a precompiled library (can be specified multiple times)
       |                   Example: --lib build/core --lib build/utils

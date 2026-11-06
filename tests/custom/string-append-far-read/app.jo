@@ -1,0 +1,40 @@
+// Appends interleaved with reads of the whole string or of its start. An
+// append writes in place past the end of the string, so no read has to copy
+// the string first. A copy at each read, or every few reads, takes memory
+// quadratic in the length. test.sh runs it under a memory limit.
+def farRead(n: Int): Unit =
+  var s = ""
+  var first = 0
+  var i = 0
+  while i < n do
+    val piece = if i % 3 == 0 then "é" else "xy"
+    s = s + piece
+    if s[0] == 'é' then first = first + 1
+    i = i + 1
+  end
+
+  println: s.size
+  println: first
+
+  // `n % 3 == 1`, so the last piece is "é"
+  val t = "éxyxy" * (n / 3) + "é"
+  println: s == t
+  println: s.substring(0, 5)
+  println: s.startsWith(t.substring(0, 1000))
+
+def search(n: Int): Unit =
+  var s = ""
+  var found = 0
+  var i = 0
+  while i < n do
+    s = s + "ab"
+    if s.contains("q") then found = found + 1
+    i = i + 1
+  end
+
+  println: s.size
+  println: found
+
+def main() =
+  farRead(100000)
+  search(20000)

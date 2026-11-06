@@ -1,0 +1,22 @@
+namespace memserve
+
+// A server loop in a region function: `serve` keeps every reply that
+// `handle` returns to it, so its region grows while the runtime region stays
+// small.
+
+class Reply(code: Int, body: String)
+
+def handle(k: Int): Reply =
+  new Reply(200, "ok " + k.toString)
+
+def serve(n: Int): Int =
+  var total = 0
+  var k = 0
+  while k < n do
+    total = total + handle(k).code
+    k = k + 1
+  end
+  total
+
+def main =
+  println: serve(400000)

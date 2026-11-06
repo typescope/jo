@@ -186,9 +186,11 @@ object Positions:
     lazy val endLineColumn: Int = source.offsetToColumn(start + length - 1)
     def isOneLine: Boolean = startLine == endLine
 
-    override def toString() =
+    /** The path of the file, relative to the working directory if inside it */
+    def displayPath: String =
       val filePath = Paths.get(source.file).toAbsolutePath.normalize()
-      val displayPath =
-        if filePath.startsWith(currentWorkingDir) then currentWorkingDir.relativize(filePath).toString
-        else filePath.toString
+      if filePath.startsWith(currentWorkingDir) then currentWorkingDir.relativize(filePath).toString
+      else filePath.toString
+
+    override def toString() =
       displayPath + ":" + (startLine + 1) + ":" + (startLineColumn + 1)

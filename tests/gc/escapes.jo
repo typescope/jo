@@ -1,0 +1,153 @@
+// options: --region gctest.makeList --region gctest.fillCell --region gctest.fillArray --region gctest.makeAdder --region gctest.makeLabel --region gctest.outer --region gctest.inner --region gctest.makeRing --region gctest.garbageRing
+namespace gctest
+
+// Objects that escape a region must survive it, whichever way they escape.
+
+class Node(value: Int, next: Option[Node])
+
+class Cell
+  var item: Option[Node] = None
+end
+
+class Box
+  var cell: Option[Cell] = None
+end
+
+class Ring
+  var value: Int = 0
+  var next: Option[Ring] = None
+end
+
+def sum(list: Option[Node]): Int =
+  match list
+    case Some(node) => node.value + sum(node.next)
+    case None => 0
+
+def buildList(n: Int): Option[Node] =
+  var list: Option[Node] = None
+  var i = 1
+  while i <= n do
+    val _ = new Node(-1000, None)       // garbage
+    list = Some(new Node(i, list))
+    i = i + 1
+  end
+  list
+
+// The result escapes
+def makeList(n: Int): Option[Node] = buildList n
+
+// A store into an object of the caller escapes
+def fillCell(cell: Cell, n: Int): Unit =
+  cell.item = buildList n
+
+// A store into an array of the caller escapes
+def fillArray(arr: Array[Option[Node]], i: Int): Unit =
+  arr[i] = buildList (i + 1)
+
+// A captured object escapes with the closure
+def makeAdder(n: Int): Int => Int =
+  val list = buildList n
+  x => x + sum(list)
+
+// A string escapes, its bytes through an interior pointer
+def makeLabel(n: Int): String =
+  val long = "item-" + n.toString + "-suffix"
+  long.substring(0, long.size - 7)
+
+// Nested regions: `inner` stores into an object of `outer`, then `outer`
+// stores that object into the caller's. The list is promoted twice.
+def inner(holder: Cell, n: Int): Unit =
+  holder.item = buildList n
+
+def outer(box: Box, n: Int): Unit =
+  val holder = new Cell()
+  inner(holder, n)
+  val _ = buildList 10                   // garbage of outer
+  box.cell = Some(holder)
+
+// A cycle escapes
+def makeRing(n: Int): Ring =
+  val first = new Ring()
+  first.value = 1
+  var last = first
+  var i = 2
+  while i <= n do
+    val node = new Ring()
+    node.value = i
+    last.next = Some(node)
+    last = node
+    i = i + 1
+  end
+  last.next = Some(first)
+  first
+
+// A cycle that does not escape
+def garbageRing(n: Int): Int =
+  val ring = makeRingPlain n
+  ring.value
+
+def makeRingPlain(n: Int): Ring =
+  val first = new Ring()
+  var last = first
+  var i = 0
+  while i < n do
+    val node = new Ring()
+    last.next = Some(node)
+    last = node
+    i = i + 1
+  end
+  last.next = Some(first)
+  first
+
+def ringSum(ring: Ring, n: Int): Int =
+  var total = 0
+  var cur = ring
+  var i = 0
+  while i < n do
+    total = total + cur.value
+    match cur.next
+      case Some(next) => cur = next
+      case None => pass
+    i = i + 1
+  end
+  total
+
+def main =
+  println: sum(makeList 100)
+
+  val cell = new Cell()
+  fillCell(cell, 50)
+  println: sum(cell.item)
+
+  val arr = Array.create[Option[Node]](3)
+  var i = 0
+  while i < 3 do
+    fillArray(arr, i)
+    i = i + 1
+  end
+  println: sum(arr[0]) + sum(arr[1]) + sum(arr[2])
+
+  val add = makeAdder 10
+  println: add 1
+
+  println: makeLabel 42
+
+  val box = new Box()
+  outer(box, 20)
+  match box.cell
+    case Some(holder) => println: sum(holder.item)
+    case None => println "lost"
+
+  val ring = makeRing 5
+  println: ringSum(ring, 10)
+
+  println: garbageRing 100
+
+  // repeated calls reuse regions at the same depth
+  var total = 0
+  var k = 0
+  while k < 1000 do
+    total = total + sum(makeList 10)
+    k = k + 1
+  end
+  println total

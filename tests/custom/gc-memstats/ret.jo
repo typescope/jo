@@ -1,0 +1,14 @@
+namespace memret
+
+// Results returned to `main`: the iterator of the range returns each number
+// boxed, as they are not small, and each box stays in the runtime region until
+// exit.
+
+def main =
+  var total = 0
+  val it = (2000 until 5000).iterator
+  while it.hasNext do
+    total = total + it.next()
+  end
+
+  println total
