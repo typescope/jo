@@ -12,18 +12,20 @@ title: Capability injection
 ## Summary
 
 Let the build wire capabilities into one deferred function. The compiler
-creates each capability with a factory function or binds it to a literal value,
-then calls the implementation of the deferred function with those capabilities
-in scope:
+creates each capability with a factory function or a literal value, then calls
+the implementation of the deferred function with those capabilities in scope:
 
 ```bash
 jo compile --python app.jo \
-  --provide fs.root=fs.Root \
-  --provide fs.readonly=fs.ReadOnly \
-  --provide gh.client=gh.GitHub \
-  --bind    gh.repo=typescope/jo \
-  --allow   fs.readonly,gh.client,IO.stdout
+  --internal fs.root=fs.Root \
+  --provide  fs.readonly=fs.ReadOnly \
+  --internal 'gh.repo="typescope/jo"' \
+  --provide  gh.client=gh.GitHub
 ```
+
+`--provide` makes a capability available to the implementation. `--internal`
+makes it available to the factories only, so that a broad capability can be
+narrowed before it reaches the implementation.
 
 The proposal is purely additive. Programs and builds that do not use the new
 options are unaffected.
@@ -78,13 +80,13 @@ lets the build state exactly that.
 ### Overview
 
 An injection specification attaches to one deferred function `d`, the
-*injection target*. It consists of:
+*injection target*. It consists of a set of **bindings**. Each binding binds
+one context parameter to a value, which is either the result of a **factory**
+function or a **literal**, and gives the parameter one of two roles:
 
-- a set of **bindings**, each of which binds one context parameter either to a
-  factory function (a **provider**) or to a literal value (a **literal
-  binding**), and
-- an **allow list**, which states the full authority of the implementation of
-  `d`.
+- a **provided** parameter is available to the implementation of `d` and to
+  the factories,
+- an **internal** parameter is available to the factories only.
 
 Normally, resolving `d` yields its implementation `impl(d)`: an explicit
 `--link` target, a default implementation, or, for `jo.main`, the
@@ -109,9 +111,8 @@ parameters, which are satisfied by other bindings or by the context parameters
 of `d`. The context parameters of a factory are those it declares in its
 `receives` clause or, when the clause is omitted, those the compiler infers.
 
-Factories and the context parameters named in bindings and in the allow list
-must be accessible from the linking context. Naming a `private` definition is
-an error.
+Factories and the context parameters named in bindings must be accessible
+from the linking context. Naming a `private` definition is an error.
 
 A factory may be a deferred function. It then resolves through the ordinary
 link rules, so the implementation of a capability can be chosen with `--link`.
@@ -119,19 +120,21 @@ link rules, so the implementation of a capability can be chosen with `--link`.
 The wrapper is generated at link time. A factory may therefore live in a link
 library that application code cannot import.
 
-### Literal bindings
+### Literals
 
-A literal binding binds a context parameter whose declared type is exactly
-`String`, `Int`, or `Bool`. The declared type determines how the value is
-read, as described under [Command-line options](#command-line-options). A
-context parameter of any other type, including a
-union of these types, cannot be bound to a literal, and a value that does not
-match the declared type is an error. `Float` is excluded because its textual
-form raises precision and locale questions that configuration should not
-depend on.
+The value of a binding may be a Jo literal instead of a factory. The literal
+is read by Jo's lexer and checked as the initializer of a `val` of the
+parameter's type, exactly as `val x: T = e` would be. Every type with a
+literal form is therefore bindable: `Bool`, `Int`, `Long`, `Byte`, `Char`,
+`Float`, and `String`. A parameter of any other type has no literal form and
+cannot be bound to a literal.
 
-Literal bindings let factories take configuration without value parameters. A
-factory that needs a repository name receives it as a context parameter:
+A literal is never mistaken for a factory path. A path starts with a letter or
+an underscore and continues with identifiers and dots. A literal starts with a
+digit, a sign, or a quote, or is one of the keywords `true` and `false`.
+
+Literals let factories take configuration without value parameters. A factory
+that needs a repository name receives it as a context parameter:
 
 ```jo
 param repo: String
@@ -148,11 +151,10 @@ time from a context parameter that grants access to the environment.
 Let `P` be the set of context parameters with a binding. Each parameter in `P`
 is bound exactly once, and no parameter in `P` is a context parameter of `d`.
 
-The bindings form a graph. A provider for `p` depends on the binding of `q`
-when its factory receives `q` and `q` is in `P`. The graph must be acyclic.
-Every context parameter a factory receives must be either in `P` or among the
-context parameters of `d`. Every parameter in the allow list must likewise be
-in `P` or among the context parameters of `d`.
+The bindings form a graph. The binding of `p` depends on the binding of `q`
+when the factory of `p` receives `q` and `q` is in `P`. The graph must be
+acyclic. Every context parameter a factory receives must be either in `P` or
+among the context parameters of `d`.
 
 Bindings are instantiated in topological order. Ties are broken by the order
 of the options on the command line.
@@ -162,9 +164,12 @@ that receive the same parameter see the same value.
 
 ### The generated wrapper
 
+Let `A`, the **authority** of the implementation, be the set of provided
+parameters together with the context parameters of `d`.
+
 The wrapper has the signature of `d`, including its type parameters. Its body
 instantiates the bindings in the order given above, then calls `impl(d)`
-inside the allow list:
+inside `allow A`:
 
 ```jo
 // conceptually, for the example in the summary
@@ -173,18 +178,18 @@ def main$injected: Unit receives IO.stdout, IO.stderr, IO.args =
   with fs.readonly = fs.ReadOnly() in
   with gh.repo = "typescope/jo" in
   with gh.client = gh.GitHub() in
-    allow fs.readonly, gh.client, IO.stdout in app.main
+    allow fs.readonly, gh.client, IO.stdout, IO.stderr, IO.args in app.main
 ```
 
 The arguments of `d` are passed to `impl(d)` unchanged. Every binding is
-instantiated, whether or not the allow list depends on it.
+instantiated, whether or not anything depends on it.
 
-Factories run outside the `allow` block, so a factory may receive a parameter
-that the allow list omits. In the example, `fs.ReadOnly` receives `fs.root`,
-while `app.main` may use only `fs.readonly`. The narrowing is as strong as the
-type of the narrowed parameter. A factory that returns the broad capability
-itself, where its type permits, hands it over unchanged. Keeping the view and
-the broad capability distinct is the library author's responsibility.
+Factories run outside the `allow` block, so a factory may receive an internal
+parameter. In the example, `fs.ReadOnly` receives `fs.root`, while `app.main`
+may use only `fs.readonly`. The narrowing is as strong as the type of the
+narrowed parameter. A factory that returns the broad capability itself, where
+its type permits, hands it over unchanged. Keeping the view and the broad
+capability distinct is the library author's responsibility.
 
 The wrapper is not visible to source code.
 
@@ -192,49 +197,44 @@ The wrapper is not visible to source code.
 
 Without injection, `impl(d)` must conform to the signature of `d`. With
 injection, `impl(d)` must conform to the signature of `d` with its `receives`
-clause replaced by the allow list. This reuses the existing link check. The
-`allow` block in the wrapper covers the remaining case, a transitive use of a
-parameter through a function whose context parameters are inferred.
+clause replaced by `A`. This reuses the existing link check. The `allow` block
+in the wrapper covers the remaining case, a transitive use of a parameter
+through a function whose context parameters are inferred.
 
 ### Command-line options
 
 | Option | Meaning |
 |---|---|
 | `--inject d` | Attach the injection specification to deferred function `d`. Defaults to `jo.main`. |
-| `--provide p=f` | Bind context parameter `p` to the result of calling factory `f`. |
-| `--bind p=v` | Bind context parameter `p` to the literal value `v`. |
-| `--allow p1,p2,...` | The context parameters `impl(d)` may use. `--allow none` permits none. |
+| `--provide p=e` | Bind context parameter `p` to `e` as a provided parameter. |
+| `--internal p=e` | Bind context parameter `p` to `e` as an internal parameter. |
 
-`--inject` and `--allow` may each appear at most once. `--provide` and
-`--bind` may be repeated. `p`, `f`, and `d` are qualified paths.
+`e` is either a qualified path naming a factory or a Jo literal. `--inject`
+may appear at most once. `--provide` and `--internal` may be repeated. `p`,
+`d`, and a factory path are qualified paths. The value `e` is the text after
+the first `=`.
 
-`--allow` is required when any of `--inject`, `--provide`, or `--bind` is
-present. The build command therefore always states the authority granted to
-the target, while the target itself is named only when it is not `jo.main`.
+A string literal needs its double quotes to reach the compiler, so on the
+command line the whole option value is quoted for the shell:
 
-The value of `--bind` is the text after the first `=`. It is read according to
-the declared type of `p`:
-
-| Type of `p` | Value |
-|---|---|
-| `String` | the text, unchanged, with surrounding whitespace preserved |
-| `Int` | a decimal integer |
-| `Bool` | `true` or `false` |
+```bash
+--internal 'gh.repo="typescope/jo"'
+```
 
 A project declares the same options in `jo.toml` through the existing
 `compile-options` field of its app module, one option or value per array
-element:
+element. A TOML literal string, delimited by single quotes, carries a Jo
+string literal without escapes:
 
 ```toml
 [module.app]
 kind = "app"
 platform = "python"
 compile-options = [
-  "--provide", "fs.root=fs.Root",
-  "--provide", "fs.readonly=fs.ReadOnly",
-  "--provide", "gh.client=gh.GitHub",
-  "--bind",    "gh.repo=typescope/jo",
-  "--allow",   "fs.readonly,gh.client,IO.stdout",
+  "--internal", "fs.root=fs.Root",
+  "--provide",  "fs.readonly=fs.ReadOnly",
+  "--internal", 'gh.repo="typescope/jo"',
+  "--provide",  "gh.client=gh.GitHub",
 ]
 ```
 
@@ -247,12 +247,12 @@ proposal adds no field to the build spec. A dedicated table is left to
 
 Violations of the rules above are errors. They point at the command-line
 option that introduced the problem, not at the generated wrapper. The `allow`
-node of the wrapper carries a synthetic position that names the option, so
+node of the wrapper carries a synthetic position that names the options, so
 the existing `allow` error trace points there as well.
 
 The following are warnings:
 
-- a binding that nothing in the allow list depends on
+- an internal parameter that no factory receives
 - an injection target that nothing in the program calls (`jo.main` counts as
   called)
 
@@ -281,26 +281,25 @@ def main: Unit receives IO.stdout, process, system, logger, timer, alerter, inte
 
 The original `platformMain` read the interval from an environment variable.
 Reading the environment needs an environment capability, and `jo.main` does
-not offer one, so the interval becomes a literal binding instead.
+not offer one, so the interval becomes a literal instead.
 
 The build wires them:
 
 ```bash
 jo compile --python UserApp.jo \
   --lib out/api --link-lib out/runtime \
-  --provide SystemAPI.process=SystemRuntime.Process \
-  --provide SystemAPI.system=SystemRuntime.System \
-  --provide SystemAPI.logger=SystemRuntime.Logger \
-  --provide SystemAPI.timer=SystemRuntime.Timer \
-  --provide SystemAPI.alerter=SystemRuntime.Alerter \
-  --bind    SystemAPI.alertScript=./alert.sh \
-  --bind    SystemAPI.intervalSecs=30 \
-  --allow   IO.stdout,SystemAPI.process,SystemAPI.system,SystemAPI.logger,SystemAPI.timer,SystemAPI.alerter,SystemAPI.intervalSecs \
+  --provide  SystemAPI.process=SystemRuntime.Process \
+  --provide  SystemAPI.system=SystemRuntime.System \
+  --provide  SystemAPI.logger=SystemRuntime.Logger \
+  --provide  SystemAPI.timer=SystemRuntime.Timer \
+  --provide  SystemAPI.alerter=SystemRuntime.Alerter \
+  --internal 'SystemAPI.alertScript="./alert.sh"' \
+  --provide  SystemAPI.intervalSecs=30 \
   -o out/monitor.py
 ```
 
-A capability from a second library is one more `--provide` and one more
-allow-list entry.
+Only the `Alerter` factory reads `alertScript`, so it is internal, and `main`
+cannot name it. A capability from a second library is one more `--provide`.
 
 ## Justification
 
@@ -340,13 +339,12 @@ function whose implementation is located automatically, and `--link jo.main`
 is documented as the way to name the entry point. Nearly every injection
 targets it, so the common case should not pay for the rare one.
 
-The default does not weaken the specification. The property that matters,
-that the authority of the target is always written down, comes from `--allow`
-being required, not from naming the target. A build that omits `--inject` by
-mistake injects into `jo.main`, where the mistake surfaces as an unused-binding
-warning and as a missing binding at the intended target.
+The default does not weaken the specification. The authority of the target is
+determined by the role of each binding, which every binding states. A build
+that omits `--inject` by mistake injects into `jo.main`, where the mistake
+surfaces as a missing binding at the intended target.
 
-### Why literal bindings instead of factory arguments?
+### Why literals instead of factory arguments?
 
 Factory arguments would need positional values, a way to type-check them
 against the factory signature, and pressure to accept expressions rather than
@@ -354,24 +352,30 @@ literals. Binding literals to context parameters reuses an existing
 mechanism. Configuration is named, typed by its parameter declaration, and
 visible in the signature of every factory that reads it.
 
+Reading the literal with Jo's own lexer and typing rules avoids a second
+grammar. The set of bindable types is the set of types with a literal form,
+and a value means what it would mean in source.
+
 The cost is that one parameter has one value per injection. Two instances of a
 factory cannot read different values from the same parameter. Libraries can
 declare distinct parameters when they need distinct configuration.
 
-### Why an allow list?
+### Why a role per binding?
 
 Authority narrowing requires creating a capability that the target must not
 see. In the summary example, `fs.ReadOnly` receives `fs.root`, but `app.main`
 may use only `fs.readonly`, and the `allow` check guarantees that no helper
 function reaches `fs.root` on its behalf.
 
-Marking individual bindings as hidden would achieve this for bindings, but not
-for the context parameters of `d` itself, such as `IO.stdout`, which have no
-binding to mark. An allow list covers both, states the full authority of the
-target in one place, and is enforced by the existing `allow` construct.
+A separate list of the parameters the target may use would repeat the name of
+nearly every binding, since hiding is the rare case. A separate list of hidden
+parameters would be short, but a binding left off it would be visible by
+default, so a forgotten entry would widen authority rather than narrow it.
 
-The allow list is required so that the authority of the target is always
-written down. Omitting it would grant everything in scope by default.
+A role on each binding has neither problem. Every binding states whether the
+target may use it, so there is no list to keep in step with the bindings and
+no default to forget. The rare case, `--internal`, is marked exactly where the
+narrowing happens.
 
 ### Why may a binding not rebind a parameter of `d`?
 
@@ -400,7 +404,7 @@ state.
 
 ## Compatibility
 
-The proposal adds four compiler options and no build-spec fields. Builds that
+The proposal adds three compiler options and no build-spec fields. Builds that
 use none of them are unchanged: deferred functions resolve as before, and the
 conformance rule for links is unchanged.
 
@@ -413,34 +417,35 @@ receive more, so the comment must be updated.
 
 ## Future work
 
+- **Narrowing the parameters of `d`.** The target may use every context
+  parameter of `d`. A form of `--internal p` without a value could mark a
+  parameter of `d`, such as `IO.stdout`, as available to factories only, so
+  that a logger factory receives it while the target cannot print directly.
 - **Wrapping an existing capability.** A binding cannot currently rebind a
   context parameter of `d`, for example to prefix everything written to
   `IO.stdout`.
 - **Cleanup.** Factories that open resources have no disposal hook. A future
   proposal could close bindings in reverse topological order when `d`
   returns.
-- **Per-provider configuration.** A provider could bind parameters seen only by
+- **Per-factory configuration.** A binding could bind parameters seen only by
   its own factory, so that one factory can be instantiated twice with
   different configuration.
 - **A dedicated `jo.toml` table.** Once the options have seen use, a
   structured form could replace the `compile-options` array, for example:
 
   ```toml
-  [module.app.inject]
-  allow = ["fs.readonly", "gh.client", "IO.stdout"]
-
   [module.app.inject.provide]
-  "fs.root"     = "fs.Root"
   "fs.readonly" = "fs.ReadOnly"
   "gh.client"   = "gh.GitHub"
 
-  [module.app.inject.bind]
-  "gh.repo" = "typescope/jo"
+  [module.app.inject.internal]
+  "fs.root" = "fs.Root"
+  "gh.repo" = '"typescope/jo"'
   ```
 
   Such a table would have to settle the order of entries, since TOML tables
-  are unordered, the quoting of dotted keys, which TOML otherwise reads as
-  nested tables, and the typing of `bind` values.
+  are unordered, and the quoting of dotted keys, which TOML otherwise reads as
+  nested tables.
 
 ## Related documentation
 
@@ -449,7 +454,7 @@ receive more, so the comment must be updated.
 - [Deferred Functions](../language/definitions/deferred-functions.md), for
   `defer def` and `--link`
 - [Build Spec Reference](../usage/reference/build-spec.md), for `links`,
-  `compile-options`, and
-  app modules
+  `compile-options`, and app modules
+- [Basic Types](../language/types/basic-types.md), for the literal forms
 - [Capabilities](../overview/capabilities.md), for the security model this
   proposal serves
