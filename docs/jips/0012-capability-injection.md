@@ -103,10 +103,16 @@ as a file system, and some are plain configuration, such as a repository name.
 
 ### Factories
 
-A factory is a function with no value parameters and no type parameters. Its
-result type must conform to the type of the context parameter it provides. It
-may receive context parameters, which are satisfied by other bindings or by
-the context parameters of `d`.
+A factory is a function that takes no arguments, written with or without an
+empty parameter list, and has no type parameters. Its result type must conform
+to the type of the context parameter it provides. It may receive context
+parameters, which are satisfied by other bindings or by the context parameters
+of `d`. The context parameters of a factory are those it declares in its
+`receives` clause or, when the clause is omitted, those the compiler infers.
+
+Factories and the context parameters named in bindings and in the allow list
+must be accessible from the linking context. Naming a `private` definition is
+an error.
 
 A factory may be a deferred function. It then resolves through the ordinary
 link rules, so the implementation of a capability can be chosen with `--link`.
