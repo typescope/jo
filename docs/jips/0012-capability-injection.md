@@ -122,12 +122,14 @@ library that application code cannot import.
 
 ### Literal bindings
 
-A literal binding binds a context parameter to a value of type `String`,
-`Int`, or `Bool`. The declared type of the parameter determines how the value
-is read, as described under [Command-line options](#command-line-options) and
-[Build spec](#build-spec). A context parameter of any other type cannot be
-bound to a literal, and a value that does not match the declared type is an
-error.
+A literal binding binds a context parameter whose declared type is exactly
+`String`, `Int`, or `Bool`. The declared type determines how the value is
+read, as described under [Command-line options](#command-line-options) and
+[Build spec](#build-spec). A context parameter of any other type, including a
+union of these types, cannot be bound to a literal, and a value that does not
+match the declared type is an error. `Float` is excluded because its textual
+form raises precision and locale questions that configuration should not
+depend on.
 
 Literal bindings let factories take configuration without value parameters. A
 factory that needs a repository name receives it as a context parameter:
