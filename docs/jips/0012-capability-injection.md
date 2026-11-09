@@ -344,7 +344,8 @@ bound.
 One target gives the program a single composition root, where an auditor can
 read every capability the program creates and the authority it grants. The
 specification is defined per deferred function, so allowing several targets
-later would not change its meaning.
+later would not change its meaning. Since bindings live for one invocation of
+their target, several targets would not share instances.
 
 ### Why name the target explicitly?
 
@@ -393,10 +394,14 @@ the question. Wrapping an existing capability is left to future work.
 ### Why not a Jo snippet?
 
 A Jo snippet that can contain expressions is ordinary code, and ordinary code
-is the glue this proposal removes. The value of the feature is a declarative
-specification that names factories and literals only. The command-line form
-follows the style of `--link`, and the `jo.toml` form keeps the specification
-checked in alongside `links`.
+is the glue this proposal removes. A snippet restricted to `with` bindings and
+factory calls would be as declarative as the options, but it would still need
+a file, a namespace, and a place in the build. It would also have to be
+compiled in the linking context, where link libraries are visible, which is
+not a context in which user code is otherwise compiled. The value of the
+feature is a declarative specification that names factories and literals only.
+The command-line form follows the style of `--link`, and the `jo.toml` form
+keeps the specification checked in alongside `links`.
 
 ### Why instantiate per invocation?
 
