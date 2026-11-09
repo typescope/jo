@@ -266,7 +266,9 @@ app module declares its own.
 
 Violations of the rules above are errors. They point at the command-line
 option or the `jo.toml` entry that introduced the problem, not at the
-generated wrapper.
+generated wrapper. The `allow` node of the wrapper carries a synthetic
+position that names the option or entry, so the existing `allow` error trace
+points there as well.
 
 The following are warnings:
 
