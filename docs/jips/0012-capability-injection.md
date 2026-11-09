@@ -123,8 +123,8 @@ library that application code cannot import.
 
 A literal binding binds a context parameter whose declared type is exactly
 `String`, `Int`, or `Bool`. The declared type determines how the value is
-read, as described under [Command-line options](#command-line-options) and
-[Build spec](#build-spec). A context parameter of any other type, including a
+read, as described under [Command-line options](#command-line-options). A
+context parameter of any other type, including a
 union of these types, cannot be bound to a literal, and a value that does not
 match the declared type is an error. `Float` is excluded because its textual
 form raises precision and locale questions that configuration should not
@@ -154,9 +154,8 @@ Every context parameter a factory receives must be either in `P` or among the
 context parameters of `d`. Every parameter in the allow list must likewise be
 in `P` or among the context parameters of `d`.
 
-Bindings are instantiated in topological order. Ties are broken by the textual
-order of the entries, on the command line or in `jo.toml`. The build-spec
-parser must preserve that order.
+Bindings are instantiated in topological order. Ties are broken by the order
+of the options on the command line.
 
 Each binding is instantiated exactly once per invocation of `d`. Two factories
 that receive the same parameter see the same value.
@@ -222,50 +221,34 @@ the declared type of `p`:
 | `Int` | a decimal integer |
 | `Bool` | `true` or `false` |
 
-A module whose `compile-options` contain `--inject` and whose `jo.toml` also
-declares an `inject` table is an error.
-
-### Build spec
-
-An app module may declare the same specification in `jo.toml`:
+A project declares the same options in `jo.toml` through the existing
+`compile-options` field of its app module, one option or value per array
+element:
 
 ```toml
-[module.app.inject]
-allow = ["fs.readonly", "gh.client", "IO.stdout"]
-
-[module.app.inject.provide]
-"fs.root"     = "fs.Root"
-"fs.readonly" = "fs.ReadOnly"
-"gh.client"   = "gh.GitHub"
-
-[module.app.inject.bind]
-"gh.repo" = "typescope/jo"
+[module.app]
+kind = "app"
+platform = "python"
+compile-options = [
+  "--provide", "fs.root=fs.Root",
+  "--provide", "fs.readonly=fs.ReadOnly",
+  "--provide", "gh.client=gh.GitHub",
+  "--bind",    "gh.repo=typescope/jo",
+  "--allow",   "fs.readonly,gh.client,IO.stdout",
+]
 ```
 
-`allow` is required, and `allow = []` permits no context parameters. `target`
-defaults to `"jo.main"`. `provide` and `bind` default to empty. Like `links`, the table is valid
-only on app modules.
-
-Keys in `provide` and `bind` are qualified paths and must be quoted. An
-unquoted `fs.root` is a nested TOML table, not a path, and is an error.
-
-A `bind` value must be a TOML string, integer, or boolean matching the
-declared type of the parameter. Values are not converted, so `"30"` bound to
-an `Int` parameter is an error.
-
-#### Module dependencies
-
-Unlike `links`, the `inject` table is not copied to modules that depend on
-this one. It describes the composition root of one program, and a dependent
-app module declares its own.
+`compile-options` belong to one module and are not copied to modules that
+depend on it, so each app module declares its own composition root. This
+proposal adds no field to the build spec. A dedicated table is left to
+[future work](#future-work).
 
 ### Diagnostics
 
 Violations of the rules above are errors. They point at the command-line
-option or the `jo.toml` entry that introduced the problem, not at the
-generated wrapper. The `allow` node of the wrapper carries a synthetic
-position that names the option or entry, so the existing `allow` error trace
-points there as well.
+option that introduced the problem, not at the generated wrapper. The `allow`
+node of the wrapper carries a synthetic position that names the option, so
+the existing `allow` error trace points there as well.
 
 The following are warnings:
 
@@ -406,8 +389,8 @@ a file, a namespace, and a place in the build. It would also have to be
 compiled in the linking context, where link libraries are visible, which is
 not a context in which user code is otherwise compiled. The value of the
 feature is a declarative specification that names factories and literals only.
-The command-line form follows the style of `--link`, and the `jo.toml` form
-keeps the specification checked in alongside `links`.
+The options follow the style of `--link`, and `compile-options` keeps them
+checked in alongside `links`.
 
 ### Why instantiate per invocation?
 
@@ -417,7 +400,7 @@ state.
 
 ## Compatibility
 
-The proposal adds four compiler options and one `jo.toml` table. Builds that
+The proposal adds four compiler options and no build-spec fields. Builds that
 use none of them are unchanged: deferred functions resolve as before, and the
 conformance rule for links is unchanged.
 
@@ -439,6 +422,25 @@ receive more, so the comment must be updated.
 - **Per-provider configuration.** A provider could bind parameters seen only by
   its own factory, so that one factory can be instantiated twice with
   different configuration.
+- **A dedicated `jo.toml` table.** Once the options have seen use, a
+  structured form could replace the `compile-options` array, for example:
+
+  ```toml
+  [module.app.inject]
+  allow = ["fs.readonly", "gh.client", "IO.stdout"]
+
+  [module.app.inject.provide]
+  "fs.root"     = "fs.Root"
+  "fs.readonly" = "fs.ReadOnly"
+  "gh.client"   = "gh.GitHub"
+
+  [module.app.inject.bind]
+  "gh.repo" = "typescope/jo"
+  ```
+
+  Such a table would have to settle the order of entries, since TOML tables
+  are unordered, the quoting of dotted keys, which TOML otherwise reads as
+  nested tables, and the typing of `bind` values.
 
 ## Related documentation
 
@@ -446,7 +448,8 @@ receive more, so the comment must be updated.
   `param`, `with`, `receives`, and `allow`
 - [Deferred Functions](../language/definitions/deferred-functions.md), for
   `defer def` and `--link`
-- [Build Spec Reference](../usage/reference/build-spec.md), for `links` and
+- [Build Spec Reference](../usage/reference/build-spec.md), for `links`,
+  `compile-options`, and
   app modules
 - [Capabilities](../overview/capabilities.md), for the security model this
   proposal serves
