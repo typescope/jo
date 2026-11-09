@@ -279,8 +279,9 @@ The following are warnings:
 ## Example
 
 The process-monitor demo no longer needs a platform layer of its own. The API
-library additionally declares `param alertScript: String`, and the platform
-library ships factories instead of `platformMain`:
+library additionally declares `param alertScript: String` and
+`param intervalSecs: Int`, and the platform library ships factories instead of
+`platformMain`:
 
 ```jo
 namespace SystemRuntime
@@ -295,8 +296,12 @@ def Alerter(): SystemAPI.Alerter receives SystemAPI.alertScript = new AlerterImp
 The application implements `main` with the capabilities it needs:
 
 ```jo
-def main: Unit receives IO.stdout, process, system, logger, timer, alerter = ...
+def main: Unit receives IO.stdout, process, system, logger, timer, alerter, intervalSecs = ...
 ```
+
+The original `platformMain` read the interval from an environment variable.
+Reading the environment needs an environment capability, and `jo.main` does
+not offer one, so the interval becomes a literal binding instead.
 
 The build wires them:
 
@@ -310,7 +315,8 @@ jo compile --python UserApp.jo \
   --provide SystemAPI.timer=SystemRuntime.Timer \
   --provide SystemAPI.alerter=SystemRuntime.Alerter \
   --bind    SystemAPI.alertScript=./alert.sh \
-  --allow   IO.stdout,SystemAPI.process,SystemAPI.system,SystemAPI.logger,SystemAPI.timer,SystemAPI.alerter \
+  --bind    SystemAPI.intervalSecs=30 \
+  --allow   IO.stdout,SystemAPI.process,SystemAPI.system,SystemAPI.logger,SystemAPI.timer,SystemAPI.alerter,SystemAPI.intervalSecs \
   -o out/monitor.py
 ```
 
