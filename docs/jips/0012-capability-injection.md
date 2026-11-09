@@ -152,9 +152,14 @@ is bound exactly once, and no parameter in `P` is a context parameter of `d`.
 The bindings form a graph. A provider for `p` depends on the binding of `q`
 when its factory receives `q` and `q` is in `P`. The graph must be acyclic.
 Every context parameter a factory receives must be either in `P` or among the
-context parameters of `d`.
+context parameters of `d`. Every parameter in the allow list must likewise be
+in `P` or among the context parameters of `d`.
 
-Each binding is instantiated at most once per invocation of `d`. Two factories
+Bindings are instantiated in topological order. Ties are broken by the textual
+order of the entries, on the command line or in `jo.toml`. The build-spec
+parser must preserve that order.
+
+Each binding is instantiated exactly once per invocation of `d`. Two factories
 that receive the same parameter see the same value.
 
 ### The generated wrapper
