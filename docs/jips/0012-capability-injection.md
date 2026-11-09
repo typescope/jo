@@ -192,14 +192,11 @@ The wrapper is not visible to source code.
 
 ### Conformance
 
-Every parameter in the allow list must be in `P` or among the context
-parameters of `d`.
-
 Without injection, `impl(d)` must conform to the signature of `d`. With
-injection, the context parameters of `impl(d)` are not checked against those
-of `d`. The `allow` block in the wrapper enforces the allow list instead, over
-the whole call chain of `impl(d)`. The remaining parts of the signature are
-checked as before.
+injection, `impl(d)` must conform to the signature of `d` with its `receives`
+clause replaced by the allow list. This reuses the existing link check. The
+`allow` block in the wrapper covers the remaining case, a transitive use of a
+parameter through a function whose context parameters are inferred.
 
 ### Command-line options
 
