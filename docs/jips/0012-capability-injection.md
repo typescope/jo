@@ -18,7 +18,6 @@ in scope:
 
 ```bash
 jo compile --python app.jo \
-  --inject  jo.main \
   --provide fs.root=fs.Root \
   --provide fs.readonly=fs.ReadOnly \
   --provide gh.client=gh.GitHub \
@@ -202,7 +201,7 @@ parameter through a function whose context parameters are inferred.
 
 | Option | Meaning |
 |---|---|
-| `--inject d` | Attach the injection specification to deferred function `d`. |
+| `--inject d` | Attach the injection specification to deferred function `d`. Defaults to `jo.main`. |
 | `--provide p=f` | Bind context parameter `p` to the result of calling factory `f`. |
 | `--bind p=v` | Bind context parameter `p` to the literal value `v`. |
 | `--allow p1,p2,...` | The context parameters `impl(d)` may use. `--allow none` permits none. |
@@ -210,10 +209,9 @@ parameter through a function whose context parameters are inferred.
 `--inject` and `--allow` may each appear at most once. `--provide` and
 `--bind` may be repeated. `p`, `f`, and `d` are qualified paths.
 
-`--inject` is required when any of `--provide`, `--bind`, or `--allow` is
-present, and `--allow` is required when `--inject` is present. The build
-command therefore always names the injection target and the authority granted
-to it.
+`--allow` is required when any of `--inject`, `--provide`, or `--bind` is
+present. The build command therefore always states the authority granted to
+the target, while the target itself is named only when it is not `jo.main`.
 
 The value of `--bind` is the text after the first `=`. It is read according to
 the declared type of `p`:
@@ -233,8 +231,7 @@ An app module may declare the same specification in `jo.toml`:
 
 ```toml
 [module.app.inject]
-target = "jo.main"
-allow  = ["fs.readonly", "gh.client", "IO.stdout"]
+allow = ["fs.readonly", "gh.client", "IO.stdout"]
 
 [module.app.inject.provide]
 "fs.root"     = "fs.Root"
@@ -245,8 +242,8 @@ allow  = ["fs.readonly", "gh.client", "IO.stdout"]
 "gh.repo" = "typescope/jo"
 ```
 
-`target` and `allow` are required. `provide` and `bind` default to empty.
-`allow = []` permits no context parameters. Like `links`, the table is valid
+`allow` is required, and `allow = []` permits no context parameters. `target`
+defaults to `"jo.main"`. `provide` and `bind` default to empty. Like `links`, the table is valid
 only on app modules.
 
 Keys in `provide` and `bind` are qualified paths and must be quoted. An
@@ -308,7 +305,6 @@ The build wires them:
 ```bash
 jo compile --python UserApp.jo \
   --lib out/api --link-lib out/runtime \
-  --inject  jo.main \
   --provide SystemAPI.process=SystemRuntime.Process \
   --provide SystemAPI.system=SystemRuntime.System \
   --provide SystemAPI.logger=SystemRuntime.Logger \
@@ -347,15 +343,25 @@ specification is defined per deferred function, so allowing several targets
 later would not change its meaning. Since bindings live for one invocation of
 their target, several targets would not share instances.
 
-### Why name the target explicitly?
+### Why name the target by its deferred function?
 
 The target is named by its deferred function, not by a link, because the
 implementation may come from a default or from entry-point discovery rather
 than from `--link`. Attaching options to the preceding `--link` would make the
 meaning of a build command depend on option order.
 
-`--inject` has no default. Defaulting to `jo.main` would give it a special role
-that the language otherwise avoids, and naming it costs one option.
+### Why default to `jo.main`?
+
+The compiler already treats `jo.main` specially: it is the one deferred
+function whose implementation is located automatically, and `--link jo.main`
+is documented as the way to name the entry point. Nearly every injection
+targets it, so the common case should not pay for the rare one.
+
+The default does not weaken the specification. The property that matters,
+that the authority of the target is always written down, comes from `--allow`
+being required, not from naming the target. A build that omits `--inject` by
+mistake injects into `jo.main`, where the mistake surfaces as an unused-binding
+warning and as a missing binding at the intended target.
 
 ### Why literal bindings instead of factory arguments?
 
