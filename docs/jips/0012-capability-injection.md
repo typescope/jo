@@ -233,15 +233,24 @@ An app module may declare the same specification in `jo.toml`:
 
 ```toml
 [module.app.inject]
-target  = "jo.main"
-allow   = ["fs.readonly", "gh.client", "IO.stdout"]
-provide = { "fs.root" = "fs.Root", "fs.readonly" = "fs.ReadOnly", "gh.client" = "gh.GitHub" }
-bind    = { "gh.repo" = "typescope/jo" }
+target = "jo.main"
+allow  = ["fs.readonly", "gh.client", "IO.stdout"]
+
+[module.app.inject.provide]
+"fs.root"     = "fs.Root"
+"fs.readonly" = "fs.ReadOnly"
+"gh.client"   = "gh.GitHub"
+
+[module.app.inject.bind]
+"gh.repo" = "typescope/jo"
 ```
 
 `target` and `allow` are required. `provide` and `bind` default to empty.
 `allow = []` permits no context parameters. Like `links`, the table is valid
 only on app modules.
+
+Keys in `provide` and `bind` are qualified paths and must be quoted. An
+unquoted `fs.root` is a nested TOML table, not a path, and is an error.
 
 A `bind` value must be a TOML string, integer, or boolean matching the
 declared type of the parameter. Values are not converted, so `"30"` bound to
@@ -249,10 +258,9 @@ an `Int` parameter is an error.
 
 #### Module dependencies
 
-When an app module depends on another app module, the dependency's `inject`
-table is copied with its links. A local `inject` table replaces the copied one
-as a whole. Two copied `inject` tables with different contents are an error,
-unless the dependent declares its own.
+Unlike `links`, the `inject` table is not copied to modules that depend on
+this one. It describes the composition root of one program, and a dependent
+app module declares its own.
 
 ### Diagnostics
 
