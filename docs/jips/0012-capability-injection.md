@@ -93,6 +93,14 @@ automatically located `main`. With an injection specification, `d` instead
 resolves to a compiler-generated wrapper around `impl(d)`. Every other deferred
 function resolves as before.
 
+Entry-point discovery for `jo.main` currently looks for a top-level `main`
+that conforms to the signature of `jo.main`. When `jo.main` is the injection
+target, discovery is by name alone, and conformance is checked as described
+under [Conformance](#conformance).
+
+The mechanism injects context parameters. Some of them are capabilities, such
+as a file system, and some are plain configuration, such as a repository name.
+
 ### Factories
 
 A factory is a function with no value parameters and no type parameters. Its
