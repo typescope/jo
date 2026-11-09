@@ -164,8 +164,8 @@ that receive the same parameter see the same value.
 
 ### The generated wrapper
 
-The wrapper has the signature of `d`. Its body instantiates the bindings in
-topological order, breaking ties by declaration order, then calls `impl(d)`
+The wrapper has the signature of `d`, including its type parameters. Its body
+instantiates the bindings in the order given above, then calls `impl(d)`
 inside the allow list:
 
 ```jo
@@ -178,13 +178,15 @@ def main$injected: Unit receives IO.stdout, IO.stderr, IO.args =
     allow fs.readonly, gh.client, IO.stdout in app.main
 ```
 
-The arguments of `d` are passed to `impl(d)` unchanged. Bindings that no
-parameter in the allow list depends on, directly or through other bindings,
-are not instantiated.
+The arguments of `d` are passed to `impl(d)` unchanged. Every binding is
+instantiated, whether or not the allow list depends on it.
 
 Factories run outside the `allow` block, so a factory may receive a parameter
 that the allow list omits. In the example, `fs.ReadOnly` receives `fs.root`,
-while `app.main` may use only `fs.readonly`.
+while `app.main` may use only `fs.readonly`. The narrowing is as strong as the
+type of the narrowed parameter. A factory that returns the broad capability
+itself, where its type permits, hands it over unchanged. Keeping the view and
+the broad capability distinct is the library author's responsibility.
 
 The wrapper is not visible to source code.
 
