@@ -215,13 +215,17 @@ present, and `--allow` is required when `--inject` is present. The build
 command therefore always names the injection target and the authority granted
 to it.
 
-The value of `--bind` is read according to the declared type of `p`:
+The value of `--bind` is the text after the first `=`. It is read according to
+the declared type of `p`:
 
 | Type of `p` | Value |
 |---|---|
-| `String` | the text after `=`, unchanged |
+| `String` | the text, unchanged, with surrounding whitespace preserved |
 | `Int` | a decimal integer |
 | `Bool` | `true` or `false` |
+
+A module whose `compile-options` contain `--inject` and whose `jo.toml` also
+declares an `inject` table is an error.
 
 ### Build spec
 
