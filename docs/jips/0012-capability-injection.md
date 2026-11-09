@@ -418,6 +418,10 @@ conformance rule for links is unchanged.
 No language syntax changes. The generated wrapper uses existing constructs:
 `with`, `allow`, and ordinary calls. The SAST format is unchanged.
 
+The comment on `jo.main` in `lib/Main.jo` says that its `receives` clause is
+an upper bound for the entry point. Under injection the entry point may
+receive more, so the comment must be updated.
+
 ## Future work
 
 - **Wrapping an existing capability.** A binding cannot currently rebind a
