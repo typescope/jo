@@ -177,7 +177,8 @@ any parameter whose type it conforms to, including a union such as
 
 A literal is never mistaken for a factory path. A path starts with a letter or
 an underscore and continues with identifiers and dots. A literal starts with a
-digit, a sign, or a quote, or is one of the keywords `true` and `false`.
+digit, a minus sign, or a quote, or is one of the keywords `true` and
+`false`.
 
 Literals let factories take configuration without value parameters. A factory
 that needs a repository name receives it as a context parameter:
