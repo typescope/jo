@@ -116,10 +116,6 @@ specification, `d` resolves to a compiler-generated wrapper around `impl(d)`
 instead of to `impl(d)` itself. Every other deferred function resolves as
 before.
 
-Entry-point discovery currently looks for a top-level `main` that conforms to
-the signature of `jo.main`. Under injection, discovery is by name alone, and
-conformance is checked as described under [Conformance](#conformance).
-
 The mechanism injects context parameters. Some of them are capabilities, such
 as a file system, and some are plain configuration, such as a repository name.
 
@@ -212,7 +208,8 @@ The wrapper is not visible to source code.
 
 Without injection, `impl(d)` must conform to the signature of `d`. With
 injection, the rule for context parameters is relaxed: `impl(d)` may also
-receive any provided parameter. The context parameters of `impl(d)` are those
+receive any provided parameter. This applies whether `impl(d)` is named by
+`--link` or found by entry-point discovery. The context parameters of `impl(d)` are those
 it declares or, when the clause is omitted, those the compiler infers. The
 rest of the signature is checked as before.
 
