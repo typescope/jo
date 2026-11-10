@@ -211,8 +211,9 @@ rest of the signature is checked as before.
 | `--provide p=e` | Bind context parameter `p` to `e` as a provided parameter. |
 | `--internal p=e` | Bind context parameter `p` to `e` as an internal parameter. |
 
-`--inject d=impl` links `d` to `impl` exactly as `--link d=impl` does, and in
-addition attaches the bindings to that link. Giving both `--link` and
+Like `--link d=impl`, `--inject d=impl` names the implementation of `d`. In
+addition, it attaches the bindings to `d` and relaxes the conformance rule as
+described under [Conformance](#conformance). Giving both `--link` and
 `--inject` for the same `d` is an error, as two `--link` options for the same
 `d` are today. `--inject` without any binding is equivalent to `--link`.
 
