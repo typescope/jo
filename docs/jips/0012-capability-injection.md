@@ -70,8 +70,8 @@ binds them, and calls a new deferred entry point with a hand-written
 signature. The glue grows with every capability, and every application that
 combines the same libraries writes it again.
 
-The glue also does one thing that a flat list of factories cannot express: it
-narrows authority. A platform may open a file system, wrap it in a read-only
+The glue also serves the purpose of narrowing authority. A platform may open
+a file system, wrap it in a read-only
 view, and hand only the view to the application. The broad capability exists
 in the program but never reaches the untrusted code.
 
