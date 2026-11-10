@@ -438,10 +438,6 @@ receive more, so the comment must be updated.
   `--provide SystemAPI.process@foo=SystemRuntime.Process`, with `@global`
   meaning every deferred function that receives the parameter. A binding
   without `@` would keep attaching to `jo.main`.
-- **Narrowing the parameters of `d`.** The target may use every context
-  parameter of `d`. A form of `--internal p` without a value could mark a
-  parameter of `d`, such as `IO.stdout`, as available to factories only, so
-  that a logger factory receives it while the target cannot print directly.
 - **Wrapping an existing capability.** A binding cannot currently rebind a
   context parameter of `d`, for example to prefix everything written to
   `IO.stdout`.
