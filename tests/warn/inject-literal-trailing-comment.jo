@@ -1,0 +1,12 @@
+// options: --provide Test.a=1//ignored --provide Test.name="x"//ignored
+
+// Text after the literal is rejected even when the lexer would skip it as a comment.
+
+namespace Test
+
+param a: Int
+param name: String
+
+def main: Unit receives IO.stdout, a, name =
+  println a
+  println name

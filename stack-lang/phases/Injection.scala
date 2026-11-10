@@ -363,24 +363,27 @@ object Injection:
     val scanner = new Scanner(spec.value)
     val first = scanner.next()
 
-    def atEnd: Boolean = scanner.next().token == Token.EOF
+    // The value must consist of exactly one literal. The raw text is checked
+    // rather than the next token, which would skip a trailing comment.
+    def consumesAll(end: Int): Boolean = end == spec.value.length
 
     val literal: Option[Literal] =
       first.token match
-        case lit: Token.IntLit if atEnd =>
+        case lit: Token.IntLit if consumesAll(first.span.endOffset) =>
           Some(NumericTyper.typeIntLit(Ast.IntLit(lit.value, lit.isHex)(span)))
 
-        case Token.FloatLit(value) if atEnd =>
+        case Token.FloatLit(value) if consumesAll(first.span.endOffset) =>
           Some(NumericTyper.typeFloatLit(Ast.FloatLit(value)(span)))
 
-        case Token.CharLit(value) if atEnd =>
+        case Token.CharLit(value) if consumesAll(first.span.endOffset) =>
           Some(NumericTyper.typeCharLit(Ast.CharLit(value)(span)))
 
-        case Token.BoolLit(value) if atEnd =>
+        case Token.BoolLit(value) if consumesAll(first.span.endOffset) =>
           Some(Literal(Constant.Bool(value))(span))
 
         case Token.StringStart(1) =>
-          readString(scanner, spec).filter(_ => atEnd).map(value => Literal(Constant.String(value))(span))
+          readString(scanner, spec).collect:
+            case (value, end) if consumesAll(end) => Literal(Constant.String(value))(span)
 
         case _ => None
 
@@ -405,12 +408,16 @@ object Injection:
         else
           Some(Value.Lit(lit))
 
-  /** Read the content of a single-line string literal after its opening quote */
-  private def readString(scanner: Scanner, spec: InjectBinding)(using rp: Reporter): Option[String] =
+  /** Read the content of a single-line string literal after its opening
+    * quote, returning it with the offset just past the closing quote
+    */
+  private def readString(scanner: Scanner, spec: InjectBinding)(using rp: Reporter): Option[(String, Int)] =
     val content = new StringBuilder
 
     while true do
-      scanner.nextString(1).token match
+      val info = scanner.nextString(1)
+
+      info.token match
         // The scanner reports a line break inside a single-line string as an
         // empty line without consuming it, as the parser also treats it.
         case Token.StringLine(text) if text.isEmpty =>
@@ -421,7 +428,7 @@ object Injection:
           content ++= text
 
         case Token.StringEnd =>
-          try return Some(StringUtil.unescape(content.toString, StringUtil.EscapePolicy.Disable("")))
+          try return Some((StringUtil.unescape(content.toString, StringUtil.EscapePolicy.Disable("")), info.span.endOffset))
           catch
             case e: StringUtil.EscapeError =>
               rp.error(e.message)
