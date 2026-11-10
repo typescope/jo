@@ -39,7 +39,7 @@ options are unaffected.
 The entry point `jo.main` is a deferred function with a fixed signature:
 
 ```jo
-defer def main: Unit receives IO.stdout, IO.stderr, IO.args = pass
+defer def main: Unit receives IO.stdout, IO.stderr, IO.args
 ```
 
 A library that offers a capability to applications must therefore own the
