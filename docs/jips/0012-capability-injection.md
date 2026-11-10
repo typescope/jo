@@ -160,11 +160,12 @@ it without adding to it.
 ### Literals
 
 The value of a binding may be a Jo literal instead of a factory. The literal
-is read by Jo's lexer and checked as the initializer of a `val` of the
-parameter's type, exactly as `val x: T = e` would be, with the same
-adaptations, such as widening an `Int` literal to `Long`. A literal may
-therefore bind any parameter whose type accepts it as an initializer,
-including a union such as `String | Int`.
+is read by Jo's lexer and typed as it would be in source, with the
+parameter's type as the expected type. It must conform to the parameter's
+type. Adapters are not applied, so a literal never depends on a context
+parameter and takes no part in the binding graph. A literal may bind any
+parameter whose type it conforms to, including a union such as
+`String | Int`.
 
 A literal is never mistaken for a factory path. A path starts with a letter or
 an underscore and continues with identifiers and dots. A literal starts with a
