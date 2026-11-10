@@ -45,6 +45,12 @@ class Allocations(funDefs: collection.Map[Symbol, FunDef], runtime: LLVMRuntime,
     val target = resolve(sym)
     allocating.contains(target) || !funDefs.contains(target)
 
+  /** Whether a word, such as a loop, may allocate */
+  def mayAllocate(word: Word): Boolean =
+    val scan = new Scan
+    scan(word)(using ())
+    scan.direct || scan.callees.exists(mayAllocate)
+
   /** The direct allocations and the callees of a function body, as CodeGen compiles calls */
   private class Scan extends TreeTraverser:
     type Context = Unit

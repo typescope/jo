@@ -57,8 +57,10 @@ honor it. Region functions are chosen by the backend and adjusted in backend
 configuration instead:
 
 - `--region-policy all`, the default, makes every function a region function,
-  except `main`, the functions of the runtime, and the functions that cannot
-  allocate (see [Functions that cannot allocate](#functions-that-cannot-allocate)).
+  except the functions of the runtime and the functions that cannot allocate
+  (see [Functions that cannot allocate](#functions-that-cannot-allocate)). The
+  entry function is an ordinary function (see
+  [The entry function](#the-entry-function)).
 - `--region-policy scalar` makes only the functions returning a primitive
   value other than `Unit` region functions, and `--region-policy none` none.
 - `--region <function>` makes a function a region function under any policy.
@@ -83,17 +85,20 @@ allocations into its caller's region.
 
 Level 0 is the runtime region. It holds what the runtime sets up before the
 program starts, such as singleton objects, program arguments and the standard
-streams, and everything `main` allocates outside region functions. The runtime
-region never closes: the program exits instead, so freeing it would gain
-nothing.
+streams, and what code that runs in no region allocates: the entry function
+and its callees when they open no region, as under `--region-policy none`.
+The runtime region never closes: the program exits instead, so freeing it
+would gain nothing.
 
 An object that escapes to level 0 lives until the program exits.
 
 ### Tail-recursive functions
 
 Jo's tail-call optimization turns a self-recursive function into a loop. A
-region function rewritten this way is out of scope for now. Later the compiler
-can warn that the region marking is ignored for such a function.
+region function rewritten this way opens its region once, and the loop
+collects that region (see
+[Collecting a region in a loop](#collecting-a-region-in-a-loop)), which frees
+the garbage of earlier steps.
 
 Merging regions is always safe. It only delays reclamation. The backend
 therefore may ignore a region boundary when it is inconvenient, for example
@@ -105,11 +110,12 @@ Slot 0 of every heap object is `cid: i32 | gc: i32`. The `gc` half has two
 forms:
 
 ```
-normal    [0 | phys: 15 | req: 16]
+normal    [0 | phys: 15 | mark: 1 | req: 15]
 on path   [1 | cursor: 31]
 ```
 
-The on-path form is used only during cleanup (see below).
+The on-path form is used only during cleanup (see below), and the mark only
+during a loop collection (see [Marking](#marking)).
 
 Level 0 is the runtime region. Levels are limited to 32767 by the `phys`
 field. A region function called at the limit runs in the current region
@@ -518,6 +524,7 @@ The report has one record per line, a kind followed by `key=value` fields:
 jo-mem summary peak-rss-kb=4740 allocated=24034 freed=10004 runtime-region=14030 skipped-enters=0
 jo-mem to-runtime direct=6021 store=8009 trace=0 return=0
 jo-mem closes free=3 merge=444 collect=7581 traced=0
+jo-mem loops collect=0 marked=0 freed=0
 jo-mem hint rebuild with --mem-profile to attribute these to functions
 ```
 
@@ -527,30 +534,34 @@ jo-mem hint rebuild with --mem-profile to attribute these to functions
   nor in the runtime region, so `allocated - freed` exceeds `runtime-region`.
 - `to-runtime`: the objects allocated directly in the runtime region, and
   those promoted to it by a store into an object there, by the trace of a
-  closing region, and by a return to `main`. These stay until the program
-  exits. `direct` counts what `main` allocates, since it runs in the runtime
-  region, and the results of the functions it calls.
+  closing region, and by a return to code in the runtime region. These stay
+  until the program exits. `direct` counts what code that runs in no region
+  allocates: `Core.start`, and the entry function and its callees when they
+  open no region. Under the default policy, `direct` and `return` stay near 0.
 - `closes`: the closes that freed everything, merged and collected, and
   `traced`, the objects whose `req` the traces of collecting closes lowered,
   besides the escape roots. An object traced at every close it passes through
   counts once per close, so `traced` far above `allocated` means repeated
   tracing (see [Cost](#cost)). The trace counts in a local variable and adds
   it to the total once per collect.
+- `loops`: the loop collections, the objects their marks visited and the
+  objects they freed (see [Collecting a region in a loop](#statistics-of-loop-collections)).
 
 Built with `--mem-profile`, the program also reports the region functions
 responsible, by name. The backend then emits the names of the region
 functions and classes, and nothing else changes. Each region function gets
 counters, allocated at startup only when `JO_MEMSTATS` is set. Codegen
-numbers the region functions and `enter` stores the number in the region
-descriptor, so a store is charged to the function of the current region, a
-trace to the function of the closing region, and a return to `main` to the
-function whose region closes.
+numbers the region functions from 1 and `enter` stores the number in the
+region descriptor, so a store is charged to the function of the current
+region, a trace to the function of the closing region, and a return to the
+runtime region to the function whose region closes. Function 0 is `runtime`,
+the code that runs in the runtime region.
 
 ```
-jo-mem promoted kind=store count=5000 fun=memapp.remember at=app.jo:9 into=jo.Array caller=memapp.main
-jo-mem promoted kind=trace count=5999 fun=tr.link at=tr.jo:5 caller=tr.main
-jo-mem promoted kind=return count=3000 fun=jo.Range.RangeIterator$next$bridge at=lib/Range.jo:55 caller=memret.main
-jo-mem region objects=10044 fun=memapp.accumulate at=app.jo:12 caller=memapp.main
+jo-mem promoted kind=store count=5000 fun=memapp.remember at=app.jo:19 into=jo.Array caller=runtime
+jo-mem promoted kind=trace count=5999 fun=tr.link at=tr.jo:5 caller=runtime
+jo-mem promoted kind=return count=60000 fun=memret.wrap at=ret.jo:11 caller=runtime
+jo-mem region objects=10044 fun=memapp.accumulate at=app.jo:25 caller=memapp.main
 jo-mem traced objects=896724 fun=memquad.build at=quad.jo:10 caller=memquad.main
 ```
 
@@ -558,10 +569,9 @@ jo-mem traced objects=896724 fun=memquad.build at=quad.jo:10 caller=memquad.main
   runtime region. `into` is the class of the object stored into last.
 - `promoted kind=trace`: the objects the trace of the function's region
   promoted to the runtime region, besides the escape roots.
-- `promoted kind=return`: the results the function returned to `main`, which
-  `leave` promoted to the runtime region. `caller` is always `main`. A result
-  allocated in the region of `main`, the common case, counts in `direct`
-  instead.
+- `promoted kind=return`: the results the function returned to code in the
+  runtime region, which `leave` promoted there. `caller` is always `runtime`.
+  A result placed in the runtime region counts in `direct` instead.
 - `region`: the most objects the function's region held at once. It is
   measured in segments, so `objects` is the segment count times 62, and
   overestimates by up to 61.
@@ -590,19 +600,21 @@ when a row of its kind is:
   the region closed. Either a store linked it to an object there, or it is a
   result returned to `main`. The root of a returned result counts in
   `return`, and the objects it reaches count in `trace`.
-- `region`: what the function allocates and the results returned to it stay
-  until it returns. A loop body moved into a function frees its garbage per
-  iteration. If the body already is one, stores into this function's
-  containers or the results of the body keep the objects.
+- `region`: the region of the function held this many objects at once. Its
+  loops free what no variable read later reaches. What stays is reached from
+  such a variable or from a container of a caller, or was allocated by a loop
+  that does not collect, in a function that opens no region.
 - `library`: a `store`, `trace` or `region` row names a `jo.*` function. The
   fix is in how the caller uses it, for example a `while` loop in place of
   `Iterator.fold` over a long input.
-- `main`: printed when `direct` or `return` is at least 1000, also without
-  names. What `main` allocates, and the results returned to it, stay until
-  exit. The body of each loop of `main` belongs in a function, with the calls
-  whose results it uses. Moving the whole loop only moves the objects into
-  the region of the new function. This hint also covers a `return` row that
-  names a `jo.*` function, so the `library` hint is left out for it.
+- `runtime`: printed when `direct` or `return` is at least 1000, also without
+  names. Code that runs in no region, such as a function that opens no region
+  called by the entry function, allocates in the runtime region, and what it
+  allocates or is returned to it stays until exit. Naming that function with
+  `--region` gives it a region, so its loops free their garbage and its
+  callees' results are freed when it returns. This hint also covers a
+  `return` row that names a `jo.*` function, so the `library` hint is left
+  out for it.
 - `traced`: printed when `traced` is more than 4 times `allocated`, also
   without names. The likely cause is a recursive function whose result is
   built in a loop, which placing results misses. The hint suggests building
@@ -623,7 +635,7 @@ that, the program prints a `growth` line:
 
 ```
 jo-mem growth runtime-region=126915 peak-rss-kb=8576 direct=0 store=63488 trace=0 return=0
-jo-mem growth-promoted kind=store count=63488 fun=memsrv.handle at=server.jo:14 into=memsrv.State caller=memsrv.main
+jo-mem growth-promoted kind=store count=63488 fun=memsrv.handle at=server.jo:14 into=memsrv.State caller=runtime
 ```
 
 `runtime-region` and `peak-rss-kb` are totals, the other counts are the
@@ -632,20 +644,20 @@ promotions since the previous `growth` line. Built with `--mem-profile`, the
 exit report but counting since the previous growth report. The first report with
 a row adds a `growth` hint on what keeps the region growing. Without names,
 the first report suggests rebuilding instead. The first report whose `direct`
-or `return` is at least 1000 adds the `main` hint.
+or `return` is at least 1000 adds the `runtime` hint.
 
 A single growth report soon after startup can be data the program builds once
 and keeps, such as a table it loads. Repeated reports while the program serves
 requests mean the region grows without bound.
 
 Any other region can grow without bound too, for example the region of a
-function that loops forever and keeps what the calls of the loop return to it.
+function that loops forever and keeps a growing structure.
 When a region other than the runtime region reaches 1024 segments, and each
 time that threshold doubles after that, the program prints a `growth-region`
 line for the largest open region:
 
 ```
-jo-mem growth-region objects=63430 peak-rss-kb=4992 fun=memserve.serve at=serve.jo:12 caller=memserve.main
+jo-mem growth-region objects=63428 peak-rss-kb=4608 fun=memdirect.main at=direct.jo:13 caller=runtime
 ```
 
 `objects` counts the objects of that region. Built with `--mem-profile`, the
@@ -656,14 +668,17 @@ so a function that builds the same large temporary structure on every call
 is reported once.
 
 The runtime notes the thresholds when a segment is added, and prints the report
-at the next return of a region function, once the state is consistent. The
-report runs in a region of its own, so it adds nothing to the promotions or to
-the runtime region. Its strings still count in `allocated` and `freed`.
+at the next return of a region function or the next loop collection, once the
+state is consistent. The report runs in a region of its own, so it adds
+nothing to the promotions or to the runtime region. Its strings still count in
+`allocated` and `freed`, but not in the bytes that loop collections count
+(see [Counting bytes](#counting-bytes)).
 
 To reduce the peak RSS of a program:
 
-1. Run it with `JO_MEMSTATS=1`. A large `direct` points to allocation in
-   `main`. Large `store`, `trace` or `return` counts point to promotions.
+1. Run it with `JO_MEMSTATS=1`. A large `direct` points to allocation by code
+   that runs in no region. Large `store`, `trace` or `return` counts point to
+   promotions.
 2. Rebuild it with `--mem-profile` and run it again.
 3. Fix the top row, following its hint.
 4. Run it again and compare `peak-rss-kb`.
@@ -692,7 +707,8 @@ close. A recursive builder costs O(n) until the budget is reached.
 The budget bounds the garbage held by merging. A region merges only if it and
 its parent have at most 8 segments together, about 500 objects. Otherwise it
 collects. A loop whose own region never closes therefore holds at most about
-500 merged objects.
+500 merged objects, until its next loop collection (see
+[Collecting a region in a loop](#collecting-a-region-in-a-loop)) frees them.
 
 A merge hands the region's segments to the parent like a collect hands the
 survivors: the partly filled first segment tops up the parent's, and the full
@@ -746,7 +762,9 @@ is reached at a recursion depth of about 296.
 
 At the limit, `enter` stays in the current region, as for depths before, and
 counts the call in `skipped-enters`. All deeper calls then share the region
-at the limit, which frees nothing until that frame returns. At depth 2000,
+at the limit, which frees nothing until that frame returns. A loop collection
+gives back the levels merged into its region while the parent is open (see
+[The collection](#the-collection)). At depth 2000,
 `wide` skips 1025022 enters, and its region at the limit holds 2048976
 objects at once, so the report shows a large `region` row for `wide` and
 `growth-region` lines while it runs. The header keeps its layout.
@@ -862,16 +880,16 @@ it on for the other policies.
 
 ## Collecting a region in a loop
 
-Status: design, not implemented.
+Status: implemented. `--no-loop-collect` turns it off.
 
 A region frees its garbage only when it closes. A loop that runs for a long
 time keeps its region open, so the garbage of every iteration stays. A value
 overwritten in a container stays too, because the store promoted it to the
 container's region. A `mutable.Map` in the entry function updated 3 million
-times keeps 663 MB this way. The entry function runs in the runtime region
-today, which never closes.
+times kept 663 MB this way, since the entry function ran in the runtime
+region, which never closes.
 
-This design collects a region at the end of a loop iteration, in the function
+A loop now collects a region at the end of an iteration, in the function
 that opened the region. It is exact: the roots are the variables of that
 function and the escape roots the barrier already records. Nothing scans the
 stack and nothing guesses whether a word is a pointer.
@@ -933,16 +951,16 @@ end of an iteration:
 Globals need no roots. A singleton has no fields
 (`docs/language/definitions/object-definitions.md:83`), and all singletons
 are created at startup, before the entry function, in the runtime region
-(`objectInitProc`, `LLVMRuntime.scala:217`). Their holders are written once
-there (`CodeGen.scala:723`). The runtime state, `State` in `Platform.jo:106`,
-holds only `Addr` fields and numbers: descriptors, segments and statistics in
-C memory. The segments point to Jo objects, but they are the index of the
-regions, not roots. The context parameters of `Core.start` are `Entry`
-objects in the runtime region (`Platform.jo:259`). The regex engine keeps no
-cache: its only globals are singletons (`NFA.jo:9`). Outside `Regions.jo`,
-the runtime writes a pointer with `writeAddr` only into C memory
-(`Signal.jo:54`) and through `writeRef`, which runs the barrier
-(`Platform.jo:57`).
+(`objectInitProc` in `LLVMRuntime.scala`). Their holders are written once
+there (`compile(assign)` in `CodeGen.scala`). The runtime state, `State` in
+`Platform.jo`, holds only `Addr` fields and numbers: descriptors, segments
+and statistics in C memory. The segments point to Jo objects, but they are
+the index of the regions, not roots. The context parameters of `Core.start`
+are `Entry` objects in the runtime region (`start` in `Platform.jo`). The
+regex engine keeps no cache: its only globals are singletons (`NFA.jo:9`).
+Outside `Regions.jo`, the runtime writes a pointer with `writeAddr` only into
+C memory (`Signal.jo:54`) and through `writeRef`, which runs the barrier
+(`writeRef` in `Platform.jo`).
 
 This needs `R` to be younger than the runtime region. Only a region opened
 by `enter` is collected, never level 0.
@@ -951,18 +969,17 @@ by `enter` is collected, never level 0.
 
 Jo has no special `main`. `jo.main` is a deferred declaration
 (`lib/Main.jo:21`). The frontend picks an implementation, a top-level
-function named `main` (`detectMain` in `FrontEnd.scala:66`) or the one named
-by `--link jo.main=app.run`, and codegen rewires `jo.main` to it
-(`CodeGen.scala:142`). The chosen function is an ordinary function. It can
+function named `main` (`detectMain` in `FrontEnd.scala`) or the one named
+by `--link jo.main=app.run`, and codegen rewires `jo.main` to it (`funRef`
+in `CodeGen.scala`). The chosen function is an ordinary function. It can
 have another name, be called from other code, or be recursive. The only real
-entry is `Core.start` (`Platform.jo:259`).
+entry is `Core.start` (`start` in `Platform.jo`).
 
 So the entry function opens a region like any other function: whenever the
 policy or `--region` says so, and it closes the region when it returns.
-`opensRegion` drops its exclusion of `runtime.rewire.get(defn.main)`
-(`CodeGen.scala:507`). Under the default policy, it opens a region if it may
-allocate. Under `none` or `scalar` it runs in the runtime region as today,
-unless `--region` names it.
+`opensRegion` has no exclusion for it. Under the default policy, it opens a
+region if it may allocate. Under `none` or `scalar` it runs in the runtime
+region, unless `--region` names it.
 
 This is sound. `Core.start` allocates the argument array and the context
 entries of `IO.stdout`, `IO.stderr` and `IO.args` before the call, so they
@@ -973,7 +990,8 @@ these objects runs the barrier and makes an escape root. Static data has
 
 The cost is one close when the entry returns, before `finish`, which frees
 what its region still holds object by object. The measurements include the
-exit time of a program that holds a large live heap when its entry returns.
+exit time of a program that holds a large live heap when its entry returns
+(see [Measurements](#measurements)).
 
 The runtime region then holds what the runtime sets up before the entry
 function, and what is stored into it later. A program can store only into
@@ -1028,57 +1046,71 @@ the loops the frontend creates are covered:
 
 Codegen holds some values in LLVM registers while it compiles the next
 operand. If that operand contains a loop, a collection in it would not see
-them. These are the only places, checked against `CodeGen.scala`:
+them. These are the only places in `CodeGen.scala`:
 
 - the arguments of a direct call, also of a C function and of an intrinsic
-  (`compile(app)` at line 850, `callC` at 844, `args` of `callIntrinsic` at
-  923)
-- the function and the arguments of an indirect call (865 to 867)
-- the new object of a record while its fields are computed (813 to 819)
-- the object of a field assignment while the value is computed (685 to 686)
+  (`compile(app)`, `callC`, `callIntrinsic`)
+- the function and the arguments of an indirect call
+- the new object of a record while its fields are computed
+  (`compile(rec)`)
+- the object of a field assignment while the value is computed
 
 The other words have one operand (`Select`, `Assign`, `Return`, `Encoded`,
 `TypeApply`), or consume it before their branches (`If`, `While`). `&&` and
-`||` become an `If` (line 997). The `inherit` call of a placed call takes no
-operand. The result slot of an `if` is written at the end of a branch and
-read right after, never across an iteration.
+`||` become an `If`. The `inherit` call of a placed call takes no operand. The
+result slot of an `if` is written at the end of a branch and read right
+after, never across an iteration.
 
-A small rewrite of the SAST removes these values before codegen. It runs on
-each `FunDef` as it enters `funDefs` (`CodeGen.scala:77`), not in
-`compileFunDef`. `resultRegions` builds its analysis from `funDefs`
-(`CodeGen.scala:495`) and matches placement by node identity
-(`allocations.contains(rec)` at 811, `calls.contains(app)` at 856), so a
-later rewrite would silently drop placement and `inherit`. The rewrite
-rebuilds only the nodes it changes and the nodes above them, never the whole
-tree, so every other node keeps its identity. The read pass of
+A small rewrite of the SAST, `LoopOperands` in `LoopRoots.scala`, removes
+these values before codegen. It runs on each `FunDef` as it enters `funDefs`
+(`compile(units)` in `CodeGen.scala`), not in `compileFunDef`.
+`resultRegions` builds its analysis from `funDefs` and matches placement by
+node identity (`allocations.contains(rec)` and `calls.contains(app)`), so a
+later rewrite would silently drop placement and `inherit`. The rewrite is a
+`TreeMap`, which rebuilds only the nodes it changes and the nodes above them,
+never the whole tree, so every other node keeps its identity. The read pass of
 [The roots of the frame](#the-roots-of-the-frame) runs after it.
 
-- In a call, if an argument contains a `while`, each earlier operand is
-  assigned to a fresh local before the call, which then reads the local. The
-  rewrite tells a direct call exactly as codegen does: `app.funSymbol`, or
-  `Encoded(Ident(sym))` with `Flags.Fun` (`CodeGen.scala:827`). The callee
-  of a direct call is never hoisted. The function of an indirect call is.
+- In a call, if an operand contains a `while`, every operand up to and
+  including the last one that contains a `while` is assigned to a fresh local
+  before the call, which then reads the locals. The rewrite tells a direct
+  call exactly as codegen does, with `directCallee`: `app.funSymbol`, or
+  `Encoded(Ident(sym))` with `Flags.Fun`. The callee of a direct call is
+  never hoisted. The function of an indirect call is.
 - In a record literal, every field up to the last one that contains a
   `while` is assigned to a fresh local. The record is allocated after them,
   so codegen holds no new object while a loop runs. Allocation is not
   observable, so moving it after the fields changes nothing.
-- In a field assignment whose value contains a `while`, the object is
-  assigned to a fresh local first.
+- In a field assignment whose value contains a `while`, the object and the
+  value are assigned to fresh locals first.
+
+The operand that contains the loop is hoisted too. Otherwise codegen would
+load the locals of the earlier operands into registers before it compiles
+the loop, and the read pass would place those reads before the loop, so the
+locals would not be roots.
+
+`&&` and `||` are left alone. They consume their first operand before they
+evaluate the second, and hoisting the second would evaluate it even when the
+first decides the result.
 
 Constants and literals are not hoisted, since codegen holds no heap
-reference for them. An operand of type `void` is evaluated as a statement in
-its place in the block, never assigned to a local.
+reference for them. An operand of type `void` or `Bottom` is evaluated as a
+statement in its place in the block, never assigned to a local.
 
 The result is `Block(assign to locals, the word reading them)`, which keeps
 the order of evaluation. The fresh locals are ordinary locals: the read pass
 sees them, they are read after the loop, so they are roots there, and the
 type rule of roots applies to them like to any local. `paramKey` reads its
-argument as a tree, but its argument never contains a loop, so it is never
-rewritten.
+argument as a tree, but it has one argument, so it is never rewritten.
 
-At the four places codegen asserts that no operand after a heap reference
-contains a `while`, the condition the rewrite establishes. The check is the
-same predicate the rewrite uses, on words codegen visits anyway.
+Codegen checks the condition the rewrite establishes. It counts the heap
+references it holds in registers while it compiles later operands, in
+`operands`, `compile(rec)` and the field assignment, and asserts that the
+count is 0 when it emits the check of a collecting loop.
+
+A record literal comes only from `new`, whose fields are constants, and from
+a closure, whose `underlying` is such a `new`. So the record case never
+applies to code compiled today. The tests cover the other cases.
 
 So every loop that passes the two conditions above collects, wherever it is
 in an expression. The user-facing rule has no exception for operands.
@@ -1090,7 +1122,7 @@ that can still run after the end of the iteration:
 
 - The slot holds a heap reference: its type is `ptr` and neither `Addr` nor
   a function type. That is the rule the layout table uses for fields
-  (`CodeGen.scala:325`), so a slot holds the same kinds of values a pointer
+  (`layoutTableGlobals` in `CodeGen.scala`), so a slot holds the same kinds of values a pointer
   field holds: null, a static object, or a heap object. A closure has a
   lambda type and points to its `ClosureTag` object, so it is a root. A
   function type is a raw code address. Only the `apply` of a closure and the
@@ -1103,10 +1135,10 @@ The second condition is sound because the lowered SAST is structured. From
 the end of an iteration, control goes back into the loop, out of it to code
 that comes later, or back into an enclosing loop. A `Return` to a label
 jumps to the end of the labeled block, which comes later
-(`CodeGen.scala:651` to `671`), and a `Return` from the function leaves it.
+(`Labeled` and `Return` in `compile(word)`), and a `Return` from the function leaves it.
 So no read before the outermost loop can run again. Codegen numbers the
 reads of each slot in a pass before it compiles the body and keeps the last
-position.
+position (`LoopRoots` in `LoopRoots.scala`, run by `prepareLoops`).
 
 The lowered SAST has no declarations: a local is a symbol that `Assign`
 writes. So "the variables in scope" cannot be read off the tree. The rule
@@ -1160,10 +1192,11 @@ A frame with a collecting loop keeps one local, `next`: the value of
 collection, the only place it is measured. The header does not store the
 size, so it comes from the object:
 
-- A class instance or a closure: its size by class id, from a new table
+- A class instance or a closure: its size by class id, from the table
   `@gc.sizes` that codegen emits next to the layout table, with
-  `Layout.classInstanceSize` (`CodeGen.scala:106`) and 3 slots for a closure.
-  Codegen asserts that each record literal allocates the size of its class.
+  `Layout.classInstanceSize` and 3 slots for a closure (`objectSize` in
+  `CodeGen.scala`). Codegen asserts that each record literal allocates the
+  size of its class.
 - An array: `(2 + length) × 8` bytes, with the length in elements in
   slot 1.
 - `Bytes`: `16 + size` bytes, with the size in bytes in slot 1.
@@ -1211,18 +1244,18 @@ collectLoop(roots, n):
   return requested + max(kept, 1 MB)
 ```
 
-Pass 1 is the first pass of a collect. After it, every object of `R` that an
-escape root reaches has `req` below `num`, so the mark can stop at such an
-object.
+Pass 1 is the first pass of a collect, `spreadEscapes`, which both share.
+After it, every object of `R` that an escape root reaches has `req` below
+`num`, so the mark can stop at such an object.
 
-Pass 3 is the sweep of a collect with two differences. A marked object stays
-in `R`. An object reached from an older region moves to the region that owns
-its `req`, also when that is the parent: `R` stays open, so it cannot hand the
-object to the parent with its segments. The existing sweep moves only objects
-whose `req` is below the parent's level and keeps the others for the parent.
-Both share the packing and the `owner` cache. The packed segments stay in
-`R`, the partly filled one first, and `firstSeg`, `lastSeg` and `segs` are
-set to them.
+Pass 3, `sweepInPlace`, is the sweep of a collect with two differences. A
+marked object stays in `R`. An object reached from an older region moves to
+the region that owns its `req`, also when that is the parent: `R` stays open,
+so it cannot hand the object to the parent with its segments. The sweep of a
+close moves only objects whose `req` is below the parent's level and keeps
+the others for the parent. Both pack the survivors the same way and cache
+the last `owner`. The packed segments stay in `R`, the partly filled one
+first, and `firstSeg`, `lastSeg` and `segs` are set to them.
 
 After pass 3, every object in `R` has `phys = req = num`, and nothing in `R`
 escapes. No object anywhere has a level in `(num, hi]`: the survivors were
@@ -1280,49 +1313,49 @@ grows, and no live string reads past it.
 - `R` itself is never shared: the frame that opened it is the only one that
   collects it, and only while no younger region is open.
 - A placed result is allocated in the result region of `F`, older than `R`.
-  Its initializing stores run the barrier (`CodeGen.scala:818`), so what it
-  reaches in `R` is an escape. Allocations inside a loop are never placed
-  (`ResultRegions.scala:34`).
+  Its initializing stores run the barrier (`compile(rec)` in
+  `CodeGen.scala`), so what it reaches in `R` is an escape. Allocations inside a loop are never placed
+  (`ResultRegions.scala`).
 - When `F` returns, `R` closes as before. Its survivors have
   `phys = req = num`, which a close handles like any object of `R`.
 
 ### Code generation
 
-For a function with a collecting loop, codegen adds two allocas at entry:
-`next`, an `i64` set by `Regions.loopStart()`, which is inlined like
-`requested`, and the root array. Every
-pointer slot is set to null at entry. At the end of the loop body, if the
-body did not end in a jump:
+For a function with a collecting loop, `prepareLoops` adds two allocas at
+entry: `%loop.next`, an `i64` set by `Regions.loopStart()`, which is inlined
+like `requested`, and `%loop.roots`, an array as large as the most roots of
+one of its loops. Every pointer slot is set to null at entry. At the end of
+the loop body, if the body did not end in a jump, `checkLoop` emits:
 
 ```
   %req  = call i64 @Regions.requested()      ; inlined: one load
-  %next = load i64, ptr %next.slot
+  %next = load i64, ptr %loop.next
   %due  = icmp sge i64 %req, %next
   br i1 %due, label %collect.N, label %while.cond.N
 
 collect.N:                                   ; emitted after the body
-  ; store each root slot of this loop into %roots
-  %new = call i64 @Regions.collectLoop(ptr %roots, i32 <n>)
-  store i64 %new, ptr %next.slot
+  ; store each root slot of this loop into %loop.roots
+  %new = call i64 @Regions.collectLoop(ptr %loop.roots, i32 <n>)
+  store i64 %new, ptr %loop.next
   br label %while.cond.N
 ```
 
-The slow blocks are emitted at the end of the function, when all slots are
-known, since `localSlot` creates them as codegen meets them. Each loop stores
-its own roots. `next` is a local of the frame, since `F` owns `R` for the
-whole call.
+`collectBlocks` emits the slow blocks at the end of the function, when all
+slots are known, since `localSlot` creates them as codegen meets them. Each
+loop stores its own roots, and a loop without roots passes `null`. `next` is
+a local of the frame, since `F` owns `R` for the whole call.
 
 `collectLoop` is `noinline`, like `enter` and `leave`, so LLVM treats it as an
 opaque call that may write memory and free objects. `requested` reads the
 counter of the runtime state and is inlined like the barrier.
 
 Codegen also asserts that it converts an integer to a pointer only for the
-constant 0 outside the runtime (`coerce` at `CodeGen.scala:587`). A root is
+constant 0 outside the runtime (`coerce` in `CodeGen.scala`). A root is
 then never a number in disguise.
 
-### Memory statistics
+### Statistics of loop collections
 
-One new line in the exit report:
+One new line in the exit report, printed in every report after `closes`:
 
 ```
 jo-mem loops collect=812 marked=1904331 freed=2998120
@@ -1337,23 +1370,25 @@ short. A line per collection would print thousands of lines for a long loop.
 
 `collectLoop` also prints a growth report that is due, like `leave`. It does
 so after pass 3, when the marks are cleared, since `reqOf` includes the mark
-bit, and restores `requested` after printing. A collecting loop that
-calls no region function then reports while it runs.
+bit. `growthReport` restores `requested` after printing, for `leave` and
+`collectLoop` alike. A collecting loop that calls no region function then
+reports when it collects. Since a collection comes after the requested bytes
+doubled, one report can cover several thresholds.
 
-When the entry function opens a region, the existing output changes:
+Since the entry function opens a region, the output changed:
 
-- Function 0 is `runtime`: entry 0 of `@gc.funNames`, labelled with the entry
-  function today (`CodeGen.scala:367`), becomes `runtime`. The entry function
-  gets an ordinary number when it opens a region. `callerOf` and `printTop`
-  keep treating function 0 as the code in the runtime region, with no other
-  case for it. A `return` row prints caller 0 (`Regions.jo:819`), which is
-  right: such a result went to code in the runtime region.
+- Function 0 is `runtime`: entry 0 of `@gc.funNames`, which named the entry
+  function before, names `runtime`. The entry function gets an ordinary
+  number when it opens a region. `callerOf` and `printTop` treat function 0
+  as the code in the runtime region, with no other case for it. A `return`
+  row prints caller 0, `runtime`: such a result went to code in the runtime
+  region.
 - `direct` counts the objects allocated in the runtime region, and `return`
   the results returned to it, by code that runs in no region: `Core.start`,
   and the entry function and its callees when they open no region. Under the
   default policy both stay near 0. Under `none` or `scalar` they count what
-  they count today.
-- The `main` hint becomes the `runtime` hint, printed on the same counts:
+  they counted before.
+- The `main` hint became the `runtime` hint, printed on the same counts:
   "jo-mem hint runtime: code that runs in no region, such as a function that
   opens no region called by the entry function, allocates in the runtime
   region, and what it allocates or is returned to it stays until exit. Name
@@ -1362,11 +1397,11 @@ When the entry function opens a region, the existing output changes:
   stays.
 - A `region` row or `growth-region` line names the entry function like any
   region function, with the `region` hint.
-- The `region` hint is rewritten for the loop rule: "the region of this
-  function held this many objects at once. Its loops free what no variable
-  read later reaches. What stays is reached from such a variable or from a
-  container of a caller, or was allocated by a loop that does not collect, in
-  a function that opens no region."
+- The `region` hint states the loop rule: "the region of this function held
+  this many objects at once. Its loops free what no variable read later
+  reaches. What stays is reached from such a variable or from a container of
+  a caller, or was allocated by a loop that does not collect, in a function
+  that opens no region."
 
 ### What users learn
 
@@ -1391,10 +1426,11 @@ limits in these words:
 > `--region` to give it its own memory and let its loops free it.
 
 The guide's sections "A loop in `main`", "A value stored into a long-lived
-object" and "Values that reach `main` through an iterator" describe what this
-design fixes under the default policy, and become examples of the rule. The
-advice to move a loop body into a function stays for the cases below, and
-the advice to use `--region` for `none` and `scalar`.
+object" and "Values that reach `main` through an iterator" show what loop
+collection fixes under the default policy, as examples of the rule. The
+second one also shows a loop moved into a callee, which leaves the values in
+the region of `main`. The advice to use `--region` under `none` and `scalar`
+stays.
 
 ### What it does not fix
 
@@ -1448,8 +1484,8 @@ collecting in normal runs. The risk is a wrong root in some lowering of the
 library, which runs in every program. The normal runs of the tests rarely
 reach 1 MB in a loop, so they do not show it. The stress modes below make
 loops collect far more often, and the ASan runs use them.
-`--no-loop-collect` turns the checks off when a failure needs bisecting. The
-measurements decide whether the default stays.
+`--no-loop-collect` turns the checks off when a failure needs bisecting. After
+the [measurements](#measurements), loop collection stays on by default.
 
 `JO_LOOP_COLLECT`, read at startup like `JO_MEMSTATS`, picks a stress mode
 without a rebuild:
@@ -1464,147 +1500,158 @@ without a rebuild:
 
 ### Implementation size
 
-| File | Change | Lines |
+| File | Change | Lines added, removed |
 |---|---|---|
-| `Regions.jo` | `collectLoop`, the mark variant of `lower`, the in-place ending of `sweep`, `size`, `requested` in `alloc` and `allocResult`, `loopStart`, stress modes, stats, hint rewrites | ~130 |
-| `Platform.jo` | counters, `JO_LOOP_COLLECT`, the report lines | ~20 |
-| `CodeGen.scala` | no exclusion of the entry function, function 0 renamed, the operand rewrite, read positions, `@gc.sizes`, null slots, check and slow blocks, assertions, flag | ~170 |
-| `Compiler.scala` | `--no-loop-collect` | ~5 |
-| `Allocations.scala` | expose the scan for a loop | ~10 |
-| `LLVMRuntime.scala` | 2 symbols | ~2 |
-| `tests/custom/gc-memstats` | expectations below, second builds | ~80 changed |
-| `tests/gc`, `tests/custom/gc-regions` | new tests below | ~250 |
+| `Regions.jo` | `collectLoop`, `mark`, `sweepInPlace`, `sizeOf`, `requested` in `alloc` and `allocResult`, `requested`, `loopStart`, stress modes, `spreadEscapes` and `lowestPromotion` shared with a close, stats, hint rewrites | 314, 46 |
+| `Platform.jo` | counters, `JO_LOOP_COLLECT` | 35, 4 |
+| `CodeGen.scala` | no exclusion of the entry function, function 0 renamed, `@gc.sizes`, null slots, check and slow blocks, held operands, assertions, flag | 168, 31 |
+| `LoopRoots.scala` | new: the operand rewrite `LoopOperands` and the read pass `LoopRoots` | 218 |
+| `Compiler.scala` | `--no-loop-collect` | 3, 2 |
+| `Allocations.scala` | expose the scan for a loop | 6 |
+| `LLVMRuntime.scala` | 4 symbols: `requested`, `loopStart`, `collectLoop` and `sizeTable` | 4 |
+| `tests/custom/gc-memstats` | expectations, builds under `none` | 139, 62 |
+| `tests/gc`, `tests/custom/gc-regions` | new tests | 555 |
 | `GC.md`, memory guide | rule, statistics, three examples | prose |
+
+The runtime is larger than estimated, mostly because `sweepInPlace` repeats
+the packing of `sweep` rather than sharing it, and because of comments.
 
 The 32-bit backends allocate with a bump allocator that never frees and are
 not affected.
 
 ### Tests
 
-New tests in `tests/gc`, each run with and without AddressSanitizer: keep the
-IR with `--keep-ll`, add `sanitize_address` to the attribute groups `#0` and
-`#1`, and build with `clang-15 -fsanitize=address`, run under
-`ASAN_OPTIONS=detect_leaks=0 setarch -R`. Each runs normally and under
-`JO_LOOP_COLLECT=all`. Besides these, `tests/pos` and `tests/gc` run under
-`all`, and the jtk smoke runs under `often`, with AddressSanitizer. Their
-output must not change.
+The tests in `tests/gc` run normally and under `JO_LOOP_COLLECT=all`, also
+with AddressSanitizer: keep the IR with `--keep-ll`, add `sanitize_address`
+to the attribute groups `#0` and `#1`, build with `clang-15 -fsanitize=address`
+and run under `ASAN_OPTIONS=detect_leaks=0 setarch -R`. `tests/pos` runs the
+same way. Their output must not change.
 
-- A `mutable.Map` in the entry function updated in a loop, then read in
-  full.
-- An entry function called twice by another function, under
-  `--link jo.main=memtest.run`, and an entry function that calls itself,
-  bounded by a count it reads from `IO.args[0]` and stores back decremented.
-  Each loops and allocates enough to collect. The stores into `IO.args`
-  check the escape into the runtime region.
-- A variable assigned before the loop and read after it, one assigned in the
-  body and read in the next iteration, and one read only before the loop.
-- A loop storing into a container of the caller, the escape case, which is
-  read after the function returns.
-- An escape root reaching a chain of objects in `R` that the frame does not
-  reach.
-- Nested loops, an inner loop that does not allocate, and `break` and
-  `continue`.
-- A loop in the second argument of a call, of a C function and of an
-  intrinsic, in a record field, in the value of a field assignment and in an
-  argument of an indirect call. The earlier operands must survive.
-- A tail-recursive function building a list.
-- A `with` around a loop, read inside it.
-- A closure created before the loop and called in it.
-- Strings appended in a loop, with growable buffers shared between live and
-  dead strings.
-- One large buffer dropped per iteration, with a bound on peak RSS.
-- A region function with a loop, called at the level limit.
-- A collecting loop in a method and in a lambda body.
-- A loop that calls no region function and grows its region past the growth
-  threshold, so `collectLoop` prints the growth report, under `JO_MEMSTATS`.
-- Deep recursion with a collecting loop per level whose callees' results
-  merge into it, checking that the collections give levels back:
-  `skipped-enters` stays 0 where it is nonzero without loop collection.
-- A loop calling small region functions whose results merge into `R`.
+- `loop-map.jo`: a `mutable.Map` in the entry function updated in a loop,
+  then read in full.
+- `loop-vars.jo`: a variable assigned before the loop and read after it, one
+  assigned in the body and read in the next iteration, and one read only
+  before the loop.
+- `loop-escape.jo`: a loop storing into a container of the caller, read after
+  the function returns, and an escape root reaching a chain of objects in
+  `R` that the frame no longer reaches.
+- `loop-nested.jo`: nested loops, an inner loop that does not allocate, and
+  `break` and `continue`.
+- `loop-operands.jo`: a loop in the second argument of a call, in the third
+  argument of a runtime function, the `Array` update, in an argument of an
+  indirect call and in the value of a field assignment. User code cannot
+  call a C function or put a loop into a record literal, so those cases have
+  no test.
+- `loop-tailrec.jo`: a tail-recursive function building a list.
+- `loop-with.jo`: a `with` around a loop, read inside it, and a closure
+  created before the loop and called in it.
+- `loop-strings.jo`: strings appended in a loop, with growable buffers shared
+  between live and dead strings.
+- `loop-method.jo`: a collecting loop in a method and in a lambda body.
+- `loop-level-limit.jo`: a region function with a loop, called past the level
+  limit.
+- `loop-merge.jo`: a loop calling small region functions whose results merge
+  into `R`, and recursion with a collecting loop per level.
 
-`tests/custom/gc-regions` gets a second build without `--region`, under the
-default policy. The loop of the entry function must then stay under the same
-200 MB limit.
+`tests/custom/gc-regions` builds `app.jo` again under the default policy and
+with a region for the entry function only, under the same 200 MB limit. It
+adds `buffer.jo`, one large array dropped per iteration under a 100 MB limit
+of address space, `entry.jo`, an entry function linked with
+`--link jo.main=memtest.run` that calls another function named `main`
+twice, and `self.jo`, an entry function that calls itself, bounded by a count
+it reads from `IO.args[0]` and stores back decremented. Both store into
+`IO.args`, which checks the escape into the runtime region, and run normally
+and under `JO_LOOP_COLLECT=all`.
 
-`tests/custom/gc-memstats` changes. The builds under the default policy see
-the entry function open a region. The checks of the runtime region keep a
-build under `none`, where the entry function runs in the runtime region:
+`tests/custom/gc-memstats` checks the default policy, where the entry
+function opens a region, and keeps the checks of the runtime region in builds
+under `none`:
 
-- `app.jo` under the default policy: `remember` and `note` store into
-  containers of the entry's region, so the `store` rows for `remember` and
-  `List$append`, the store hint, the library hint, `direct >= 3000` and the
-  main hint go away. The `region` row of `accumulate` stays, with
-  `caller=memapp.main` from the entry's own number. The test expects a
-  `loops` line. The library hint moves to a loop that builds a long list
-  with `Iterator.fold`, whose `region` row names a `jo.*` function.
+- `app.jo` under the default policy: no store rows, no store, runtime or
+  traced hint, `direct` below 100, a `region` row for `accumulate` with
+  `caller=memapp.main`, a `loops` line, and the library hint from a `region`
+  row of `jo.Iterator$fold`, which a new last loop of `main` uses to build a
+  long list.
 - `app.jo` under `--region-policy none --region memapp.remember --region
-  memapp.accumulate`: the `remember` store row, the store hint,
-  `direct >= 3000` and the `runtime` hint, which replaces the main hint, as
-  today. `caller=` is now `runtime`, function 0. The `List$append` row has no
-  region under `none` and is left out.
-- `server.jo` under the default policy: the loop of the entry function
-  collects the nodes `handle` stores into its state, about 300000 nodes of
-  32 bytes, enough to pass 1 MB several times. The test expects no `growth`
-  line, a `loops` line with `freed` above 250000, and the same output.
-- `server.jo` under `--region-policy none --region memsrv.handle` keeps the
-  growth test: the state is in the runtime region, so the three runtime
-  growth reports, the `growth-promoted` rows for `handle`, the growth hint and
-  the delta checks hold as today, with `caller=runtime`.
-- `direct.jo` under `none`: as today, with the `runtime` hint in place of the
-  main hint. Under the default policy, its live list grows the entry's
-  region: `growth-region` lines with `fun=memdirect.main` and the `region`
-  hint. This build takes over the `growth-region` checks of `serve.jo`.
-- `ret.jo` under `none`: as today, with `caller=runtime` and the `runtime`
-  hint. Under the default policy, the boxes go to the entry's region:
-  `return=0`, no `return` row, and, with the range raised past 1 MB of boxes,
-  a `loops` line that freed them.
-- `serve.jo`: `serve` reads each reply only in the iteration that gets it, so
-  its loop frees them. The test expects no `growth-region` line and a `loops`
-  line.
+  memapp.accumulate`: the `remember` store row with `caller=runtime`, the
+  store hint, `direct >= 3000` and the `runtime` hint, also without names.
+- `server.jo` under the default policy: no `growth` line, and a `loops` line
+  with `freed` above 250000. Under `--region-policy none --region
+  memsrv.handle`: the three runtime growth reports, the `growth-promoted`
+  rows with `caller=runtime`, the growth hint and the delta checks.
+- `direct.jo` loops 520000 times. Under `none`, the runtime growth reports
+  come from `tick`, a function named by `--region` that the loop calls.
+  Without a region function they would not be printed before exit. Under the
+  default policy, the region of `main` grows: five `growth-region` lines with
+  `fun=memdirect.main`, the `region` hint, and the rebuild hint without
+  names. These take over the `growth-region` checks of `serve.jo`. Under
+  `--region-policy none --region memdirect.main`, the loop calls no region
+  function and prints the reports itself.
+- `ret.jo` returns objects from `wrap`, a top-level function, since
+  `--region` cannot name a method like `RangeIterator.next`. Under `none`
+  with `--region memret.wrap`: `return=60000`, a `return` row for `wrap`
+  with `caller=runtime` and the `runtime` hint. Under the default policy:
+  `return=0`, no `return` row, and a `loops` line that freed the results.
+- `serve.jo`: no `growth-region` line, and a `loops` line.
 - `quad.jo`: unchanged. Each level of `build` stays far below 1 MB, so its
   loop never collects, and `caller=memquad.main` comes from the entry's
   number.
 
 ### Changes elsewhere
 
-This section describes the target state. The implementation also updates
-the text that says the entry function, or `main`, runs in the runtime region:
-
-- GC.md: [Region boundaries](#region-boundaries) (`except main`),
-  [The runtime region](#the-runtime-region) (what `main` allocates), and
-  [Memory statistics](#memory-statistics): `direct`, `return`, the
-  `promoted kind=return` row, the `main` hint, the growth report's `main`
-  hint and the steps to reduce peak RSS. [Limitations](#limitations): the
-  items on `none` and on late growth reports.
-  [Tail-recursive functions](#tail-recursive-functions): the loop now
-  collects. [Levels](#levels): a loop collection gives levels back while the
-  parent is open. [When to merge](#when-to-merge): a loop that collects no
-  longer holds merged garbage until its region closes.
-- `CodeGen.scala:342` and `367` (function 0), `503` to `507` (`opensRegion`).
-- `Regions.jo:601` to `603`, `670`, `700`, `815`, `828` (comments on
-  function 0 and `main`), `846` to `848` (the hint text), `959` (the growth
-  hint), `962` and `1014` (the hint triggers), `1007` (the trace hint).
-- `Platform.jo:140` and `146` (`mainHinted`).
-- The memory guide: the three sections above, and every output that shows
-  `hint main` or `caller=` of function 0.
+The text that said the entry function, or `main`, runs in the runtime region
+was updated: in this document [Region boundaries](#region-boundaries),
+[The runtime region](#the-runtime-region),
+[Tail-recursive functions](#tail-recursive-functions),
+[Memory statistics](#memory-statistics), [When to merge](#when-to-merge),
+[Levels](#levels) and [Limitations](#limitations), the comments of
+`Regions.jo` and `Platform.jo` (`mainHinted` became `runtimeHinted`), and the
+[memory guide](../../docs/usage/guides/memory.md).
 
 ### Measurements
 
-Before and after, time and peak RSS:
+Time is the best of 3 runs, on an x86-64 machine shared with other work, so
+differences under about 10% are noise. "Before" is the compiler before this
+change, where the entry function ran in the runtime region. "No collect" is
+`--no-loop-collect`, where the entry function opens a region but no loop
+collects. The programs are in the default policy.
 
-- The `mutable.Map` in the entry function updated 3 million times, 663 MB
-  today.
-- A server loop in the entry function handling requests against a state
-  object.
-- A loop in a function building a large live list, the worst case for
-  repeated tracing.
-- A tight loop with one dead allocation per iteration, for the check and
-  small collections, and one without allocation, which must not change.
-- The exit time of a program whose entry function returns with a large live
-  heap, such as the 3 million entry map read in full before it returns.
-- `tests/performance` and the jtk smoke and bench runs of html5, deflate,
-  forth, sat, url and crypto under `all`, `scalar` and `none`, with and
-  without `--no-loop-collect`.
+| Program | Before | No collect | After |
+|---|---|---|---|
+| `mutable.Map` in the entry function, 3 million updates of 1000 string values | 1.46 s, 724 MB | 1.69 s, 724 MB | 1.20 s, 3 MB |
+| Server loop in the entry function, a new node pair stored per request, 3 million requests | 1.08 s, 440 MB | 1.23 s, 440 MB | 0.86 s, 3 MB |
+| Loop in a function building a live list of 3 million nodes | 0.78 s, 279 MB | 1.15 s, 279 MB | 1.91 s, 279 MB |
+| Tight loop, one dead object per iteration, 30 million iterations | 4.64 s, 1160 MB | 6.00 s, 1160 MB | 1.88 s, 3 MB |
+| Tight loop without allocation, 300 million iterations | 2.10 s, 1 MB | 1.78 s, 1 MB | 1.78 s, 1 MB |
+| Map of 3 million entries kept until the entry function returns | 6.16 s, 1151 MB | 6.32 s, 1151 MB | 6.63 s, 796 MB |
+
+- The live list is the worst case. Its 8 collections mark 9.5 million
+  objects for 6 million live ones, about 1.6 times the final size, and add
+  about 0.8 seconds, as [Cost of a loop collection](#cost-of-a-loop-collection)
+  expects.
+- A loop without allocation gets no check, and its time does not change.
+- The large map shows the exit cost: the close of the entry's region frees
+  21 million objects one by one. It is within the noise of the runs, about
+  0.2 to 0.5 seconds. Its peak drops, since the loop frees what rehashing and
+  string building drop.
+
+`tests/performance`, before and after:
+
+| Program | Before | After |
+|---|---|---|
+| `array-fill` | 0.08 s, 32 MB | 0.06 s, 31 MB |
+| `large-list` | 0.24 s, 34 MB | 0.34 s, 18 MB |
+| `string-deep-rope` | 0.09 s, 22 MB | 0.07 s, 3 MB |
+| `string-lines` | 0.02 s, 6 MB | 0.02 s, 4 MB |
+| `string-indexOf-large`, `string-trim` | 0.00 s, 1 MB | 0.00 s, 1 MB |
+
+The jtk smoke runs of sat, forth, deflate, html5, url and crypto print the
+same output with and without `--no-loop-collect`, under
+`JO_LOOP_COLLECT=often`, and under `often` with AddressSanitizer. Their time
+and peak RSS stay the same, since their loops keep little garbage: html5
+1.58 s and 52 MB without loop collection, 1.48 s and 51 MB with it, the
+others within 0.01 s and 1 MB. The runs under `scalar` and `none` and the
+bench runs were not measured.
 
 ## Interaction with the optimizer
 
@@ -1625,21 +1672,20 @@ The barrier may be inlined.
 ## Limitations
 
 - Under `--region-policy none` without `--region`, a program frees nothing
-  before `main` returns.
+  before it exits.
 - Objects promoted to the runtime region stay until the program exits.
-- Garbage accumulates inside a long-running region, for example in a loop.
-  Moving the loop body into a region function reclaims it per iteration.
-  [Collecting a region in a loop](#collecting-a-region-in-a-loop) designs a
-  fix for loops in the function that opened the region.
+- Garbage accumulates inside a long-running region whose function does not
+  loop, or opens no region, or is past the level limit. A loop collects only
+  the region of its own function (see
+  [What it does not fix](#what-it-does-not-fix)).
 - A value stored into a long-lived object is promoted to that object's region,
-  and stays there after the field is overwritten. For an object created by
-  the entry function, that is the runtime region today. Before shared boxes,
-  most of the peak RSS of html5 under `all` was such values, about 1.5
-  million objects. The
-  same design frees such a value at the next collection of the object's
-  region. It still stays when the function that created the object opens no
-  region or does not loop, for example when the loop is in a callee, and
-  when the object is in the runtime region.
+  and stays there after the field is overwritten, until the next loop
+  collection of that region or its close. Before shared boxes and loop
+  collection, most of the peak RSS of html5 under `all` was such values,
+  about 1.5 million objects, in the runtime region. Such a value still stays
+  when the function that created the object opens no region or does not
+  loop, for example when the loop is in a callee, and when the object is in
+  the runtime region.
 - A returned value that placing results misses, for example one built in a
   loop, is traced again at every enclosing close that collects (see Cost).
 - A merge holds the garbage of the merged region until a later close, up to
@@ -1649,9 +1695,12 @@ The barrier may be inlined.
 - Memory statistics charge a promotion to the innermost region function, and
   count objects, not bytes. Telling library functions apart by the `jo.`
   prefix of their names is a heuristic.
-- A growth report is printed at the next return of a region function, so a
-  loop in `main` that calls none reports late, at the next return or at exit.
-  A region that reached the threshold and closed before then is not reported.
+- A growth report is printed at the next return of a region function or the
+  next loop collection, so a loop that calls no region function and does not
+  collect reports late, at the next return. A loop collection comes after the
+  requested bytes doubled, so its reports can cover several thresholds in one
+  line. A region that reached the threshold and closed before then is not
+  reported.
 
 ## Later: a faster allocator
 
@@ -1728,11 +1777,11 @@ current region descriptor
                               └──────┼───────┘        └────────┘       └───────────┘
                                      ▼  first, partly filled
 heap object (calloc), 8-byte slots
-┌─────────┬───────────────────────────┬────────┬────────┬─────
-│ cid i32 │ gc i32                    │ slot 1 │ slot 2 │ …
-│         │ normal [0|phys:15|req:16] │        │        │
-│         │ on path [1|cursor:31]     │        │        │
-└─────────┴───────────────────────────┴────────┴────────┴─────
+┌─────────┬───────────────────────────────┬────────┬────────┬─────
+│ cid i32 │ gc i32                        │ slot 1 │ slot 2 │ …
+│         │ normal [0|phys:15|m:1|req:15] │        │        │
+│         │ on path [1|cursor:31]         │        │        │
+└─────────┴───────────────────────────────┴────────┴────────┴─────
   class instance: itable, fields…      closure: apply, underlying
   array: size, elements…               buffer: bytes, where Addr fields point
 ```
@@ -1772,9 +1821,10 @@ had room for all of `W`, `W` would go back to the pool, `P0` would stay first,
 and `S1` would follow it.
 
 Codegen calls `Regions.enter` at the start of a region function and
-`Regions.leave` before each `ret`, passing the result or `null`. Both are
-`noinline`. The barrier `Regions.barrier` is an ordinary function, which LLVM
-inlines.
+`Regions.leave` before each `ret`, passing the result or `null`. At the end of
+an iteration of a collecting loop it calls `Regions.collectLoop` when one is
+due. All three are `noinline`. The barrier `Regions.barrier` and
+`Regions.requested` are ordinary functions, which LLVM inlines.
 
 Usage:
 

@@ -113,11 +113,17 @@ private class State
   var skipped: Int = 0
   var inherit: Bool = false
 
+  // loop collection: the bytes requested from the allocator since startup,
+  // and the stress mode picked by `JO_LOOP_COLLECT`, see `Regions.loopStart`
+  var requested: Long = 0
+  var loopMode: Int = 0
+
   // memory statistics, counted always and printed when `JO_MEMSTATS` is set:
   // objects allocated and freed, objects allocated directly in the runtime
   // region, objects promoted there by a store, a trace and a return, the
-  // outcomes of closing a region, the enters skipped at the level limit, and
-  // the objects whose `req` the traces of closing regions lowered
+  // outcomes of closing a region, the enters skipped at the level limit, the
+  // objects whose `req` the traces of closing regions lowered, and the loop
+  // collections with the objects their marks visited and they freed
   var memStats: Bool = false
   var allocs: Long = 0
   var freed: Long = 0
@@ -130,6 +136,9 @@ private class State
   var collects: Long = 0
   var skips: Long = 0
   var traced: Long = 0
+  var loopCollects: Long = 0
+  var loopMarked: Long = 0
+  var loopFreed: Long = 0
 
   // the statistics of each region function, under `--mem-profile` only
   var funStats: Addr = nullAddr
@@ -137,13 +146,13 @@ private class State
 
   // growth reports: whether one is due, the segments of the runtime region
   // and of any other region that trigger the next, whether the growth or
-  // rebuild hint, the main hint and the region hint were printed, and the
+  // rebuild hint, the runtime hint and the region hint were printed, and the
   // promotions at the last one
   var growthDue: Bool = false
   var growthSegs: Int = 0
   var regionGrowthSegs: Int = 0
   var growthHinted: Bool = false
-  var mainHinted: Bool = false
+  var runtimeHinted: Bool = false
   var regionHinted: Bool = false
   var lastDirect: Long = 0
   var lastStore: Long = 0
@@ -232,6 +241,27 @@ private def isSet(value: Addr): Bool receives none =
     val c1 = if c0 == 0 then 0 else (readByte (addAddr value 1)).toInt
     c0 != 0 && !(c0 == 48 && c1 == 0)
 
+//[ The stress mode of loop collection named by the value of `JO_LOOP_COLLECT`
+  !
+  ! `all` collects at every end of an iteration of a collecting loop, `often`
+  ! drops the 1 MB minimum. See `Regions.loopStart`.
+//]
+private def loopMode(value: Addr): Int receives none =
+  if isNull value then Regions.loopNormal
+  else if sameCString(value, "all") then Regions.loopAll
+  else if sameCString(value, "often") then Regions.loopOften
+  else Regions.loopNormal
+
+//[ Whether the C string `c` holds the bytes of `s` //]
+private def sameCString(c: Addr, s: String): Bool receives none =
+  val n = StringOps.byteSize s
+  val content = StringOps.bytes s
+  var i = 0
+  while i < n && (readByte (addAddr c i)).toInt == (readByte (addAddr content i)).toInt do
+    i = i + 1
+  end
+  i == n && (readByte (addAddr c n)).toInt == 0
+
 //[ Program entry, called by the C `main` function //]
 private def start(argc: Int, argv: Addr): Unit receives none =
   GC.init()
@@ -239,6 +269,7 @@ private def start(argc: Int, argv: Addr): Unit receives none =
   val st = state
   st.memStats = isSet (LibC.getenv (cString "JO_MEMSTATS"))
   if st.memStats then Regions.startStats()
+  st.loopMode = loopMode (LibC.getenv (cString "JO_LOOP_COLLECT"))
 
   // Install SIGSEGV handler so stack overflow prints a clear message.
   installStackOverflowHandler(argv)

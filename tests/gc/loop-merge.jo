@@ -1,0 +1,40 @@
+namespace gcloopmerge
+
+// A loop calling small region functions whose results merge into the region
+// of the loop, and deep recursion with a collecting loop per level
+
+class Node(value: Int, next: Option[Node])
+
+def small(i: Int, next: Option[Node]): Node = new Node(i, next)
+
+def keep(n: Int): Int =
+  var list: Option[Node] = None
+  var dead: Option[Node] = None
+  var i = 0
+  while i < n do
+    dead = Some(small(i, None))
+    if i % 10 == 0 then list = Some(small(i, list))
+    i = i + 1
+  end
+
+  var len = 0
+  var cur = list
+  while cur is Some(node) do
+    len = len + 1
+    cur = node.next
+  end
+  len + (dead.map(d => d.value).getOrElse(0))
+
+def deep(depth: Int): Int =
+  var acc = 0
+  var i = 0
+  while i < 20 do
+    acc = acc + (small(i, None)).value
+    i = i + 1
+  end
+
+  if depth == 0 then acc else acc + deep(depth - 1)
+
+def main(): Unit =
+  println: keep 30000
+  println: deep 3000

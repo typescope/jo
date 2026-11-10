@@ -7,7 +7,12 @@ import jo.mutable
 // the library: the store in `List.append`, called by `List.+=`, is charged to
 // `append`, and its caller is `note`. `accumulate` builds a list in its own
 // region, which holds all the nodes at once until it returns. The last loop
-// of `main` allocates directly in the runtime region.
+// of `main` allocates in its region, and `Iterator.fold` builds a long list in
+// the region of the library function.
+//
+// Under the default policy, `main` opens a region like any other function,
+// and the containers are in it. Under `--region-policy none`, `main` runs in
+// the runtime region.
 
 class Node(value: Int, next: Option[Node])
 
@@ -66,3 +71,6 @@ def main =
   end
 
   println: log.size + last.value
+
+  val folded = (0 until 5000).iterator.fold(new Node(0, None), (acc, k) => new Node(k, Some(acc)))
+  println: length(Some(folded))

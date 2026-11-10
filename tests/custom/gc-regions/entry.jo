@@ -1,0 +1,40 @@
+namespace memtest
+
+// The entry function is an ordinary function. `run`, linked as the entry
+// with `--link jo.main=memtest.run`, calls `main` twice. Each loops and
+// allocates enough to collect, and stores into the array of `IO.args`, which
+// is in the runtime region.
+
+class Node(value: Int, next: Option[Node])
+
+def churn(label: String, n: Int): Int =
+  var keep: Option[Node] = None
+  var total = 0
+  var i = 0
+  while i < n do
+    val tmp = new Node(i, Some(new Node(i, None)))
+    if i % 10000 == 0 then
+      keep = Some(new Node(i, keep))
+      IO.args[0] = label + " " + i.toString
+
+    total = (total + tmp.value) % 1000003
+    i = i + 1
+  end
+
+  var len = 0
+  var cur = keep
+  while cur is Some(node) do
+    len = len + 1
+    cur = node.next
+  end
+  total + len
+
+def main(): Unit =
+  println: churn("main", 100000)
+  println: IO.args[0]
+
+def run(): Unit =
+  main()
+  println: churn("run", 100000)
+  main()
+  println: IO.args[0]

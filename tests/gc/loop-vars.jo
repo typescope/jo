@@ -1,0 +1,42 @@
+namespace gcloopvars
+
+// Variables around a collecting loop: one assigned before the loop and read
+// after it, one assigned in the body and read in the next iteration, and one
+// read only before the loop.
+
+class Node(value: Int, next: Option[Node])
+
+def length(n: Option[Node]): Int =
+  var len = 0
+  var cur = n
+  while cur is Some(node) do
+    len = len + 1
+    cur = node.next
+  end
+  len
+
+def run(n: Int): Unit =
+  val before = new Node(1, Some(new Node(2, None)))
+  val onlyBefore = new Node(3, None)
+  println: onlyBefore.value
+
+  var last: Option[Node] = None
+  var kept = new Node(0, None)
+  var i = 0
+  while i < n do
+    // garbage of the iteration
+    val tmp = new Node(i, Some(new Node(i, None)))
+    if i % 1000 == 0 then kept = new Node(i, Some(kept))
+
+    last = Some(new Node(i + (tmp.value - i), last))
+    if i % 7 == 0 then last = None
+    i = i + 1
+  end
+
+  println: before.value + (length before.next)
+  println: kept.value
+  println: length(Some(kept))
+  println: length last
+
+def main(): Unit =
+  run 100000
