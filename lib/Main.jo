@@ -8,8 +8,10 @@ namespace jo
   ! `--link jo.main=app.main` to the compiler.
   !
   ! The `receives` clause lists the capabilities the runtime makes available to
-  ! the entry point. It is an upper bound, not a requirement: a `main` that uses
-  ! only some of them — or none at all — still conforms.
+  ! the entry point. It is not a requirement: a `main` that uses only some of
+  ! them — or none at all — still conforms. Nor is it an upper bound: a build
+  ! may inject further context parameters with `--provide`, and a `main` that
+  ! receives a provided parameter still conforms. See JIP 0012.
   !
   ! There is no standard input capability. A program that reads input obtains it
   ! from a backend-specific API, such as `py.input`, and passes it on as its own

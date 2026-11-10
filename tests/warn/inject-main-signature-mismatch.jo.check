@@ -1,4 +1,4 @@
-[Error] No qualified main function found. None of the following candidates conform to the contract jo.main (Unit receives stdout, stderr, args)
-- Test.main: (x: Int) => Unit receives stdout, a
+[Error] No qualified main function found. None of the following candidates conform to the contract jo.main ((): Unit receives stdout, stderr, args)
+- Test.main: (x: Int): Unit receives stdout, a
 
 1 error(s), 0 warning(s)
