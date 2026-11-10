@@ -12,9 +12,10 @@ title: Capability injection
 ## Summary
 
 Today, a program that needs capabilities beyond those of `jo.main` must write
-its own entry point to create them. This proposal lets the build do that
-instead. Each compiler option below names a context parameter and says how to
-create its value, either by calling a factory function or from a literal:
+its own entry point to provision them. This proposal adds a compiler feature
+that removes that boilerplate. Each option below names a context parameter and
+says how to provision its value, either by calling a factory function or from
+a literal:
 
 ```bash
 jo compile --python app.jo \
