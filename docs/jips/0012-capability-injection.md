@@ -216,10 +216,7 @@ The arguments of `d` are passed to `impl(d)` unchanged.
 
 Factories run outside the `allow` block, so a factory may receive an internal
 parameter. In the example, `fs.ReadOnly` receives `fs.root`, while `app.main`
-may use only `fs.readonly`. The narrowing is as strong as the type of the
-narrowed parameter. A factory that returns the broad capability itself, where
-its type permits, hands it over unchanged. Keeping the view and the broad
-capability distinct is the library author's responsibility.
+may use only `fs.readonly`.
 
 The wrapper is not visible to source code.
 
