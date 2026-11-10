@@ -98,7 +98,7 @@ object LinkRewriter:
               ()
             else if !injection.conforms(sourceSym, targetType, sourceType) then
               rp.error(
-                s"Link type mismatch: $targetPath (${targetType.show}) is not a subtype of $sourcePath (${sourceType.show})"
+                s"Link type mismatch: $targetPath (${targetType.show}) is not a subtype of $sourcePath (${injection.showContract(sourceSym, sourceType)})"
               )
             else
               validMappings(sourceSym) = targetSym

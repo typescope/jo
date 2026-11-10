@@ -70,6 +70,15 @@ object Injection:
     lazy val provided: Set[Symbol] = bindings.filterNot(_.isInternal).map(_.param).toSet
     lazy val internal: Set[Symbol] = bindings.filter(_.isInternal).map(_.param).toSet
 
+    /** The contract of `deferred` for diagnostics: its type `deferredType`,
+      * and the provided parameters when `deferred` is the target
+      */
+    def showContract(deferred: Symbol, deferredType: Type)(using Definitions): String =
+      val extra = if deferred == target && valid then bindings.filterNot(_.isInternal).map(_.param.fullName) else Nil
+
+      if extra.isEmpty then deferredType.show
+      else s"${deferredType.show}, with provided ${extra.mkString(", ")}"
+
     /** Whether `implType` conforms to `deferredType`, the type of `deferred`.
       * The rule is relaxed for the implementation of the target.
       */

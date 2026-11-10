@@ -2,18 +2,16 @@ namespace jo
 
 //[ The contract for the program entry point
   !
-  ! The compiler locates the entry point by looking for a top-level function
-  ! named `main` that takes no parameters, and checks it against this
-  ! signature. It is an error if no such function exists. If several do, name
-  ! the entry point explicitly by passing `--link jo.main=app.main` to the
-  ! compiler.
+  ! The entry point is the one top-level function named `main` that takes no
+  ! parameters. It must return `Unit` and may receive only the context
+  ! parameters declared here and those that a build binds with `--provide`.
+  ! It is an error if no such function exists. If several do, name the entry
+  ! point explicitly by passing `--link jo.main=app.main` to the compiler.
   !
   ! The `receives` clause lists the capabilities the runtime makes available to
   ! the entry point. It is not a requirement: a `main` that uses only some of
-  ! them — or none at all — still conforms. Nor is it an upper bound: a build
-  ! may inject further context parameters with `--provide`, and a `main` that
-  ! receives a provided parameter still conforms. See the Entry Point section
-  ! of the language documentation.
+  ! them — or none at all — still conforms. See the Entry Point section of the
+  ! language documentation.
   !
   ! There is no standard input capability. A program that reads input obtains it
   ! from a backend-specific API, such as `py.input`, and passes it on as its own

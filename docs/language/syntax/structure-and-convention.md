@@ -88,9 +88,10 @@ declaration order.
 
 ### Entry Point
 
-The compiler detects the entry point by locating the one top-level function named
-`main` that takes no parameters, and checks it against this signature from the
-standard library:
+The entry point is the one top-level function named `main` that takes no
+parameters. It must return `Unit` and may receive only the context parameters
+that `jo.main` declares and those that `--provide` binds (see below). The
+standard library declares `jo.main` as:
 
 ```jo
 defer def main: Unit receives IO.stdout, IO.stderr, IO.args
