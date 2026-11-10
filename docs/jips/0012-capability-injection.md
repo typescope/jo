@@ -198,9 +198,8 @@ topological order. The order among independent bindings is unspecified.
 ### The generated wrapper
 
 The wrapper has the signature of `d`, including its type parameters. Its body
-instantiates the bindings in the order given above, then calls `impl(d)`
-inside an `allow` block that lists the provided parameters and the context
-parameters of `d`:
+instantiates the bindings in the order given above, binds each to its
+parameter, and calls `impl(d)` with the arguments of `d` unchanged:
 
 ```jo
 // conceptually, for the example in the summary
@@ -209,14 +208,13 @@ def main$injected: Unit receives IO.stdout, IO.stderr, IO.args =
     with fs.readonly = fs.ReadOnly() in
       with gh.repo = "typescope/jo" in
         with gh.client = gh.GitHub() in
-          allow fs.readonly, gh.client, IO.stdout, IO.stderr, IO.args in app.main
+          app.main
 ```
 
-The arguments of `d` are passed to `impl(d)` unchanged.
-
-Factories run outside the `allow` block, so a factory may receive an internal
-parameter. In the example, `fs.ReadOnly` receives `fs.root`, while `app.main`
-may use only `fs.readonly`.
+Internal parameters are in scope when `impl(d)` runs, but the
+[conformance](#conformance) check guarantees that `impl(d)` does not use
+them. In the example, `fs.ReadOnly` receives `fs.root`, while `app.main` may
+use only `fs.readonly`.
 
 The wrapper is not visible to source code.
 
@@ -276,9 +274,7 @@ proposal adds no field to the build spec. A dedicated table is left to
 ### Diagnostics
 
 Violations of the rules above are errors. They point at the command-line
-option that introduced the problem, not at the generated wrapper. The `allow`
-node of the wrapper carries a synthetic position that names the options, so
-the existing `allow` error trace points there as well.
+option that introduced the problem, not at the generated wrapper.
 
 An internal parameter that no factory receives is a warning.
 
@@ -380,8 +376,9 @@ declare distinct parameters when they need distinct configuration.
 
 Authority narrowing requires creating a capability that the target must not
 see. In the summary example, `fs.ReadOnly` receives `fs.root`, but `app.main`
-may use only `fs.readonly`, and the `allow` check guarantees that no helper
-function reaches `fs.root` on its behalf.
+may use only `fs.readonly`, and the conformance check guarantees that no
+helper function reaches `fs.root` on its behalf, since the context parameters
+of `app.main` include those of every function it calls.
 
 A separate list of the parameters the target may use would repeat the name of
 nearly every binding, since hiding is the rare case. A separate list of hidden
@@ -418,7 +415,7 @@ use none of them are unchanged: deferred functions resolve as before, and the
 conformance rule for links is unchanged.
 
 No language syntax changes. The generated wrapper uses existing constructs:
-`with`, `allow`, and ordinary calls. The SAST format is unchanged.
+`with` and ordinary calls. The SAST format is unchanged.
 
 The comment on `jo.main` in `lib/Main.jo` says that its `receives` clause is
 an upper bound for the entry point. Under injection the entry point may
