@@ -371,15 +371,16 @@ declare distinct parameters when they need distinct configuration.
 
 ### Why not a Jo snippet?
 
-A Jo snippet that can contain expressions is ordinary code, and ordinary code
-is the glue this proposal removes. A snippet restricted to `with` bindings and
-factory calls would be as declarative as the options, but it would still need
-a file, a namespace, and a place in the build. It would also have to be
-compiled in the linking context, where link libraries are visible, which is
-not a context in which user code is otherwise compiled. The value of the
-feature is a declarative specification that names factories and literals only.
-The options follow the style of `--link`, and `compile-options` keeps them
-checked in alongside `links`.
+A Jo snippet that wires the capabilities is ordinary code, and ordinary code
+is the glue this proposal removes. It is also more involved than it looks.
+The snippet calls factories that use the FFI, so it belongs to the trusted
+world and must be compiled as a library with FFI enabled. The user program
+belongs to the confined world, so the snippet cannot call it directly: it
+needs a deferred entry point declared in a pure API library, which the user
+program implements and the build links. That is the platform layer of the
+process-monitor demo, compiled in three stages. The options describe the same
+wiring in a few lines, follow the style of `--link`, and are kept in
+`compile-options` alongside `links`.
 
 ### Why instantiate per invocation?
 
