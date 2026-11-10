@@ -159,12 +159,17 @@ it without adding to it.
 
 ### Literals
 
-The value of a binding may be a Jo literal instead of a factory. The literal
-is read by Jo's lexer and typed as it would be in source, with the
-parameter's type as the expected type. It must conform to the parameter's
-type. Adapters are not applied, so a literal never depends on a context
-parameter and takes no part in the binding graph. A literal may bind any
-parameter whose type it conforms to, including a union such as
+The value of a binding may be a Jo literal instead of a factory. A literal
+is one of the following, and nothing else: a boolean literal, a numeric
+literal, a character literal, or a single-line string literal without
+interpolation. The value must consist of exactly one such literal. A string
+containing `\{` is rejected, as is any trailing text.
+
+The literal is read by Jo's lexer and typed as it would be in source, with
+the parameter's type as the expected type. It must conform to the
+parameter's type. Adapters are not applied, so a literal never depends on a
+context parameter and takes no part in the binding graph. A literal may bind
+any parameter whose type it conforms to, including a union such as
 `String | Int`.
 
 A literal is never mistaken for a factory path. A path starts with a letter or
