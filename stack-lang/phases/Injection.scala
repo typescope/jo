@@ -22,7 +22,7 @@ import common.StringUtil
 
 import scala.collection.mutable
 
-/** Capability injection (JIP 0012)
+/** Capability injection, see the Entry Point section of docs/language/syntax/structure-and-convention.md
   *
   * An injection specification binds context parameters to factories or
   * literals and attaches to one deferred function, the target, which is
@@ -74,6 +74,17 @@ object Injection:
           procType.receives.filter(internal.contains)
 
         case _ => Nil
+
+    /** Report an error for each internal parameter that `impl`, the
+      * implementation of `target`, receives. Returns whether any was reported.
+      */
+    def reportInternal(target: Symbol, impl: Symbol)(using Definitions, rp: Reporter): Boolean =
+      val received = internalReceived(impl.tpe, target.tpe)
+
+      for param <- received do
+        rp.error(s"${target.fullName} implementation ${impl.fullName} receives internal parameter ${param.fullName}")
+
+      received.nonEmpty
 
     private def dropReceives(tpe: Type, params: Set[Symbol])(using Definitions): Type =
       tpe match
@@ -127,7 +138,7 @@ object Injection:
       def assign(binding: Binding): Assign =
         val rhs = binding.value match
           case Value.Factory(factory) => Ident(factory)(span).appliedTo()
-          case Value.Lit(literal) => literal
+          case Value.Lit(literal) => Literal(literal.constant)(span)
 
         Assign(Ident(binding.param)(span), rhs, isDefine = false)
 
@@ -285,11 +296,11 @@ object Injection:
     Some(Plan(target, order.toList, roles, valid, unreceived = param => !received.contains(param)))
   end plan
 
-  /** A literal starts with a digit, a sign or a quote, or is a boolean keyword */
+  /** A literal starts with a digit, a minus sign or a quote, or is a boolean keyword */
   private def isLiteral(value: String): Boolean =
     value == "true" || value == "false" || value.nonEmpty && {
       val c = value.head
-      c.isDigit || c == '-' || c == '+' || c == '"' || c == '\''
+      c.isDigit || c == '-' || c == '"' || c == '\''
     }
 
   private def resolveFactory
@@ -342,10 +353,10 @@ object Injection:
     val target = defn.main
     val span = target.span
 
-    // Lexing and typing report against the option text. Their diagnostics
+    // Lexing and typing report against the value text. Their diagnostics
     // are re-reported without a position, prefixed with the option.
     val scratch = rp.fresh()
-    given Source = new Source(spec.option)
+    given Source = new Source(spec.value)
     given Reporter = scratch
     given TargetType = TargetType.Known(paramType)
 
@@ -400,6 +411,12 @@ object Injection:
 
     while true do
       scanner.nextString(1).token match
+        // The scanner reports a line break inside a single-line string as an
+        // empty line without consuming it, as the parser also treats it.
+        case Token.StringLine(text) if text.isEmpty =>
+          rp.error("Unclosed string literal")
+          return None
+
         case Token.StringLine(text) =>
           content ++= text
 

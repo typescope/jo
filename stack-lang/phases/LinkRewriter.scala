@@ -41,14 +41,6 @@ object LinkRewriter:
     */
   class LinkData(mappings: Map[String, String], roles: Injection.Roles = Injection.Roles.empty):
 
-    def resolve(deferMain: Symbol, userMain: Symbol)(using Reporter, Definitions): Map[Symbol, Symbol] =
-      val symMap = parseLinkMappings(mappings, roles)
-      if symMap.contains(deferMain) then
-        Reporter.error(s"The main function ${deferMain.fullName} is already linked to ${userMain.fullName}.")
-        symMap
-      else
-        symMap + (deferMain -> userMain)
-
     def resolve()(using Reporter, Definitions): Map[Symbol, Symbol] =
       parseLinkMappings(mappings, roles)
 
@@ -103,12 +95,9 @@ object LinkRewriter:
             // The implementation of `jo.main` may also receive the parameters
             // provided by injection, but no internal one.
             val mainRoles = if sourceSym == defn.main then roles else Injection.Roles.empty
-            val internalReceived = mainRoles.internalReceived(targetType, sourceType)
 
-            if internalReceived.nonEmpty then
-              for param <- internalReceived do
-                rp.error(s"${sourceSym.fullName} implementation ${targetSym.fullName} receives internal parameter ${param.fullName}")
-
+            if mainRoles.reportInternal(sourceSym, targetSym) then
+              ()
             else if !mainRoles.conforms(targetType, sourceType) then
               rp.error(
                 s"Link type mismatch: $targetPath (${targetType.show}) is not a subtype of $sourcePath (${sourceType.show})"

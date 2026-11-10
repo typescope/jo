@@ -163,7 +163,8 @@ object Runner:
   /** Options that only the app stage understands. When an app module is first
     * compiled as a library, these are dropped together with their values.
     */
-  private val appOnlyOptions = Set("--provide", "--internal", "--link", "--link-lib", "-o")
+  private val appOnlyOptions: collection.immutable.Set[String] =
+    reporting.Config.appOptions.filterNot(reporting.Config.commonOptions.contains).map(_.flag).toSet
 
   private def libStageOptions(options: List[String]): List[String] =
     options match

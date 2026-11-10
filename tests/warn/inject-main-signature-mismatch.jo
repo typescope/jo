@@ -1,6 +1,6 @@
 // options: --provide Test.a=1
 
-// Injection relaxes only the context parameters. The rest of the signature is still checked.
+// A main with parameters is not an entry-point candidate.
 
 namespace Test
 

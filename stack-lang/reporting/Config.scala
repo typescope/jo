@@ -226,7 +226,7 @@ object Config:
   end linkMap
 
   //----------------------------------------------------------------------------
-  // Capability injection (JIP 0012)
+  // Capability injection, see the Entry Point section of docs/language/syntax/structure-and-convention.md
   //
 
   /** The role of an injected context parameter */
@@ -259,7 +259,7 @@ object Config:
       val option = s"$flag $arg"
       val index = arg.indexOf('=')
 
-      if index < 0 then
+      if index <= 0 then
         Reporter.error(s"$option: expected p=e")
         None
 

@@ -50,7 +50,7 @@ object FrontEnd:
       val roles = injection.map(_.roles).getOrElse(Injection.Roles.empty)
 
       val linkData = new LinkRewriter.LinkData(defaultMappings, roles)
-      val implMap = detectMain(units, linkData.addUserMappings(Config.linkMap.value), roles)
+      val implMap = detectMain(units, linkData.addUserMappings(Config.linkMap.value))
 
       val runtimeRoots = List("jo.runtime", "jo.py.runtime", "jo.rb.runtime").flatMap(defn.resolveContainerOpt)
       lazyLibs.forceIf: unit =>
@@ -81,12 +81,12 @@ object FrontEnd:
 
   /** Locate the implementation of `jo.main`
     *
-    * Unless `--link` names it, the implementation is the one top-level `main`
-    * that conforms to `jo.main`. Under injection the conformance rule is
-    * relaxed: `main` may also receive a provided parameter.
+    * Unless `--link` names it, the implementation is the one top-level
+    * function named `main` that takes no parameters. It is then checked
+    * against `jo.main` like any other link target.
     */
   private def detectMain
-     (units: List[FileUnit], linkData: LinkRewriter.LinkData, roles: Injection.Roles)
+     (units: List[FileUnit], linkData: LinkRewriter.LinkData)
      (using rp: Reporter, defn: Definitions)
   : Map[Symbol, Symbol]  =
 
@@ -94,45 +94,28 @@ object FrontEnd:
       linkData.resolve()
 
     else
-      val mainInfo = defn.main.tpe
+      val mains = units.flatMap: unit =>
+        unit.defs.collect:
+          case fun: FunDef if !fun.symbol.is(Flags.Defer) && fun.name == "main" && fun.params.isEmpty =>
+            fun.symbol
 
-      val cands = units.flatMap: unit =>
-         unit.defs.filter:
-           case defn: FunDef => !defn.symbol.is(Flags.Defer) && defn.name == "main"
+      mains match
+        case main :: Nil =>
+          linkData.addUserMappings(Map(defn.main.fullName -> main.fullName)).resolve()
 
-           case _ => false
-
-      val mains = cands.map(_.symbol).filter: sym =>
-          roles.conforms(sym.tpe, mainInfo)
-
-      // A candidate that conforms except for the internal parameters it receives
-      val internalMains = cands.map(_.symbol).filter: sym =>
-          roles.internalReceived(sym.tpe, mainInfo).nonEmpty
-
-      (mains, internalMains) match
-        case (main :: Nil, _) =>
-          linkData.resolve(defn.main, main)
-
-        case (Nil, main :: Nil) =>
-          for param <- roles.internalReceived(main.tpe, mainInfo) do
-            rp.error(s"${defn.main.fullName} implementation ${main.fullName} receives internal parameter ${param.fullName}")
-
-          linkData.resolve(defn.main, main)
-
-        case (Nil, _) =>
-          val explain =
-            if cands.isEmpty then
-              ""
-            else
-              val nameLines = cands.map(defn => "- " + defn.symbol.fullName + ": " + defn.symbol.tpe.show).mkString(System.lineSeparator)
-              s" None of the following candidates conform to the contract ${defn.main.fullName} (${mainInfo.show})" + System.lineSeparator + nameLines
-
-          rp.error("No qualified main function found." + explain)
+        case Nil =>
+          rp.error(
+            "No main function found. Define a top-level function named `main` that takes no parameters, " +
+            s"or name the entry point with --link ${defn.main.fullName}=<path>"
+          )
           linkData.resolve()
 
         case _ =>
           val nameLines = mains.map("- " + _.fullName).mkString(System.lineSeparator)
-          rp.error("Multiple main function detected:" + System.lineSeparator + nameLines)
+          rp.error(
+            s"Multiple main functions found. Name the entry point with --link ${defn.main.fullName}=<path>:" +
+            System.lineSeparator + nameLines
+          )
           linkData.resolve()
 
 

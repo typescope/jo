@@ -1,4 +1,3 @@
-[Error] No qualified main function found. None of the following candidates conform to the contract jo.main ((): Unit receives stdout, stderr, args)
-- Test.main: (x: Int): Unit receives stdout, a
+[Error] No main function found. Define a top-level function named `main` that takes no parameters, or name the entry point with --link jo.main=<path>
 
 1 error(s), 0 warning(s)
