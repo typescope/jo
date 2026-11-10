@@ -1,0 +1,20 @@
+jo build
+printf '\n'
+: '
+remove --check-only from compile-options to build [app], or use 'jo check'
+'
+
+jo run
+printf '\n'
+: '
+remove --check-only from compile-options to build [app], or use 'jo check'
+'
+
+jo check
+: '
+[check] [app]
+'
+
+test -f .build/app/jo-1.0/sast/CheckOnly/Main.sast
+test ! -e .build/app/jo-1.0/target
+: ''
