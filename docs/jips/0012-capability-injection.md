@@ -170,7 +170,8 @@ literal, so any trailing text is rejected as well.
 The literal is read by Jo's lexer and typed as it would be in source, with
 the parameter's type as the expected type. It must conform to the
 parameter's type. Adapters are not applied, so a literal never depends on a
-context parameter and takes no part in the binding graph. A literal may bind
+context parameter, and its binding has no dependencies in the binding graph,
+though other bindings may depend on it. A literal may bind
 any parameter whose type it conforms to, including a union such as
 `String | Int`.
 
