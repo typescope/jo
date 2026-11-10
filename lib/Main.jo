@@ -2,11 +2,12 @@ namespace jo
 
 //[ The contract for the program entry point
   !
-  ! The entry point is the one top-level function named `main` that takes no
-  ! parameters. It must return `Unit` and may receive only the context
-  ! parameters declared here and those that a build binds with `--provide`.
-  ! It is an error if no such function exists. If several do, name the entry
-  ! point explicitly by passing `--link jo.main=app.main` to the compiler.
+  ! The entry point is the one top-level function named `main` with no
+  ! ordinary, auto, or type parameters. It must return `Unit` and may receive
+  ! only the context parameters declared here and those that a build binds
+  ! with `--provide`. It is an error if no such function exists. If several
+  ! do, name the entry point explicitly by passing `--link jo.main=app.main`
+  ! to the compiler.
   !
   ! The `receives` clause lists the capabilities the runtime makes available to
   ! the entry point. It is not a requirement: a `main` that uses only some of

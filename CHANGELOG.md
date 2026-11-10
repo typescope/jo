@@ -19,8 +19,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- The entry point is the one top-level function named `main` that takes no
-  parameters, checked against `jo.main` like a `--link` target. When several
+- The entry point is the one top-level function named `main` with no
+  ordinary, `auto`, or type parameters, checked against `jo.main` like a
+  `--link` target. When several
   such functions exist, the entry point must be named with `--link jo.main=...`.
   A missing or ambiguous entry point is reported as an ordinary error rather
   than as an internal abort.

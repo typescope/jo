@@ -80,7 +80,8 @@ object FrontEnd:
   /** Locate the implementation of `jo.main`
     *
     * Unless `--link` names it, the implementation is the one top-level
-    * function named `main` that takes no parameters. It is then checked
+    * function named `main` with no parameters of any kind, ordinary, auto,
+    * or type. It is then checked
     * against `jo.main` like any other link target.
     */
   private def detectMain
@@ -94,7 +95,9 @@ object FrontEnd:
     else
       val mains = units.flatMap: unit =>
         unit.defs.collect:
-          case fun: FunDef if !fun.symbol.is(Flags.Defer) && fun.name == "main" && fun.params.isEmpty =>
+          case fun: FunDef
+          if !fun.symbol.is(Flags.Defer) && fun.name == "main"
+             && fun.tparams.isEmpty && fun.params.isEmpty && fun.autos.isEmpty =>
             fun.symbol
 
       mains match
@@ -103,7 +106,7 @@ object FrontEnd:
 
         case Nil =>
           rp.error(
-            "No main function found. Define a top-level function named `main` that takes no parameters, " +
+            "No main function found. Define a top-level function named `main` with no ordinary, auto, or type parameters, " +
             s"or name the entry point with --link ${defn.main.fullName}=<path>"
           )
           linkData.resolve()
