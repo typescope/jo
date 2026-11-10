@@ -187,10 +187,17 @@ among the context parameters of `d`.
 A `--provide` binding may rebind a context parameter of `d`. Its factory then
 receives the outer value, as the right-hand side of `with p = f(p) in ...`
 does, while every other factory that receives `p`, and `impl(d)`, see the new
-value. A factory that receives the parameter it binds does not depend on its
-own binding, so this introduces no cycle. For example, a factory that
-receives `IO.stdout` and returns a function that prefixes each line before
-writing it can be bound to `IO.stdout` itself.
+value. For example, a factory that receives `IO.stdout` and returns a
+function that prefixes each line before writing it can be bound to
+`IO.stdout` itself.
+
+This is the one exception to the dependency rule: the binding of a context
+parameter of `d` does not depend on itself. A factory that receives the
+parameter it binds when that parameter is not a context parameter of `d` has
+no outer value to receive, so the dependency stands and the binding is
+rejected as a cycle. The exception covers only the direct self-dependency. A
+factory that receives its own parameter through another binding forms a
+cycle in the ordinary way.
 
 An `--internal` binding may not rebind a context parameter of `d`. The
 implementation of `d` may use every parameter `d` declares, so an internal
