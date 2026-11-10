@@ -60,13 +60,13 @@ object Compiler:
   def compile(backendBuilder: BackendBuilder, args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
 
-    val (config, sources) = cli.OptionParser.parseConfig(args, layout :: Config.appOptions)
+    val (config, sources) = cli.OptionParser.parseAppConfig(args, List(layout))
 
     given Config = config
 
     // Zero source files is allowed when an entry point is linked in from
     // libraries (e.g. an app that only pulls in packages and links jo.main).
-    if sources.isEmpty && Config.linkMap.value.isEmpty then
+    if sources.isEmpty && !Config.checkOnly.value && Config.linkMap.value.isEmpty then
       println("Expect source file as input")
       System.exit(1)
 
@@ -74,6 +74,8 @@ object Compiler:
       case Some(runtime) if runtime != "native" =>
         Reporter.error(s"native backends do not support --use-runtime-api $runtime")
       case _ =>
+
+    if FrontEnd.typeCheckIfRequested(sources) then return
 
     Reporter.monitor():
       val outFile = Config.outFilePath.value.getOrElse {

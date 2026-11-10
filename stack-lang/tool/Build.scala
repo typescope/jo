@@ -40,21 +40,14 @@ object Build:
         val plan = plans.modules.head
         val outDir = project.buildDir(module).resolve("doc")
         val options = Planner.ffiCompileOptions(spec) ++ docOptions(project, module, spec.docOptions) ++ spec.docOptions
-        val withDoc = plan.copy(
-          task = plan.task match
-            case lib: CompileTask.LibTask =>
-              lib.copy(compileOptions = options)
+        val task: CompileTask.LibTask = plan.task match
+          case lib: CompileTask.LibTask =>
+            lib.copy(compileOptions = options)
 
-            case app: CompileTask.AppTask =>
-              CompileTask.LibTask(
-                app.sources,
-                app.checkLibs,
-                app.sastDir,
-                app.defaultSourceRoot,
-                options,
-              )
-        )
-        Runner.doc(withDoc, outDir).map: _ =>
+          case app: CompileTask.AppTask =>
+            CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.defaultSourceRoot, options)
+
+        Runner.doc(plan, task, outDir).map: _ =>
           Logger.info(s"[output] ${Logger.relativize(outDir)}\n")
 
   def deps(project: Project, module: ModuleId)(using Logger, PackageProvider): Result[Unit] =

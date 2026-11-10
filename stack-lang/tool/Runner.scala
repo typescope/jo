@@ -6,6 +6,8 @@ import scala.jdk.CollectionConverters.*
 
 /** Executes build plans by invoking `jo compile` subprocesses. */
 object Runner:
+  private val checkOnlyFlag = "--check-only"
+
   private def moduleLabel(plan: ModulePlan): String =
     plan.moduleLabel
 
@@ -27,19 +29,16 @@ object Runner:
         info(s"[$action] ${moduleLabel(plan)}\n")
         runLib(lib, jo, sentinelFile = dirSentinel(lib.outDir))
       case app: CompileTask.AppTask =>
-        info(s"[$action] ${moduleLabel(plan)}\n")
-        runLib(
-          CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.defaultSourceRoot, libStageOptions(app.compileOptions)),
-          jo,
-          sentinelFile = dirSentinel(app.sastDir),
-        ) match
-          case err @ Result.Err(_) => err
-          case _ =>
-            runApp(app, jo).flatMap: _ =>
-              syncResources(app).map: _ =>
-                info(s"[output] ${Logger.relativize(app.outFile)}\n")
+        if app.compileOptions.contains(checkOnlyFlag) then
+          return Result.Err(s"remove $checkOnlyFlag from compile-options to build ${moduleLabel(plan)}, or use 'jo check'")
 
-  /** Type-check only: compile everything as libs (--sast), skip app link step. */
+        info(s"[$action] ${moduleLabel(plan)}\n")
+        checkApp(app, jo).flatMap: _ =>
+          runApp(app, jo).flatMap: _ =>
+            syncResources(app).map: _ =>
+              info(s"[output] ${Logger.relativize(app.outFile)}\n")
+
+  /** Type-check modules and write SAST without linking apps. */
   def check(plan: ModulePlan, action: String)(using Logger): Result[Unit] =
     checkOnce(plan, action, Set.empty)
 
@@ -57,13 +56,9 @@ object Runner:
       case lib: CompileTask.LibTask =>
         runLib(lib, jo, sentinelFile = dirSentinel(lib.outDir))
       case app: CompileTask.AppTask =>
-        runLib(
-          CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.defaultSourceRoot, libStageOptions(app.compileOptions)),
-          jo,
-          sentinelFile = dirSentinel(app.sastDir),
-        )
+        checkApp(app, jo)
 
-  def doc(plan: ModulePlan, outDir: Path)(using Logger): Result[Unit] =
+  def doc(plan: ModulePlan, task: CompileTask.LibTask, outDir: Path)(using Logger): Result[Unit] =
     val jo = plan.joBin.toString
     val visited = Set.empty[ModuleKey]
     val it = plan.deps.iterator
@@ -73,16 +68,7 @@ object Runner:
         case _ =>
     info(s"[doc] ${moduleLabel(plan)}\n")
     val docIndex = outDir.resolve("index.html")
-    plan.task match
-      case lib: CompileTask.LibTask =>
-        runLib(lib, jo, sentinelFile = dirSentinel(outDir), requiredOutputs = List(docIndex))
-      case app: CompileTask.AppTask =>
-        runLib(
-          CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.defaultSourceRoot, libStageOptions(app.compileOptions)),
-          jo,
-          sentinelFile = dirSentinel(outDir),
-          requiredOutputs = List(docIndex),
-        )
+    runLib(task, jo, sentinelFile = dirSentinel(outDir), requiredOutputs = List(docIndex))
 
   /** Build the test module (which includes main as a lib dep), then run tests. */
   /** Execute the compiled app interactively: stdin/stdout/stderr inherit from
@@ -120,11 +106,26 @@ object Runner:
     sentinelFile: Path,
     requiredOutputs: List[Path] = Nil,
   )(using Logger): Result[Unit] =
-    val sentinel = sentinelFile
-    val args = buildLibArgs(lib, jo)
-    if Files.isDirectory(lib.outDir) && requiredOutputs.forall(Files.exists(_)) && isUpToDate(lib.sources, lib.checkLibs, Nil, sentinel, args) then
+    runSast(lib.outDir, lib.sources, lib.checkLibs, buildLibArgs(lib, jo), sentinelFile, requiredOutputs)
+
+  private def checkApp(app: CompileTask.AppTask, jo: String)(using Logger): Result[Unit] =
+    val lib: CompileTask.LibTask = CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.defaultSourceRoot, app.compileOptions)
+    val backendArgs = buildLibArgs(lib, jo) :+ s"--${app.target.flag}"
+    val args = if app.compileOptions.contains(checkOnlyFlag) then backendArgs else backendArgs :+ checkOnlyFlag
+    runSast(app.sastDir, app.sources, app.checkLibs, args, dirSentinel(app.sastDir))
+
+  private def runSast(
+    outDir: Path,
+    sources: List[Path],
+    checkLibs: List[Path],
+    args: List[String],
+    sentinel: Path,
+    requiredOutputs: List[Path] = Nil,
+  )(using Logger): Result[Unit] =
+    if Files.isDirectory(outDir) && requiredOutputs.forall(Files.exists(_)) && isUpToDate(sources, checkLibs, Nil, sentinel, args) then
       return Result.unit
-    recreateDir(lib.outDir)
+
+    recreateDir(outDir)
     exec(args) match
       case ok @ Result.Ok(_) =>
         Files.writeString(sentinel, fingerprint(args))
@@ -159,19 +160,6 @@ object Runner:
   private def recreateDir(dir: Path): Unit =
     if Files.exists(dir) then deleteDir(dir)
     Files.createDirectories(dir)
-
-  /** Options that only the app stage understands. When an app module is first
-    * compiled as a library, these are dropped together with their values.
-    * Keep this list in sync with reporting.Config because bin/test-tool compiles
-    * the tool package on its own.
-    */
-  private val appOnlyOptions = collection.immutable.Set("-o", "--link-lib", "--link", "--provide", "--internal")
-
-  private def libStageOptions(options: List[String]): List[String] =
-    options match
-      case flag :: _ :: rest if appOnlyOptions.contains(flag) => libStageOptions(rest)
-      case other :: rest => other :: libStageOptions(rest)
-      case Nil => Nil
 
   private def buildLibArgs(lib: CompileTask.LibTask, jo: String): List[String] =
     val args = ArrayBuffer[String]()

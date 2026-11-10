@@ -331,6 +331,9 @@ object Config:
 
   val appOptions = outFilePath :: linkLibPaths :: linkMap :: provideBindings :: internalBindings :: commonOptions
 
+  val checkOnly: Setting[Boolean] = BooleanSetting("--check-only", false, "type-check without linking or generating code")
+  val appCompileOptions = checkOnly :: appOptions
+
   //----------------------------------------------------------------------------
 
   // Get the root directory of the project (set by the bin/jo wrapper script)

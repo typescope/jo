@@ -303,6 +303,7 @@ object Main:
       |  --ruby           Compile Ruby application (default)
       |  --python         Compile Python application
       |  --js             Compile JavaScript application (experimental, no build tool support)
+      |  --check-only     Type-check without linking or generating code
       |  -o <out>         Output file path
       |  --lib <dir>      Use a precompiled library (can be specified multiple times)
       |                   Example: --lib build/core --lib build/utils
