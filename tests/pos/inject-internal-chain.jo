@@ -1,0 +1,23 @@
+// options: --provide Test.api=Test.Api --internal Test.session=Test.Login --internal Test.conn=Test.Connect
+
+// A chain of two internal factories ends in a provided one. The internal
+// values are instantiated in dependency order and only the last reaches main.
+
+namespace Test
+
+param conn: String
+param session: String
+param api: String
+
+def Connect(): String receives IO.stdout =
+  println "connect"
+  "conn"
+
+def Login(): String receives conn, IO.stdout =
+  println "login"
+  conn + "/session"
+
+def Api(): String receives session = session + "/api"
+
+def main: Unit receives IO.stdout, api =
+  println api

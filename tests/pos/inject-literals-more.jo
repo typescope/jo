@@ -1,0 +1,21 @@
+// options: --provide Test.byte=200 --provide Test.big=3000000000 --provide Test.flag=false --provide Test.ratio=-1.5 --provide Test.sep='\n'
+
+// More literal forms: a Byte, a Long beyond the Int range, false, a negative
+// Float, and a Char written as an escape sequence.
+
+namespace Test
+
+param byte: Byte
+param big: Long
+param flag: Bool
+param ratio: Float
+param sep: Char
+
+def main: Unit receives IO.stdout, byte, big, flag, ratio, sep =
+  println byte
+  println big
+  println flag
+  println ratio
+  print "a"
+  print sep
+  println "b"

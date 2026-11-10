@@ -1,0 +1,15 @@
+// options: --provide Test.tag="[t]" --provide jo.IO.stdout=Test.Prefixed
+
+// The factory that rebinds IO.stdout receives a provided parameter that main
+// also receives. Both see the same value.
+
+namespace Test
+
+param tag: String
+
+def Prefixed(): (String => Unit) receives tag, IO.stdout =
+  (s: String) => if s == "\n" then IO.stdout(s) else IO.stdout(tag + " " + s)
+
+def main: Unit receives IO.stdout, tag =
+  println tag
+  println "hi"

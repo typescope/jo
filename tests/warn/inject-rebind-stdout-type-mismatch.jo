@@ -1,0 +1,11 @@
+// options: --provide jo.IO.stdout=Test.Bad
+
+// A rebinding of a context parameter of jo.main is type-checked like any
+// other binding.
+
+namespace Test
+
+def Bad(): Int = 1
+
+def main: Unit receives IO.stdout =
+  println "hi"

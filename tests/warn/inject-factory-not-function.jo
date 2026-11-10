@@ -1,0 +1,13 @@
+// options: --provide Test.a=Test.other --provide Test.b=Test
+
+// The factory path must name a function, not a context parameter or a
+// namespace.
+
+namespace Test
+
+param other: Int
+param a: Int
+param b: Int
+
+def main: Unit receives IO.stdout, a, b =
+  println(a + b)

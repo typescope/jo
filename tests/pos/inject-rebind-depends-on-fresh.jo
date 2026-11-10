@@ -1,0 +1,18 @@
+// options: --provide Test.tag=Test.Tag --provide jo.IO.stdout=Test.Prefixed
+
+// Not a cycle: the fresh binding receives the outer IO.stdout in the first
+// layer, and the rebinding of IO.stdout depends on it in the second layer.
+
+namespace Test
+
+param tag: String
+
+def Tag(): String receives IO.stdout =
+  println "making tag"
+  "[tag]"
+
+def Prefixed(): (String => Unit) receives tag, IO.stdout =
+  (s: String) => if s == "\n" then IO.stdout(s) else IO.stdout(tag + " " + s)
+
+def main: Unit receives IO.stdout =
+  println "hi"

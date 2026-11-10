@@ -1,0 +1,16 @@
+// options: --provide Test.host="example.org" --provide Test.port=8080 --provide Test.url=Test.Url
+
+// A factory receives two provided parameters and a context parameter of
+// jo.main.
+
+namespace Test
+
+param host: String
+param port: Int
+param url: String
+
+def Url(): String receives host, port, IO.args =
+  host + ":" + port + " args=" + IO.args.size
+
+def main: Unit receives IO.stdout, url =
+  println url

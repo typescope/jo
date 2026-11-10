@@ -1,0 +1,11 @@
+// options: --internal jo.IO.args=Test.Args
+
+// No context parameter of jo.main may be rebound as internal, not only
+// IO.stdout.
+
+namespace Test
+
+def Args(): Array[String] = Array.fill(1, "x")
+
+def main: Unit receives IO.stdout, IO.args =
+  println IO.args.size

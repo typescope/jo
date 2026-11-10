@@ -1,0 +1,5 @@
+[Error] --provide Test.a=Test.other: Test.other is not a function
+
+[Error] --provide Test.b=Test: Test is not a function
+
+2 error(s), 0 warning(s)
