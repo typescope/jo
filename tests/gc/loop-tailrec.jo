@@ -1,0 +1,22 @@
+namespace gclooptailrec
+
+// A tail-recursive function building a list. After tail-call elimination it
+// is a loop, which collects the garbage of earlier steps.
+
+class Node(value: Int, next: Option[Node])
+
+def build(n: Int, acc: Option[Node]): Option[Node] =
+  if n == 0 then acc
+  else
+    // garbage of the step
+    val tmp = new Node(n, Some(new Node(n, None)))
+    build(n - 1, Some(new Node(n + (tmp.value - n), acc)))
+
+def sum(n: Option[Node], acc: Int): Int =
+  match n
+  case Some(node) => sum(node.next, acc + node.value % 1000)
+  case None => acc
+
+def main(): Unit =
+  val list = build(20000, None)
+  println: sum(list, 0)

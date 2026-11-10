@@ -23,7 +23,7 @@ import scala.collection.mutable
   * Locals and parameters live in `alloca` slots of the entry block. LLVM
   * promotes them to registers.
   */
-class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGen.RegionPolicy, placeResults: Boolean, memProfile: Boolean)(using defn: Definitions):
+class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGen.RegionPolicy, placeResults: Boolean, memProfile: Boolean, loopCollect: Boolean)(using defn: Definitions):
   import CodeGen.*
 
   /** Worklist to add all reachable functions */
@@ -65,6 +65,9 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
 
   private val StateGlobal = "@runtime.state"
 
+  /** Which words contain a loop */
+  private val hasLoop = new LoopFinder
+
   //----------------------------------------------------------------------------
   // Module
 
@@ -74,7 +77,8 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
       defn <- unit
     do
       defn match
-        case fdef: FunDef => funDefs(fdef.symbol) = fdef
+        // Before any analysis: placing results matches nodes by identity
+        case fdef: FunDef => funDefs(fdef.symbol) = new LoopOperands(fdef, runtime, hasLoop).run()
         case _ =>
 
     val startName = funRef(runtime.Core_start)
@@ -132,7 +136,8 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
     // recursion into loops, so deep recursion would no longer overflow.
     module ++= "\nattributes #0 = { \"disable-tail-calls\"=\"true\" }\n"
 
-    // Region boundaries stay opaque calls, so no memory access moves across them
+    // Region boundaries and loop collections stay opaque calls, so no memory
+    // access moves across them
     module ++= "attributes #1 = { noinline \"disable-tail-calls\"=\"true\" }\n"
 
     module.toString
@@ -335,12 +340,34 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
       entries += s"ptr $name"
 
     buf ++= s"@gc.layouts = internal constant [${entries.size} x ptr] [${entries.mkString(", ")}], align 8\n"
+
+    val sizes = (0 until runtime.classIdCount).map(id => s"i32 ${objectSize(id)}")
+    buf ++= s"@gc.sizes = internal constant [${sizes.size} x i32] [${sizes.mkString(", ")}], align 4\n"
     buf.toString
+
+  /** The size in bytes of an object of a class id, for `kept` of `Regions.collectLoop`
+    *
+    * The reference array and the bytes have a size by their length, marked by
+    * `ArraySize` and `BytesSize`. A buffer does not record its size, so it
+    * counts its header only.
+    */
+  def objectSize(id: Int): Int =
+    // Must equal `arraySize` and `bytesSize` in `runtime/native/libc/Regions.jo`
+    val ArraySize = -1
+    val BytesSize = -2
+    if id == runtime.BufferClassId then Layout.SlotSize
+    else if id == runtime.BytesClassId then BytesSize
+    else
+      val cls = runtime.getClassSymbol(id)
+      if cls == defn.Array_class then ArraySize
+      else if cls == runtime.Core_ClosureTag then 3 * Layout.SlotSize
+      else Layout.classInstanceSize(cls)
 
   /** Names for the memory statistics, null-terminated arrays of C strings
     *
-    * Under `--mem-profile`, `@gc.funNames` names `main` and then the region
-    * functions by number, as `name at=path:line`, and `@gc.classNames` names
+    * Under `--mem-profile`, `@gc.funNames` names `runtime`, the code in the
+    * runtime region, and then the region functions by number, as
+    * `name at=path:line`, and `@gc.classNames` names
     * the classes by class id. Otherwise both are empty. The runtime takes a
     * function whose name starts with `jo.` for a library function.
     */
@@ -364,8 +391,7 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
       else s"${sym.fullName} at=${pos.displayPath}:${pos.startLine + 1}"
 
     if memProfile then
-      val main = runtime.rewire.get(defn.main).map(label).getOrElse("main")
-      table("@gc.funNames", main +: regionIds.keys.toSeq.map(label))
+      table("@gc.funNames", "runtime" +: regionIds.keys.toSeq.map(label))
       val classes =
         for id <- 0 until runtime.classIdCount yield
           if id == runtime.BufferClassId then "buffer"
@@ -463,6 +489,8 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
       if placeResults && llvmType(procType.resultType) == "ptr" then
         ctx.placement = resultRegions(sym)
 
+      if loopCollect then prepareLoops(fdef)
+
     val paramTypes = procType.allParamTypes.map(llvmType)
     val resType = retType(procType.resultType)
 
@@ -474,8 +502,10 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
 
     val res = compile(fdef.body)
     ret(res, resType)
+    collectBlocks()
 
-    val attrs = if sym == runtime.Regions_enter || sym == runtime.Regions_leave then "#1" else "#0"
+    val opaque = Set(runtime.Regions_enter, runtime.Regions_leave, runtime.Regions_collectLoop)
+    val attrs = if opaque.contains(sym) then "#1" else "#0"
     functions ++= s"define internal $resType $name(${paramDecls.mkString(", ")}) $attrs {\n"
     functions ++= "entry:\n"
     functions ++= ctx.allocas
@@ -498,13 +528,16 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
           resultRegionsCache(target) = Some(res)
           Some(res)
 
-  /** Whether a function opens a region, by `--region` or the region policy */
+  /** Whether a function opens a region, by `--region` or the region policy
+    *
+    * The entry function is an ordinary function. It opens a region like any
+    * other, and its loops collect it.
+    */
   def opensRegion(sym: Symbol, resultType: Type): Boolean =
-    // The runtime manages the regions, and main runs in no region. A runtime
-    // function must not place its result either: `StringOps.+` relies on its
-    // new strings being in the current region.
-    def selectable =
-      !sym.fullName.startsWith("jo.runtime.") && !runtime.rewire.get(defn.main).contains(sym)
+    // The runtime manages the regions. A runtime function must not place its
+    // result either: `StringOps.+` relies on its new strings being in the
+    // current region.
+    def selectable = !sym.fullName.startsWith("jo.runtime.")
 
     def byPolicy = policy match
       case RegionPolicy.None => false
@@ -513,6 +546,78 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
 
     // A function that cannot allocate would always have an empty region
     regionFunctions.contains(sym) || (selectable && byPolicy && allocations.mayAllocate(sym))
+
+  //----------------------------------------------------------------------------
+  // Loop collection, see "Collecting a region in a loop" in GC.md
+
+  /** Find the loops of a region function that collect and their roots
+    *
+    * A loop collects if it may allocate. Its frame then sets every pointer
+    * slot to null at entry, since a root may be read before it is assigned,
+    * and keeps `next`, the value of `Regions.requested` at which the next
+    * collection is due.
+    */
+  def prepareLoops(fdef: FunDef)(using ctx: FunContext): Unit =
+    val params = fdef.allParams.toSet
+    def isRoot(sym: Symbol): Boolean =
+      (sym.isLocal || params.contains(sym)) && isHeapSlot(sym.tpe.widen)
+
+    val loops = new LoopRoots(fdef.body, runtime, loop => allocations.mayAllocate(loop), isRoot)
+    if !loops.roots.isEmpty then
+      ctx.loopRoots = Some(loops.roots)
+      val next = callFun(runtime.Regions_loopStart, Nil)
+      ctx.allocas ++= s"  $NextSlot = alloca i64, align 8\n"
+      emit(s"store ${next.text}, ptr $NextSlot")
+
+      val n = loops.maxRoots
+      if n > 0 then
+        ctx.allocas ++= s"  $RootsSlot = alloca [$n x ptr], align 8\n"
+
+  /** Whether a slot of this type holds a heap reference, by the rule of the layout table */
+  def isHeapSlot(tp: Type): Boolean =
+    !tp.isVoidType && llvmType(tp) == "ptr" && !isAddr(tp) && !tp.isProcType
+
+  /** At the end of an iteration of a collecting loop, collect when due */
+  def checkLoop(whileDo: While, labelCond: String)(using ctx: FunContext): Unit =
+    val roots = ctx.loopRoots.flatMap(loops => Option(loops.get(whileDo)))
+    roots match
+      case Some(roots) =>
+        assert(ctx.held == 0, s"A heap operand is held in a register across a loop in ${ctx.fun.fullName}")
+        val req = callFun(runtime.Regions_requested, Nil)
+        val next = assign("i64", s"load i64, ptr $NextSlot")
+        val due = assign("i1", s"icmp sge ${req.text}, ${next.v}")
+        val labelCollect = freshLabel("collect")
+        terminate(s"br ${due.text}, label %$labelCollect, label %$labelCond")
+        ctx.collects += ((labelCollect, roots, labelCond))
+
+      case None =>
+        terminate(s"br label %$labelCond")
+
+  /** The blocks that collect, after the body, when all slots are known */
+  def collectBlocks()(using ctx: FunContext): Unit =
+    for (labelCollect, roots, labelCond) <- ctx.collects do
+      label(labelCollect)
+      for (sym, i) <- roots.zipWithIndex do
+        val slot = localSlot(sym)
+        val v = assign("ptr", s"load ptr, ptr ${slot.name}")
+        val addr = assign("ptr", s"getelementptr inbounds ptr, ptr $RootsSlot, i64 $i")
+        emit(s"store ${v.text}, ptr ${addr.v}")
+
+      val rootsArg = if roots.isEmpty then V("ptr", "null") else V("ptr", RootsSlot)
+      val next = callFun(runtime.Regions_collectLoop, rootsArg :: V("i32", roots.size.toString) :: Nil)
+      emit(s"store ${next.text}, ptr $NextSlot")
+      terminate(s"br label %$labelCond")
+
+  /** Compile operands that are consumed together, counting the heap references held meanwhile */
+  def operands(words: List[Word])(using ctx: FunContext): List[V] =
+    val held = ctx.held
+    val values = words.map: word =>
+      val v = compile(word)
+      if isHeld(v) then ctx.held += 1
+      v
+
+    ctx.held = held
+    values
 
   def ret(res: V, resType: String)(using ctx: FunContext): Unit =
     if !ctx.terminated then
@@ -565,11 +670,16 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
       val name = "%local." + ctx.tmpCount
       val ty = llvmType(sym.tpe.widen)
       ctx.allocas ++= s"  $name = alloca $ty, align 8\n"
+
+      // a root of a loop collection may be read before it is assigned
+      if ctx.loopRoots.isDefined && ty == "ptr" then
+        ctx.allocas ++= s"  store ptr null, ptr $name\n"
+
       Slot(name, ty)
     })
 
   /** Convert a value to another LLVM type */
-  def coerce(v: V, ty: String)(using FunContext): V =
+  def coerce(v: V, ty: String)(using ctx: FunContext): V =
     if v.ty == ty then v
     else if ty == "void" then V.Void
     else if v.ty == "void" then V(ty, "undef")
@@ -585,6 +695,10 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
           coerce(assign("i64", s"ptrtoint ${v.text} to i64"), to)
 
         case (from, "ptr") if isInt(from) =>
+          // A root of a loop collection is never a number in disguise
+          assert(v.v == "0" || ctx.fun.fullName.startsWith("jo.runtime."),
+            s"Integer converted to a pointer in ${ctx.fun.fullName}: ${v.text}")
+
           val v64 = coerce(v, "i64")
           assign("ptr", s"inttoptr ${v64.text} to ptr")
 
@@ -682,8 +796,7 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
 
       case FieldAssign(Select(qual, name), rhs) =>
         val recordType = recordTypeOf(qual)
-        val obj = compile(qual)
-        val value = compile(rhs)
+        val obj :: value :: Nil = operands(qual :: rhs :: Nil): @unchecked
         storeField(obj, Layout.fieldOffset(recordType, name), value, Layout.fieldType(recordType, name), isInit = false)
         V.Void
 
@@ -779,7 +892,7 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
     label(labelBody)
     compile(whileDo.body)
     if !ctx.terminated then
-      terminate(s"br label %$labelCond")
+      checkLoop(whileDo, labelCond)
 
     label(labelEnd)
     V.Void
@@ -812,25 +925,29 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
     val alloc = if inResult then runtime.Regions_allocResult else runtime.GC_alloc
     val obj = callFun(alloc, size :: Nil)
 
+    // The size of a class instance counts in `kept` of a loop collection
+    rec.args.collectFirst { case (Layout.ClassID, Literal(Constant.Int(id))) => id } match
+      case Some(id) =>
+        assert(objectSize(id) == Layout.size(recordType), s"Record literal of class id $id allocates ${Layout.size(recordType)} bytes, not ${objectSize(id)}")
+
+      case None =>
+
+    // the new object is held while the fields are computed
+    ctx.held += 1
     for (name, rhs) <- rec.args do
       val value = compile(rhs)
       val fieldType = Layout.fieldType(recordType, name)
       val isInit = !inResult || fieldType.isProcType
       storeField(obj, Layout.fieldOffset(recordType, name), value, fieldType, isInit)
 
+    ctx.held -= 1
     obj
 
   //----------------------------------------------------------------------------
   // Calls
 
   def compile(app: Apply)(using ctx: FunContext): V =
-    val funSym =
-      app.funSymbol.orElse:
-        app.fun match
-          case Encoded(Ident(sym)) if sym.is(Flags.Fun) => Some(sym)
-          case _ => None
-
-    funSym match
+    directCallee(app) match
       case Some(sym) =>
         if sym.is(Flags.Object) && !isLoweringObjectInitProc then
           // make the accessor reachable
@@ -841,13 +958,13 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
           assign("ptr", s"load ptr, ptr $holder")
 
         else if sym.owner == runtime.LibC then
-          callC(sym, app.allArgs.map(compile))
+          callC(sym, operands(app.allArgs))
 
         else if sym.hasAnnotation(defn.intrinsic) then
           callIntrinsic(sym, app)
 
         else
-          val args = app.allArgs.map(compile)
+          val args = operands(app.allArgs)
 
           // The callee puts its result in the result region of this function
           val target = resolve(sym)
@@ -862,10 +979,9 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
           callFun(sym, args)
 
       case None =>
-        val fun = coerce(compile(app.fun), "ptr")
+        val fun :: args = operands(app.fun :: app.allArgs): @unchecked
         val funType = app.fun.tpe.asProcType
-        val args = app.allArgs.map(compile)
-        call(fun.v, funType.allParamTypes, funType.resultType, args)
+        call(coerce(fun, "ptr").v, funType.allParamTypes, funType.resultType, args)
 
   /** Call a Jo function directly */
   def callFun(sym: Symbol, args: List[V])(using FunContext): V =
@@ -920,7 +1036,7 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
   // Intrinsics
 
   def callIntrinsic(sym: Symbol, app: Apply)(using ctx: FunContext): V =
-    def args: List[V] = app.allArgs.map(compile)
+    def args: List[V] = operands(app.allArgs)
 
     if sym == runtime.ParamSupport_paramKey then
       val paramSym = app.args.head match
@@ -958,6 +1074,9 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
 
     else if sym == runtime.Regions_classNames then
       V("ptr", "@gc.classNames")
+
+    else if sym == runtime.Regions_sizeTable then
+      V("ptr", "@gc.sizes")
 
     else if sym == runtime.Core_intBoxLow then
       V("i32", Layout.IntBoxLow.toString)
@@ -1195,6 +1314,24 @@ object CodeGen:
 
     /** The allocations and calls that go to the result region */
     var placement: Option[ResultRegions] = None
+
+    /** The roots of the collecting loops, if the function has any */
+    var loopRoots: Option[java.util.IdentityHashMap[While, List[Symbol]]] = None
+
+    /** The blocks that collect: their label, the roots and the loop condition */
+    val collects = new mutable.ArrayBuffer[(String, List[Symbol], String)]
+
+    /** The heap references held in registers while later operands are computed */
+    var held = 0
+
+  /** The slot of `next` of the collecting loops: `requested` when the next collection is due */
+  val NextSlot = "%loop.next"
+
+  /** The array of the roots passed to `Regions.collectLoop` */
+  val RootsSlot = "%loop.roots"
+
+  /** Whether a value is a heap reference held in a register, not a constant */
+  def isHeld(v: V): Boolean = v.ty == "ptr" && v.v.startsWith("%")
 
   def isInt(ty: String): Boolean = ty == "i1" || ty == "i8" || ty == "i32" || ty == "i64"
 

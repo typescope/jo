@@ -1,0 +1,16 @@
+namespace membuffer
+
+// One large array dropped per iteration of a loop in the entry function.
+// Without loop collection the program needs about 300 MB.
+
+def main(): Unit =
+  var total = 0
+  var i = 0
+  while i < 300 do
+    val buffer = Array.create[Int](131072)
+    buffer[i] = i
+    total = total + buffer[i] + buffer.size % 7
+    i = i + 1
+  end
+
+  println: total

@@ -104,6 +104,10 @@ class LLVMRuntime(val rewire: Map[Symbol, Symbol])(using defn: Definitions):
   val Regions_funNames    = Regions.termMember("funNames")
   val Regions_classNames  = Regions.termMember("classNames")
   val Regions_minInt      = Regions.termMember("minInt")
+  val Regions_sizeTable   = Regions.termMember("sizeTable")
+  val Regions_requested   = Regions.termMember("requested")
+  val Regions_loopStart   = Regions.termMember("loopStart")
+  val Regions_collectLoop = Regions.termMember("collectLoop")
 
   val GC = defn.resolveContainer("jo.runtime.native.GC")
   val GC_alloc = GC.termMember("alloc")

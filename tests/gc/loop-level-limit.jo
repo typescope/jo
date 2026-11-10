@@ -1,0 +1,27 @@
+namespace gcloopmaxlevel
+
+// A region function with a collecting loop, called past the level limit,
+// where it opens no region and its loop must not collect.
+
+class Node(value: Int, next: Option[Node])
+
+def work(n: Int): Int =
+  var list: Option[Node] = None
+  var i = 0
+  while i < n do
+    list = Some(new Node(i, if i % 4 == 0 then None else list))
+    i = i + 1
+  end
+
+  match list
+  case Some(node) => node.value
+  case None => -1
+
+def descend(depth: Int): Int =
+  if depth == 0 then work 50000
+  else
+    val r = descend(depth - 1)
+    if depth % 5000 == 0 then r + (work 1000) else r
+
+def main(): Unit =
+  println: descend 40000

@@ -1,0 +1,37 @@
+namespace gcloopnested
+
+// Nested collecting loops, an inner loop that does not allocate, and break
+// and continue.
+
+class Cell(value: Int)
+
+def run(n: Int): Int =
+  var acc = new Cell(0)
+  var i = 0
+  while i < n do
+    var j = 0
+    var row = new Cell(i)
+    while j < 50 do
+      j = j + 1
+      if j % 3 == 0 then continue
+      if i % 101 == 100 && j > 40 then break
+      row = new Cell(row.value + j)
+    end
+
+    // does not allocate
+    var k = 0
+    var s = 0
+    while k < 20 do
+      s = s + k
+      k = k + 1
+    end
+
+    acc = new Cell((acc.value + row.value + s) % 1000003)
+    i = i + 1
+    if i % 2 == 0 then continue
+    if acc.value < 0 then break
+  end
+  acc.value
+
+def main(): Unit =
+  println: run 20000

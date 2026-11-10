@@ -1,0 +1,24 @@
+namespace gcloopmap
+
+// A `mutable.Map` in the entry function, updated in a loop and then read in
+// full. The loop of `main` frees the values the updates replace.
+
+def main(): Unit =
+  val m = jo.mutable.Map.empty[Int, String]()
+  var i = 0
+  while i < 100000 do
+    m.update(i % 100, "value " + i.toString)
+    i = i + 1
+  end
+
+  var total = 0
+  var k = 0
+  while k < 100 do
+    total = total + (m.get k).size
+    k = k + 1
+  end
+
+  println: m.size
+  println: total
+  println: m.get 7
+  println: m.fold(0, (s, key, v) => s + key + v.size)

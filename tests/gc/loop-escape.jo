@@ -1,0 +1,62 @@
+namespace gcloopescape
+
+// A loop storing into a container of the caller, read after the function
+// returns, and an escape root that reaches a chain of objects the frame no
+// longer reaches.
+
+class Node(value: Int, next: Option[Node])
+
+class Holder
+  var node: Option[Node] = None
+  var count: Int = 0
+end
+
+def length(n: Option[Node]): Int =
+  var len = 0
+  var cur = n
+  while cur is Some(node) do
+    len = len + 1
+    cur = node.next
+  end
+  len
+
+// `fill` stores into `holder`, created by the caller, at every iteration. The
+// stored chains escape the region of `fill`. Each collection of the loop
+// moves them to the region of `main`.
+def fill(holder: Holder, n: Int): Unit =
+  var i = 0
+  while i < n do
+    // a chain of three in this region, linked to the holder
+    val chain = new Node(i, Some(new Node(i + 1, Some(new Node(i + 2, None)))))
+    if i % 100 == 0 then holder.node = Some(chain)
+
+    holder.count = holder.count + 1
+    i = i + 1
+  end
+
+// The escape root reaches a chain built in an earlier iteration that no
+// variable of `build` refers to any more.
+def build(holder: Holder, n: Int): Unit =
+  var chain: Option[Node] = None
+  var i = 0
+  while i < n do
+    chain = Some(new Node(i, chain))
+    if i == n / 2 then
+      holder.node = chain
+      chain = None
+
+    i = i + 1
+  end
+
+  println: length chain
+
+def main(): Unit =
+  val holder = new Holder
+  fill(holder, 100000)
+  println: holder.count
+  println: holder.node.map(n => n.value).getOrElse(-1)
+  println: length holder.node
+
+  val other = new Holder
+  build(other, 20000)
+  println: length other.node
