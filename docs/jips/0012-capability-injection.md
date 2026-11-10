@@ -235,6 +235,10 @@ it declares or, when the clause is omitted, those the compiler infers. They
 must all be among the context parameters declared by `d` or the parameters
 bound by `--provide`. The rest of the signature is checked as before.
 
+Entry-point discovery selects the program's `main` by this conformance check,
+so under injection it applies the relaxed rule. A `main` that receives a
+provided parameter is a valid candidate.
+
 ### Command-line options
 
 | Option | Meaning |
