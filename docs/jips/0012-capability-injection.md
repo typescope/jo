@@ -432,10 +432,12 @@ receive more, so the comment must be updated.
 
 ## Future work
 
-- **Other targets.** A binding could name the deferred function it attaches
-  to, as in `--provide SystemAPI.process@foo=SystemRuntime.Process`, with
-  `@global` meaning every deferred function that receives the parameter. A
-  binding without `@` would keep attaching to `jo.main`.
+- **Other targets and multiple targets.** This proposal is intentionally
+  restricted to `jo.main`. A later one could let a binding name the deferred
+  function it attaches to, as in
+  `--provide SystemAPI.process@foo=SystemRuntime.Process`, with `@global`
+  meaning every deferred function that receives the parameter. A binding
+  without `@` would keep attaching to `jo.main`.
 - **Narrowing the parameters of `d`.** The target may use every context
   parameter of `d`. A form of `--internal p` without a value could mark a
   parameter of `d`, such as `IO.stdout`, as available to factories only, so
