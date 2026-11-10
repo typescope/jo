@@ -272,8 +272,10 @@ proposal adds no field to the build spec. A dedicated table is left to
 
 ### Diagnostics
 
-Violations of the rules above are errors. They point at the command-line
-option that introduced the problem, not at the generated wrapper.
+Violations of the rules above are errors. As with `--link`, an error in a
+binding has no source position. Its message quotes the option, for example
+`--provide fs.readonly=fs.ReadOnly`, and never mentions the generated
+wrapper.
 
 An internal parameter that no factory receives is a warning.
 
