@@ -78,7 +78,10 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
     do
       defn match
         // Before any analysis: placing results matches nodes by identity
-        case fdef: FunDef => funDefs(fdef.symbol) = new LoopOperands(fdef, runtime, hasLoop).run()
+        case fdef: FunDef =>
+          funDefs(fdef.symbol) =
+            if loopCollect then new LoopOperands(fdef, runtime, hasLoop).run() else fdef
+
         case _ =>
 
     val startName = funRef(runtime.Core_start)

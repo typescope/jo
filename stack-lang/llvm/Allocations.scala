@@ -71,13 +71,7 @@ class Allocations(funDefs: collection.Map[Symbol, FunDef], runtime: LLVMRuntime,
           if !stops(elsep) then this(elsep)
 
         case app: Apply =>
-          val funSym =
-            app.funSymbol.orElse:
-              app.fun match
-                case Encoded(Ident(sym)) if sym.is(Flags.Fun) => Some(sym)
-                case _ => None
-
-          funSym match
+          directCallee(app) match
             case Some(sym) =>
               if sym.hasAnnotation(defn.intrinsic) then
                 if sym == defn.Float_parseFloatDecimal then callees += runtime.Core_parseFloat

@@ -1,0 +1,64 @@
+namespace gcloopindirect
+
+// Loops in a later argument of indirect calls: a lambda and an interface
+// method. The function and the earlier arguments must survive the
+// collections of the loop.
+
+class Box(value: Int)
+
+interface Combine
+  def combine(a: Box, b: Box): Int
+end
+
+class Adder(base: Int)
+  def combine(a: Box, b: Box): Int = base + a.value * 1000 + b.value
+  view Combine
+end
+
+// A loop that allocates garbage and returns the last box
+def churnInline(a: Box): Box =
+  var i = 0
+  var b = new Box(0)
+  while i < 50000 do
+    b = new Box(i % 1000 + a.value)
+    i = i + 1
+  end
+  b
+
+def main(): Unit =
+  val a = new Box(7)
+
+  // a lambda, with a loop in its second argument
+  val f = (x: Box, y: Box) => x.value * 1000 + y.value
+  val r = f:
+    new Box(a.value + 1)
+    if a.value > 0 then
+      var i = 0
+      var b = new Box(0)
+      while i < 50000 do
+        b = new Box(i % 1000)
+        i = i + 1
+      end
+      b
+    else a
+
+  println: r
+
+  // an interface method, with a loop in its second argument
+  val c: Combine = new Adder(5)
+  val q = c.combine:
+    new Box(a.value * 2)
+    if a.value > 0 then
+      var i = 0
+      var b = new Box(0)
+      while i < 50000 do
+        b = new Box(i % 1000 + 1)
+        i = i + 1
+      end
+      b
+    else a
+
+  println: q
+
+  // both, with the loop in a call in the argument
+  println: c.combine(new Box(3), churnInline a)

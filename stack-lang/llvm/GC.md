@@ -1062,7 +1062,7 @@ result slot of an `if` is written at the end of a branch and read right
 after, never across an iteration.
 
 A small rewrite of the SAST, `LoopOperands` in `LoopRoots.scala`, removes
-these values before codegen. It runs on each `FunDef` as it enters `funDefs`
+these values before codegen, unless `--no-loop-collect` is given. It runs on each `FunDef` as it enters `funDefs`
 (`compile(units)` in `CodeGen.scala`), not in `compileFunDef`.
 `resultRegions` builds its analysis from `funDefs` and matches placement by
 node identity (`allocations.contains(rec)` and `calls.contains(app)`), so a
@@ -1074,13 +1074,10 @@ never the whole tree, so every other node keeps its identity. The read pass of
 - In a call, if an operand contains a `while`, every operand up to and
   including the last one that contains a `while` is assigned to a fresh local
   before the call, which then reads the locals. The rewrite tells a direct
-  call exactly as codegen does, with `directCallee`: `app.funSymbol`, or
-  `Encoded(Ident(sym))` with `Flags.Fun`. The callee of a direct call is
-  never hoisted. The function of an indirect call is.
-- In a record literal, every field up to the last one that contains a
-  `while` is assigned to a fresh local. The record is allocated after them,
-  so codegen holds no new object while a loop runs. Allocation is not
-  observable, so moving it after the fields changes nothing.
+  call exactly as codegen does, with `directCallee`: `app.funSymbol` or
+  `Encoded(Ident(sym))`, only for a symbol with `Flags.Fun`. The callee of a
+  direct call is never hoisted. The function of an indirect call is, and the
+  local that holds it is then called indirectly.
 - In a field assignment whose value contains a `while`, the object and the
   value are assigned to fresh locals first.
 
@@ -1108,9 +1105,9 @@ references it holds in registers while it compiles later operands, in
 `operands`, `compile(rec)` and the field assignment, and asserts that the
 count is 0 when it emits the check of a collecting loop.
 
-A record literal comes only from `new`, whose fields are constants, and from
-a closure, whose `underlying` is such a `new`. So the record case never
-applies to code compiled today. The tests cover the other cases.
+A record literal is not rewritten. It comes only from `new`, whose fields
+are constants, and from a closure, whose `underlying` is such a `new`, so
+its fields never contain a loop. The held-operand count still covers it.
 
 So every loop that passes the two conditions above collects, wherever it is
 in an expression. The user-facing rule has no exception for operands.
@@ -1248,13 +1245,13 @@ Pass 1 is the first pass of a collect, `spreadEscapes`, which both share.
 After it, every object of `R` that an escape root reaches has `req` below
 `num`, so the mark can stop at such an object.
 
-Pass 3, `sweepInPlace`, is the sweep of a collect with two differences. A
+Pass 3 is the sweep of a collect with two differences. A
 marked object stays in `R`. An object reached from an older region moves to
 the region that owns its `req`, also when that is the parent: `R` stays open,
 so it cannot hand the object to the parent with its segments. The sweep of a
 close moves only objects whose `req` is below the parent's level and keeps
-the others for the parent. Both pack the survivors the same way and cache
-the last `owner`. The packed segments stay in `R`, the partly filled one
+the others for the parent. Both are `pack`, which packs the survivors the
+same way and caches the last `owner`. The packed segments stay in `R`, the partly filled one
 first, and `firstSeg`, `lastSeg` and `segs` are set to them.
 
 After pass 3, every object in `R` has `phys = req = num`, and nothing in `R`
@@ -1467,9 +1464,12 @@ stays.
   waits until at least `kept` more bytes were requested, so each requested
   byte pays a constant amount on average.
 - A loop that builds live data in its region traces it at about 1, 2, 4 MB
-  and so on, about twice the final size in total, plus the sweeps. This is
-  the case to measure. If it costs too much, a larger factor or minimum
-  trades memory for time.
+  and so on, about twice the final size in total, plus the sweeps, when all
+  it requests stays live. When a share `f` of the requested bytes stays
+  live, each collection comes at `1 + f` times the previous one, and the
+  marks add up to about `(1 + f) / f` times the final size: 2.8 times for the
+  large map of [Measurements](#measurements). If it costs too much, a larger
+  factor or minimum trades memory for time.
 - Keeping the roots live across the loop can add register pressure in a hot
   loop. They are only read in the cold block, so LLVM can spill them once
   before the loop.
@@ -1502,7 +1502,7 @@ without a rebuild:
 
 | File | Change | Lines added, removed |
 |---|---|---|
-| `Regions.jo` | `collectLoop`, `mark`, `sweepInPlace`, `sizeOf`, `requested` in `alloc` and `allocResult`, `requested`, `loopStart`, stress modes, `spreadEscapes` and `lowestPromotion` shared with a close, stats, hint rewrites | 314, 46 |
+| `Regions.jo` | `collectLoop`, `mark`, `pack` shared with a close, `sizeOf`, `requested` in `alloc` and `allocResult`, `requested`, `loopStart`, stress modes, `spreadEscapes` and `lowestPromotion` shared with a close, stats, hint rewrites | 314, 46 |
 | `Platform.jo` | counters, `JO_LOOP_COLLECT` | 35, 4 |
 | `CodeGen.scala` | no exclusion of the entry function, function 0 renamed, `@gc.sizes`, null slots, check and slow blocks, held operands, assertions, flag | 168, 31 |
 | `LoopRoots.scala` | new: the operand rewrite `LoopOperands` and the read pass `LoopRoots` | 218 |
@@ -1513,8 +1513,7 @@ without a rebuild:
 | `tests/gc`, `tests/custom/gc-regions` | new tests | 555 |
 | `GC.md`, memory guide | rule, statistics, three examples | prose |
 
-The runtime is larger than estimated, mostly because `sweepInPlace` repeats
-the packing of `sweep` rather than sharing it, and because of comments.
+The runtime is larger than estimated, mostly because of comments.
 
 The 32-bit backends allocate with a bump allocator that never frees and are
 not affected.
@@ -1538,10 +1537,11 @@ same way. Their output must not change.
 - `loop-nested.jo`: nested loops, an inner loop that does not allocate, and
   `break` and `continue`.
 - `loop-operands.jo`: a loop in the second argument of a call, in the third
-  argument of a runtime function, the `Array` update, in an argument of an
-  indirect call and in the value of a field assignment. User code cannot
-  call a C function or put a loop into a record literal, so those cases have
-  no test.
+  argument of a runtime function, the `Array` update, and in the value of a
+  field assignment. User code cannot call a C function or put a loop into a
+  record literal, so those cases have no test.
+- `loop-indirect.jo`: a loop in the second argument of a lambda call and of
+  an interface method call.
 - `loop-tailrec.jo`: a tail-recursive function building a list.
 - `loop-with.jo`: a `with` around a loop, read inside it, and a closure
   created before the loop and called in it.
@@ -1610,30 +1610,59 @@ was updated: in this document [Region boundaries](#region-boundaries),
 
 ### Measurements
 
-Time is the best of 3 runs, on an x86-64 machine shared with other work, so
-differences under about 10% are noise. "Before" is the compiler before this
-change, where the entry function ran in the runtime region. "No collect" is
-`--no-loop-collect`, where the entry function opens a region but no loop
-collects. The programs are in the default policy.
+Time is the best of 3 to 5 runs on a quiet x86-64 machine. "Before" is the
+compiler before this change, where the entry function ran in the runtime
+region. "No collect" is `--no-loop-collect`, where the entry function opens a
+region but no loop collects. All use the default policy.
 
 | Program | Before | No collect | After |
 |---|---|---|---|
-| `mutable.Map` in the entry function, 3 million updates of 1000 string values | 1.46 s, 724 MB | 1.69 s, 724 MB | 1.20 s, 3 MB |
-| Server loop in the entry function, a new node pair stored per request, 3 million requests | 1.08 s, 440 MB | 1.23 s, 440 MB | 0.86 s, 3 MB |
-| Loop in a function building a live list of 3 million nodes | 0.78 s, 279 MB | 1.15 s, 279 MB | 1.91 s, 279 MB |
-| Tight loop, one dead object per iteration, 30 million iterations | 4.64 s, 1160 MB | 6.00 s, 1160 MB | 1.88 s, 3 MB |
-| Tight loop without allocation, 300 million iterations | 2.10 s, 1 MB | 1.78 s, 1 MB | 1.78 s, 1 MB |
-| Map of 3 million entries kept until the entry function returns | 6.16 s, 1151 MB | 6.32 s, 1151 MB | 6.63 s, 796 MB |
+| `mutable.Map` in the entry function, 3 million updates of 1000 string values | 1.42 s, 724 MB | 1.67 s, 724 MB | 1.17 s, 3 MB |
+| Server loop in the entry function, a new node pair stored per request, 3 million requests | 1.06 s, 440 MB | 1.22 s, 440 MB | 0.84 s, 3 MB |
+| Loop in a function building a live list of 3 million nodes | 0.76 s, 279 MB | 0.88 s, 279 MB | 1.19 s, 279 MB |
+| Tight loop, one dead object per iteration, 30 million iterations | 2.32 s, 1160 MB | 2.30 s, 1160 MB | 1.27 s, 3 MB |
+| Map of 3 million entries kept until the entry function returns | 3.16 s, 1151 MB | 4.32 s, 1151 MB | 5.69 s, 796 MB |
 
-- The live list is the worst case. Its 8 collections mark 9.5 million
-  objects for 6 million live ones, about 1.6 times the final size, and add
-  about 0.8 seconds, as [Cost of a loop collection](#cost-of-a-loop-collection)
-  expects.
-- A loop without allocation gets no check, and its time does not change.
-- The large map shows the exit cost: the close of the entry's region frees
-  21 million objects one by one. It is within the noise of the runs, about
-  0.2 to 0.5 seconds. Its peak drops, since the loop frees what rehashing and
-  string building drop.
+A loop without allocation gets no check, and its time does not change.
+
+The cost has two sources.
+
+- The entry function now closes its region when it returns, like any region
+  function, and the close frees every object it holds one by one. Before,
+  the entry function ran in the runtime region, which the program never
+  frees. The large map frees 12 million objects at exit where it freed 1569
+  before, which is most of the step from 3.16 to 4.32 seconds: with `free`
+  stubbed out, the gap mostly goes. This is the price of the entry function
+  being ordinary. A special case that skips the frees of its region would
+  bring back the difference between the entry function and other functions,
+  which this design removes.
+- A loop that builds live data traces it again at each collection. The live
+  list of 3 million nodes adds about 0.3 seconds. The large map adds about
+  1.4 seconds: its 88 loop collections mark 21.5 million objects.
+
+The 88 collections of the large map break down by loop:
+
+| Loop | Collections | Marked | Freed |
+|---|---|---|---|
+| `main`, the updates | 14 | 21518160 | 3906909 |
+| `fold` over the map, which boxes each sum | 68 | 68 | 2977352 |
+| `rehash`, which fills the new bucket array | 6 | 6 | 0 |
+
+The loop of `fold` frees about 44000 dead boxes per collection and marks
+only its accumulator, so its 68 collections are cheap. All the marking is in
+the 14 collections of `main`. They come at growing values of `requested`,
+each one 1.55 times the previous, not 2 times. A collection is due once the
+program requested `kept` more bytes, and in this loop 55% of the requested
+bytes stay live: 268 MB of 487 MB at the last collection. So each
+collection finds a heap 1.55 times larger and marks all of it, and the marks
+add up to about 1.55 / 0.55 = 2.8 times the final live objects, 21.5 million
+for 7.8 million. The garbage of callees in `requested`, which the cost note
+of [Counting bytes](#counting-bytes) mentions, only makes some intervals
+longer, 1.14 to 1.22 times `kept`. Counting a buffer by its header makes
+`kept` about 10% smaller than the live bytes, a small part of the effect. The
+trigger itself, `requested` growing by `kept`, sets the factor: marking stays
+proportional to the bytes requested, but the constant depends on the share
+of requested bytes that stays live.
 
 `tests/performance`, before and after:
 
@@ -1645,13 +1674,13 @@ collects. The programs are in the default policy.
 | `string-lines` | 0.02 s, 6 MB | 0.02 s, 4 MB |
 | `string-indexOf-large`, `string-trim` | 0.00 s, 1 MB | 0.00 s, 1 MB |
 
-The jtk smoke runs of sat, forth, deflate, html5, url and crypto print the
-same output with and without `--no-loop-collect`, under
-`JO_LOOP_COLLECT=often`, and under `often` with AddressSanitizer. Their time
-and peak RSS stay the same, since their loops keep little garbage: html5
-1.58 s and 52 MB without loop collection, 1.48 s and 51 MB with it, the
-others within 0.01 s and 1 MB. The runs under `scalar` and `none` and the
-bench runs were not measured.
+These were taken on a loaded machine, as were the jtk runs. The jtk smoke
+runs of sat, forth, deflate, html5, url and crypto print the same output with
+and without `--no-loop-collect`, under `JO_LOOP_COLLECT=often`, and under
+`often` with AddressSanitizer. Their time and peak RSS stay about the same,
+since their loops keep little garbage: html5 1.58 s and 52 MB without loop
+collection, 1.48 s and 51 MB with it. The runs under `scalar` and `none` and
+the bench runs were not measured.
 
 ## Interaction with the optimizer
 
