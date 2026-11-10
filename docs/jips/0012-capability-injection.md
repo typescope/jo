@@ -222,8 +222,7 @@ The wrapper is not visible to source code.
 
 Without injection, `impl(d)` must conform to the signature of `d`. With
 injection, the rule for context parameters is relaxed: `impl(d)` may also
-receive any provided parameter. This applies whether `impl(d)` is named by
-`--link` or found by entry-point discovery. The context parameters of `impl(d)` are those
+receive any provided parameter. The context parameters of `impl(d)` are those
 it declares or, when the clause is omitted, those the compiler infers. The
 rest of the signature is checked as before.
 
