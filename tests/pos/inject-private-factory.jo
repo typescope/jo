@@ -1,0 +1,12 @@
+// options: --provide Test.a=Test.Hidden
+
+// Visibility rules do not apply to the paths in bindings.
+
+namespace Test
+
+param a: Int
+
+private def Hidden(): Int = 5
+
+def main: Unit receives IO.stdout, a =
+  println a
