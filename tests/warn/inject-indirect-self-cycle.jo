@@ -1,14 +1,16 @@
-// options: --provide Test.a=Test.MakeA --internal Test.b=Test.MakeB
+// options: --provide Test.a=Test.MakeA --internal Test.b=Test.MakeB --internal Test.c=Test.MakeC
 
-// A cycle through another binding is still a cycle.
+// A cycle through other bindings is still a cycle.
 
 namespace Test
 
 param a: Int
 param b: Int
+param c: Int
 
 def MakeA(): Int receives b = b + 1
-def MakeB(): Int receives a = a + 1
+def MakeB(): Int receives c = c + 1
+def MakeC(): Int receives a = a + 1
 
 def main: Unit receives IO.stdout, a =
   println a

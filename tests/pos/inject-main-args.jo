@@ -1,6 +1,6 @@
 // options: --provide Test.name="jo"
 
-// A factory receives an argument of jo.main and a provided parameter.
+// main receives a context parameter of jo.main alongside a provided one.
 
 namespace Test
 

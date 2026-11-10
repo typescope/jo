@@ -1,3 +1,3 @@
-[Error] Cycle among bindings: Test.count -> Test.count
+[Error] --provide Test.count=Test.Next: cycle among bindings: Test.count -> Test.count
 
 1 error(s), 0 warning(s)
