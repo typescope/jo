@@ -177,10 +177,10 @@ inside `allow A`:
 // conceptually, for the example in the summary
 def main$injected: Unit receives IO.stdout, IO.stderr, IO.args =
   with fs.root = fs.Root() in
-  with fs.readonly = fs.ReadOnly() in
-  with gh.repo = "typescope/jo" in
-  with gh.client = gh.GitHub() in
-    allow fs.readonly, gh.client, IO.stdout, IO.stderr, IO.args in app.main
+    with fs.readonly = fs.ReadOnly() in
+      with gh.repo = "typescope/jo" in
+        with gh.client = gh.GitHub() in
+          allow fs.readonly, gh.client, IO.stdout, IO.stderr, IO.args in app.main
 ```
 
 The arguments of `d` are passed to `impl(d)` unchanged.
