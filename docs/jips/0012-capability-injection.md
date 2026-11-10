@@ -110,8 +110,8 @@ The implementation of `d` may therefore use the provided parameters and the
 context parameters of `d`, and nothing else. In the example, it may use
 `fs.readonly` and `gh.client` but neither `fs.root` nor `gh.repo`.
 
-The implementation of `d`, written `impl(d)`, is found as it is today: by
-`--link`, or for `jo.main` by entry-point discovery. With an injection
+The implementation of `d`, written `impl(d)`, is found as it is today,
+through `--link`. With an injection
 specification, `d` resolves to a compiler-generated wrapper around `impl(d)`
 instead of to `impl(d)` itself. Every other deferred function resolves as
 before.
@@ -233,9 +233,8 @@ rest of the signature is checked as before.
 | `--provide p=e` | Bind context parameter `p` to `e` as a provided parameter. |
 | `--internal p=e` | Bind context parameter `p` to `e` as an internal parameter. |
 
-Both options attach their binding to `jo.main`. Its implementation is the
-one named by `--link jo.main=impl` or, when there is none, the program's
-`main`.
+Both options attach their binding to `jo.main`, whose implementation is
+found as it is today.
 
 `e` is either a qualified path naming a factory or a Jo literal. `--provide`
 and `--internal` may be repeated. `p` and a factory path are qualified paths.
