@@ -89,16 +89,26 @@ An injection specification attaches to one deferred function `d`, the
 written for a general `d` so that a later proposal can add other targets
 without changing them.
 
-The specification consists of a set of **bindings**. Each binding binds
-one context parameter to a value, which is either the result of a **factory**
-function or a **literal**, and gives the parameter one of two roles:
+The specification consists of a set of **bindings**, one per compiler option:
+
+```bash
+--internal fs.root=fs.Root
+--provide  fs.readonly=fs.ReadOnly
+--internal 'gh.repo="typescope/jo"'
+--provide  gh.client=gh.GitHub
+```
+
+Each binding binds one context parameter to a value, which is either the
+result of a **factory** function, such as `fs.Root`, or a **literal**, such as
+`"typescope/jo"`, and gives the parameter one of two roles:
 
 - a **provided** parameter is available to the implementation of `d` and to
   the factories,
 - an **internal** parameter is available to the factories only.
 
 The implementation of `d` may therefore use the provided parameters and the
-context parameters of `d`, and nothing else.
+context parameters of `d`, and nothing else. In the example, it may use
+`fs.readonly` and `gh.client` but neither `fs.root` nor `gh.repo`.
 
 The implementation of `d`, written `impl(d)`, is found as it is today: by
 `--link`, or for `jo.main` by entry-point discovery. With an injection
@@ -328,11 +338,10 @@ read every capability the program creates and the authority it grants.
 the one deferred function whose implementation is located automatically, and
 nearly every injection would target it.
 
-Fixing the target also keeps the options minimal. Earlier drafts had an
-`--inject` option to select the target, in one form as a modifier on an
-existing `--link` and in another as a link of its own kind. Both needed rules
-for how `--inject` and `--link` interact. With `jo.main` as the only target,
-the implementation is found as it is today and no such rules are needed.
+Fixing the target also keeps the options minimal. An option to select the
+target would need rules for how it interacts with `--link`, which names the
+implementation. With `jo.main` as the only target, the implementation is
+found as it is today and no such rules are needed.
 
 The rules are written for a general `d`, and other targets can be added by
 extending the binding syntax, as sketched under
