@@ -318,7 +318,7 @@ cannot name it. A capability from a second library is one more `--provide`.
 ### Why attach injection to a deferred function?
 
 Jo has no special entry point. `jo.main` is an ordinary deferred function that
-the backend happens to call. Deferred functions are already the place where a
+the runtime calls. Deferred functions are already the place where a
 build wires a program together, so injection belongs there too.
 
 Calls to a deferred function go through the deferred symbol, so no call sites
