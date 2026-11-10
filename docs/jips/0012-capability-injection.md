@@ -148,6 +148,15 @@ rules do not apply.
 The wrapper is generated at link time. A factory may therefore live in a link
 library that application code cannot import.
 
+This is what makes `--internal` meaningful. The conformance check only stops
+the implementation from receiving an internal parameter. It does not stop
+the implementation from calling the factory itself, which would yield the
+same authority. A factory such as `fs.Root` creates authority from nothing,
+so it uses the FFI, so it lives in a library compiled with FFI enabled,
+which the application cannot import. That is the existing
+[two-world separation](../security/two-worlds.md), and injection relies on
+it without adding to it.
+
 ### Literals
 
 The value of a binding may be a Jo literal instead of a factory. The literal
