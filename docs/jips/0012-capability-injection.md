@@ -121,8 +121,7 @@ as a file system, and some are plain configuration, such as a repository name.
 
 ### Factories
 
-A factory is a function that takes no arguments, written with or without an
-empty parameter list, and has no type parameters. Its result type must conform
+A factory is a function that takes no arguments and has no type parameters. Its result type must conform
 to the type of the context parameter it provides. It may receive context
 parameters, which are satisfied by other bindings or by the context parameters
 of `d`:
