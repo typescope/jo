@@ -184,13 +184,17 @@ when the factory of `p` receives `q` and `q` is in `P`. The graph must be
 acyclic. Every context parameter a factory receives must be either in `P` or
 among the context parameters of `d`.
 
-A binding may rebind a context parameter of `d`. Its factory then receives the
-outer value, as the right-hand side of `with p = f(p) in ...` does, while
-every other factory that receives `p`, and `impl(d)`, see the new value. A
-factory that receives the parameter it binds does not depend on its own
-binding, so this introduces no cycle. For example, a factory that receives
-`IO.stdout` and returns a function that prefixes each line before writing it
-can be bound to `IO.stdout` itself.
+A `--provide` binding may rebind a context parameter of `d`. Its factory then
+receives the outer value, as the right-hand side of `with p = f(p) in ...`
+does, while every other factory that receives `p`, and `impl(d)`, see the new
+value. A factory that receives the parameter it binds does not depend on its
+own binding, so this introduces no cycle. For example, a factory that
+receives `IO.stdout` and returns a function that prefixes each line before
+writing it can be bound to `IO.stdout` itself.
+
+An `--internal` binding may not rebind a context parameter of `d`. The
+implementation of `d` may use every parameter `d` declares, so an internal
+rebinding could not keep its value from the implementation.
 
 Each binding is instantiated at most once per invocation of `d`, in
 topological order. The order among independent bindings is unspecified.
