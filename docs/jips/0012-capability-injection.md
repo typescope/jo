@@ -145,9 +145,6 @@ infers.
 The paths in bindings are resolved as the paths in `--link` are. Visibility
 rules do not apply.
 
-A factory may be a deferred function. It then resolves through the ordinary
-link rules, so the implementation of a capability can be chosen with `--link`.
-
 The wrapper is generated at link time. A factory may therefore live in a link
 library that application code cannot import.
 
