@@ -1502,7 +1502,7 @@ without a rebuild:
 
 | File | Change | Lines added, removed |
 |---|---|---|
-| `Regions.jo` | `collectLoop`, `mark`, `pack` shared with a close, `sizeOf`, `requested` in `alloc` and `allocResult`, `requested`, `loopStart`, stress modes, `spreadEscapes` and `lowestPromotion` shared with a close, stats, hint rewrites | 314, 46 |
+| `Regions.jo` | `collectLoop`, `mark`, `pack` shared with a close, `sizeOf`, `requested` in `alloc` and `allocResult`, `requested`, `loopStart`, stress modes, `spreadEscapes` and `lowestPromotion` shared with a close, stats, hint rewrites | 330, 114 |
 | `Platform.jo` | counters, `JO_LOOP_COLLECT` | 35, 4 |
 | `CodeGen.scala` | no exclusion of the entry function, function 0 renamed, `@gc.sizes`, null slots, check and slow blocks, held operands, assertions, flag | 168, 31 |
 | `LoopRoots.scala` | new: the operand rewrite `LoopOperands` and the read pass `LoopRoots` | 218 |
@@ -1630,9 +1630,12 @@ The cost has two sources.
 - The entry function now closes its region when it returns, like any region
   function, and the close frees every object it holds one by one. Before,
   the entry function ran in the runtime region, which the program never
-  frees. The large map frees 12 million objects at exit where it freed 1569
-  before, which is most of the step from 3.16 to 4.32 seconds: with `free`
-  stubbed out, the gap mostly goes. This is the price of the entry function
+  frees. The program that keeps the large map until exit frees about 21
+  million objects where it freed 3 million before, which is most of the step
+  from 3.16 to 4.32 seconds. The program that updates the map frees 12
+  million objects at exit where it freed 1569 before. For that program and
+  for the server and the live list, the gap mostly goes when `free` is
+  stubbed out. This is the price of the entry function
   being ordinary. A special case that skips the frees of its region would
   bring back the difference between the entry function and other functions,
   which this design removes.
