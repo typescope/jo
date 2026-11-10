@@ -1,0 +1,11 @@
+// options: --provide Test.a=- --provide Test.b=
+
+// A sign without digits and an empty value are neither a path nor a literal.
+
+namespace Test
+
+param a: Int
+param b: Int
+
+def main: Unit receives IO.stdout, a, b =
+  println(a + b)

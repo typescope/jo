@@ -1,0 +1,10 @@
+// options: --provide Test.half=2
+
+// An integer literal is typed as Float by the expected type, as in source.
+
+namespace Test
+
+param half: Float
+
+def main: Unit receives IO.stdout, half =
+  println(half + 0.5)

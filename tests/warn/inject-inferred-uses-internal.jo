@@ -1,0 +1,12 @@
+// options: --internal Test.secret=7
+
+// The inferred receives clause of main pulls in an internal parameter
+// through a helper function.
+
+namespace Test
+
+param secret: Int
+
+def helper: Int = secret + 1
+
+def main = println helper

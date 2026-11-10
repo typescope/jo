@@ -1,0 +1,11 @@
+// options: --provide Test.text="one\ntwo\\three\u{41}"
+
+// A string literal is read by the lexer, so a newline, an escaped backslash,
+// and a unicode escape in the middle of the value are decoded.
+
+namespace Test
+
+param text: String
+
+def main: Unit receives IO.stdout, text =
+  println text

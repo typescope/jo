@@ -1,0 +1,19 @@
+// options: --provide Test.base=Test.Base --provide Test.double=Test.Double
+
+// A provided parameter is visible to factories as well as to main, and
+// both see the same instance.
+
+namespace Test
+
+param base: Int
+param double: Int
+
+def Base(): Int receives IO.stdout =
+  println "base"
+  10
+
+def Double(): Int receives base = base * 2
+
+def main: Unit receives IO.stdout, base, double =
+  println base
+  println double
