@@ -365,10 +365,6 @@ literals. Binding literals to context parameters reuses an existing
 mechanism. Configuration is named, typed by its parameter declaration, and
 visible in the signature of every factory that reads it.
 
-Reading the literal with Jo's own lexer and typing rules avoids a second
-grammar. The set of bindable types is the set of types with a literal form,
-and a value means what it would mean in source.
-
 The cost is that one parameter has one value per injection. Two instances of a
 factory cannot read different values from the same parameter. Libraries can
 declare distinct parameters when they need distinct configuration.
