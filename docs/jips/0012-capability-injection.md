@@ -454,7 +454,7 @@ receive more, so the comment must be updated.
 ## Related documentation
 
 - [Context Parameters](../language/definitions/context-parameters.md), for
-  `param`, `with`, `receives`, and `allow`
+  `param`, `with`, and `receives`
 - [Deferred Functions](../language/definitions/deferred-functions.md), for
   `defer def` and `--link`
 - [Build Spec Reference](../usage/reference/build-spec.md), for `links`,
