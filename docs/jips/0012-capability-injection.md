@@ -177,27 +177,24 @@ time from a context parameter that grants access to the environment.
 ### The binding graph
 
 Let `P` be the set of context parameters with a binding. Each parameter in `P`
-is bound exactly once.
+is bound exactly once. Every context parameter a factory receives must be
+either in `P` or among the context parameters of `d`.
+
+Factories receive the context parameters of `d` at their outer values, as the
+right-hand sides of a `with` are evaluated in the enclosing scope. They
+receive every other bound parameter at its bound value.
 
 The bindings form a graph. The binding of `p` depends on the binding of `q`
-when the factory of `p` receives `q` and `q` is in `P`. The graph must be
-acyclic. Every context parameter a factory receives must be either in `P` or
-among the context parameters of `d`.
+when the factory of `p` receives `q` and `q` is in `P` but not among the
+context parameters of `d`. The graph must be acyclic. In particular, a
+factory that receives the parameter it binds forms a cycle unless that
+parameter is a context parameter of `d`, in which case it receives the outer
+value.
 
-A `--provide` binding may rebind a context parameter of `d`. Its factory then
-receives the outer value, as the right-hand side of `with p = f(p) in ...`
-does, while every other factory that receives `p`, and `impl(d)`, see the new
-value. For example, a factory that receives `IO.stdout` and returns a
-function that prefixes each line before writing it can be bound to
-`IO.stdout` itself.
-
-This is the one exception to the dependency rule: the binding of a context
-parameter of `d` does not depend on itself. A factory that receives the
-parameter it binds when that parameter is not a context parameter of `d` has
-no outer value to receive, so the dependency stands and the binding is
-rejected as a cycle. The exception covers only the direct self-dependency. A
-factory that receives its own parameter through another binding forms a
-cycle in the ordinary way.
+A `--provide` binding may therefore rebind a context parameter of `d`. For
+example, a factory that receives `IO.stdout` and returns a function that
+prefixes each line before writing it can be bound to `IO.stdout` itself. The
+rebinding is seen by `impl(d)` only, since factories receive the outer value.
 
 An `--internal` binding may not rebind a context parameter of `d`. The
 implementation of `d` may use every parameter `d` declares, so an internal
