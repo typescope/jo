@@ -241,7 +241,7 @@ def main$injected: Unit receives IO.stdout, IO.stderr, IO.args =
       with gh.repo = "typescope/jo" in
         with gh.client = gh.GitHub() in
           with IO.stdout = log.Prefixed() in
-            app.main
+            app.main()
 ```
 
 Because no context parameter of `d` is rebound until the second layer, every
