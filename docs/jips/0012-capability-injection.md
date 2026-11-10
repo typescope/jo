@@ -218,8 +218,10 @@ An `--internal` binding may not rebind a context parameter of `d`. The
 implementation of `d` may use every parameter `d` declares, so an internal
 rebinding could not keep its value from the implementation.
 
-Each binding is instantiated at most once per invocation of `d`, in
-topological order. The order among independent bindings is unspecified.
+On every invocation of `d`, each binding is instantiated exactly once, in
+topological order, before `impl(d)` runs. The order among independent
+bindings is unspecified. An error raised while instantiating a binding
+propagates out of `d`, and neither the remaining bindings nor `impl(d)` run.
 
 ### The generated wrapper
 
