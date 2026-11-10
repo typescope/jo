@@ -161,8 +161,8 @@ when the factory of `p` receives `q` and `q` is in `P`. The graph must be
 acyclic. Every context parameter a factory receives must be either in `P` or
 among the context parameters of `d`.
 
-Bindings are instantiated in topological order. Ties are broken by the order
-of the options on the command line.
+Bindings are instantiated in topological order. The order among independent
+bindings is unspecified.
 
 Each binding is instantiated exactly once per invocation of `d`. Two factories
 that receive the same parameter see the same value.
@@ -448,9 +448,8 @@ receive more, so the comment must be updated.
   "gh.repo" = '"typescope/jo"'
   ```
 
-  Such a table would have to settle the order of entries, since TOML tables
-  are unordered, and the quoting of dotted keys, which TOML otherwise reads as
-  nested tables.
+  Such a table would have to settle the quoting of dotted keys, which TOML
+  otherwise reads as nested tables.
 
 ## Related documentation
 
