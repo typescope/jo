@@ -85,7 +85,8 @@ parameter's type, or a Jo literal: a boolean, a number, a character, or a
 single-line string without interpolation, such as `'gh.repo="typescope/jo"'`.
 The compiler instantiates every binding once, in dependency order, before
 `main` runs. A provided parameter may be received by `main`, an internal one
-only by factories. See JIP 0012 for the full rules.
+only by factories. See [Entry Point](../../language/syntax/structure-and-convention.md#entry-point)
+for the full rules.
 
 ## Compiler Development Options
 

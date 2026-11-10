@@ -1,5 +1,5 @@
 #!/bin/bash
-# Capability injection (JIP 0012) with a factory in a link library: the
+# Capability injection with a factory in a link library: the
 # runtime library is passed with --link-lib, so the application cannot import
 # it, while --provide and --internal resolve the factory and its configuration
 # at link time.

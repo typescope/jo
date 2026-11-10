@@ -1,5 +1,5 @@
 #!/bin/bash
-# Capability injection (JIP 0012) declared in jo.toml: --provide and
+# Capability injection declared in jo.toml: --provide and
 # --internal travel through compile-options, with a TOML literal string
 # carrying a Jo string literal without escapes. The build tool must not pass
 # them to the library stage that precedes the app stage.
