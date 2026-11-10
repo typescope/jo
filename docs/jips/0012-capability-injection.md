@@ -142,8 +142,8 @@ read-only view. The context parameters of a factory are those it declares in
 its `receives` clause or, when the clause is omitted, those the compiler
 infers.
 
-Factories and the context parameters named in bindings must be accessible
-from the linking context. Naming a `private` definition is an error.
+The paths in bindings are resolved as the paths in `--link` are. Visibility
+rules do not apply, since the generated wrapper belongs to no namespace.
 
 A factory may be a deferred function. It then resolves through the ordinary
 link rules, so the implementation of a capability can be chosen with `--link`.
