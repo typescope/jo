@@ -143,7 +143,7 @@ its `receives` clause or, when the clause is omitted, those the compiler
 infers.
 
 The paths in bindings are resolved as the paths in `--link` are. Visibility
-rules do not apply, since the generated wrapper belongs to no namespace.
+rules do not apply.
 
 A factory may be a deferred function. It then resolves through the ordinary
 link rules, so the implementation of a capability can be chosen with `--link`.
