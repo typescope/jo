@@ -164,8 +164,7 @@ among the context parameters of `d`.
 Bindings are instantiated in topological order. The order among independent
 bindings is unspecified.
 
-Each binding is instantiated exactly once per invocation of `d`. Two factories
-that receive the same parameter see the same value.
+Each binding is instantiated exactly once per invocation of `d`.
 
 ### The generated wrapper
 
