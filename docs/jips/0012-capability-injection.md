@@ -161,7 +161,7 @@ when the factory of `p` receives `q` and `q` is in `P`. The graph must be
 acyclic. Every context parameter a factory receives must be either in `P` or
 among the context parameters of `d`.
 
-Each binding is instantiated exactly once per invocation of `d`, in
+Each binding is instantiated at most once per invocation of `d`, in
 topological order. The order among independent bindings is unspecified.
 
 ### The generated wrapper
@@ -183,8 +183,7 @@ def main$injected: Unit receives IO.stdout, IO.stderr, IO.args =
     allow fs.readonly, gh.client, IO.stdout, IO.stderr, IO.args in app.main
 ```
 
-The arguments of `d` are passed to `impl(d)` unchanged. Every binding is
-instantiated, whether or not anything depends on it.
+The arguments of `d` are passed to `impl(d)` unchanged.
 
 Factories run outside the `allow` block, so a factory may receive an internal
 parameter. In the example, `fs.ReadOnly` receives `fs.root`, while `app.main`
