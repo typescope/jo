@@ -11,9 +11,10 @@ title: Capability injection
 
 ## Summary
 
-Let the build wire capabilities into one deferred function. The compiler
-creates each capability with a factory function or a literal value, then calls
-the implementation of the deferred function with those capabilities in scope:
+Today, a program that needs capabilities beyond those of `jo.main` must write
+its own entry point to create them. This proposal lets the build do that
+instead. Each compiler option below names a context parameter and says how to
+create its value, either by calling a factory function or from a literal:
 
 ```bash
 jo compile --python app.jo \
@@ -23,9 +24,11 @@ jo compile --python app.jo \
   --provide  gh.client=gh.GitHub
 ```
 
-`--provide` makes a capability available to the implementation. `--internal`
-makes it available to the factories only, so that a broad capability can be
-narrowed before it reaches the implementation.
+The compiler creates the values, binds them, and calls the program's `main`
+with the bindings in scope. A `--provide` parameter is visible to `main`. An
+`--internal` parameter is visible only to the factories. In the example,
+`main` may use the read-only file system but not the root file system it was
+built from.
 
 The proposal is purely additive. Programs and builds that do not use the new
 options are unaffected.
