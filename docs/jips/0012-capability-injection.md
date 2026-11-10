@@ -125,8 +125,23 @@ A factory is a function that takes no arguments, written with or without an
 empty parameter list, and has no type parameters. Its result type must conform
 to the type of the context parameter it provides. It may receive context
 parameters, which are satisfied by other bindings or by the context parameters
-of `d`. The context parameters of a factory are those it declares in its
-`receives` clause or, when the clause is omitted, those the compiler infers.
+of `d`:
+
+```jo
+namespace fs
+
+param root: FileSystem
+param readonly: ReadOnlyFileSystem
+
+def Root(): FileSystem = new LocalFileSystem()
+def ReadOnly(): ReadOnlyFileSystem receives root = new ReadOnlyView(root)
+```
+
+`Root` creates a capability from nothing. `ReadOnly` receives `root`, which
+the binding `--internal fs.root=fs.Root` satisfies, and narrows it to a
+read-only view. The context parameters of a factory are those it declares in
+its `receives` clause or, when the clause is omitted, those the compiler
+infers.
 
 Factories and the context parameters named in bindings must be accessible
 from the linking context. Naming a `private` definition is an error.
