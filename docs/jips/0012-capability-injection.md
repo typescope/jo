@@ -77,7 +77,8 @@ in the program but never reaches the untrusted code.
 
 The glue carries no information beyond *which factory creates which
 capability* and *which capabilities the application may use*. This proposal
-lets the build state exactly that.
+introduces a compiler feature that lets a build specify the capabilities as
+compilation options. The compiler synthesizes the glue.
 
 ## Proposal
 
