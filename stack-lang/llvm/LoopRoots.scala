@@ -6,12 +6,18 @@ import sast.Symbols.*
 
 import scala.collection.mutable
 
-/** The direct callee of a call, as CodeGen tells it */
+/** The direct callee of a call, as CodeGen tells it
+  *
+  * Only a function symbol is a direct callee. A local holding a function, such
+  * as the hoisted function of an indirect call, is called indirectly.
+  */
 def directCallee(app: Apply): Option[Symbol] =
-  app.funSymbol.orElse:
+  val sym = app.funSymbol.orElse:
     app.fun match
-      case Encoded(Ident(sym)) if sym.is(Flags.Fun) => Some(sym)
+      case Encoded(Ident(sym)) => Some(sym)
       case _ => None
+
+  sym.filter(_.is(Flags.Fun))
 
 /** Whether a word contains a loop */
 class LoopFinder:
@@ -36,12 +42,15 @@ class LoopFinder:
 
 /** Operands computed before a loop, see "Collecting a region in a loop" in GC.md
   *
-  * CodeGen holds the earlier operands of a call, a record literal and a field
-  * assignment in LLVM registers while it compiles the later ones. A loop
-  * collection in a later operand would not see them. This rewrite assigns
-  * every operand up to the last one that contains a loop to a fresh local,
-  * so the word reads the locals after the loop, where they are roots. A
-  * record is allocated after its fields then.
+  * CodeGen holds the earlier operands of a call and a field assignment in
+  * LLVM registers while it compiles the later ones. A loop collection in a
+  * later operand would not see them. This rewrite assigns every operand up to
+  * the last one that contains a loop to a fresh local, so the word reads the
+  * locals after the loop, where they are roots.
+  *
+  * A record literal comes only from `new`, whose fields are constants, and
+  * from a closure, whose `underlying` is such a `new`, so its fields never
+  * contain a loop. CodeGen asserts that it holds no heap operand at a loop.
   *
   * Constants are not hoisted, since they hold no heap reference. An operand
   * of type `void` or `Bottom` is evaluated as a statement in its place.
@@ -76,20 +85,6 @@ class LoopOperands(fdef: FunDef, runtime: LLVMRuntime, hasLoop: LoopFinder)(usin
           val (args2, autos2) = all2.splitAt(app.args.size)
           val app2 = Apply(fun2, args2, autos2)(app.span, app.isPartialApply)
           Block((stats :+ app2).toList)(app.span)
-
-      case word => word
-
-  override def transformRecord(rc: RecordLit)(using Unit): Word =
-    super.transformRecord(rc) match
-      case rec: RecordLit =>
-        val values = rec.args.map(_._2)
-        val last = values.lastIndexWhere(hasLoop(_))
-        if last < 0 then rec
-        else
-          val stats = new mutable.ArrayBuffer[Word]
-          val values2 = hoist(values, last, stats)
-          val rec2 = RecordLit(rec.args.map(_._1).zip(values2))(rec.span)
-          Block((stats :+ rec2).toList)(rec.span)
 
       case word => word
 

@@ -74,7 +74,7 @@ private section Regions
   @intrinsic
   private def sizeTable: Addr = ...
 
-  // Must equal `ArraySize` and `BytesSize` in `sizeTableGlobal` of
+  // Must equal `ArraySize` and `BytesSize` in `objectSize` of
   // `stack-lang/llvm/CodeGen.scala`, which writes the table
   private def arraySize: Int = -1
 
@@ -434,7 +434,7 @@ private section Regions
       st.loopMarked = st.loopMarked + marked
 
       // pass 3: free the rest, which clears the marks
-      kept = sweepInPlace(r, num)
+      kept = pack(r, num, parentOf r, true)
 
     // nothing in the region escapes now, and no object has a level above `num`
     setHi(r, num)
@@ -503,14 +503,20 @@ private section Regions
     end
     count
 
-  // Pass 3 of `collectLoop`: keep the marked objects of the region `r` at
-  // level `num`, packed at the front of its segments with the partly filled
-  // one first, and clear their marks. Free the objects only `r` requires. An
-  // object reached from an older region goes to the region owning its `req`,
-  // also when that is the parent, since `r` stays open. Returns the bytes
-  // kept.
-  private def sweepInPlace(r: Addr, num: Int): Long =
-    val p = parentOf r
+  // Free the dead objects of the region `r` at level `num` and pack the
+  // survivors at the front of its segments, the partly filled one first. An
+  // object required by an older region than the survivors' goes directly to
+  // the region owning its level. A segment holds at most `segCapacity`
+  // objects, so the writer never passes the reader. Returns the bytes of the
+  // survivors in place, 0 otherwise.
+  //
+  // In place, for pass 3 of `collectLoop`, the survivors are the marked
+  // objects, which stay in `r`, and their marks are cleared. An object reached
+  // from an older region moves out, also when the parent owns its level, since
+  // `r` stays open. Otherwise, for a close into the parent at level `p`, the
+  // survivors are the objects whose `req` the parent owns, and the caller
+  // hands them to the parent.
+  private def pack(r: Addr, num: Int, p: Int, inPlace: Bool): Long =
     var wprev = nullAddr
     var wseg = firstSeg r
     var w = 0
@@ -526,9 +532,14 @@ private section Regions
       while i < n do
         val o = readAddr (segEntry seg i)
         val req = reqOf o
-        if (req & markBit) != 0 then
-          setGcHalf(o, normal(num, num))
-          kept = kept + (sizeOf o)
+        val survives = if inPlace then (req & markBit) != 0 else req >= p && req < num
+        if survives then
+          if inPlace then
+            setGcHalf(o, normal(num, num))
+            kept = kept + (sizeOf o)
+          else
+            setGcHalf(o, normal(p, req))
+
           if w == segCapacity then
             setSegCount(wseg, w)
             wprev = wseg
@@ -542,10 +553,14 @@ private section Regions
           LibC.free o
           dead = dead + 1
         else
+          // goes directly to the region owning its level. A lower level is
+          // owned by the last owner or one of its ancestors.
           if req != ownerReq then
             owner = ownerOf(req, if req < ownerReq then owner else p)
             ownerReq = req
 
+          // the only allocation of cleanup: `append` takes a segment when
+          // the first one of `owner` is full
           setGcHalf(o, normal(owner, req))
           append(descOf owner, o)
 
@@ -556,7 +571,7 @@ private section Regions
 
     val st = state
     st.freed = st.freed + dead.toLong
-    st.loopFreed = st.loopFreed + dead.toLong
+    if inPlace then st.loopFreed = st.loopFreed + dead.toLong
 
     // Release the segments after the survivors
     setSegCount(wseg, w)
@@ -709,75 +724,8 @@ private section Regions
   // region goes directly to it, so the closes in between do not visit it again.
   private def sweep(r: Addr, num: Int, p: Int, parent: Addr): Unit =
     spreadEscapes(r, num)
-
-    // Free dead objects and pack survivors at the front. A segment holds at
-    // most `segCapacity` objects, so the writer never passes the reader.
-    var wprev = nullAddr
-    var wseg = firstSeg r
-    var w = 0
-    var kept = 1
-    var ownerReq = p
-    var owner = p
-    var dead = 0
-    var seg = firstSeg r
-    while !(isNull seg) do
-      val n = segCount seg
-      var i = 0
-      while i < n do
-        val o = readAddr (segEntry seg i)
-        val req = reqOf o
-        if req >= num then
-          LibC.free o
-          dead = dead + 1
-        else if req < p then
-          // goes directly to the region owning its level. A lower level is
-          // owned by the last owner or one of its ancestors.
-          if req != ownerReq then
-            owner = ownerOf(req, if req < ownerReq then owner else p)
-            ownerReq = req
-
-          // the only allocation of cleanup: `append` takes a segment when
-          // the first one of `owner` is full
-          setGcHalf(o, normal(owner, req))
-          append(descOf owner, o)
-        else
-          setGcHalf(o, normal(p, req))
-          if w == segCapacity then
-            setSegCount(wseg, w)
-            wprev = wseg
-            wseg = segNext wseg
-            w = 0
-            kept = kept + 1
-
-          writeAddr (segEntry wseg w) o
-          w = w + 1
-
-        i = i + 1
-      end
-      seg = segNext seg
-    end
-
-    state.freed = state.freed + dead.toLong
-
-    // Release the segments after the survivors
-    setSegCount(wseg, w)
-    var rest = segNext wseg
-    writeAddr wseg nullAddr
-    while !(isNull rest) do
-      val next = segNext rest
-      releaseSegment rest
-      rest = next
-    end
-
-    // Hand the survivors to the parent, the partly filled segment first
-    if w == 0 then
-      releaseSegment wseg
-    else if isNull wprev then
-      give(parent, wseg, wseg, 1)
-    else
-      writeAddr wprev nullAddr
-      writeAddr wseg (firstSeg r)
-      give(parent, wseg, wprev, kept)
+    val _ = pack(r, num, p, false)
+    if !(isNull (firstSeg r)) then give(parent, firstSeg r, lastSeg r, segsOf r)
 
   // The level of the open region owning the level `l`, an ancestor of the
   // region at level `p` or that region

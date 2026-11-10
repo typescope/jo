@@ -1,8 +1,9 @@
 namespace gcloopoperands
 
-// Loops inside operands: the second argument of a call, of a runtime
-// function and of an indirect call, and the value of a field assignment. The
-// operands computed before the loop must survive its collections.
+// Loops inside operands: the second argument of a call, the third argument
+// of a runtime function, and the value of a field assignment. The operands
+// computed before the loop must survive its collections. An indirect call
+// with a loop in its argument is in `loop-indirect.jo`.
 
 class Box(value: Int)
 
@@ -57,7 +58,7 @@ def main(): Unit =
 
   println: arr[0] + " " + arr[1]
 
-  // in an argument of an indirect call
+  // an indirect call whose argument calls a function with a loop
   val f: (Box, Box) => Int = (x, y) => x.value + y.value
   val g = if a.value > 0 then f else (x, y) => 0
   val q = g:
