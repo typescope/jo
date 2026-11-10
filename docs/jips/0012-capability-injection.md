@@ -369,24 +369,6 @@ The cost is that one parameter has one value per injection. Two instances of a
 factory cannot read different values from the same parameter. Libraries can
 declare distinct parameters when they need distinct configuration.
 
-### Why a role per binding?
-
-Authority narrowing requires creating a capability that the target must not
-see. In the summary example, `fs.ReadOnly` receives `fs.root`, but `app.main`
-may use only `fs.readonly`, and the conformance check guarantees that no
-helper function reaches `fs.root` on its behalf, since the context parameters
-of `app.main` include those of every function it calls.
-
-A separate list of the parameters the target may use would repeat the name of
-nearly every binding, since hiding is the rare case. A separate list of hidden
-parameters would be short, but a binding left off it would be visible by
-default, so a forgotten entry would widen authority rather than narrow it.
-
-A role on each binding has neither problem. Every binding states whether the
-target may use it, so there is no list to keep in step with the bindings and
-no default to forget. The rare case, `--internal`, is marked exactly where the
-narrowing happens.
-
 ### Why not a Jo snippet?
 
 A Jo snippet that can contain expressions is ordinary code, and ordinary code
