@@ -100,7 +100,7 @@ The specification consists of a set of **bindings**, one per compiler option:
 
 Each binding binds one context parameter to a value, which is either the
 result of a **factory** function, such as `fs.Root`, or a **literal**, such as
-`"typescope/jo"`, and gives the parameter one of two roles:
+`"typescope/jo"`, and is either provided or internal:
 
 - a **provided** parameter is available to the implementation of `d` and to
   the factories,

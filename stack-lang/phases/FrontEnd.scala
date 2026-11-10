@@ -47,9 +47,7 @@ object FrontEnd:
         pickle.Decoder.loadPackage(pkg, lazyLibs) <| "link " + pkg
 
       val injection = Injection.plan(Config.injectBindings)
-      val roles = injection.map(_.roles).getOrElse(Injection.Roles.empty)
-
-      val linkData = new LinkRewriter.LinkData(defaultMappings, roles)
+      val linkData = new LinkRewriter.LinkData(defaultMappings, injection)
       val implMap = detectMain(units, linkData.addUserMappings(Config.linkMap.value))
 
       val runtimeRoots = List("jo.runtime", "jo.py.runtime", "jo.rb.runtime").flatMap(defn.resolveContainerOpt)
@@ -57,15 +55,15 @@ object FrontEnd:
         runtimeRoots.exists(unit.owner.containedIn)
 
       if !rp.hasErrors then
-        injection.foreach(_.warnUnused())
+        injection.warnUnused()
 
       val libUnits = lazyLibs.force()
 
       // Under injection, `jo.main` resolves to a generated wrapper around its implementation
       val (symbolMap, allUnits) =
-        (injection, implMap.get(defn.main)) match
-          case (Some(plan), Some(impl)) if plan.valid =>
-            val wrapper = plan.synthesize(impl)
+        implMap.get(defn.main) match
+          case Some(impl) if !injection.isEmpty && injection.valid =>
+            val wrapper = injection.synthesize(impl)
             (implMap + (defn.main -> wrapper.symbol), Injection.addWrapper(units ++ libUnits, impl, wrapper))
 
           case _ =>

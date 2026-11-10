@@ -15,7 +15,7 @@ import typing.NumericTyper
 import typing.Inference.TargetType
 
 import reporting.Reporter
-import reporting.Config.{ InjectBinding, InjectRole, isValidPath }
+import reporting.Config.{ InjectBinding, isValidPath }
 import reporting.Diagnostics.{ Diagnostic, Kind, ReportItem, UnpositionedReportItem }
 
 import common.StringUtil
@@ -44,47 +44,63 @@ object Injection:
   class Binding(val spec: InjectBinding, val param: Symbol, val value: Value):
     def option: String = spec.option
 
-    def isInternal: Boolean = spec.role == InjectRole.Internal
+    def isInternal: Boolean = spec.internal
 
     /** The bindings whose values this binding reads, set when the graph is built */
     var deps: List[Binding] = Nil
 
-  /** The bound parameters by role
+  /** An injection specification
     *
-    * The roles relax the conformance check of the implementation of the
-    * target: it may receive a provided parameter in addition to the
-    * parameters the target declares.
+    * The plan serves two purposes. The link step checks the implementation
+    * of the target against it: the implementation may receive a provided
+    * parameter in addition to the parameters the target declares, but no
+    * internal one. When the plan is valid, the link step also synthesizes
+    * the wrapper from it.
+    *
+    * @param target   the deferred function the bindings attach to
+    * @param bindings the valid bindings in instantiation order
+    * @param valid    whether every binding is valid. When a binding is in
+    *                 error, the implementation of the target is not checked,
+    *                 since no program is produced.
+    * @param unreceived whether no factory receives a parameter
     */
-  class Roles(val provided: Set[Symbol], val internal: Set[Symbol]):
-    def isEmpty: Boolean = provided.isEmpty && internal.isEmpty
+  class Plan(val target: Symbol, val bindings: List[Binding], val valid: Boolean, unreceived: Symbol => Boolean):
+    def isEmpty: Boolean = bindings.isEmpty
 
-    /** Whether `implType` conforms to `targetType` under the relaxed rule */
-    def conforms(implType: Type, targetType: Type)(using Definitions): Boolean =
-      Subtyping.conforms(dropReceives(implType, provided), targetType)
+    lazy val provided: Set[Symbol] = bindings.filterNot(_.isInternal).map(_.param).toSet
+    lazy val internal: Set[Symbol] = bindings.filter(_.isInternal).map(_.param).toSet
+
+    /** Whether `implType` conforms to `deferredType`, the type of `deferred`.
+      * The rule is relaxed for the implementation of the target.
+      */
+    def conforms(deferred: Symbol, implType: Type, deferredType: Type)(using Definitions): Boolean =
+      if deferred != target then Subtyping.conforms(implType, deferredType)
+      else if !valid then true
+      else Subtyping.conforms(dropReceives(implType, provided), deferredType)
+
+    /** Report an error for each internal parameter that `impl`, the
+      * implementation of `deferred`, receives. Returns whether any was reported.
+      */
+    def reportInternal(deferred: Symbol, impl: Symbol)(using defn: Definitions, rp: Reporter): Boolean =
+      val received = if deferred == target && valid then internalReceived(impl.tpe, deferred.tpe) else Nil
+
+      for param <- received do
+        rp.error(s"${deferred.fullName} implementation ${impl.fullName} receives internal parameter ${param.fullName}")
+
+      received.nonEmpty
 
     /** The internal parameters received by the implementation, when they are
       * the only reason it does not conform to the target
       */
-    def internalReceived(implType: Type, targetType: Type)(using Definitions): List[Symbol] =
+    private def internalReceived(implType: Type, targetType: Type)(using Definitions): List[Symbol] =
       implType match
         case procType: ProcType
         if internal.nonEmpty
-           && !conforms(implType, targetType)
+           && !Subtyping.conforms(dropReceives(implType, provided), targetType)
            && Subtyping.conforms(dropReceives(implType, provided ++ internal), targetType) =>
           procType.receives.filter(internal.contains)
 
         case _ => Nil
-
-    /** Report an error for each internal parameter that `impl`, the
-      * implementation of `target`, receives. Returns whether any was reported.
-      */
-    def reportInternal(target: Symbol, impl: Symbol)(using Definitions, rp: Reporter): Boolean =
-      val received = internalReceived(impl.tpe, target.tpe)
-
-      for param <- received do
-        rp.error(s"${target.fullName} implementation ${impl.fullName} receives internal parameter ${param.fullName}")
-
-      received.nonEmpty
 
     private def dropReceives(tpe: Type, params: Set[Symbol])(using Definitions): Type =
       tpe match
@@ -92,20 +108,6 @@ object Injection:
           procType.copy(receivesInfo = procType.receives.filterNot(params.contains))
 
         case _ => tpe
-
-  object Roles:
-    val empty: Roles = Roles(Set.empty, Set.empty)
-
-  /** A validated injection specification
-    *
-    * @param target   the deferred function the bindings attach to
-    * @param bindings the bindings in instantiation order
-    * @param roles    the roles of every bound parameter, including the parameters of erroneous bindings
-    * @param valid    whether every binding is free of errors
-    * @param unreceived whether no factory receives a parameter
-    */
-  class Plan
-      (val target: Symbol, val bindings: List[Binding], val roles: Roles, val valid: Boolean, unreceived: Symbol => Boolean):
 
     /** Warn about internal parameters that no factory receives
       *
@@ -174,12 +176,8 @@ object Injection:
     *
     * Every violation is an error that quotes the option. An internal
     * parameter no factory receives is a warning.
-    *
-    * @return None when there are no bindings
     */
-  def plan(specs: List[InjectBinding])(using defn: Definitions, rp: Reporter): Option[Plan] =
-    if specs.isEmpty then return None
-
+  def plan(specs: List[InjectBinding])(using defn: Definitions, rp: Reporter): Plan =
     val target = defn.main
     val targetReceives = target.tpe.asProcType.receives
 
@@ -212,15 +210,11 @@ object Injection:
               case None =>
                 declared(param) = spec
 
-                if spec.role == InjectRole.Internal && targetReceives.contains(param) then
+                if spec.internal && targetReceives.contains(param) then
                   fail(s"${spec.option}: a context parameter of ${target.fullName} cannot be internal")
                   None
                 else
                   Some((spec, param))
-
-    val roles =
-      val (internal, provided) = declared.partition((_, spec) => spec.role == InjectRole.Internal)
-      Roles(provided.keySet.toSet, internal.keySet.toSet)
 
     // 2. Resolve the values
     //
@@ -238,12 +232,9 @@ object Injection:
             fail(s"${spec.option}: expected a factory path or a literal")
             None
 
-        value match
-          case Some(value) => Some(Binding(spec, param, value))
+        if value.isEmpty then valid = false
 
-          case None =>
-            valid = false
-            None
+        value.map(Binding(spec, param, _))
 
     val bound = bindings.map(binding => binding.param -> binding).toMap
 
@@ -293,7 +284,7 @@ object Injection:
 
     for binding <- bindings if !state.contains(binding) do visit(binding)
 
-    Some(Plan(target, order.toList, roles, valid, unreceived = param => !received.contains(param)))
+    Plan(target, order.toList, valid, unreceived = param => !received.contains(param))
   end plan
 
   /** A literal starts with a digit, a minus sign or a quote, or is a boolean keyword */

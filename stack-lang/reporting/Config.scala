@@ -229,18 +229,14 @@ object Config:
   // Capability injection, see the Entry Point section of docs/language/syntax/structure-and-convention.md
   //
 
-  /** The role of an injected context parameter */
-  enum InjectRole:
-    case Provided, Internal
-
   /** A binding `p=e` from `--provide` or `--internal`, before resolution
     *
     * @param option the option as written, quoted in diagnostics
     */
-  case class InjectBinding(role: InjectRole, param: String, value: String, option: String)
+  case class InjectBinding(internal: Boolean, param: String, value: String, option: String)
 
   /** A repeatable option that binds a context parameter to a factory or a literal */
-  class InjectSetting(val flag: String, role: InjectRole) extends Setting[List[InjectBinding]]:
+  class InjectSetting(val flag: String, internal: Boolean) extends Setting[List[InjectBinding]]:
     def spec = OptionSpec.Multi
     def default = Nil
     def desc = s"e.g., $flag fs.readonly=fs.ReadOnly"
@@ -272,11 +268,11 @@ object Config:
           None
 
         else
-          Some(InjectBinding(role, param, value, option))
+          Some(InjectBinding(internal, param, value, option))
   end InjectSetting
 
-  val provideBindings: Setting[List[InjectBinding]] = InjectSetting("--provide", InjectRole.Provided)
-  val internalBindings: Setting[List[InjectBinding]] = InjectSetting("--internal", InjectRole.Internal)
+  val provideBindings: Setting[List[InjectBinding]] = InjectSetting("--provide", internal = false)
+  val internalBindings: Setting[List[InjectBinding]] = InjectSetting("--internal", internal = true)
 
   /** All injection bindings, provided ones first */
   def injectBindings(using Config): List[InjectBinding] =

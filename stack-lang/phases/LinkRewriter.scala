@@ -36,13 +36,13 @@ class LinkRewriter(linkMap: Map[Symbol, Symbol])(using defn: Definitions, rp: Re
 object LinkRewriter:
   /** Link mappings from the command line and the backend
     *
-    * @param roles the roles of injected parameters, which relax the
-    *              conformance check for the implementation of `jo.main`
+    * @param injection the injection plan, which relaxes the conformance
+    *                  check for the implementation of `jo.main`
     */
-  class LinkData(mappings: Map[String, String], roles: Injection.Roles = Injection.Roles.empty):
+  class LinkData(mappings: Map[String, String], injection: Injection.Plan):
 
     def resolve()(using Reporter, Definitions): Map[Symbol, Symbol] =
-      parseLinkMappings(mappings, roles)
+      parseLinkMappings(mappings, injection)
 
     def contains(path: String): Boolean = mappings.contains(path)
 
@@ -54,17 +54,17 @@ object LinkRewriter:
           case _ =>
       end for
 
-      new LinkData(mappings ++ userMappings, roles)
+      new LinkData(mappings ++ userMappings, injection)
 
   /** Parse link option strings and resolve to symbol mappings.
     *
     * @param linkStrings List of "source=target" strings
-    * @param roles       Roles of injected parameters, applied to the implementation of `jo.main`
+    * @param injection   The injection plan, applied to the implementation of `jo.main`
     *
     * @return Map from source symbols to target symbols, validated with subtype checking
     */
   def parseLinkMappings
-      (linkStrings: Map[String, String], roles: Injection.Roles = Injection.Roles.empty)
+      (linkStrings: Map[String, String], injection: Injection.Plan)
       (using defn: Definitions, rp: Reporter)
   : Map[Symbol, Symbol] =
     val validMappings = scala.collection.mutable.Map.empty[Symbol, Symbol]
@@ -94,11 +94,9 @@ object LinkRewriter:
             //
             // The implementation of `jo.main` may also receive the parameters
             // provided by injection, but no internal one.
-            val mainRoles = if sourceSym == defn.main then roles else Injection.Roles.empty
-
-            if mainRoles.reportInternal(sourceSym, targetSym) then
+            if injection.reportInternal(sourceSym, targetSym) then
               ()
-            else if !mainRoles.conforms(targetType, sourceType) then
+            else if !injection.conforms(sourceSym, targetType, sourceType) then
               rp.error(
                 s"Link type mismatch: $targetPath (${targetType.show}) is not a subtype of $sourcePath (${sourceType.show})"
               )
