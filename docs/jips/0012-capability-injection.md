@@ -181,12 +181,20 @@ time from a context parameter that grants access to the environment.
 ### The binding graph
 
 Let `P` be the set of context parameters with a binding. Each parameter in `P`
-is bound exactly once, and no parameter in `P` is a context parameter of `d`.
+is bound exactly once.
 
 The bindings form a graph. The binding of `p` depends on the binding of `q`
 when the factory of `p` receives `q` and `q` is in `P`. The graph must be
 acyclic. Every context parameter a factory receives must be either in `P` or
 among the context parameters of `d`.
+
+A binding may rebind a context parameter of `d`. Its factory then receives the
+outer value, as the right-hand side of `with p = f(p) in ...` does, while
+every other factory that receives `p`, and `impl(d)`, see the new value. A
+factory that receives the parameter it binds does not depend on its own
+binding, so this introduces no cycle. For example, a factory that receives
+`IO.stdout` and returns a function that prefixes each line before writing it
+can be bound to `IO.stdout` itself.
 
 Each binding is instantiated at most once per invocation of `d`, in
 topological order. The order among independent bindings is unspecified.
@@ -392,13 +400,6 @@ target may use it, so there is no list to keep in step with the bindings and
 no default to forget. The rare case, `--internal`, is marked exactly where the
 narrowing happens.
 
-### Why may a binding not rebind a parameter of `d`?
-
-If `P` could contain a context parameter of `d`, the factories and `impl(d)`
-could each see either the outer value or the injected one, and the
-specification would have to say which. Keeping the two sets disjoint avoids
-the question. Wrapping an existing capability is left to future work.
-
 ### Why not a Jo snippet?
 
 A Jo snippet that can contain expressions is ordinary code, and ordinary code
@@ -438,9 +439,6 @@ receive more, so the comment must be updated.
   `--provide SystemAPI.process@foo=SystemRuntime.Process`, with `@global`
   meaning every deferred function that receives the parameter. A binding
   without `@` would keep attaching to `jo.main`.
-- **Wrapping an existing capability.** A binding cannot currently rebind a
-  context parameter of `d`, for example to prefix everything written to
-  `IO.stdout`.
 - **Cleanup.** Factories that open resources have no disposal hook. A future
   proposal could close bindings in reverse topological order when `d`
   returns.
