@@ -161,10 +161,8 @@ when the factory of `p` receives `q` and `q` is in `P`. The graph must be
 acyclic. Every context parameter a factory receives must be either in `P` or
 among the context parameters of `d`.
 
-Bindings are instantiated in topological order. The order among independent
-bindings is unspecified.
-
-Each binding is instantiated exactly once per invocation of `d`.
+Each binding is instantiated exactly once per invocation of `d`, in
+topological order. The order among independent bindings is unspecified.
 
 ### The generated wrapper
 
