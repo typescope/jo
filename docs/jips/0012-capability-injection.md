@@ -93,6 +93,10 @@ function or a **literal**, and gives the parameter one of two roles:
   the factories,
 - an **internal** parameter is available to the factories only.
 
+The **authority** of the implementation, written `A` below, is the set of
+provided parameters together with the context parameters of `d`. It is
+everything the implementation may use.
+
 Normally, resolving `d` yields its implementation `impl(d)`: an explicit
 `--link` target, a default implementation, or, for `jo.main`, the
 automatically located `main`. With an injection specification, `d` instead
@@ -166,12 +170,9 @@ topological order. The order among independent bindings is unspecified.
 
 ### The generated wrapper
 
-Let `A`, the **authority** of the implementation, be the set of provided
-parameters together with the context parameters of `d`.
-
 The wrapper has the signature of `d`, including its type parameters. Its body
 instantiates the bindings in the order given above, then calls `impl(d)`
-inside `allow A`:
+inside `allow A`, where `A` is the authority defined in the overview:
 
 ```jo
 // conceptually, for the example in the summary
@@ -198,7 +199,7 @@ The wrapper is not visible to source code.
 
 Without injection, `impl(d)` must conform to the signature of `d`. With
 injection, `impl(d)` must conform to the signature of `d` with its `receives`
-clause replaced by `A`. This reuses the existing link check. The `allow` block
+clause replaced by the authority `A`. This reuses the existing link check. The `allow` block
 in the wrapper covers the remaining case, a transitive use of a parameter
 through a function whose context parameters are inferred.
 
