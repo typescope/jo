@@ -198,11 +198,10 @@ The wrapper is not visible to source code.
 ### Conformance
 
 Without injection, `impl(d)` must conform to the signature of `d`. With
-injection, `impl(d)` must conform to the signature of `d` with its `receives`
-clause replaced by the provided parameters together with the context
-parameters of `d`. This reuses the existing link check. The `allow` block
-in the wrapper covers the remaining case, a transitive use of a parameter
-through a function whose context parameters are inferred.
+injection, the rule for context parameters is relaxed: `impl(d)` may also
+receive any provided parameter. The context parameters of `impl(d)` are those
+it declares or, when the clause is omitted, those the compiler infers. The
+rest of the signature is checked as before.
 
 ### Command-line options
 
