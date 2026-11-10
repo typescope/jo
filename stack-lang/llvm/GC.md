@@ -878,6 +878,557 @@ result region until that region closes.
 Placing results is on under `--region-policy all`, and `--place-results` turns
 it on for the other policies.
 
+### Functions that only allocate their result
+
+Status: design, not implemented.
+
+A function whose every allocation goes to its result needs no region. Its
+region could only hold what it returns, so it opens none. It allocates the
+result directly where the result goes. This covers constructors, bridges
+that box a value, and small factory functions.
+
+#### The problem
+
+`jo.Range.RangeIterator$next$bridge`, the bridge of `Iterator[Int].next`,
+calls `enter`, boxes the `Int` with `boxInt` and calls `leave(box)`. The
+values of Sieve go up to 5000, above the shared boxes, so `boxInt`
+allocates. The region holds one object, the result, which escapes. The
+region of `sieve` holds the boxes of earlier iterations until its loop
+collects, so it has more than 8 segments, and every `leave` collects:
+`spreadEscapes`, `pack` and `give` for one object. Sieve does 10.6 million
+such collects, one per iteration of its `for` loop. In the measurements
+below, Sieve takes 2.17 s today and 1.42 s under
+`--region-policy scalar`, where the bridge opens no region.
+
+Constructors pay too. A constructor function such as `tree.Inner(children)`
+opens a region only to allocate its object with `allocResult` in the result
+region, and closes the empty region again. Every `new` through a
+constructor function costs an `enter` and a `leave`.
+
+#### The rule
+
+A function places its result without a region when all of these hold:
+
+- the policy would make it a region function, and `--region` does not name
+  it
+- results are placed, and it returns a pointer other than `Unit`
+- every allocation site in its body is placed: each record literal is
+  marked by the analysis of [Placing results](#placing-results), and so is
+  each call that may allocate
+
+The scan is the one of `Allocations.scala` with the placed sites left out.
+As there, a branch that ends in a call that never returns does not count,
+so a bounds check or an assertion does not make a constructor a region
+function. An indirect call is never placed under this rule alone.
+[Placing what is stored into the result](#placing-what-is-stored-into-the-result)
+makes a marked indirect call placed too.
+
+A marked call counts as placed whatever its callee. Where its objects go
+depends on the callee:
+
+- a callee that opens a region or places its result allocates its result at
+  the level passed to it, `l` below
+- a runtime function, like `boxInt`, `StringOps.+` or `RefArray.create`,
+  never opens a region or places, so it allocates in the current region,
+  which is now the caller's region
+
+So the function itself allocates nothing in a region of its own, but its
+result can end up in the caller's region rather than at `l`. Today the same
+objects land in the function's region and move to the caller's region when
+it closes. They end up in the same place, with one close less.
+
+Codegen represents `Unit` as a pointer (`llvmType` returns `void` only for
+the void type), so the rule names `Unit` explicitly. A `Unit` result has
+nothing to place, and a function that returns `Unit`, like the entry
+function or a callback, keeps its region.
+
+Under `scalar` and `none` the rule changes nothing: there a function that
+returns a pointer opens a region only when `--region` names it.
+
+#### Passing the result level
+
+Today `inherit` sets a flag, and the next `enter` takes the result level of
+the current region instead of the current level (`inherit` and `enter` in
+`Regions.jo:324-351`). A function without a region has no `enter`, so the
+flag becomes the level itself:
+
+```
+State.inherit: Int          0, or the result level + 1 for the next callee
+
+inherit():                  inherit = (skipped > 0 ? level : current.result) + 1
+passResult(l):              inherit = l + 1
+enter:                      child.result = inherit > 0 ? inherit - 1 : level
+                            inherit = 0
+resultLevel():              l = inherit > 0 ? inherit - 1 : level
+                            inherit = 0
+                            return l
+allocAt(size, l):           allocResult with an explicit level
+```
+
+A function that places without a region calls `resultLevel()` at entry and
+keeps `l` in a local. A marked record literal calls `allocAt(size, l)`, with
+the barrier on its initializing stores, like `allocResult`. A marked call to
+a callee that opens a region or places its result calls `passResult(l)`
+right before the call, after the arguments are computed. A region function
+keeps calling `inherit()`. No call passes a level to a callee that returns
+`Unit`, also not to a region function, since there is nothing to place.
+This is a small change from today, where a marked call of a region function
+that returns `Unit` calls `inherit`. The real code skips it always. The
+prototype skipped it only with the stores of the next section turned on.
+
+Past the level limit, `inherit` now passes the current level. Today it
+sets the flag and the next `enter`, which is skipped too, ignores it. A
+function that places without a region is not skipped, so it would take
+`current.result`, the result level of the function that opened the region
+at the limit, which is not its caller's. `allocResult` already uses the
+current level past the limit for the same reason.
+
+Direct calls keep this invariant: the flag is 0 except between a call that
+passes a level and the entry of its callee, which takes it in `enter` or
+`resultLevel`. A direct call passes a level only to a callee that takes it.
+
+#### Why it is sound
+
+- The function runs in its caller's region, like a function that cannot
+  allocate. Its frame holds pointers into that region or older ones, as the
+  invariant of the [Overview](#overview) requires.
+- `l` is the caller's level or the caller's result level. Both regions are
+  open until the caller returns, so they outlive the call.
+- An object allocated at `l` is at least as old as the current region. Its
+  initializing stores go through the barrier, as for `allocResult`.
+- A marked value that is not returned on some path stays at `l`. Placement
+  already accepts this.
+- Callees that open a region close into the caller's region. Their merges
+  are bounded by the merge budget as before.
+
+#### Loops and statistics
+
+The function opens no region, so its loops get no checks. Its loops can
+only allocate placed values: any other allocation in a loop makes it a
+region function. So there is nothing for such a loop to collect in a region
+of its own. The rule of [Which loops collect](#which-loops-collect) stays as
+it is.
+
+The function gets no number for `--mem-profile`. Its allocations count for
+the region they go to. One placed in the runtime region counts in `direct`,
+like an object of `allocResult`. Growth reports wait for the next `leave` or
+loop collection, so they may come a little later.
+
+The entry function needs no case. It returns `Unit`, so it never qualifies
+and opens its region as before.
+A function that does qualify is ordinary under this rule, whoever calls it.
+
+#### Alternative considered: merging a region from which everything escapes
+
+A runtime-only fix for Sieve changes `close` (`Regions.jo:612-630`). When
+the budget refuses a merge, the region has one segment, and every object in
+it escapes, nothing in it is garbage. `close` then rewrites `phys` of each
+object to the parent's level, keeps `req`, passes `min` up and gives the
+segment to the parent, without a trace and without using a level. This is
+sound for the same reasons as a merge: every `req` is at or below the
+parent's highest level, and the parent's close spreads the escapes it
+records. It needs about 25 lines.
+
+It removes the collects of Sieve but keeps its `enter` and `leave`:
+
+| Program | Today | Fast path | Result only | `scalar` |
+|---|---|---|---|---|
+| Sieve | 2.17 s | 1.96 s | 1.48 s | 1.42 s |
+| NBody | 1.36 s | 1.37 s | 1.10 s | 1.01 s |
+
+The fast path turns the 10.6 million collects of Sieve into merges and saves
+under a third of the gap to `scalar`. The rule above saves all of it, since the
+bridge then calls neither `enter` nor `leave`. Times come from the run of
+[Measurements of the rule](#measurements-of-the-rule).
+
+The rule above is kept: it is faster on Sieve and NBody, and it also saves
+the `enter` and `leave` of every constructor. The fast path could still be
+added later for regions that do open.
+
+#### Changes for the rule
+
+| File | Change | Lines, estimated |
+|---|---|---|
+| `Regions.jo`, `Platform.jo` | `inherit` as a level, `passResult`, `resultLevel`, `allocAt` | 35 |
+| `CodeGen.scala` | `placesWithoutRegion` in `opensRegion`, `resultLevel` at entry, `allocAt`, `passResult` at marked calls, `isUnitType` checks where a level is passed | 55 |
+| `Allocations.scala` | the scan with placed sites left out | 15 |
+| `LLVMRuntime.scala` | 3 symbols | 3 |
+
+The `closes` lines of the examples in the
+[memory guide](../../docs/usage/guides/memory.md), at lines 137, 186, 212
+and 257, need new counts, since fewer regions open.
+
+#### Tests of the rule
+
+- `tests/gc/place-bridge.jo`: a `for` over a range above the shared boxes,
+  boxing through the bridge, under `JO_LOOP_COLLECT=all`.
+- `tests/gc/place-ctor.jo`: a recursive builder through constructors, which
+  opens no region at all, called past the level limit, and a constructor
+  whose result is dropped.
+- `tests/custom/gc-memstats`: `ret.jo` keeps its rows, since `wrap` returns
+  a pointer built in a loop.
+- `tests/gc/place-unit.jo`: an entry function `main(): Unit = go()` whose
+  loop collects, and an `Array.tabulate` of a closure that returns `Unit`,
+  under `JO_LOOP_COLLECT=all`. The IR check of the test expects `enter` in
+  `main` and `clearResult` in the closure.
+- `tests/pos` and `tests/gc` with AddressSanitizer under
+  `JO_LOOP_COLLECT=all`.
+
+#### Measurements of the rule
+
+Time is the least user time of 5 interleaved runs of the Are We Fast Yet
+harness, pinned to one core of an x86-64 machine (load 0.9 to 2.7). The
+medians are within 3% of the minimums. The allocator alone can move a
+benchmark by 15% (see the Json paragraph of
+[Measurements of stores](#measurements-of-stores)). "Result only" is a
+prototype of this rule alone. The same run
+gives the table of [Measurements of stores](#measurements-of-stores).
+Peak RSS did not change.
+
+| Program | Today | Result only | `scalar` | Collects today → result only |
+|---|---|---|---|---|
+| Sieve | 2.17 s | 1.48 s | 1.42 s | 10632000 → 0 |
+| NBody | 1.36 s | 1.10 s | 1.01 s | 113582 → 0 |
+| Json | 1.55 s | 1.16 s | 0.62 s | 41900 → 41900 |
+| Havlak | 2.86 s | 2.64 s | 2.07 s | 2901438 → 784912 |
+| Queens | 0.61 s | 0.51 s | 0.46 s | 83 → 83 |
+
+Storage, Richards, DeltaBlue, CD, Permute and the small benchmarks do not
+change beyond noise. Functions that return `Unit` keep their regions, so
+DeltaBlue keeps the region of `EqualityConstraint$inputsDo`. With `Unit`
+excluded, DeltaBlue does 219860 merges and 112900 collects, Havlak 2986659
+and 784912, and Bounce 3002 merges, against 395317 and 343818, 4527062 and
+2901438, and 3483 today.
+
+#### Risks
+
+- A result built by a runtime function, like a string, lands in the
+  caller's region and not in the caller's result region when the call was
+  placed. It moves once, at the caller's close.
+- The merges of the function's callees go to the caller's region. The merge
+  budget bounds them to 8 segments.
+
+#### Not covered: functions that only box
+
+Permute, Queens and Sieve spend time in functions that open a region only
+because they may box an `Int` into a generic array, and in the loop checks
+of their callers. In Permute, `swap` boxes values below 6, which are shared
+boxes, so its region is always empty. Under `scalar`, Permute takes
+0.23 s instead of 0.46 s. Telling these apart needs knowledge of
+the values, so it is left for later.
+
+### Placing what is stored into the result
+
+Status: design, not implemented.
+
+A tree built through a higher-order library function, like `Array.tabulate`
+or `List.map`, is not placed. Each level of the tree traces and moves
+everything below it again, so building a tree of `n` nodes and depth `d`
+costs `n·d` traces. Two additions fix it: a value stored right away into the
+result is placed also inside a loop, and an indirect call passes the result
+level like a direct one.
+
+#### The mechanism
+
+Storage builds its tree with
+
+```
+def buildTreeDepth(depth: Int, random: Random): Tree =
+  if depth == 1 then Leaf(Array.fill(random.next() % 10 + 1, None))
+  else Inner(Array.tabulate(4, _ => buildTreeDepth(depth - 1, random)))
+```
+
+and `tabulate` (`lib/Array.jo:150-157`) is
+
+```
+val arr = create[T](size)
+while i < size do
+  arr[i] = values(i)
+```
+
+Call the region of `tabulate` at depth `d` `T(d)`. Three things break the
+chain of placement:
+
+1. `values(i)` is inside a loop, and the analysis places nothing inside a
+   loop (`ResultRegions.scala:84-87, 157-162`).
+2. `arr[i] = v` is a call of `Array.set`, not a field assignment. The
+   analysis records only field assignments as stores
+   (`ResultRegions.scala:93-95`).
+3. `values` is called indirectly. Codegen passes the result level only to a
+   direct callee (`CodeGen.scala:975-988`).
+
+So the lambda's result level is `T(d)`, and the subtree of depth `d - 1` it
+returns is allocated in `T(d)`. The `Inner` of `buildTreeDepth(d)` is placed
+in its result region, which is `T(d + 1)` for the same reason. Its
+initializing store lowers `arr` to `T(d + 1)`. When `T(d)` closes, `arr` is
+an escape root, and pass 1 lowers the whole subtree below it to `T(d + 1)`
+and moves it there. At the close of `T(d + 1)` the same subtree is in the
+region again, required only by `T(d + 1)`, so it is traced and moved once
+more. Every object is traced once per level above it, and scanned by pass 1
+and swept at each of those closes.
+
+`lower` already stops at objects whose `req` is low enough. That does not
+help here: each close lowers by one level only, because the root's `req` is
+the next level up. Keeping the survivors of a collect apart, so that pass 1
+does not scan them again, saves the scan but not the trace, since they still
+need the lower level. The runtime cannot know how far a result will be
+returned. Only the analysis can.
+
+The memory statistics show this as `traced` far above `allocated`: 70.8
+million traced for 13.65 million allocated in Storage, half of it charged to
+`tabulate` and half to `buildTreeDepth`. A tree of depth 8 built 200 times
+through `tabulate` traces 43.6 million objects for 7.6 million allocated.
+The same tree through `List.map`, which fills an array with
+`out[i] = f(arr[start + i])` (`lib/List.jo:210-217`), traces 29.5 million
+for 8.7 million.
+
+#### The rules
+
+The analysis of [Placing results](#placing-results) gets three changes. The
+doc comment of `ResultRegions.scala` states them in the same words.
+
+- **Element stores.** `a[i] = v`, a call of `Array.set` or of the intrinsic
+  `Array.setUnchecked`, is a store of `v` into the object of `a`, like
+  `a.f = v`.
+- **Paths.** A store into an object reached through fields of a variable,
+  `x.f.g = v` or `x.f[i] = v`, is a store into the object of `x`.
+- **Stores in a loop.** Inside a loop, only the stored expression itself is
+  placed, and only when it is stored into the object of a marked variable
+  that is assigned outside any loop. The stored expression is the right-hand
+  side of the store, seen through blocks, `if` branches and casts. If it is a
+  record literal or a call, that record or call is placed. If it is a `new`
+  expression, the object it creates is placed too: a local of the block that
+  is assigned a record literal. Nothing else is placed inside a loop: not
+  the arguments of the stored call, not the fields of the record, and not a
+  value that reaches the store through a variable.
+
+And codegen passes the result level to indirect calls:
+
+- **Indirect calls.** A marked indirect call whose type returns a pointer
+  other than `Unit` passes the result level with `inherit` or `passResult`
+  (see [Passing the result level](#passing-the-result-level)). The callee
+  is unknown. If it opens a region or places its result, it takes the
+  level. Every other function whose address is taken, a closure body, an
+  interface method or a bridge, sets the flag to 0 at its entry, whatever
+  it returns. The type of the call does not tell what the callee returns: a
+  closure that returns `Unit`, called through a generic `T => S`, is a call
+  that returns a pointer.
+
+With these, `values(i)` in `tabulate` is placed and passes the result level,
+the lambda passes it on to `buildTreeDepth`, and every `Inner` and `Leaf` is
+allocated in the region of `benchmark`. When `T(d)` closes, `arr` is still
+an escape root, but the subtrees it points to are already in an older region
+with a low enough `req`, so `lower` visits `arr` alone. Each object is
+traced at most once.
+
+#### The flag
+
+With indirect calls, the invariant of the flag is: it is 0 except between a
+call that passes a level and the entry of its callee. Every function that a
+call can pass a level to takes the level or clears it first thing:
+
+- a region function takes it in `enter`, also past the level limit
+- a function that places without a region takes it in `resultLevel`
+- a direct call passes a level only to one of these two
+- an indirect call can only reach a function whose address is taken, and
+  such a function that is neither of the two clears the flag at entry
+
+So no later `enter` ever sees a level meant for another call. Clearing
+after the call returns would not be enough: a callee that ignores the flag
+could call a region function, which would take the level. The clear costs
+one store in closures and interface methods that cannot allocate. Codegen
+finds the functions whose address is taken where it already emits them:
+function references outside the callee position of a call, and the entries
+of the interface tables.
+
+#### Memory: what a loop places
+
+Placement in a loop was ruled out because a loop may allocate many values of
+which it keeps only one. The new rule places only the expression whose value
+the loop stores into the result right away. A value that the loop builds and
+then drops, or passes to a function that picks one of its arguments, is not
+placed. `arr[i % 4] = choose(new Node(...), new Node(...))` places the call
+of `choose`, which allocates nothing, but not the two nodes, so the one not
+chosen stays in the current region and the loop frees it.
+
+When the container is already in the result region, placing changes nothing
+for memory: the barrier would promote the stored value to the container's
+region at the store anyway, also if the slot is overwritten later. Placement
+only skips the trace and the move.
+
+The container is not in the result region yet when the runtime allocated
+it, like the array of `Array.create`, which is never placed (`opensRegion`
+in `CodeGen.scala` excludes the runtime). If the loop overwrites a slot of
+such an array, the overwritten values stay in the result region until it
+closes or collects, where today the loop collection of the function frees
+them. A function that overwrites one slot of the array it returns a million
+times, 5 times over, has a peak RSS of 41 MB instead of 3.4 MB. Filling an
+array writes each slot once, so `tabulate`, `fill` and `List.map` keep
+nothing extra. The workaround is to keep the value in a local that the loop
+reassigns, and store it after the loop: a value assigned to a reassigned
+variable is never placed. [Limitations](#limitations) and the memory guide
+list this.
+
+#### Why it is sound
+
+Placement only affects performance (see [Placing results](#placing-results)).
+A placed object is in an open region at least as old as the current one, and
+its initializing stores run the barrier. A stored value has `req` at least
+as old as needed after the store, by the barrier. By the invariant of the
+flag, a passed level is taken only by the callee it was passed to.
+
+#### Rejected alternatives
+
+- **Summaries of stores.** A summary per function saying which parameter it
+  stores into which, like `JsonArray.add`, would also place the values of
+  Json. A store through a call can be conditional, like `Set.add` of a value
+  already present, so every duplicate would be placed. In the prototype it
+  halved the `traced` of Json, but not its time. Element and field stores
+  always run.
+- **Lowering the result to the result level at `leave`.** It skips one level
+  per call, but the chain breaks at the indirect call in the loop, so it does
+  not help Storage.
+- **Moving survivors further than their `req` requires.** The runtime would
+  have to guess how far a value is returned, which keeps garbage in old
+  regions.
+- **A separate list for survivors.** It saves the scan of pass 1, not the
+  trace.
+- **Clearing the flag after an indirect call returns.** It is not exact, as
+  described in [The flag](#the-flag).
+
+#### Changes for stores
+
+| File | Change | Lines, estimated |
+|---|---|---|
+| `ResultRegions.scala` | element stores, paths, stores in a loop with the object of `new`, doc comment | 45 |
+| `CodeGen.scala` | `inherit` or `passResult` before marked indirect calls, the functions whose address is taken, `clearResult` at their entry | 35 |
+| `Regions.jo`, `LLVMRuntime.scala` | `clearResult` | 4 |
+
+The prototype finds `Array.set` and `RefArray.setUnchecked` by their full
+names. The real code compares symbols: `defn.Array_class` with the member
+`set`, and the runtime symbol that `Array.setUnchecked` is linked to, added
+to `LLVMRuntime`.
+
+The memory guide changes in two places:
+
+- The `traced` row of the hint table (`docs/usage/guides/memory.md:103`) and
+  the `traced` hint in `Regions.jo` (`hint traced`, near line 1064) name the
+  remaining cause: a result built in a loop through a variable, or added to
+  a container through a method like `add` in a loop. Building through
+  `Array.tabulate`, `List.map` or `a[i] = f(...)` no longer needs a fix.
+- A new paragraph after the quoted rules (lines 23-28) states the
+  overwritten slot: a value stored into the result in a loop and overwritten
+  later in the same call stays until the caller's memory is freed. Keep the
+  best value in a reassigned variable and store it after the loop.
+
+#### Tests of stores
+
+- `tests/gc/place-tabulate.jo`: a tree of depth 8 through `Array.tabulate`
+  and through `List.map`, checked by a traversal, under
+  `JO_LOOP_COLLECT=all`.
+- `tests/gc/place-indirect.jo`: a closure that cannot allocate called with a
+  passed level, which then calls a region function whose result must stay in
+  the current region, and an interface method that places.
+- `tests/custom/gc-memstats` gets three programs with their expectations:
+  `tree.jo` expects `traced=0` and no `traced` hint. `pick.jo` stores
+  `choose(new Node(...), new Node(...))` into a slot of a returned array a
+  million times and expects a peak RSS below 10 MB. `overwrite.jo`
+  overwrites one slot a million times and expects the peak RSS of the
+  limitation, between 30 and 60 MB, so a change of the rule shows. `quad.jo`
+  keeps its hint.
+- `tests/pos` and `tests/gc` with AddressSanitizer under
+  `JO_LOOP_COLLECT=all`.
+
+#### Measurements of stores
+
+A prototype of both designs, behind environment variables, ran in a scratch
+copy of the compiler and runtime. "Stores" is this design alone, "result
+only" is [Functions that only allocate their result](#functions-that-only-allocate-their-result)
+alone. Time is the least user time of 5 interleaved runs pinned to one
+core, from the same run as that section. `traced` comes from
+`JO_MEMSTATS`.
+
+| Program | Today | Result only | Stores | Both | `scalar` | `traced` today → both |
+|---|---|---|---|---|---|---|
+| Storage | 5.11 s | 5.10 s | 2.16 s | 1.49 s | 0.89 s | 70800000 → 0 |
+| Sieve | 2.17 s | 1.48 s | 2.21 s | 1.49 s | 1.42 s | 0 |
+| NBody | 1.36 s | 1.10 s | 1.37 s | 1.05 s | 1.01 s | 0 |
+| Json | 1.55 s | 1.16 s | 1.56 s | 1.29 s | 0.62 s | 5531100 → 5531100 |
+| Havlak | 2.86 s | 2.64 s | 2.86 s | 2.60 s | 2.07 s | 3044762 → 3044760 |
+| Queens | 0.61 s | 0.51 s | 0.62 s | 0.48 s | 0.46 s | 0 |
+| Richards | 0.42 s | 0.42 s | 0.43 s | 0.34 s | 0.26 s | 0 |
+| DeltaBlue | 0.30 s | 0.31 s | 0.32 s | 0.29 s | 0.24 s | 36003 → 0 |
+| Permute | 0.46 s | 0.46 s | 0.45 s | 0.48 s | 0.23 s | 0 |
+| tree of depth 8 through `tabulate`, 200 times | 1.89 s | 1.94 s | 0.91 s | 0.65 s | | 43574400 → 0 |
+| the same through `List.map`, 100 times | 2.21 s | 1.99 s | 1.12 s | 0.79 s | | 29518000 → 0 |
+
+Bounce, List, Mandelbrot, Towers and CD do not change beyond noise. Peak RSS
+of the benchmarks did not change. In Storage, result only removes 11 million
+of the 16.3 million merges, which only pays once the traces are gone.
+
+Json is slower with both designs than with result only, by 11% in the
+table: 1.29 s against 1.16 s. The cause is not region work. With both designs on, one
+more function places without a region: `HashIndexTable$<init>`, whose field
+is `Array.fill(32, 0)`. The element-store rule makes the value parameter of
+`fill` flow into its result, so the `boxInt(0)` of the argument is placed,
+and that was the last site that kept the constructor a region function.
+Reverting only this constructor to `enter` and `leave` removes the gap.
+A copy of the runtime that counts the work of closes shows the same work in
+both builds, apart from one merge fewer per constructor call, 15700 in all:
+19.0 million levels scanned by `lowestPromotion`, 13.5 million objects
+scanned by pass 1, 1.48 million survivors handed to a parent and 6.75
+million moved to an older region, in each.
+
+The gap comes from the order in which `calloc` and `free` reuse memory.
+Without the constructor's region, the array of `fill` sits at another place
+in the segments of the caller's region. A close then most likely frees it in
+another order among its neighbors. This step was not traced.
+
+glibc keeps up to 7 freed blocks per size in its per-thread cache. In the
+builds with the counters, pinned, result only takes 1.62 s and both take
+1.85 s with the defaults. With `GLIBC_TUNABLES=glibc.malloc.tcache_count` set to 2, 30 or 200,
+both builds take the same time within noise: 1.64 against 1.65 s, 1.90
+against 1.86 s, and 1.69 against 1.72 s. The time of either build moves by
+15% with the cache size alone. So this rule does not lose work here, but
+it can change the reuse pattern of the allocator either way. A size-class
+allocator owned by the runtime (see
+[Later: a faster allocator](#later-a-faster-allocator)) would remove this
+sensitivity. Until then, differences of up to about 15% between builds are
+not evidence for or against a region rule. This applies both ways. Result
+only gains 19% on NBody, 16% on Queens and 8% on Havlak, near or within
+this margin, so these gains are not conclusive either. Only Sieve, 32%, and
+Json, 25%, gain clearly more. Storage gains far more, from the stores.
+
+The three loop programs of [Memory: what a loop places](#memory-what-a-loop-places),
+5 calls of a million iterations each:
+
+| Program | Peak RSS today | Peak RSS with both |
+|---|---|---|
+| `arr[i % 4] = choose(new Node(...), new Node(...))` | 3.2 MB | 3.2 MB |
+| the same with `arr[i]` over a million slots | 207 MB | 207 MB |
+| `best[0] = new Node(i)`, the overwritten slot | 3.4 MB | 41 MB |
+
+Json and Havlak keep their `traced`. Json adds to its arrays with
+`JsonArray.add`, a store through a call, which only the rejected summaries
+would place. Its strings are built in loops through variables. Havlak's
+`findLoops` returns `Unit` and stores into the fields of an older object,
+which is a single escape traced once, not a repeated trace.
+
+The awfy outputs verify in all variants. `tests/pos` and `tests/gc` pass with
+AddressSanitizer under `JO_LOOP_COLLECT=all` with both designs on, 330
+tests. Three fail to compile without them too: two need `--link` options,
+and `union-lambda.jo` crashes in the frontend. Not measured yet:
+`tests/performance`, the jtk smoke runs and `tests/custom/gc-memstats`.
+
+#### What is left
+
+Both designs together bring Storage from 5.11 s to 1.49 s and Json from
+1.55 s to 1.29 s, but `scalar` takes 0.89 s and 0.62 s. With nothing traced
+twice any more, the gap is the cost of opening, merging and closing regions
+in small functions: 5.4 million merges in Storage, 4.3 million in Json. That
+is the likely next step, together with the functions that only box (see
+[Not covered: functions that only box](#not-covered-functions-that-only-box)).
+
 ## Collecting a region in a loop
 
 Status: implemented. `--no-loop-collect` turns it off.
@@ -1720,6 +2271,11 @@ The barrier may be inlined.
   the runtime region.
 - A returned value that placing results misses, for example one built in a
   loop, is traced again at every enclosing close that collects (see Cost).
+- With [Placing what is stored into the result](#placing-what-is-stored-into-the-result),
+  a design: a value that a loop stores into a slot of an array the runtime
+  created, and overwrites later in the same call, stays in the result region
+  until that region closes or collects. Keep the value in a local that the
+  loop reassigns, and store it after the loop.
 - A merge holds the garbage of the merged region until a later close, up to
   the budget of 8 segments per region.
 - A removed escape stays promoted until its destination closes, as in the earlier design.
