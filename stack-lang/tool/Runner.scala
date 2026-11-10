@@ -162,9 +162,10 @@ object Runner:
 
   /** Options that only the app stage understands. When an app module is first
     * compiled as a library, these are dropped together with their values.
+    * Keep this list in sync with reporting.Config because bin/test-tool compiles
+    * the tool package on its own.
     */
-  private val appOnlyOptions: collection.immutable.Set[String] =
-    reporting.Config.appOptions.filterNot(reporting.Config.commonOptions.contains).map(_.flag).toSet
+  private val appOnlyOptions = collection.immutable.Set("-o", "--link-lib", "--link", "--provide", "--internal")
 
   private def libStageOptions(options: List[String]): List[String] =
     options match
