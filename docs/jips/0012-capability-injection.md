@@ -162,8 +162,9 @@ it without adding to it.
 The value of a binding may be a Jo literal instead of a factory. A literal
 is one of the following, and nothing else: a boolean literal, a numeric
 literal, a character literal, or a single-line string literal without
-interpolation. The value must consist of exactly one such literal. A string
-containing `\{` is rejected, as is any trailing text.
+interpolation. Escape sequences are allowed, interpolation is not: a string
+containing `\{` is rejected. The value must consist of exactly one such
+literal, so any trailing text is rejected as well.
 
 The literal is read by Jo's lexer and typed as it would be in source, with
 the parameter's type as the expected type. It must conform to the
