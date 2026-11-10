@@ -206,18 +206,28 @@ topological order. The order among independent bindings is unspecified.
 ### The generated wrapper
 
 The wrapper has the signature of `d`, including its type parameters. Its body
-instantiates the bindings in the order given above, binds each to its
-parameter, and calls `impl(d)` with the arguments of `d` unchanged:
+has two layers. First, it instantiates the bindings of parameters that are
+not context parameters of `d`, in the order given above, nesting the `with`
+of each inside the previous. Second, it rebinds the context parameters of `d`
+in a single `with`, whose right-hand sides are evaluated in the enclosing
+scope, and calls `impl(d)` with the arguments of `d` unchanged:
 
 ```jo
-// conceptually, for the example in the summary
+// conceptually, for the example in the summary, extended with
+//   --provide IO.stdout=log.Prefixed
 def main$injected: Unit receives IO.stdout, IO.stderr, IO.args =
   with fs.root = fs.Root() in
     with fs.readonly = fs.ReadOnly() in
       with gh.repo = "typescope/jo" in
         with gh.client = gh.GitHub() in
-          app.main
+          with IO.stdout = log.Prefixed() in
+            app.main
 ```
+
+Because no context parameter of `d` is rebound until the second layer, every
+factory receives the outer values of those parameters, as the binding graph
+requires. `log.Prefixed` receives the outer `IO.stdout`, and so would a
+`Logger` factory in the first layer, while `app.main` sees the prefixed one.
 
 Internal parameters are in scope when `impl(d)` runs, but the
 [conformance](#conformance) check guarantees that `impl(d)` does not use
