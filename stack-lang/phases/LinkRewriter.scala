@@ -34,10 +34,15 @@ class LinkRewriter(linkMap: Map[Symbol, Symbol])(using defn: Definitions, rp: Re
       ident
 
 object LinkRewriter:
-  class LinkData(mappings: Map[String, String]):
+  /** Link mappings from the command line and the backend
+    *
+    * @param roles the roles of injected parameters, which relax the
+    *              conformance check for the implementation of `jo.main`
+    */
+  class LinkData(mappings: Map[String, String], roles: Injection.Roles = Injection.Roles.empty):
 
     def resolve(deferMain: Symbol, userMain: Symbol)(using Reporter, Definitions): Map[Symbol, Symbol] =
-      val symMap = parseLinkMappings(mappings)
+      val symMap = parseLinkMappings(mappings, roles)
       if symMap.contains(deferMain) then
         Reporter.error(s"The main function ${deferMain.fullName} is already linked to ${userMain.fullName}.")
         symMap
@@ -45,7 +50,7 @@ object LinkRewriter:
         symMap + (deferMain -> userMain)
 
     def resolve()(using Reporter, Definitions): Map[Symbol, Symbol] =
-      parseLinkMappings(mappings)
+      parseLinkMappings(mappings, roles)
 
     def contains(path: String): Boolean = mappings.contains(path)
 
@@ -57,15 +62,19 @@ object LinkRewriter:
           case _ =>
       end for
 
-      new LinkData(mappings ++ userMappings)
+      new LinkData(mappings ++ userMappings, roles)
 
   /** Parse link option strings and resolve to symbol mappings.
     *
     * @param linkStrings List of "source=target" strings
+    * @param roles       Roles of injected parameters, applied to the implementation of `jo.main`
     *
     * @return Map from source symbols to target symbols, validated with subtype checking
     */
-  def parseLinkMappings(linkStrings: Map[String, String])(using defn: Definitions, rp: Reporter): Map[Symbol, Symbol] =
+  def parseLinkMappings
+      (linkStrings: Map[String, String], roles: Injection.Roles = Injection.Roles.empty)
+      (using defn: Definitions, rp: Reporter)
+  : Map[Symbol, Symbol] =
     val validMappings = scala.collection.mutable.Map.empty[Symbol, Symbol]
 
     for (sourcePath, targetPath) <- linkStrings do
@@ -90,8 +99,17 @@ object LinkRewriter:
             val targetType = targetSym.tpe
 
             // Compare full function types, including receives clauses, for type-safe linking.
+            //
+            // The implementation of `jo.main` may also receive the parameters
+            // provided by injection, but no internal one.
+            val mainRoles = if sourceSym == defn.main then roles else Injection.Roles.empty
+            val internalReceived = mainRoles.internalReceived(targetType, sourceType)
 
-            if !Subtyping.conforms(targetType, sourceType) then
+            if internalReceived.nonEmpty then
+              for param <- internalReceived do
+                rp.error(s"${sourceSym.fullName} implementation ${targetSym.fullName} receives internal parameter ${param.fullName}")
+
+            else if !mainRoles.conforms(targetType, sourceType) then
               rp.error(
                 s"Link type mismatch: $targetPath (${targetType.show}) is not a subtype of $sourcePath (${sourceType.show})"
               )
