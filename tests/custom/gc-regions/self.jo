@@ -1,0 +1,25 @@
+namespace memself
+
+// An entry function that calls itself. It reads a count from `IO.args[0]`,
+// stores it back decremented, and stops at 0. Each call loops and allocates
+// enough to collect.
+
+class Node(value: Int, next: Option[Node])
+
+def main(): Unit =
+  val n = IO.args[0].toInt
+  if n > 0 then
+    var list: Option[Node] = None
+    var i = 0
+    while i < 60000 do
+      list = Some(new Node(i + n, if i % 3 == 0 then None else list))
+      i = i + 1
+    end
+
+    IO.args[0] = (n - 1).toString
+    main()
+    match list
+    case Some(node) => println: node.value
+    case None => println: "empty"
+  else
+    println: "done"

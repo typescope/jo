@@ -1,0 +1,23 @@
+namespace memdirect
+
+// A loop in `main` that keeps what it allocates. Under `--region-policy none`,
+// the nodes go straight to the runtime region, with no function to charge them
+// to, and the region function `tick`, named by `--region`, prints the growth
+// reports when it returns. Under the default policy, the region of `main`
+// grows, and its loop prints the growth reports when it collects.
+
+class Node(value: Int, next: Option[Node])
+
+def tick(i: Int): Int = i + 1
+
+def main =
+  var lst: Option[Node] = None
+  var i = 0
+  while i < 520000 do
+    lst = Some(new Node(i, lst))
+    i = tick i
+  end
+
+  match lst
+  case Some(n) => println: n.value
+  case None => println: "empty"

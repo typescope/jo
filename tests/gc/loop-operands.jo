@@ -1,0 +1,84 @@
+namespace gcloopoperands
+
+// Loops inside operands: the second argument of a call, the third argument
+// of a runtime function, and the value of a field assignment. The operands
+// computed before the loop must survive its collections. An indirect call
+// with a loop in its argument is in `loop-indirect.jo`.
+
+class Box(value: Int)
+
+class Pair
+  var left: Box = new Box(0)
+  var right: Box = new Box(0)
+end
+
+def combine(a: Box, b: Box): Int = a.value * 1000000 + b.value
+
+// Allocates garbage in a loop and returns the last box
+def churn(n: Int): Box =
+  var i = 0
+  var b = new Box(0)
+  while i < n do
+    b = new Box(i % 1000)
+    i = i + 1
+  end
+  b
+
+def main(): Unit =
+  val a = new Box(7)
+
+  // a loop in the second argument of a call
+  val r = combine:
+    new Box(a.value + 1)
+    if a.value > 0 then
+      var i = 0
+      var b = new Box(0)
+      while i < 50000 do
+        b = new Box(i % 1000)
+        i = i + 1
+      end
+      b
+    else a
+
+  println: r
+
+  // in the third argument of a runtime function, the array update
+  val arr = Array.create[String](2)
+  arr[0] = "left " + a.value.toString
+  arr[1] =
+    if a.value > 0 then
+      var i = 0
+      var t = ""
+      while i < 50000 do
+        t = "right " + (i % 100).toString
+        i = i + 1
+      end
+      t
+    else ""
+
+  println: arr[0] + " " + arr[1]
+
+  // an indirect call whose argument calls a function with a loop
+  val f: (Box, Box) => Int = (x, y) => x.value + y.value
+  val g = if a.value > 0 then f else (x, y) => 0
+  val q = g:
+    new Box(a.value * 3)
+    if a.value > 0 then churn 50000 else a
+
+  println: q
+
+  // in the value of a field assignment
+  val p = new Pair
+  p.left = new Box(5)
+  p.right =
+    if a.value > 0 then
+      var i = 0
+      var b = new Box(0)
+      while i < 50000 do
+        b = new Box(i % 1000 + p.left.value)
+        i = i + 1
+      end
+      b
+    else a
+
+  println: p.left.value + p.right.value

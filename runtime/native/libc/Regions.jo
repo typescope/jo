@@ -1,0 +1,1233 @@
+namespace jo.runtime.native
+
+import jo.compile.intrinsic
+
+import jo.runtime.native.LibC
+
+//[ Region-based memory management for the LLVM backend
+  !
+  ! See `stack-lang/llvm/GC.md` for the design. In short: allocations go into
+  ! the current region, a heap store lowers the required region of the stored
+  ! object, and closing a region frees the objects only it requires, or merges
+  ! the region into its parent when something escapes. Cleanup needs no work
+  ! list and traces only the objects of the closing region.
+//]
+private section Regions
+  //----------------------------------------------------------------------------
+  // Object header
+  //
+  // The high half of slot 0 of every heap object:
+  //
+  //   normal    [0 | phys: 15 | mark: 1 | req: 15]
+  //   on path   [1 | cursor: 31]
+  //
+  // `phys` is the level of the region holding the object, `req` the level of
+  // the oldest region it must outlive. Static objects have both at 0. Levels
+  // order the open regions like depths. After a merge, the objects of the
+  // merged region keep its levels, which compare like the level of the region
+  // they were merged into. The mark is set only during `collectLoop`, which
+  // clears it before it returns. `reqOf` includes it.
+
+  private def maxLevel: Int = 32767
+
+  private def gcHalf(o: Addr): Int = readInt (addAddr o 4)
+
+  private def setGcHalf(o: Addr, v: Int): Unit = writeInt (addAddr o 4) v
+
+  private def normal(phys: Int, req: Int): Int = (phys << 16) | req
+
+  private def onPath(cursor: Int): Int = -2147483648 | cursor
+
+  private def reqOf(o: Addr): Int = (gcHalf o) & 0xFFFF
+
+  private def physOf(o: Addr): Int = ((gcHalf o) >> 16) & 0x7FFF
+
+  private def isOnPath(o: Addr): Bool = (gcHalf o) < 0
+
+  private def cursorOf(o: Addr): Int = (gcHalf o) & 0x7FFFFFFF
+
+  private def setReq(o: Addr, req: Int): Unit =
+    setGcHalf(o, ((gcHalf o) & -65536) | req)
+
+  // The mark bit of `collectLoop`, above every level
+  private def markBit: Int = 0x8000
+
+  private def isMarked(o: Addr): Bool = ((gcHalf o) & markBit) != 0
+
+  //----------------------------------------------------------------------------
+  // Pointer layout, emitted by the backend
+  //
+  // `layoutTable` is indexed by class id. An entry is `[n, s1, ..., sn]`, the
+  // slots holding pointers. A slot with `interiorFlag` holds an `Addr`, which
+  // points one word past the header of a buffer. `n = -1` is a reference
+  // array, whose elements are all pointers.
+
+  @intrinsic
+  private def layoutTable: Addr = ...
+
+  //[ The sizes of objects in bytes by class id, emitted by the backend
+    !
+    ! A value of `arraySize` marks the reference array, whose size depends on
+    ! its length, and `bytesSize` the bytes. A buffer does not record its
+    ! size, so its entry is its header only.
+  //]
+  @intrinsic
+  private def sizeTable: Addr = ...
+
+  // Must equal `ArraySize` and `BytesSize` in `objectSize` of
+  // `stack-lang/llvm/CodeGen.scala`, which writes the table
+  private def arraySize: Int = -1
+
+  private def bytesSize: Int = -2
+
+  // The size of an object in bytes, for `kept` of `collectLoop`
+  private def sizeOf(o: Addr): Long =
+    val s = readInt (addAddr sizeTable ((readInt o) * 4))
+    if s == arraySize then (2 + (readInt (addAddr o wordSize))).toLong * 8
+    else if s == bytesSize then (16 + (readInt (addAddr o wordSize))).toLong
+    else s.toLong
+
+  // Must equal `InteriorFlag` in `layoutTableGlobals` of
+  // `stack-lang/llvm/CodeGen.scala`, which writes the table
+  private def interiorFlag: Int = 0x40000000
+
+  private def layoutOf(o: Addr): Addr =
+    readAddr (addAddr layoutTable ((readInt o) * wordSize))
+
+  private def slotCount(o: Addr): Int =
+    val n = readInt (layoutOf o)
+    if n == -1 then readInt (addAddr o wordSize) else n
+
+  // The object referred to by pointer slot `i` of `o`
+  private def getRef(o: Addr, i: Int): Addr =
+    val layout = layoutOf o
+    if (readInt layout) == -1 then
+      readAddr (addAddr o ((i + 2) * wordSize))
+    else
+      val s = readInt (addAddr layout ((i + 1) * 4))
+      if (s & interiorFlag) == 0 then
+        readAddr (addAddr o (s * wordSize))
+      else
+        val p = readAddr (addAddr o ((s - interiorFlag) * wordSize))
+        if isNull p then p
+        else
+          val buffer = addAddr p (0 - wordSize)
+          if (readInt buffer) != bufferClassId then notABuffer()
+          buffer
+
+  // Make pointer slot `i` of `o` refer to the object `v`. The trace never
+  // reverses an interior slot, since it points to a buffer without pointers.
+  private def setRef(o: Addr, i: Int, v: Addr): Unit =
+    val layout = layoutOf o
+    if (readInt layout) == -1 then
+      writeAddr (addAddr o ((i + 2) * wordSize)) v
+    else
+      val s = readInt (addAddr layout ((i + 1) * 4))
+      writeAddr (addAddr o (s * wordSize)) v
+
+  //----------------------------------------------------------------------------
+  // Regions and segments
+  //
+  //   region    { parent: i32, hi: i32, min: i32, segs: i32, first segment, last segment, result: i32, fun: i32 }
+  //   segment   { next, count: i32, objects... }
+  //
+  // The region descriptors form an array indexed by level, so the descriptor
+  // of an object's region is found from its `phys`. A region at level `num`
+  // owns the levels `num` to `hi`: the levels above `num` are those of the
+  // regions merged into it. `min` is the lowest level an object recorded at
+  // this level was promoted to. `segs` counts the segments of the region.
+  // `result` is the level of the region the result of the function goes to,
+  // an open ancestor. `fun` numbers the function that opened the region, from
+  // 1, and is 0 for the runtime region.
+  //
+  // Only the first segment of a region is ever partly filled. Objects go into
+  // it, and a full one gets a new segment in front of it. So a merge tops up
+  // the parent's first segment and splices in the others.
+
+  private def descSize: Int = 40
+
+  // A segment is 512 bytes. Its size bounds the waste of a partly filled one.
+  private def segCapacity: Int = 62
+
+  // Free segments kept for reuse, at most this many
+  private def poolLimit: Int = 64
+
+  // A region merges into its parent only if together they have at most this
+  // many segments. This bounds the garbage that merging holds.
+  private def mergeLimit: Int = 8
+
+  //[ The lesser of two values. The backend emits `llvm.smin.i32`, a branchless select. //]
+  @intrinsic
+  private def minInt(a: Int, b: Int): Int = ...
+
+  private def maxInt(a: Int, b: Int): Int = if a > b then a else b
+
+  private def descOf(level: Int): Addr = addAddr state.regions (level * descSize)
+
+  private def parentOf(r: Addr): Int = readInt r
+
+  private def hiOf(r: Addr): Int = readInt (addAddr r 4)
+
+  private def setHi(r: Addr, hi: Int): Unit = writeInt (addAddr r 4) hi
+
+  private def minOf(r: Addr): Int = readInt (addAddr r 8)
+
+  private def setMin(r: Addr, m: Int): Unit = writeInt (addAddr r 8) m
+
+  private def segsOf(r: Addr): Int = readInt (addAddr r 12)
+
+  private def setSegs(r: Addr, n: Int): Unit = writeInt (addAddr r 12) n
+
+  private def firstSeg(r: Addr): Addr = readAddr (addAddr r 16)
+
+  private def lastSeg(r: Addr): Addr = readAddr (addAddr r 24)
+
+  private def setFirstSeg(r: Addr, s: Addr): Unit = writeAddr (addAddr r 16) s
+
+  private def setLastSeg(r: Addr, s: Addr): Unit = writeAddr (addAddr r 24) s
+
+  private def resultOf(r: Addr): Int = readInt (addAddr r 32)
+
+  private def setResult(r: Addr, l: Int): Unit = writeInt (addAddr r 32) l
+
+  private def funOf(r: Addr): Int = readInt (addAddr r 36)
+
+  private def setFun(r: Addr, f: Int): Unit = writeInt (addAddr r 36) f
+
+  private def segNext(s: Addr): Addr = readAddr s
+
+  private def segCount(s: Addr): Int = readInt (addAddr s wordSize)
+
+  private def setSegCount(s: Addr, n: Int): Unit = writeInt (addAddr s wordSize) n
+
+  private def segEntry(s: Addr, i: Int): Addr = addAddr s ((2 + i) * wordSize)
+
+  // Record that an object at level `level` was promoted to level `req`
+  private def record(level: Int, req: Int): Unit =
+    val r = descOf level
+    setMin(r, minInt(minOf r, req))
+
+  // Out of memory: report without allocating, since `abort` builds its
+  // message on the heap
+  private def outOfMemory(): Bottom =
+    writeString: 2, cast[StringRepr] "Out of memory\n"
+    LibC.exit 1
+
+  // An `Addr` field must point just past the header of a buffer. Anything
+  // else would make the trace read and write a header that does not exist.
+  private def notABuffer(): Bottom =
+    writeString: 2, cast[StringRepr] "Internal error: an Addr field does not point to a buffer\n"
+    LibC.exit 1
+
+  private def callocOrAbort(size: Int): Addr =
+    val mem = LibC.calloc 1 size.toLong
+    if isNull mem then outOfMemory()
+    mem
+
+  // An empty segment, from the pool if possible
+  private def newSegment(): Addr =
+    val st = state
+    val seg = st.segPool
+    if isNull seg then
+      callocOrAbort ((2 + segCapacity) * wordSize)
+    else
+      st.segPool = segNext seg
+      st.segPoolSize = st.segPoolSize - 1
+      writeAddr seg nullAddr
+      setSegCount(seg, 0)
+      seg
+
+  // Return a segment to the pool, or to the C library when the pool is full
+  private def releaseSegment(seg: Addr): Unit =
+    val st = state
+    if st.segPoolSize < poolLimit then
+      writeAddr seg st.segPool
+      st.segPool = seg
+      st.segPoolSize = st.segPoolSize + 1
+    else
+      LibC.free seg
+
+  // A region gets its first segment on its first object
+  private def append(r: Addr, obj: Addr): Unit =
+    var seg = firstSeg r
+    if isNull seg then
+      seg = newSegment()
+      setFirstSeg(r, seg)
+      setLastSeg(r, seg)
+      setSegs(r, 1)
+      grew r
+
+    else if (segCount seg) == segCapacity then
+      val front = newSegment()
+      writeAddr front seg
+      setFirstSeg(r, front)
+      setSegs(r, (segsOf r) + 1)
+      grew r
+      seg = front
+
+    val n = segCount seg
+    writeAddr (segEntry seg n) obj
+    setSegCount(seg, n + 1)
+
+  //----------------------------------------------------------------------------
+  // API
+
+  //[ Create the runtime region, level 0 //]
+  def init(): Unit receives none =
+    val st = state
+    st.regions = callocOrAbort ((maxLevel + 1) * descSize)
+    st.region = st.regions
+    st.level = 0
+    st.skipped = 0
+    st.growthSegs = noGrowth
+    st.regionGrowthSegs = noGrowth
+
+  //[ Allocate a zeroed object in the current region //]
+  def alloc(size: Int): Addr receives none =
+    val obj = callocOrAbort size
+    val st = state
+    st.allocs = st.allocs + 1
+    st.requested = st.requested + size.toLong
+    val l = st.level
+    if l == 0 then st.direct = st.direct + 1
+    setGcHalf(obj, normal(l, l))
+    append(st.region, obj)
+    obj
+
+  //[ Allocate a zeroed object in the result region of the current function
+    !
+    ! Past the level limit, the current function opened no region, and the
+    ! result region of the current one may be older than its own. Allocate in
+    ! the current region then.
+  //]
+  def allocResult(size: Int): Addr receives none =
+    val obj = callocOrAbort size
+    val st = state
+    st.allocs = st.allocs + 1
+    st.requested = st.requested + size.toLong
+    val l = if st.skipped > 0 then st.level else resultOf st.region
+    if l == 0 then st.direct = st.direct + 1
+    setGcHalf(obj, normal(l, l))
+    append(descOf l, obj)
+    obj
+
+  //[ The write barrier: `value` must live as long as `obj` //]
+  def barrier(obj: Addr, value: Addr): Unit receives none =
+    if !(isNull value) then
+      val req = reqOf obj
+      if (reqOf value) > req then
+        setReq(value, req)
+        record(physOf value, req)
+        if req == 0 then promotedByStore obj
+
+  //[ Make the next `enter` inherit the result region of the current function //]
+  def inherit(): Unit receives none =
+    state.inherit = true
+
+  //[ Open a region above the levels of the current one. At the level limit, stay in the current region.
+    !
+    ! The result of the function goes to the current region, or to the result
+    ! region of the current function after `inherit`.
+  //]
+  def enter(fun: Int): Unit receives none =
+    val st = state
+    val l = (hiOf st.region) + 1
+    val result = if st.inherit then resultOf st.region else st.level
+    st.inherit = false
+    if l > maxLevel then
+      st.skipped = st.skipped + 1
+      st.skips = st.skips + 1
+    else
+      val r = descOf l
+      writeInt r st.level
+      setResult(r, result)
+      setFun(r, fun)
+      setHi(r, l)
+      setMin(r, l)
+      setSegs(r, 0)
+      setFirstSeg(r, nullAddr)
+      setLastSeg(r, nullAddr)
+      st.region = r
+      st.level = l
+
+  //[ Close the region opened by the matching `enter`, keeping `result` //]
+  def leave(result: Addr): Unit receives none =
+    val st = state
+    if st.skipped > 0 then
+      st.skipped = st.skipped - 1
+    else
+      val r = st.region
+      val p = parentOf r
+      if !(isNull result) && (reqOf result) > p then
+        setReq(result, p)
+        record(physOf result, p)
+        if p == 0 then promotedByReturn r
+
+      close(r, st.level, p)
+      st.region = descOf p
+      st.level = p
+
+    // the state is consistent again: print a growth report if one is due
+    if st.growthDue then growthReport()
+
+  //----------------------------------------------------------------------------
+  // Loop collection, see "Collecting a region in a loop" in GC.md
+  //
+  // A loop of a function that opens a region collects that region at the end
+  // of an iteration, once `requested` reaches the value that `loopStart` or
+  // the last `collectLoop` of the frame returned. The frame passes its
+  // variables that code still to run reads, the roots. Every callee of the
+  // iteration has returned, so no region younger than the frame's is open.
+
+  //[ The stress modes of `JO_LOOP_COLLECT`: none, `all` and `often` //]
+  def loopNormal: Int = 0
+
+  def loopAll: Int = 1
+
+  def loopOften: Int = 2
+
+  // The least number of bytes requested between two collections, 1 MB
+  private def loopMinimum: Long = 1048576
+
+  // A value of `requested` that no program reaches
+  private def never: Long = 9223372036854775807
+
+  //[ The bytes requested from the allocator since startup //]
+  def requested(): Long receives none = state.requested
+
+  //[ The value of `requested` at which the first collection of a frame's loops is due
+    !
+    ! Under `JO_LOOP_COLLECT=all` or `often`, it is due at once.
+  //]
+  def loopStart(): Long receives none =
+    val st = state
+    if st.loopMode == loopNormal then st.requested + loopMinimum else st.requested
+
+  //[ Collect the current region at the end of a loop iteration, keeping what the `n` roots at `roots` reach
+    !
+    ! Returns the value of `requested` at which the next collection is due.
+    ! Past the level limit, the frame opened no region, and the current region
+    ! is not its own: it never collects then.
+  //]
+  def collectLoop(roots: Addr, n: Int): Long receives none =
+    val st = state
+    if st.skipped > 0 then return never
+
+    st.loopCollects = st.loopCollects + 1
+    val r = st.region
+    val num = st.level
+    val hi = hiOf r
+    var kept: Long = 0
+    if !(isNull (firstSeg r)) then
+      // pass 1: spread the requirements of escape roots, as a collect does
+      if (lowestPromotion(r, num)) < num then spreadEscapes(r, num)
+
+      // pass 2: mark what the frame reaches
+      var marked: Long = 0
+      var i = 0
+      while i < n do
+        val v = readAddr (addAddr roots (i * wordSize))
+        if unmarkedIn(v, num, hi) then marked = marked + (mark(v, num, hi)).toLong
+        i = i + 1
+      end
+
+      st.loopMarked = st.loopMarked + marked
+
+      // pass 3: free the rest, which clears the marks
+      kept = pack(r, num, parentOf r, true)
+
+    // nothing in the region escapes now, and no object has a level above `num`
+    setHi(r, num)
+    setMin(r, num)
+
+    if st.growthDue then growthReport()
+
+    val req = st.requested
+    if st.loopMode == loopAll then req
+    else if st.loopMode == loopOften then req + kept
+    else if kept > loopMinimum then req + kept
+    else req + loopMinimum
+
+  // Whether `o` is an object of the region at level `num`, up to `hi`, not
+  // reached from an older region and not marked yet. The mark bit puts `req`
+  // above `hi`, and static data has `phys = 0`.
+  private def unmarkedIn(o: Addr, num: Int, hi: Int): Bool =
+    if (isNull o) || (isOnPath o) then false
+    else
+      val req = reqOf o
+      (physOf o) >= num && req >= num && req <= hi
+
+  // The header of a marked object of the region at level `num`
+  private def markedHeader(num: Int): Int = (normal(num, num)) | markBit
+
+  // Mark the objects of the region at level `num` reachable from `root`, a
+  // depth-first traversal with pointer reversal like `lower`. It stops at
+  // objects of older regions, objects reached from them, which pass 1
+  // lowered, and marked objects. Returns the number of objects it marked.
+  private def mark(root: Addr, num: Int, hi: Int): Int =
+    var prev = nullAddr
+    var cur = root
+    var count = 1
+    setGcHalf(cur, onPath 0)
+
+    var done = false
+    while !(done) do
+      val i = cursorOf cur
+      if i < (slotCount cur) then
+        val c = getRef(cur, i)
+        if unmarkedIn(c, num, hi) then
+          count = count + 1
+          if (slotCount c) > 0 then
+            // descend, reversing the slot
+            setRef(cur, i, prev)
+            prev = cur
+            cur = c
+            setGcHalf(cur, onPath 0)
+          else
+            setGcHalf(c, markedHeader num)
+            setGcHalf(cur, onPath (i + 1))
+        else
+          setGcHalf(cur, onPath (i + 1))
+      else
+        setGcHalf(cur, markedHeader num)
+        if isNull prev then
+          done = true
+        else
+          // return, restoring the reversed slot
+          val j = cursorOf prev
+          val up = getRef(prev, j)
+          setRef(prev, j, cur)
+          cur = prev
+          prev = up
+          setGcHalf(cur, onPath (j + 1))
+    end
+    count
+
+  // Free the dead objects of the region `r` at level `num` and pack the
+  // survivors at the front of its segments, the partly filled one first. An
+  // object required by an older region than the survivors' goes directly to
+  // the region owning its level. A segment holds at most `segCapacity`
+  // objects, so the writer never passes the reader. Returns the bytes of the
+  // survivors in place, 0 otherwise.
+  //
+  // In place, for pass 3 of `collectLoop`, the survivors are the marked
+  // objects, which stay in `r`, and their marks are cleared. An object reached
+  // from an older region moves out, also when the parent owns its level, since
+  // `r` stays open. Otherwise, for a close into the parent at level `p`, the
+  // survivors are the objects whose `req` the parent owns, and the caller
+  // hands them to the parent.
+  private def pack(r: Addr, num: Int, p: Int, inPlace: Bool): Long =
+    var wprev = nullAddr
+    var wseg = firstSeg r
+    var w = 0
+    var segs = 1
+    var ownerReq = p
+    var owner = p
+    var dead = 0
+    var kept: Long = 0
+    var seg = firstSeg r
+    while !(isNull seg) do
+      val n = segCount seg
+      var i = 0
+      while i < n do
+        val o = readAddr (segEntry seg i)
+        val req = reqOf o
+        val survives = if inPlace then (req & markBit) != 0 else req >= p && req < num
+        if survives then
+          if inPlace then
+            setGcHalf(o, normal(num, num))
+            kept = kept + (sizeOf o)
+          else
+            setGcHalf(o, normal(p, req))
+
+          if w == segCapacity then
+            setSegCount(wseg, w)
+            wprev = wseg
+            wseg = segNext wseg
+            w = 0
+            segs = segs + 1
+
+          writeAddr (segEntry wseg w) o
+          w = w + 1
+        else if req >= num then
+          LibC.free o
+          dead = dead + 1
+        else
+          // goes directly to the region owning its level. A lower level is
+          // owned by the last owner or one of its ancestors.
+          if req != ownerReq then
+            owner = ownerOf(req, if req < ownerReq then owner else p)
+            ownerReq = req
+
+          // the only allocation of cleanup: `append` takes a segment when
+          // the first one of `owner` is full
+          setGcHalf(o, normal(owner, req))
+          append(descOf owner, o)
+
+        i = i + 1
+      end
+      seg = segNext seg
+    end
+
+    val st = state
+    st.freed = st.freed + dead.toLong
+    if inPlace then st.loopFreed = st.loopFreed + dead.toLong
+
+    // Release the segments after the survivors
+    setSegCount(wseg, w)
+    var rest = segNext wseg
+    writeAddr wseg nullAddr
+    while !(isNull rest) do
+      val next = segNext rest
+      releaseSegment rest
+      rest = next
+    end
+
+    // The partly filled segment goes first. `w` is 0 only without survivors.
+    if w == 0 then
+      releaseSegment wseg
+      setFirstSeg(r, nullAddr)
+      setLastSeg(r, nullAddr)
+      setSegs(r, 0)
+    else if isNull wprev then
+      setFirstSeg(r, wseg)
+      setLastSeg(r, wseg)
+      setSegs(r, 1)
+    else
+      writeAddr wprev nullAddr
+      writeAddr wseg (firstSeg r)
+      setFirstSeg(r, wseg)
+      setLastSeg(r, wprev)
+      setSegs(r, segs)
+
+    kept
+
+  //----------------------------------------------------------------------------
+  // Cleanup: runs no user code and allocates no objects. A collect may take
+  // index segments for the survivors it moves to an older region, one per 62
+  // of them plus one per destination, see `sweep`.
+
+  // Close the region `r` at level `num` into its parent at level `p`: free
+  // everything if nothing escapes, merge while the budget allows, or collect
+  private def close(r: Addr, num: Int, p: Int): Unit =
+    if !(isNull (firstSeg r)) then
+      val hi = hiOf r
+      val m = lowestPromotion(r, num)
+      val parent = descOf p
+      val st = state
+      if m >= num then
+        st.frees = st.frees + 1
+        freeAll r
+
+      else
+        if (segsOf parent) + (segsOf r) <= mergeLimit then
+          st.merges = st.merges + 1
+          setMin(parent, minInt(minOf parent, m))
+          setHi(parent, maxInt(hiOf parent, hi))
+          give(parent, firstSeg r, lastSeg r, segsOf r)
+        else
+          st.collects = st.collects + 1
+          sweep(r, num, p, parent)
+
+  // The lowest level an object of the region `r` at level `num` was promoted
+  // to, over the levels of the region. Something escapes when it is below
+  // `num`.
+  private def lowestPromotion(r: Addr, num: Int): Int =
+    val hi = hiOf r
+    var m = num
+    var l = num
+    while l <= hi do
+      m = minInt(m, minOf (descOf l))
+      l = l + 1
+    end
+    m
+
+  // Spread the requirements of the escape roots of the region `r` at level
+  // `num` to the objects of `r` they reach
+  private def spreadEscapes(r: Addr, num: Int): Unit =
+    var traced = 0
+    var seg = firstSeg r
+    while !(isNull seg) do
+      val n = segCount seg
+      var i = 0
+      while i < n do
+        val o = readAddr (segEntry seg i)
+        val req = reqOf o
+        if req < num then traced = traced + lower(o, req, num)
+        i = i + 1
+      end
+      seg = segNext seg
+    end
+
+    tracedBy(r, traced)
+
+  // Free all objects of a region from which nothing escapes
+  private def freeAll(r: Addr): Unit =
+    var seg = firstSeg r
+    while !(isNull seg) do
+      val n = segCount seg
+      state.freed = state.freed + n.toLong
+      var i = 0
+      while i < n do
+        LibC.free (readAddr (segEntry seg i))
+        i = i + 1
+      end
+
+      val next = segNext seg
+      releaseSegment seg
+      seg = next
+    end
+
+  // Hand the segments `first` to `last`, `n` of them, to the region `parent`.
+  // Only `first` may be partly filled. Its objects top up the parent's first
+  // segment. If some are left, `first` becomes the parent's first segment,
+  // otherwise it is released. The full segments are spliced in after the
+  // parent's first one.
+  private def give(parent: Addr, first: Addr, last: Addr, n: Int): Unit =
+    val front = firstSeg parent
+    if isNull front then
+      setFirstSeg(parent, first)
+      setLastSeg(parent, last)
+      setSegs(parent, n)
+    else
+      val k = segCount first
+      val p = segCount front
+      val moved = minInt(k, segCapacity - p)
+      var i = 0
+      while i < moved do
+        writeAddr (segEntry front (p + i)) (readAddr (segEntry first (k - moved + i)))
+        i = i + 1
+      end
+
+      setSegCount(front, p + moved)
+      setSegCount(first, k - moved)
+      if k == moved then
+        // `first` is empty: splice in the full segments after it
+        val rest = if sameRef(first, last) then nullAddr else segNext first
+        releaseSegment first
+        if !(isNull rest) then
+          writeAddr last (segNext front)
+          writeAddr front rest
+          if sameRef(front, lastSeg parent) then setLastSeg(parent, last)
+
+        setSegs(parent, (segsOf parent) + n - 1)
+      else
+        // the parent's first segment is full now
+        writeAddr last front
+        setFirstSeg(parent, first)
+        setSegs(parent, (segsOf parent) + n)
+
+    grew parent
+
+  // Free the dead objects of the region `r` at level `num`, and hand the
+  // survivors to its parent at level `p`. A survivor required by an older
+  // region goes directly to it, so the closes in between do not visit it again.
+  private def sweep(r: Addr, num: Int, p: Int, parent: Addr): Unit =
+    spreadEscapes(r, num)
+    val _ = pack(r, num, p, false)
+    if !(isNull (firstSeg r)) then give(parent, firstSeg r, lastSeg r, segsOf r)
+
+  // The level of the open region owning the level `l`, an ancestor of the
+  // region at level `p` or that region
+  private def ownerOf(l: Int, p: Int): Int =
+    var o = p
+    while o > l do
+      o = parentOf (descOf o)
+    end
+    o
+
+  // Lower `req` to `d` for the objects of the region at level `num` reachable
+  // from `root`, a depth-first traversal with pointer reversal: the slot that
+  // led to the current object holds its parent until the traversal returns.
+  // An object is in the region when its `phys` is `num` or above, since the
+  // younger regions are closed. Returns the number of objects whose `req` it
+  // lowered, for the memory statistics, not counting the root, which was
+  // lowered before. A region holds fewer than 2^31 objects, and an object is
+  // lowered once per close in the common case, so this does not wrap.
+  private def lower(root: Addr, d: Int, num: Int): Int =
+    var prev = nullAddr
+    var cur = root
+    var lowered = 0
+    setGcHalf(cur, onPath 0)
+
+    var done = false
+    while !(done) do
+      val i = cursorOf cur
+      if i < (slotCount cur) then
+        val c = getRef(cur, i)
+        if !(isNull c) && !(isOnPath c) && (reqOf c) > d then
+          if (physOf c) >= num && (slotCount c) > 0 then
+            // descend, reversing the slot. A buffer has no slots, so an
+            // interior slot is never reversed.
+            setRef(cur, i, prev)
+            prev = cur
+            cur = c
+            lowered = lowered + 1
+            setGcHalf(cur, onPath 0)
+          else
+            // without pointers, or in an ancestor region, whose own cleanup
+            // traces it: lower it only, and record it for that cleanup
+            setReq(c, d)
+            lowered = lowered + 1
+            record(physOf c, d)
+            if d == 0 then promotedByTrace num
+            setGcHalf(cur, onPath (i + 1))
+        else
+          setGcHalf(cur, onPath (i + 1))
+      else
+        setGcHalf(cur, normal(num, d))
+        if d == 0 && !(isNull prev) then promotedByTrace num
+        if isNull prev then
+          done = true
+        else
+          // return, restoring the reversed slot
+          val j = cursorOf prev
+          val up = getRef(prev, j)
+          setRef(prev, j, cur)
+          cur = prev
+          prev = up
+          setGcHalf(cur, onPath (j + 1))
+    end
+    lowered
+
+  //----------------------------------------------------------------------------
+  // Memory statistics, see "Memory statistics" in GC.md
+  //
+  // The counts of `State` are always kept. Under `--mem-profile` the backend
+  // emits the names of the region functions, by number, and of the classes,
+  // by class id. With names and `JO_MEMSTATS`, each region function gets an
+  // entry of `funStats`, of 12 `i32` fields:
+  //
+  //   { store, trace, peakSegs, peakCaller, into, caller, storeBase, traceBase,
+  //     return, returnBase, traced, tracedCaller }
+  //
+  // `store` and `trace` count the objects its stores and the trace of its
+  // region promoted to the runtime region, and `return` the results it
+  // returned to code in the runtime region. `into` is the class of the object
+  // stored into last, and `caller` the caller at the last store or trace. The
+  // caller of a `return` is always function 0, `runtime`, the code that runs
+  // in the runtime region. `storeBase`, `traceBase` and `returnBase` are
+  // `store`, `trace` and `return` at the last growth report, which prints the
+  // promotions since.
+  // `peakSegs` is the most segments its region had, and `peakCaller` the
+  // caller then. `traced` counts the objects the traces of its region
+  // lowered, saturating at the largest `Int`, and `tracedCaller` is the
+  // caller at the last one. The caller is the nearest function of an
+  // enclosing region that is not a library function, so that a row names
+  // user code.
+
+  //[ The names of the region functions, a null-terminated array of C strings //]
+  @intrinsic
+  private def funNames: Addr = ...
+
+  //[ The names of the classes by class id, under `--mem-profile` //]
+  @intrinsic
+  private def classNames: Addr = ...
+
+  private def statsSize: Int = 48
+
+  private def storeField: Int = 0
+
+  private def traceField: Int = 4
+
+  private def peakSegsField: Int = 8
+
+  private def peakCallerField: Int = 12
+
+  private def intoField: Int = 16
+
+  private def callerField: Int = 20
+
+  private def storeBaseField: Int = 24
+
+  private def traceBaseField: Int = 28
+
+  private def returnField: Int = 32
+
+  private def returnBaseField: Int = 36
+
+  private def tracedField: Int = 40
+
+  private def tracedCallerField: Int = 44
+
+  // The value of `growthSegs` when the statistics are off
+  private def noGrowth: Int = 2147483647
+
+  // The segments of the runtime region that trigger the first growth report
+  private def firstGrowth: Int = 1024
+
+  private def statsOf(fun: Int): Addr = addAddr state.funStats (fun * statsSize)
+
+  private def field(e: Addr, offset: Int): Int = readInt (addAddr e offset)
+
+  private def setField(e: Addr, offset: Int, v: Int): Unit = writeInt (addAddr e offset) v
+
+  private def bump(e: Addr, offset: Int): Unit = setField(e, offset, (field(e, offset)) + 1)
+
+  private def funName(fun: Int): Addr = readAddr (addAddr funNames (fun * wordSize))
+
+  // Whether the region function `fun` is in the library, named `jo.*`. The
+  // bytes 106, 111 and 46 are `j`, `o` and `.`.
+  private def isLibrary(fun: Int): Bool =
+    val name = funName fun
+    (readByte name).toInt == 106 && (readByte (addAddr name 1)).toInt == 111 && (readByte (addAddr name 2)).toInt == 46
+
+  // The function of the nearest region enclosing `r` that is not a library
+  // function, or 0 for the code in the runtime region
+  private def callerOf(r: Addr): Int =
+    var l = parentOf r
+    while l > 0 && (isLibrary (funOf (descOf l))) do
+      l = parentOf (descOf l)
+    end
+    funOf (descOf l)
+
+  // A store into `obj`, in the runtime region, promoted a value there
+  private def promotedByStore(obj: Addr): Unit =
+    val st = state
+    st.toRuntimeStore = st.toRuntimeStore + 1
+    if !(isNull st.funStats) then
+      val e = statsOf (funOf st.region)
+      bump(e, storeField)
+      setField(e, intoField, readInt obj)
+      setField(e, callerField, callerOf st.region)
+
+  // The trace of the closing region at level `num` promoted an object to the
+  // runtime region
+  private def promotedByTrace(num: Int): Unit =
+    val st = state
+    st.toRuntimeTrace = st.toRuntimeTrace + 1
+    if !(isNull st.funStats) then
+      val r = descOf num
+      val e = statsOf (funOf r)
+      bump(e, traceField)
+      setField(e, callerField, callerOf r)
+
+  // The region `r`, whose parent is the runtime region, returned its result
+  // to code in the runtime region, which promoted the result there
+  private def promotedByReturn(r: Addr): Unit =
+    val st = state
+    st.toRuntimeReturn = st.toRuntimeReturn + 1
+    if !(isNull st.funStats) then bump(statsOf (funOf r), returnField)
+
+  // The trace of the closing region `r` lowered the `req` of `n` objects
+  private def tracedBy(r: Addr, n: Int): Unit =
+    val st = state
+    st.traced = st.traced + n.toLong
+    if !(isNull st.funStats) && n > 0 then
+      val e = statsOf (funOf r)
+      val v = field(e, tracedField)
+      setField(e, tracedField, if v > 2147483647 - n then 2147483647 else v + n)
+      setField(e, tracedCallerField, callerOf r)
+
+  // The region `r` gained segments: make a growth report due if it reached
+  // the threshold of the runtime region or of the other regions, and record
+  // the peak of its function. The report region of `growthReport` has the
+  // function 0 and no peak.
+  private def grew(r: Addr): Unit =
+    val st = state
+    val segs = segsOf r
+    if sameRef(r, st.regions) then
+      if segs >= st.growthSegs then st.growthDue = true
+    else if segs >= st.regionGrowthSegs then
+      st.growthDue = true
+
+    if !(isNull st.funStats) && (funOf r) > 0 then
+      val e = statsOf (funOf r)
+      if (segsOf r) > (field(e, peakSegsField)) then
+        setField(e, peakSegsField, segsOf r)
+        setField(e, peakCallerField, callerOf r)
+
+  //[ Count per function if the backend emitted names. Called at startup when `JO_MEMSTATS` is set. //]
+  def startStats(): Unit receives none =
+    var n = 0
+    while !(isNull (funName n)) do
+      n = n + 1
+    end
+
+    val st = state
+    st.growthSegs = firstGrowth
+    st.regionGrowthSegs = firstGrowth
+    if n > 0 then
+      st.funStats = callocOrAbort (n * statsSize)
+      st.funCount = n
+
+  // The number of objects in the region at level `l`
+  private def countAt(l: Int): Long =
+    var n: Long = 0
+    var seg = firstSeg (descOf l)
+    while !(isNull seg) do
+      n = n + (segCount seg).toLong
+      seg = segNext seg
+    end
+    n
+
+  private def line(s: String): Unit = writeString: 2, cast[StringRepr] (s + "\n")
+
+  // Write the C string `name`, up to the first space if `short`
+  private def writeName(name: Addr, short: Bool): Unit =
+    var n = 0
+    var c = (readByte (addAddr name n)).toInt
+    while c != 0 && !(short && c == 32) do
+      n = n + 1
+      c = (readByte (addAddr name n)).toInt
+    end
+    val _ = LibC.write 2 name n.toLong
+
+  // What `printTop` printed: rows, and a row naming a library function
+  private def printedRows: Int = 1
+
+  private def printedLibrary: Int = 2
+
+  // No base field: `printTop` prints the cumulative values
+  private def cumulative: Int = -1
+
+  // Print up to 10 rows of the function statistics at `offset`, the largest
+  // first, leaving out values under 1000 after scaling. With a `base` field,
+  // the values are the differences to it. Returns the flags of what it
+  // printed. Without a base, printing clears the values. With one, printing
+  // sets the base to the value, and at the end every base is set to its
+  // value, so that the next call counts from now.
+  private def printTop(head: String, offset: Int, base: Int, scale: Int): Int =
+    val st = state
+    var printed = 0
+    var flags = 0
+    var more = true
+    while more && printed < 10 do
+      var best = 0
+      var max = 0
+      var f = 0
+      while f < st.funCount do
+        val e = statsOf f
+        val v = if base == cumulative then field(e, offset) else field(e, offset) - field(e, base)
+        if v > max then
+          best = f
+          max = v
+        f = f + 1
+      end
+
+      if max * scale < 1000 then more = false
+      else
+        val e = statsOf best
+        if base == cumulative then setField(e, offset, 0)
+        else setField(e, base, field(e, offset))
+        writeString: 2, cast[StringRepr] "jo-mem \{head}=\{max * scale} fun="
+        writeName(funName best, false)
+        if offset == storeField then
+          writeString: 2, cast[StringRepr] " into="
+          writeName(readAddr (addAddr classNames ((field(e, intoField)) * wordSize)), false)
+
+        if best > 0 then
+          writeString: 2, cast[StringRepr] " caller="
+          // a result is returned to the runtime region, function 0
+          val caller =
+            if offset == peakSegsField then field(e, peakCallerField)
+            else if offset == tracedField then field(e, tracedCallerField)
+            else if offset == returnField then 0
+            else field(e, callerField)
+
+          writeName(funName caller, true)
+
+        line ""
+        printed = printed + 1
+        flags = flags | printedRows
+
+        // the runtime hint covers a library function that returns to the
+        // runtime region
+        if (isLibrary best) && offset != returnField then flags = flags | printedLibrary
+    end
+
+    if base != cumulative then
+      var f = 0
+      while f < st.funCount do
+        val e = statsOf f
+        setField(e, base, field(e, offset))
+        f = f + 1
+      end
+
+    flags
+
+  // The values with shared boxes, for the hints
+  private def sharedBoxes: String =
+    "Int in [\{intBoxLow}, \{intBoxLow + intBoxCount}), Char in [0, \{charBoxCount}), Byte and Bool have shared boxes."
+
+  // The hint for allocation in the runtime region and for the results
+  // returned to it
+  private def runtimeHint: String =
+    "jo-mem hint runtime: code that runs in no region, such as a function that opens no region called by the entry function, allocates in the runtime region, and what it allocates or is returned to it stays until exit. Name that function with --region, so its loops free their garbage and its callees' results are freed when it returns."
+
+  // The hint for a `region` row and a `growth-region` line
+  private def regionHint: String =
+    "jo-mem hint region: the region of this function held this many objects at once. Its loops free what no variable read later reaches. What stays is reached from such a variable or from a container of a caller, or was allocated by a loop that does not collect, in a function that opens no region."
+
+  // The hint for a trace that visits many more objects than were allocated
+  private def tracedHint: String =
+    "jo-mem hint traced: the traces of closing regions lowered many more objects than were allocated, so the same objects were traced at close after close. The likely cause is a recursive function whose result is built in a loop, which the backend does not allocate in the region of the outermost call. Each level then copies the whole result up to its caller and traces it again. A traced row names the function. Build the result with a loop or an accumulator in one function, or build with --region-policy none and a --region for a function that calls the recursive one."
+
+  // The peak RSS in KB
+  private def peakRssKb(): Long =
+    // 0 is RUSAGE_SELF. The buffer is larger than `struct rusage`, whose
+    // `ru_maxrss` is at offset 32 on 64-bit Linux, in KB.
+    val usage = callocOrAbort 256
+    val _ = LibC.getrusage 0 usage
+    val rss = addrToLong (readAddr (addAddr usage 32))
+    LibC.free usage
+    rss
+
+  // Print the growth reports that are due. Called at the end of `leave` and
+  // `collectLoop`, when the state is consistent. Printing allocates, so it
+  // restores `requested`, and loops collect at the same iterations with and
+  // without `JO_MEMSTATS`.
+  private def growthReport(): Unit =
+    val st = state
+    st.growthDue = false
+    val requested = st.requested
+    if (segsOf st.regions) >= st.growthSegs then runtimeGrowthReport()
+    regionGrowthReport()
+    st.requested = requested
+
+  // A region other than the runtime region reached `regionGrowthSegs`.
+  // Report the largest open one if it still has that many segments. It may
+  // have closed since. The runtime region has reports of its own.
+  private def regionGrowthReport(): Unit =
+    val st = state
+    var best = 0
+    var bestSegs = 0
+    var l = st.level
+    while l > 0 do
+      val r = descOf l
+      if (segsOf r) > bestSegs then
+        best = l
+        bestSegs = segsOf r
+
+      l = parentOf r
+    end
+
+    if bestSegs >= st.regionGrowthSegs then
+      st.regionGrowthSegs = if bestSegs > noGrowth / 2 then noGrowth else 2 * bestSegs
+      val r = descOf best
+      // read the counts before printing, which allocates
+      val objects = countAt best
+      val named = !(isNull (funName 0))
+      val fun = funOf r
+      // `callerOf` reads the names
+      val caller = if named then callerOf r else 0
+
+      enter 0
+      val rss = peakRssKb()
+      writeString: 2, cast[StringRepr] "jo-mem growth-region objects=\{objects} peak-rss-kb=\{rss}"
+      if named then
+        writeString: 2, cast[StringRepr] " fun="
+        writeName(funName fun, false)
+        writeString: 2, cast[StringRepr] " caller="
+        writeName(funName caller, true)
+
+      line ""
+      if !named then
+        if !st.growthHinted then
+          line "jo-mem hint rebuild with --mem-profile to attribute these to functions"
+          st.growthHinted = true
+
+      else if !st.regionHinted then
+        line regionHint
+        st.regionHinted = true
+
+      leave nullAddr
+
+  // Print a growth report: the runtime region reached `growthSegs`. Prints in
+  // a region of its own, so that its strings are freed and the counts stay as
+  // they are.
+  private def runtimeGrowthReport(): Unit =
+    val st = state
+    val segs = segsOf st.regions
+    st.growthSegs = if segs > noGrowth / 2 then noGrowth else 2 * segs
+
+    // read the counts before printing, which allocates
+    val runtime = countAt 0
+    val direct = st.direct
+    val store = st.toRuntimeStore
+    val trace = st.toRuntimeTrace
+    val ret = st.toRuntimeReturn
+
+    enter 0
+    val rss = peakRssKb()
+    val returned = ret - st.lastReturn
+    line "jo-mem growth runtime-region=\{runtime} peak-rss-kb=\{rss} direct=\{direct - st.lastDirect} store=\{store - st.lastStore} trace=\{trace - st.lastTrace} return=\{returned}"
+    st.lastStore = store
+    st.lastTrace = trace
+    st.lastReturn = ret
+
+    // each hint is printed once, at the first report that has its finding
+    if isNull (funName 0) then
+      if !st.growthHinted then
+        line "jo-mem hint rebuild with --mem-profile to attribute these to functions"
+        st.growthHinted = true
+
+    else if !(isNull st.funStats) then
+      // the base fields hold the counts at the last growth report
+      val storeRows = printTop("growth-promoted kind=store count", storeField, storeBaseField, 1)
+      val traceRows = printTop("growth-promoted kind=trace count", traceField, traceBaseField, 1)
+      val _ = printTop("growth-promoted kind=return count", returnField, returnBaseField, 1)
+      if ((storeRows | traceRows) & printedRows) != 0 && !st.growthHinted then
+        line "jo-mem hint growth: a single report after startup can be data the program keeps. Repeated reports mean the runtime region grows without bound. Start with the largest row. If fun is a jo.* library function, change how caller uses it. A trace row means a store linked a structure to the runtime region, so find that store. A value stored into a container of the runtime region stays until exit, even after it is overwritten. Keep per-request state in a function that returns. Mutate the fields of the existing object instead of storing a new one, or store values that need no allocation. \{sharedBoxes} Do not append without bound to a collection in the runtime region."
+        st.growthHinted = true
+
+    if (direct - st.lastDirect >= 1000 || returned >= 1000) && !st.runtimeHinted then
+      line runtimeHint
+      st.runtimeHinted = true
+
+    st.lastDirect = direct
+    leave nullAddr
+
+  //[ Print the memory statistics on stderr //]
+  def report(): Unit receives none =
+    // read the counts before printing, which allocates
+    val st = state
+    val allocs = st.allocs
+    val freed = st.freed
+    val runtime = countAt 0
+    val direct = st.direct
+    val store = st.toRuntimeStore
+    val trace = st.toRuntimeTrace
+    val ret = st.toRuntimeReturn
+    val frees = st.frees
+    val merges = st.merges
+    val collects = st.collects
+    val skips = st.skips
+    val traced = st.traced
+    val loopCollects = st.loopCollects
+    val loopMarked = st.loopMarked
+    val loopFreed = st.loopFreed
+
+    val rss = peakRssKb()
+
+    line "jo-mem summary peak-rss-kb=\{rss} allocated=\{allocs} freed=\{freed} runtime-region=\{runtime} skipped-enters=\{skips}"
+    line "jo-mem to-runtime direct=\{direct} store=\{store} trace=\{trace} return=\{ret}"
+    line "jo-mem closes free=\{frees} merge=\{merges} collect=\{collects} traced=\{traced}"
+    line "jo-mem loops collect=\{loopCollects} marked=\{loopMarked} freed=\{loopFreed}"
+
+    if isNull (funName 0) then
+      line "jo-mem hint rebuild with --mem-profile to attribute these to functions"
+
+    else if !(isNull st.funStats) then
+      // `cumulative`: the counts since the start, not since a base field
+      val storeRows = printTop("promoted kind=store count", storeField, cumulative, 1)
+      val traceRows = printTop("promoted kind=trace count", traceField, cumulative, 1)
+      val _ = printTop("promoted kind=return count", returnField, cumulative, 1)
+      val regionRows = printTop("region objects", peakSegsField, cumulative, segCapacity)
+      val tracedRows = printTop("traced objects", tracedField, cumulative, 1)
+      val rows = storeRows | traceRows | regionRows | tracedRows
+      if (storeRows & printedRows) != 0 then
+        line "jo-mem hint store: a value stored into a container in the runtime region stays until exit, even after it is overwritten. Moving the container into a function helps only if that function returns well before the program ends, as in phases or batches. Otherwise avoid a new object per store. Mutate the existing object, or store values that need no allocation. \{sharedBoxes}"
+
+      if (traceRows & printedRows) != 0 then
+        line "jo-mem hint trace: when the region of this function closed, a structure reachable from the runtime region moved there with everything it reaches. Either a store linked it to an object there, or it is a result returned to the runtime region, counted in return of to-runtime. For a store, find it and apply the hint for stores. For a result, apply the runtime hint."
+
+      if (regionRows & printedRows) != 0 then line regionHint
+
+      if (rows & printedLibrary) != 0 then
+        line "jo-mem hint library: fun names a jo.* library function. Change how the caller uses it. For example, replace Iterator.fold over a long input with a while loop whose body calls a function."
+
+    if direct >= 1000 || ret >= 1000 then line runtimeHint
+
+    if traced > allocs + allocs + allocs + allocs then line tracedHint
+end

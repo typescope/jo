@@ -1,0 +1,84 @@
+namespace gcapp
+
+// Under `--region-policy all`, every function opens a region. Each call
+// returns or stores an object, so its region is merged or collected, never
+// just freed. Without reclamation each scenario needs about 480 MB, with
+// regions the program runs in about 10 MB.
+
+class Node(value: Int, next: Option[Node])
+
+class Box(value: Int)
+
+class Ring(size: Int)
+  val slots: Array[Box] = Array.fill(size, new Box(0))
+end
+
+// A list of `n` nodes, garbage once the caller is done with it
+def garbage(seed: Int, n: Int): Option[Node] =
+  var list: Option[Node] = None
+  var i = 0
+  while i < n do
+    list = Some(new Node(seed + i, list))
+    i = i + 1
+  end
+  list
+
+def headOf(list: Option[Node]): Int =
+  match list
+    case Some(node) => node.value
+    case None => 0
+
+// The result escapes, the temporaries die
+def step(seed: Int): Box =
+  new Box(headOf(garbage(seed, 100)))
+
+def loop(): Int =
+  var total = 0
+  var k = 0
+  while k < 50000 do
+    total = (total + step(k).value) % 1000003
+    k = k + 1
+  end
+  total
+
+// Every level returns a new object and leaves temporaries behind
+def deep(n: Int): Box =
+  if n == 0 then new Box(0)
+  else
+    val temp = garbage(n, 50)
+    val rest = deep(n - 1)
+    new Box((rest.value + headOf(temp)) % 1000003)
+
+def recursion(): Int =
+  var total = 0
+  var k = 0
+  while k < 100 do
+    total = (total + deep(1000).value) % 1000003
+    k = k + 1
+  end
+  total
+
+// The stored object escapes through the barrier, the temporaries die
+def record(ring: Ring, k: Int): Unit =
+  ring.slots.set(k % ring.size, new Box(headOf(garbage(k, 100))))
+
+def stores(): Int =
+  val ring = new Ring(1000)
+  var k = 0
+  while k < 50000 do
+    record(ring, k)
+    k = k + 1
+  end
+
+  var total = 0
+  var i = 0
+  while i < ring.size do
+    total = (total + ring.slots.get(i).value) % 1000003
+    i = i + 1
+  end
+  total
+
+def main =
+  println loop()
+  println recursion()
+  println stores()

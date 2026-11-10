@@ -17,6 +17,24 @@ def testSelect =
   println "--- iterator.select ---"
   println [1, 2, 3, 4, 5].iterator.select(n => n % 2 == 0).toList
   println [1, 3, 5].iterator.select(n => n % 2 == 0).toList
+  println [1, 2, 3].iterator.select(n => n > 0).toList
+  println ["a", "bb", "ccc", "dd"].iterator.select(s => s.length == 2).toList
+
+  val it = (0 until 10).iterator.select(n => n % 3 == 0)
+  println it.hasNext
+  println it.hasNext
+  println it.next()
+  println it.next()
+  println it.hasNext
+  println it.hasNext
+  println it.next()
+  println it.next()
+  println it.hasNext
+  println it.hasNext
+
+  val none = (0 until 5).iterator.select(n => n > 9)
+  println none.hasNext
+  println none.hasNext
 
 def testTake =
   println "--- iterator.take ---"

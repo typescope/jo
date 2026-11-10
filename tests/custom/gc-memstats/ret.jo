@@ -1,0 +1,20 @@
+namespace memret
+
+// Results returned to the entry function: `wrap` returns a new object for
+// each number of the range. Under `--region-policy none --region memret.wrap`,
+// `main` runs in the runtime region, so each result stays there until exit.
+// Under the default policy, the results are placed in the region of `main`,
+// and its loop frees them.
+
+class Count(n: Int)
+
+def wrap(i: Int): Count = new Count(i)
+
+def main =
+  var total = 0
+  val it = (2000 until 62000).iterator
+  while it.hasNext do
+    total = total + (wrap(it.next())).n
+  end
+
+  println total

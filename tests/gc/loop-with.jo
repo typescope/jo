@@ -1,0 +1,36 @@
+namespace gcloopwith
+
+// A `with` around a collecting loop, whose parameter the loop reads, and a
+// closure created before the loop and called in it.
+
+class Box(value: Int)
+
+param scale: Box
+
+def scaled(i: Int): Box receives scale = new Box(i * scale.value)
+
+def run(n: Int): Int =
+  var total = 0
+  with scale = new Box(3) in
+    var i = 0
+    while i < n do
+      val b = scaled i
+      total = (total + b.value) % 1000003
+      i = i + 1
+    end
+  total
+
+def closures(n: Int): Int =
+  val base = new Box(11)
+  val add: Int => Box = i => new Box(i + base.value)
+  var total = 0
+  var i = 0
+  while i < n do
+    total = (total + (add i).value) % 1000003
+    i = i + 1
+  end
+  total
+
+def main(): Unit =
+  println: run 100000
+  println: closures 100000

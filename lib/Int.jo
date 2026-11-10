@@ -37,7 +37,7 @@ class Int
     ! that `(a / b) * b + a % b == a`.
     !
     ! When the quotient is not representable — division by zero, or the
-    ! overflowing `INT_MIN / -1` — both `/` and `%` are runtime-dependent.
+    ! overflowing `INT_MIN / -1` — the behavior of both `/` and `%` is undefined.
   //]
   @intrinsic
   def /(other: Int): Int = ...
@@ -48,7 +48,7 @@ class Int
     ! `7 % (0 - 2) == 1`.
     !
     ! When the corresponding quotient `a / b` is not representable — division
-    ! by zero, or `INT_MIN / -1` — both `/` and `%` are runtime-dependent.
+    ! by zero, or `INT_MIN / -1` — the behavior of both `/` and `%` is undefined.
   //]
   @intrinsic
   def %(other: Int): Int = ...

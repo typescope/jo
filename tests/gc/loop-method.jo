@@ -1,0 +1,35 @@
+namespace gcloopmethod
+
+// A collecting loop in a method and in a lambda body
+
+class Box(value: Int)
+
+class Counter(start: Int)
+  var total: Int = start
+
+  def run(n: Int): Box =
+    var b = new Box(this.total)
+    var i = 0
+    while i < n do
+      b = new Box((b.value + i) % 1000003)
+      i = i + 1
+    end
+    this.total = b.value
+    b
+end
+
+def main(): Unit =
+  val c = new Counter(5)
+  println: (c.run 100000).value
+  println: c.total
+
+  val f: Int => Box = n =>
+    var b = new Box(1)
+    var i = 0
+    while i < n do
+      b = new Box((b.value * 3 + i) % 1000003)
+      i = i + 1
+    end
+    b
+
+  println: (f 100000).value

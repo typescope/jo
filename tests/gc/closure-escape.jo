@@ -1,0 +1,38 @@
+// options: --region gctest.makeGreeter --region gctest.relabel
+namespace gctest
+
+// A closure returned from a region keeps what it captured alive, and a store
+// into an object of an outer region keeps the stored value alive.
+
+class Label
+  var text: String = ""
+end
+
+def makeGreeter(n: Int): String => String =
+  val name = "guest" + n.toString
+  (greeting: String) => greeting + ", " + name
+
+def relabel(label: Label, n: Int): Unit =
+  label.text = "label-" + n.toString + "!"
+
+def main =
+  val greeters = Array.create[String => String](3)
+  var i = 0
+  while i < 3 do
+    greeters[i] = makeGreeter(i)
+    i = i + 1
+  end
+
+  val label = new Label
+  i = 0
+  while i < 3 do
+    relabel(label, i)
+    i = i + 1
+  end
+
+  i = 0
+  while i < 3 do
+    println: greeters[i]("hello")
+    i = i + 1
+  end
+  println label.text

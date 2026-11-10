@@ -1,0 +1,356 @@
+namespace jo.runtime.native
+
+import jo.compile.intrinsic
+
+import jo.runtime.native.LibC
+import jo.runtime.native.GC
+
+// Platform layer on top of the C library
+//
+// The common runtime expects every platform layer to provide `intToLong`,
+// `exitImpl`, `writeFd`, `floatToStr`, the memory primitives `allocBuffer`,
+// `bytesClassId` and `writeRef`, and the program entry `start`.
+
+@intrinsic
+private def intToLong(a: Int): Long receives none = ...
+
+//[ The numeric value of an address //]
+@intrinsic
+private def addrToLong(a: Addr): Long receives none = ...
+
+// Print the memory statistics first if `JO_MEMSTATS` turned them on. After
+// `abort`, whose message has no newline, start them on a new line.
+private def exitImpl(code: Int): Bottom receives none =
+  val st = state
+  if st.memStats then
+    st.memStats = false
+    if code != 0 then writeString: 2, cast[StringRepr] "\n"
+    Regions.report()
+
+  LibC.exit code
+
+private def writeFd(fd: Int, content: Addr, len: Int): Int receives none =
+  (LibC.write fd content len.toLong).toInt
+
+//------------------------------------------------------------------------------
+//
+// memory
+//
+// Every allocation is an object with a header, so the garbage collector can
+// find its layout. A field of type `Addr` points just past the header of a
+// buffer object, or of a static buffer emitted by the backend.
+
+@intrinsic
+private def bufferClassId: Int receives none = ...
+
+@intrinsic
+private def bytesClassId: Int receives none = ...
+
+// A byte buffer of `size` bytes. Returns the address of its first byte.
+private def allocBuffer(size: Int): Addr receives none =
+  checkAllocCount(size, 1)
+  val obj = GC.alloc (size + wordSize)
+  writeInt obj bufferClassId
+  addAddr obj wordSize
+
+// Store a reference into the object `obj` at byte offset `offset`
+private def writeRef(obj: Addr, offset: Int, value: Addr): Unit receives none =
+  Regions.barrier(obj, value)
+  writeAddr (addAddr obj offset) value
+
+// A null-terminated copy of a string, for the C library
+private def cString(s: String): Addr receives none =
+  val n = StringOps.byteSize s
+  val content = StringOps.bytes s
+  val buf = allocBuffer (n + 1)
+  var i = 0
+  while i < n do
+    writeByte(addAddr buf i, readByte (addAddr content i))
+    i = i + 1
+  end
+  writeByte(addAddr buf n, 0.toByte)
+  buf
+
+// Copy a null-terminated C string into a buffer
+private def copyCString(str: Addr): Addr receives none =
+  var len = 0
+  while (readByte (addAddr str len)).toInt != 0 do
+    len = len + 1
+  end
+
+  val buf = allocBuffer (len + 1)
+  var i = 0
+  while i <= len do
+    writeByte(addAddr buf i, readByte (addAddr str i))
+    i = i + 1
+  end
+  buf
+
+//------------------------------------------------------------------------------
+//
+// program life time
+//
+
+//[
+  ! This object cannot be allocated by GC because the GC initialization needs to
+  ! record GC state inside it.
+  !
+  ! The class may not implement interfaces as the interface table is created
+  ! later.
+  !
+  ! The class initialization code is simply ignored --- it should not require
+  ! any initialization. The backend reserves zeroed memory for it.
+  !
+  ! Breaking the invariants will lead to segmentation fault.
+//]
+private class State
+  // regions: the descriptors indexed by level, the current region, its
+  // level, the `enter` calls merged at the level limit, and whether the next
+  // `enter` inherits the result region of the current one
+  var regions: Addr = nullAddr
+  var region: Addr = nullAddr
+  var level: Int = 0
+  var skipped: Int = 0
+  var inherit: Bool = false
+
+  // loop collection: the bytes requested from the allocator since startup,
+  // and the stress mode picked by `JO_LOOP_COLLECT`, see `Regions.loopStart`
+  var requested: Long = 0
+  var loopMode: Int = 0
+
+  // memory statistics, counted always and printed when `JO_MEMSTATS` is set:
+  // objects allocated and freed, objects allocated directly in the runtime
+  // region, objects promoted there by a store, a trace and a return, the
+  // outcomes of closing a region, the enters skipped at the level limit, the
+  // objects whose `req` the traces of closing regions lowered, and the loop
+  // collections with the objects their marks visited and they freed
+  var memStats: Bool = false
+  var allocs: Long = 0
+  var freed: Long = 0
+  var direct: Long = 0
+  var toRuntimeStore: Long = 0
+  var toRuntimeTrace: Long = 0
+  var toRuntimeReturn: Long = 0
+  var frees: Long = 0
+  var merges: Long = 0
+  var collects: Long = 0
+  var skips: Long = 0
+  var traced: Long = 0
+  var loopCollects: Long = 0
+  var loopMarked: Long = 0
+  var loopFreed: Long = 0
+
+  // the statistics of each region function, under `--mem-profile` only
+  var funStats: Addr = nullAddr
+  var funCount: Int = 0
+
+  // growth reports: whether one is due, the segments of the runtime region
+  // and of any other region that trigger the next, whether the growth or
+  // rebuild hint, the runtime hint and the region hint were printed, and the
+  // promotions at the last one
+  var growthDue: Bool = false
+  var growthSegs: Int = 0
+  var regionGrowthSegs: Int = 0
+  var growthHinted: Bool = false
+  var runtimeHinted: Bool = false
+  var regionHinted: Bool = false
+  var lastDirect: Long = 0
+  var lastStore: Long = 0
+  var lastTrace: Long = 0
+  var lastReturn: Long = 0
+
+  // the pool of free region segments
+  var segPool: Addr = nullAddr
+  var segPoolSize: Int = 0
+
+  // the address range of the main stack, to recognize a stack overflow
+  var stackLow: Long = 0
+  var stackTop: Long = 0
+end
+
+@intrinsic
+private def state: State receives none =
+  abort "native state"
+
+//------------------------------------------------------------------------------
+//
+// shared boxes
+//
+
+//[
+  ! The boxes of small values are static data, emitted by codegen, and boxing
+  ! such a value returns its shared box instead of a new one. Like a string
+  ! literal, a shared box has `gc = 0`, so the write barrier never lowers it and
+  ! the trace of a closing region never enters it. Boxes are immutable, and Jo
+  ! cannot observe the identity of a boxed value, so sharing is invisible to
+  ! programs. The ranges are defined in `Layout.scala`.
+//]
+
+//[ The smallest Int with a shared box //]
+@intrinsic
+private def intBoxLow: Int receives none = ...
+
+//[ The number of Int values with a shared box, from `intBoxLow` //]
+@intrinsic
+private def intBoxCount: Int receives none = ...
+
+//[ The number of Char values with a shared box, from 0 //]
+@intrinsic
+private def charBoxCount: Int receives none = ...
+
+//[ The shared box of `intBoxLow + k`, for `k` in [0, intBoxCount) //]
+@intrinsic
+private def sharedIntBox(k: Int): IntBox receives none = ...
+
+//[ The shared box of the Char `k`, for `k` in [0, charBoxCount) //]
+@intrinsic
+private def sharedCharBox(k: Int): CharBox receives none = ...
+
+//[ The shared box of a Byte //]
+@intrinsic
+private def sharedByteBox(b: Byte): ByteBox receives none = ...
+
+//[ The shared box of a Bool //]
+@intrinsic
+private def sharedBoolBox(b: Bool): BoolBox receives none = ...
+
+//[ Box an Int, sharing the boxes of small values //]
+private def boxInt(v: Int): IntBox receives none =
+  val k = v - intBoxLow
+  if k >= 0 && k < intBoxCount then sharedIntBox k
+  else IntBox v
+
+//[ Box a Char, sharing the boxes of small code points //]
+private def boxChar(c: Char): CharBox receives none =
+  val k = c.toInt
+  if k >= 0 && k < charBoxCount then sharedCharBox k
+  else CharBox c
+
+//[ Box a Byte with its shared box //]
+private def boxByte(b: Byte): ByteBox receives none = sharedByteBox b
+
+//[ Box a Bool with its shared box //]
+private def boxBool(b: Bool): BoolBox receives none = sharedBoolBox b
+
+//[ Whether the value of an environment variable turns a feature on: set, not empty and not "0" //]
+private def isSet(value: Addr): Bool receives none =
+  if isNull value then false
+  else
+    // 48 is `0`
+    val c0 = (readByte value).toInt
+    val c1 = if c0 == 0 then 0 else (readByte (addAddr value 1)).toInt
+    c0 != 0 && !(c0 == 48 && c1 == 0)
+
+//[ The stress mode of loop collection named by the value of `JO_LOOP_COLLECT`
+  !
+  ! `all` collects at every end of an iteration of a collecting loop, `often`
+  ! drops the 1 MB minimum. See `Regions.loopStart`.
+//]
+private def loopMode(value: Addr): Int receives none =
+  if isNull value then Regions.loopNormal
+  else if sameCString(value, "all") then Regions.loopAll
+  else if sameCString(value, "often") then Regions.loopOften
+  else Regions.loopNormal
+
+//[ Whether the C string `c` holds the bytes of `s` //]
+private def sameCString(c: Addr, s: String): Bool receives none =
+  val n = StringOps.byteSize s
+  val content = StringOps.bytes s
+  var i = 0
+  while i < n && (readByte (addAddr c i)).toInt == (readByte (addAddr content i)).toInt do
+    i = i + 1
+  end
+  i == n && (readByte (addAddr c n)).toInt == 0
+
+//[ Program entry, called by the C `main` function //]
+private def start(argc: Int, argv: Addr): Unit receives none =
+  GC.init()
+
+  val st = state
+  st.memStats = isSet (LibC.getenv (cString "JO_MEMSTATS"))
+  if st.memStats then Regions.startStats()
+  st.loopMode = loopMode (LibC.getenv (cString "JO_LOOP_COLLECT"))
+
+  // Install SIGSEGV handler so stack overflow prints a clear message.
+  installStackOverflowHandler(argv)
+
+  // Must not use any global objects before batch initialization
+  // (GC is now up but singleton objects are not yet initialized)
+
+  // Initialize singleton object after runtime is ready
+  initObjects()
+
+  // Convert arguments from C string to Jo string
+  val strArr = Array.create[String](argc - 1)
+  // skip the first arg: program name
+  for i in 1 until argc do
+    val addr = readAddr: addAddr argv (i * wordSize)
+    strArr[i - 1] = StringOps.fromCString (copyCString addr)
+
+  with
+    IO.stdout = createStdOut(),
+    IO.stderr = createStdErr(),
+    IO.args = strArr
+  in
+    jo.main()
+
+  finish()
+
+private def finish: Unit receives none =
+  exitImpl 0
+
+//------------------------------------------------------------------------------
+//
+// Float conversions
+//
+
+// Write the C format string `%.<precision>g` into `buf`
+private def writeFormat(buf: Addr, precision: Int): Unit receives none =
+  writeByte(buf, 37.toByte)                   // %
+  writeByte(addAddr buf 1, 46.toByte)         // .
+  writeByte(addAddr buf 2, 49.toByte)         // 1
+  writeByte(addAddr buf 3, (48 + precision - 10).toByte)
+  writeByte(addAddr buf 4, 103.toByte)        // g
+  writeByte(addAddr buf 5, 0.toByte)
+
+// The shortest of 15, 16 or 17 significant digits that reads back as `f`.
+// Integral values get a trailing `.0`.
+private def floatToStr(f: Float): String =
+  // spelled as the other backends do, not as the C library does
+  val maxFloat: Float = 1.7976931348623157e308
+  if f != f then return "NaN"
+  if f > maxFloat then return "Infinity"
+  if f < -maxFloat then return "-Infinity"
+
+  val bufSize = 32
+  val buf = allocBuffer bufSize
+  val format = allocBuffer 8
+
+  var precision = 15
+  var done = false
+  while !done do
+    writeFormat(format, precision)
+    val _ = LibC.snprintf buf bufSize.toLong format precision f
+    done = precision == 17 || (LibC.strtod buf nullAddr) == f
+    precision = precision + 1
+  end
+
+  // Find the end of the digits and whether it needs `.0`
+  var len = 0
+  var integral = true
+  while (readByte (addAddr buf len)).toInt != 0 do
+    val c = (readByte (addAddr buf len)).toInt
+    if c == 46 || c == 101 || c == 105 || c == 110 then integral = false
+    len = len + 1
+  end
+
+  if integral then
+    writeByte(addAddr buf len, 46.toByte)
+    writeByte(addAddr buf (len + 1), 48.toByte)
+    writeByte(addAddr buf (len + 2), 0.toByte)
+
+  StringOps.fromCString buf
+
+//[ Decimal conversion for `Float.parse`, which validates the syntax //]
+private def parseFloat(s: String): Float receives none =
+  LibC.strtod (cString s) nullAddr
