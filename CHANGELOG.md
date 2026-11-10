@@ -4,6 +4,46 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Capability injection. The compiler options `--provide p=e` and
+  `--internal p=e` bind a context parameter `p` for `jo.main` to the result
+  of a factory function or to a literal. A provided parameter may be received
+  by `main`, an internal one only by factories, so a broad capability can be
+  narrowed before it reaches the application. The compiler instantiates the
+  bindings in dependency order and calls `main` with them in scope. Libraries
+  can offer capabilities without owning the entry point, and the platform layer
+  of `demos/process-monitor` becomes a few compiler options. The options can be
+  declared in `jo.toml` through `compile-options`. See the Entry Point section
+  of the language documentation.
+
+### Changed
+
+- The entry point is the one top-level function named `main` that takes no
+  parameters, checked against `jo.main` like a `--link` target. When several
+  such functions exist, the entry point must be named with `--link jo.main=...`.
+  A missing or ambiguous entry point is reported as an ordinary error rather
+  than as an internal abort.
+- The build tool no longer passes app-only options from `compile-options`,
+  such as `--link`, `--link-lib`, `-o`, `--provide`, and `--internal`, to the
+  library stage that precedes an app build.
+
+### Security
+
+- Injection relies on the existing two-world separation: a factory that
+  creates authority from nothing uses the FFI and therefore lives in a library
+  the application cannot import. The conformance check of `main` keeps it from
+  receiving an internal parameter.
+
+### Compatibility
+
+- A program with several top-level parameterless functions named `main`, of
+  which only one conformed to `jo.main`, now needs `--link jo.main=...` to
+  choose between them. Programs with one `main` are unaffected.
+- The standard library, runtimes, build specifications, and `.joy` package
+  formats are unchanged. SAST remains at format 2.0; existing libraries do not
+  require recompilation for format compatibility.
+
 ## [0.14.10] - 2026-11-05
 
 ### Fixed
