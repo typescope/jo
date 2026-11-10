@@ -1,0 +1,12 @@
+// options: --provide Test.name="\{secret()}"
+
+// String interpolation is not a literal.
+
+namespace Test
+
+def secret(): String = "s"
+
+param name: String
+
+def main: Unit receives IO.stdout, name =
+  println name

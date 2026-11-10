@@ -1,0 +1,12 @@
+// options: --provide Test.a=Test.Make
+
+// A factory may not take type parameters.
+
+namespace Test
+
+param a: Int
+
+def Make[T](): Int = 1
+
+def main: Unit receives IO.stdout, a =
+  println a

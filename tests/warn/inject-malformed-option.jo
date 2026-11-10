@@ -1,0 +1,10 @@
+// options: --provide Test.a
+
+// The option must have the form p=e.
+
+namespace Test
+
+param a: Int
+
+def main: Unit receives IO.stdout =
+  println "hi"

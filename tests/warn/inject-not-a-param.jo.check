@@ -1,0 +1,3 @@
+[Error] --provide Test.helper=1: Test.helper is not a context parameter
+
+1 error(s), 0 warning(s)

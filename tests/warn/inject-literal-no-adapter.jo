@@ -1,0 +1,14 @@
+// options: --provide Test.cfg="x"
+
+// Adapters are not applied to literals.
+
+namespace Test
+
+def fromText(s: String): Int = s.size
+
+type Config = Int :- [fromText]
+
+param cfg: Config
+
+def main: Unit receives IO.stdout, cfg =
+  println cfg

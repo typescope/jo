@@ -1,0 +1,3 @@
+[Warning] --internal Test.extra=1: no factory receives Test.extra
+
+0 error(s), 1 warning(s)

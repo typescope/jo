@@ -1,0 +1,14 @@
+// options: --provide Test.a=Test.MakeA --provide Test.b=Test.MakeB
+
+// A factory may be written with or without an empty parameter list.
+
+namespace Test
+
+param a: Int
+param b: Int
+
+def MakeA: Int = 1
+def MakeB(): Int = 2
+
+def main: Unit receives IO.stdout, a, b =
+  println(a + b)

@@ -1,0 +1,21 @@
+// options: --provide Test.greeter=Test.MakeGreeter
+
+// A factory provides a capability to main.
+
+namespace Test
+
+interface Greeter
+  def greet(name: String): String
+end
+
+class Hello
+  def greet(name: String): String = "Hello, " + name
+  view Greeter
+end
+
+param greeter: Greeter
+
+def MakeGreeter(): Greeter = new Hello()
+
+def main: Unit receives IO.stdout, greeter =
+  println(greeter.greet("world"))

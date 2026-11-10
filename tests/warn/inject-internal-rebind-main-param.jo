@@ -1,0 +1,10 @@
+// options: --internal jo.IO.stdout=Test.Quiet
+
+// A context parameter of jo.main may not be rebound as internal.
+
+namespace Test
+
+def Quiet(): (String => Unit) = (s: String) => pass
+
+def main: Unit receives IO.stdout =
+  println "hi"

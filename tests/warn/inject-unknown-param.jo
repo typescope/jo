@@ -1,0 +1,8 @@
+// options: --provide Test.nope=1
+
+// The parameter path must resolve.
+
+namespace Test
+
+def main: Unit receives IO.stdout =
+  println "hi"

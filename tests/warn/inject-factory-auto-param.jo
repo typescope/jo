@@ -1,0 +1,16 @@
+// options: --provide Test.a=Test.Make
+
+// A factory may not take auto parameters.
+
+namespace Test
+
+type Getter = Int => Int
+
+def identity: Getter = (x: Int) => x
+
+param a: Int
+
+def Make()(auto g: Getter with [identity]): Int = g(1)
+
+def main: Unit receives IO.stdout, a =
+  println a

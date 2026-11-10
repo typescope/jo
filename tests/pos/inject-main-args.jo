@@ -1,0 +1,10 @@
+// options: --provide Test.name="jo"
+
+// A factory receives an argument of jo.main and a provided parameter.
+
+namespace Test
+
+param name: String
+
+def main: Unit receives IO.stdout, IO.args, name =
+  println(name + " " + IO.args.size)

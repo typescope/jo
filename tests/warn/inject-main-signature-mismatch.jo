@@ -1,0 +1,10 @@
+// options: --provide Test.a=1
+
+// Injection relaxes only the context parameters. The rest of the signature is still checked.
+
+namespace Test
+
+param a: Int
+
+def main(x: Int): Unit receives IO.stdout, a =
+  println a
