@@ -96,15 +96,15 @@ function or a **literal**, and gives the parameter one of two roles:
 The implementation of `d` may therefore use the provided parameters and the
 context parameters of `d`, and nothing else.
 
-Normally, resolving `d` yields its implementation `impl(d)`: an explicit
-`--link` target, a default implementation, or, for `jo.main`, the
-automatically located `main`. With an injection specification, `d` instead
-resolves to a compiler-generated wrapper around `impl(d)`. Every other deferred
-function resolves as before.
+The specification names the implementation of `d`, written `impl(d)`, the
+same way `--link` does. With an injection specification, `d` resolves to a
+compiler-generated wrapper around `impl(d)` instead of to `impl(d)` itself.
+Every other deferred function resolves as before.
 
-Entry-point discovery for `jo.main` currently looks for a top-level `main`
-that conforms to the signature of `jo.main`. When `jo.main` is the injection
-target, discovery is by name alone, and conformance is checked as described
+When the specification does not name a target, it applies to `jo.main`,
+implemented by the program's `main`. Entry-point discovery currently looks for
+a top-level `main` that conforms to the signature of `jo.main`. Under
+injection, discovery is by name alone, and conformance is checked as described
 under [Conformance](#conformance).
 
 The mechanism injects context parameters. Some of them are capabilities, such
@@ -207,14 +207,23 @@ rest of the signature is checked as before.
 
 | Option | Meaning |
 |---|---|
-| `--inject d` | Attach the injection specification to deferred function `d`. Defaults to `jo.main`. |
+| `--inject d=impl` | Link deferred function `d` to `impl` and attach the bindings to it. |
 | `--provide p=e` | Bind context parameter `p` to `e` as a provided parameter. |
 | `--internal p=e` | Bind context parameter `p` to `e` as an internal parameter. |
 
+`--inject d=impl` links `d` to `impl` exactly as `--link d=impl` does, and in
+addition attaches the bindings to that link. Giving both `--link` and
+`--inject` for the same `d` is an error, as two `--link` options for the same
+`d` are today. `--inject` without any binding is equivalent to `--link`.
+
+If `--provide` or `--internal` options are given without `--inject`, they
+attach to `jo.main`, implemented by the program's `main`, as if
+`--inject jo.main=main` had been given.
+
 `e` is either a qualified path naming a factory or a Jo literal. `--inject`
 may appear at most once. `--provide` and `--internal` may be repeated. `p`,
-`d`, and a factory path are qualified paths. The value `e` is the text after
-the first `=`.
+`d`, `impl`, and a factory path are qualified paths. The value `e` is the text
+after the first `=`.
 
 A string literal needs its double quotes to reach the compiler, so on the
 command line the whole option value is quoted for the shell:
@@ -327,12 +336,18 @@ specification is defined per deferred function, so allowing several targets
 later would not change its meaning. Since bindings live for one invocation of
 their target, several targets would not share instances.
 
-### Why name the target by its deferred function?
+### Why does `--inject` name the implementation?
 
-The target is named by its deferred function, not by a link, because the
-implementation may come from a default or from entry-point discovery rather
-than from `--link`. Attaching options to the preceding `--link` would make the
-meaning of a build command depend on option order.
+An earlier draft had `--inject d` select a target whose implementation came
+from a separate `--link`. That made `--inject` a modifier on another option's
+link, relaxed the conformance check on that link alone, and needed a rule for
+which link the bindings attach to. Naming the implementation in `--inject`
+makes it a link of its own kind, with its own conformance rule, and leaves
+`--link` untouched.
+
+The cost is that `--inject` without bindings spells the same thing as
+`--link`. The overlap is confined to that degenerate case, where the two
+options mean the same thing, so there is never a choice to make between them.
 
 ### Why default to `jo.main`?
 
@@ -345,6 +360,11 @@ The default does not weaken the specification. The authority of the target is
 determined by the role of each binding, which every binding states. A build
 that omits `--inject` by mistake injects into `jo.main`, where the mistake
 surfaces as a missing binding at the intended target.
+
+Without bindings, the default is indistinguishable from today's behaviour: a
+wrapper with no bindings only calls `main`, and the relaxed conformance rule
+with no provided parameters is the ordinary rule. The compiler therefore
+keeps resolving `jo.main` as it does now until a binding appears.
 
 ### Why literals instead of factory arguments?
 
