@@ -152,10 +152,10 @@ library that application code cannot import.
 
 The value of a binding may be a Jo literal instead of a factory. The literal
 is read by Jo's lexer and checked as the initializer of a `val` of the
-parameter's type, exactly as `val x: T = e` would be. Every type with a
-literal form is therefore bindable: `Bool`, `Int`, `Long`, `Byte`, `Char`,
-`Float`, and `String`. A parameter of any other type has no literal form and
-cannot be bound to a literal.
+parameter's type, exactly as `val x: T = e` would be, with the same
+adaptations, such as widening an `Int` literal to `Long`. A literal may
+therefore bind any parameter whose type accepts it as an initializer,
+including a union such as `String | Int`.
 
 A literal is never mistaken for a factory path. A path starts with a letter or
 an underscore and continues with identifiers and dots. A literal starts with a
