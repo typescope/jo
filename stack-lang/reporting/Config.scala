@@ -226,6 +226,63 @@ object Config:
   end linkMap
 
   //----------------------------------------------------------------------------
+  // Capability injection (JIP 0012)
+  //
+
+  /** The role of an injected context parameter */
+  enum InjectRole:
+    case Provided, Internal
+
+  /** A binding `p=e` from `--provide` or `--internal`, before resolution
+    *
+    * @param option the option as written, quoted in diagnostics
+    */
+  case class InjectBinding(role: InjectRole, param: String, value: String, option: String)
+
+  /** A repeatable option that binds a context parameter to a factory or a literal */
+  class InjectSetting(val flag: String, role: InjectRole) extends Setting[List[InjectBinding]]:
+    def spec = OptionSpec.Multi
+    def default = Nil
+    def desc = s"e.g., $flag fs.readonly=fs.ReadOnly"
+
+    override def value(using cf: Config): List[InjectBinding] = cf.cached(this):
+      throw new Exception("validation of options not performed")
+
+    override def validate()(using cf: Config, rp: Reporter): Unit =
+      val args = cf.rawValues.get(this) match
+        case Some(args: List[?]) => args.asInstanceOf[List[String]].reverse
+        case _ => Nil
+
+      cf.cache(this) = args.flatMap(parse)
+
+    private def parse(arg: String)(using Reporter): Option[InjectBinding] =
+      val option = s"$flag $arg"
+      val index = arg.indexOf('=')
+
+      if index < 0 then
+        Reporter.error(s"$option: expected p=e")
+        None
+
+      else
+        val param = arg.substring(0, index)
+        val value = arg.substring(index + 1)
+
+        if !isValidPath(param) then
+          Reporter.error(s"$option: $param is not a qualified path")
+          None
+
+        else
+          Some(InjectBinding(role, param, value, option))
+  end InjectSetting
+
+  val provideBindings: Setting[List[InjectBinding]] = InjectSetting("--provide", InjectRole.Provided)
+  val internalBindings: Setting[List[InjectBinding]] = InjectSetting("--internal", InjectRole.Internal)
+
+  /** All injection bindings, provided ones first */
+  def injectBindings(using Config): List[InjectBinding] =
+    provideBindings.value ++ internalBindings.value
+
+  //----------------------------------------------------------------------------
 
   /** Check if a string is a valid path (name or dot-separated path).
     *
@@ -233,7 +290,7 @@ object Config:
     *
     * Invalid examples: "", ".", ".foo", "foo.", "foo..bar", "foo.123", "foo.bar-baz"
     */
-  private def isValidPath(path: String): Boolean =
+  def isValidPath(path: String): Boolean =
     if path.isEmpty then return false
 
     val parts = path.split("\\.")
@@ -276,7 +333,7 @@ object Config:
     sourceRoot,
   )
 
-  val appOptions = outFilePath :: linkLibPaths :: linkMap :: commonOptions
+  val appOptions = outFilePath :: linkLibPaths :: linkMap :: provideBindings :: internalBindings :: commonOptions
 
   //----------------------------------------------------------------------------
 
