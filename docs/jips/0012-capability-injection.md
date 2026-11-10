@@ -85,7 +85,11 @@ compilation options. The compiler synthesizes the glue.
 ### Overview
 
 An injection specification attaches to one deferred function `d`, the
-*injection target*. It consists of a set of **bindings**. Each binding binds
+*injection target*. In this proposal `d` is always `jo.main`. The rules are
+written for a general `d` so that a later proposal can add other targets
+without changing them.
+
+The specification consists of a set of **bindings**. Each binding binds
 one context parameter to a value, which is either the result of a **factory**
 function or a **literal**, and gives the parameter one of two roles:
 
@@ -96,16 +100,15 @@ function or a **literal**, and gives the parameter one of two roles:
 The implementation of `d` may therefore use the provided parameters and the
 context parameters of `d`, and nothing else.
 
-The specification names the implementation of `d`, written `impl(d)`, the
-same way `--link` does. With an injection specification, `d` resolves to a
-compiler-generated wrapper around `impl(d)` instead of to `impl(d)` itself.
-Every other deferred function resolves as before.
+The implementation of `d`, written `impl(d)`, is found as it is today: by
+`--link`, or for `jo.main` by entry-point discovery. With an injection
+specification, `d` resolves to a compiler-generated wrapper around `impl(d)`
+instead of to `impl(d)` itself. Every other deferred function resolves as
+before.
 
-When the specification does not name a target, it applies to `jo.main`,
-implemented by the program's `main`. Entry-point discovery currently looks for
-a top-level `main` that conforms to the signature of `jo.main`. Under
-injection, discovery is by name alone, and conformance is checked as described
-under [Conformance](#conformance).
+Entry-point discovery currently looks for a top-level `main` that conforms to
+the signature of `jo.main`. Under injection, discovery is by name alone, and
+conformance is checked as described under [Conformance](#conformance).
 
 The mechanism injects context parameters. Some of them are capabilities, such
 as a file system, and some are plain configuration, such as a repository name.
@@ -207,24 +210,16 @@ rest of the signature is checked as before.
 
 | Option | Meaning |
 |---|---|
-| `--inject d=impl` | Link deferred function `d` to `impl` and attach the bindings to it. |
 | `--provide p=e` | Bind context parameter `p` to `e` as a provided parameter. |
 | `--internal p=e` | Bind context parameter `p` to `e` as an internal parameter. |
 
-Like `--link d=impl`, `--inject d=impl` names the implementation of `d`. In
-addition, it attaches the bindings to `d` and relaxes the conformance rule as
-described under [Conformance](#conformance). Giving both `--link` and
-`--inject` for the same `d` is an error, as two `--link` options for the same
-`d` are today. `--inject` without any binding is equivalent to `--link`.
+Both options attach their binding to `jo.main`. Its implementation is the
+one named by `--link jo.main=impl` or, when there is none, the program's
+`main`.
 
-If `--provide` or `--internal` options are given without `--inject`, they
-attach to `jo.main`, implemented by the program's `main`, as if
-`--inject jo.main=main` had been given.
-
-`e` is either a qualified path naming a factory or a Jo literal. `--inject`
-may appear at most once. `--provide` and `--internal` may be repeated. `p`,
-`d`, `impl`, and a factory path are qualified paths. The value `e` is the text
-after the first `=`.
+`e` is either a qualified path naming a factory or a Jo literal. `--provide`
+and `--internal` may be repeated. `p` and a factory path are qualified paths.
+The value `e` is the text after the first `=`.
 
 A string literal needs its double quotes to reach the compiler, so on the
 command line the whole option value is quoted for the shell:
@@ -262,11 +257,7 @@ option that introduced the problem, not at the generated wrapper. The `allow`
 node of the wrapper carries a synthetic position that names the options, so
 the existing `allow` error trace points there as well.
 
-The following are warnings:
-
-- an internal parameter that no factory receives
-- an injection target that nothing in the program calls (`jo.main` counts as
-  called)
+An internal parameter that no factory receives is a warning.
 
 ## Example
 
@@ -329,43 +320,23 @@ Injecting into arbitrary functions would instead require rewriting call sites
 selectively, and would silently replace a capability the caller had already
 bound.
 
-### Why one injection target?
+### Why only `jo.main`?
 
 One target gives the program a single composition root, where an auditor can
-read every capability the program creates and the authority it grants. The
-specification is defined per deferred function, so allowing several targets
-later would not change its meaning. Since bindings live for one invocation of
-their target, several targets would not share instances.
+read every capability the program creates and the authority it grants.
+`jo.main` is the natural one: the compiler already treats it specially, as
+the one deferred function whose implementation is located automatically, and
+nearly every injection would target it.
 
-### Why does `--inject` name the implementation?
+Fixing the target also keeps the options minimal. Earlier drafts had an
+`--inject` option to select the target, in one form as a modifier on an
+existing `--link` and in another as a link of its own kind. Both needed rules
+for how `--inject` and `--link` interact. With `jo.main` as the only target,
+the implementation is found as it is today and no such rules are needed.
 
-An earlier draft had `--inject d` select a target whose implementation came
-from a separate `--link`. That made `--inject` a modifier on another option's
-link, relaxed the conformance check on that link alone, and needed a rule for
-which link the bindings attach to. Naming the implementation in `--inject`
-makes it a link of its own kind, with its own conformance rule, and leaves
-`--link` untouched.
-
-The cost is that `--inject` without bindings spells the same thing as
-`--link`. The overlap is confined to that degenerate case, where the two
-options mean the same thing, so there is never a choice to make between them.
-
-### Why default to `jo.main`?
-
-The compiler already treats `jo.main` specially: it is the one deferred
-function whose implementation is located automatically, and `--link jo.main`
-is documented as the way to name the entry point. Nearly every injection
-targets it, so the common case should not pay for the rare one.
-
-The default does not weaken the specification. The authority of the target is
-determined by the role of each binding, which every binding states. A build
-that omits `--inject` by mistake injects into `jo.main`, where the mistake
-surfaces as a missing binding at the intended target.
-
-Without bindings, the default is indistinguishable from today's behaviour: a
-wrapper with no bindings only calls `main`, and the relaxed conformance rule
-with no provided parameters is the ordinary rule. The compiler therefore
-keeps resolving `jo.main` as it does now until a binding appears.
+The rules are written for a general `d`, and other targets can be added by
+extending the binding syntax, as sketched under
+[future work](#future-work), without changing the semantics.
 
 ### Why literals instead of factory arguments?
 
@@ -427,7 +398,7 @@ state.
 
 ## Compatibility
 
-The proposal adds three compiler options and no build-spec fields. Builds that
+The proposal adds two compiler options and no build-spec fields. Builds that
 use none of them are unchanged: deferred functions resolve as before, and the
 conformance rule for links is unchanged.
 
@@ -440,6 +411,12 @@ receive more, so the comment must be updated.
 
 ## Future work
 
+- **Other targets.** A binding could name the deferred function it attaches
+  to, as in `--provide SystemAPI.process@foo=SystemRuntime.Process`, with
+  `@global` meaning every deferred function that receives the parameter. A
+  binding without `@` would keep attaching to `jo.main`. Such a proposal would
+  have to decide whether several targets share one instance of a binding or
+  each build their own.
 - **Narrowing the parameters of `d`.** The target may use every context
   parameter of `d`. A form of `--internal p` without a value could mark a
   parameter of `d`, such as `IO.stdout`, as available to factories only, so
