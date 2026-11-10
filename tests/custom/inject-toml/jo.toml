@@ -1,0 +1,11 @@
+jo = "0.14"
+
+[module.app]
+kind = "app"
+platform = "python"
+src = ["src"]
+compile-options = [
+  "--internal", "App.repo=\"typescope/jo\"",
+  "--provide",  "App.client=App.Client",
+  "--provide",  'App.name="jo"',
+]

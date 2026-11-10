@@ -29,7 +29,7 @@ object Runner:
       case app: CompileTask.AppTask =>
         info(s"[$action] ${moduleLabel(plan)}\n")
         runLib(
-          CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.defaultSourceRoot, app.compileOptions),
+          CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.defaultSourceRoot, libStageOptions(app.compileOptions)),
           jo,
           sentinelFile = dirSentinel(app.sastDir),
         ) match
@@ -58,7 +58,7 @@ object Runner:
         runLib(lib, jo, sentinelFile = dirSentinel(lib.outDir))
       case app: CompileTask.AppTask =>
         runLib(
-          CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.defaultSourceRoot, app.compileOptions),
+          CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.defaultSourceRoot, libStageOptions(app.compileOptions)),
           jo,
           sentinelFile = dirSentinel(app.sastDir),
         )
@@ -78,7 +78,7 @@ object Runner:
         runLib(lib, jo, sentinelFile = dirSentinel(outDir), requiredOutputs = List(docIndex))
       case app: CompileTask.AppTask =>
         runLib(
-          CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.defaultSourceRoot, app.compileOptions),
+          CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.defaultSourceRoot, libStageOptions(app.compileOptions)),
           jo,
           sentinelFile = dirSentinel(outDir),
           requiredOutputs = List(docIndex),
@@ -159,6 +159,17 @@ object Runner:
   private def recreateDir(dir: Path): Unit =
     if Files.exists(dir) then deleteDir(dir)
     Files.createDirectories(dir)
+
+  /** Options that only the app stage understands. When an app module is first
+    * compiled as a library, these are dropped together with their values.
+    */
+  private val appOnlyOptions = Set("--provide", "--internal", "--link", "--link-lib", "-o")
+
+  private def libStageOptions(options: List[String]): List[String] =
+    options match
+      case flag :: _ :: rest if appOnlyOptions.contains(flag) => libStageOptions(rest)
+      case other :: rest => other :: libStageOptions(rest)
+      case Nil => Nil
 
   private def buildLibArgs(lib: CompileTask.LibTask, jo: String): List[String] =
     val args = ArrayBuffer[String]()
