@@ -1,0 +1,10 @@
+// The pure API: a capability interface and the context parameters the
+// application and the factories read.
+namespace Api
+
+interface Clock
+  def now(): Int
+end
+
+param clock: Clock
+param epoch: Int
