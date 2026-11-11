@@ -5,9 +5,10 @@ namespace gcplacewrapper
 //
 // `put` and `store` are element stores, `store` with its parameters in
 // another order, and `checked` stores after an `assert`. `putTwice` wraps
-// `store`. `putIf` stores inside an `if`, and `putOther` reassigns its value
-// before the store, so neither is an element store. Every builder must give
-// the same trees, whether its subtrees are placed or traced.
+// `store`, and `putNext` stores at a computed index. `putIf` stores inside an
+// `if`, `putEarly` may return before its store, and `putOther` stores a local,
+// not its parameter, so none of them is an element store. Every builder must
+// give the same trees, whether its subtrees are placed or traced.
 
 union Tree = Inner(children: Array[Tree]) | Leaf(n: Int)
 
@@ -33,6 +34,13 @@ def putOther(a: Array[Tree], i: Int, v: Tree): Unit =
   if i == 3 then w = Leaf(7)
   a[i] = w
 
+def putNext(a: Array[Tree], i: Int, v: Tree): Unit =
+  a[i + 1] = v
+
+def putEarly(a: Array[Tree], i: Int, v: Tree): Unit =
+  if i < 0 then return
+  a[i] = v
+
 def build(depth: Int, k: Int): Tree =
   if depth == 1 then Leaf(depth + k)
   else
@@ -45,7 +53,9 @@ def build(depth: Int, k: Int): Tree =
       else if k == 2 then checked(children, i, child)
       else if k == 3 then putTwice(children, i, child)
       else if k == 4 then putIf(children, i, child)
-      else putOther(children, i, child)
+      else if k == 5 then putOther(children, i, child)
+      else if k == 6 then putNext(children, i - 1, child)
+      else putEarly(children, i, child)
       i = i + 1
     end
     Inner(children)
@@ -64,7 +74,7 @@ def sum(t: Tree): Int =
 
 def main(): Unit =
   var k = 0
-  while k < 6 do
+  while k < 8 do
     var total = 0
     var r = 0
     while r < 20 do

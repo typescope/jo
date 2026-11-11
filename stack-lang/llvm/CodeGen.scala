@@ -555,7 +555,7 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
   def elementStore(sym: Symbol): Option[ElementStore] =
     val target = resolve(sym)
 
-    if target == runtime.Core_RefArray_setUnchecked then Some(ElementStore(array = 0, index = 1, value = 2))
+    if target == runtime.Core_RefArray_setUnchecked then Some(ElementStore(array = 0, value = 2))
     else
       elementStoreCache.get(target) match
         case Some(res) => res

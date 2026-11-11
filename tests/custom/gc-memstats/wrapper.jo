@@ -1,18 +1,27 @@
 namespace memwrapper
 
-// Trees of depth 8 built 100 times through wrappers of `a[i] = v`. `put`
-// always stores, so it is an element store like `Array.set`: each subtree is
-// placed in the region of `main`, and `build` traces nothing. `putIf` stores
-// inside an `if`, so it is not an element store: `buildIf` traces its
-// subtrees when its region closes.
+// Trees of depth 8 built 50 times through wrappers of `a[i] = v`. `put`
+// always stores, so it is an element store like `Array.set`, and so is
+// `putNext`, which stores at a computed index. Each subtree they store is
+// placed in the region of `main`, so `build` and `buildNext` trace nothing.
+// `putIf` stores inside an `if`, and `putEarly` may return before its store,
+// so neither is an element store: `buildIf` and `buildEarly` trace their
+// subtrees when their regions close.
 
 union Tree = Inner(children: Array[Tree]) | Leaf(n: Int)
 
 def put(a: Array[Tree], i: Int, v: Tree): Unit =
   a[i] = v
 
+def putNext(a: Array[Tree], i: Int, v: Tree): Unit =
+  a[i + 1] = v
+
 def putIf(a: Array[Tree], i: Int, v: Tree): Unit =
   if i >= 0 then a[i] = v
+
+def putEarly(a: Array[Tree], i: Int, v: Tree): Unit =
+  if i < 0 then return
+  a[i] = v
 
 def build(depth: Int): Tree =
   if depth == 1 then Leaf(depth)
@@ -25,6 +34,17 @@ def build(depth: Int): Tree =
     end
     Inner(children)
 
+def buildNext(depth: Int): Tree =
+  if depth == 1 then Leaf(depth)
+  else
+    val children: Array[Tree] = Array.fill(4, Leaf(0))
+    var i = 0
+    while i < 4 do
+      putNext(children, i - 1, buildNext(depth - 1))
+      i = i + 1
+    end
+    Inner(children)
+
 def buildIf(depth: Int): Tree =
   if depth == 1 then Leaf(depth)
   else
@@ -32,6 +52,17 @@ def buildIf(depth: Int): Tree =
     var i = 0
     while i < 4 do
       putIf(children, i, buildIf(depth - 1))
+      i = i + 1
+    end
+    Inner(children)
+
+def buildEarly(depth: Int): Tree =
+  if depth == 1 then Leaf(depth)
+  else
+    val children: Array[Tree] = Array.fill(4, Leaf(0))
+    var i = 0
+    while i < 4 do
+      putEarly(children, i, buildEarly(depth - 1))
       i = i + 1
     end
     Inner(children)
@@ -51,8 +82,8 @@ def size(t: Tree): Int =
 def main(): Unit =
   var total = 0
   var k = 0
-  while k < 100 do
-    total = total + size(build(8)) + size(buildIf(8))
+  while k < 50 do
+    total = total + size(build(8)) + size(buildNext(8)) + size(buildIf(8)) + size(buildEarly(8))
     k = k + 1
   end
   println: total

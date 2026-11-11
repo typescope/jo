@@ -1195,10 +1195,10 @@ doc comment of `ResultRegions.scala` states them in the same words.
   store of `v` into the object of `a`, like `a.f = v`. The intrinsic
   `Array.setUnchecked` is the base element store. Another function is an
   element store when one of its statements calls an element store and
-  passes three of its own parameters, unchanged, as `a`, `i` and `v`. The
-  statements are those of the body, seen through blocks and casts, so the
-  call is not inside a branch or a loop. The function has no `return`, so
-  it makes the store whenever it returns normally.
+  passes two of its own parameters as `a` and `v`. The index can be any
+  expression. The statements are those of the body, seen through blocks and
+  casts, so the call is not inside a branch or a loop. The function has no
+  `return`, so it makes the store whenever it returns normally.
 - **Paths.** A store into an object reached through fields of a variable,
   `x.f.g = v` or `x.f[i] = v`, is a store into the object of `x`.
 - **Stores in a loop.** Inside a loop, only the stored expression itself is
@@ -1310,15 +1310,15 @@ flag, a passed level is taken only by the callee it was passed to.
 
 | File | Change | Lines, estimated |
 |---|---|---|
-| `ResultRegions.scala` | element stores, the functions that are element stores, paths, stores in a loop with the object of `new`, doc comment | 110 |
+| `ResultRegions.scala` | element stores, the functions that are element stores, paths, stores in a loop with the object of `new`, doc comment | 85 |
 | `CodeGen.scala` | the element store of a function, `inherit` or `passResult` before marked indirect calls, the functions whose address is taken, `clearResult` at their entry | 55 |
 | `Regions.jo`, `LLVMRuntime.scala` | `clearResult` | 4 |
 
 Codegen finds the base element store by the runtime symbol that
 `Array.setUnchecked` is linked to, added to `LLVMRuntime`. `ElementStore`
 in `ResultRegions.scala` decides from the body of a function whether it is
-an element store, and records the positions of the array, the index and the
-value among its arguments. Codegen caches the answer by function. A
+an element store, and records the positions of the array and the value
+among its arguments. Codegen caches the answer by function. A
 recursive call sees no element store, like a recursive call sees no result
 summary.
 
@@ -1328,9 +1328,18 @@ A call `a[i] = v` calls the function that `LiftPrimitiveMethods` lifts from
 rule. The `assert` aborts on a bad index, and then the function does not
 return. The backend needs no name for `Array.set` or its lifted function,
 and a wrapper of the same shape in a user program is an element store too.
-A wrapper that stores inside an `if`, or that passes a reassigned
-parameter, is not. Then the analysis records no store, and the value is
-traced when its region closes.
+A wrapper that stores inside an `if`, or that may return before its store,
+is not. Then the analysis records no store, and the value is traced when its
+region closes.
+
+A wrapper must always store, while `if c then a[i] = f(x)` written in the
+caller counts. A call of an element store acts as a summary of the callee:
+the caller places the argument whatever the callee does with it. If the
+callee may drop the value, the caller places a value that is never stored,
+on every call. This is why [summaries of stores](#rejected-alternatives)
+were rejected. A store written in the caller is not a summary. Its stored
+expression `f(x)` sits in the branch of the store, so it runs only when the
+store does.
 
 Codegen emits a function before it may see a reference to it, so it finds
 the functions whose address is taken by a scan of all bodies before it
@@ -1365,8 +1374,9 @@ The memory guide changes in two places:
   `overwrite.jo` below, smaller, under `JO_LOOP_COLLECT=all`.
 - `tests/gc/place-wrapper.jo`: trees built through wrappers of `a[i] = v`.
   Some wrappers are element stores: one with its parameters in another
-  order, one after an `assert`, and one that wraps another wrapper. Some
-  are not: one stores inside an `if`, one reassigns its value. Each builder
+  order, one after an `assert`, one that wraps another wrapper, and one at a
+  computed index. Some are not: one stores inside an `if`, one may return
+  before its store, and one stores a local, not its parameter. Each builder
   is checked by a traversal, under `JO_LOOP_COLLECT=all`.
 - `tests/custom/gc-memstats` gets four programs with their expectations:
   `tree.jo` expects `traced=0` and no `traced` hint. `pick.jo` stores
@@ -1374,10 +1384,11 @@ The memory guide changes in two places:
   million times and expects a peak RSS below 10 MB. `overwrite.jo`
   overwrites one slot a million times and expects the peak RSS of the
   limitation, between 30 and 60 MB, so a change of the rule shows.
-  `wrapper.jo` builds trees through a wrapper that is an element store and
-  expects no `traced` row for its builder. It builds them through a wrapper
-  that stores inside an `if` too and expects a `traced` row. `quad.jo` keeps
-  its hint.
+  `wrapper.jo` builds trees through four wrappers, each in its own
+  builder. A builder has a `traced` row exactly when its wrapper is not an
+  element store. The wrappers that always store, one at a computed index,
+  have none. The one that stores inside an `if` and the one that may return
+  before its store have one. `quad.jo` keeps its hint.
 - `tests/pos` and `tests/gc` with AddressSanitizer under
   `JO_LOOP_COLLECT=all`.
 

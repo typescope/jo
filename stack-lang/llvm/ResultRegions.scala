@@ -210,76 +210,52 @@ class ResultRegions(fdef: FunDef, resultParams: Symbol => Set[Int], elementStore
 
 /** A function that stores a value into an element of an array, `a[i] = v`
   *
-  * The fields are the positions of `a`, `i` and `v` among the arguments.
+  * The fields are the positions of `a` and `v` among the arguments.
   *
   * The intrinsic `Array.setUnchecked` is the base element store. Another
   * function is an element store when one of its statements calls an element
-  * store and passes three of its own parameters, unchanged, as `a`, `i` and
-  * `v`. The statements are those of the body, seen through blocks and casts,
-  * so the call is not inside a branch or a loop. The function has no
-  * `return`, so it makes the store whenever it returns normally. A statement
-  * before the call may abort, like the `assert` of `Array.set`, but then the
-  * function does not return.
-  *
-  * `Array.set` and a wrapper of the same shape are element stores. A function
-  * that stores inside an `if` is not.
+  * store and passes two of its own parameters as `a` and `v`. The index can
+  * be any expression. The statements are those of the body, seen through
+  * blocks and casts, so the call is not inside a branch or a loop. The
+  * function has no `return`, so it makes the store whenever it returns
+  * normally. `Array.set` checks the index with an
+  * `assert` first, which aborts on a bad index.
   */
-case class ElementStore(array: Int, index: Int, value: Int)
+case class ElementStore(array: Int, value: Int)
 
 object ElementStore:
   /** The element store a function makes, given the element stores it calls */
   def of(fdef: FunDef, elementStore: Symbol => Option[ElementStore]): Option[ElementStore] =
     val params = fdef.allParams
 
-    def statements(word: Word): List[Word] =
-      word match
-        case Block(words) => words.flatMap(statements)
-        case _ => word :: Nil
-
-    // the position of the parameter an argument passes unchanged
-    def param(arg: Word): Option[Int] =
-      arg match
-        case Ident(sym) if params.contains(sym) && !assigned(fdef.body, sym) => Some(params.indexOf(sym))
-        case _ => None
-
     def store(word: Word): Option[ElementStore] =
       word match
+        case Block(words) => words.iterator.flatMap(store).nextOption()
+
         case Encoded(repr) => store(repr)
 
         case app: Apply =>
           for
-            sym   <- directCallee(app)
-            inner <- elementStore(sym)
-            array <- param(app.allArgs(inner.array))
-            index <- param(app.allArgs(inner.index))
-            value <- param(app.allArgs(inner.value))
-          yield ElementStore(array, index, value)
+            inner <- directCallee(app).flatMap(elementStore)
+            case Ident(array) <- Some(app.allArgs(inner.array))
+            case Ident(value) <- Some(app.allArgs(inner.value))
+            if params.contains(array) && params.contains(value)
+          yield ElementStore(params.indexOf(array), params.indexOf(value))
 
         case _ => None
 
-    val found = statements(fdef.body).iterator.flatMap(store).nextOption()
-    found.filter(_ => !returns(fdef.body))
+    store(fdef.body).filter(_ => !returns(fdef.body))
 
   /** Whether a word contains a `return` from a function */
   private def returns(word: Word): Boolean =
-    exists(word):
-      case Return(target, _) => target.is(Flags.Fun)
-      case _ => false
-
-  /** Whether a word assigns a variable */
-  private def assigned(word: Word, sym: Symbol): Boolean =
-    exists(word):
-      case assign: Assign => assign.symbol == sym
-      case _ => false
-
-  private def exists(word: Word)(p: Word => Boolean): Boolean =
     var found = false
     val finder = new TreeTraverser:
       type Context = Unit
 
       def apply(word: Word)(using Unit): Unit =
-        if p(word) then found = true
-        else if !found then recur(word)
+        word match
+          case Return(target, _) if target.is(Flags.Fun) => found = true
+          case _ => if !found then recur(word)
 
     finder(word)(using ())
     found
