@@ -102,7 +102,7 @@ object Compiler:
       locally {
         given defn: Definitions = lazyDefn.value
 
-        val runtime = new LLVMRuntime(FrontEnd.rewireMap.value, FrontEnd.liftedMethods.value)
+        val runtime = new LLVMRuntime(FrontEnd.rewireMap.value)
 
         val untaggedTypes =
           Set(

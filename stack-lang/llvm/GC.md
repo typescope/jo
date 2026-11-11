@@ -1191,9 +1191,14 @@ for 8.7 million.
 The analysis of [Placing results](#placing-results) gets three changes. The
 doc comment of `ResultRegions.scala` states them in the same words.
 
-- **Element stores.** `a[i] = v`, a call of `Array.set` or of the intrinsic
-  `Array.setUnchecked`, is a store of `v` into the object of `a`, like
-  `a.f = v`.
+- **Element stores.** A call of an element store, like `a[i] = v`, is a
+  store of `v` into the object of `a`, like `a.f = v`. The intrinsic
+  `Array.setUnchecked` is the base element store. Another function is an
+  element store when one of its statements calls an element store and
+  passes three of its own parameters, unchanged, as `a`, `i` and `v`. The
+  statements are those of the body, seen through blocks and casts, so the
+  call is not inside a branch or a loop. The function has no `return`, so
+  it makes the store whenever it returns normally.
 - **Paths.** A store into an object reached through fields of a variable,
   `x.f.g = v` or `x.f[i] = v`, is a store into the object of `x`.
 - **Stores in a loop.** Inside a loop, only the stored expression itself is
@@ -1305,17 +1310,27 @@ flag, a passed level is taken only by the callee it was passed to.
 
 | File | Change | Lines, estimated |
 |---|---|---|
-| `ResultRegions.scala` | element stores, paths, stores in a loop with the object of `new`, doc comment | 45 |
-| `CodeGen.scala` | `inherit` or `passResult` before marked indirect calls, the functions whose address is taken, `clearResult` at their entry | 35 |
+| `ResultRegions.scala` | element stores, the functions that are element stores, paths, stores in a loop with the object of `new`, doc comment | 110 |
+| `CodeGen.scala` | the element store of a function, `inherit` or `passResult` before marked indirect calls, the functions whose address is taken, `clearResult` at their entry | 55 |
 | `Regions.jo`, `LLVMRuntime.scala` | `clearResult` | 4 |
 
-The prototype finds `Array.set` and `RefArray.setUnchecked` by their full
-names. The real code compares symbols: `defn.Array_class` with the member
-`set`, and the runtime symbol that `Array.setUnchecked` is linked to, added
-to `LLVMRuntime`. A call `a[i] = v` does not call the member `set` itself
-but the function that `LiftPrimitiveMethods` lifts from it. The frontend
-hands its lifted functions to the backend in `FrontEnd.liftedMethods`, so
-`LLVMRuntime` finds the function of `set` there.
+Codegen finds the base element store by the runtime symbol that
+`Array.setUnchecked` is linked to, added to `LLVMRuntime`. `ElementStore`
+in `ResultRegions.scala` decides from the body of a function whether it is
+an element store, and records the positions of the array, the index and the
+value among its arguments. Codegen caches the answer by function. A
+recursive call sees no element store, like a recursive call sees no result
+summary.
+
+A call `a[i] = v` calls the function that `LiftPrimitiveMethods` lifts from
+`Array.set`. Its body checks the index with an `assert` and then calls
+`Array.setUnchecked(this, i, value)`, so it is an element store by the
+rule. The `assert` aborts on a bad index, and then the function does not
+return. The backend needs no name for `Array.set` or its lifted function,
+and a wrapper of the same shape in a user program is an element store too.
+A wrapper that stores inside an `if`, or that passes a reassigned
+parameter, is not. Then the analysis records no store, and the value is
+traced when its region closes.
 
 Codegen emits a function before it may see a reference to it, so it finds
 the functions whose address is taken by a scan of all bodies before it
@@ -1348,13 +1363,21 @@ The memory guide changes in two places:
   every object outside the runtime region is freed.
 - `tests/gc/place-overwrite.jo`: the two loops of `pick.jo` and
   `overwrite.jo` below, smaller, under `JO_LOOP_COLLECT=all`.
-- `tests/custom/gc-memstats` gets three programs with their expectations:
+- `tests/gc/place-wrapper.jo`: trees built through wrappers of `a[i] = v`.
+  Some wrappers are element stores: one with its parameters in another
+  order, one after an `assert`, and one that wraps another wrapper. Some
+  are not: one stores inside an `if`, one reassigns its value. Each builder
+  is checked by a traversal, under `JO_LOOP_COLLECT=all`.
+- `tests/custom/gc-memstats` gets four programs with their expectations:
   `tree.jo` expects `traced=0` and no `traced` hint. `pick.jo` stores
   `choose(new Node(...), new Node(...))` into a slot of a returned array a
   million times and expects a peak RSS below 10 MB. `overwrite.jo`
   overwrites one slot a million times and expects the peak RSS of the
-  limitation, between 30 and 60 MB, so a change of the rule shows. `quad.jo`
-  keeps its hint.
+  limitation, between 30 and 60 MB, so a change of the rule shows.
+  `wrapper.jo` builds trees through a wrapper that is an element store and
+  expects no `traced` row for its builder. It builds them through a wrapper
+  that stores inside an `if` too and expects a `traced` row. `quad.jo` keeps
+  its hint.
 - `tests/pos` and `tests/gc` with AddressSanitizer under
   `JO_LOOP_COLLECT=all`.
 

@@ -217,6 +217,16 @@ JO_MEMSTATS=1 "$DIR/tree.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 grep -q '^jo-mem closes free=[0-9]* merge=[0-9]* collect=[0-9]* traced=0$' "$DIR/actual.err" || fail "tree.jo traced objects"
 ! grep -q '^jo-mem hint traced: ' "$DIR/actual.err" || fail "traced hint for tree.jo"
 
+# Trees built through wrappers of `a[i] = v`. `put` always stores, so it is
+# an element store and `build` traces nothing. `putIf` stores inside an `if`,
+# so it is not, and `buildIf` traces its subtrees.
+echo "  - Building wrapper.jo with --mem-profile"
+"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" --mem-profile "$DIR/wrapper.jo" -o "$DIR/wrapper.run" || exit 1
+JO_MEMSTATS=1 "$DIR/wrapper.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
+[ "$(cat "$DIR/actual.out")" = "4369000" ] || fail "unexpected output of wrapper.jo"
+! grep -q '^jo-mem traced objects=[0-9]* fun=memwrapper\.build ' "$DIR/actual.err" || fail "build traced objects through put"
+grep -q '^jo-mem traced objects=[0-9]* fun=memwrapper\.buildIf ' "$DIR/actual.err" || fail "no traced row for buildIf"
+
 # Peak RSS of a loop that stores into a slot of the array it returns. In
 # pick.jo only the call of `choose` is placed, so the loop of `build` frees
 # the node not chosen: below 10 MB. In overwrite.jo the overwritten nodes

@@ -1,0 +1,58 @@
+namespace memwrapper
+
+// Trees of depth 8 built 100 times through wrappers of `a[i] = v`. `put`
+// always stores, so it is an element store like `Array.set`: each subtree is
+// placed in the region of `main`, and `build` traces nothing. `putIf` stores
+// inside an `if`, so it is not an element store: `buildIf` traces its
+// subtrees when its region closes.
+
+union Tree = Inner(children: Array[Tree]) | Leaf(n: Int)
+
+def put(a: Array[Tree], i: Int, v: Tree): Unit =
+  a[i] = v
+
+def putIf(a: Array[Tree], i: Int, v: Tree): Unit =
+  if i >= 0 then a[i] = v
+
+def build(depth: Int): Tree =
+  if depth == 1 then Leaf(depth)
+  else
+    val children: Array[Tree] = Array.fill(4, Leaf(0))
+    var i = 0
+    while i < 4 do
+      put(children, i, build(depth - 1))
+      i = i + 1
+    end
+    Inner(children)
+
+def buildIf(depth: Int): Tree =
+  if depth == 1 then Leaf(depth)
+  else
+    val children: Array[Tree] = Array.fill(4, Leaf(0))
+    var i = 0
+    while i < 4 do
+      putIf(children, i, buildIf(depth - 1))
+      i = i + 1
+    end
+    Inner(children)
+
+def size(t: Tree): Int =
+  match t
+    case Inner(cs) =>
+      var s = 1
+      var i = 0
+      while i < cs.size do
+        s = s + size(cs[i])
+        i = i + 1
+      end
+      s
+    case Leaf(_) => 1
+
+def main(): Unit =
+  var total = 0
+  var k = 0
+  while k < 100 do
+    total = total + size(build(8)) + size(buildIf(8))
+    k = k + 1
+  end
+  println: total

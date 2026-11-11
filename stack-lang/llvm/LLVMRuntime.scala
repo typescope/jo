@@ -13,7 +13,7 @@ import scala.collection.mutable
   * The runtime is `runtime/native/common` plus the libc platform layer
   * `runtime/native/libc`. Run-time symbols are not visible to user programs.
   */
-class LLVMRuntime(val rewire: Map[Symbol, Symbol], liftedMethods: Map[Symbol, Symbol])(using defn: Definitions):
+class LLVMRuntime(val rewire: Map[Symbol, Symbol])(using defn: Definitions):
   val Native = defn.resolveContainer("jo.runtime.native")
 
   val Core_Addr = Native.typeMember("Addr")
@@ -93,10 +93,6 @@ class LLVMRuntime(val rewire: Map[Symbol, Symbol], liftedMethods: Map[Symbol, Sy
 
   // `Array.setUnchecked` is linked to it
   val Core_RefArray_setUnchecked = Core_RefArray.termMember("setUnchecked")
-
-  // The function lifted from the method `set` of `Array`, if the program uses it
-  val Array_set: Option[Symbol] =
-    defn.Array_class.classInfo.getMemberSymbol("set").flatMap(liftedMethods.get)
 
   val Core_stackOverflowHandler        = Native.termMember("stackOverflowHandler")
   val Core_stackOverflowHandlerAddress = Native.termMember("stackOverflowHandlerAddress")
