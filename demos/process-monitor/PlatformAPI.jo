@@ -4,8 +4,6 @@
 
 namespace SystemAPI
 
-import jo.IO.stdout
-
 // ============================================
 // Capability Interface Definitions
 // ============================================
@@ -80,13 +78,5 @@ param logger: Logger
 param timer: Timer
 param alerter: Alerter
 
-// ============================================
-// Deferred Entry Point
-// ============================================
-
-//[ User implements this to perform a task
-  !
-  ! Receives workspace capability which provides sandboxed file access
-  ! Receives skills capability for reading skill definitions
-//]
-defer def startMonitor(intervalSecs: Int): Unit receives stdout, process, system, logger, timer, alerter
+// Seconds between two health checks; 0 runs a single check
+param interval: Int

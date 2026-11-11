@@ -3,6 +3,9 @@
   ! Platform runtime providing context parameter implementations
   ! Uses real Python APIs via the Python FFI
   ! No third-party dependencies required
+  !
+  ! The factories at the end are bound to the context parameters of the API
+  ! with --provide and --internal when the user application is compiled.
 //]
 
 namespace SystemRuntime
@@ -160,24 +163,20 @@ class AlerterImpl(scriptPath: String)
   view SystemAPI.Alerter
 end
 
-// Main entry point - wires up all capability implementations
-def platformMain: Unit receives stdout =
-  val processImpl = new ProcessImpl()
-  val systemImpl  = new SystemImpl()
-  val loggerImpl  = new LoggerImpl(stdout)
-  val timerImpl   = new TimerImpl()
+//=============== Factories ====================================================
 
-  val alertScript = "./alert.sh"
-  val alerterImpl   = new AlerterImpl(alertScript)
+// Path of the alert script. Bound with --internal, so only the factories
+// below can receive it: user code cannot name it.
+param alertScript: String
 
-  val intervalSecs = os.environ.get("MONITOR_INTERVAL_SECS", "30").toInt
+def Process(): SystemAPI.Process = new ProcessImpl()
 
-  with
-    process = processImpl,
-    system  = systemImpl,
-    logger  = loggerImpl,
-    timer   = timerImpl,
-    alerter = alerterImpl
-  in
-    SystemAPI.startMonitor(intervalSecs)
-end
+def System(): SystemAPI.System = new SystemImpl()
+
+def Logger(): SystemAPI.Logger receives stdout = new LoggerImpl(stdout)
+
+def Timer(): SystemAPI.Timer = new TimerImpl()
+
+def Alerter(): SystemAPI.Alerter receives alertScript = new AlerterImpl(alertScript)
+
+def Interval(): Int = os.environ.get("MONITOR_INTERVAL_SECS", "30").toInt

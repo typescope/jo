@@ -10,10 +10,10 @@ import SystemAPI.system
 import SystemAPI.logger
 import SystemAPI.timer
 import SystemAPI.alerter
+import SystemAPI.interval
 
-
-// Platform-controlled entry point: shows system info then runs periodic checks
-def startMonitor(intervalSecs: Int): Unit receives stdout, process, system, logger, timer, alerter =
+// Entry point: shows system info then runs periodic checks
+def main: Unit receives stdout, process, system, logger, timer, alerter, interval =
   logger.info("System Monitor Starting...")
   logger.info("=========================")
   println ""
@@ -37,18 +37,18 @@ def startMonitor(intervalSecs: Int): Unit receives stdout, process, system, logg
   println ("Heap memory:   " + mem + " MB")
   println ""
 
-  if intervalSecs == 0 then
+  if interval == 0 then
     logger.info("Running one-shot check")
     println ""
     checkAndAlert()
   else
-    logger.info("Starting periodic checks every " + intervalSecs + " s")
+    logger.info("Starting periodic checks every " + interval + " s")
     println ""
 
     // Run periodic checks indefinitely
     while true do
       checkAndAlert()
-      timer.wait(intervalSecs * 1000)
+      timer.wait(interval * 1000)
     end
   end
 
