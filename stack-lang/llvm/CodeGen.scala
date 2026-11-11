@@ -507,8 +507,9 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
       ctx.placement = resultRegions(sym)
       ctx.resultLevel = Some(callFun(runtime.Regions_resultLevel, Nil))
 
-    else if addressTaken.contains(sym) then
-      // An indirect call may pass a level that this function does not take
+    // An indirect call may pass a level to any function whose address is
+    // taken. One that does not take the level clears it.
+    if placeResults && !takesLevel(sym, procType.resultType) && addressTaken.contains(sym) then
       callFun(runtime.Regions_clearResult, Nil)
 
     val paramTypes = procType.allParamTypes.map(llvmType)
@@ -602,6 +603,13 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
         onlyPlacedCache(target) = res
         res
 
+  /** Whether a function takes a passed result level at entry, in `enter` or `resultLevel`
+    *
+    * A direct call passes a level only to such a function.
+    */
+  def takesLevel(sym: Symbol, resultType: Type): Boolean =
+    opensRegion(sym, resultType) || placesWithoutRegion(sym, resultType)
+
   /** Whether a result is a pointer to place: `Unit` has nothing to place */
   def placesResult(resultType: Type): Boolean =
     llvmType(resultType) == "ptr" && !resultType.isUnitType
@@ -609,7 +617,9 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
   /** The functions whose address is taken: function references outside the
     * callee position of a call, and the entries of the interface tables
     *
-    * Only these can be called indirectly.
+    * Only these can be called indirectly. Codegen emits the interface tables
+    * of the classes that `getInterfaceTable` calls name, and those of the
+    * static objects: string constants and shared boxes.
     */
   private lazy val addressTaken: Set[Symbol] =
     val res = mutable.Set.empty[Symbol]
@@ -638,6 +648,15 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
           case _ => recur(word)
 
     for fdef <- funDefs.values do scan(fdef.body)(using ())
+
+    val staticClasses = List(runtime.Core_String_Raw, runtime.Core_IntBox, runtime.Core_CharBox, runtime.Core_ByteBox, runtime.Core_BoolBox)
+    for
+      cls <- staticClasses
+      (_, impls) <- runtime.getInterfaceImplementations(cls.classInfo)
+      impl <- impls
+    do
+      res += resolve(impl)
+
     res.toSet
 
   //----------------------------------------------------------------------------
@@ -1068,7 +1087,7 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
           val resultType = target.tpe.asProcType.resultType
           val passes =
             ctx.placement.exists(_.calls.contains(app)) && placesResult(resultType) &&
-            (opensRegion(target, resultType) || placesWithoutRegion(target, resultType))
+            takesLevel(target, resultType)
 
           if passes then passResult()
 

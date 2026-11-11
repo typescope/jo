@@ -68,7 +68,7 @@ done
 # clears it at entry.
 GC_DIR="$PROJECT_ROOT/tests/gc"
 echo "  - Building place-unit.jo with LLVM"
-"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" --keep-ll "$GC_DIR/place-unit.jo" -o "$DIR/unit.run"
+"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" --keep-ll "$GC_DIR/place-unit.jo" -o "$DIR/unit.run" || exit 1
 fun_calls() {
     awk -v f="$2" 'index($0, "define ") == 1 && index($0, f) { p = 1 } p && /^}/ { p = 0 } p' "$1"
 }
@@ -83,7 +83,7 @@ done
 # `enter`, or a result is placed at a closed level and never freed. Every
 # object outside the runtime region is freed.
 echo "  - Building place-indirect.jo with LLVM"
-"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" "$GC_DIR/place-indirect.jo" -o "$DIR/indirect.run"
+"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" "$GC_DIR/place-indirect.jo" -o "$DIR/indirect.run" || exit 1
 JO_MEMSTATS=1 "$DIR/indirect.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 diff "$DIR/actual.out" "$GC_DIR/place-indirect.jo.check" || fail "place-indirect.jo"
 awk '/^jo-mem summary / { for (i = 3; i <= NF; i++) { split($i, a, "="); v[a[1]] = a[2] } } END { exit !(v["allocated"] - v["freed"] == v["runtime-region"]) }' "$DIR/actual.err" || fail "objects of place-indirect.jo were not freed"

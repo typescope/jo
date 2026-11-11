@@ -1241,9 +1241,10 @@ So no later `enter` ever sees a level meant for another call. Clearing
 after the call returns would not be enough: a callee that ignores the flag
 could call a region function, which would take the level. The clear costs
 one store in closures and interface methods that cannot allocate. Codegen
-finds the functions whose address is taken where it already emits them:
-function references outside the callee position of a call, and the entries
-of the interface tables.
+finds the functions whose address is taken by a scan of all bodies before
+it emits any: function references outside the callee position of a call,
+and the entries of the interface tables it emits. The clear is emitted only
+when results are placed, since otherwise no call passes a level.
 
 #### Memory: what a loop places
 
@@ -1318,8 +1319,9 @@ hands its lifted functions to the backend in `FrontEnd.liftedMethods`, so
 
 Codegen emits a function before it may see a reference to it, so it finds
 the functions whose address is taken by a scan of all bodies before it
-emits any: function references outside the callee position of a call, and
-the entries of the interface tables that `getInterfaceTable` calls name.
+emits any (see [The flag](#the-flag)). The interface tables are those of the
+classes that `getInterfaceTable` calls name, and those of the static string
+constants and shared boxes.
 
 The memory guide changes in two places:
 

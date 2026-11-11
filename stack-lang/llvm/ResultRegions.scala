@@ -160,6 +160,7 @@ class ResultRegions(fdef: FunDef, resultParams: Symbol => Set[Int], isElementSto
       case Select(qual, _) => variable(qual)
       case _ => None
 
+  /** Whether a word is a record literal, seen through casts */
   private def isRecord(word: Word): Boolean =
     word match
       case Encoded(repr) => isRecord(repr)
