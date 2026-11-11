@@ -1,0 +1,19 @@
+// options: --provide Test.d=Test.MakeD --internal Test.a=Test.MakeA --internal Test.b=Test.MakeB --internal Test.c=Test.MakeC
+
+// A cycle reached through a tail: d depends on a, and a leads into the cycle b -> c -> b.
+// The message lists the cycle only.
+
+namespace Test
+
+param a: Int
+param b: Int
+param c: Int
+param d: Int
+
+def MakeA(): Int receives b = b + 1
+def MakeB(): Int receives c = c + 1
+def MakeC(): Int receives b = b + 1
+def MakeD(): Int receives a = a + 1
+
+def main: Unit receives IO.stdout, d =
+  println d
