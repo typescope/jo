@@ -94,7 +94,7 @@ object Injection:
       val received = if deferred == target && valid then internalReceived(impl.tpe, deferred.tpe) else Nil
 
       for param <- received do
-        rp.error(s"${deferred.fullName} implementation ${impl.fullName} receives internal parameter ${param.fullName}")
+        rp.error(s"The context parameter ${param.fullName} is not provided (--provide) for ${impl.fullName}")
 
       received.nonEmpty
 

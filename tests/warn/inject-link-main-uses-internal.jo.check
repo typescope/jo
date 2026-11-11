@@ -1,3 +1,3 @@
-[Error] jo.main implementation Test.entry receives internal parameter Test.secret
+[Error] The context parameter Test.secret is not provided (--provide) for Test.entry
 
 1 error(s), 0 warning(s)
