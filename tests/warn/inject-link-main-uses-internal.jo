@@ -1,0 +1,11 @@
+// options: --link jo.main=Test.entry --internal Test.secret=7 --provide Test.shown=1
+
+// An explicitly linked entry point may not receive an internal parameter either.
+
+namespace Test
+
+param secret: Int
+param shown: Int
+
+def entry: Unit receives IO.stdout, shown, secret =
+  println(shown + secret)
