@@ -99,8 +99,8 @@ Query output includes public symbols only.
 | `--js`                    | Target JavaScript (experimental) |
 | `--link-lib <dir>`        | Link library directory (resolves `defer def`s, can be repeated) |
 | `--link <src>=<tgt>`      | Wire a specific `defer def` explicitly (can be repeated) |
-| `--provide <param>=<value>` | Bind a context parameter for `main` and factories to a factory or a literal (can be repeated) |
-| `--internal <param>=<value>` | Bind a context parameter for factories only (can be repeated) |
+| `--provide <param>=<value>` | Bind a context parameter for `main` (can be repeated) |
+| `--internal <param>=<value>` | Bind a context parameter for factory functions only (can be repeated) |
 | `-o <output>`             | Output file path |
 
 When `--use-runtime-api` matches the selected app backend, the compiler uses that runtime API through the check-library path and suppresses the backend's default runtime link library.

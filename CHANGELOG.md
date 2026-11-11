@@ -6,16 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- Capability injection. The compiler options `--provide p=e` and
-  `--internal p=e` bind a context parameter `p` for `jo.main` to the result
-  of a factory function or to a literal. A provided parameter may be received
-  by `main`, an internal one only by factories, so a broad capability can be
-  narrowed before it reaches the application. The compiler instantiates the
-  bindings in dependency order and calls `main` with them in scope. Libraries
-  can offer capabilities without owning the entry point, and the platform layer
-  of `demos/process-monitor` becomes a few compiler options. The options can be
-  declared in `jo.toml` through `compile-options`. See the Entry Point section
-  of the language documentation.
+- Capability injection. The compiler option `--provide p=e`
+  bind a context parameter `p` for `jo.main`. The rhs can be either a factory
+  function or a Jo literal. The factory function may in turn require context
+  parameters, which can be supplied with `--internal p=e`.
+  The compiler instantiates the bindings in dependency order and calls `main`
+  with them in scope.
 
 ### Changed
 
@@ -25,9 +21,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   ambiguous entry point is reported as an ordinary error rather than as an
   internal abort.
 
-  The detected entry point is linked to `jo.main` and checked like a `--link`
-  target, which is where the receives clauses are checked against `jo.main`
-  and injected parameters through `--provide`.
+  The detected entry point is checked against `jo.main` and injected parameters
+  through `--provide`, to make sure it only uses provided context parameters.
 
 - `jo build` and `jo run` compile an application in a single compiler
   invocation. The library stage that preceded the link step, and that rejected
