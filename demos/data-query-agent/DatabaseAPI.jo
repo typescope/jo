@@ -7,8 +7,6 @@
 
 namespace DatabaseAPI
 
-import jo.IO.stdout
-
 //[ Document class representing a row in the documents table
   !
   ! This is the RESULT type - what queries return.
@@ -257,10 +255,3 @@ interface Skills
 end
 
 param skills: Skills
-
-//[ User implements this to analyze documents
-  !
-  ! Receives db capability which provides filtered database access
-  ! Receives skills capability for reading skill definitions
-//]
-defer def analyzeDocuments(): Unit receives stdout, db, skills

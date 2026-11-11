@@ -26,6 +26,13 @@ to Python, and run it against the database as the current user.
 Jo's type checker confines generated code to the database API. Its trusted
 implementation scopes every query to the current user's `owner_id`.
 
+The runtime ships factories for the capabilities. The compile command binds
+`db` and `skills` to them with `--provide`, and binds the user ID, database
+path, skills directory, and connection with `--internal`, so the compiler
+creates the capabilities from the command-line arguments and calls the
+generated `main` with them in scope. Generated code cannot name the internal
+parameters, which live in the runtime namespace it cannot import.
+
 ## Quick Start
 
 ```bash
@@ -107,7 +114,7 @@ import jo.IO.stdout
 import DatabaseAPI.*
 import DatabaseAPI.QueryDSL.*
 
-def analyzeDocuments(): Unit receives stdout, db =
+def main: Unit receives stdout, db, skills =
   // LLM-generated query/mutation code here
 ```
 
@@ -115,9 +122,13 @@ Compile command used per query:
 
 ```bash
 bin/jo compile --python \
-  --link jo.main=DatabaseRuntime.platformMain \
-  --link DatabaseAPI.analyzeDocuments=UserTask.analyzeDocuments \
   --lib out/api \
   --link-lib out/runtime \
+  --provide DatabaseAPI.db=DatabaseRuntime.DB \
+  --provide DatabaseAPI.skills=DatabaseRuntime.Skills \
+  --internal DatabaseRuntime.userId=DatabaseRuntime.UserId \
+  --internal DatabaseRuntime.dbPath=DatabaseRuntime.DbPath \
+  --internal DatabaseRuntime.skillsDir=DatabaseRuntime.SkillsDir \
+  --internal DatabaseRuntime.connection=DatabaseRuntime.Connection \
   out/task.jo -o out/task.py
 ```

@@ -172,7 +172,7 @@ namespace UserTask
 import jo.IO.stdout
 import DatabaseAPI.*
 
-def analyzeDocuments(): Unit receives stdout, db, skills =
+def main: Unit receives stdout, db, skills =
   match skills.read("jo-cheat-sheet")
     case FileContent(content) => println content
     case NotFound => println "Skill not found"
@@ -207,7 +207,7 @@ import jo.IO.stdout
 import DatabaseAPI.*
 import DatabaseAPI.QueryDSL.*
 
-def analyzeDocuments(): Unit receives stdout, db, skills =
+def main: Unit receives stdout, db, skills =
   // Your code here — use db.query, db.count, db.getById,
   // db.update, db.updateById, db.delete, db.deleteById
   // Use skills.list, skills.read, skills.grep for skill lookup
@@ -216,7 +216,7 @@ def analyzeDocuments(): Unit receives stdout, db, skills =
 
 Key rules:
 - Namespace must be `UserTask`
-- Entry point must be `def analyzeDocuments(): Unit receives stdout, db, skills`
+- Entry point must be `def main: Unit receives stdout, db, skills`
 - Use `db.*` methods for ALL database operations
 - Use `println` to display results to the user
 - String concatenation with `+` requires all parts to be String — use `.toString` on non-strings
@@ -260,10 +260,14 @@ def compile_code(code: str) -> tuple[bool, str]:
     cmd = [
         os.path.join(PROJECT_ROOT, "bin", "jo"),
         "compile", "--python",
-        "--link", "jo.main=DatabaseRuntime.platformMain",
-        "--link", "DatabaseAPI.analyzeDocuments=UserTask.analyzeDocuments",
         "--lib", os.path.join(OUT_DIR, "api"),
         "--link-lib", os.path.join(OUT_DIR, "runtime"),
+        "--provide", "DatabaseAPI.db=DatabaseRuntime.DB",
+        "--provide", "DatabaseAPI.skills=DatabaseRuntime.Skills",
+        "--internal", "DatabaseRuntime.userId=DatabaseRuntime.UserId",
+        "--internal", "DatabaseRuntime.dbPath=DatabaseRuntime.DbPath",
+        "--internal", "DatabaseRuntime.skillsDir=DatabaseRuntime.SkillsDir",
+        "--internal", "DatabaseRuntime.connection=DatabaseRuntime.Connection",
         TASK_JO,
         "-o", TASK_PY,
     ]
