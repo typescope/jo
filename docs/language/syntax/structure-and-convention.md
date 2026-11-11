@@ -88,21 +88,24 @@ declaration order.
 
 ### Entry Point
 
-The entry point is the one top-level function named `main` with no ordinary,
-`auto`, or type parameters. It must return `Unit` and may receive only the
-context parameters that `jo.main` declares and those that `--provide` binds (see
-below). The standard library declares `jo.main` as:
+The compiler detects the entry point by name and type: the one top-level
+parameterless function named `main` that returns `Unit`. Detection ignores the
+`receives` clause. An error is reported if no such function exists. If several
+exist, the entry point must be named explicitly:
+
+```bash
+--link jo.main=app.main
+```
+
+The detected function is then linked to `jo.main`, which the standard library
+declares as:
 
 ```jo
 defer def main: Unit receives IO.stdout, IO.stderr, IO.args
 ```
 
-An error is reported if no such function exists. If several exist, the entry point
-must be named explicitly:
-
-```bash
---link jo.main=app.main
-```
+The link check requires that it receive only the context parameters that
+`jo.main` declares and those that `--provide` binds (see below).
 
 #### Injected Capabilities
 

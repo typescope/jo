@@ -1,0 +1,7 @@
+// A main that does not return Unit is not an entry-point candidate.
+
+namespace Test
+
+def main: Int receives IO.stdout =
+  println "hi"
+  1

@@ -266,10 +266,12 @@ it declares or, when the clause is omitted, those the compiler infers. They
 must all be among the context parameters declared by `d` or the parameters
 bound by `--provide`. The rest of the signature is checked as before.
 
-Entry-point discovery selects the one top-level function named `main` that
-has no ordinary, `auto`, or type parameters, and checks it by this rule, so a
-`main` that receives a provided parameter is accepted. If several such
-functions exist, the entry point must be named with `--link`.
+This proposal restricts capability injection to the deferred entry function
+`jo.main`. Entry-point discovery selects the one top-level parameterless
+function named `main` that returns `Unit` and prepares a `--link` entry under
+the hood. If several such functions exist, the entry point must be specified
+explicitly with `--link`. The link check then applies the rule above, so a
+`main` that receives a provided parameter is accepted.
 
 ### Command-line options
 

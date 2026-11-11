@@ -19,12 +19,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- The entry point is the one top-level function named `main` with no
-  ordinary, `auto`, or type parameters, checked against `jo.main` like a
-  `--link` target. When several
-  such functions exist, the entry point must be named with `--link jo.main=...`.
-  A missing or ambiguous entry point is reported as an ordinary error rather
-  than as an internal abort.
+- The entry point is detected by name and type: the one top-level parameterless
+  function named `main` that returns `Unit`. When several such functions
+  exist, the entry point must be named with `--link jo.main=...`. A missing or
+  ambiguous entry point is reported as an ordinary error rather than as an
+  internal abort.
+
+  The detected entry point is linked to `jo.main` and checked like a `--link`
+  target, which is where the receives clauses are checked against `jo.main`
+  and injected parameters through `--provide`.
+
 - The build tool no longer passes app-only options from `compile-options`,
   such as `--link`, `--link-lib`, `-o`, `--provide`, and `--internal`, to the
   library stage that precedes an app build.

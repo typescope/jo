@@ -85,10 +85,11 @@ object FrontEnd:
 
   /** Locate the implementation of `jo.main`
     *
-    * Unless `--link` names it, the implementation is the one top-level
-    * function named `main` with no parameters of any kind, ordinary, auto,
-    * or type. It is then checked
-    * against `jo.main` like any other link target.
+    * Unless `--link` names it, the implementation is detected by name and
+    * type: the one top-level parameterless function named `main` that
+    * returns `Unit`. Detection ignores the receives clause. The detected
+    * function is then linked to `jo.main`, and the link check compares the
+    * receives clauses.
     */
   private def detectMain
      (units: List[FileUnit], linkData: LinkRewriter.LinkData)
@@ -103,7 +104,8 @@ object FrontEnd:
         unit.defs.collect:
           case fun: FunDef
           if !fun.symbol.is(Flags.Defer) && fun.name == "main"
-             && fun.tparams.isEmpty && fun.params.isEmpty && fun.autos.isEmpty =>
+             && fun.tparams.isEmpty && fun.params.isEmpty && fun.autos.isEmpty
+             && Subtyping.conforms(fun.symbol.tpe.asProcType.resultType, defn.UnitType) =>
             fun.symbol
 
       mains match
@@ -112,7 +114,7 @@ object FrontEnd:
 
         case Nil =>
           rp.error(
-            "No main function found. Define a top-level function named `main` with no ordinary, auto, or type parameters, " +
+            "No main function found. Define a top-level parameterless function named `main` that returns Unit, " +
             s"or name the entry point with --link ${defn.main.fullName}=<path>"
           )
           linkData.resolve()

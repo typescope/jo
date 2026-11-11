@@ -1,3 +1,3 @@
-[Error] No main function found. Define a top-level function named `main` with no ordinary, auto, or type parameters, or name the entry point with --link jo.main=<path>
+[Error] No main function found. Define a top-level parameterless function named `main` that returns Unit, or name the entry point with --link jo.main=<path>
 
 1 error(s), 0 warning(s)
