@@ -55,7 +55,7 @@ export default defineConfig({
     siteTitle: 'Jo Language',
 
     nav: [
-      { text: 'Overview', link: '/overview/index' },
+      { text: 'Overview', link: '/overview/' },
       { text: 'Build Tool', link: '/usage/install' },
       { text: 'Language Reference', link: '/language/design-principles' },
       ...stdlibNav,
@@ -68,6 +68,7 @@ export default defineConfig({
         {
           text: 'Overview',
           items: [
+            { text: 'Introduction', link: '/overview/' },
             { text: 'Language Tour', link: '/overview/language-tour' },
             { text: 'Compile-Time Sandboxing', link: '/overview/capabilities' },
             { text: 'Cheat Sheet', link: '/overview/cheat-sheet' },
