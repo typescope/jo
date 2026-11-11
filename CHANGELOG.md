@@ -29,9 +29,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   target, which is where the receives clauses are checked against `jo.main`
   and injected parameters through `--provide`.
 
-- The build tool no longer passes app-only options from `compile-options`,
-  such as `--link`, `--link-lib`, `-o`, `--provide`, and `--internal`, to the
-  library stage that precedes an app build.
+- `jo build` and `jo run` compile an application in a single compiler
+  invocation. The library stage that preceded the link step, and that rejected
+  app-only options from `compile-options` such as `--link` and `--provide`, is
+  gone. `jo check` still type-checks an application without linking it.
 
 ### Security
 

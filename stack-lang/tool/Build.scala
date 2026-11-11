@@ -59,16 +59,16 @@ object Build:
 
   def build(project: Project, module: ModuleId)(using Logger, PackageProvider): Result[Unit] =
     makePlanResult(project, List(module)).flatMap: plans =>
-      Runner.run(plans.modules.head)
+      Runner.build(plans.modules.head)
 
   def check(project: Project, module: ModuleId)(using Logger, PackageProvider): Result[Unit] =
     makePlanResult(project, List(module)).flatMap: plans =>
-      Runner.check(plans.modules.head, "check")
+      Runner.check(plans.modules.head)
 
   def run(project: Project, module: ModuleId, appArgs: List[String])(using Logger, PackageProvider): Result[Unit] =
     makePlanResult(project, List(module)).flatMap: plans =>
       val plan = plans.modules.head
-      Runner.run(plan).flatMap: _ =>
+      Runner.build(plan).flatMap: _ =>
         plan.task match
           case app: CompileTask.AppTask =>
             Logger.info(s"[run] ${module.value}\n")

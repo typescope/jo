@@ -1135,15 +1135,15 @@ private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String
 
   command match
     case "run" =>
-      Runner.run(selectedPlan).flatMap: _ =>
+      Runner.build(selectedPlan).flatMap: _ =>
         selectedPlan.task match
           case app: CompileTask.AppTask => Runner.execute(app, appArgs)
           case _: CompileTask.LibTask   => Result.Ok("")
 
     case "build" | "check" =>
       val result =
-        if command == "build" then Runner.run(selectedPlan)
-        else Runner.check(selectedPlan, "check")
+        if command == "build" then Runner.build(selectedPlan)
+        else Runner.check(selectedPlan)
       result.map(_ => "")
 
     case other => Result.Err(s"unknown jo subcommand '$other' in test")

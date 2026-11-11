@@ -16,7 +16,7 @@ object Release:
           Logger.info(s"[package] ${project.moduleLabel(project, module)}\n")
           validatePackageDependencies(project, module).flatMap: dependencies =>
             Build.makePlanResult(project, List(module)).flatMap: plans =>
-              Runner.run(plans.modules.head).flatMap: _ =>
+              Runner.build(plans.modules.head).flatMap: _ =>
                 val version = pkg.version
                 val sastDir = project.sastDir(module)
                 val releaseDir = project.buildDir(module).resolve("release")
