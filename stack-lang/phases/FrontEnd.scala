@@ -18,6 +18,9 @@ object FrontEnd:
 
   val rewireMap: InternalSetting[Map[Symbol, Symbol]] = InternalSetting(Map.empty, "mapping for rewiring functions")
 
+  val liftedMethods: InternalSetting[Map[Symbol, Symbol]] =
+    InternalSetting(Map.empty, "the functions lifted from the methods of primitive classes")
+
   /** Runtime definitions of a backend required by the frontend phases
     *
     * @param isLambdaValue   the full name of the intrinsic `isLambdaValue(v: Any): Bool`
@@ -127,8 +130,12 @@ object FrontEnd:
       val liftPrim    = new phases.LiftPrimitiveMethods
       val patmat      = new phases.PatternMatcher(defn.resolveTerm(runtimeConfig.isLambdaValue))
       val tailcallopt = new phases.TailCallOpt
-      units        |>
-      patmat       |>
-      liftPrim     |>
-      tailcallopt
+      val res =
+        units        |>
+        patmat       |>
+        liftPrim     |>
+        tailcallopt
+
+      cf.setInternal(FrontEnd.liftedMethods, liftPrim.liftedMethods)
+      res
     })

@@ -8,8 +8,6 @@ import sast.Types.*
 import sast.Denotations.*
 import sast.Flags
 
-import Phase.PhaseKey
-
 import scala.collection.mutable
 
 /** Lifts non-intrinsic methods of primitive classes (Int, Byte, Char, Float,
@@ -23,14 +21,13 @@ import scala.collection.mutable
   * backends handle them via their own primitive dispatch.
   */
 class LiftPrimitiveMethods(using defn: Definitions) extends Phase:
-  private val liftedSymMapKey: PhaseKey[mutable.Map[Symbol, Symbol]] = new PhaseKey("liftedSymMap")
+  private val liftedSymMap = mutable.Map.empty[Symbol, Symbol]
 
-  override def initContext()(using Context): Unit =
-    liftedSymMapKey.set(mutable.Map.empty)
+  /** The lifted functions of the methods lifted so far */
+  def liftedMethods: Map[Symbol, Symbol] = liftedSymMap.toMap
 
   def getLiftedSymbol(methodSym: Symbol)(using Context): Symbol =
-    val map = liftedSymMapKey.value
-    map.get(methodSym) match
+    liftedSymMap.get(methodSym) match
       case Some(sym) => sym
       case None =>
         val classSym = methodSym.owner
@@ -60,7 +57,7 @@ class LiftPrimitiveMethods(using defn: Definitions) extends Phase:
           methodSym.sourcePos
         )
 
-        map(methodSym) = liftedSym
+        liftedSymMap(methodSym) = liftedSym
         liftedSym
 
   override def transformFileUnit(unit: FileUnit)(using Context): FileUnit =
