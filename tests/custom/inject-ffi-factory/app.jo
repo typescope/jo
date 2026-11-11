@@ -1,0 +1,8 @@
+// The application receives the provided environment capability. The prefix is
+// internal, so main may not name it, and the factory lives in a link library
+// the application cannot import.
+namespace App
+
+def main: Unit receives IO.stdout, Api.env =
+  println(Api.env.get("INJECT_FFI_NAME"))
+  println(Api.env.get("INJECT_FFI_MISSING"))

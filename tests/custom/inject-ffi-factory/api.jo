@@ -1,0 +1,10 @@
+// The pure API: an environment capability and the context parameters the
+// application and the factory read.
+namespace Api
+
+interface Env
+  def get(name: String): String
+end
+
+param env: Env
+param prefix: String
