@@ -63,6 +63,15 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
   /** The result regions of the analyzed functions, `None` while analyzing */
   private val resultRegionsCache = mutable.Map.empty[Symbol, Option[ResultRegions]]
 
+  /** Whether every allocation site of a function is placed, by target */
+  private val onlyPlacedCache = mutable.Map.empty[Symbol, Boolean]
+
+  /** The functions an element store `a[i] = v` calls: `Array.set` and the
+    * function `Array.setUnchecked` is linked to
+    */
+  private val elementStores: Set[Symbol] =
+    Set(runtime.Core_RefArray_setUnchecked) ++ runtime.Array_set
+
   private val StateGlobal = "@runtime.state"
 
   /** Which words contain a loop */
@@ -489,10 +498,18 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
       regionIds(sym) = id
       callFun(runtime.Regions_enter, V("i32", id.toString) :: Nil)
 
-      if placeResults && llvmType(procType.resultType) == "ptr" then
+      if placeResults && placesResult(procType.resultType) then
         ctx.placement = resultRegions(sym)
 
       if loopCollect then prepareLoops(fdef)
+
+    else if placesWithoutRegion(sym, procType.resultType) then
+      ctx.placement = resultRegions(sym)
+      ctx.resultLevel = Some(callFun(runtime.Regions_resultLevel, Nil))
+
+    else if addressTaken.contains(sym) then
+      // An indirect call may pass a level that this function does not take
+      callFun(runtime.Regions_clearResult, Nil)
 
     val paramTypes = procType.allParamTypes.map(llvmType)
     val resType = retType(procType.resultType)
@@ -527,16 +544,22 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
       case None =>
         funDefs.get(target).flatMap: fdef =>
           resultRegionsCache(target) = None
-          val res = new ResultRegions(fdef, callee => resultRegions(callee).map(_.params).getOrElse(Set.empty))
+          val params = (callee: Symbol) => resultRegions(callee).map(_.params).getOrElse(Set.empty)
+          val res = new ResultRegions(fdef, params, callee => elementStores.contains(resolve(callee)))
           resultRegionsCache(target) = Some(res)
           Some(res)
 
   /** Whether a function opens a region, by `--region` or the region policy
     *
     * The entry function is an ordinary function. It opens a region like any
-    * other, and its loops collect it.
+    * other, and its loops collect it. A function that places its result
+    * without a region opens none.
     */
   def opensRegion(sym: Symbol, resultType: Type): Boolean =
+    regionFunctions.contains(sym) || (regionByPolicy(sym, resultType) && !placesWithoutRegion(sym, resultType))
+
+  /** Whether the region policy makes a function a region function */
+  private def regionByPolicy(sym: Symbol, resultType: Type): Boolean =
     // The runtime manages the regions. A runtime function must not place its
     // result either: `StringOps.+` relies on its new strings being in the
     // current region.
@@ -548,7 +571,74 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
       case RegionPolicy.All => true
 
     // A function that cannot allocate would always have an empty region
-    regionFunctions.contains(sym) || (selectable && byPolicy && allocations.mayAllocate(sym))
+    selectable && byPolicy && allocations.mayAllocate(sym)
+
+  /** Whether a function places its result without opening a region
+    *
+    * Its region could only hold its result, so it opens none and allocates
+    * its result where the result goes. See "Functions that only allocate
+    * their result" in GC.md.
+    */
+  def placesWithoutRegion(sym: Symbol, resultType: Type): Boolean =
+    placeResults && placesResult(resultType) && !regionFunctions.contains(sym) &&
+    regionByPolicy(sym, resultType) && onlyPlaced(resolve(sym))
+
+  /** Whether every allocation site of a function is placed */
+  private def onlyPlaced(target: Symbol): Boolean =
+    onlyPlacedCache.get(target) match
+      case Some(res) => res
+      case None =>
+        val res = (funDefs.get(target), resultRegions(target)) match
+          case (Some(fdef), Some(placement)) =>
+            val placed: Word => Boolean =
+              case rec: RecordLit => placement.allocations.contains(rec)
+              case app: Apply => placement.calls.contains(app)
+              case _ => false
+
+            !allocations.allocatesBesides(fdef.body, placed)
+
+          case _ => false
+
+        onlyPlacedCache(target) = res
+        res
+
+  /** Whether a result is a pointer to place: `Unit` has nothing to place */
+  def placesResult(resultType: Type): Boolean =
+    llvmType(resultType) == "ptr" && !resultType.isUnitType
+
+  /** The functions whose address is taken: function references outside the
+    * callee position of a call, and the entries of the interface tables
+    *
+    * Only these can be called indirectly.
+    */
+  private lazy val addressTaken: Set[Symbol] =
+    val res = mutable.Set.empty[Symbol]
+    val scan = new TreeTraverser:
+      type Context = Unit
+
+      def apply(word: Word)(using Unit): Unit =
+        word match
+          case Ident(sym) if sym.is(Flags.Fun) => res += resolve(sym)
+
+          case app: Apply =>
+            directCallee(app) match
+              case Some(sym) =>
+                if sym == runtime.Core_getInterfaceTable then
+                  val Literal(Constant.Int(classId)) = app.args.head.runtimeChecked
+                  for
+                    (_, impls) <- runtime.getInterfaceImplementations(runtime.getClassSymbol(classId).classInfo)
+                    impl <- impls
+                  do
+                    res += resolve(impl)
+
+                app.allArgs.foreach(this(_))
+
+              case None => recur(word)
+
+          case _ => recur(word)
+
+    for fdef <- funDefs.values do scan(fdef.body)(using ())
+    res.toSet
 
   //----------------------------------------------------------------------------
   // Loop collection, see "Collecting a region in a loop" in GC.md
@@ -925,8 +1015,12 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
     // its fields need the barrier even when initialized. A function, like
     // the `apply` of a closure, is not a heap object.
     val inResult = ctx.placement.exists(_.allocations.contains(rec))
-    val alloc = if inResult then runtime.Regions_allocResult else runtime.GC_alloc
-    val obj = callFun(alloc, size :: Nil)
+    val obj =
+      if !inResult then callFun(runtime.GC_alloc, size :: Nil)
+      else
+        ctx.resultLevel match
+          case Some(level) => callFun(runtime.Regions_allocAt, size :: level :: Nil)
+          case None => callFun(runtime.Regions_allocResult, size :: Nil)
 
     // The size of a class instance counts in `kept` of a loop collection
     rec.args.collectFirst { case (Layout.ClassID, Literal(Constant.Int(id))) => id } match
@@ -972,19 +1066,30 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
           // The callee puts its result in the result region of this function
           val target = resolve(sym)
           val resultType = target.tpe.asProcType.resultType
-          val inherits =
-            ctx.placement.exists(_.calls.contains(app)) &&
-            llvmType(resultType) == "ptr" && opensRegion(target, resultType)
+          val passes =
+            ctx.placement.exists(_.calls.contains(app)) && placesResult(resultType) &&
+            (opensRegion(target, resultType) || placesWithoutRegion(target, resultType))
 
-          if inherits then
-            callFun(runtime.Regions_inherit, Nil)
+          if passes then passResult()
 
           callFun(sym, args)
 
       case None =>
         val fun :: args = operands(app.fun :: app.allArgs): @unchecked
         val funType = app.fun.tpe.asProcType
+
+        // The callee takes the level if it opens a region or places its
+        // result, and clears it otherwise
+        if ctx.placement.exists(_.calls.contains(app)) && placesResult(funType.resultType) then
+          passResult()
+
         call(coerce(fun, "ptr").v, funType.allParamTypes, funType.resultType, args)
+
+  /** Pass the result level of this function to the next callee */
+  def passResult()(using ctx: FunContext): Unit =
+    ctx.resultLevel match
+      case Some(level) => callFun(runtime.Regions_passResult, level :: Nil)
+      case None => callFun(runtime.Regions_inherit, Nil)
 
   /** Call a Jo function directly */
   def callFun(sym: Symbol, args: List[V])(using FunContext): V =
@@ -1317,6 +1422,9 @@ object CodeGen:
 
     /** The allocations and calls that go to the result region */
     var placement: Option[ResultRegions] = None
+
+    /** The result level of a function that places its result without a region */
+    var resultLevel: Option[V] = None
 
     /** The roots of the collecting loops, if the function has any */
     var loopRoots: Option[java.util.IdentityHashMap[While, List[Symbol]]] = None

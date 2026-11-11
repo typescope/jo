@@ -51,8 +51,18 @@ class Allocations(funDefs: collection.Map[Symbol, FunDef], runtime: LLVMRuntime,
     scan(word)(using ())
     scan.direct || scan.callees.exists(mayAllocate)
 
+  /** Whether a word may allocate other than at the given sites
+    *
+    * A placed site is a record literal or a call whose objects go where the
+    * result of the function goes.
+    */
+  def allocatesBesides(word: Word, placed: Word => Boolean): Boolean =
+    val scan = new Scan(placed)
+    scan(word)(using ())
+    scan.direct || scan.callees.exists(mayAllocate)
+
   /** The direct allocations and the callees of a function body, as CodeGen compiles calls */
-  private class Scan extends TreeTraverser:
+  private class Scan(placed: Word => Boolean = _ => false) extends TreeTraverser:
     type Context = Unit
 
     var direct = false
@@ -61,7 +71,7 @@ class Allocations(funDefs: collection.Map[Symbol, FunDef], runtime: LLVMRuntime,
 
     def apply(word: Word)(using Unit): Unit =
       word match
-        case _: RecordLit => direct = true
+        case rec: RecordLit => if !placed(rec) then direct = true
 
         case If(cond, thenp, elsep) =>
           this(cond)
@@ -81,11 +91,11 @@ class Allocations(funDefs: collection.Map[Symbol, FunDef], runtime: LLVMRuntime,
               else if !sym.is(Flags.Object) && sym.owner != runtime.LibC then
                 val target = resolve(sym)
                 if allocators.contains(target) then direct = true
-                else callees += target
+                else if !placed(app) then callees += target
 
             case None =>
               // an indirect call may call anything
-              direct = true
+              if !placed(app) then direct = true
 
         case _ =>
 

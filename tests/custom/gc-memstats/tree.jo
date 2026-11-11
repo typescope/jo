@@ -1,0 +1,32 @@
+namespace memtree
+
+// A tree of depth 8 built 200 times through `Array.tabulate`. Each subtree
+// is stored into the array of its parent right away, so it is allocated in
+// the region of `main`: the closes trace nothing.
+
+union Tree = Inner(children: Array[Tree]) | Leaf(n: Int)
+
+def build(depth: Int): Tree =
+  if depth == 1 then Leaf(depth)
+  else Inner(Array.tabulate(4, _ => build(depth - 1)))
+
+def size(t: Tree): Int =
+  match t
+    case Inner(cs) =>
+      var s = 1
+      var i = 0
+      while i < cs.size do
+        s = s + size(cs[i])
+        i = i + 1
+      end
+      s
+    case Leaf(_) => 1
+
+def main(): Unit =
+  var total = 0
+  var k = 0
+  while k < 200 do
+    total = total + size(build(8))
+    k = k + 1
+  end
+  println: total

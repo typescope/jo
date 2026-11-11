@@ -1,0 +1,79 @@
+namespace gcplaceindirect
+
+// Indirect calls pass the result level.
+//
+// `call` places its result without a region and passes its level, the level
+// of `inner`, to `f`. The closure of `reader` cannot allocate, takes no level
+// and clears it. If the level stayed, the next `enter` would take it after
+// `inner` and `middle` returned: `fresh` would then place its result at the
+// closed level of `inner`, where nothing frees it. `tests/custom/gc-regions`
+// checks that every object outside the runtime region is freed.
+//
+// `Scaler.make` is an interface method that places its result. `makeAll`
+// passes it the level of `main` through the closure.
+
+class Box(value: Int)
+
+class Node(value: Int, next: Option[Node])
+
+interface Maker
+  def make(i: Int): Box
+end
+
+class Scaler(factor: Int)
+  def make(i: Int): Box = new Box(i * factor)
+  view Maker
+end
+
+def reader(table: Array[Box]): Int => Box = i => table[i % table.size]
+
+def call(f: Int => Box, i: Int): Box = f(i)
+
+// Region functions. `inner` calls `call` without passing a level.
+def middle(table: Array[Box], i: Int): Int =
+  val tmp = new Box(i)
+  inner(table, i) + tmp.value
+
+// `inner` keeps 600 nodes until it returns, so its region collects and does
+// not merge into the region of `middle`
+def inner(table: Array[Box], i: Int): Int =
+  val list = chain 600
+  call(reader table, i).value + count(list)
+
+def chain(n: Int): Option[Node] =
+  if n == 0 then None
+  else Some(new Node(n, chain(n - 1)))
+
+def count(list: Option[Node]): Int =
+  match list
+    case Some(node) => 1 + count(node.next)
+    case None => 0
+
+// A region function that places its result
+def fresh(i: Int): Box =
+  val tmp = new Box(i + 1)
+  new Box(tmp.value * 2)
+
+def makeAll(maker: Maker, n: Int): Array[Box] =
+  Array.tabulate(n, i => maker.make(i))
+
+def main(): Unit =
+  val table = Array.tabulate(8, i => new Box(i * 100))
+  var sum = 0
+  var i = 0
+  while i < 2000 do
+    sum = (sum + middle(table, i)) % 1000003
+    val box = fresh i
+    sum = (sum + box.value) % 1000003
+    i = i + 1
+  end
+  println: sum
+
+  val boxes = makeAll(new Scaler(3), 1000)
+  var total = 0
+  i = 0
+  while i < boxes.size do
+    total = total + boxes[i].value
+    i = i + 1
+  end
+  println: total

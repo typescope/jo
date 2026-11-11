@@ -1,0 +1,35 @@
+namespace gcplaceunit
+
+// Functions that return `Unit` keep their regions and are never passed a
+// result level. `main` opens a region, and its loop collects. The closure of
+// `units` returns `Unit` through the generic `Int => T` of `Array.tabulate`,
+// which passes it a level. The closure takes none, so it clears the level at
+// entry. The IR check of `tests/custom/gc-regions` looks at both.
+
+class Node(value: Int)
+
+def nothing(i: Int): Unit =
+  if i > 100 then nothing(i - 1)
+
+def units(n: Int): Array[Unit] =
+  Array.tabulate(n, i => nothing(i))
+
+// `fresh` opens a region and places its result at the level it is passed
+def fresh(i: Int): Node =
+  val tmp = new Node(i * 2)
+  new Node(tmp.value / 2)
+
+def go(): Unit =
+  var i = 0
+  var sum = 0
+  while i < 200000 do
+    sum = (sum + (new Node(i)).value) % 1000003
+    if i % 1000 == 0 then
+      sum = (sum + units(3).size) % 1000003
+      sum = (sum + fresh(i).value) % 1000003
+    end
+    i = i + 1
+  end
+  println: sum
+
+def main(): Unit = go()

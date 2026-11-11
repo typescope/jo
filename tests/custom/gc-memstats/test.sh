@@ -129,14 +129,16 @@ awk '/^jo-mem summary/ { exit } /^jo-mem hint runtime: / { n++ } END { exit !(n 
 
 # Growth of a region other than the runtime region: under the default policy,
 # `main` keeps its list in its own region. The region reaches 1024, 2048,
-# 4096, 8192 and 16384 segments, so there are 5 reports, and none for the
-# runtime region.
+# 4096, 8192 and 16384 segments. `Some` places its result without a region,
+# so no region function returns in the loop, and the reports wait for the
+# loop collections of `main`. Several thresholds share a line, so there are
+# 3 reports, and none for the runtime region.
 echo "  - Building direct.jo with --mem-profile"
 "$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" --mem-profile "$DIR/direct.jo" -o "$DIR/direct.run" || exit 1
 JO_MEMSTATS=1 "$DIR/direct.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 [ "$(cat "$DIR/actual.out")" = "519999" ] || fail "unexpected output of direct.jo"
-[ "$(grep -c '^jo-mem growth-region objects=[0-9]* peak-rss-kb=[0-9]* fun=memdirect.main at=.*direct.jo:[0-9]* caller=runtime$' "$DIR/actual.err")" = 5 ] || fail "expected 5 growth-region reports for main"
-[ "$(grep -c '^jo-mem growth' "$DIR/actual.err")" = 5 ] || fail "unexpected growth reports for direct.jo"
+[ "$(grep -c '^jo-mem growth-region objects=[0-9]* peak-rss-kb=[0-9]* fun=memdirect.main at=.*direct.jo:[0-9]* caller=runtime$' "$DIR/actual.err")" = 3 ] || fail "expected 3 growth-region reports for main"
+[ "$(grep -c '^jo-mem growth' "$DIR/actual.err")" = 3 ] || fail "unexpected growth reports for direct.jo"
 awk '/^jo-mem growth-region / { split($3, a, "="); if (a[2] < 63000 || a[2] <= last) bad = 1; last = a[2] } END { exit bad }' "$DIR/actual.err" || fail "growth-region counts do not grow"
 awk '/^jo-mem summary/ { exit } /^jo-mem hint region: / { n++ } END { exit !(n == 1) }' "$DIR/actual.err" || fail "expected one region hint in the growth reports"
 awk '/^jo-mem summary/ { s = NR } /^jo-mem growth-region/ { g = NR } END { exit !(g > 0 && g < s) }' "$DIR/actual.err" || fail "growth-region reports after the summary"
@@ -144,7 +146,7 @@ awk '/^jo-mem summary/ { s = NR } /^jo-mem growth-region/ { g = NR } END { exit 
 echo "  - Building direct.jo without --mem-profile"
 "$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" "$DIR/direct.jo" -o "$DIR/direct.run" || exit 1
 JO_MEMSTATS=1 "$DIR/direct.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
-[ "$(grep -c '^jo-mem growth-region objects=[0-9]* peak-rss-kb=[0-9]*$' "$DIR/actual.err")" = 5 ] || fail "expected 5 growth-region reports without names"
+[ "$(grep -c '^jo-mem growth-region objects=[0-9]* peak-rss-kb=[0-9]*$' "$DIR/actual.err")" = 3 ] || fail "expected 3 growth-region reports without names"
 awk '/^jo-mem summary/ { s = 1 } /^jo-mem hint rebuild/ { if (s) after++; else before++ } END { exit !(before == 1 && after == 1) }' "$DIR/actual.err" || fail "expected one rebuild hint in the growth-region reports"
 "$DIR/direct.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 [ ! -s "$DIR/actual.err" ] || fail "growth-region reports without JO_MEMSTATS"
@@ -204,6 +206,38 @@ echo "  - Building quad.jo without --mem-profile"
 JO_MEMSTATS=1 "$DIR/quad.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 grep -q '^jo-mem hint traced: ' "$DIR/actual.err" || fail "no traced hint without names"
 ! grep -q '^jo-mem traced' "$DIR/actual.err" || fail "traced row without names"
+
+# A tree built through `Array.tabulate`: every subtree is stored into the
+# array of its parent right away, so it is placed in the region of `main`,
+# and the closes trace nothing.
+echo "  - Building tree.jo"
+"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" "$DIR/tree.jo" -o "$DIR/tree.run" || exit 1
+JO_MEMSTATS=1 "$DIR/tree.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
+[ "$(cat "$DIR/actual.out")" = "4369000" ] || fail "unexpected output of tree.jo"
+grep -q '^jo-mem closes free=[0-9]* merge=[0-9]* collect=[0-9]* traced=0$' "$DIR/actual.err" || fail "tree.jo traced objects"
+! grep -q '^jo-mem hint traced: ' "$DIR/actual.err" || fail "traced hint for tree.jo"
+
+# Peak RSS of a loop that stores into a slot of the array it returns. In
+# pick.jo only the call of `choose` is placed, so the loop of `build` frees
+# the node not chosen: below 10 MB. In overwrite.jo the overwritten nodes
+# stay in the region of `main` until its loop collects, about 40 MB. A change
+# of the rule moves either number out of its range.
+peak_rss() {
+    awk '/^jo-mem summary / { split($3, a, "="); print a[2] }' "$DIR/actual.err"
+}
+
+echo "  - Building pick.jo"
+"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" "$DIR/pick.jo" -o "$DIR/pick.run" || exit 1
+JO_MEMSTATS=1 "$DIR/pick.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
+[ "$(cat "$DIR/actual.out")" = "4999980" ] || fail "unexpected output of pick.jo"
+[ "$(peak_rss)" -lt 10240 ] || fail "peak RSS of pick.jo is not below 10 MB"
+
+echo "  - Building overwrite.jo"
+"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" "$DIR/overwrite.jo" -o "$DIR/overwrite.run" || exit 1
+JO_MEMSTATS=1 "$DIR/overwrite.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
+[ "$(cat "$DIR/actual.out")" = "4999995" ] || fail "unexpected output of overwrite.jo"
+rss=$(peak_rss)
+[ "$rss" -ge 30720 ] && [ "$rss" -le 61440 ] || fail "peak RSS of overwrite.jo is not between 30 and 60 MB"
 
 rm -rf "$DIR/actual.out" "$DIR/actual.err" "$DIR"/*.run
 

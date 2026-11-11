@@ -301,15 +301,8 @@ private section Regions
     ! the current region then.
   //]
   def allocResult(size: Int): Addr receives none =
-    val obj = callocOrAbort size
     val st = state
-    st.allocs = st.allocs + 1
-    st.requested = st.requested + size.toLong
-    val l = if st.skipped > 0 then st.level else resultOf st.region
-    if l == 0 then st.direct = st.direct + 1
-    setGcHalf(obj, normal(l, l))
-    append(descOf l, obj)
-    obj
+    allocAt(size, if st.skipped > 0 then st.level else resultOf st.region)
 
   //[ The write barrier: `value` must live as long as `obj` //]
   def barrier(obj: Addr, value: Addr): Unit receives none =
@@ -320,20 +313,54 @@ private section Regions
         record(physOf value, req)
         if req == 0 then promotedByStore obj
 
-  //[ Make the next `enter` inherit the result region of the current function //]
+  //[ Pass the result level of the current function to the next callee
+    !
+    ! Past the level limit, the current function opened no region, and its
+    ! result level may be older than its own. Pass the current level then.
+  //]
   def inherit(): Unit receives none =
-    state.inherit = true
+    val st = state
+    st.inherit = (if st.skipped > 0 then st.level else resultOf st.region) + 1
+
+  //[ Pass the result level `l` to the next callee //]
+  def passResult(l: Int): Unit receives none =
+    state.inherit = l + 1
+
+  //[ Forget a result level passed to a function that does not take it //]
+  def clearResult(): Unit receives none =
+    state.inherit = 0
+
+  //[ The result level of a function that opens no region and places its result
+    !
+    ! It is the level passed by the caller, or the current level.
+  //]
+  def resultLevel(): Int receives none =
+    val st = state
+    val passed = st.inherit
+    st.inherit = 0
+    if passed > 0 then passed - 1 else st.level
+
+  //[ Allocate a zeroed object at level `l`, which must be open //]
+  def allocAt(size: Int, l: Int): Addr receives none =
+    val obj = callocOrAbort size
+    val st = state
+    st.allocs = st.allocs + 1
+    st.requested = st.requested + size.toLong
+    if l == 0 then st.direct = st.direct + 1
+    setGcHalf(obj, normal(l, l))
+    append(descOf l, obj)
+    obj
 
   //[ Open a region above the levels of the current one. At the level limit, stay in the current region.
     !
-    ! The result of the function goes to the current region, or to the result
-    ! region of the current function after `inherit`.
+    ! The result of the function goes to the current region, or to the level
+    ! passed by `inherit` or `passResult`.
   //]
   def enter(fun: Int): Unit receives none =
     val st = state
     val l = (hiOf st.region) + 1
-    val result = if st.inherit then resultOf st.region else st.level
-    st.inherit = false
+    val result = if st.inherit > 0 then st.inherit - 1 else st.level
+    st.inherit = 0
     if l > maxLevel then
       st.skipped = st.skipped + 1
       st.skips = st.skips + 1
@@ -1061,7 +1088,7 @@ private section Regions
 
   // The hint for a trace that visits many more objects than were allocated
   private def tracedHint: String =
-    "jo-mem hint traced: the traces of closing regions lowered many more objects than were allocated, so the same objects were traced at close after close. The likely cause is a recursive function whose result is built in a loop, which the backend does not allocate in the region of the outermost call. Each level then copies the whole result up to its caller and traces it again. A traced row names the function. Build the result with a loop or an accumulator in one function, or build with --region-policy none and a --region for a function that calls the recursive one."
+    "jo-mem hint traced: the traces of closing regions lowered many more objects than were allocated, so the same objects were traced at close after close. The likely cause is a recursive function whose result is built in a loop through a variable, or added to a container in a loop through a method like add. The backend does not allocate such a result in the region of the outermost call. Each level then copies the whole result up to its caller and traces it again. A traced row names the function. A result built through Array.tabulate, List.map or a[i] = f(...) needs no fix. Otherwise build the result with a loop or an accumulator in one function, or build with --region-policy none and a --region for a function that calls the recursive one."
 
   // The peak RSS in KB
   private def peakRssKb(): Long =

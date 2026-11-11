@@ -12,7 +12,7 @@ fail() {
     exit 1
 }
 
-rm -rf "$DIR/actual.out" "$DIR"/*.run
+rm -rf "$DIR/actual.out" "$DIR/actual.err" "$DIR"/*.run "$DIR"/*.ll
 
 # Without reclamation the program needs about 2 GB. With `step` as a region
 # function it runs in a few MB, so it must pass under a 200 MB limit.
@@ -63,6 +63,31 @@ for mode in "" all; do
   diff "$DIR/actual.out" "$DIR/self.check" || fail "self.jo with JO_LOOP_COLLECT=$mode"
 done
 
-rm -rf "$DIR/actual.out" "$DIR"/*.run
+# Functions that return `Unit` keep their regions: `main` opens one. The
+# closure that returns `Unit` through `Array.tabulate` is passed a level and
+# clears it at entry.
+GC_DIR="$PROJECT_ROOT/tests/gc"
+echo "  - Building place-unit.jo with LLVM"
+"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" --keep-ll "$GC_DIR/place-unit.jo" -o "$DIR/unit.run"
+fun_calls() {
+    awk -v f="$2" 'index($0, "define ") == 1 && index($0, f) { p = 1 } p && /^}/ { p = 0 } p' "$1"
+}
+fun_calls "$DIR/unit.run.ll" '@"gcplaceunit.main.' | grep -q 'Regions.enter' || fail "main opens no region"
+fun_calls "$DIR/unit.run.ll" '@"gcplaceunit.units$lambda$apply.' | grep -q 'Regions.clearResult' || fail "the closure does not clear the level"
+for mode in "" all; do
+  JO_LOOP_COLLECT=$mode "$DIR/unit.run" > "$DIR/actual.out" 2>&1
+  diff "$DIR/actual.out" "$GC_DIR/place-unit.jo.check" || fail "place-unit.jo with JO_LOOP_COLLECT=$mode"
+done
+
+# A level passed to a closure that does not take it must not reach a later
+# `enter`, or a result is placed at a closed level and never freed. Every
+# object outside the runtime region is freed.
+echo "  - Building place-indirect.jo with LLVM"
+"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" "$GC_DIR/place-indirect.jo" -o "$DIR/indirect.run"
+JO_MEMSTATS=1 "$DIR/indirect.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
+diff "$DIR/actual.out" "$GC_DIR/place-indirect.jo.check" || fail "place-indirect.jo"
+awk '/^jo-mem summary / { for (i = 3; i <= NF; i++) { split($i, a, "="); v[a[1]] = a[2] } } END { exit !(v["allocated"] - v["freed"] == v["runtime-region"]) }' "$DIR/actual.err" || fail "objects of place-indirect.jo were not freed"
+
+rm -rf "$DIR/actual.out" "$DIR/actual.err" "$DIR"/*.run "$DIR"/*.ll
 
 echo "  ✓ All tests passed for $TEST_NAME"

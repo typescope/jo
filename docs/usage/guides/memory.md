@@ -27,6 +27,13 @@ Loops free memory too:
 > memory. Under `--region-policy none` or `scalar`, name a function with
 > `--region` to give it its own memory and let its loops free it.
 
+A value that a loop stores into the result of its function, such as
+`arr[i] = f(i)` into the array the function returns, goes directly to the
+memory of the caller. If a later iteration of the same call overwrites it,
+the old value stays until the caller's memory is freed. To keep only the
+best of many values, keep it in a variable that the loop reassigns, and
+store it after the loop.
+
 Regions only change peak memory, the resident set size (RSS), never what a
 program computes. When a program uses more memory than you expect, the runtime
 tells you where it goes, and a small change to the program usually fixes it.
@@ -100,7 +107,7 @@ region. Each kind of row comes with a `hint` line.
 | `region` | The region of `fun` held many objects at once. Its loops free what no variable read later reaches. | What stays is reached from such a variable or from a container of a caller, or was allocated by a loop that does not collect, in a function that opens no region. Put the loop in the function that owns the container, or stop keeping the objects. |
 | `return` | `fun` returned this many results to code in the runtime region. They stay until exit. The `runtime` hint comes with it. | Give the caller its own memory with `--region`. Or avoid a new object per call. |
 | `library` | `fun` of a `store`, `trace` or `region` row is a `jo.*` function. | Change how `caller` uses it, for example a `while` loop in place of `Iterator.fold` over a long input. |
-| `traced` | The traces of closing regions lowered many more objects than were allocated. The likely cause is a recursive function whose result is built in a loop: every level copies the result up to its caller and traces it again. | Build the result with a loop or an accumulator in one function. Or build with `--region-policy none` and a `--region` for a function that calls the recursive one. |
+| `traced` | The traces of closing regions lowered many more objects than were allocated. The likely cause is a recursive function whose result is built in a loop through a variable, or added to a container in a loop through a method like `add`: every level copies the result up to its caller and traces it again. A result built through `Array.tabulate`, `List.map` or `a[i] = f(...)` needs no fix. | Build the result with a loop or an accumulator in one function. Or build with `--region-policy none` and a `--region` for a function that calls the recursive one. |
 | `growth` | The runtime region keeps growing while the program runs. | Fix the `growth-promoted` rows like `store`, `trace` and `return` rows. |
 | `growth-region` | The region of `fun` keeps growing while the program runs. | Fix it like a `region` row. |
 
@@ -254,7 +261,7 @@ since no variable read later refers to them:
 ```
 jo-mem summary peak-rss-kb=4372 allocated=2999003 freed=2998989 runtime-region=14 skipped-enters=0
 jo-mem to-runtime direct=14 store=0 trace=0 return=0
-jo-mem closes free=3 merge=4513164 collect=1484790 traced=0
+jo-mem closes free=3 merge=1514188 collect=1484790 traced=0
 jo-mem loops collect=68 marked=680 freed=1500006
 ```
 

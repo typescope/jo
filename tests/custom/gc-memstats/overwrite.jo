@@ -1,0 +1,27 @@
+namespace memoverwrite
+
+// A loop overwrites the one slot of the array it returns a million times.
+// The stored nodes are placed in the region of `main`, which keeps the
+// overwritten ones until its loop collects after the call, about 40 MB. This
+// is a limitation of placing what is stored into the result.
+
+class Node(v: Int)
+
+// Overwrites the one slot of the array it returns
+def last(n: Int): Array[Node] =
+  val best = Array.fill(1, new Node(0))
+  var i = 0
+  while i < n do
+    best[0] = new Node(i)
+    i = i + 1
+  end
+  best
+
+def main(): Unit =
+  var total = 0
+  var k = 0
+  while k < 5 do
+    total = total + last(1000000)[0].v
+    k = k + 1
+  end
+  println: total

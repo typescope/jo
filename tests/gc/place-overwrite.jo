@@ -1,0 +1,49 @@
+namespace gcplaceoverwrite
+
+// A loop that stores into a slot of an array it returns places the stored
+// value in the result region, also when a later iteration overwrites it.
+// `choose` picks one of two new nodes. Only the call of `choose` is placed,
+// so the node not chosen stays in the region of `pick` and its loop frees it.
+
+class Node(value: Int, pad: Array[Int])
+
+def choose(a: Node, b: Node): Node =
+  if a.value > b.value then a else b
+
+def pick(n: Int): Array[Node] =
+  val slots = Array.fill(4, new Node(0, Array.fill(1, 0)))
+  var i = 0
+  while i < n do
+    slots[i % 4] = choose(new Node(i, Array.fill(8, i)), new Node(0 - i, Array.fill(8, 0)))
+    i = i + 1
+  end
+  slots
+
+// The one slot of the array is overwritten at each iteration
+def last(n: Int): Array[Node] =
+  val best = Array.fill(1, new Node(0, Array.fill(1, 0)))
+  var i = 0
+  while i < n do
+    best[0] = new Node(i, Array.fill(2, i))
+    i = i + 1
+  end
+  best
+
+def check(slots: Array[Node]): Int =
+  var sum = 0
+  var i = 0
+  while i < slots.size do
+    val node = slots[i]
+    sum = sum + node.value + node.pad[node.pad.size - 1]
+    i = i + 1
+  end
+  sum
+
+def main(): Unit =
+  var total = 0
+  var k = 0
+  while k < 3 do
+    total = total + check(pick 20000) + check(last 20000)
+    k = k + 1
+  end
+  println: total

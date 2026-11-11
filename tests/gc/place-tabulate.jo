@@ -1,0 +1,46 @@
+namespace gcplacetabulate
+
+// Trees of depth 8 built through `Array.tabulate` and `List.map`. Each
+// subtree is stored into the array of its parent right away, so it is
+// allocated in the region of `main` and traced at no close.
+
+union Tree = Inner(children: Array[Tree]) | Leaf(n: Int)
+
+union Rose = Branch(children: List[Rose]) | Tip(n: Int)
+
+def build(depth: Int): Tree =
+  if depth == 1 then Leaf(depth)
+  else Inner(Array.tabulate(4, i => build(depth - 1)))
+
+def size(tree: Tree): Int =
+  match tree
+    case Inner(children) =>
+      var sum = 1
+      var i = 0
+      while i < children.size do
+        sum = sum + size(children[i])
+        i = i + 1
+      end
+      sum
+    case Leaf(n) => n
+
+def buildRose(depth: Int): Rose =
+  if depth == 1 then Tip(depth)
+  else Branch(List(1, 2, 3, 4).map(_ => buildRose(depth - 1)))
+
+def sizeRose(rose: Rose): Int =
+  match rose
+    case Branch(children) =>
+      var sum = 1
+      for child in children do sum = sum + sizeRose(child)
+      sum
+    case Tip(n) => n
+
+def main(): Unit =
+  var total = 0
+  var k = 0
+  while k < 3 do
+    total = total + size(build 8) + sizeRose(buildRose 8)
+    k = k + 1
+  end
+  println: total

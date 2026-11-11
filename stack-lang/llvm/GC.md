@@ -857,17 +857,20 @@ Like the rest of the analysis, this only affects performance.
 A marked allocation goes to the result level, and a marked call makes its
 callee inherit it. Allocations and calls inside a loop stay in the current
 region, since a loop may allocate many values of which only one is returned.
+[Placing what is stored into the result](#placing-what-is-stored-into-the-result)
+places the value a loop stores into the result.
 
 ```
 call f, marked:   inherit()          // the next enter takes the result level
                   f(args)
-enter:            child.result = inherit ? current.result : current.num
+enter:            child.result = inherit > 0 ? inherit - 1 : current.num
 marked alloc:     allocResult(size)  // in regions[current.result]
 ```
 
-A call site sets `inherit` only when the callee opens a region, so the flag is
-always consumed by the callee's `enter`. Past the level limit, the current
-function opened no region, and `allocResult` allocates in the current region.
+A call site passes a level only to a callee that takes it, see
+[Passing the result level](#passing-the-result-level) and
+[The flag](#the-flag). Past the level limit, the current function opened no
+region, and `allocResult` allocates in the current region.
 
 Placement only affects performance. An object in the result region is older
 than the current region, so its initializing stores go through the barrier,
@@ -880,7 +883,7 @@ it on for the other policies.
 
 ### Functions that only allocate their result
 
-Status: design, not implemented.
+Status: implemented.
 
 A function whose every allocation goes to its result needs no region. Its
 region could only hold what it returns, so it opens none. It allocates the
@@ -1070,7 +1073,8 @@ and 257, need new counts, since fewer regions open.
 - `tests/gc/place-unit.jo`: an entry function `main(): Unit = go()` whose
   loop collects, and an `Array.tabulate` of a closure that returns `Unit`,
   under `JO_LOOP_COLLECT=all`. The IR check of the test expects `enter` in
-  `main` and `clearResult` in the closure.
+  `main` and `clearResult` in the closure. It runs in
+  `tests/custom/gc-regions`, since `tests/gc` only compares output.
 - `tests/pos` and `tests/gc` with AddressSanitizer under
   `JO_LOOP_COLLECT=all`.
 
@@ -1119,7 +1123,7 @@ the values, so it is left for later.
 
 ### Placing what is stored into the result
 
-Status: design, not implemented.
+Status: implemented.
 
 A tree built through a higher-order library function, like `Array.tabulate`
 or `List.map`, is not placed. Each level of the tree traces and moves
@@ -1307,7 +1311,15 @@ flag, a passed level is taken only by the callee it was passed to.
 The prototype finds `Array.set` and `RefArray.setUnchecked` by their full
 names. The real code compares symbols: `defn.Array_class` with the member
 `set`, and the runtime symbol that `Array.setUnchecked` is linked to, added
-to `LLVMRuntime`.
+to `LLVMRuntime`. A call `a[i] = v` does not call the member `set` itself
+but the function that `LiftPrimitiveMethods` lifts from it. The frontend
+hands its lifted functions to the backend in `FrontEnd.liftedMethods`, so
+`LLVMRuntime` finds the function of `set` there.
+
+Codegen emits a function before it may see a reference to it, so it finds
+the functions whose address is taken by a scan of all bodies before it
+emits any: function references outside the callee position of a call, and
+the entries of the interface tables that `getInterfaceTable` calls name.
 
 The memory guide changes in two places:
 
@@ -1328,7 +1340,12 @@ The memory guide changes in two places:
   `JO_LOOP_COLLECT=all`.
 - `tests/gc/place-indirect.jo`: a closure that cannot allocate called with a
   passed level, which then calls a region function whose result must stay in
-  the current region, and an interface method that places.
+  the current region, and an interface method that places. A level left in
+  the flag is taken by a later `enter`, which places its result at a closed
+  level where nothing frees it. So `tests/custom/gc-regions` checks that
+  every object outside the runtime region is freed.
+- `tests/gc/place-overwrite.jo`: the two loops of `pick.jo` and
+  `overwrite.jo` below, smaller, under `JO_LOOP_COLLECT=all`.
 - `tests/custom/gc-memstats` gets three programs with their expectations:
   `tree.jo` expects `traced=0` and no `traced` hint. `pick.jo` stores
   `choose(new Node(...), new Node(...))` into a slot of a returned array a
@@ -2272,9 +2289,9 @@ The barrier may be inlined.
 - A returned value that placing results misses, for example one built in a
   loop, is traced again at every enclosing close that collects (see Cost).
 - With [Placing what is stored into the result](#placing-what-is-stored-into-the-result),
-  a design: a value that a loop stores into a slot of an array the runtime
-  created, and overwrites later in the same call, stays in the result region
-  until that region closes or collects. Keep the value in a local that the
+  a value that a loop stores into a slot of an array the runtime created,
+  and overwrites later in the same call, stays in the result region until
+  that region closes or collects. Keep the value in a local that the
   loop reassigns, and store it after the loop.
 - A merge holds the garbage of the merged region until a later close, up to
   the budget of 8 segments per region.

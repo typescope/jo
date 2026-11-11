@@ -105,13 +105,13 @@ private def copyCString(str: Addr): Addr receives none =
 //]
 private class State
   // regions: the descriptors indexed by level, the current region, its
-  // level, the `enter` calls merged at the level limit, and whether the next
-  // `enter` inherits the result region of the current one
+  // level, the `enter` calls merged at the level limit, and the result level
+  // passed to the next callee plus 1, or 0 when none is passed
   var regions: Addr = nullAddr
   var region: Addr = nullAddr
   var level: Int = 0
   var skipped: Int = 0
-  var inherit: Bool = false
+  var inherit: Int = 0
 
   // loop collection: the bytes requested from the allocator since startup,
   // and the stress mode picked by `JO_LOOP_COLLECT`, see `Regions.loopStart`
