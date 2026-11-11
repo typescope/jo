@@ -101,16 +101,7 @@ object OptionParser:
 
     (options.toMap, positional.toList)
 
-  def parseConfig(args: Array[String], options: List[Setting[?]])(using Reporter): (Config, List[String]) =
-    parseAndValidate(args, options)(_ => options)
-
-  def parseAppConfig(args: Array[String], backendOptions: List[Setting[?]] = Nil)(using Reporter): (Config, List[String]) =
-    val options = backendOptions ::: Config.appCompileOptions
-    parseAndValidate(args, options): config =>
-      if Config.checkOnly.value(using config) then Config.commonOptions
-      else options
-
-  private def parseAndValidate(args: Array[String], options: List[Setting[?]])(validationOptions: Config => List[Setting[?]])(using rp: Reporter): (Config, List[String]) =
+  def parseConfig(args: Array[String], options: List[Setting[?]])(using rp: Reporter): (Config, List[String]) =
     val argSeq = args.toSeq
     var optionSpecs = Map.empty[String, Setting[?]]
     for option <- options do
@@ -124,6 +115,7 @@ object OptionParser:
     val (rawValues, remains) = parseOptions(argSeq, optionSpecs)
     val config = new Config(rawValues)
 
-    for option <- validationOptions(config) do option.validate()(using config)
+    // Validate all options
+    for option <- options do option.validate()(using config)
 
     (config, remains)

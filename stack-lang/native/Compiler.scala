@@ -60,7 +60,7 @@ object Compiler:
   def compile(backendBuilder: BackendBuilder, args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
 
-    val (config, sources) = cli.OptionParser.parseAppConfig(args, List(layout))
+    val (config, sources) = cli.OptionParser.parseConfig(args, layout :: Config.appCompileOptions)
 
     given Config = config
 

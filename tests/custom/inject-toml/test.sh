@@ -24,7 +24,7 @@ diff out.txt expect.check || fail "jo run output differs from expect.check"
 
 CHECK_SPEC=$(mktemp .check-only.XXXXXX.toml) || fail "could not create check-only project spec"
 trap 'rm -f -- "$CHECK_SPEC" "${CHECK_SPEC%.toml}.lock"' EXIT
-sed '/^compile-options = \[$/a\  "--check-only", "--fatal-warnings", "--provide", "",' jo.toml >"$CHECK_SPEC" || fail "could not write check-only project spec"
+sed '/^compile-options = \[$/a\  "--check-only", "--fatal-warnings",' jo.toml >"$CHECK_SPEC" || fail "could not write check-only project spec"
 "$JO" check --spec "$CHECK_SPEC" >out.txt 2>err.txt || fail "jo check failed with an explicit --check-only option"
 for command in build run; do
   if "$JO" "$command" --spec "$CHECK_SPEC" >out.txt 2>err.txt; then

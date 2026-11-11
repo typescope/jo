@@ -55,7 +55,7 @@ object Compiler:
   def main(args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
 
-    val (config, sources) = cli.OptionParser.parseAppConfig(args)
+    val (config, sources) = cli.OptionParser.parseConfig(args, Config.appCompileOptions)
 
     given Config = config
 
