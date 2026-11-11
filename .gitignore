@@ -12,6 +12,7 @@ hs_err_pid*
 !docs/jips/jips.data.js
 *.py
 !templates/**/*.py
+!tests/custom/*/check*.py
 *.rb
 *.out
 *~
