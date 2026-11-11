@@ -38,6 +38,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `jo check`. Verify a project by running its test module with `jo run test`,
   or build it with `jo build`.
+- The sandbox-agent demo and its documentation page.
 
 ### Security
 

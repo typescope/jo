@@ -1,1 +1,0 @@
-../../../docs/overview/cheat-sheet.md
