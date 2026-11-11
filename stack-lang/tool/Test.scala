@@ -1140,11 +1140,8 @@ private def runJoCmd(subcmd: String, specDir: Path)(using Logger): Result[String
           case app: CompileTask.AppTask => Runner.execute(app, appArgs)
           case _: CompileTask.LibTask   => Result.Ok("")
 
-    case "build" | "check" =>
-      val result =
-        if command == "build" then Runner.build(selectedPlan)
-        else Runner.check(selectedPlan)
-      result.map(_ => "")
+    case "build" =>
+      Runner.build(selectedPlan).map(_ => "")
 
     case other => Result.Err(s"unknown jo subcommand '$other' in test")
 

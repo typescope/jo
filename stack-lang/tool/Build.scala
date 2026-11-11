@@ -6,7 +6,7 @@ import scala.collection.mutable
 
 import tool.toml.TomlError
 
-/** Helpers for the `jo build`, `jo check`, `jo run`, and related project commands. */
+/** Helpers for the `jo build`, `jo run`, and related project commands. */
 object Build:
   private val specOpt = CommandLine.OptionStringSetting("--spec", "project spec file")
 
@@ -60,10 +60,6 @@ object Build:
   def build(project: Project, module: ModuleId)(using Logger, PackageProvider): Result[Unit] =
     makePlanResult(project, List(module)).flatMap: plans =>
       Runner.build(plans.modules.head)
-
-  def check(project: Project, module: ModuleId)(using Logger, PackageProvider): Result[Unit] =
-    makePlanResult(project, List(module)).flatMap: plans =>
-      Runner.check(plans.modules.head)
 
   def run(project: Project, module: ModuleId, appArgs: List[String])(using Logger, PackageProvider): Result[Unit] =
     makePlanResult(project, List(module)).flatMap: plans =>

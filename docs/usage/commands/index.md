@@ -5,7 +5,6 @@
 | [`jo new`](new.md) | Create a new project with scaffold |
 | [`jo build`](build.md) | Build a module |
 | [`jo run`](run.md) | Build and run an app module |
-| [`jo check`](check.md) | Type-check only, no code generation |
 | [`jo doc`](doc.md) | Generate module API documentation |
 | [`jo package`](package.md) | Build a distributable module package |
 | [`jo info`](info.md) | Show package metadata and versions |

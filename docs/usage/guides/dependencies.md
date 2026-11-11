@@ -88,7 +88,7 @@ See [Testing](testing.md) for a complete test module setup.
 
 ## The Lock File
 
-`jo lock` resolves all modules in the project and writes one lock file next to the spec. `jo build`, `jo check`, `jo run`, and `jo doc` also resolve all modules when they need to create a missing lock file. If it exists, they use it as-is.
+`jo lock` resolves all modules in the project and writes one lock file next to the spec. `jo build`, `jo run`, and `jo doc` also resolve all modules when they need to create a missing lock file. If it exists, they use it as-is.
 
 Commit `jo.lock` to source control.
 

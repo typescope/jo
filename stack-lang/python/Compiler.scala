@@ -55,13 +55,13 @@ object Compiler:
   def main(args: Array[String]): Unit =
     given Reporter = Reporter.createReporter()
 
-    val (config, sources) = cli.OptionParser.parseConfig(args, Config.appCompileOptions)
+    val (config, sources) = cli.OptionParser.parseConfig(args, Config.appOptions)
 
     given Config = config
 
     // Zero source files is allowed when an entry point is linked in from
     // libraries (e.g. an app that only pulls in packages and links jo.main).
-    if sources.isEmpty && !Config.checkOnly.value && Config.linkMap.value.isEmpty then
+    if sources.isEmpty && Config.linkMap.value.isEmpty then
       println("Expect source file as input")
       System.exit(1)
 
@@ -74,8 +74,6 @@ object Compiler:
           Reporter.error(s"--python does not support --use-runtime-api $runtime")
 
       case _ =>
-
-    if FrontEnd.typeCheckIfRequested(sources) then return
 
     Reporter.monitor():
       val outFile = Config.outFilePath.value.getOrElse{

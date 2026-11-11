@@ -60,11 +60,6 @@ jo build
 [output] .build/app/jo-1.0/target/app.py
 '
 
-jo check
-: '
-[check] [app]
-'
-
 jo run
 : '
 Hello, Lock!

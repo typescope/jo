@@ -1,3 +1,0 @@
-namespace CheckOnly
-
-def main: Unit = pass

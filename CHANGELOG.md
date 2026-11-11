@@ -32,7 +32,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `jo build` and `jo run` compile an application in a single compiler
   invocation. The library stage that preceded the link step, and that rejected
   app-only options from `compile-options` such as `--link` and `--provide`, is
-  gone. `jo check` still type-checks an application without linking it.
+  gone.
+
+### Removed
+
+- `jo check`. Verify a project by running its test module with `jo run test`,
+  or build it with `jo build`.
 
 ### Security
 

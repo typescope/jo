@@ -24,12 +24,6 @@ object FrontEnd:
     */
   case class RuntimeConfig(isLambdaValue: String)
 
-  def typeCheckIfRequested(sources: List[String])(using cf: Config, rp: Reporter): Boolean =
-    if !Config.checkOnly.value then return false
-
-    Typer.runConfig(cf, sources)
-    true
-
   def run
       (defaultRuntimePackages: List[String], sources: List[String], defaultMappings: Map[String, String], runtimeConfig: RuntimeConfig)
       (using defnLazy: Definitions.Lazy, rp: Reporter, cf: Config)

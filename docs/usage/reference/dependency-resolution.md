@@ -160,7 +160,7 @@ build reaches, not just the module you asked to build.
 This means resolution always covers the whole build, even though module selection is per-command:
 
 - `jo lock` resolves all modules and rewrites `jo.lock`.
-- `jo build <module>`, `jo check`, `jo run`, and `jo doc` resolve all modules when `jo.lock` is
+- `jo build <module>`, `jo run`, and `jo doc` resolve all modules when `jo.lock` is
   missing, and write a complete lock file.
 - once a valid `jo.lock` exists, build commands read it and do not re-resolve.
 
@@ -220,7 +220,7 @@ Dependency resolution and dependency depth are related but separate concerns.
 - resolution selects package versions
 - depth limits how deep the package dependency tree is allowed to become
 
-`jo build`, `jo run`, `jo check`, `jo doc`, and `jo deps` enforce the effective `depth` for the
+`jo build`, `jo run`, `jo doc`, and `jo deps` enforce the effective `depth` for the
 selected module closure. A module uses its own `depth`. If it declares none, the default is `0`
 for `lib` modules and `1` for `app` modules. Depth is per module. There is no project-level
 default.

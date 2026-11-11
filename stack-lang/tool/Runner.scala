@@ -9,10 +9,8 @@ import scala.jdk.CollectionConverters.*
  *  Each entry point walks the dependency graph of a plan and handles every module once:
  *
  *  - `build` compiles libraries to `.sast` files and applications to their output file.
- *    `jo build`, `jo run`, `jo test`, and `jo release` use it.
- *  - `check` type-checks modules. Libraries are compiled as by `build`, applications are
- *    type-checked without linking or generating code. `jo check` uses it.
- *  - `doc` type-checks the dependencies of a module and generates its documentation.
+ *    `jo build`, `jo run`, and `jo package` use it.
+ *  - `doc` builds the dependencies of a module and generates its documentation.
  *
  *  Every compilation writes a sentinel file that records its command line. A module whose
  *  sources, dependency outputs, and command line are unchanged since the sentinel was
@@ -21,8 +19,6 @@ import scala.jdk.CollectionConverters.*
  *  `runInteractive` and `execute` run a built application.
  */
 object Runner:
-  private val checkOnlyFlag = "--check-only"
-
   private def moduleLabel(plan: ModulePlan): String =
     plan.moduleLabel
 
@@ -46,37 +42,12 @@ object Runner:
         buildLib(lib, jo, sentinelFile = dirSentinel(lib.outDir))
 
       case app: CompileTask.AppTask =>
-        if app.compileOptions.contains(checkOnlyFlag) then
-          return Result.Err(s"remove $checkOnlyFlag from compile-options to build ${moduleLabel(plan)}, or use 'jo check'")
-
         info(s"[build] ${moduleLabel(plan)}\n")
         buildApp(app, jo).flatMap: _ =>
           syncResources(app).map: _ =>
             info(s"[output] ${Logger.relativize(app.outFile)}\n")
 
-  /** Type-check a module after type-checking its dependencies. A library is compiled to
-   *  `.sast` files as by `build`. An application is compiled with `--check-only`, which
-   *  writes its `.sast` files but neither links the entry point nor generates code. */
-  def check(plan: ModulePlan)(using Logger): Result[Unit] =
-    checkOnce(plan, Set.empty)
-
-  private def checkOnce(plan: ModulePlan, visited: Set[ModuleKey])(using Logger): Result[Unit] =
-    if !visited.add(plan.key) then return Result.unit
-
-    val jo = plan.joBin.toString
-    val it = plan.deps.iterator
-    while it.hasNext do
-      checkOnce(it.next(), visited) match
-        case Result.Err(msg) => return Result.Err(msg)
-        case _ =>
-    info(s"[check] ${moduleLabel(plan)}\n")
-    plan.task match
-      case lib: CompileTask.LibTask =>
-        buildLib(lib, jo, sentinelFile = dirSentinel(lib.outDir))
-      case app: CompileTask.AppTask =>
-        checkApp(app, jo)
-
-  /** Generate the documentation of a module into `outDir` after type-checking its
+  /** Generate the documentation of a module into `outDir` after building its
    *  dependencies. `task` compiles the module's sources as a library with the
    *  documentation options. */
   def doc(plan: ModulePlan, task: CompileTask.LibTask, outDir: Path)(using Logger): Result[Unit] =
@@ -84,7 +55,7 @@ object Runner:
     val visited = Set.empty[ModuleKey]
     val it = plan.deps.iterator
     while it.hasNext do
-      checkOnce(it.next(), visited) match
+      buildOnce(it.next(), visited) match
         case Result.Err(msg) => return Result.Err(msg)
         case _ =>
     info(s"[doc] ${moduleLabel(plan)}\n")
@@ -127,32 +98,14 @@ object Runner:
     sentinelFile: Path,
     requiredOutputs: List[Path] = Nil,
   )(using Logger): Result[Unit] =
-    runSast(lib.outDir, lib.sources, lib.checkLibs, buildLibArgs(lib, jo), sentinelFile, requiredOutputs)
-
-  /** Type-check an application with `--check-only`, writing its `.sast` files, unless they
-   *  are up to date. */
-  private def checkApp(app: CompileTask.AppTask, jo: String)(using Logger): Result[Unit] =
-    val lib: CompileTask.LibTask = CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.defaultSourceRoot, app.compileOptions)
-    val backendArgs = buildLibArgs(lib, jo) :+ s"--${app.target.flag}"
-    val args = if app.compileOptions.contains(checkOnlyFlag) then backendArgs else backendArgs :+ checkOnlyFlag
-    runSast(app.sastDir, app.sources, app.checkLibs, args, dirSentinel(app.sastDir))
-
-  /** Run a `--sast` compilation into `outDir`, unless its outputs are up to date. */
-  private def runSast(
-    outDir: Path,
-    sources: List[Path],
-    checkLibs: List[Path],
-    args: List[String],
-    sentinel: Path,
-    requiredOutputs: List[Path] = Nil,
-  )(using Logger): Result[Unit] =
-    if Files.isDirectory(outDir) && requiredOutputs.forall(Files.exists(_)) && isUpToDate(sources, checkLibs, Nil, sentinel, args) then
+    val args = buildLibArgs(lib, jo)
+    if Files.isDirectory(lib.outDir) && requiredOutputs.forall(Files.exists(_)) && isUpToDate(lib.sources, lib.checkLibs, Nil, sentinelFile, args) then
       return Result.unit
 
-    recreateDir(outDir)
+    recreateDir(lib.outDir)
     exec(args) match
       case ok @ Result.Ok(_) =>
-        Files.writeString(sentinel, fingerprint(args))
+        Files.writeString(sentinelFile, fingerprint(args))
         ok
       case err => err
 

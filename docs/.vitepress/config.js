@@ -164,7 +164,6 @@ export default defineConfig({
             { text: 'jo new', link: '/usage/commands/new' },
             { text: 'jo build', link: '/usage/commands/build' },
             { text: 'jo run', link: '/usage/commands/run' },
-            { text: 'jo check', link: '/usage/commands/check' },
             { text: 'jo doc', link: '/usage/commands/doc' },
             { text: 'jo package', link: '/usage/commands/package' },
             { text: 'jo info', link: '/usage/commands/info' },

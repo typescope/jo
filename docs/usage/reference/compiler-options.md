@@ -1,7 +1,7 @@
 # Compiler Options Reference
 
 These are the low-level options accepted by `jo compile`. Project commands such as
-`jo build`, `jo check`, and `jo run` usually derive compiler flags from
+`jo build` and `jo run` usually derive compiler flags from
 `jo.toml`, but `module.<id>.compile-options` can pass extra flags through to normal
 compilation and `module.<id>.doc-options` can pass flags to `jo compile --doc`.
 
@@ -68,17 +68,12 @@ These options are accepted when compiling an application with an app backend suc
 
 | Option | Form | Description |
 |--------|------|-------------|
-| `--check-only` | flag | Stop before linking or generating code. `--sast` still writes typed trees. |
 | `-o <file>` | single value | Output file path. |
 | `--link-lib <dir>` | repeatable value | Add a link-library directory used to resolve deferred definitions. Each path must exist. |
 | `--link <source=target>` | repeatable value | Redirect symbol references from `source` to `target`. |
 | `--provide <param=value>` | repeatable value | Bind context parameter `param` for `jo.main` and its factories. |
 | `--internal <param=value>` | repeatable value | Bind context parameter `param` for factories only. |
 
-With `--check-only`, the compiler accepts app options and defers
-validation of link libraries, link mappings, and bindings until a full app build.
-Use `jo check` for project type checking. For `jo build` and `jo run`, remove
-`--check-only` from the module's `compile-options` so compilation emits an application.
 
 `--link` values must use `source=target` format. Both sides must be names or
 dot-separated paths whose segments are identifiers, such as
