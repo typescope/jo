@@ -125,15 +125,10 @@ jo compile --python app.jo \
 
 The compiler creates the values, binds them, and calls `main` with the bindings in
 scope. A `--provide` parameter may be received by `main`. An `--internal`
-parameter is visible only to the factories, which is how a broad capability is
-narrowed before it reaches `main`: here `main` may use the read-only file system
-but not the root file system it was built from. A project declares the same
-options in `jo.toml` through `compile-options`, where a TOML literal string such
-as `'gh.repo="typescope/jo"'` carries a Jo string literal without escapes.
+parameter is visible only to factory functions.
 
-A factory is a function with no parameters whose result conforms to the
-parameter's type. It may receive context parameters, which other bindings or the
-parameters of `jo.main` satisfy:
+A factory function is a function with no parameters whose result conforms to the
+parameter's type. It may receive context parameters:
 
 ```jo
 param root: FileSystem

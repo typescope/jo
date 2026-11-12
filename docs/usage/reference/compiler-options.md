@@ -71,8 +71,8 @@ These options are accepted when compiling an application with an app backend suc
 | `-o <file>` | single value | Output file path. |
 | `--link-lib <dir>` | repeatable value | Add a link-library directory used to resolve deferred definitions. Each path must exist. |
 | `--link <source=target>` | repeatable value | Redirect symbol references from `source` to `target`. |
-| `--provide <param=value>` | repeatable value | Bind context parameter `param` for `jo.main` and its factories. |
-| `--internal <param=value>` | repeatable value | Bind context parameter `param` for factories only. |
+| `--provide <param=value>` | repeatable value | Bind context parameter `param` for `jo.main`. |
+| `--internal <param=value>` | repeatable value | Bind context parameter `param` for factory functions only. |
 
 
 `--link` values must use `source=target` format. Both sides must be names or
@@ -86,7 +86,7 @@ parameter's type, or a Jo literal: a boolean, a number, a character, or a
 single-line string without interpolation, such as `'gh.repo="typescope/jo"'`.
 The compiler instantiates every binding once, in dependency order, before
 `main` runs. A provided parameter may be received by `main`, an internal one
-only by factories. See [Entry Point](../../language/syntax/structure-and-convention.md#entry-point)
+only by factory functions. See [Entry Point](../../language/syntax/structure-and-convention.md#entry-point)
 for the full rules.
 
 ## Compiler Development Options
