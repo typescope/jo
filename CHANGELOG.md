@@ -4,14 +4,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.14.11] - 2026-11-13
+
 ### Added
 
-- Capability injection. The compiler option `--provide p=e`
-  bind a context parameter `p` for `jo.main`. The rhs can be either a factory
-  function or a Jo literal. The factory function may in turn require context
-  parameters, which can be supplied with `--internal p=e`.
-  The compiler instantiates the bindings in dependency order and calls `main`
-  with them in scope.
+- Capability injection. The compiler option `--provide p=e` binds a context
+  parameter `p` for `jo.main`. The right-hand side is either a factory function
+  or a Jo literal. A factory may in turn receive context parameters, which
+  `--internal p=e` supplies without exposing them to `main`. The compiler
+  instantiates the bindings in dependency order and calls `main` with them in
+  scope.
 
 ### Changed
 

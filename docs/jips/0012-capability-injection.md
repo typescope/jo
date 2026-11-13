@@ -1,6 +1,6 @@
 ---
 author: Fengyun Liu
-status: Draft
+status: Accepted
 created: 2026-11-09
 title: Capability injection
 ---
@@ -476,6 +476,11 @@ receive more, so the comment must be updated.
 
   Such a table would have to settle the quoting of dotted keys, which TOML
   otherwise reads as nested tables.
+
+## Implementation
+
+Implemented in [#219](https://github.com/typescope/jo/pull/219), released in
+Jo 0.14.11.
 
 ## Related documentation
 

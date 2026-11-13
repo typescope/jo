@@ -19,7 +19,7 @@ result.
 ## Security boundary
 
 The confined API determines what generated code may call. The trusted implementation
-can hold credentials and enforce policy, such as restricting queries to the authenticated
+can hold credentials and enforce policy, such as restricting queries to the authenticated user.
 
 Jo checks the generated program before it runs. The host remains responsible for
 authentication and for any other tools it exposes.
