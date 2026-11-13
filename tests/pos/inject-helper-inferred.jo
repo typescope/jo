@@ -1,0 +1,12 @@
+// options: --provide Test.count=41
+
+// main receives a provided parameter only through a helper function. Both
+// receives clauses are inferred.
+
+namespace Test
+
+param count: Int
+
+def helper: Int = count + 1
+
+def main = println helper

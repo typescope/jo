@@ -1,0 +1,12 @@
+// options: --provide Test.a=1
+
+// main may receive only what jo.main declares and what --provide binds.
+// The contract in the message lists the provided parameters.
+
+namespace Test
+
+param a: Int
+param other: Int
+
+def main: Unit receives IO.stdout, a, other =
+  println(a + other)

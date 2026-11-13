@@ -1,0 +1,10 @@
+// options: --provide Test.name="jo"
+
+// main receives a context parameter of jo.main alongside a provided one.
+
+namespace Test
+
+param name: String
+
+def main: Unit receives IO.stdout, IO.args, name =
+  println(name + " " + IO.args.size)

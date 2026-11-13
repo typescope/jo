@@ -1,0 +1,10 @@
+// A main with an auto parameter is not an entry-point candidate.
+
+namespace Test
+
+type Getter = Int => Int
+
+def identity: Getter = (x: Int) => x
+
+def main()(auto g: Getter with [identity]): Unit receives IO.stdout =
+  println(g(1))

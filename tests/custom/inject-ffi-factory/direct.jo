@@ -1,0 +1,6 @@
+// The application cannot call the factory itself: the runtime library is a
+// link library, so its names are undefined in application code.
+namespace Direct
+
+def main: Unit receives IO.stdout =
+  println(Runtime.Env().get("INJECT_FFI_NAME"))

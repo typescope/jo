@@ -1,0 +1,10 @@
+// options: --provide Test.pair="k=v"
+
+// The value is the text after the first =.
+
+namespace Test
+
+param pair: String
+
+def main: Unit receives IO.stdout, pair =
+  println pair

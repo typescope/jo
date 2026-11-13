@@ -1,0 +1,14 @@
+// options: --provide Test.a=Test.Box
+
+// The factory path must name a function, not a class.
+
+namespace Test
+
+class Box
+  def value(): Int = 1
+end
+
+param a: Box
+
+def main: Unit receives IO.stdout, a =
+  println(a.value())

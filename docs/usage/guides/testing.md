@@ -82,12 +82,11 @@ The test module has its own dependency list. Package dependencies are not inheri
 
 ```sh
 jo run test
-jo check test
 jo run test -- math
 jo run test -- "math/adds numbers"
 ```
 
-`jo run test` builds and runs the `test` app module. `jo check test` type-checks the same module closure without producing a runnable target.
+`jo run test` builds and runs the `test` app module.
 
 With jtest's `Runner.runWithArgs`, the arguments after `--` select tests by path prefix. The root name (`calc tests` above) is not part of the path. A filter that matches no tests exits successfully. See the [jtest README](https://github.com/typescope/jtest#write-tests) for fixtures and parallel suites.
 

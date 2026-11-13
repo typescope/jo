@@ -1,0 +1,5 @@
+[Error] --provide Test.a=-: expected a factory path or a literal
+
+[Error] --provide Test.b=: expected a factory path or a literal
+
+2 error(s), 0 warning(s)

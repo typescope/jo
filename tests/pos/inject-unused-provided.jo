@@ -1,0 +1,15 @@
+// options: --provide Test.unused=Test.Noisy --provide Test.used=5
+
+// A provided parameter that main does not receive is still instantiated.
+
+namespace Test
+
+param unused: Int
+param used: Int
+
+def Noisy(): Int receives IO.stdout =
+  println "noisy ran"
+  0
+
+def main: Unit receives IO.stdout, used =
+  println used

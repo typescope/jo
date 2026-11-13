@@ -1,0 +1,17 @@
+// options: --provide jo.IO.args=Test.Args --provide jo.IO.stdout=Test.Stdout
+
+// Two rebound parameters of jo.main whose factories receive each other.
+// Not a cycle: both factories receive the outer values.
+
+namespace Test
+
+def Args(): Array[String] receives IO.stdout =
+  println "making args"
+  Array.fill(1, "x")
+
+def Stdout(): (String => Unit) receives IO.args, IO.stdout =
+  val n = IO.args.size
+  (s: String) => if s == "\n" then IO.stdout(s) else IO.stdout("[" + n + "] " + s)
+
+def main: Unit receives IO.stdout, IO.args =
+  println IO.args.size

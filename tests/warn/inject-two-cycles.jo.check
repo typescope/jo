@@ -1,0 +1,5 @@
+[Error] --provide Test.a=Test.MakeA: cycle among bindings: Test.a -> Test.b -> Test.a
+
+[Error] --provide Test.c=Test.MakeC: cycle among bindings: Test.c -> Test.d -> Test.c
+
+2 error(s), 0 warning(s)

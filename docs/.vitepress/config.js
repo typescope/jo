@@ -55,7 +55,7 @@ export default defineConfig({
     siteTitle: 'Jo Language',
 
     nav: [
-      { text: 'Overview', link: '/overview/index' },
+      { text: 'Overview', link: '/overview/' },
       { text: 'Build Tool', link: '/usage/install' },
       { text: 'Language Reference', link: '/language/design-principles' },
       ...stdlibNav,
@@ -68,6 +68,7 @@ export default defineConfig({
         {
           text: 'Overview',
           items: [
+            { text: 'Introduction', link: '/overview/' },
             { text: 'Language Tour', link: '/overview/language-tour' },
             { text: 'Compile-Time Sandboxing', link: '/overview/capabilities' },
             { text: 'Cheat Sheet', link: '/overview/cheat-sheet' },
@@ -164,7 +165,6 @@ export default defineConfig({
             { text: 'jo new', link: '/usage/commands/new' },
             { text: 'jo build', link: '/usage/commands/build' },
             { text: 'jo run', link: '/usage/commands/run' },
-            { text: 'jo check', link: '/usage/commands/check' },
             { text: 'jo doc', link: '/usage/commands/doc' },
             { text: 'jo package', link: '/usage/commands/package' },
             { text: 'jo info', link: '/usage/commands/info' },

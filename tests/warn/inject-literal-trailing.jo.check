@@ -1,0 +1,3 @@
+[Error] --provide Test.a=30x: expected a factory path or a literal
+
+1 error(s), 0 warning(s)

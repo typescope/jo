@@ -28,7 +28,10 @@ read_options() {
     first_line=$(head -n 1 "$1")
     if [[ $first_line == "// options:"* ]]; then
         OPTIONS=${first_line#"// options:"}
-        OPTIONS=$(echo $OPTIONS | xargs)  # trim whitespace
+        # Trim whitespace without xargs, which would strip the quotes of
+        # string literals in options such as --provide p="x".
+        OPTIONS=${OPTIONS#"${OPTIONS%%[![:space:]]*}"}
+        OPTIONS=${OPTIONS%"${OPTIONS##*[![:space:]]}"}
     fi
 }
 
@@ -286,7 +289,6 @@ background_task() {
 
     demos/process-monitor/build.sh || error "demos/process-monitor"
     demos/data-query-agent/build.sh || error "demos/data-query-agent"
-    demos/sandbox-agent/build.sh || error "demos/sandbox-agent"
 
     ################################################################################
     # Numeric tests

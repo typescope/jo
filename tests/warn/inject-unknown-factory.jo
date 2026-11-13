@@ -1,0 +1,10 @@
+// options: --provide Test.a=Test.Nope
+
+// The factory path must resolve.
+
+namespace Test
+
+param a: Int
+
+def main: Unit receives IO.stdout, a =
+  println a

@@ -1,0 +1,10 @@
+// options: --provide Test.a=30x
+
+// The value must be exactly one literal or one path.
+
+namespace Test
+
+param a: Int
+
+def main: Unit receives IO.stdout, a =
+  println a

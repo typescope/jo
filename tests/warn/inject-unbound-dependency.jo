@@ -1,0 +1,13 @@
+// options: --provide Test.a=Test.MakeA
+
+// A factory receives a parameter that is neither bound nor received by jo.main.
+
+namespace Test
+
+param a: Int
+param b: Int
+
+def MakeA(): Int receives b = b + 1
+
+def main: Unit receives IO.stdout, a =
+  println a

@@ -1,0 +1,13 @@
+// options: --provide Test.a=+3 --provide Test.text="""abc"""
+
+// A plus sign is not part of a numeric literal, and a triple-quoted string
+// is not a single-line string literal.
+
+namespace Test
+
+param a: Int
+param text: String
+
+def main: Unit receives IO.stdout, a, text =
+  println a
+  println text

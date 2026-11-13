@@ -1,0 +1,10 @@
+// options: --provide Test.a=1
+
+// A main with parameters is not an entry-point candidate.
+
+namespace Test
+
+param a: Int
+
+def main(x: Int): Unit receives IO.stdout, a =
+  println a

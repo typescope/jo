@@ -1,0 +1,11 @@
+// Injection options declared in jo.toml through compile-options.
+namespace App
+
+param repo: String
+param client: String
+param name: String
+
+def Client(): String receives repo = "client for " + repo
+
+def main: Unit receives IO.stdout, client, name =
+  println(name + ": " + client)

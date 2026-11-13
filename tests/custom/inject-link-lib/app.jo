@@ -1,0 +1,7 @@
+// The application receives the provided clock. The epoch is internal, so
+// main may not name it, and the factory lives in a link library the
+// application cannot import.
+namespace App
+
+def main: Unit receives IO.stdout, Api.clock =
+  println("now is " + Api.clock.now())

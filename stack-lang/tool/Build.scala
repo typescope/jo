@@ -6,7 +6,7 @@ import scala.collection.mutable
 
 import tool.toml.TomlError
 
-/** Helpers for the `jo build`, `jo check`, `jo run`, and related project commands. */
+/** Helpers for the `jo build`, `jo run`, and related project commands. */
 object Build:
   private val specOpt = CommandLine.OptionStringSetting("--spec", "project spec file")
 
@@ -40,21 +40,14 @@ object Build:
         val plan = plans.modules.head
         val outDir = project.buildDir(module).resolve("doc")
         val options = Planner.ffiCompileOptions(spec) ++ docOptions(project, module, spec.docOptions) ++ spec.docOptions
-        val withDoc = plan.copy(
-          task = plan.task match
-            case lib: CompileTask.LibTask =>
-              lib.copy(compileOptions = options)
+        val task: CompileTask.LibTask = plan.task match
+          case lib: CompileTask.LibTask =>
+            lib.copy(compileOptions = options)
 
-            case app: CompileTask.AppTask =>
-              CompileTask.LibTask(
-                app.sources,
-                app.checkLibs,
-                app.sastDir,
-                app.defaultSourceRoot,
-                options,
-              )
-        )
-        Runner.doc(withDoc, outDir).map: _ =>
+          case app: CompileTask.AppTask =>
+            CompileTask.LibTask(app.sources, app.checkLibs, app.sastDir, app.defaultSourceRoot, options)
+
+        Runner.doc(plan, task, outDir).map: _ =>
           Logger.info(s"[output] ${Logger.relativize(outDir)}\n")
 
   def deps(project: Project, module: ModuleId)(using Logger, PackageProvider): Result[Unit] =
@@ -66,16 +59,12 @@ object Build:
 
   def build(project: Project, module: ModuleId)(using Logger, PackageProvider): Result[Unit] =
     makePlanResult(project, List(module)).flatMap: plans =>
-      Runner.run(plans.modules.head)
-
-  def check(project: Project, module: ModuleId)(using Logger, PackageProvider): Result[Unit] =
-    makePlanResult(project, List(module)).flatMap: plans =>
-      Runner.check(plans.modules.head, "check")
+      Runner.build(plans.modules.head)
 
   def run(project: Project, module: ModuleId, appArgs: List[String])(using Logger, PackageProvider): Result[Unit] =
     makePlanResult(project, List(module)).flatMap: plans =>
       val plan = plans.modules.head
-      Runner.run(plan).flatMap: _ =>
+      Runner.build(plan).flatMap: _ =>
         plan.task match
           case app: CompileTask.AppTask =>
             Logger.info(s"[run] ${module.value}\n")

@@ -1,0 +1,10 @@
+// options: --internal Test.secret=7
+
+// main may not receive an internal parameter.
+
+namespace Test
+
+param secret: Int
+
+def main: Unit receives IO.stdout, secret =
+  println secret

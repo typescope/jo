@@ -29,7 +29,7 @@ jo lock
 ## Notes
 
 - If the lock file already exists, `jo lock` rewrites it from a fresh resolution.
-- Normal `jo build`, `jo run`, `jo check`, and `jo doc` reuse lock entries when they exist.
+- Normal `jo build`, `jo run`, and `jo doc` reuse lock entries when they exist.
 - If the lock file is missing, those commands resolve all modules in the project and create it automatically.
 - If the lock file exists but does not contain a package needed by the selected module, run `jo lock`.
 - Incompatible locked versions or digest mismatches still fail.

@@ -1,0 +1,12 @@
+// options: --provide Test.count=Test.Next
+
+// A fresh parameter whose factory receives the parameter it binds has no outer value.
+
+namespace Test
+
+param count: Int
+
+def Next(): Int receives count = count + 1
+
+def main: Unit receives IO.stdout, count =
+  println count

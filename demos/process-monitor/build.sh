@@ -26,7 +26,7 @@ echo "----------------------------------------------------------------"
 echo "✓ PlatformAPI compiled to: out/api/"
 echo ""
 
-echo "Stage 2: Compile PlatformRuntime.jo (Context param providers)"
+echo "Stage 2: Compile PlatformRuntime.jo (Capability factories)"
 echo "---------------------------------------------------------------"
 "$PROJECT_ROOT/bin/jo" compile --sast "$SCRIPT_DIR/out/runtime" --use-runtime-api python \
   "$SCRIPT_DIR/os.jo" "$SCRIPT_DIR/subprocess.jo" \
@@ -38,10 +38,15 @@ echo ""
 echo "Stage 3: Compile UserApp.jo (Periodic health checker)"
 echo "------------------------------------------------------"
 "$PROJECT_ROOT/bin/jo" compile --python \
-  --link jo.main=SystemRuntime.platformMain \
-  --link SystemAPI.startMonitor=ProcessMonitor.startMonitor \
   --lib "$SCRIPT_DIR/out/api" \
   --link-lib "$SCRIPT_DIR/out/runtime" \
+  --provide SystemAPI.process=SystemRuntime.Process \
+  --provide SystemAPI.system=SystemRuntime.System \
+  --provide SystemAPI.logger=SystemRuntime.Logger \
+  --provide SystemAPI.timer=SystemRuntime.Timer \
+  --provide SystemAPI.alerter=SystemRuntime.Alerter \
+  --provide SystemAPI.interval=SystemRuntime.Interval \
+  --internal 'SystemRuntime.alertScript="./alert.sh"' \
   "$SCRIPT_DIR/UserApp.jo" -o "$SCRIPT_DIR/out/monitor.py"
 echo "✓ UserApp compiled to: out/monitor.py"
 echo ""

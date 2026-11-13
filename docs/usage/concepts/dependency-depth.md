@@ -75,7 +75,7 @@ Depth is per module, and there is no project-level default. A shared default wou
 
 Tests are ordinary app modules. A test module uses the same rules as any other app module: set `[module.test].depth` if tests need a deeper package graph than the code under test.
 
-`jo lock` resolves all modules and reports depth violations anywhere in the project. `jo build`, `jo check`, `jo run`, `jo doc`, and `jo deps` enforce depth for the selected module closure.
+`jo lock` resolves all modules and reports depth violations anywhere in the project. `jo build`, `jo run`, `jo doc`, and `jo deps` enforce depth for the selected module closure.
 
 Higher depths are permitted by raising the value explicitly. The defaults ensure that any increase in dependency complexity is a deliberate decision.
 

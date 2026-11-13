@@ -1,0 +1,31 @@
+// options: --provide Test.first=Test.MakeDog --provide Test.second=Test.MakeCat
+
+// Two parameters of the same interface type are bound to factories that
+// return different implementations. Factories are not deferred, so no --link
+// is involved in choosing them.
+
+namespace Test
+
+interface Speaker
+  def speak(): String
+end
+
+class Dog
+  def speak(): String = "woof"
+  view Speaker
+end
+
+class Cat
+  def speak(): String = "meow"
+  view Speaker
+end
+
+param first: Speaker
+param second: Speaker
+
+def MakeDog(): Speaker = new Dog()
+def MakeCat(): Speaker = new Cat()
+
+def main: Unit receives IO.stdout, first, second =
+  println(first.speak())
+  println(second.speak())

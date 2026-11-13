@@ -23,7 +23,7 @@ When a lock file exists:
 The compiler version is not locked. `jo.toml` states the required `MAJOR.MINOR` line, and
 any patch release within it is accepted.
 
-If the lock file is missing, `jo build`, `jo check`, `jo run`, and `jo doc` resolve all modules in the project and write it.
+If the lock file is missing, `jo build`, `jo run`, and `jo doc` resolve all modules in the project and write it.
 
 If the lock file is present, compatible locked entries are reused. Missing entries,
 incompatible locked versions, and digest mismatches fail. Run `jo lock` to rewrite

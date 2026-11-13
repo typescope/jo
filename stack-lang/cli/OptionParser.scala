@@ -56,7 +56,7 @@ object OptionParser:
         case OptionSpec.Single =>
           if iter.hasNext then
             val value = iter.next()
-            if value(0) == '-' then
+            if value.startsWith("-") then
               Reporter.error(s"Option $arg requires an argument")
 
             else
@@ -72,7 +72,7 @@ object OptionParser:
         case OptionSpec.Multi =>
           if iter.hasNext then
             val value = iter.next()
-            if value(0) == '-' then
+            if value.startsWith("-") then
               Reporter.error(s"Option $arg requires an argument")
 
             else

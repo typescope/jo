@@ -1,0 +1,6 @@
+// A main with a type parameter is not an entry-point candidate.
+
+namespace Test
+
+def main[T]: Unit receives IO.stdout =
+  println "hi"

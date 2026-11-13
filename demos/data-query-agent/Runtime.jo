@@ -2,8 +2,9 @@
   !
   ! Trusted runtime that provides database access with query DSL support
   !
-  ! Reads userId from command-line and translates Cond expressions to SQL
-  ! while maintaining row-level security by always injecting owner_id filter.
+  ! Translates Cond expressions to SQL while maintaining row-level security
+  ! by always injecting the owner_id filter. The factories at the end create
+  ! the capabilities from the command-line arguments.
   !
   ! Python backend using sqlite3.
 //]
@@ -284,6 +285,7 @@ section Impl
 
     val pyParams = buildPyParams(params)
     val _ = connection.execute(sql, pyParams)
+    connection.commit()
 
     connection
       .execute: "SELECT changes() as cnt", py.list()
@@ -301,6 +303,7 @@ section Impl
 
     val pyParams = buildPyParams(params)
     val _ = connection.execute(sql, pyParams)
+    connection.commit()
 
     connection
       .execute: "SELECT changes() as cnt", py.list()
@@ -323,6 +326,7 @@ section Impl
 
     val pyParams = buildPyParams(params)
     val _ = connection.execute(sql, pyParams)
+    connection.commit()
 
     connection
       .execute: "SELECT changes() as cnt", py.list()
@@ -333,6 +337,7 @@ section Impl
     val sql = "DELETE FROM documents WHERE id = ? AND owner_id = ?"
     val pyParams: py.List = py.list(docId, userId)
     val _ = connection.execute(sql, pyParams)
+    connection.commit()
 
     connection
       .execute: "SELECT changes() as cnt", py.list()
@@ -462,28 +467,31 @@ class SecureDB(userId: Int, connection: sqlite3.Connection)
   view DatabaseAPI.DB
 end
 
-//[ Main entry point - reads userId (argv[1]) and dbPath (argv[2]) from sys.argv
-  !
-  ! Security properties:
-  !
-  ! - userId is read from command-line (sys.argv[1])
-  ! - dbPath is read from command-line (sys.argv[2])
-  ! - User code NEVER has access to sys.argv
-  ! - userId is passed explicitly to all implementation functions
-  ! - All user filter conditions are ANDed with owner_id check
-  ! - User code CANNOT bypass the owner_id filtering
-//]
-def platformMain: Unit receives stdout =
-  val argv: py.List = py.module("sys").argv.cast[py.List]
-  val argc = argv.size
+//=============== Factories ====================================================
+//
+// Bound when user code is compiled: db and skills with --provide, the rest
+// with --internal. The internal parameters live in this namespace, which user
+// code cannot name, so the user ID, the database path, the skills directory,
+// and the connection never reach it. SecureDB ANDs every user condition with
+// the owner_id check.
 
-  if argc < 2 then
+param userId: Int
+param dbPath: String
+param skillsDir: String
+param connection: sqlite3.Connection
+
+private def usage(): Unit receives stdout =
+  println "Usage: python3 task.py <userId> <dbPath> <skillsDir>"
+  println "Example: python3 task.py 1 database.db skills"
+
+// The current user, from the first command-line argument
+def UserId(): Int receives IO.args, stdout =
+  if IO.args.size < 1 then
     println "❌ Error: userId not provided"
-    println "Usage: python3 task.py <userId> <dbPath>"
-    println "Example: python3 task.py 1 database.db"
+    usage()
     abort "Missing userId argument"
 
-  val userIdStr: String = argv.get(1).asString
+  val userIdStr = IO.args.get(0)
 
   var userId = -1
   if userIdStr.toIntOpt is Some(id) && id > 0 then
@@ -493,45 +501,31 @@ def platformMain: Unit receives stdout =
     println ("Received: " + userIdStr)
     abort "Invalid userId argument"
 
-  // Read database path from command line - ABORT if not provided
-  if argc < 3 then
-    println "❌ Error: database path not provided"
-    println "Usage: python3 task.py <userId> <dbPath> <skillsDir>"
-    println "Example: python3 task.py 1 database.db skills"
-    abort "Missing database path argument"
-
-  val dbPath: String = argv.get(2).asString
-
-  // Read skills directory from command line - ABORT if not provided
-  if argc < 4 then
-    println "❌ Error: skills directory not provided"
-    println "Usage: python3 task.py <userId> <dbPath> <skillsDir>"
-    println "Example: python3 task.py 1 database.db skills"
-    abort "Missing skills directory argument"
-
-  val skillsDir: String = os.path.abspath(argv.get(3).asString)
-
   println ("🔒 Running as User ID: " + userId)
   println ""
+  userId
 
-  // Open SQLite database using Python's sqlite3 module
-  // sqlite3.Row allows accessing columns by name (row["field"])
-  val connection = sqlite3.connectRow(dbPath)
+// The database file, from the second command-line argument
+def DbPath(): String receives IO.args, stdout =
+  if IO.args.size < 2 then
+    println "❌ Error: database path not provided"
+    usage()
+    abort "Missing database path argument"
 
-  // Create secure database instance
-  val secureDb = new SecureDB(userId, connection)
+  IO.args.get(1)
 
-  // Create skills instance
-  val skillsImpl = new SkillsImpl(skillsDir)
+// The skills directory, from the third command-line argument
+def SkillsDir(): String receives IO.args, stdout =
+  if IO.args.size < 3 then
+    println "❌ Error: skills directory not provided"
+    usage()
+    abort "Missing skills directory argument"
 
-  // Provide implementations via context parameters
-  with
-    DatabaseAPI.db = secureDb,
-    DatabaseAPI.skills = skillsImpl
-  in
-    DatabaseAPI.analyzeDocuments()
+  os.path.abspath(IO.args.get(2))
 
-  // Close database and commit any changes
-  connection.commit()
-  connection.close()
-end
+// sqlite3.Row allows accessing columns by name (row["field"])
+def Connection(): sqlite3.Connection receives dbPath = sqlite3.connectRow(dbPath)
+
+def DB(): DatabaseAPI.DB receives userId, connection = new SecureDB(userId, connection)
+
+def Skills(): DatabaseAPI.Skills receives skillsDir = new SkillsImpl(skillsDir)

@@ -1,0 +1,11 @@
+// options: --internal Test.extra=1 --provide Test.a=2
+
+// An internal parameter that no factory receives is a warning.
+
+namespace Test
+
+param extra: Int
+param a: Int
+
+def main: Unit receives IO.stdout, a =
+  println a

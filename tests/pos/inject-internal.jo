@@ -1,0 +1,23 @@
+// options: --internal Test.root=Test.Root --provide Test.readonly=Test.ReadOnly
+
+// Authority narrowing: the broad capability is internal, main gets the view.
+
+namespace Test
+
+class Full(secretValue: String, publicValue: String)
+  def secret(): String = secretValue
+  def public(): String = publicValue
+end
+
+class View(full: Full)
+  def public(): String = full.public()
+end
+
+param root: Full
+param readonly: View
+
+def Root(): Full = new Full("s3cret", "open")
+def ReadOnly(): View receives root = new View(root)
+
+def main: Unit receives IO.stdout, readonly =
+  println(readonly.public())

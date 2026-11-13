@@ -88,19 +88,81 @@ declaration order.
 
 ### Entry Point
 
-The compiler detects the entry point by locating a top-level function named `main`
-conforming to this signature from the standard library:
+The compiler detects the entry point by name and type: the one top-level
+parameterless function named `main` that returns `Unit`. Detection ignores the
+`receives` clause. An error is reported if no such function exists. If several
+exist, the entry point must be named explicitly:
+
+```bash
+--link jo.main=app.main
+```
+
+The detected function is then linked to `jo.main`, which the standard library
+declares as:
 
 ```jo
 defer def main: Unit receives IO.stdout, IO.stderr, IO.args
 ```
 
-An error is reported if no matching candidate exists or multiple candidates are found.
-The entry point can be specified explicitly with:
+The link check requires that it receive only the context parameters that
+`jo.main` declares and those that `--provide` binds (see below).
+
+#### Injected Capabilities
+
+The `receives` clause of `jo.main` is not an upper bound. A build can bind further
+context parameters for `main` with compiler options, so that a library can offer a
+capability without owning the entry point. Each option names a context parameter
+and says how to provision its value, by calling a factory function or from a
+literal:
 
 ```bash
---link jo.main=app.main
+jo compile --python app.jo \
+  --internal fs.root=fs.Root \
+  --provide  fs.readonly=fs.ReadOnly \
+  --internal 'gh.repo="typescope/jo"' \
+  --provide  gh.client=gh.GitHub
 ```
+
+The compiler creates the values, binds them, and calls `main` with the bindings in
+scope. A `--provide` parameter may be received by `main`. An `--internal`
+parameter is visible only to factory functions.
+
+A factory function is a function with no parameters whose result conforms to the
+parameter's type. It may receive context parameters:
+
+```jo
+param root: FileSystem
+param readonly: ReadOnlyFileSystem
+
+def Root(): FileSystem = new LocalFileSystem()
+def ReadOnly(): ReadOnlyFileSystem receives root = new ReadOnlyView(root)
+```
+
+A factory may live in a library passed with `--link-lib`, which the application
+cannot import. The conformance check stops `main` from receiving an internal
+parameter. Keeping `main` from calling a factory such as `fs.Root` directly is the
+job of the [two-world separation](../../security/two-worlds.md): a factory that
+creates authority from nothing uses the FFI and lives in a library the application
+cannot import.
+
+A literal is a boolean, a number, a character, or a single-line string without
+interpolation. It is typed as it would be in source, with the parameter's type as
+the expected type, and must conform to it. Adapters are not applied.
+
+Bindings are instantiated once each, before `main` runs, in dependency order: the
+binding of `p` depends on the binding of `q` when the factory of `p` receives `q`
+and `q` is bound. Cycles are errors. Factories receive the parameters of `jo.main`
+at their outer values, so a `--provide` binding may rebind one of them, for
+example to prefix everything `main` writes to `IO.stdout`, and the rebinding is
+seen by `main` only. An `--internal` binding may not rebind a parameter of
+`jo.main`.
+
+With bindings, `main` may receive the parameters `jo.main` declares and the
+provided parameters, and nothing else. Errors in a binding quote the option, for
+example `--provide fs.readonly=fs.ReadOnly: ...`, and an internal parameter no
+factory receives is a warning. See
+[Compiler Options](../../usage/reference/compiler-options.md) for the option
+syntax.
 
 ## Syntax Conventions
 

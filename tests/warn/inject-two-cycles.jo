@@ -1,0 +1,18 @@
+// options: --provide Test.a=Test.MakeA --internal Test.b=Test.MakeB --provide Test.c=Test.MakeC --internal Test.d=Test.MakeD
+
+// Two disjoint cycles are reported separately.
+
+namespace Test
+
+param a: Int
+param b: Int
+param c: Int
+param d: Int
+
+def MakeA(): Int receives b = b + 1
+def MakeB(): Int receives a = a + 1
+def MakeC(): Int receives d = d + 1
+def MakeD(): Int receives c = c + 1
+
+def main: Unit receives IO.stdout, a, c =
+  println(a + c)

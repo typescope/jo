@@ -1,4 +1,4 @@
-jo check
+jo build
 : '
-[check] [lib]
+[build] [lib]
 '

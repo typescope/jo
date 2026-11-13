@@ -1,0 +1,10 @@
+// options: --provide Test.helper=1
+
+// The left-hand side must name a context parameter.
+
+namespace Test
+
+def helper: Int = 0
+
+def main: Unit receives IO.stdout =
+  println helper

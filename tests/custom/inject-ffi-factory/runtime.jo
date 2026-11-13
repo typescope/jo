@@ -1,0 +1,13 @@
+// The runtime library ships the factory. It reads the process environment
+// through the Python FFI, so it is compiled with --use-runtime-api python and
+// passed with --link-lib: the application cannot import it.
+namespace Runtime
+
+class OsEnv(prefix: String)
+  def get(name: String): String =
+    prefix + py.module("os").environ.get(name, "unset").asString
+
+  view Api.Env
+end
+
+def Env(): Api.Env receives Api.prefix = new OsEnv(Api.prefix)

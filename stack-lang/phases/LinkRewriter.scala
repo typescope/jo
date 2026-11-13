@@ -34,18 +34,15 @@ class LinkRewriter(linkMap: Map[Symbol, Symbol])(using defn: Definitions, rp: Re
       ident
 
 object LinkRewriter:
-  class LinkData(mappings: Map[String, String]):
-
-    def resolve(deferMain: Symbol, userMain: Symbol)(using Reporter, Definitions): Map[Symbol, Symbol] =
-      val symMap = parseLinkMappings(mappings)
-      if symMap.contains(deferMain) then
-        Reporter.error(s"The main function ${deferMain.fullName} is already linked to ${userMain.fullName}.")
-        symMap
-      else
-        symMap + (deferMain -> userMain)
+  /** Link mappings from the command line and the backend
+    *
+    * @param injection the injection plan, which relaxes the conformance
+    *                  check for the implementation of `jo.main`
+    */
+  class LinkData(mappings: Map[String, String], injection: Injection.Plan):
 
     def resolve()(using Reporter, Definitions): Map[Symbol, Symbol] =
-      parseLinkMappings(mappings)
+      parseLinkMappings(mappings, injection)
 
     def contains(path: String): Boolean = mappings.contains(path)
 
@@ -57,15 +54,19 @@ object LinkRewriter:
           case _ =>
       end for
 
-      new LinkData(mappings ++ userMappings)
+      new LinkData(mappings ++ userMappings, injection)
 
   /** Parse link option strings and resolve to symbol mappings.
     *
     * @param linkStrings List of "source=target" strings
+    * @param injection   The injection plan, applied to the implementation of `jo.main`
     *
     * @return Map from source symbols to target symbols, validated with subtype checking
     */
-  def parseLinkMappings(linkStrings: Map[String, String])(using defn: Definitions, rp: Reporter): Map[Symbol, Symbol] =
+  def parseLinkMappings
+      (linkStrings: Map[String, String], injection: Injection.Plan)
+      (using defn: Definitions, rp: Reporter)
+  : Map[Symbol, Symbol] =
     val validMappings = scala.collection.mutable.Map.empty[Symbol, Symbol]
 
     for (sourcePath, targetPath) <- linkStrings do
@@ -90,10 +91,14 @@ object LinkRewriter:
             val targetType = targetSym.tpe
 
             // Compare full function types, including receives clauses, for type-safe linking.
-
-            if !Subtyping.conforms(targetType, sourceType) then
+            //
+            // The implementation of `jo.main` may also receive the parameters
+            // provided by injection, but no internal one.
+            if injection.reportInternal(sourceSym, targetSym) then
+              ()
+            else if !injection.conforms(sourceSym, targetType, sourceType) then
               rp.error(
-                s"Link type mismatch: $targetPath (${targetType.show}) is not a subtype of $sourcePath (${sourceType.show})"
+                s"Link type mismatch: $targetPath (${targetType.show}) is not a subtype of $sourcePath (${injection.showContract(sourceSym, sourceType)})"
               )
             else
               validMappings(sourceSym) = targetSym

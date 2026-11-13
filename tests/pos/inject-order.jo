@@ -1,0 +1,24 @@
+// options: --provide Test.c=Test.MakeC --provide Test.a=Test.MakeA --provide Test.b=Test.MakeB
+
+// Bindings are instantiated in dependency order, not option order.
+
+namespace Test
+
+param a: Int
+param b: Int
+param c: Int
+
+def MakeA(): Int receives IO.stdout =
+  println "make a"
+  1
+
+def MakeB(): Int receives a, IO.stdout =
+  println "make b"
+  a + 1
+
+def MakeC(): Int receives b, IO.stdout =
+  println "make c"
+  b + 1
+
+def main: Unit receives IO.stdout, c =
+  println c

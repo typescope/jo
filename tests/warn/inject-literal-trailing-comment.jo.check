@@ -1,0 +1,5 @@
+[Error] --provide Test.a=1//ignored: expected a factory path or a literal
+
+[Error] --provide Test.name="x"//ignored: expected a factory path or a literal
+
+2 error(s), 0 warning(s)

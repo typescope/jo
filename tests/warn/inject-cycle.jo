@@ -1,0 +1,14 @@
+// options: --provide Test.a=Test.MakeA --provide Test.b=Test.MakeB
+
+// Two bindings depend on each other.
+
+namespace Test
+
+param a: Int
+param b: Int
+
+def MakeA(): Int receives b = b + 1
+def MakeB(): Int receives a = a + 1
+
+def main: Unit receives IO.stdout, a =
+  println a

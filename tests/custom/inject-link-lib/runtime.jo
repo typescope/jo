@@ -1,0 +1,12 @@
+// The runtime library ships the factory. It is passed with --link-lib, so
+// application code cannot import it, yet the binding resolves the factory.
+namespace Runtime
+
+class FixedClock(start: Int)
+  def now(): Int = start + 1
+  view Api.Clock
+end
+
+def Clock(): Api.Clock receives Api.epoch, IO.stdout =
+  println("making clock from " + Api.epoch)
+  new FixedClock(Api.epoch)

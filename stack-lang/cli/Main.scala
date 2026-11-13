@@ -48,12 +48,6 @@ object Main:
         val module = tool.Build.selectedModule(project, parsed)
         tool.Build.build(project, module).orExit
 
-      case "check" =>
-        val parsed = tool.Build.parseProjectArgs(args.drop(1)).orExit
-        val project = loadProject(parsed.specFile).orExit
-        val module = tool.Build.selectedModule(project, parsed)
-        tool.Build.check(project, module).orExit
-
       case "test" =>
         System.err.println("Error: 'jo test' was removed; define a test app module and run it with 'jo run <module>'")
         System.exit(1)
@@ -277,7 +271,6 @@ object Main:
       |  jo new --template <ref> --list         List templates declared by a template repo
       |  jo clean [module]                      Remove build artifacts (default: all modules)
       |  jo build [module]                      Build a module (default module if omitted)
-      |  jo check [module]                      Type-check and compile to sast, skip executable
       |  jo run   [module] [-- ...]             Build and run an app module
       |  jo package [module]                    Build a distributable package for a module
       |  jo deps [module]                       Print the resolved dependency tree

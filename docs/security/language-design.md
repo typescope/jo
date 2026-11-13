@@ -132,4 +132,4 @@ runAgent(admin as OrdersApi)
 ## See Also
 
 - [Two-World Architecture](two-worlds.md) — How the confined/trusted separation enforces these guarantees
-- [Security Examples](examples/index.md) — Hands-on examples
+- [Data Query Agent](examples/data-query-agent.md) — Hands-on example

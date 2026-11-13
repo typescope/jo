@@ -1,0 +1,10 @@
+// options: --provide Test.name=30
+
+// A literal must conform to the parameter type.
+
+namespace Test
+
+param name: String
+
+def main: Unit receives IO.stdout, name =
+  println name

@@ -1,0 +1,19 @@
+// options: --internal Test.base=Test.Base --provide Test.left=Test.Left --provide Test.right=Test.Right
+
+// Two factories receive the same binding, which is instantiated once.
+
+namespace Test
+
+param base: Int
+param left: Int
+param right: Int
+
+def Base(): Int receives IO.stdout =
+  println "base"
+  10
+
+def Left(): Int receives base = base + 1
+def Right(): Int receives base = base + 2
+
+def main: Unit receives IO.stdout, left, right =
+  println(left + right)

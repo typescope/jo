@@ -1,0 +1,6 @@
+// A library entry point that receives an internal parameter: the link check
+// must reject it just as it rejects one compiled from source.
+namespace Bad
+
+def main: Unit receives IO.stdout, Api.clock, Api.epoch =
+  println("epoch " + Api.epoch)

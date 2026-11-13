@@ -1,0 +1,8 @@
+// options: --provide =1
+
+// The parameter name may not be empty.
+
+namespace Test
+
+def main: Unit receives IO.stdout =
+  println "hi"

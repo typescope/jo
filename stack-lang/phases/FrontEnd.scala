@@ -46,16 +46,30 @@ object FrontEnd:
       for pkg <- Config.linkLibPaths.value do
         pickle.Decoder.loadPackage(pkg, lazyLibs) <| "link " + pkg
 
-      val linkData = new LinkRewriter.LinkData(defaultMappings)
-      val symbolMap = detectMain(units, linkData.addUserMappings(Config.linkMap.value))
-      cf.setInternal(FrontEnd.rewireMap, symbolMap)
+      val injection = Injection.plan(Config.injectBindings)
+      val linkData = new LinkRewriter.LinkData(defaultMappings, injection)
+      val implMap = detectMain(units, linkData.addUserMappings(Config.linkMap.value))
 
       val runtimeRoots = List("jo.runtime", "jo.py.runtime", "jo.rb.runtime").flatMap(defn.resolveContainerOpt)
       lazyLibs.forceIf: unit =>
         runtimeRoots.exists(unit.owner.containedIn)
 
+      if !rp.hasErrors then
+        injection.warnUnused()
+
       val libUnits = lazyLibs.force()
-      val allUnits = units ++ libUnits
+
+      // Under injection, `jo.main` resolves to a generated wrapper around its implementation
+      val (symbolMap, allUnits) =
+        implMap.get(defn.main) match
+          case Some(impl) if !injection.isEmpty && injection.valid =>
+            val wrapper = injection.synthesize(impl)
+            (implMap + (defn.main -> wrapper.symbol), Injection.addWrapper(units ++ libUnits, impl, wrapper))
+
+          case _ =>
+            (implMap, units ++ libUnits)
+
+      cf.setInternal(FrontEnd.rewireMap, symbolMap)
 
       // println("Units = " + allUnits.map(_.source.file))
 
@@ -63,6 +77,14 @@ object FrontEnd:
       rewriter.transform(allUnits)
     })
 
+  /** Locate the implementation of `jo.main`
+    *
+    * Unless `--link` names it, the implementation is detected by name and
+    * type: the one top-level parameterless function named `main` that
+    * returns `Unit`. Detection ignores the receives clause. The detected
+    * function is then linked to `jo.main`, and the link check compares the
+    * receives clauses.
+    */
   private def detectMain
      (units: List[FileUnit], linkData: LinkRewriter.LinkData)
      (using rp: Reporter, defn: Definitions)
@@ -72,36 +94,31 @@ object FrontEnd:
       linkData.resolve()
 
     else
-      val mainInfo = defn.main.tpe
-
-      val cands = units.flatMap: unit =>
-         unit.defs.filter:
-           case defn: FunDef => !defn.symbol.is(Flags.Defer) && defn.name == "main"
-
-           case _ => false
-
-      val mains = cands.map(_.symbol).filter: sym =>
-          Subtyping.conforms(sym.tpe, mainInfo)
+      val mains = units.flatMap: unit =>
+        unit.defs.collect:
+          case fun: FunDef
+          if !fun.symbol.is(Flags.Defer) && fun.name == "main"
+             && fun.tparams.isEmpty && fun.params.isEmpty && fun.autos.isEmpty
+             && Subtyping.conforms(fun.symbol.tpe.asProcType.resultType, defn.UnitType) =>
+            fun.symbol
 
       mains match
         case main :: Nil =>
-          linkData.resolve(defn.main, main)
+          linkData.addUserMappings(Map(defn.main.fullName -> main.fullName)).resolve()
+
+        case Nil =>
+          rp.error(
+            "No main function found. Define a top-level parameterless function named `main` that returns Unit, " +
+            s"or name the entry point with --link ${defn.main.fullName}=<path>"
+          )
+          linkData.resolve()
 
         case _ =>
-          if mains.isEmpty then
-            val explain =
-              if cands.isEmpty then
-                ""
-              else
-                val nameLines = cands.map(defn => "- " + defn.symbol.fullName + ": " + defn.symbol.tpe.show).mkString(System.lineSeparator)
-                s" None of the following candidates conform to the contract ${defn.main.fullName} (${mainInfo.show})" + System.lineSeparator + nameLines
-
-            Reporter.abortInternal("No qualified main function found." + explain)
-
-          else
-            val nameLines = mains.map("- " + _.fullName).mkString(System.lineSeparator)
-            Reporter.abortInternal("Multiple main function detected:" + System.lineSeparator + nameLines)
-
+          val nameLines = mains.map("- " + _.fullName).mkString(System.lineSeparator)
+          rp.error(
+            s"Multiple main functions found. Name the entry point with --link ${defn.main.fullName}=<path>:" +
+            System.lineSeparator + nameLines
+          )
           linkData.resolve()
 
 

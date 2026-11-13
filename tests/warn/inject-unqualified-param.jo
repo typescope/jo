@@ -1,0 +1,11 @@
+// options: --provide a=1
+
+// The parameter must be a qualified path. An unqualified name does not
+// resolve.
+
+namespace Test
+
+param a: Int
+
+def main: Unit receives IO.stdout =
+  println "hi"

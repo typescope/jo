@@ -1,0 +1,20 @@
+// options: --internal Test.prefix="[pre]" --provide Test.logger=Test.Logger --provide jo.IO.stdout=Test.Prefixed
+
+// A context parameter of jo.main is rebound. Factories receive the outer
+// IO.stdout, so the logger writes unprefixed, while main writes prefixed.
+// The rebinding factory itself receives a fresh internal parameter.
+
+namespace Test
+
+param prefix: String
+param logger: String => Unit
+
+def Prefixed(): (String => Unit) receives prefix, IO.stdout =
+  (s: String) => if s == "\n" then IO.stdout(s) else IO.stdout(prefix + " " + s)
+
+def Logger(): (String => Unit) receives IO.stdout =
+  (s: String) => IO.stdout("[log] " + s + "\n")
+
+def main: Unit receives IO.stdout, logger =
+  println "hi"
+  logger("note")

@@ -1,0 +1,7 @@
+// The entry point lives in a library. The build names it with --link and
+// binds its capabilities with --provide and --internal, with no source file
+// of its own.
+namespace App
+
+def main: Unit receives IO.stdout, Api.clock =
+  println("now is " + Api.clock.now())

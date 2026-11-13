@@ -1,0 +1,16 @@
+// options: --internal Test.width=4 --internal Test.area=Test.Area --provide Test.report=Test.Report
+
+// A chain of three bindings whose root is a literal. A literal has no
+// dependencies, and the factories that depend on it are ordered after it.
+
+namespace Test
+
+param width: Int
+param area: Int
+param report: String
+
+def Area(): Int receives width = width * width
+def Report(): String receives area = "area " + area
+
+def main: Unit receives IO.stdout, report =
+  println report

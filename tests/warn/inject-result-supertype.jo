@@ -1,0 +1,13 @@
+// options: --provide Test.a=Test.Make
+
+// The factory result must conform to the parameter type. A result type that
+// is a supertype of the parameter type does not.
+
+namespace Test
+
+param a: Int
+
+def Make(): Int | String = 1
+
+def main: Unit receives IO.stdout, a =
+  println a

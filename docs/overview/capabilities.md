@@ -262,4 +262,4 @@ The AI code cannot access the network, filesystem, or other users' data — the 
 ## See Also
 
 - [Two-World Architecture](../security/two-worlds.md)
-- [Security Demos](../security/examples/index.md)
+- [Data Query Agent](../security/examples/data-query-agent.md)

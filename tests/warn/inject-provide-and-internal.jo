@@ -1,0 +1,10 @@
+// options: --provide Test.a=1 --internal Test.a=2
+
+// A parameter is bound with both roles.
+
+namespace Test
+
+param a: Int
+
+def main: Unit receives IO.stdout, a =
+  println a

@@ -1,0 +1,13 @@
+// options: --internal Test.repo="typescope/jo" --provide Test.client=Test.Client
+
+// An internal literal is configuration for a factory.
+
+namespace Test
+
+param repo: String
+param client: String
+
+def Client(): String receives repo = "client for " + repo
+
+def main: Unit receives IO.stdout, client =
+  println client

@@ -1,0 +1,9 @@
+// options: --provide Test.count=41
+
+// The receives clause of main is inferred.
+
+namespace Test
+
+param count: Int
+
+def main = println(count + 1)

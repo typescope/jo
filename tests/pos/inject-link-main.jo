@@ -1,0 +1,10 @@
+// options: --link jo.main=Test.entry --provide Test.name="jo"
+
+// Injection with an explicitly linked entry point.
+
+namespace Test
+
+param name: String
+
+def entry: Unit receives IO.stdout, name =
+  println("hello " + name)

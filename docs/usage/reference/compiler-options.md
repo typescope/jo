@@ -1,7 +1,7 @@
 # Compiler Options Reference
 
 These are the low-level options accepted by `jo compile`. Project commands such as
-`jo build`, `jo check`, and `jo run` usually derive compiler flags from
+`jo build` and `jo run` usually derive compiler flags from
 `jo.toml`, but `module.<id>.compile-options` can pass extra flags through to normal
 compilation and `module.<id>.doc-options` can pass flags to `jo compile --doc`.
 
@@ -71,10 +71,23 @@ These options are accepted when compiling an application with an app backend suc
 | `-o <file>` | single value | Output file path. |
 | `--link-lib <dir>` | repeatable value | Add a link-library directory used to resolve deferred definitions. Each path must exist. |
 | `--link <source=target>` | repeatable value | Redirect symbol references from `source` to `target`. |
+| `--provide <param=value>` | repeatable value | Bind context parameter `param` for `jo.main`. |
+| `--internal <param=value>` | repeatable value | Bind context parameter `param` for factory functions only. |
+
 
 `--link` values must use `source=target` format. Both sides must be names or
 dot-separated paths whose segments are identifiers, such as
 `jo.Predef.entry=App.main`.
+
+`--provide` and `--internal` values must use `param=value` format. `param` is
+the dot-separated path of a `param` declaration. `value` is either the path of
+a factory function, which takes no parameters and returns a value of the
+parameter's type, or a Jo literal: a boolean, a number, a character, or a
+single-line string without interpolation, such as `'gh.repo="typescope/jo"'`.
+The compiler instantiates every binding once, in dependency order, before
+`main` runs. A provided parameter may be received by `main`, an internal one
+only by factory functions. See [Entry Point](../../language/syntax/structure-and-convention.md#entry-point)
+for the full rules.
 
 ## Compiler Development Options
 

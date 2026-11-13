@@ -1,0 +1,24 @@
+// options: --provide Test.greeter=Test.MakeHello
+
+// The factory result is a subtype of the parameter type, and the factory
+// omits its receives clause, which is inferred.
+
+namespace Test
+
+interface Greeter
+  def greet(name: String): String
+end
+
+class Hello
+  def greet(name: String): String = "Hello, " + name
+  view Greeter
+end
+
+param greeter: Greeter
+
+def MakeHello(): Hello =
+  println "making"
+  new Hello()
+
+def main: Unit receives IO.stdout, greeter =
+  println(greeter.greet("world"))

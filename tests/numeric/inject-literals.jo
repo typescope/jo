@@ -1,0 +1,28 @@
+// options: --provide Test.count=-3 --provide Test.big=1 --provide Test.ratio=2.5 --provide Test.flag=true --provide Test.letter='x' --provide Test.name="a\tb\"c" --provide Test.either="s" --provide Test.other=3
+
+// Literals of every form, typed by the expected type, including a union.
+
+namespace Test
+
+param count: Int
+param big: Long
+param ratio: Float
+param flag: Bool
+param letter: Char
+param name: String
+param either: String | Int
+param other: String | Int
+
+def main: Unit receives IO.stdout, count, big, ratio, flag, letter, name, either, other =
+  println count
+  println big
+  println ratio
+  println flag
+  println letter
+  println name
+  match either
+    case i: Int => println "int"
+    case s: String => println "string"
+  match other
+    case i: Int => println "int"
+    case s: String => println "string"
