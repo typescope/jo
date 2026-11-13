@@ -33,8 +33,8 @@ everything else.
 The trusted runtime adds the current user's `owner_id` condition to database operations.
 The model controls only the Jo source passed to `runCode`. The CLI environment variable
 stands in for an authenticated identity. In a service, derive the user ID from the
-authenticated request. 
-outside this Jo boundary.
+authenticated request. The host and its other tools remain outside this Jo
+boundary.
 
 For more background, see the [integration overview](index.md),
 [two-world architecture](../security/two-worlds.md), and Harpe's
