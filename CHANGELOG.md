@@ -4,6 +4,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Removed
+
+- The bare `jo <name>` form of project commands, and the error that `jo test`
+  printed since that built-in was removed. A `[commands]` entry runs only with
+  `jo exec <name>`, so built-in and project commands no longer share a
+  namespace. `jo <name>` for a name that is not a built-in reports an unknown
+  command and points at `jo exec` when the project defines that name.
+
+### Compatibility
+
+- Scripts that ran a project command as `jo <name>` must run it as
+  `jo exec <name>`. Projects that define a `test` command can now run it, as
+  `jo exec test`.
+
 ## [0.14.11] - 2026-11-13
 
 ### Added
