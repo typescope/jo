@@ -98,7 +98,7 @@ EOF
     *)
       printf '\n'
       warn "Add '$ACTIVE_BIN_DIR' to your PATH:"
-      warn "  export PATH=\"\$HOME/.local/bin:\$PATH\""
+      warn "  export PATH=\"$ACTIVE_BIN_DIR:\$PATH\""
       ;;
   esac
 }
