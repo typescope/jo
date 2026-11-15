@@ -1,0 +1,26 @@
+namespace gcclosedeep
+
+// Deep recursion where every region holds only escaping objects: each level
+// of `down` stores a box into an array of `main`, and its region gets the
+// boxes handed up by the levels below. A region over the merge budget is not
+// handed over but collected, so the closes do not scan the same boxes at
+// every level, which would take time quadratic in the depth.
+
+class Box(n: Int)
+
+def down(buf: Array[Box], d: Int): Int =
+  if d > 0 then
+    buf[d] = new Box(d)
+    down(buf, d - 1) + 1
+  else 0
+
+def main(): Unit =
+  val n = 5000
+  val buf = Array.fill(n + 1, new Box(0))
+  var total = 0
+  for r in 0 until 3 do
+    total = total + down(buf, n)
+    for b in buf do total = total + b.n
+  end
+
+  println: total

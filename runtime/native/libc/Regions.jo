@@ -8,8 +8,9 @@ import jo.runtime.native.LibC
   !
   ! See `stack-lang/llvm/GC.md` for the design. In short: allocations go into
   ! the current region, a heap store lowers the required region of the stored
-  ! object, and closing a region frees the objects only it requires, or merges
-  ! the region into its parent when something escapes. Cleanup needs no work
+  ! object, and closing a region frees the objects only it requires. When
+  ! something escapes, it hands the region to its parent if every object
+  ! escapes, merges it into the parent, or collects it. Cleanup needs no work
   ! list and traces only the objects of the closing region.
 //]
 private section Regions
@@ -635,7 +636,11 @@ private section Regions
   // of them plus one per destination, see `sweep`.
 
   // Close the region `r` at level `num` into its parent at level `p`: free
-  // everything if nothing escapes, merge while the budget allows, or collect
+  // everything if nothing escapes, merge while the budget allows, hand
+  // everything to the parent if every object escapes and the region is
+  // small, or collect. A handed object stays in the parent, so the closes of
+  // the ancestors scan it again. The bound on the size keeps deep recursion,
+  // where every level hands its region up, from scanning quadratically.
   private def close(r: Addr, num: Int, p: Int): Unit =
     if !(isNull (firstSeg r)) then
       val hi = hiOf r
@@ -646,15 +651,57 @@ private section Regions
         st.frees = st.frees + 1
         freeAll r
 
+      else if (segsOf parent) + (segsOf r) <= mergeLimit then
+        st.merges = st.merges + 1
+        setMin(parent, minInt(minOf parent, m))
+        setHi(parent, maxInt(hiOf parent, hi))
+        give(parent, firstSeg r, lastSeg r, segsOf r)
+
+      else if (segsOf r) <= mergeLimit && allEscape(r, num) then
+        st.handoffs = st.handoffs + 1
+        handOff(r, p, parent, m)
+
       else
-        if (segsOf parent) + (segsOf r) <= mergeLimit then
-          st.merges = st.merges + 1
-          setMin(parent, minInt(minOf parent, m))
-          setHi(parent, maxInt(hiOf parent, hi))
-          give(parent, firstSeg r, lastSeg r, segsOf r)
-        else
-          st.collects = st.collects + 1
-          sweep(r, num, p, parent)
+        st.collects = st.collects + 1
+        sweep(r, num, p, parent)
+
+  // Whether every object of the region `r` at level `num` escapes it. It
+  // stops at the first object that does not.
+  private def allEscape(r: Addr, num: Int): Bool =
+    var seg = firstSeg r
+    while !(isNull seg) do
+      val n = segCount seg
+      var i = 0
+      while i < n do
+        if (reqOf (readAddr (segEntry seg i))) >= num then return false
+        i = i + 1
+      end
+      seg = segNext seg
+    end
+    true
+
+  // Hand the region `r`, all of whose objects escape, to its parent at level
+  // `p`, with `m` the lowest level an object of `r` was promoted to. Every
+  // object keeps its `req`, which is at most the parent's `hi`, and moves to
+  // the parent's level, so the levels of `r` are free again and the parent's
+  // `hi` stays.
+  // Nothing is traced: the close of an ancestor that collects spreads the
+  // requirements, as after a merge. See "The close fast path" in GC.md.
+  private def handOff(r: Addr, p: Int, parent: Addr, m: Int): Unit =
+    var seg = firstSeg r
+    while !(isNull seg) do
+      val n = segCount seg
+      var i = 0
+      while i < n do
+        val o = readAddr (segEntry seg i)
+        setGcHalf(o, normal(p, reqOf o))
+        i = i + 1
+      end
+      seg = segNext seg
+    end
+
+    setMin(parent, minInt(minOf parent, m))
+    give(parent, firstSeg r, lastSeg r, segsOf r)
 
   // The lowest level an object of the region `r` at level `num` was promoted
   // to, over the levels of the region. Something escapes when it is below
@@ -1217,6 +1264,7 @@ private section Regions
     val trace = st.toRuntimeTrace
     val ret = st.toRuntimeReturn
     val frees = st.frees
+    val handoffs = st.handoffs
     val merges = st.merges
     val collects = st.collects
     val skips = st.skips
@@ -1229,7 +1277,7 @@ private section Regions
 
     line "jo-mem summary peak-rss-kb=\{rss} allocated=\{allocs} freed=\{freed} runtime-region=\{runtime} skipped-enters=\{skips}"
     line "jo-mem to-runtime direct=\{direct} store=\{store} trace=\{trace} return=\{ret}"
-    line "jo-mem closes free=\{frees} merge=\{merges} collect=\{collects} traced=\{traced}"
+    line "jo-mem closes free=\{frees} handoff=\{handoffs} merge=\{merges} collect=\{collects} traced=\{traced}"
     line "jo-mem loops collect=\{loopCollects} marked=\{loopMarked} freed=\{loopFreed}"
 
     if isNull (funName 0) then

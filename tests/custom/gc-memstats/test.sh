@@ -214,7 +214,7 @@ echo "  - Building tree.jo"
 "$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" "$DIR/tree.jo" -o "$DIR/tree.run" || exit 1
 JO_MEMSTATS=1 "$DIR/tree.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 [ "$(cat "$DIR/actual.out")" = "4369000" ] || fail "unexpected output of tree.jo"
-grep -q '^jo-mem closes free=[0-9]* merge=[0-9]* collect=[0-9]* traced=0$' "$DIR/actual.err" || fail "tree.jo traced objects"
+grep -q '^jo-mem closes free=[0-9]* handoff=[0-9]* merge=[0-9]* collect=[0-9]* traced=0$' "$DIR/actual.err" || fail "tree.jo traced objects"
 ! grep -q '^jo-mem hint traced: ' "$DIR/actual.err" || fail "traced hint for tree.jo"
 
 # Trees built through wrappers of `a[i] = v`. A builder has a traced row

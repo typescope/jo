@@ -523,10 +523,10 @@ allocates.
 The report has one record per line, a kind followed by `key=value` fields:
 
 ```
-jo-mem summary peak-rss-kb=4740 allocated=24034 freed=10004 runtime-region=14030 skipped-enters=0
-jo-mem to-runtime direct=6021 store=8009 trace=0 return=0
-jo-mem closes free=3 merge=444 collect=7581 traced=0
-jo-mem loops collect=0 marked=0 freed=0
+jo-mem summary peak-rss-kb=4484 allocated=636566 freed=636553 runtime-region=13 skipped-enters=0
+jo-mem to-runtime direct=13 store=0 trace=0 return=0
+jo-mem closes free=5 handoff=3283 merge=5217 collect=2004 traced=9002
+jo-mem loops collect=20 marked=8884 freed=6011
 jo-mem hint rebuild with --mem-profile to attribute these to functions
 ```
 
@@ -540,10 +540,11 @@ jo-mem hint rebuild with --mem-profile to attribute these to functions
   until the program exits. `direct` counts what code that runs in no region
   allocates: `Core.start`, and the entry function and its callees when they
   open no region. Under the default policy, `direct` and `return` stay near 0.
-- `closes`: the closes that freed everything, merged and collected, and
-  `traced`, the objects whose `req` the traces of collecting closes lowered,
-  besides the escape roots. An object traced at every close it passes through
-  counts once per close, so `traced` far above `allocated` means repeated
+- `closes`: the closes that freed everything, handed every object to the
+  parent (see [The close fast path](#the-close-fast-path)), merged and
+  collected, and `traced`, the objects whose `req` the traces of collecting
+  closes lowered, besides the escape roots. An object traced at every
+  close it passes through counts once per close, so `traced` far above `allocated` means repeated
   tracing (see [Cost](#cost)). The trace counts in a local variable and adds
   it to the total once per collect.
 - `loops`: the loop collections, the objects their marks visited and the
@@ -1048,8 +1049,8 @@ bridge then calls neither `enter` nor `leave`. Times come from the run of
 [Measurements of the rule](#measurements-of-the-rule).
 
 The rule above is kept: it is faster on Sieve and NBody, and it also saves
-the `enter` and `leave` of every constructor. The fast path could still be
-added later for regions that do open.
+the `enter` and `leave` of every constructor. The fast path was added later
+for regions that do open, see [The close fast path](#the-close-fast-path).
 
 #### Changes for the rule
 
@@ -2518,7 +2519,7 @@ stay until the loop ends and rule 2 would not hold. It closes like this:
 | At close | Action |
 |---|---|
 | Nothing escapes | Free all objects |
-| Every object escapes | Hand the region to the parent (see [The close fast path](#the-close-fast-path)) |
+| Every object escapes and the region has at most 8 segments | Hand the region to the parent (see [The close fast path](#the-close-fast-path)) |
 | Otherwise | Collect |
 
 A callee region still merges into the iteration region while the budget
@@ -2603,29 +2604,42 @@ collecting keep everything reachable from them, as for a function region.
 
 ### The close fast path
 
-Status: designed, not implemented.
+Status: implemented in `close`, `allEscape` and `handOff` of `Regions.jo`,
+for regions of at most 8 segments. `handoff` in the `closes` line of the
+memory statistics counts it.
 
-Every close tries a fast path before it merges or collects. If every object
-of region `r` already escapes, nothing in `r` is garbage. The close then
-hands `r` to its parent `p`:
+A region whose objects all escape is handed over instead of collected.
+When the merge budget refuses a merge, a close of a small region tries the
+fast path before it collects. If every object of region `r` already
+escapes, nothing in `r` is garbage. The close then hands `r` to its parent
+`p`:
 
 ```
 close r into p:
   if nothing escapes:                free all
-  else if every o in r has o.req < r.num:
+  else if r is a function region and the budget allows: merge
+  else if r has at most 8 segments and every o in r has o.req < r.num:
     for every o in r: o.phys = p.num   // req stays
     p.min = min(p.min, m)              // m: the lowest promotion of r
     give the segments of r to p        // p.hi stays
-  else if r is a function region and the budget allows: merge
   else: collect
 ```
 
 The test scans the index of `r` and stops at the first object with
-`req >= r.num`. A failed test costs at most one scan, which a collect's
-pass 1 does anyway. The fast path ignores the merge budget: it holds no
-garbage, so there is nothing to bound. It is tried before a merge because
-it uses no level. Whether it pays to try it when a merge is allowed is
-decided by measurement.
+`req >= r.num`. A failed test costs at most one scan, which the collect's
+pass 1 does anyway. The fast path is tried after a merge, so a close that
+merges pays no scan. Trying it first would save the level a merge uses, but
+it costs Json about 4% (see the measurements below).
+
+The fast path holds no garbage, but it still needs a bound on the size of
+`r`, the merge budget of 8 segments. A handed object stays in the parent,
+so the close of every ancestor scans it again. In non-tail recursion where
+every level stores a new object into an array of the caller, each region
+gets the objects of all levels below it, and the scans take time quadratic
+in the depth. Without the bound, 5 rounds of depth 20000 take 6.0 s, against
+0.07 s before the fast path. With the bound, a region over the budget
+collects, as before, and moves the objects directly to the region owning
+their level. The same program then takes 0.09 s, with 200 collects.
 
 It is sound for the reasons a merge is:
 
@@ -2653,6 +2667,85 @@ It is sound for the reasons a merge is:
 The fast path is the alternative sketched in
 [Alternative considered](#alternative-considered-merging-a-region-from-which-everything-escapes),
 without its limit to one segment.
+
+After a collect, an object required by a region older than the parent goes
+directly to the region owning its level. The fast path leaves it in the
+parent and passes `min` up, so the parent's close sees the escape and
+cannot free everything. It hands the object over or collects instead. The
+same objects are kept. DeltaBlue shows it once: one close that freed
+everything before hands its region over now.
+
+#### Measurements of the fast path
+
+Time is the median user time of 5 interleaved runs of the Are We Fast Yet
+harness on the LLVM backend, pinned to one core, at a load of 1.2 to 1.9.
+"Merge first" is the order kept: merge while the budget allows, then try
+the fast path, then collect. "Fast path first" tries it before a merge.
+Both orders have the bound of 8 segments. Closes are counted by
+`JO_MEMSTATS` with merge first.
+
+| Program | Before | Merge first | Fast path first | Merges and collects before | Handoffs, merges and collects after |
+|---|---|---|---|---|---|
+| Permute | 0.49 s | 0.51 s | 0.48 s | 1219, 784 | 783, 1219, 1 |
+| Towers | 0.18 s | 0.16 s | 0.18 s | 1230, 573 | 572, 1230, 1 |
+| Queens | 0.63 s | 0.50 s | 0.53 s | 12922, 83 | 0, 12922, 83 |
+| Storage | 1.73 s | 1.53 s | 1.54 s | 5429002, 32000 | 0, 5429002, 32000 |
+| CD | 0.50 s | 0.51 s | 0.51 s | 1181115, 85766 | 0, 1181115, 85766 |
+| DeltaBlue | 0.30 s | 0.30 s | 0.30 s | 219860, 112899 | 42173, 219860, 70727 |
+| Havlak | 2.79 s | 2.63 s | 2.61 s | 2985106, 784911 | 158928, 2985106, 625983 |
+| Json | 1.27 s | 1.29 s | 1.48 s | 4320602, 41900 | 0, 4320602, 41900 |
+| Sieve | 1.56 s | 1.54 s | 1.51 s | 2, 0 | 0, 2, 0 |
+| NBody | 1.09 s | 1.07 s | 1.09 s | 3, 0 | 0, 3, 0 |
+
+Single runs vary a lot: the minimums of Queens are 0.49, 0.52 and 0.48 s,
+and those of Json 1.26, 1.27 and 1.26 s. 9 more runs of Json give medians
+of 1.29, 1.28 and 1.34 s (before, merge first, fast path first). Two
+earlier runs without the bound, at a load up to 3.8, gave Json 1.43, 1.38
+and 1.53 s and 1.37, 1.37 and 1.39 s, and Havlak 2.90, 2.86 and 2.76 s and
+2.90, 2.93 and 2.74 s, in the same order. Bounce, List,
+Mandelbrot and Richards do not change. Peak RSS stays within 0.2 MB, and
+`traced` does not change: the collects that the fast path replaces lowered
+only their escape roots.
+
+The fast path removes all but one collect of Permute (784 to 1) and Towers
+(573 to 1), 37% of those of DeltaBlue and 20% of those of Havlak, in both
+orders. Havlak is about 5% faster. With the fast path first, Json is about
+4% slower in every run, since 157501 of its merges become a scan and a
+rewrite. Merge first does not pay that scan, and it states the fast path
+simply: a region whose objects all escape is handed over instead of
+collected. Iteration regions never merge, so for them the order does not
+matter.
+
+Sieve and NBody no longer collect at all, since
+[Functions that only allocate their result](#functions-that-only-allocate-their-result)
+gives their bridges and constructors no region. The fast path saves them
+nothing now. The numbers of
+[Alternative considered](#alternative-considered-merging-a-region-from-which-everything-escapes)
+were taken before that rule.
+
+Tests:
+
+- `tests/gc/close-handoff.jo` hands over the regions of a function that
+  only stores a box into an array of its caller, and of a caller of it. In
+  `pair`, two objects escape to different levels, one reaching the other,
+  so the close of the parent must trace from it. In `keep`, a handed box is
+  stored into an older array, so the barrier must record the promotion at
+  the parent's level, which needs the rewrite of `phys`. The parents of
+  `pair` and `keep` allocate about 600 objects first, so the budget refuses
+  the merge.
+- `tests/gc/close-no-handoff.jo` keeps trees from regions whose roots alone
+  escape, so the fast path must not apply.
+- `tests/gc/close-deep.jo` recurses 5000 levels deep, each storing a box
+  into an array of `main`.
+- `tests/custom/gc-regions` checks that `close-handoff.jo` hands over at
+  least 3000 regions, that `close-no-handoff.jo` hands over none, and that
+  `close-deep.jo` collects.
+
+All pass with AddressSanitizer under `JO_LOOP_COLLECT=all`. Each test catches
+a broken runtime. Without the rewrite of `phys`, `close-handoff.jo` prints
+wrong output or ASan reports errors. Without the test of `req` in
+`allEscape`, `close-no-handoff.jo` fails in every mode. Without the bound
+on the size, `close-deep.jo` does not collect.
 
 ### What is removed
 

@@ -132,6 +132,7 @@ private class State
   var toRuntimeTrace: Long = 0
   var toRuntimeReturn: Long = 0
   var frees: Long = 0
+  var handoffs: Long = 0
   var merges: Long = 0
   var collects: Long = 0
   var skips: Long = 0

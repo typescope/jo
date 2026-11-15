@@ -88,6 +88,30 @@ JO_MEMSTATS=1 "$DIR/indirect.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 diff "$DIR/actual.out" "$GC_DIR/place-indirect.jo.check" || fail "place-indirect.jo"
 awk '/^jo-mem summary / { for (i = 3; i <= NF; i++) { split($i, a, "="); v[a[1]] = a[2] } } END { exit !(v["allocated"] - v["freed"] == v["runtime-region"]) }' "$DIR/actual.err" || fail "objects of place-indirect.jo were not freed"
 
+# The close fast path: when the merge budget refuses a merge, a region whose
+# objects all escape is handed to its parent. In close-handoff.jo, these are
+# the 500 regions of `pair`, the 500 of `putFirst`, and most of the 2500 of
+# `step`, whose parent fills up. A region that keeps a tree is never handed
+# over, since only its root escapes. In deep recursion, a region over the
+# merge budget is collected, not handed over.
+echo "  - Building close-handoff.jo with LLVM"
+"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" "$GC_DIR/close-handoff.jo" -o "$DIR/handoff.run" || exit 1
+JO_MEMSTATS=1 "$DIR/handoff.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
+diff "$DIR/actual.out" "$GC_DIR/close-handoff.jo.check" || fail "close-handoff.jo"
+awk '/^jo-mem closes / { split($4, a, "="); if (a[1] == "handoff" && a[2] >= 3000) found = 1 } END { exit !found }' "$DIR/actual.err" || fail "close-handoff.jo hands over too few regions"
+
+echo "  - Building close-no-handoff.jo with LLVM"
+"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" "$GC_DIR/close-no-handoff.jo" -o "$DIR/nohandoff.run" || exit 1
+JO_MEMSTATS=1 "$DIR/nohandoff.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
+diff "$DIR/actual.out" "$GC_DIR/close-no-handoff.jo.check" || fail "close-no-handoff.jo"
+grep -q '^jo-mem closes free=[0-9]* handoff=0 ' "$DIR/actual.err" || fail "close-no-handoff.jo hands over a region"
+
+echo "  - Building close-deep.jo with LLVM"
+"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" "$GC_DIR/close-deep.jo" -o "$DIR/deep.run" || exit 1
+JO_MEMSTATS=1 "$DIR/deep.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
+diff "$DIR/actual.out" "$GC_DIR/close-deep.jo.check" || fail "close-deep.jo"
+awk '/^jo-mem closes / { split($6, a, "="); if (a[1] == "collect" && a[2] > 0) found = 1 } END { exit !found }' "$DIR/actual.err" || fail "close-deep.jo hands over regions over the merge budget"
+
 rm -rf "$DIR/actual.out" "$DIR/actual.err" "$DIR"/*.run "$DIR"/*.ll
 
 echo "  ✓ All tests passed for $TEST_NAME"
