@@ -94,6 +94,8 @@ An object that escapes to level 0 lives until the program exits.
 
 ### Tail-recursive functions
 
+Superseded by [Redesign: regions per loop iteration](#redesign-regions-per-loop-iteration).
+
 Jo's tail-call optimization turns a self-recursive function into a loop. A
 region function rewritten this way opens its region once, and the loop
 collects that region (see
@@ -883,7 +885,8 @@ it on for the other policies.
 
 ### Functions that only allocate their result
 
-Status: implemented.
+Status: implemented. To be narrowed or dropped, see
+[Redesign: regions per loop iteration](#redesign-regions-per-loop-iteration).
 
 A function whose every allocation goes to its result needs no region. Its
 region could only hold what it returns, so it opens none. It allocates the
@@ -1123,7 +1126,9 @@ the values, so it is left for later.
 
 ### Placing what is stored into the result
 
-Status: implemented.
+Status: implemented. Superseded by
+[Redesign: regions per loop iteration](#redesign-regions-per-loop-iteration),
+which removes it.
 
 A tree built through a higher-order library function, like `Array.tabulate`
 or `List.map`, is not placed. Each level of the tree traces and moves
@@ -1484,7 +1489,9 @@ is the likely next step, together with the functions that only box (see
 
 ## Collecting a region in a loop
 
-Status: implemented. `--no-loop-collect` turns it off.
+Status: implemented. `--no-loop-collect` turns it off. Superseded by
+[Redesign: regions per loop iteration](#redesign-regions-per-loop-iteration),
+which removes it.
 
 A region frees its garbage only when it closes. A loop that runs for a long
 time keeps its region open, so the garbage of every iteration stays. A value
@@ -2288,6 +2295,421 @@ and without `--no-loop-collect`, under `JO_LOOP_COLLECT=often`, and under
 since their loops keep little garbage: html5 1.58 s and 52 MB without loop
 collection, 1.48 s and 51 MB with it. The runs under `scalar` and `none` and
 the bench runs were not measured.
+
+## Redesign: regions per loop iteration
+
+Status: designed, not implemented. It supersedes
+[Collecting a region in a loop](#collecting-a-region-in-a-loop) and the
+loop part of
+[Placing what is stored into the result](#placing-what-is-stored-into-the-result).
+
+### The principle
+
+The rules for memory must be simple and predictable, so that programmers
+and LLMs can shape code to them. Heuristics may change how long a program
+takes, never which memory it keeps. The memory guide states the rules and
+is the contract.
+
+Three mechanisms break this today. Loop collection frees a region when the
+bytes requested since the last collection reach a threshold, so which
+garbage a loop holds depends on a counter. Placement in a loop changes
+which values stay: a value stored into a slot of a runtime-created array
+and overwritten later stays in the result region (see
+[Memory: what a loop places](#memory-what-a-loop-places)). A function that
+only allocates its result runs its runtime calls in the caller's region, so
+their temporaries stay there. The first two also need much machinery: frame
+roots, the operand rewrite, marking, element-store detection and the flag
+of indirect calls.
+
+### The rules for programmers
+
+1. A call frees what it allocated when it returns. It keeps what it returns
+   or stores into an older object.
+2. A loop iteration frees what it allocated when it ends. It keeps what it
+   assigns to a variable declared outside the loop, or stores into an older
+   object.
+
+Limitation: a value replaced in a variable declared outside a loop, or in an
+older object, is freed only when the region of the variable or the object
+closes: at the end of the iteration that declares it, or at the return of
+its function. In a function that never returns, such values are never
+freed. This is deliberate for now. There is no explicit collection call and
+no automatic loop collection.
+
+Rule 1 holds up to the merge budget. A function region that keeps something
+may merge into its caller's region, which then holds up to 8 segments,
+about 500 objects, of the callee's garbage until it closes or collects (see
+[When to merge](#when-to-merge)). Iteration regions never merge (see
+[Closing an iteration region](#closing-an-iteration-region)), so rule 2
+holds exactly.
+
+### Iteration regions
+
+A loop that opens regions gets a region per iteration. The iteration covers
+the condition and the body, so what the condition allocates is freed too.
+Codegen lowers such a `While` to:
+
+```
+while.cond:   enterLoop()
+              c = cond
+              br c, while.body, while.exit
+while.body:   body
+              leave(null)
+              br while.cond
+while.exit:   leave(null)
+              br while.end
+```
+
+`enterLoop` is `enter` for an iteration. It copies the result level and the
+function id of the enclosing region, so `allocResult` and the statistics see
+the function. It does not read the passed result level: a call sets it right
+before the call (`passResult` in `compile(app)`), so it is never pending at a
+loop head. Past the level limit it counts a skip, like `enter`.
+
+Every other way out of an iteration is a `Return` in the lowered tree, since
+`break`, `continue` and the step of a tail-recursive loop all become returns
+to a label (`transformBreak`, `transformContinue` in `Namer.scala`,
+`replaceTailCalls` in `TailCallOpt.scala`). Codegen records the loop depth
+at each `Labeled` and emits one `leave(null)` per iteration region between
+the `Return` and its target:
+
+- `continue` targets a `Labeled` around the body, at the depth of the body,
+  so it leaves nothing and falls into the normal end of the iteration.
+- `break` targets a `Labeled` around the `While`, so it leaves one region.
+- The step of a tail-recursive loop targets a `Labeled` inside the body,
+  like `continue`.
+- A labeled return carries no value: codegen asserts a void `Labeled`, so
+  these leaves keep nothing.
+- A return from the function promotes its result to the level of the
+  function's region first, then leaves every open iteration region, then
+  runs the function's `leave(result)` as today. So the result escapes each
+  iteration region it passes.
+
+A call that never returns needs no leave: `abort` exits the process and Jo
+has no exceptions.
+
+The cost is two runtime calls per iteration, plus one compare per
+assignment of the next section. A close of an empty region tests one
+pointer.
+
+### Which loops open regions
+
+A loop opens iteration regions when both hold:
+
+1. Its function opens a region (`opensRegion` in `CodeGen.scala`). This keeps
+   the runtime out, whose functions never open one and manage the regions
+   themselves. Under `--region-policy none`, only the loops of functions
+   named with `--region` open iteration regions. Under the default policy
+   every function with a loop that may allocate opens a region once
+   placement in loops is gone (step 5). Until then, a function whose loop
+   allocates only placed values places its result without a region
+   (`onlyPlaced`), and its loops open none.
+2. The condition or the body may allocate, by `mayAllocate(word)` of
+   `Allocations.scala` on the `While`. It is the test loop collection uses
+   today, so it already classifies loops: a branch that ends in a call that
+   never returns does not count, and an indirect call does.
+
+A loop that cannot allocate would close an empty region every iteration, so
+it opens none.
+
+### Assignments to variables declared outside the loop
+
+Every variable belongs to a home: the function's region, or the iteration
+region of a loop. A variable belongs to the innermost region-opening loop
+whose condition or body contains all of its occurrences and writes it
+before it reads it in every iteration (see the check below). Parameters and
+all other variables belong to the function.
+
+The rule does not use `isDefine`. Most phases emit plain `Assign`s for the
+variables they create: the binders and temporaries of `PatternMatcher`,
+which also binds the variable of `for x in xs`, the arguments and contexts
+of `LowerContextParams`, and the temporaries of `MaterializeView` and
+`Erasure`. Each of them writes its variable before it reads it.
+
+Writing before reading is a soundness condition: a read before the write
+would see a value from the region of an earlier iteration, which is freed.
+Codegen checks it on each candidate variable with one walk of the loop's
+condition and body in evaluation order, keeping the set of variables
+written so far, like the definite assignment of Java:
+
+- A `Bool` word has two sets: written when it is true, and written when it
+  is false. Any other word has one set, which serves as both.
+- A literal `true` has the running set when true and all variables when
+  false, since that outcome cannot happen. A literal `false` is the
+  reverse.
+- A `Block` walks its earlier words into the running set, then takes the
+  two sets of its last word. `Encoded`, which `PatternMatcher` wraps around
+  values, is transparent.
+- The frontend types `a && b` and `a || b` as calls of `Bool_and` and
+  `Bool_or`, and `compile(app)` in codegen turns them into `If(a, b, false)`
+  and `If(a, true, b)`. The walk treats them the same way. `!` needs no
+  rule, since the frontend binds no pattern variable under it.
+- `If(c, t, e)` walks `t` with the when-true set of `c` and `e` with the
+  when-false set. Its set is the intersection of the sets of the branches
+  that can complete. A `Bool` `If` has two sets: the intersection of the
+  when-true sets of those branches, and that of their when-false sets. A
+  branch cannot complete if it ends in a `Return`, in a call that never
+  returns, like the failure of a match, or in an `If` whose branches all
+  cannot complete.
+- A nested `While` and a `Labeled` are walked with the set at their entry
+  and leave that set, since their body may run zero times or be left early.
+- A read of the variable outside the set fails the check.
+
+The sets make pattern binders pass. `case Some(v) => body` lowers to
+`If(test, body, next)`, where `test` is `If(classTest, Block(v = ..., true),
+false)`. `v` is in the when-true set of `test` but not in its when-false
+set, so the read in `body` passes. The same holds for
+`while cur is Some(node)`, `opt is Some(v) && v > 0`, `for (k, v) in m` and
+a refutable `val` pattern.
+
+So the rule is: a variable belongs to the innermost region-opening loop that
+contains all of its occurrences and passes the check, or to the function if
+no such loop does. A variable that fails at one loop is checked again at
+the next enclosing one, since that loop may also read it before writing it
+in an iteration. Falling back is sound and only keeps more.
+
+An assignment `v = x` in the condition or body of a loop to a variable
+whose home is outside that loop, and whose slot holds a heap reference (`isHeapSlot`), promotes
+`x` like the barrier promotes a stored value:
+
+```
+require(x, L):   if x != null and x.req > L:
+                   x.req = L
+                   regions[x.phys].min = min(regions[x.phys].min, L)
+```
+
+`L` is the `num` of `v`'s home, which is open. `enter` and `enterLoop`
+return the level they opened, or the current level when they skip, and
+codegen keeps it in a slot when an inner loop assigns a variable of that
+home. `enter` returns `Unit` today, so this is a change of the runtime, like
+`enterLoop`, `require` with an explicit level and the fast path of the
+next sections. `x.req` may be a stale level merged into the home. Then
+`require` lowers it to the home's `num` without need, which is safe (see
+[Levels](#levels)).
+
+The barrier is complete because codegen sees every write to a mutable
+variable. A lambda or a local function cannot capture one (`checkCapture` in
+`Checker.scala`, and
+`docs/language/definitions/value-definitions.md`), so no other function
+writes it. A variable that no loop writes needs no barrier. The
+assignments that rebind context parameters in a tail-recursive loop are
+`Assign`s too. The one `Assign` that is not a local write, to the holder of
+a singleton, occurs only in the synthesized `objectInitProc`, which has no
+loop and runs once at startup in the runtime region.
+
+Values computed before the loop and held in LLVM registers while the loop
+runs are in an older region, so the operand rewrite of loop collection is
+not needed.
+
+### Nested loops
+
+An inner iteration region is a child of the outer one. Its assignments to
+variables of the outer iteration use the outer iteration's level, and those
+of the function's variables use the function's level. Leaving several loops
+at once, by `return`, closes the regions innermost first.
+
+### Closing an iteration region
+
+An iteration region never merges into its parent when the budget allows,
+unlike a function region. Its parent is the function's region or an outer
+iteration, which stays open for the whole loop, so merged garbage would
+stay until the loop ends and rule 2 would not hold. It closes like this:
+
+| At close | Action |
+|---|---|
+| Nothing escapes | Free all objects |
+| Every object escapes | Hand the region to the parent (see [The close fast path](#the-close-fast-path)) |
+| Otherwise | Collect |
+
+A callee region still merges into the iteration region while the budget
+allows. The iteration region frees that garbage, or collects it, at its own
+close.
+
+### Levels of iteration regions
+
+An open iteration takes one level, and its close gives back that level and
+every level merged into it. An iteration region never merges, so it never
+uses a level of its parent. A frame therefore needs one more level per
+nested loop that is running. Today a loop that calls region functions whose
+results it keeps uses up levels of the function's region, and a loop
+collection gives them back when it is due. With iteration regions those
+merges go into the iteration region and are given back at the end of every
+iteration.
+
+Past the level limit, `enterLoop` skips like `enter`, the matching `leave`
+undoes the skip, and the returned level is the current one. The iteration
+then runs in the region at the limit, which frees nothing until it closes,
+as for calls today.
+
+### Placement in iteration regions
+
+Allocations in a loop are not placed. Until that code is removed,
+`enterLoop` copies the result level of its function, so a value placed in a
+loop still goes to the function's result region, which is older than the
+iteration region and stays sound.
+
+### Tail-recursive loops
+
+`TailCallOpt` turns a self-recursive function into
+`while _tco_continue do _tco_loop: body`, and the step is
+`_p = arg; ...; _tco_continue = true; return to _tco_loop`. The loop opens
+iteration regions like any other. The next arguments are assigned to the
+parameter copies `_p`, which are assigned before the loop, so they belong to
+the function and the barrier promotes the arguments to the function's
+region. A result that falls through is assigned to `_tco_result` in the
+body and read after the loop, so it belongs to the function too. Each step
+then frees its own
+garbage. The arguments it replaces stay in the function's region until the
+function returns, like any value replaced in a variable declared outside a
+loop.
+
+### Why iteration regions are sound
+
+The invariant of the [Overview](#overview) is: a frame only holds pointers
+into its own region or an ancestor. With iteration regions it becomes: a
+variable only holds pointers into its home region or an ancestor, and a
+register only holds pointers into the region that was current when it was
+computed, or an ancestor.
+
+It holds at every step:
+
+- A new object goes to the current region, which is the home of the
+  variables defined there. A call's result is promoted to the caller's
+  current region by `leave`.
+- An assignment to a variable of an older home runs `require` with the
+  home's level.
+- A store into an older object runs the barrier, which records the escape at
+  the object's region.
+
+When iteration region `I` closes, at the end of the iteration or at an exit:
+
+- No region younger than `I` is open. Every call of the iteration returned.
+- No other frame runs in `I`. Older frames hold no pointer into `I`, which is
+  younger than all their regions.
+- The variables whose home is `I` are dead: the check of their home
+  ensures that every iteration writes them before it reads them.
+- Every other variable has its home older than `I`, so what it refers to has
+  `req` below `I.num`. It is an escape root of `I`, and `min` records it.
+- A register holds a value computed before the loop, in an older region,
+  or one computed in the same iteration. A value computed in the iteration
+  leaves it only through a variable, a heap store or the function's result,
+  which is promoted before the leaves. A `While` and a `Labeled` have no
+  value, and the slot of an `if` is read right after its branches.
+- Objects of older regions reach `I` only through stores, whose barrier made
+  escape roots.
+
+So the escape roots of `I` are complete, and freeing, the fast path and
+collecting keep everything reachable from them, as for a function region.
+
+### The close fast path
+
+Status: designed, not implemented.
+
+Every close tries a fast path before it merges or collects. If every object
+of region `r` already escapes, nothing in `r` is garbage. The close then
+hands `r` to its parent `p`:
+
+```
+close r into p:
+  if nothing escapes:                free all
+  else if every o in r has o.req < r.num:
+    for every o in r: o.phys = p.num   // req stays
+    p.min = min(p.min, m)              // m: the lowest promotion of r
+    give the segments of r to p        // p.hi stays
+  else if r is a function region and the budget allows: merge
+  else: collect
+```
+
+The test scans the index of `r` and stops at the first object with
+`req >= r.num`. A failed test costs at most one scan, which a collect's
+pass 1 does anyway. The fast path ignores the merge budget: it holds no
+garbage, so there is nothing to bound. It is tried before a merge because
+it uses no level. Whether it pays to try it when a merge is allowed is
+decided by measurement.
+
+It is sound for the reasons a merge is:
+
+- Every `req` in `r` is below `r.num`, which is `p.hi + 1`. `p.hi` cannot
+  grow while `r` is open, since only the close of a child of `p` raises it
+  and `r` is that child. So every `req` is at most `p.hi`, and `phys = p.num`
+  puts the object in `p`'s range.
+- No object outside `r` has a level in `r`'s range, since younger regions
+  are closed and a barrier never lowers an object to a younger level. After
+  the rewrite no object has one either, so `p.hi` stays and the levels of `r`
+  are free for the next `enter`.
+- An object that also escapes `p` has `req < p.num`. Its promotion was
+  recorded in `r`'s range, so `m <= req`, and passing `m` up keeps the
+  invariant of [Knowing that nothing escapes](#knowing-that-nothing-escapes).
+- The test checks every object of `r`, so every object moves, whatever it
+  points to. Objects of `r` that an escaping object reaches are not lowered
+  with it: the barrier, `require` and `leave` lower only the object they
+  are given, and spreading waits for a collect. So the fast path only
+  applies when every object was promoted on its own, like the flat results
+  of Sieve. A tree that an iteration keeps fails the test, since only its
+  root was promoted, and the region collects. After the fast path, the
+  spreading is deferred to the close of `p` that collects, as after a
+  merge.
+
+The fast path is the alternative sketched in
+[Alternative considered](#alternative-considered-merging-a-region-from-which-everything-escapes),
+without its limit to one segment.
+
+### What is removed
+
+- **Loop collection**, superseded by iteration regions: `loopStart`,
+  `requested` and `collectLoop` in `Regions.jo`, the marking, the roots of
+  the frame (`LoopRoots`, `prepareLoops`, `checkLoop`, `collectBlocks`), the
+  operand rewrite `LoopOperands` and the held count, `JO_LOOP_COLLECT`,
+  `--no-loop-collect`, and the loop statistics. Parts that other code needs,
+  like `mayAllocate(word)`, stay.
+- **Placement in loops**: element-store detection, paths, stores in a loop
+  and the `new` locals of
+  [The rules](#the-rules). It changes which memory is kept, which the
+  principle forbids. Placement of returned values outside loops, through
+  direct calls, stays.
+- **Passing the result level to indirect calls**: `addressTaken`, the static
+  classes and the clear of the flag in functions whose address is taken.
+  Only placement in loops needed it.
+- **Functions that only allocate their result** is narrowed or dropped, by
+  measurement. Its runtime calls allocate in the caller's region, so it can
+  move runtime temporaries into the caller: a recursive string builder
+  `"(" + walk(l) + "," + walk(r) + ")"` opened no region and took 74.7 MB
+  instead of 18.5 MB. Either it keeps only functions whose allocations are
+  all their own placed record literals, like constructors, or it goes if
+  the fast path recovers Sieve.
+
+What users lose is the collection of long-running state. A `mutable.Map` in
+the entry function updated millions of times keeps every replaced value
+until the entry function returns, as it did before loop collection. A loop
+of prepends `s = c + s` keeps every intermediate string until its function
+returns, so it takes memory quadratic in the number of iterations: 30000
+prepends of two bytes keep about 880 MB. An append loop `s = s + x` stays
+linear, since a string appends in place into a growable buffer. It keeps
+one header per step, and its buffers total about twice the last one, at
+most about 4 times the final length.
+
+Removing placement in loops brings back the repeated traces of
+[The mechanism](#the-mechanism) for trees built through `Array.tabulate` or
+`List.map`, and an iteration region adds one close per level of the tree.
+Storage measures this.
+
+### What is measured
+
+Each step reports time and peak RSS before and after, and the counters of
+`JO_MEMSTATS` that explain them: enters, frees, merges, fast paths,
+collects, traced objects and skipped enters.
+
+- Iteration regions: Permute, a hot allocating loop, a tight loop with one
+  dead object per iteration, an `s = s + x` loop, a prepend loop, Storage
+  and Sieve. Times are the median of 5 runs, compared with the commit before
+  the step. Single runs vary by up to about 15% with the allocator, so one
+  run decides nothing. If the median of Permute or a hot loop is more than
+  10% slower, the design is reconsidered before going on.
+- The fast path: Sieve and NBody, against the numbers of
+  [Alternative considered](#alternative-considered-merging-a-region-from-which-everything-escapes).
+- The no-region rule: `walk`, Sieve and constructors, with the rule
+  narrowed and dropped.
+- The level use of deep recursion, with `wide` and its `skipped-enters`.
 
 ## Interaction with the optimizer
 
