@@ -1,12 +1,11 @@
-# jo &lt;name&gt; / jo exec
+# jo exec
 
-Run a project-defined command from the [`[commands]`](../reference/build-spec.md#commands-project-commands) table in `jo.toml`.
+Run a project-defined command from the [`[commands]`](../reference/build-spec.md#commands) table in `jo.toml`.
 
 ## Usage
 
 ```
-jo <name> [args...]        # built-in first, then a [commands] entry
-jo exec <name> [args...]   # always a [commands] entry, bypassing built-ins
+jo exec <name> [args...]
 ```
 
 ## How It Works
@@ -16,46 +15,31 @@ Commands are named shell aliases declared in `[commands]`:
 ```toml
 [commands]
 dev = "jo build --spec sandbox/guest/jo.toml && jo run"
-fmt = "echo formatting..."
+test = "jo run test"
 ```
 
-- **`jo <name>`** resolves built-in commands first (`build`, `run`, `check`, ...), then falls back to a `[commands]` entry. Built-ins can never be shadowed by a project, so `jo build` is always the real build even if a `build` command is defined.
-- **`jo exec <name>`** skips built-ins and runs the `[commands]` entry directly. Use it when a command shares a name with a built-in, or to stay stable if a future Jo version adds a built-in of the same name.
+`jo exec` is the only way to run them. A built-in command such as `jo build` is always the built-in, whatever `jo.toml` defines, and `jo <name>` never runs a project command. For a name that is not a built-in it reports an unknown command and, if the project defines that name, points at `jo exec`. Built-in and project commands never share a namespace, so a project command keeps working when a later Jo version adds a built-in of the same name.
 
-::: info Why built-ins take precedence — a deliberate design choice
-`jo <name>` resolves built-ins **before** project commands on purpose, so a `jo.toml` can never redefine commands such as `jo build` or `jo run`. This keeps those commands safe to type in any directory: cloning an untrusted repository and running `jo build` will never execute shell defined in its manifest.
+Nothing runs a project command on its own. Cloning a repository and running `jo build` never executes shell defined in its manifest, and there are no install or lifecycle hooks.
 
-The trade-off is intentional. Letting project commands override built-ins would be convenient, but to be useful an override must fire automatically whenever anyone types the verb — which is exactly what would turn `git clone && jo build` into arbitrary code execution.
-
-Consequently, commands run **only when you invoke them by name** — there are no install or lifecycle hooks that run on their own. To customize what a built-in does for a project, define a distinctly-named command (e.g. `dev`) and run `jo dev`, instead of shadowing the built-in.
-:::
-
-Each command runs through `sh -c` from the project root, so shell features like `&&` and pipes work. Extra arguments are appended to the command line, and the command's exit status becomes `jo`'s exit status.
+Each command runs through `sh -c` from the project root, so shell features like `&&` and pipes work. Extra arguments are appended to the command line as literal arguments, and the command's exit status becomes `jo`'s exit status.
 
 ```sh
-jo dev              # runs: jo build --spec sandbox/guest/jo.toml && jo run
-jo dev --port 8080  # appends `--port 8080`
-jo exec build       # runs the [commands] "build", not the built-in
+jo exec dev              # runs: jo build --spec sandbox/guest/jo.toml && jo run
+jo exec dev --port 8080  # appends `--port 8080`
+jo exec test             # runs: jo run test
 ```
 
 ## Errors
 
-If neither a built-in nor a defined command matches, `jo` reports it and lists the available commands:
+If no defined command matches, `jo exec` reports it and lists the available commands:
 
 ```
-$ jo bogus
+$ jo exec bogus
 Error: unknown command 'bogus'
-Defined commands: dev, fmt
-```
-
-## Examples
-
-```sh
-jo dev
-jo fmt
-jo exec dev
+Defined commands: dev, test
 ```
 
 ## See Also
 
-- [`[commands]`](../reference/build-spec.md#commands-project-commands) — declaring commands in `jo.toml`.
+- [`[commands]`](../reference/build-spec.md#commands) — declaring commands in `jo.toml`.

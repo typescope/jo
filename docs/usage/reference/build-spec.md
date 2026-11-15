@@ -310,7 +310,7 @@ When packaging, direct registry dependencies are recorded in `meta.toml`. Direct
 
 ## `[commands]`
 
-Named shell commands invoked as `jo <name>`:
+Named shell commands invoked as `jo exec <name>`:
 
 ```toml
 [commands]
@@ -318,4 +318,4 @@ dev = "jo build app && jo run app"
 fmt = "jo fmt src"
 ```
 
-Built-in commands always win. Use `jo exec <name>` to run a defined command unambiguously.
+Only `jo exec` runs them. A project command never shadows a built-in command, and `jo <name>` never runs a project command.

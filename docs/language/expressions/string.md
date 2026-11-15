@@ -43,7 +43,7 @@ val text = """
       Line 2 (extra indent)
     Line 3
     """
-// "Line 1\n  Line 2 (extra indent)\nLine 3\n"
+// "Line 1\n  Line 2 (extra indent)\nLine 3"
 ```
 
 ### Escape Sequences
@@ -59,7 +59,7 @@ Use four or more quotes to embed triple quotes in the content:
 val code = """"
   let x = """hello"""
   """"
-// "let x = \"\"\"hello\"\"\"\n"
+// "let x = \"\"\"hello\"\"\""
 ```
 
 The opening and closing delimiter must have the same quote count.

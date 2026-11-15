@@ -48,10 +48,6 @@ object Main:
         val module = tool.Build.selectedModule(project, parsed)
         tool.Build.build(project, module).orExit
 
-      case "test" =>
-        System.err.println("Error: 'jo test' was removed; define a test app module and run it with 'jo run <module>'")
-        System.exit(1)
-
       case "run" =>
         val parsed = tool.Build.parseRunArgs(args.drop(1)).orExit
         val project = loadProject(parsed.specFile).orExit
@@ -136,28 +132,25 @@ object Main:
         printUsage()
 
       case "exec" =>
-        // Always run a project-defined command, bypassing builtins.
+        // Run a project-defined command. Built-ins are never consulted.
         val rest = args.drop(1)
         if rest.isEmpty then
-          println("Error: 'exec' requires a command name")
+          System.err.println("Error: 'exec' requires a command name")
           System.exit(1)
         else
-          runProjectCommand(rest(0), rest.drop(1), forced = true)
+          runProjectCommand(rest(0), rest.drop(1))
 
       case file if file.endsWith(".jo") =>
         // Default to eval if a .jo file is provided directly
         sast.Interpreter.main(args)
 
       case name =>
-        // Not a builtin: as a last resort, try a project-defined [commands] entry.
-        runProjectCommand(name, args.drop(1), forced = false)
+        unknownCommand(name)
 
   /** Run a `[commands]` entry from the current project's jo.toml, passing any
-   *  extra args through. `forced` marks the explicit `jo exec` form (builtins
-   *  already ruled out); when false this is the `jo <name>` fallthrough, so a miss
-   *  reports an unknown command. Exits with the command's status.
+   *  extra args through. Exits with the command's status.
    */
-  private def runProjectCommand(name: String, extra: Array[String], forced: Boolean)(using tool.Logger): Unit =
+  private def runProjectCommand(name: String, extra: Array[String])(using tool.Logger): Unit =
     tool.Project.loadSpec(Paths.get("").toAbsolutePath) match
       case tool.Result.Ok(spec) =>
         spec.commands.get(name) match
@@ -165,8 +158,8 @@ object Main:
             // The command string is run through the shell, so `&&`, pipes, etc.
             // in the *definition* work. Extra CLI args are appended as literal
             // positional parameters via "$@" — never spliced into the shell text
-            // — so a metacharacter in an argument (`jo dev "&& rm -rf /"`) is
-            // passed as data, not executed.
+            // — so a metacharacter in an argument (`jo exec dev "&& rm -rf /"`)
+            // is passed as data, not executed.
             //
             // In `sh -c <script> A B C`, the argument after the script becomes
             // `$0`, and only the rest become `$1`, `$2`, … (what "$@" expands
@@ -183,18 +176,33 @@ object Main:
             System.err.println(s"Error: unknown command '$name'")
             if spec.commands.nonEmpty then
               System.err.println(s"Defined commands: ${spec.commands.keys.toSeq.sorted.mkString(", ")}")
-            else if !forced then
-              printUsage()
+            else
+              System.err.println("No [commands] are defined in jo.toml")
             System.exit(1)
 
       case tool.Result.Err(msg) =>
-        // No (or invalid) project here: `exec` surfaces why; the bare fallthrough
-        // just reports an unknown command as before.
-        if forced then System.err.println(s"Error: cannot run '$name': $msg")
-        else
-          println(s"Error: Unknown command '$name'")
-          printUsage()
+        System.err.println(s"Error: cannot run '$name': $msg")
         System.exit(1)
+
+  /** Report a name that is neither a built-in nor a source file. Project
+   *  commands run only with `jo exec`, so one of that name is pointed out
+   *  rather than run.
+   */
+  private def unknownCommand(name: String)(using tool.Logger): Unit =
+    System.err.println(s"Error: unknown command '$name'")
+
+    val commands = tool.Project.loadSpec(Paths.get("").toAbsolutePath) match
+      case tool.Result.Ok(spec) => spec.commands.keys.toSeq.sorted
+      case tool.Result.Err(_)   => Nil
+
+    if commands.contains(name) then
+      System.err.println(s"Run the project command with 'jo exec $name'")
+    else if commands.nonEmpty then
+      System.err.println(s"Project commands, run with 'jo exec <name>': ${commands.mkString(", ")}")
+    else
+      printUsage()
+
+    System.exit(1)
 
   enum Backend:
     case Doc
@@ -277,8 +285,7 @@ object Main:
       |  jo lock                                Resolve dependencies and rewrite the lock file
       |  jo info <pkg>[@<version>]              Show package metadata and available versions
       |  jo eval <source.jo>                    Run program with interpreter
-      |  jo <name> [args...]                    Run a project command from [commands] (builtins win)
-      |  jo exec <name> [args...]               Run a [commands] entry, bypassing builtins
+      |  jo exec <name> [args...]               Run a project command from [commands]
       |  jo versions                            List installed and available compiler versions
       |  jo versions install <version>          Download and install a compiler version
       |  jo versions use <version>              Switch the active compiler version, installing if needed

@@ -173,7 +173,7 @@ export default defineConfig({
             { text: 'jo clean', link: '/usage/commands/clean' },
             { text: 'jo compile', link: '/usage/commands/compile' },
             { text: 'jo versions', link: '/usage/commands/versions' },
-            { text: 'jo exec / jo <name>', link: '/usage/commands/exec' },
+            { text: 'jo exec', link: '/usage/commands/exec' },
           ]
         }
       ],

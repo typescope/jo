@@ -70,7 +70,7 @@ case class BuildSpec(
   pinning: Map[String, Version] = Map.empty, // root-only exact resolver overrides
   defaultModule: Option[ModuleId],
   modules: List[ModuleDef],
-  commands: Map[String, String] = Map.empty, // [commands] -> `jo <name>` shell aliases
+  commands: Map[String, String] = Map.empty, // [commands] -> `jo exec <name>` shell aliases
 ):
   def module(id: ModuleId): Option[ModuleSpec] =
     modules.find(_.id == id).map(_.spec)
