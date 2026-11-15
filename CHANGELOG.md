@@ -4,6 +4,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.14.12] - 2026-11-15
+
+### Fixed
+
+- The installer's PATH hint names the actual launcher directory when
+  `JO_INSTALL_BIN` is set instead of always naming `~/.local/bin`.
+
 ### Removed
 
 - The bare `jo <name>` form of project commands, and the error that `jo test`
@@ -12,11 +19,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   namespace. `jo <name>` for a name that is not a built-in reports an unknown
   command and points at `jo exec` when the project defines that name.
 
+### Security
+
+- Requiring `jo exec <name>` makes running a project-defined command explicit,
+  reducing the risk of accidentally invoking one in an unfamiliar repository.
+
 ### Compatibility
 
 - Scripts that ran a project command as `jo <name>` must run it as
   `jo exec <name>`. Projects that define a `test` command can now run it, as
   `jo exec test`.
+- The language, standard library, runtimes, build specifications, and `.joy`
+  package formats are unchanged. SAST remains at format 2.0; existing libraries
+  do not require recompilation for format compatibility.
 
 ## [0.14.11] - 2026-11-13
 
