@@ -164,9 +164,9 @@
 
   <text x="20" y="776" class="t">m = the least min over the levels num … hi of r</text>
   <text x="20" y="798" class="t">• m ≥ num, nothing escapes: free all objects</text>
-  <text x="20" y="818" class="t">• otherwise, if parent.segs + r.segs ≤ 8: merge, give all segments, parent.hi = max(parent.hi, r.hi)</text>
-  <text x="20" y="838" class="t">• otherwise collect: trace, free the dead, give the survivors</text>
-  <text x="20" y="858" class="t">Both merge and collect pass up parent.min = min(parent.min, m).</text>
+  <text x="20" y="818" class="t">• otherwise, for a function region, if parent.segs + r.segs ≤ 8: merge, give all segments, parent.hi = max(parent.hi, r.hi)</text>
+  <text x="20" y="838" class="t">• otherwise, if r.segs ≤ 8 and every object escapes: hand off, append the objects to the parent oldest first</text>
+  <text x="20" y="858" class="t">• otherwise collect: trace, free the dead, give the survivors. A merge or hand-off passes up parent.min = min(parent.min, m).</text>
 
   <!-- before -->
   <text x="20" y="892" class="t" font-weight="bold">giving segments: before</text>

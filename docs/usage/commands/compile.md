@@ -126,8 +126,9 @@ LLVM IR and calls clang 15 or newer to build it.
 | `--mem-profile` | Name the functions and classes in the memory statistics printed under `JO_MEMSTATS=1`. |
 
 By default every function that can allocate runs in a memory region, which
-frees its garbage when it returns. Regions lower peak memory and never change
-what a program computes. `--region` takes the full name of a top-level
+frees its garbage when it returns, and its loops free their garbage in
+batches. A function that allocates only its result needs no region.
+Regions lower peak memory and never change what a program computes. `--region` takes the full name of a top-level
 function, such as `app.process`. Class methods cannot be region functions. See
 [Lowering Peak Memory in Native Programs](../guides/memory.md).
 
