@@ -14,13 +14,8 @@ import scala.collection.mutable
   *   - the returned values
   *   - the value assigned to a marked variable
   *   - the fields of a marked object
-  *   - the values stored into the object of a marked variable
+  *   - the values stored into fields of the object of a marked variable
   *   - the arguments of a marked call that flow into the callee's result
-  *
-  * A store into the object of a variable is a field assignment `x.f = v` or
-  * a call of an element store, see [[ElementStore]]. A store into an object
-  * reached through fields of a variable, `x.f.g = v` or `x.f[i] = v`, is a
-  * store into the object of `x`.
   *
   * A variable assigned more than once is never marked: the analysis cannot
   * tell which of its values is returned, and marking all of them would keep
@@ -34,22 +29,16 @@ import scala.collection.mutable
   *
   * A marked allocation goes directly into the result region, and the callee
   * of a marked call inherits the result region, so neither has to be promoted
-  * when the region closes.
+  * when the region closes. A marked call may be indirect: codegen passes the
+  * level to whatever function it calls, see "The flag" in GC.md.
   *
   * Allocations and calls inside a loop stay in the current region: a loop may
-  * allocate many values of which only one is returned. The exception is a
-  * store in a loop into the object of a marked variable that is assigned
-  * outside any loop. Its stored expression, the right-hand side seen through
-  * blocks, `if` branches and casts, is placed if it is a record literal or a
-  * call. If it is a `new` expression, the object it creates is placed too: a
-  * local of the block that is assigned a record literal. Nothing else is
-  * placed inside a loop: not the arguments of the stored call, not the fields
-  * of the record, and not a value that reaches the store through a variable.
+  * allocate many values of which only one is returned.
   *
   * Placement only affects performance. The write barrier keeps every
   * placement sound.
   */
-class ResultRegions(fdef: FunDef, resultParams: Symbol => Set[Int], elementStore: Symbol => Option[ElementStore]):
+class ResultRegions(fdef: FunDef, resultParams: Symbol => Set[Int]):
   /** Allocations that go to the result region */
   val allocations: mutable.Set[RecordLit] = identitySet()
 
@@ -59,14 +48,8 @@ class ResultRegions(fdef: FunDef, resultParams: Symbol => Set[Int], elementStore
   /** The values assigned to a variable */
   private val assigns = mutable.Map.empty[Symbol, List[Word]]
 
-  /** The values stored into the object of a variable */
+  /** The values stored into fields of the object of a variable */
   private val stores = mutable.Map.empty[Symbol, List[Word]]
-
-  /** Variables assigned inside a loop */
-  private val loopAssigned = mutable.Set.empty[Symbol]
-
-  /** The locals that hold the object of a stored `new` expression */
-  private val storedObjects = mutable.Set.empty[Symbol]
 
   /** The returned values */
   private val returns = new mutable.ArrayBuffer[Word]
@@ -84,7 +67,7 @@ class ResultRegions(fdef: FunDef, resultParams: Symbol => Set[Int], elementStore
 
   collect(fdef.body, loop = false)
   returns += fdef.body
-  returns.foreach(mark(_, stored = false))
+  returns.foreach(mark)
 
   /** The positions of the parameters that flow into the result */
   val params: Set[Int] =
@@ -101,20 +84,10 @@ class ResultRegions(fdef: FunDef, resultParams: Symbol => Set[Int], elementStore
 
       case app: Apply =>
         if loop then inLoop += app
-
-        // an element store `a[i] = v`
-        for
-          sym <- directCallee(app)
-          store <- elementStore(sym)
-          target <- variable(app.allArgs(store.array))
-        do
-          stores(target) = app.allArgs(store.value) :: stores.getOrElse(target, Nil)
-
         collect(app.fun, loop)
         app.allArgs.foreach(collect(_, loop))
 
       case assign: Assign =>
-        if loop then loopAssigned += assign.symbol
         assigns(assign.symbol) = assign.rhs :: assigns.getOrElse(assign.symbol, Nil)
         collect(assign.rhs, loop)
 
@@ -152,110 +125,40 @@ class ResultRegions(fdef: FunDef, resultParams: Symbol => Set[Int], elementStore
     val n = assigns.getOrElse(sym, Nil).size
     if paramSyms.contains(sym) then n > 0 else n > 1
 
-  /** The variable whose object a store target is, through fields */
+  /** The variable a word reads, if any */
   private def variable(word: Word): Option[Symbol] =
     word match
       case Encoded(repr) => variable(repr)
       case Ident(sym) if !sym.is(Flags.Fun) => Some(sym)
-      case Select(qual, _) => variable(qual)
       case _ => None
 
-  /** Whether a word is a record literal, seen through casts */
-  private def isRecord(word: Word): Boolean =
+  /** Mark a value that must end up in the result region */
+  private def mark(word: Word): Unit =
     word match
-      case Encoded(repr) => isRecord(repr)
-      case _: RecordLit => true
-      case _ => false
+      case Block(words) => if words.nonEmpty then mark(words.last)
 
-  /** Mark a value that must end up in the result region
-    *
-    * `stored`: the value is the stored expression of a store into the result,
-    * so it is placed also inside a loop.
-    */
-  private def mark(word: Word, stored: Boolean): Unit =
-    word match
-      case Block(words) if words.nonEmpty =>
-        // the object of a stored `new` expression
-        if stored then
-          for case assign: Assign <- words.init if isRecord(assign.rhs) do
-            storedObjects += assign.symbol
-
-        mark(words.last, stored)
-
-      case Encoded(repr) => mark(repr, stored)
+      case Encoded(repr) => mark(repr)
 
       case If(_, thenp, elsep) =>
-        mark(thenp, stored)
-        mark(elsep, stored)
+        mark(thenp)
+        mark(elsep)
 
       case Ident(sym) if !sym.is(Flags.Fun) =>
         if !reassigned(sym) && marked.add(sym) then
-          assigns.getOrElse(sym, Nil).foreach(mark(_, storedObjects.contains(sym)))
-          stores.getOrElse(sym, Nil).foreach(mark(_, !loopAssigned.contains(sym)))
+          assigns.getOrElse(sym, Nil).foreach(mark)
+          stores.getOrElse(sym, Nil).foreach(mark)
 
       case rec: RecordLit =>
-        if stored || !inLoop.contains(rec) then allocations += rec
-        rec.args.foreach((_, arg) => mark(arg, stored = false))
+        if !inLoop.contains(rec) then allocations += rec
+        rec.args.foreach((_, arg) => mark(arg))
 
       case app: Apply =>
-        if stored || !inLoop.contains(app) then calls += app
+        if !inLoop.contains(app) then calls += app
 
         for
           sym <- directCallee(app)
           i <- resultParams(sym)
         do
-          mark(app.allArgs(i), stored = false)
+          mark(app.allArgs(i))
 
       case _ =>
-
-/** A function that stores a value into an element of an array, `a[i] = v`
-  *
-  * The fields are the positions of `a` and `v` among the arguments.
-  *
-  * The intrinsic `Array.setUnchecked` is the base element store. Another
-  * function is an element store when one of its statements calls an element
-  * store and passes two of its own parameters as `a` and `v`. The index can
-  * be any expression. The statements are those of the body, seen through
-  * blocks and casts, so the call is not inside a branch or a loop. The
-  * function has no `return`, so it makes the store whenever it returns
-  * normally. `Array.set` checks the index with an
-  * `assert` first, which aborts on a bad index.
-  */
-case class ElementStore(array: Int, value: Int)
-
-object ElementStore:
-  /** The element store a function makes, given the element stores it calls */
-  def of(fdef: FunDef, elementStore: Symbol => Option[ElementStore]): Option[ElementStore] =
-    val params = fdef.allParams
-
-    def store(word: Word): Option[ElementStore] =
-      word match
-        case Block(words) => words.iterator.flatMap(store).nextOption()
-
-        case Encoded(repr) => store(repr)
-
-        case app: Apply =>
-          for
-            inner <- directCallee(app).flatMap(elementStore)
-            case Ident(array) <- Some(app.allArgs(inner.array))
-            case Ident(value) <- Some(app.allArgs(inner.value))
-            if params.contains(array) && params.contains(value)
-          yield ElementStore(params.indexOf(array), params.indexOf(value))
-
-        case _ => None
-
-    store(fdef.body).filter(_ => !returns(fdef.body))
-
-  /** Whether a word contains a `return` from a function */
-  private def returns(word: Word): Boolean =
-    var found = false
-    val finder = new TreeTraverser:
-      type Context = Unit
-
-      def apply(word: Word)(using Unit): Unit =
-        word match
-          case Return(target, _) if target.is(Flags.Fun) => found = true
-          case _ => if !found then recur(word)
-
-    finder(word)(using ())
-    found

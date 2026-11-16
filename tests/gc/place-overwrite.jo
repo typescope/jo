@@ -1,9 +1,10 @@
 namespace gcplaceoverwrite
 
-// A loop that stores into a slot of an array it returns places the stored
-// value in the result region, also when a later iteration overwrites it.
-// `choose` picks one of two new nodes. Only the call of `choose` is placed,
-// so the node not chosen stays in the region of `pick` and its loop frees it.
+// A loop that stores into a slot of an array it returns. Nothing in the loop
+// is placed. The store promotes the stored value to the region of the array,
+// where it stays also when a later iteration overwrites it. `choose` picks
+// one of two new nodes, and the iteration regions of the loop free the node
+// not chosen.
 
 class Node(value: Int, pad: Array[Int])
 

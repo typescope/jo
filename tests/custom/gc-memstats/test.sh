@@ -210,9 +210,9 @@ JO_MEMSTATS=1 "$DIR/quad.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 grep -q '^jo-mem hint traced: ' "$DIR/actual.err" || fail "no traced hint without names"
 ! grep -q '^jo-mem traced' "$DIR/actual.err" || fail "traced row without names"
 
-# A tree built through `Array.tabulate`: every subtree is stored into the
-# array of its parent right away, so it is placed in the region of `main`,
-# and the closes trace nothing.
+# A tree whose nodes get their children as constructor arguments, from
+# direct calls outside a loop: every subtree is placed in the region of
+# `main`, and the closes trace nothing.
 echo "  - Building tree.jo"
 "$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" "$DIR/tree.jo" -o "$DIR/tree.run" || exit 1
 JO_MEMSTATS=1 "$DIR/tree.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
@@ -220,32 +220,14 @@ JO_MEMSTATS=1 "$DIR/tree.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 grep -q '^jo-mem closes free=[0-9]* handoff=[0-9]* merge=[0-9]* collect=[0-9]* traced=0$' "$DIR/actual.err" || fail "tree.jo traced objects"
 ! grep -q '^jo-mem hint traced: ' "$DIR/actual.err" || fail "traced hint for tree.jo"
 
-# Trees built through wrappers of `a[i] = v`. A builder has a traced row
-# exactly when its wrapper is not an element store. `put` and `putNext`, at a
-# computed index, always store. `putIf` stores inside an `if`, and `putEarly`
-# may return before its store.
-echo "  - Building wrapper.jo with --mem-profile"
-"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" --mem-profile "$DIR/wrapper.jo" -o "$DIR/wrapper.run" || exit 1
-JO_MEMSTATS=1 "$DIR/wrapper.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
-[ "$(cat "$DIR/actual.out")" = "4369000" ] || fail "unexpected output of wrapper.jo"
-traced_row() {
-    grep -q "^jo-mem traced objects=[0-9]* fun=memwrapper\.$1 " "$DIR/actual.err"
-}
-! traced_row build || fail "build traced objects through put"
-! traced_row buildNext || fail "buildNext traced objects through putNext"
-traced_row buildIf || fail "no traced row for buildIf"
-traced_row buildEarly || fail "no traced row for buildEarly"
-
-# Peak RSS of a loop that stores into a slot of the array it returns. In
-# pick.jo only the call of `choose` is placed. The node not chosen is freed
-# with the iteration region of `build`, but the chosen nodes stored into the
-# array are promoted to the region of `build` and stay there after they are
-# overwritten, until `build` returns: a million nodes, about 160 MB. In
-# overwrite.jo the overwritten nodes are placed in the region of `main`.
-# The nodes of the first call stay there, since the first batch of the
-# iterations of `main` runs in its region, and those of the current call
-# stay until the iteration of `main` ends: about 80 MB. A change of the rules
-# moves either number out of its range.
+# Peak RSS of a loop that stores into a slot of the array it returns.
+# Nothing in a loop is placed. The array is in the region of the function,
+# and a store promotes the stored node there, where it stays after it is
+# overwritten, until the function returns. In pick.jo the node not chosen is
+# freed with the iteration region of `build`, and the chosen nodes stay: a
+# million nodes with their arrays, about 160 MB. In overwrite.jo the nodes
+# stay in the region of `last`: a million small nodes, about 40 MB. A change
+# of the rules moves either number out of its range.
 peak_rss() {
     awk '/^jo-mem summary / { split($3, a, "="); print a[2] }' "$DIR/actual.err"
 }
@@ -262,7 +244,7 @@ echo "  - Building overwrite.jo"
 JO_MEMSTATS=1 "$DIR/overwrite.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 [ "$(cat "$DIR/actual.out")" = "4999995" ] || fail "unexpected output of overwrite.jo"
 rss=$(peak_rss)
-[ "$rss" -ge 61440 ] && [ "$rss" -le 102400 ] || fail "peak RSS of overwrite.jo is not between 60 and 100 MB"
+[ "$rss" -ge 30720 ] && [ "$rss" -le 61440 ] || fail "peak RSS of overwrite.jo is not between 30 and 60 MB"
 
 rm -rf "$DIR/actual.out" "$DIR/actual.err" "$DIR"/*.run
 

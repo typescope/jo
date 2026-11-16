@@ -1,11 +1,10 @@
 namespace memoverwrite
 
 // A loop overwrites the one slot of the array it returns a million times.
-// The stored nodes are placed in the region of `main`, which keeps the
-// overwritten ones until the region of the iteration of `main` closes after
-// the call. The first iteration runs in the region of `main` itself, so its
-// nodes stay until `main` returns: about 80 MB in all. This is a limitation
-// of placing what is stored into the result.
+// The array is in the region of `last`, and the store promotes each node
+// there. The overwritten nodes stay until `last` returns: about 40 MB. This
+// is the limitation of a value replaced in an object created before the
+// loop.
 
 class Node(v: Int)
 

@@ -65,8 +65,8 @@ for mode in "" 1; do
 done
 
 # Functions that return `Unit` keep their regions: `main` opens one. The
-# closure that returns `Unit` through `Array.tabulate` is passed a level and
-# clears it at entry.
+# closure that returns `Unit` through `Array.tabulate` may be passed a level
+# by an indirect call, and clears it at entry.
 GC_DIR="$PROJECT_ROOT/tests/gc"
 echo "  - Building place-unit.jo with LLVM"
 "$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" --keep-ll "$GC_DIR/place-unit.jo" -o "$DIR/unit.run" || exit 1

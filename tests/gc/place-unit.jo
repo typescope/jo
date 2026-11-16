@@ -2,9 +2,10 @@ namespace gcplaceunit
 
 // Functions that return `Unit` keep their regions and are never passed a
 // result level. `main` opens a region, and so does its loop. The closure of
-// `units` returns `Unit` through the generic `Int => T` of `Array.tabulate`,
-// which passes it a level. The closure takes none, so it clears the level at
-// entry. The IR check of `tests/custom/gc-regions` looks at both.
+// `units` returns `Unit` through the generic `Int => T` of `Array.tabulate`.
+// An indirect call may pass a level to it, and it takes none, so it clears
+// the level at entry. The IR check of `tests/custom/gc-regions` looks at
+// both.
 
 class Node(value: Int)
 

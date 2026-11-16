@@ -66,9 +66,6 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
   /** Whether every allocation site of a function is placed, by target */
   private val onlyPlacedCache = mutable.Map.empty[Symbol, Boolean]
 
-  /** The element stores by target, `None` while analyzing */
-  private val elementStoreCache = mutable.Map.empty[Symbol, Option[ElementStore]]
-
   private val StateGlobal = "@runtime.state"
 
   //----------------------------------------------------------------------------
@@ -515,27 +512,9 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
         funDefs.get(target).flatMap: fdef =>
           resultRegionsCache(target) = None
           val params = (callee: Symbol) => resultRegions(callee).map(_.params).getOrElse(Set.empty)
-          val res = new ResultRegions(fdef, params, elementStore)
+          val res = new ResultRegions(fdef, params)
           resultRegionsCache(target) = Some(res)
           Some(res)
-
-  /** The element store a function makes, see [[ElementStore]]
-    *
-    * `Array.setUnchecked` is linked to the base element store. A recursive
-    * call sees no element store.
-    */
-  def elementStore(sym: Symbol): Option[ElementStore] =
-    val target = resolve(sym)
-
-    if target == runtime.Core_RefArray_setUnchecked then Some(ElementStore(array = 0, value = 2))
-    else
-      elementStoreCache.get(target) match
-        case Some(res) => res
-        case None =>
-          elementStoreCache(target) = None
-          val res = funDefs.get(target).flatMap(ElementStore.of(_, elementStore))
-          elementStoreCache(target) = res
-          res
 
   /** Whether a function opens a region, by `--region` or the region policy
     *

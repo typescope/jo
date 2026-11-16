@@ -1,8 +1,8 @@
 namespace gcplacetabulate
 
 // Trees of depth 8 built through `Array.tabulate` and `List.map`. Each
-// subtree is stored into the array of its parent right away, so it is
-// allocated in the region of `main` and traced at no close.
+// subtree is built in a loop, which places nothing, so the close of each
+// level traces it again and moves it to the level above.
 
 union Tree = Inner(children: Array[Tree]) | Leaf(n: Int)
 

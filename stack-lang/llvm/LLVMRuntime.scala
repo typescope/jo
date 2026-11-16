@@ -91,9 +91,6 @@ class LLVMRuntime(val rewire: Map[Symbol, Symbol])(using defn: Definitions):
 
   val Core_RefArray_ArrayClassId = defn.resolveTerm("jo.runtime.native.RefArray.ArrayClassId")
 
-  // `Array.setUnchecked` is linked to it
-  val Core_RefArray_setUnchecked = Core_RefArray.termMember("setUnchecked")
-
   val Core_stackOverflowHandler        = Native.termMember("stackOverflowHandler")
   val Core_stackOverflowHandlerAddress = Native.termMember("stackOverflowHandlerAddress")
 

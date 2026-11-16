@@ -339,10 +339,10 @@ private section Regions
   //[ Open the region of the iterations of a loop, see "Iteration regions" in GC.md
     !
     ! It runs in the function of the current region and keeps its result
-    ! level, so a result placed in a loop still goes where the function's
-    ! result goes. It does not read a passed result level, which a call sets
-    ! right before the call. Returns the level like `enter`. The matching
-    ! `leaveLoop` closes the region.
+    ! level. Nothing in a loop is placed, so no code reads that level. It does
+    ! not read a passed result level, which a call sets right before the
+    ! call. Returns the level like `enter`. The matching `leaveLoop` closes
+    ! the region.
   //]
   def enterLoop(): Int receives none =
     val st = state
@@ -1092,7 +1092,7 @@ private section Regions
 
   // The hint for a trace that visits many more objects than were allocated
   private def tracedHint: String =
-    "jo-mem hint traced: the traces of closing regions lowered many more objects than were allocated, so the same objects were traced at close after close. The likely cause is a recursive function whose result is built in a loop through a variable, or added to a container in a loop through a method like add. The backend does not allocate such a result in the region of the outermost call. Each level then copies the whole result up to its caller and traces it again. A traced row names the function. A result built through Array.tabulate, List.map or a[i] = f(...) needs no fix. Otherwise build the result with a loop or an accumulator in one function, or build with --region-policy none and a --region for a function that calls the recursive one."
+    "jo-mem hint traced: the traces of closing regions lowered many more objects than were allocated, so the same objects were traced at close after close. The likely cause is a recursive function whose result is built in a loop, such as a tree whose children come from Array.tabulate, List.map or a[i] = build(...). The backend does not allocate such a result in the region of the outermost call. Each level then copies the whole result up to its caller and traces it again. A traced row names the function. If a node has a fixed number of children, pass them to its constructor, Inner(build(d - 1), build(d - 1)): a value returned through direct calls outside a loop is allocated where its caller keeps it. Otherwise build with --region-policy none and a --region for the function that calls the recursive one, or build the result with a loop or an accumulator in one function."
 
   // The peak RSS in KB
   private def peakRssKb(): Long =

@@ -9,8 +9,8 @@ namespace gcplaceindirect
 // closed level of `inner`, where nothing frees it. `tests/custom/gc-regions`
 // checks that every object outside the runtime region is freed.
 //
-// `Scaler.make` is an interface method that places its result. `makeAll`
-// passes it the level of `main` through the closure.
+// `Scaler.make` is an interface method that places its result. The closure
+// of `makeAll` passes it its own result level through an indirect call.
 
 class Box(value: Int)
 

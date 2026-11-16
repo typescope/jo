@@ -27,13 +27,6 @@ Loops free memory too:
 > memory. Under `--region-policy none` or `scalar`, name a function with
 > `--region` to give it its own memory and let its loops free it.
 
-A value that a loop stores into the result of its function, such as
-`arr[i] = f(i)` into the array the function returns, goes directly to the
-memory of the caller. If a later iteration of the same call overwrites it,
-the old value stays until the caller's memory is freed. To keep only the
-best of many values, keep it in a variable that the loop reassigns, and
-store it after the loop.
-
 Regions only change peak memory, the resident set size (RSS), never what a
 program computes. When a program uses more memory than you expect, the runtime
 tells you where it goes, and a small change to the program usually fixes it.
@@ -107,7 +100,7 @@ region. Each kind of row comes with a `hint` line.
 | `region` | The region of `fun` held many objects at once. Its loops free what their iterations allocated, except what they assign to a variable declared outside the loop or store into an older object. | What stays is what `fun` allocated outside its loops, the values its loops replaced in such variables and objects, and what its callees returned or stored into its objects. Store values that need no allocation, mutate the fields of the existing object, or move the loop into a function that returns. |
 | `return` | `fun` returned this many results to code in the runtime region. They stay until exit. The `runtime` hint comes with it. | Give the caller its own memory with `--region`. Or avoid a new object per call. |
 | `library` | `fun` of a `store`, `trace` or `region` row is a `jo.*` function. | Change how `caller` uses it, for example a `while` loop in place of `Iterator.fold` over a long input. |
-| `traced` | The traces of closing regions lowered many more objects than were allocated. The likely cause is a recursive function whose result is built in a loop through a variable, or added to a container in a loop through a method like `add`: every level copies the result up to its caller and traces it again. A result built through `Array.tabulate`, `List.map` or `a[i] = f(...)` needs no fix. | Build the result with a loop or an accumulator in one function. Or build with `--region-policy none` and a `--region` for a function that calls the recursive one. |
+| `traced` | The traces of closing regions lowered many more objects than were allocated. The likely cause is a recursive function whose result is built in a loop, such as a tree whose children come from `Array.tabulate`, `List.map` or `a[i] = build(...)`: every level copies the result up to its caller and traces it again. | If a node has a fixed number of children, pass them to its constructor, `Inner(build(d - 1), build(d - 1))`: a value returned through direct calls outside a loop is allocated where its caller keeps it. Otherwise build with `--region-policy none` and a `--region` for the function that calls the recursive one, or build the result with a loop or an accumulator in one function. See [A tree built in a loop](#a-tree-built-in-a-loop). |
 | `growth` | The runtime region keeps growing while the program runs. | Fix the `growth-promoted` rows like `store`, `trace` and `return` rows. |
 | `growth-region` | The region of `fun` keeps growing while the program runs. | Fix it like a `region` row. |
 
@@ -274,6 +267,85 @@ jo-mem summary peak-rss-kb=4520 allocated=17 freed=4 runtime-region=13 skipped-e
 jo-mem to-runtime direct=13 store=0 trace=0 return=0
 jo-mem closes free=2 handoff=0 merge=0 collect=0 traced=0
 jo-mem loops iteration-regions=0
+```
+
+### A tree built in a loop
+
+```jo
+namespace trees
+
+union Tree = Inner(children: Array[Tree]) | Leaf(n: Int)
+
+def build(depth: Int): Tree =
+  if depth == 1 then Leaf(1)
+  else Inner(Array.tabulate(4, _ => build(depth - 1)))
+
+def count(tree: Tree): Int =
+  match tree
+    case Inner(children) =>
+      var n = 1
+      for child in children do n = n + count(child)
+      n
+    case Leaf(_) => 1
+
+def main =
+  var total = 0
+  var k = 0
+  while k < 200 do
+    total = total + count(build 8)
+    k = k + 1
+  end
+
+  println total
+```
+
+Each subtree is built in the loop of `tabulate`, so it starts in the memory
+of `tabulate`, not where its caller keeps it. Each return copies it one
+level up, and the closes trace it again at every level. An excerpt of the
+statistics, without the `region` rows:
+
+```
+jo-mem summary peak-rss-kb=4096 allocated=8737817 freed=8737804 runtime-region=13 skipped-enters=0
+jo-mem to-runtime direct=13 store=0 trace=0 return=0
+jo-mem closes free=1092401 handoff=0 merge=2163200 collect=46600 traced=51783800
+jo-mem loops iteration-regions=37000
+jo-mem traced objects=35411000 fun=jo.Array.tabulate at=lib/Array.jo:150 caller=trees.build
+jo-mem traced objects=16372800 fun=trees.build at=trees.jo:5 caller=trees.main
+```
+
+A node here always has four children, so pass them to its constructor. A
+value returned through direct calls outside a loop is allocated where the
+caller keeps it, so nothing is traced, and the program runs about 9 times
+faster. `count` matches on `Inner` and adds the counts of its four
+children:
+
+```jo
+union Tree = Inner(a: Tree, b: Tree, c: Tree, d: Tree) | Leaf(n: Int)
+
+def build(depth: Int): Tree =
+  if depth == 1 then Leaf(1)
+  else Inner(build(depth - 1), build(depth - 1), build(depth - 1), build(depth - 1))
+```
+
+The statistics, without the `region` row:
+
+```
+jo-mem summary peak-rss-kb=3756 allocated=4369017 freed=4369004 runtime-region=13 skipped-enters=0
+jo-mem to-runtime direct=13 store=0 trace=0 return=0
+jo-mem closes free=201 handoff=0 merge=0 collect=0 traced=0
+jo-mem loops iteration-regions=200
+```
+
+When the number of children varies, keep `tabulate` and build with
+`--region-policy none --region trees.main`. `build` and `tabulate` then
+open no memory of their own, so nothing is copied up, and the loop of
+`main` frees each tree after its iteration:
+
+```
+jo-mem summary peak-rss-kb=5376 allocated=8737817 freed=8737804 runtime-region=13 skipped-enters=0
+jo-mem to-runtime direct=13 store=0 trace=0 return=0
+jo-mem closes free=200 handoff=0 merge=0 collect=0 traced=0
+jo-mem loops iteration-regions=200
 ```
 
 ## Long-running programs

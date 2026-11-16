@@ -1,10 +1,10 @@
 namespace mempick
 
 // A loop stores `choose(new Node(...), new Node(...))` into a slot of the
-// array it returns, a million times. Only the call of `choose` is placed,
-// so the node not chosen goes to the region of the iteration of `build`,
-// which frees it. The chosen nodes are promoted to the region of
-// `build` by the store and stay there until `build` returns.
+// array it returns, a million times. Nothing in the loop is placed, so both
+// nodes go to the region of the iteration of `build`, which frees the node
+// not chosen. The chosen nodes are promoted to the region of `build` by the
+// store and stay there until `build` returns.
 
 class Node(v: Int, pad: Array[Int])
 
