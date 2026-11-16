@@ -66,6 +66,9 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
   /** Whether every allocation site of a function is placed, by target */
   private val onlyPlacedCache = mutable.Map.empty[Symbol, Boolean]
 
+  /** Whether a marked indirect call allocates only what it places, once known */
+  private var indirectOnlyPlacedCache: Option[Boolean] = None
+
   private val StateGlobal = "@runtime.state"
 
   //----------------------------------------------------------------------------
@@ -549,16 +552,31 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
     placeResults && placesResult(resultType) && !regionFunctions.contains(sym) &&
     regionByPolicy(sym, resultType) && onlyPlaced(resolve(sym))
 
-  /** Whether every allocation site of a function is placed */
+  /** Whether a function allocates nothing but what flows into its result
+    *
+    * Every allocation site is placed: a record literal that the analysis of
+    * `ResultRegions` marks, or a marked call whose callee takes the level or
+    * itself allocates nothing but its result. A runtime function takes no
+    * level, so a call of one counts only if the runtime function passes this
+    * test too. `StringOps.+` does not, since it allocates a buffer, which
+    * would leave its temporaries in the caller's region. A marked indirect
+    * call counts if a call of every function whose address is taken would.
+    * A function under analysis counts as allocating besides its result.
+    */
   private def onlyPlaced(target: Symbol): Boolean =
     onlyPlacedCache.get(target) match
       case Some(res) => res
       case None =>
+        onlyPlacedCache(target) = false
         val res = (funDefs.get(target), resultRegions(target)) match
           case (Some(fdef), Some(placement)) =>
             val placed: Word => Boolean =
               case rec: RecordLit => placement.allocations.contains(rec)
-              case app: Apply => placement.calls.contains(app)
+
+              case app: Apply =>
+                placement.calls.contains(app) &&
+                directCallee(app).fold(indirectOnlyPlaced)(callee => callOnlyPlaced(resolve(callee)))
+
               case _ => false
 
             !allocations.allocatesBesides(fdef.body, placed)
@@ -568,12 +586,37 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
         onlyPlacedCache(target) = res
         res
 
+  /** Whether a marked call of a function allocates nothing but what flows into the caller's result */
+  private def callOnlyPlaced(target: Symbol): Boolean =
+    takesLevel(target, target.tpe.asProcType.resultType) || onlyPlaced(target)
+
+  /** Whether a marked indirect call allocates nothing but what flows into the caller's result
+    *
+    * It may call any function whose address is taken and that returns a
+    * pointer, like the call, so each of them must pass the test of a direct
+    * call or allocate nothing. The `hashCode` closures of the regex engine,
+    * which return an `Int`, cannot be reached.
+    */
+  private def indirectOnlyPlaced: Boolean =
+    indirectOnlyPlacedCache match
+      case Some(res) => res
+      case None =>
+        // a function under analysis may make an indirect call
+        indirectOnlyPlacedCache = Some(false)
+        val res = addressTaken.forall: target =>
+          retType(target.tpe.asProcType.resultType) != "ptr" || !allocations.mayAllocate(target) ||
+          callOnlyPlaced(target)
+
+        indirectOnlyPlacedCache = Some(res)
+        res
+
   /** Whether a function takes a passed result level at entry, in `enter` or `resultLevel`
     *
     * A direct call passes a level only to such a function.
     */
   def takesLevel(sym: Symbol, resultType: Type): Boolean =
-    opensRegion(sym, resultType) || placesWithoutRegion(sym, resultType)
+    // opensRegion || placesWithoutRegion, without asking which of the two
+    regionFunctions.contains(sym) || regionByPolicy(sym, resultType)
 
   /** Whether a result is a pointer to place: `Unit` has nothing to place */
   def placesResult(resultType: Type): Boolean =

@@ -8,6 +8,17 @@ call returns, the region frees what the call allocated, except what it
 returned or stored into an older object. You need no annotations and no
 options for this.
 
+A value a function may return is allocated where its result goes, in the
+caller's memory. "May return" is decided for the whole function, not for
+each call: a value returned on some paths, or stored into such a value, goes
+to the caller even on a call that does not return it, and stays there until
+the caller's memory is freed. To free such a value with the call, allocate
+it only on the paths that return it.
+
+A function that allocates only values it may return, such as a constructor,
+opens no memory of its own. A function that also builds temporaries, like
+the intermediate strings of `"(" + s + ")"`, has its own memory as usual.
+
 Loops free memory too:
 
 > A loop in a function that has its own memory frees what its iterations

@@ -246,6 +246,24 @@ JO_MEMSTATS=1 "$DIR/overwrite.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 rss=$(peak_rss)
 [ "$rss" -ge 30720 ] && [ "$rss" -le 61440 ] || fail "peak RSS of overwrite.jo is not between 30 and 60 MB"
 
-rm -rf "$DIR/actual.out" "$DIR/actual.err" "$DIR"/*.run
+# A function opens no region only when everything it allocates goes to its
+# result. `walk` builds strings with `+`, a runtime function that leaves
+# temporaries, so it opens a region and frees them: about 18 MB at peak, of
+# which the tree takes most. Without a region in `walk`, its temporaries
+# went to `main`, about 73 MB. `build` allocates only through constructors
+# and opens no region.
+echo "  - Building walk.jo"
+"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" --keep-ll "$DIR/walk.jo" -o "$DIR/walk.run" || exit 1
+fun_calls() {
+    awk -v f="$2" 'index($0, "define ") == 1 && index($0, f) { p = 1 } p && /^}/ { p = 0 } p' "$1"
+}
+fun_calls "$DIR/walk.run.ll" '@"memwalk.walk.' | grep -q 'Regions.enter' || fail "walk opens no region"
+fun_calls "$DIR/walk.run.ll" '@"memwalk.build.' | grep -q 'Regions.resultLevel' || fail "build opens a region"
+JO_MEMSTATS=1 "$DIR/walk.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
+[ "$(cat "$DIR/actual.out")" = "524285" ] || fail "unexpected output of walk.jo"
+rss=$(peak_rss)
+[ "$rss" -le 30720 ] || fail "peak RSS of walk.jo is above 30 MB"
+
+rm -rf "$DIR/actual.out" "$DIR/actual.err" "$DIR"/*.run "$DIR"/*.ll
 
 echo "  ✓ All tests passed for $TEST_NAME"

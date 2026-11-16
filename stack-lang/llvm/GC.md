@@ -879,24 +879,30 @@ A call site passes a level only to a callee that takes it, see
 [The flag](#the-flag). Past the level limit, the current function opened no
 region, and `allocResult` allocates in the current region.
 
-Placement only affects performance. An object in the result region is older
-than the current region, so its initializing stores go through the barrier,
-except a function reference, like the `apply` of a closure, which is not a
-heap object. If a marked value does not escape after all, it stays in the
-result region until that region closes.
+Placement is decided for the whole function, not for each path, so it can
+change which memory is kept, as the user guide states. An object in the
+result region is older than the current region, so its initializing stores
+go through the barrier, except a function reference, like the `apply` of a
+closure, which is not a heap object. If a marked value does not escape after
+all, it stays in the result region until that region closes.
 
 Placing results is on under `--region-policy all`, and `--place-results` turns
 it on for the other policies.
 
 ### Functions that only allocate their result
 
-Status: implemented. To be narrowed or dropped, see
-[Redesign: regions per loop iteration](#redesign-regions-per-loop-iteration).
+Status: implemented, narrowed in step 6 of
+[Redesign: regions per loop iteration](#redesign-regions-per-loop-iteration),
+see [Narrowing the rule](#narrowing-the-rule).
 
 A function whose every allocation goes to its result needs no region. Its
 region could only hold what it returns, so it opens none. It allocates the
 result directly where the result goes. This covers constructors, bridges
-that box a value, and small factory functions.
+that box a value, and small factory functions. The rule mostly changes
+only time. The exception is the result of a runtime callee, such as a box,
+that the function returns on some paths only: with a region it is freed on
+the other paths, without one it stays in the caller's region (see
+[Narrowing the rule](#narrowing-the-rule)).
 
 #### The problem
 
@@ -926,26 +932,48 @@ A function places its result without a region when all of these hold:
 - every allocation site in its body is placed: each record literal is
   marked by the analysis of [Placing results](#placing-results), and so is
   each call that may allocate
+- each marked call that may allocate goes to a callee that takes the level
+  passed to it, or to a callee that itself passes this test
 
 The scan is the one of `Allocations.scala` with the placed sites left out.
 As there, a branch that ends in a call that never returns does not count,
 so a bounds check or an assertion does not make a constructor a region
-function. A marked indirect call is placed too, see
-[Indirect calls](#indirect-calls).
+function.
 
-A marked call counts as placed whatever its callee. Where its objects go
-depends on the callee:
+Where the objects of a marked call go depends on the callee:
 
 - a callee that opens a region or places its result allocates its result at
-  the level passed to it, `l` below
-- a runtime function, like `boxInt`, `StringOps.+` or `RefArray.create`,
-  never opens a region or places, so it allocates in the current region,
-  which is now the caller's region
+  the level passed to it, `l` below, and frees its temporaries in its own
+  region
+- a runtime function never opens a region or places, so it allocates in the
+  current region, which is now the caller's region
 
-So the function itself allocates nothing in a region of its own, but its
-result can end up in the caller's region rather than at `l`. Today the same
-objects land in the function's region and move to the caller's region when
-it closes. They end up in the same place, with one close less.
+A runtime callee therefore counts only if it allocates nothing but its
+result itself, by the same test. `boxInt` does: it allocates only the box
+it returns, through the constructor `IntBox`. `StringOps.+` and
+`RefArray.create` do not, since they call the allocator for a buffer. The
+test cannot tell which buffers end up in the result, and `+` can leave
+temporaries, see [Narrowing the rule](#narrowing-the-rule). A function under
+analysis counts as failing the test, which only matters for recursion
+through runtime functions.
+
+A marked indirect call counts if a marked direct call of every function
+whose address is taken and that returns a pointer would count. A call that
+returns a pointer reaches only functions that return one. In practice the
+functions whose address is taken are user functions, which take the level,
+runtime closures that cannot allocate, like the writer of `stdout`, and
+runtime closures that return an `Int` or a `Bool`, such as the `hashCode`
+and `equal` closures of the regex engine. See
+[Indirect calls](#indirect-calls).
+
+So the function allocates nothing that its region would free, except the
+result of a runtime callee that a path does not return. Its own
+marked objects go to `l` with a region too, since a region function places
+them the same way. A callee that takes the level allocates at `l` either
+way. The result of a runtime callee lands in the caller's region at once
+instead of moving there when the region closes. The only difference in
+memory is where the regions of callees merge: into the caller's region
+instead of the function's, within the same merge budget.
 
 Codegen represents `Unit` as a pointer (`llvmType` returns `void` only for
 the void type), so the rule names `Unit` explicitly. A `Unit` result has
@@ -1082,6 +1110,10 @@ and 257, need new counts, since fewer regions open.
   under `JO_LOOP_STRESS=1`. The IR check of the test expects `enter` in
   `main` and `clearResult` in the closure. It runs in
   `tests/custom/gc-regions`, since `tests/gc` only compares output.
+- `tests/custom/gc-memstats`: `walk.jo` builds a string with `+` in a
+  recursive function. The IR check expects `enter` in `walk` and
+  `resultLevel` in `build`, whose tree comes from constructors, and the
+  peak RSS must stay under 30 MB.
 - `tests/pos` and `tests/gc` with AddressSanitizer, also under
   `JO_LOOP_STRESS=1`.
 
@@ -1112,11 +1144,74 @@ and 784912, and Bounce 3002 merges, against 395317 and 343818, 4527062 and
 
 #### Risks
 
-- A result built by a runtime function, like a string, lands in the
-  caller's region and not in the caller's result region when the call was
-  placed. It moves once, at the caller's close.
+- A result built by a runtime function, like a box, lands in the caller's
+  region and not in the caller's result region when the call was placed. It
+  moves once, at the caller's close.
 - The merges of the function's callees go to the caller's region. The merge
   budget bounds them to 8 segments.
+- The marks are flow-insensitive. A runtime callee that passes the test
+  could allocate a record that its analysis marks but that it does not
+  return on some path. That record would stay in the caller's region,
+  where a region of the function would have freed it. The boxing functions
+  and runtime constructors return every record they allocate.
+
+#### Narrowing the rule
+
+Step 6 of the redesign narrowed the rule. Before, a marked call counted as
+placed whatever its callee. A runtime callee then allocated in the caller's
+region, temporaries included, so the rule could move garbage into the
+caller and change which memory a program keeps:
+
+```jo
+def walk(t: Tree): String =
+  match t
+    case Node(l, r) => "(" + walk(l) + "," + walk(r) + ")"
+    case Leaf(n) => n.toString
+```
+
+`+` may append in place into the buffer of its left operand, so its summary
+marks both operands, and every call of `walk` and `+` here is marked. So
+`walk` opened no region. Each `+` that outgrows its buffer copies into a new
+one, and the old buffer and the intermediate strings are garbage. They
+landed in the region of the caller, which is `walk` again with no region,
+up to `main`. For a tree of depth 17, `walk` kept 73 MB at peak, against
+17.7 MB with a region in `walk`. Now `+` fails the test, so `walk` opens a
+region and frees them when it returns. `tests/custom/gc-memstats` checks the
+bound with `walk.jo`.
+
+Three candidates were measured against bd11eeb2, which keeps the rule:
+dropping it, so that every function that may allocate opens a region, a
+strict narrowing in which a call of a runtime function never counts, and
+the narrowing above. Time is the median user time of 9 interleaved runs
+pinned to one core. The strict and the final narrowing ran in separate
+sessions, each with its own base. The machine throttled lightly, about 1.5%
+idle injection. Peak RSS changed only for `walk`.
+
+| Program | Base (run 1) | Dropped | Strict | Base (run 2) | Narrowed |
+|---|---|---|---|---|---|
+| `walk`, depth 17 | 73.0 MB | 17.7 MB | 17.7 MB | 73.0 MB | 17.7 MB |
+| Sieve | 1.28 s | 1.79 s | 1.74 s | 1.27 s | 1.28 s |
+| Richards | 1.07 s | 1.32 s | 1.06 s | 1.07 s | 1.04 s |
+| Havlak | 2.13 s | 2.41 s | 2.26 s | 2.22 s | 2.21 s |
+| DeltaBlue | 0.24 s | 0.27 s | 0.26 s | 0.23 s | 0.24 s |
+| Tree, 4 constructor arguments | 0.24 s | 0.34 s | 0.24 s | 0.24 s | 0.24 s |
+| Tree through `tabulate` | 2.07 s | 2.33 s | 2.09 s | 2.12 s | 2.18 s |
+
+Json, Storage, Permute, the tree of the memory guide through `tabulate`, a
+tight loop, a hot loop, `cons100000` and the append loop moved by at most 3%
+under every candidate, Storage and Json at about 6 s and 1.4 s. Dropping
+the rule costs Sieve 40%, Richards 23%, Havlak 13%, DeltaBlue 12% and the
+trees 12% and 42%: Sieve's bridge, Richards' `runTask` and every
+constructor function open a region again. The strict narrowing costs Sieve
+36%, since the bridge calls the runtime function `boxInt`. The narrowing
+above costs nothing measurable and fixes `walk`, so it was chosen.
+
+Under the narrowed rule, these functions of the Are We Fast Yet harness
+open a region again: `Array.fill`, `List.empty`, `List.slice`, the
+constructor and `result` of `ListBuilder`, the constructor of `som.Vector`
+and `SourceLocation.toString`. They create an array or a string through a
+runtime function. Havlak does 5.2 million merges instead of 3.6 million,
+and takes the same time.
 
 #### Not covered: functions that only box
 
@@ -1143,9 +1238,10 @@ pointer. Like any marked call, an indirect call inside a loop is not
 marked.
 
 A marked indirect call counts as placed for
-[Functions that only allocate their result](#functions-that-only-allocate-their-result).
-So a function whose result comes from a closure or an interface method,
-like `TaskControlBlock$runTask` of Richards, opens no region. Removing this
+[Functions that only allocate their result](#functions-that-only-allocate-their-result)
+when every function it may reach would count. So a function whose result
+comes from a closure or an interface method, like
+`TaskControlBlock$runTask` of Richards, opens no region. Removing this
 in step 5 of the redesign made `runTask` open a region again, and Richards
 took 1.33 s instead of 1.05 s, so it was kept.
 
@@ -1262,7 +1358,8 @@ one of those objects: the array of `IO.args`.
 
 Status: iteration regions are implemented (step 3), in batches of 8 KB.
 Loop collection is removed (step 4). Placement in loops is removed (step
-5). It supersedes
+5). The rule for functions that only allocate their result is narrowed
+(step 6). It supersedes
 [Collecting a region in a loop](#collecting-a-region-in-a-loop) and
 [Placing what is stored into the result](#placing-what-is-stored-into-the-result).
 
@@ -1278,10 +1375,10 @@ when the bytes requested since the last collection reached a threshold, so
 which garbage a loop held depended on a counter. Placement in a loop, now
 removed, changed which values stay: a value stored into a slot of a
 runtime-created array and overwritten later stayed in the result region. A
-function that only allocates its result runs its runtime calls in the
-caller's region, so their temporaries stay there. The first two also needed
-much machinery: frame roots, the operand rewrite, marking and element-store
-detection.
+function that only allocated its result ran its runtime calls in the
+caller's region, so their temporaries stayed there, until step 6 narrowed
+the rule. The first two also needed much machinery: frame roots, the
+operand rewrite, marking and element-store detection.
 
 ### The rules for programmers
 
@@ -1474,10 +1571,8 @@ A loop opens iteration regions when both hold:
    the runtime out, whose functions never open one and manage the regions
    themselves. Under `--region-policy none`, only the loops of functions
    named with `--region` open iteration regions. Under the default policy
-   every function with a loop that may allocate opens a region once
-   placement in loops is gone (step 5). Until then, a function whose loop
-   allocates only placed values places its result without a region
-   (`onlyPlaced`), and its loops open none.
+   every function with a loop that may allocate opens a region, since
+   nothing in a loop is placed (step 5).
 2. The condition or the body may allocate, by `mayAllocate(word)` of
    `Allocations.scala` on the `While`. A branch that ends in a call that
    never returns does not count, and an indirect call does.
@@ -1992,13 +2087,14 @@ splicing one in 4.41 s.
   It changes only where a returned value is first allocated, never which
   memory is kept, so it needs no rule in the memory guide. See
   [Indirect calls](#indirect-calls).
-- **Functions that only allocate their result** is narrowed or dropped, by
-  measurement. Its runtime calls allocate in the caller's region, so it can
-  move runtime temporaries into the caller: a recursive string builder
-  `"(" + walk(l) + "," + walk(r) + ")"` opened no region and took 74.7 MB
-  instead of 18.5 MB. Either it keeps only functions whose allocations are
-  all their own placed record literals, like constructors, or it goes if
-  the fast path recovers Sieve.
+- **Functions that only allocate their result** is narrowed, done in step
+  6. Its runtime calls allocated in the caller's region, so it could move
+  runtime temporaries into the caller: a recursive string builder
+  `"(" + walk(l) + "," + walk(r) + ")"` opened no region and kept 73 MB
+  instead of 17.7 MB. A marked call now counts only if its callee takes the
+  level or itself allocates nothing but its result. Dropping the rule cost
+  Sieve 40% and Richards 23%. See
+  [Narrowing the rule](#narrowing-the-rule).
 
 What users lose is the collection of long-running state. A `mutable.Map` in
 the entry function updated millions of times keeps every replaced value
@@ -2033,7 +2129,7 @@ collects, traced objects and skipped enters.
 - The fast path: Sieve and NBody, against the numbers of
   [Alternative considered](#alternative-considered-merging-a-region-from-which-everything-escapes).
 - The no-region rule: `walk`, Sieve and constructors, with the rule
-  narrowed and dropped.
+  narrowed and dropped. Done, see [Narrowing the rule](#narrowing-the-rule).
 - The level use of deep recursion, with `wide` and its `skipped-enters`.
 
 ## Interaction with the optimizer
