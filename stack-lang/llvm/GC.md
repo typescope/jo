@@ -523,10 +523,10 @@ allocates.
 The report has one record per line, a kind followed by `key=value` fields:
 
 ```
-jo-mem summary peak-rss-kb=4484 allocated=636566 freed=636553 runtime-region=13 skipped-enters=0
+jo-mem summary peak-rss-kb=4636 allocated=636566 freed=636553 runtime-region=13 skipped-enters=0
 jo-mem to-runtime direct=13 store=0 trace=0 return=0
-jo-mem closes free=5 handoff=3283 merge=5217 collect=2004 traced=9002
-jo-mem loops collect=20 marked=8884 freed=6011
+jo-mem closes free=5 handoff=1014 merge=7500 collect=2082 traced=9065
+jo-mem loops iteration-regions=2092 collect=18 marked=7380 freed=0
 jo-mem hint rebuild with --mem-profile to attribute these to functions
 ```
 
@@ -535,8 +535,9 @@ jo-mem hint rebuild with --mem-profile to attribute these to functions
   limit. After an `abort`, the objects of the open regions are neither freed
   nor in the runtime region, so `allocated - freed` exceeds `runtime-region`.
 - `to-runtime`: the objects allocated directly in the runtime region, and
-  those promoted to it by a store into an object there, by the trace of a
-  closing region, and by a return to code in the runtime region. These stay
+  those promoted to it by a store into an object there or an assignment to
+  a variable whose home runs there, by the trace of a closing region, and by
+  a return to code in the runtime region. These stay
   until the program exits. `direct` counts what code that runs in no region
   allocates: `Core.start`, and the entry function and its callees when they
   open no region. Under the default policy, `direct` and `return` stay near 0.
@@ -547,8 +548,10 @@ jo-mem hint rebuild with --mem-profile to attribute these to functions
   close it passes through counts once per close, so `traced` far above `allocated` means repeated
   tracing (see [Cost](#cost)). The trace counts in a local variable and adds
   it to the total once per collect.
-- `loops`: the loop collections, the objects their marks visited and the
-  objects they freed (see [Collecting a region in a loop](#statistics-of-loop-collections)).
+- `loops`: the iteration regions opened, not counting enters skipped at the
+  level limit (see [Iteration regions](#iteration-regions)), then the loop
+  collections, the objects their marks visited and the objects they freed
+  (see [Collecting a region in a loop](#statistics-of-loop-collections)).
 
 Built with `--mem-profile`, the program also reports the region functions
 responsible, by name. The backend then emits the names of the region
@@ -2299,7 +2302,9 @@ the bench runs were not measured.
 
 ## Redesign: regions per loop iteration
 
-Status: designed, not implemented. It supersedes
+Status: iteration regions are implemented (step 3), in batches of 8 KB. Loop
+collection and placement in loops are still in place and are removed in the
+next steps. It supersedes
 [Collecting a region in a loop](#collecting-a-region-in-a-loop) and the
 loop part of
 [Placing what is stored into the result](#placing-what-is-stored-into-the-result).
@@ -2326,72 +2331,184 @@ of indirect calls.
 
 1. A call frees what it allocated when it returns. It keeps what it returns
    or stores into an older object.
-2. A loop iteration frees what it allocated when it ends. It keeps what it
-   assigns to a variable declared outside the loop, or stores into an older
-   object.
+2. A loop frees what its iterations allocated, a bounded amount at a time.
+   Each run of the loop works in batches of 8 KB. A batch ends at the end
+   of the first iteration that brings the bytes it requested to 8 KB. The
+   end of every batch but the first frees what the batch allocated, except
+   what it assigned to a variable declared outside the loop or stored into
+   an older object. What the first batch of a run allocated stays in the
+   region around the loop, that of the function or of an outer loop's
+   iterations, until that region closes.
+
+The bound is in bytes, so it does not depend on the size of objects. An
+iteration that allocates a large buffer ends its batch alone. If that batch
+is not the first of the run, the end of the iteration frees the buffer. If
+it is, the buffer stays until the region around the loop closes. A loop
+that allocates a 40 MB buffer in its first iteration keeps those 40 MB,
+usually until its function returns. To free such a buffer at once, allocate
+and use it in a function that does not return it. Rule 1 then frees it when
+the function returns.
+
+The first batch stays because the region of the iterations opens at its
+end, not when the loop starts. Opening it when the loop starts costs 8% on
+Permute and 20% to 26% on Havlak, which run many short loops (see
+[Batching iterations](#batching-iterations)).
 
 Limitation: a value replaced in a variable declared outside a loop, or in an
 older object, is freed only when the region of the variable or the object
-closes: at the end of the iteration that declares it, or at the return of
-its function. In a function that never returns, such values are never
-freed. This is deliberate for now. There is no explicit collection call and
-no automatic loop collection.
+closes: at the next close of the iterations that declare it, or at the
+return of its function. In a function that never returns, such values are
+never freed. This is deliberate for now. There is no explicit collection
+call and no automatic loop collection.
 
 Rule 1 holds up to the merge budget. A function region that keeps something
 may merge into its caller's region, which then holds up to 8 segments,
 about 500 objects, of the callee's garbage until it closes or collects (see
-[When to merge](#when-to-merge)). Iteration regions never merge (see
+[When to merge](#when-to-merge)). The region of a loop never merges (see
 [Closing an iteration region](#closing-an-iteration-region)), so rule 2
-holds exactly.
+holds up to its bound of bytes.
 
 ### Iteration regions
 
-A loop that opens regions gets a region per iteration. The iteration covers
-the condition and the body, so what the condition allocates is freed too.
-Codegen lowers such a `While` to:
+The iterations of one run of a loop share a region, the iteration region.
+The iteration covers the condition and the body, so what the condition
+allocates is freed too. At the end of an iteration, the loop compares the
+bytes the program requested since the region opened with the bound. Below
+the bound, the next iteration runs in the same region. At the bound, the
+region closes and a new one opens. Every exit of the loop closes it.
+
+The region opens at the first iteration end that reaches the bound, not at
+the start of the loop. Until then the iterations run in the region current
+before the loop, so a run of the loop that allocates less than the bound
+opens no region and costs one load and one compare per iteration. Codegen
+lowers such a `While` to:
 
 ```
-while.cond:   enterLoop()
-              c = cond
+              level = Regions.level(); open = false
+              next = Regions.loopNext()
+while.cond:   c = cond
               br c, while.body, while.exit
 while.body:   body
-              leave(null)
+              br requested >= next, while.cycle, while.cond
+while.cycle:  if open: leaveLoop()
+              (loop collection, while it exists)
+              level = enterLoop(); open = true
+              next = Regions.loopNext()
               br while.cond
-while.exit:   leave(null)
+while.exit:   if open: leaveLoop()
               br while.end
 ```
 
-`enterLoop` is `enter` for an iteration. It copies the result level and the
-function id of the enclosing region, so `allocResult` and the statistics see
-the function. It does not read the passed result level: a call sets it right
-before the call (`passResult` in `compile(app)`), so it is never pending at a
-loop head. Past the level limit it counts a skip, like `enter`.
+`requested` is the counter of bytes that every allocation already
+increments. `loopNext` returns it plus the bound, 8 KB, or plus nothing
+under `JO_LOOP_COLLECT=all` and `often`, so the stress modes close the
+region at the end of every iteration. `level` is the level of the current
+region, `enterLoop` the level it opened.
+
+`enterLoop` is `enter` for the iterations. It copies the result level and
+the function id of the enclosing region, so `allocResult` and the
+statistics see the function. It does not read the passed result level: a
+call sets it right before the call (`passResult` in `compile(app)`), so it
+is never pending at an iteration end. Past the level limit it counts a
+skip, like `enter`, and returns the current level. `leaveLoop` closes the
+region without merging it (see
+[Closing an iteration region](#closing-an-iteration-region)). It is a
+separate entry point rather than `leave(null)`, so the rule that the region
+never merges does not need a flag in the descriptor.
 
 Every other way out of an iteration is a `Return` in the lowered tree, since
 `break`, `continue` and the step of a tail-recursive loop all become returns
 to a label (`transformBreak`, `transformContinue` in `Namer.scala`,
-`replaceTailCalls` in `TailCallOpt.scala`). Codegen records the loop depth
-at each `Labeled` and emits one `leave(null)` per iteration region between
-the `Return` and its target:
+`replaceTailCalls` in `TailCallOpt.scala`). Codegen records the number of
+running loops at each `Labeled` and closes the region of every loop between
+the `Return` and its target, if it opened one:
 
 - `continue` targets a `Labeled` around the body, at the depth of the body,
   so it leaves nothing and falls into the normal end of the iteration.
-- `break` targets a `Labeled` around the `While`, so it leaves one region.
+- `break` targets a `Labeled` around the `While`, so it closes one region.
 - The step of a tail-recursive loop targets a `Labeled` inside the body,
   like `continue`.
 - A labeled return carries no value: codegen asserts a void `Labeled`, so
   these leaves keep nothing.
 - A return from the function promotes its result to the level of the
-  function's region first, then leaves every open iteration region, then
-  runs the function's `leave(result)` as today. So the result escapes each
-  iteration region it passes.
+  function's region first, then closes the region of every running loop,
+  innermost first, then runs the function's `leave(result)` as before. So
+  the result escapes each iteration region it passes.
 
 A call that never returns needs no leave: `abort` exits the process and Jo
 has no exceptions.
 
-The cost is two runtime calls per iteration, plus one compare per
-assignment of the next section. A close of an empty region tests one
-pointer.
+The cost per iteration is one load of `requested` and one compare, inline,
+plus one compare per assignment of the next section. A run of a loop costs
+two calls of small functions that LLVM inlines and one test at its exit.
+Only a close calls the runtime.
+
+### Batching iterations
+
+The first implementation opened a region per iteration: `enterLoop` before
+the condition and `leaveLoop` at every iteration end. It freed exactly what
+each iteration allocated, and it was too slow. Median user time of 5
+interleaved runs against the commit before:
+
+| Program | Before | Region per iteration |
+|---|---|---|
+| Permute | 0.48 s | 0.60 s (+25%) |
+| Tight loop, one dead object per iteration | 0.45 s | 0.55 s (+22%) |
+| `l = Cons(i, l)`, 4M nodes | 0.41 s | 0.54 s (+32%) |
+| `s = s + "ab"`, 2M steps | 0.11 s | 0.16 s (+45%) |
+
+Permute's loops allocate nothing, but they call region functions, so they
+count as loops that may allocate. Each of its 8.66M iterations paid an
+`enterLoop` and a `leaveLoop` on an empty region, about 15 ns, which is a
+chain of loads and stores through the descriptor and the state. Making the
+two functions inlinable did not help. Loops that keep an object per
+iteration also paid a hand-off per iteration: a segment from the pool, a
+scan, a move of the object and the segment back. Fast paths in `leaveLoop`
+for one segment cut that cost by about half, not below 10%.
+
+Batching pays these costs once per 8 KB. Opening the region only at the
+first close also removes the region of a run that allocates less than the
+bound. Opening it when the run starts would free the first batch too, so
+rule 2 would have no exception. It was measured: `enterLoop` before the
+condition, and an unconditional `leaveLoop` at each close and exit. Median
+user time of 9 interleaved runs, pinned to one core:
+
+| Program | Open at the first close | Open at the start |
+|---|---|---|
+| Permute | 0.48 s | 0.52 s (+8%) |
+| Storage | 1.61 s | 1.70 s (+6%) |
+| Havlak | 2.09 s | 2.64 s (+26%) |
+| Json, Sieve, Richards, DeltaBlue | 1.28, 1.24, 1.03, 0.28 s | the same |
+| Tight loop, hot loop, `l = Cons(i, l)` | 0.40, 4.44, 0.65 s | 0.40, 4.21, 0.65 s |
+
+A second run gave Permute +9%, Storage +0% and Havlak +20%. Making
+`enterLoop` and `leaveLoop` inlinable gave the same times. Permute runs its loops 3.6M times, each a few iterations long,
+and Havlak runs many short loops over small collections. Each run pays an
+open and a close of an empty region. The first batch is at most 8 KB plus
+one iteration, so the lazy open stays.
+
+The bound is chosen by measurement. Median user time of 5 runs:
+
+| Program | Before | 4 KB | 8 KB | 16 KB | 32 KB | 64 KB |
+|---|---|---|---|---|---|---|
+| Tight loop | 0.45 s | 0.40 s | 0.45 s | 0.41 s | 0.42 s | 0.45 s |
+| `l = Cons(i, l)` | 0.43 s | 0.46 s | 0.47 s | 0.50 s | 0.54 s | 0.49 s |
+| `s = s + "ab"` | 0.11 s | 0.12 s | 0.12 s | 0.13 s | 0.17 s | 0.16 s |
+
+A close of a region whose objects all escape is a hand-off if the region
+has at most 8 segments (see [The close fast path](#the-close-fast-path)),
+and a collect otherwise. 8 segments hold 496 objects, 15.9 KB of 32-byte
+objects, so with a bound up to 8 KB a batch of small objects that all
+escape is handed off without a trace. Above 16 KB, the closes of the
+append and cons loops collect, which costs more per object. Below 8 KB,
+times do not improve, and the cost per close grows. 8 KB is the largest
+bound with hand-offs, so it holds the garbage of a loop to 8 KB plus one
+iteration.
+
+The cost that remains is in loops that keep what they allocate: each
+object is allocated in the iteration region and moved to the parent at
+the close. Without loop collection, which the next step removes, the cons
+loop takes 0.27 s with iteration regions against 0.23 s before.
 
 ### Which loops open regions
 
@@ -2410,8 +2527,13 @@ A loop opens iteration regions when both hold:
    today, so it already classifies loops: a branch that ends in a call that
    never returns does not count, and an indirect call does.
 
-A loop that cannot allocate would close an empty region every iteration, so
-it opens none.
+A loop that cannot allocate would never reach its bound, so codegen leaves
+out even the compare.
+
+A loop that opens no region is not a home. Its assignments to variables
+declared outside it, and the variables declared in it, use the nearest
+enclosing loop that opens regions as their home, or the function if there
+is none (see the next section).
 
 ### Assignments to variables declared outside the loop
 
@@ -2428,10 +2550,10 @@ of `LowerContextParams`, and the temporaries of `MaterializeView` and
 `Erasure`. Each of them writes its variable before it reads it.
 
 Writing before reading is a soundness condition: a read before the write
-would see a value from the region of an earlier iteration, which is freed.
-Codegen checks it on each candidate variable with one walk of the loop's
-condition and body in evaluation order, keeping the set of variables
-written so far, like the definite assignment of Java:
+would see a value of an earlier iteration, which a close between the two
+iterations may have freed. `IterationRegions.scala` checks it with one walk
+of the loop's condition and body in evaluation order, keeping the set of
+variables written so far, like the definite assignment of Java:
 
 - A `Bool` word has two sets: written when it is true, and written when it
   is false. Any other word has one set, which serves as both.
@@ -2446,32 +2568,35 @@ written so far, like the definite assignment of Java:
   and `If(a, true, b)`. The walk treats them the same way. `!` needs no
   rule, since the frontend binds no pattern variable under it.
 - `If(c, t, e)` walks `t` with the when-true set of `c` and `e` with the
-  when-false set. Its set is the intersection of the sets of the branches
-  that can complete. A `Bool` `If` has two sets: the intersection of the
-  when-true sets of those branches, and that of their when-false sets. A
-  branch cannot complete if it ends in a `Return`, in a call that never
-  returns, like the failure of a match, or in an `If` whose branches all
-  cannot complete.
+  when-false set. Its sets are the intersections of those of its branches.
+- A `Return` and a call that never returns, like the failure of a match,
+  have all variables as their set, since the code after them cannot run.
+  So a branch that cannot complete drops out of the intersection. This also
+  covers an `If` whose branches all cannot complete, and dead code after a
+  `Return`.
 - A nested `While` and a `Labeled` are walked with the set at their entry
   and leave that set, since their body may run zero times or be left early.
+- The argument of `paramKey` is a name, not a read.
 - A read of the variable outside the set fails the check.
 
 The sets make pattern binders pass. `case Some(v) => body` lowers to
 `If(test, body, next)`, where `test` is `If(classTest, Block(v = ..., true),
 false)`. `v` is in the when-true set of `test` but not in its when-false
 set, so the read in `body` passes. The same holds for
-`while cur is Some(node)`, `opt is Some(v) && v > 0`, `for (k, v) in m` and
+`while cur is Some(node)`, `opt is Some(v) && v > 0`, `for k ~ v in m` and
 a refutable `val` pattern.
 
 So the rule is: a variable belongs to the innermost region-opening loop that
 contains all of its occurrences and passes the check, or to the function if
 no such loop does. A variable that fails at one loop is checked again at
 the next enclosing one, since that loop may also read it before writing it
-in an iteration. Falling back is sound and only keeps more.
+in an iteration. Falling back is sound and only keeps more. The check runs
+on the inner loops first, with all variables whose next candidate is the
+loop at once.
 
 An assignment `v = x` in the condition or body of a loop to a variable
-whose home is outside that loop, and whose slot holds a heap reference (`isHeapSlot`), promotes
-`x` like the barrier promotes a stored value:
+whose home is outside that loop, and whose slot holds a heap reference
+(`isHeapSlot`), promotes `x` like the barrier promotes a stored value:
 
 ```
 require(x, L):   if x != null and x.req > L:
@@ -2479,14 +2604,15 @@ require(x, L):   if x != null and x.req > L:
                    regions[x.phys].min = min(regions[x.phys].min, L)
 ```
 
-`L` is the `num` of `v`'s home, which is open. `enter` and `enterLoop`
-return the level they opened, or the current level when they skip, and
-codegen keeps it in a slot when an inner loop assigns a variable of that
-home. `enter` returns `Unit` today, so this is a change of the runtime, like
-`enterLoop`, `require` with an explicit level and the fast path of the
-next sections. `x.req` may be a stale level merged into the home. Then
-`require` lowers it to the home's `num` without need, which is safe (see
-[Levels](#levels)).
+`L` is the level `v`'s home runs at, which is open. A function keeps the
+level `enter` returned in a slot, `%region.level`. A loop keeps the level
+its iterations run at in a slot: the current level at the start of the run,
+and the level `enterLoop` returned after each close. `enter` and
+`enterLoop` return the current level when they skip at the limit. `x.req`
+may be a stale level merged into the home. Then `require` lowers it to the
+home's `num` without need, which is safe (see [Levels](#levels)). LLVM
+inlines `require`, so an assignment costs a compare when the value needs no
+promotion.
 
 The barrier is complete because codegen sees every write to a mutable
 variable. A lambda or a local function cannot capture one (`checkCapture` in
@@ -2504,17 +2630,22 @@ not needed.
 
 ### Nested loops
 
-An inner iteration region is a child of the outer one. Its assignments to
-variables of the outer iteration use the outer iteration's level, and those
-of the function's variables use the function's level. Leaving several loops
-at once, by `return`, closes the regions innermost first.
+An inner iteration region is a child of the outer one, or of the region the
+outer iterations run in before their region opens. Its assignments to
+variables of the outer iterations use the level in the outer loop's slot,
+and those of the function's variables use the function's level. An inner
+loop closes its region at every exit, so no inner region is open when an
+outer iteration ends. The outer slot changes only at an outer iteration
+end, so it is the right level whenever an inner loop runs. Leaving several
+loops at once, by `return`, closes their regions innermost first.
 
 ### Closing an iteration region
 
 An iteration region never merges into its parent when the budget allows,
 unlike a function region. Its parent is the function's region or an outer
-iteration, which stays open for the whole loop, so merged garbage would
-stay until the loop ends and rule 2 would not hold. It closes like this:
+iteration region, which stays open for the whole loop, so merged garbage
+would stay until the loop ends and rule 2 would not hold. It closes like
+this:
 
 | At close | Action |
 |---|---|
@@ -2522,25 +2653,31 @@ stay until the loop ends and rule 2 would not hold. It closes like this:
 | Every object escapes and the region has at most 8 segments | Hand the region to the parent (see [The close fast path](#the-close-fast-path)) |
 | Otherwise | Collect |
 
+`leaveLoop` tests the first two cases directly when the region has one
+segment and nothing merged into it, the common case for small batches.
+`leave` likewise skips the close of an
+empty region inline, so `close`, which now has two callers, stays out of
+line without a cost for the many empty regions of Permute.
+
 A callee region still merges into the iteration region while the budget
 allows. The iteration region frees that garbage, or collects it, at its own
 close.
 
 ### Levels of iteration regions
 
-An open iteration takes one level, and its close gives back that level and
-every level merged into it. An iteration region never merges, so it never
-uses a level of its parent. A frame therefore needs one more level per
-nested loop that is running. Today a loop that calls region functions whose
-results it keeps uses up levels of the function's region, and a loop
-collection gives them back when it is due. With iteration regions those
-merges go into the iteration region and are given back at the end of every
-iteration.
+An open iteration region takes one level, and its close gives back that
+level and every level merged into it. An iteration region never merges, so
+it never uses a level of its parent. A frame therefore needs one more level
+per nested loop that runs with an open region. Today a loop that calls
+region functions whose results it keeps uses up levels of the function's
+region, and a loop collection gives them back when it is due. With
+iteration regions those merges go into the iteration region and are given
+back at its next close.
 
-Past the level limit, `enterLoop` skips like `enter`, the matching `leave`
-undoes the skip, and the returned level is the current one. The iteration
-then runs in the region at the limit, which frees nothing until it closes,
-as for calls today.
+Past the level limit, `enterLoop` skips like `enter`, the matching
+`leaveLoop` undoes the skip, and the returned level is the current one. The
+iterations then run in the region at the limit, which frees nothing until
+it closes, as for calls today.
 
 ### Placement in iteration regions
 
@@ -2558,41 +2695,64 @@ iteration regions like any other. The next arguments are assigned to the
 parameter copies `_p`, which are assigned before the loop, so they belong to
 the function and the barrier promotes the arguments to the function's
 region. A result that falls through is assigned to `_tco_result` in the
-body and read after the loop, so it belongs to the function too. Each step
-then frees its own
-garbage. The arguments it replaces stay in the function's region until the
-function returns, like any value replaced in a variable declared outside a
-loop.
+body and read after the loop, so it belongs to the function too. The
+garbage of the steps is freed in batches. The arguments a step replaces
+stay in the function's region until the function returns, like any value
+replaced in a variable declared outside a loop.
+
+### Coexistence with loop collection
+
+Loop collection stays until the next step. A loop with iteration regions
+checks whether a collection is due only at the end of an iteration that
+closes its region, after the close and before the reopen. The current
+region is then the one around the loop, as the collection expects. Two
+rules keep this sound:
+
+- A loop inside another loop with iteration regions does not collect. The
+  region around it at that point would be the outer iteration region, or
+  the region the outer iterations run in, while the roots are those of the
+  function.
+- A variable whose home is an iteration region is not a root. At the end of
+  an iteration it is dead by the check, and its slot may point into a
+  region that closed.
+
+Under `JO_LOOP_COLLECT=all` the iteration region closes at every iteration
+end, so the stress mode exercises both the closes and the collections.
 
 ### Why iteration regions are sound
 
 The invariant of the [Overview](#overview) is: a frame only holds pointers
 into its own region or an ancestor. With iteration regions it becomes: a
-variable only holds pointers into its home region or an ancestor, and a
-register only holds pointers into the region that was current when it was
-computed, or an ancestor.
+variable only holds pointers into the region its home runs in or an
+ancestor, and a register only holds pointers into the region that was
+current when it was computed, or an ancestor.
 
 It holds at every step:
 
-- A new object goes to the current region, which is the home of the
-  variables defined there. A call's result is promoted to the caller's
+- A new object goes to the current region, which is the one the variables
+  defined there run in. A call's result is promoted to the caller's
   current region by `leave`.
 - An assignment to a variable of an older home runs `require` with the
-  home's level.
+  level in the home's slot.
 - A store into an older object runs the barrier, which records the escape at
   the object's region.
 
-When iteration region `I` closes, at the end of the iteration or at an exit:
+When iteration region `I` closes, at an iteration end or at an exit:
 
-- No region younger than `I` is open. Every call of the iteration returned.
+- No region younger than `I` is open. Every call of the iteration returned,
+  and every inner loop closed its region at its exit.
 - No other frame runs in `I`. Older frames hold no pointer into `I`, which is
   younger than all their regions.
-- The variables whose home is `I` are dead: the check of their home
-  ensures that every iteration writes them before it reads them.
+- `I` holds the objects of every iteration since it opened, not only the
+  last one. The variables whose home is `I` are dead at every iteration
+  end: the check ensures that every iteration writes them before it reads
+  them. So no variable refers to an object of an earlier iteration through
+  them, and the earlier iterations reach the rest of the program only as
+  the last one does.
 - Every other variable has its home older than `I`, so what it refers to has
   `req` below `I.num`. It is an escape root of `I`, and `min` records it.
 - A register holds a value computed before the loop, in an older region,
-  or one computed in the same iteration. A value computed in the iteration
+  or one computed in the same iteration. A value computed in an iteration
   leaves it only through a variable, a heap store or the function's result,
   which is promoted before the leaves. A `While` and a `Labeled` have no
   value, and the slot of an `if` is read right after its branches.
@@ -2601,6 +2761,82 @@ When iteration region `I` closes, at the end of the iteration or at an exit:
 
 So the escape roots of `I` are complete, and freeing, the fast path and
 collecting keep everything reachable from them, as for a function region.
+
+Before the region opens, the iterations run in the region current at the
+start of the loop. That region outlives the loop, so it is sound like any
+code that runs in it. The level slot holds its level, so `require` promotes
+to it, which changes nothing for objects already there.
+
+### Measurements of iteration regions
+
+Median user time of 5 interleaved runs, pinned to one core, at a load of
+1.1 to 2.2, against the commit before (2249cdc1), with loop collection
+still on. The cons and append loops were measured again with 9 runs.
+"No loop collection" builds both with `--no-loop-collect`, which shows the
+state after the next step.
+
+| Program | Before | After | Peak RSS before / after |
+|---|---|---|---|
+| Permute | 0.48 s | 0.45 s | 1.9 / 1.9 MB |
+| Hot loop: two small objects and two region calls per iteration | 2.01 s | 2.01 s | 2.4 / 1.8 MB |
+| Tight loop, one dead object per iteration, 10M | 0.44 s | 0.43 s | 3.2 / 1.8 MB |
+| Same, no loop collection | 0.60 s | 0.41 s | 387.9 / 1.8 MB |
+| `l = Cons(i, l)`, 4M nodes kept | 0.40 s | 0.44 s | 12.2 / 12.2 MB |
+| Same, no loop collection | 0.26 s | 0.28 s | 12.2 / 12.2 MB |
+| `s = s + "ab"`, 2M steps | 0.11 s | 0.12 s | 9.0 / 9.0 MB |
+| Same, no loop collection | 0.21 s | 0.23 s | 149.5 / 149.5 MB |
+| `s = "ab" + s`, 10000 steps | 0.01 s | 0.01 s | 2.9 / 3.0 MB |
+| Same, no loop collection | 0.03 s | 0.03 s | 98.1 / 98.1 MB |
+| Storage | 1.62 s | 1.58 s | 2.4 / 2.5 MB |
+| Sieve | 1.52 s | 1.24 s | 2.0 / 1.9 MB |
+| Json | 1.28 s | 1.31 s | 5.4 / 5.4 MB |
+| Havlak | 2.78 s | 2.24 s | 15.9 / 14.5 MB |
+| DeltaBlue | 0.31 s | 0.29 s | 11.4 / 10.5 MB |
+
+The tight loop frees its garbage without loop collection: 1.8 MB instead
+of 388 MB. The append and prepend loops keep what they replace in `s`, as
+the limitation says, so their memory without loop collection does not
+change. Sieve and Havlak are faster. This was not broken down. The likely
+cause is that `leave` now skips the call of `close` for an empty region
+(see [Closing an iteration region](#closing-an-iteration-region)).
+
+Permute's closes change from 783 hand-offs, 1219 merges and 1 collect to
+2005 merges and 11 collects. The regions of `benchmark`, which store a new
+array into the benchmark object, now merge into the iteration region of the
+loop of `innerLoop` instead of its function region. That region closes about
+every 8 KB, so it stays under the merge budget, where the function region
+filled up and then took a hand-off per close. Its 11 closes collect, since
+they also hold the garbage merged from those regions.
+
+Tests:
+
+- `tests/gc/loop-iterations.jo` covers a list built through a variable of
+  the function, a variable of an outer iteration assigned in an inner loop,
+  `while cur is Some(node)`, a return from two loops deep, `break` and
+  `continue`, `match` in the body, `for k ~ v in m` and a tail-recursive
+  function. Under `JO_LOOP_COLLECT=all` every iteration end closes the
+  region.
+- `tests/custom/gc-regions` runs `iterations.jo`, a tight loop that drops
+  20 million objects, without loop collection under a limit of 100 MB of
+  address space, and checks that its loop closes more than 1000 iteration
+  regions. It also checks that `churn` opens no iteration region under
+  `--region-policy none`.
+- `tests/custom/gc-memstats` reads the loops line with its new field.
+  `direct.jo` now prints 5 growth reports instead of 3: `leaveLoop` prints
+  the reports that are due, and the region of the iterations closes every
+  8 KB, so each doubling of the region of `main` gets its report.
+- In `close-handoff.jo`, the regions of `step` now merge into the region of
+  the iterations of the loop of `fill`, which stays under the budget. That
+  region is handed over at its closes. The hand-offs fall from 3283 to
+  1014, so `gc-regions` expects at least 1000.
+
+All tests in `tests/gc` pass in the 4 modes: normal and AddressSanitizer,
+with `JO_LOOP_COLLECT` empty and `all`. Without the `require` of
+assignments to variables declared outside a loop, ASan reports
+heap-use-after-free in 16 of the 27 tests in both modes, among them
+`loop-iterations.jo`, `loop-vars.jo`, `loop-nested.jo`, `loop-strings.jo`,
+`loop-tailrec.jo`, `loop-escape.jo`, `escapes.jo` and `shared-boxes.jo`,
+and in `loop-map.jo` under `JO_LOOP_COLLECT=all`.
 
 ### The close fast path
 
@@ -2619,11 +2855,19 @@ close r into p:
   if nothing escapes:                free all
   else if r is a function region and the budget allows: merge
   else if r has at most 8 segments and every o in r has o.req < r.num:
-    for every o in r: o.phys = p.num   // req stays
+    for every o in r, oldest first:
+      o.phys = p.num                   // req stays
+      append o to p                    // p.hi stays
     p.min = min(p.min, m)              // m: the lowest promotion of r
-    give the segments of r to p        // p.hi stays
   else: collect
 ```
+
+The objects join the parent oldest first, as if they had been allocated
+there. The segments of `r` go back to the pool one by one as they empty,
+and the parent takes them for its new segments. Splicing the segments of
+`r` into the parent would skip the copy of the pointers, but it breaks the
+order of allocation, which costs more later. See
+[Order of the objects in a hand-off](#order-of-the-objects-in-a-hand-off).
 
 The test scans the index of `r` and stops at the first object with
 `req >= r.num`. A failed test costs at most one scan, which the collect's
@@ -2738,7 +2982,7 @@ Tests:
 - `tests/gc/close-deep.jo` recurses 5000 levels deep, each storing a box
   into an array of `main`.
 - `tests/custom/gc-regions` checks that `close-handoff.jo` hands over at
-  least 3000 regions, that `close-no-handoff.jo` hands over none, and that
+  least 1000 regions, that `close-no-handoff.jo` hands over none, and that
   `close-deep.jo` collects.
 
 All pass with AddressSanitizer under `JO_LOOP_COLLECT=all`. Each test catches
@@ -2746,6 +2990,52 @@ a broken runtime. Without the rewrite of `phys`, `close-handoff.jo` prints
 wrong output or ASan reports errors. Without the test of `req` in
 `allEscape`, `close-no-handoff.jo` fails in every mode. Without the bound
 on the size, `close-deep.jo` does not collect.
+
+#### Order of the objects in a hand-off
+
+A hand-off first moved the segments of `r` into the parent like a merge:
+the partly filled first segment of `r` topped up the parent's first
+segment with its newest objects, and the full ones were spliced in. This
+breaks the order of allocation in the parent. A loop that keeps every
+object in a variable declared outside it, such as `l = Cons(i, l)`, hands
+off a batch every 8 KB. Each hand-off moved the newest objects of the
+batch away from the rest.
+
+The order matters because the C library reuses freed memory last in, first
+out. A region frees its objects in the order of its segments, so the next
+allocations get addresses in the reverse of that order. With the order of
+allocation, the addresses of a list built in the next round follow each
+other, as on fresh memory. With the order broken, every round scrambles
+the addresses more. In 40 rounds of `build(100000)`, which conses 100000
+nodes in a loop and returns the list, the share of list links that jump
+more than 64 bytes grew from 2% in the first round to 28% in the 40th.
+Traversals of the list, the trace of the close of `build` and the marks of
+loop collection all got slower. The two scans of the hand-off itself, the
+test and the rewrite, cost about 2% of the run.
+
+A hand-off now appends the objects oldest first, which keeps the order of
+allocation. The share of far links stays at 2% to 3%, below the 5% of the
+commit before iteration regions. The copy of the pointers costs about one
+store per object.
+
+Median of 9 interleaved runs (5 for the hot loop), pinned to one core,
+against the commit before (2249cdc1). "Spliced" is the hand-off by segments, "Appended" the hand-off
+oldest first. Times are user time, and user plus system time where they
+differ. Without loop collection the commit before keeps all lists until
+`main` returns, 217 MB, and pays for the fresh pages in system time.
+
+| Program | Before | Spliced | Appended |
+|---|---|---|---|
+| 40 rounds of `build(100000)` | 0.60 s | 0.69 s (+15%) | 0.64 s (+7%) |
+| Same, no loop collection | 0.47 s, 0.57 s | 0.52 s (+11%) | 0.50 s (+6%), 0.50 s (-12%) |
+| Tight loop | 0.43 s | 0.40 s | 0.39 s |
+| Hot loop | 4.10 s | 4.09 s | 4.26 s |
+| Permute | 0.50 s | 0.47 s | 0.48 s |
+
+Peak RSS does not change. The hot loop hands nothing off, and its time
+moves by up to 8% with the layout of the code alone: with the alignment of
+functions and blocks forced, the appending runtime ran it in 3.97 s and the
+splicing one in 4.41 s.
 
 ### What is removed
 
@@ -2797,7 +3087,10 @@ collects, traced objects and skipped enters.
   and Sieve. Times are the median of 5 runs, compared with the commit before
   the step. Single runs vary by up to about 15% with the allocator, so one
   run decides nothing. If the median of Permute or a hot loop is more than
-  10% slower, the design is reconsidered before going on.
+  10% slower, the design is reconsidered before going on. A region per
+  iteration was, and batches replaced it (see
+  [Batching iterations](#batching-iterations) and
+  [Measurements of iteration regions](#measurements-of-iteration-regions)).
 - The fast path: Sieve and NBody, against the numbers of
   [Alternative considered](#alternative-considered-merging-a-region-from-which-everything-escapes).
 - The no-region rule: `walk`, Sieve and constructors, with the rule

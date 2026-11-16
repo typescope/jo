@@ -4,7 +4,8 @@ namespace memdirect
 // the nodes go straight to the runtime region, with no function to charge them
 // to, and the region function `tick`, named by `--region`, prints the growth
 // reports when it returns. Under the default policy, the region of `main`
-// grows, and its loop prints the growth reports when it collects.
+// grows, and its loop prints the growth reports when the region of its
+// iterations closes, about every 8 KB, so each doubling gets a report.
 
 class Node(value: Int, next: Option[Node])
 

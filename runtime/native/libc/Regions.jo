@@ -355,16 +355,40 @@ private section Regions
   //[ Open a region above the levels of the current one. At the level limit, stay in the current region.
     !
     ! The result of the function goes to the current region, or to the level
-    ! passed by `inherit` or `passResult`.
+    ! passed by `inherit` or `passResult`. Returns the level of the region the
+    ! function runs in: the new one, or the current one at the limit.
   //]
-  def enter(fun: Int): Unit receives none =
+  def enter(fun: Int): Int receives none =
     val st = state
-    val l = (hiOf st.region) + 1
     val result = if st.inherit > 0 then st.inherit - 1 else st.level
     st.inherit = 0
+    open(result, fun)
+
+  //[ Open the region of the iterations of a loop, see "Iteration regions" in GC.md
+    !
+    ! It runs in the function of the current region and keeps its result
+    ! level, so a result placed in a loop still goes where the function's
+    ! result goes. It does not read a passed result level, which a call sets
+    ! right before the call. Returns the level like `enter`. The matching
+    ! `leaveLoop` closes the region.
+  //]
+  def enterLoop(): Int receives none =
+    val st = state
+    val cur = st.region
+    val l = open(resultOf cur, funOf cur)
+    if st.skipped == 0 then st.iterations = st.iterations + 1
+    l
+
+  // Open a region above the levels of the current one, for the function
+  // `fun` with the result level `result`. At the level limit, stay in the
+  // current region. Returns the level of the region code runs in now.
+  private def open(result: Int, fun: Int): Int =
+    val st = state
+    val l = (hiOf st.region) + 1
     if l > maxLevel then
       st.skipped = st.skipped + 1
       st.skips = st.skips + 1
+      st.level
     else
       val r = descOf l
       writeInt r st.level
@@ -377,6 +401,7 @@ private section Regions
       setLastSeg(r, nullAddr)
       st.region = r
       st.level = l
+      l
 
   //[ Close the region opened by the matching `enter`, keeping `result` //]
   def leave(result: Addr): Unit receives none =
@@ -391,12 +416,75 @@ private section Regions
         record(physOf result, p)
         if p == 0 then promotedByReturn r
 
-      close(r, st.level, p)
+      // an empty region needs no close, which stays out of line
+      if !(isNull (firstSeg r)) then close(r, st.level, p, true)
       st.region = descOf p
       st.level = p
 
     // the state is consistent again: print a growth report if one is due
     if st.growthDue then growthReport()
+
+  // The bytes the iterations of a loop request before their region closes
+  // at the end of an iteration, 8 KB
+  private def iterationBytes: Long = 8192
+
+  //[ The value of `requested` at which the region of a loop's iterations closes at the end of an iteration
+    !
+    ! Under `JO_LOOP_COLLECT=all` or `often`, it closes at the end of every
+    ! iteration.
+  //]
+  def loopNext(): Long receives none =
+    val st = state
+    if st.loopMode == loopNormal then st.requested + iterationBytes else st.requested
+
+  //[ The level of the current region //]
+  def level(): Int receives none = state.level
+
+  //[ Close the region opened by the matching `enterLoop`
+    !
+    ! An iteration region never merges into its parent, which stays open for
+    ! the whole loop. See "Closing an iteration region" in GC.md.
+  //]
+  def leaveLoop(): Unit receives none =
+    val st = state
+    if st.skipped > 0 then
+      st.skipped = st.skipped - 1
+    else
+      val r = st.region
+      val num = st.level
+      val p = parentOf r
+      val first = firstSeg r
+      if !(isNull first) then
+        // the common cases: one segment and no region merged into it
+        if (hiOf r) == num && sameRef(first, lastSeg r) then
+          val m = minOf r
+          if m >= num then
+            st.frees = st.frees + 1
+            freeAll r
+          else if allEscape(r, num) then
+            st.handoffs = st.handoffs + 1
+            handOff(r, p, descOf p, m)
+          else
+            close(r, num, p, false)
+        else
+          close(r, num, p, false)
+
+      st.region = descOf p
+      st.level = p
+
+    if st.growthDue then growthReport()
+
+  //[ An assignment to a variable whose home is the open region at level `l`: `value` must live as long as that region
+    !
+    ! Like the write barrier, for a variable declared outside a loop. See
+    ! "Assignments to variables declared outside the loop" in GC.md.
+  //]
+  def require(value: Addr, l: Int): Unit receives none =
+    if !(isNull value) then
+      if (reqOf value) > l then
+        setReq(value, l)
+        record(physOf value, l)
+        if l == 0 then promotedByAssign()
 
   //----------------------------------------------------------------------------
   // Loop collection, see "Collecting a region in a loop" in GC.md
@@ -641,7 +729,9 @@ private section Regions
   // small, or collect. A handed object stays in the parent, so the closes of
   // the ancestors scan it again. The bound on the size keeps deep recursion,
   // where every level hands its region up, from scanning quadratically.
-  private def close(r: Addr, num: Int, p: Int): Unit =
+  //
+  // An iteration region does not merge, `merges` is false then.
+  private def close(r: Addr, num: Int, p: Int, merges: Bool): Unit =
     if !(isNull (firstSeg r)) then
       val hi = hiOf r
       val m = lowestPromotion(r, num)
@@ -651,7 +741,7 @@ private section Regions
         st.frees = st.frees + 1
         freeAll r
 
-      else if (segsOf parent) + (segsOf r) <= mergeLimit then
+      else if merges && (segsOf parent) + (segsOf r) <= mergeLimit then
         st.merges = st.merges + 1
         setMin(parent, minInt(minOf parent, m))
         setHi(parent, maxInt(hiOf parent, hi))
@@ -685,23 +775,58 @@ private section Regions
   // object keeps its `req`, which is at most the parent's `hi`, and moves to
   // the parent's level, so the levels of `r` are free again and the parent's
   // `hi` stays.
+  // The objects join the parent oldest first, as if allocated there. This
+  // keeps the order of the parent's segments the order of allocation, which
+  // the C library's reuse of freed memory turns into the order of addresses.
   // Nothing is traced: the close of an ancestor that collects spreads the
   // requirements, as after a merge. See "The close fast path" in GC.md.
   private def handOff(r: Addr, p: Int, parent: Addr, m: Int): Unit =
+    // reverse the list of segments, so the oldest comes first
+    var prev = nullAddr
     var seg = firstSeg r
+    while !(isNull seg) do
+      val next = segNext seg
+      writeAddr seg prev
+      prev = seg
+      seg = next
+    end
+
+    // append the objects to the parent's first segment, then to new segments
+    // in front of it, each from the segment just released
+    var front = firstSeg parent
+    var k = if isNull front then segCapacity else segCount front
+    var added = 0
+    seg = prev
     while !(isNull seg) do
       val n = segCount seg
       var i = 0
       while i < n do
+        if k == segCapacity then
+          val s = newSegment()
+          if isNull front then setLastSeg(parent, s) else setSegCount(front, k)
+          writeAddr s front
+          front = s
+          k = 0
+          added = added + 1
+
         val o = readAddr (segEntry seg i)
         setGcHalf(o, normal(p, reqOf o))
+        writeAddr (segEntry front k) o
+        k = k + 1
         i = i + 1
       end
-      seg = segNext seg
+
+      val next = segNext seg
+      releaseSegment seg
+      seg = next
     end
 
+    if !(isNull front) then setSegCount(front, k)
     setMin(parent, minInt(minOf parent, m))
-    give(parent, firstSeg r, lastSeg r, segsOf r)
+    if added > 0 then
+      setFirstSeg(parent, front)
+      setSegs(parent, (segsOf parent) + added)
+      grew parent
 
   // The lowest level an object of the region `r` at level `num` was promoted
   // to, over the levels of the region. Something escapes when it is below
@@ -965,6 +1090,14 @@ private section Regions
       setField(e, intoField, readInt obj)
       setField(e, callerField, callerOf st.region)
 
+  // An assignment to a variable whose home is the runtime region promoted a
+  // value there. It counts as a store. A function's rows of stores name the
+  // class stored into, which an assignment does not have, so only the total
+  // counts it.
+  private def promotedByAssign(): Unit =
+    val st = state
+    st.toRuntimeStore = st.toRuntimeStore + 1
+
   // The trace of the closing region at level `num` promoted an object to the
   // runtime region
   private def promotedByTrace(num: Int): Unit =
@@ -1186,7 +1319,7 @@ private section Regions
       // `callerOf` reads the names
       val caller = if named then callerOf r else 0
 
-      enter 0
+      val _ = enter 0
       val rss = peakRssKb()
       writeString: 2, cast[StringRepr] "jo-mem growth-region objects=\{objects} peak-rss-kb=\{rss}"
       if named then
@@ -1222,7 +1355,7 @@ private section Regions
     val trace = st.toRuntimeTrace
     val ret = st.toRuntimeReturn
 
-    enter 0
+    val _ = enter 0
     val rss = peakRssKb()
     val returned = ret - st.lastReturn
     line "jo-mem growth runtime-region=\{runtime} peak-rss-kb=\{rss} direct=\{direct - st.lastDirect} store=\{store - st.lastStore} trace=\{trace - st.lastTrace} return=\{returned}"
@@ -1269,6 +1402,7 @@ private section Regions
     val collects = st.collects
     val skips = st.skips
     val traced = st.traced
+    val iterations = st.iterations
     val loopCollects = st.loopCollects
     val loopMarked = st.loopMarked
     val loopFreed = st.loopFreed
@@ -1278,7 +1412,7 @@ private section Regions
     line "jo-mem summary peak-rss-kb=\{rss} allocated=\{allocs} freed=\{freed} runtime-region=\{runtime} skipped-enters=\{skips}"
     line "jo-mem to-runtime direct=\{direct} store=\{store} trace=\{trace} return=\{ret}"
     line "jo-mem closes free=\{frees} handoff=\{handoffs} merge=\{merges} collect=\{collects} traced=\{traced}"
-    line "jo-mem loops collect=\{loopCollects} marked=\{loopMarked} freed=\{loopFreed}"
+    line "jo-mem loops iteration-regions=\{iterations} collect=\{loopCollects} marked=\{loopMarked} freed=\{loopFreed}"
 
     if isNull (funName 0) then
       line "jo-mem hint rebuild with --mem-profile to attribute these to functions"

@@ -90,15 +90,16 @@ awk '/^jo-mem summary / { for (i = 3; i <= NF; i++) { split($i, a, "="); v[a[1]]
 
 # The close fast path: when the merge budget refuses a merge, a region whose
 # objects all escape is handed to its parent. In close-handoff.jo, these are
-# the 500 regions of `pair`, the 500 of `putFirst`, and most of the 2500 of
-# `step`, whose parent fills up. A region that keeps a tree is never handed
+# the 500 regions of `pair` and the 500 of `putFirst`. The regions of `step`
+# merge into the region of the iterations of the loop of `fill`, which closes
+# every 8 KB. A region that keeps a tree is never handed
 # over, since only its root escapes. In deep recursion, a region over the
 # merge budget is collected, not handed over.
 echo "  - Building close-handoff.jo with LLVM"
 "$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" "$GC_DIR/close-handoff.jo" -o "$DIR/handoff.run" || exit 1
 JO_MEMSTATS=1 "$DIR/handoff.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 diff "$DIR/actual.out" "$GC_DIR/close-handoff.jo.check" || fail "close-handoff.jo"
-awk '/^jo-mem closes / { split($4, a, "="); if (a[1] == "handoff" && a[2] >= 3000) found = 1 } END { exit !found }' "$DIR/actual.err" || fail "close-handoff.jo hands over too few regions"
+awk '/^jo-mem closes / { split($4, a, "="); if (a[1] == "handoff" && a[2] >= 1000) found = 1 } END { exit !found }' "$DIR/actual.err" || fail "close-handoff.jo hands over too few regions"
 
 echo "  - Building close-no-handoff.jo with LLVM"
 "$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" "$GC_DIR/close-no-handoff.jo" -o "$DIR/nohandoff.run" || exit 1
@@ -111,6 +112,18 @@ echo "  - Building close-deep.jo with LLVM"
 JO_MEMSTATS=1 "$DIR/deep.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 diff "$DIR/actual.out" "$GC_DIR/close-deep.jo.check" || fail "close-deep.jo"
 awk '/^jo-mem closes / { split($6, a, "="); if (a[1] == "collect" && a[2] > 0) found = 1 } END { exit !found }' "$DIR/actual.err" || fail "close-deep.jo hands over regions over the merge budget"
+
+# Regions for loop iterations: the loop of `churn` frees its garbage without
+# loop collection, in batches of 8 KB. Under `--region-policy none`,
+# `churn` opens no region, so its loop opens none either.
+echo "  - Building iterations.jo with LLVM"
+"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" --no-loop-collect --keep-ll "$DIR/iterations.jo" -o "$DIR/iterations.run" || exit 1
+(ulimit -v 100000; JO_MEMSTATS=1 "$DIR/iterations.run") > "$DIR/actual.out" 2> "$DIR/actual.err"
+[ "$(cat "$DIR/actual.out")" = "1830" ] || fail "iterations.jo"
+awk '/^jo-mem loops / { split($3, a, "="); if (a[1] == "iteration-regions" && a[2] > 1000) found = 1 } END { exit !found }' "$DIR/actual.err" || fail "iterations.jo closes too few iteration regions"
+fun_calls "$DIR/iterations.run.ll" '@"memiterations.churn.' | grep -q 'Regions.enterLoop' || fail "the loop of churn opens no region"
+"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" --region-policy none --keep-ll "$DIR/iterations.jo" -o "$DIR/iterations.run" || exit 1
+! fun_calls "$DIR/iterations.run.ll" '@"memiterations.churn.' | grep -q 'Regions.enterLoop' || fail "a loop opens a region in a function without one"
 
 rm -rf "$DIR/actual.out" "$DIR/actual.err" "$DIR"/*.run "$DIR"/*.ll
 

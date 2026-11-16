@@ -493,10 +493,14 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
       ctx.isRegion = true
       val id = regionIds.size + 1
       regionIds(sym) = id
-      callFun(runtime.Regions_enter, V("i32", id.toString) :: Nil)
+      val level = callFun(runtime.Regions_enter, V("i32", id.toString) :: Nil)
+      ctx.allocas ++= s"  $LevelSlot = alloca i32, align 4\n"
+      emit(s"store ${level.text}, ptr $LevelSlot")
 
       if placeResults && placesResult(procType.resultType) then
         ctx.placement = resultRegions(sym)
+
+      ctx.iterations = Some(new IterationRegions(fdef.body, fdef.allParams.toSet, loop => allocations.mayAllocate(loop), runtime))
 
       if loopCollect then prepareLoops(fdef)
 
@@ -522,7 +526,7 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
     ret(res, resType)
     collectBlocks()
 
-    val opaque = Set(runtime.Regions_enter, runtime.Regions_leave, runtime.Regions_collectLoop)
+    val opaque = Set(runtime.Regions_enter, runtime.Regions_leave, runtime.Regions_enterLoop, runtime.Regions_leaveLoop, runtime.Regions_collectLoop)
     val attrs = if opaque.contains(sym) then "#1" else "#0"
     functions ++= s"define internal $resType $name(${paramDecls.mkString(", ")}) $attrs {\n"
     functions ++= "entry:\n"
@@ -683,13 +687,25 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
     * slot to null at entry, since a root may be read before it is assigned,
     * and keeps `next`, the value of `Regions.requested` at which the next
     * collection is due.
+    *
+    * With iteration regions, a loop collects the region current at the end
+    * of its iteration, after its own iteration region closed. A loop inside
+    * another loop with iteration regions would collect the outer iteration
+    * region, so it does not collect. A variable whose home is an iteration
+    * region is dead when its region closes, and its slot may refer to freed
+    * objects, so it is not a root.
     */
   def prepareLoops(fdef: FunDef)(using ctx: FunContext): Unit =
     val params = fdef.allParams.toSet
+    val iterations = ctx.iterations
     def isRoot(sym: Symbol): Boolean =
-      (sym.isLocal || params.contains(sym)) && isHeapSlot(sym.tpe.widen)
+      (sym.isLocal || params.contains(sym)) && isHeapSlot(sym.tpe.widen) &&
+      !iterations.exists(_.home(sym).isDefined)
 
-    val loops = new LoopRoots(fdef.body, runtime, loop => allocations.mayAllocate(loop), isRoot)
+    def collects(loop: While): Boolean =
+      allocations.mayAllocate(loop) && !iterations.exists(_.isNested(loop))
+
+    val loops = new LoopRoots(fdef.body, runtime, collects, isRoot)
     if !loops.roots.isEmpty then
       ctx.loopRoots = Some(loops.roots)
       val next = callFun(runtime.Regions_loopStart, Nil)
@@ -753,9 +769,50 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
       // close the region, keeping the result
       if ctx.isRegion then
         val result = if resType == "ptr" then value else V("ptr", "null")
+
+        // the result escapes every open iteration region, innermost first
+        if ctx.loops.nonEmpty then
+          if resType == "ptr" then require(result, None)
+          leaveLoops(ctx.loops.size)
+
         callFun(runtime.Regions_leave, result :: Nil)
 
       terminate(s"ret ${value.text}")
+
+  //----------------------------------------------------------------------------
+  // Iteration regions, see "Iteration regions" in GC.md
+
+  /** Close the regions of the `n` innermost running loops, those that opened one */
+  def leaveLoops(n: Int)(using ctx: FunContext): Unit =
+    for loop <- ctx.loops.take(n) do
+      leaveIfOpen(loop)
+
+  /** Close the region of a running loop if it opened one */
+  def leaveIfOpen(loop: RunningLoop)(using FunContext): Unit =
+    val labelLeave = freshLabel("loop.leave")
+    val labelDone = freshLabel("loop.left")
+    val open = assign("i1", s"load i1, ptr ${loop.openSlot}")
+    terminate(s"br ${open.text}, label %$labelLeave, label %$labelDone")
+    label(labelLeave)
+    callFun(runtime.Regions_leaveLoop, Nil)
+    label(labelDone)
+
+  /** Promote a value to the region of a home: the iteration region of a loop, or the function's */
+  def require(value: V, home: Option[While])(using ctx: FunContext): Unit =
+    val slot = home match
+      case Some(loop) =>
+        ctx.loops.find(_.loop `eq` loop) match
+          case Some(running) => running.levelSlot
+          case None => throw new Exception(s"The home loop of a variable is not open in ${ctx.fun.fullName}")
+
+      case None => LevelSlot
+
+    val level = assign("i32", s"load i32, ptr $slot")
+    callFun(runtime.Regions_require, coerce(value, "ptr") :: level :: Nil)
+
+  /** Whether a loop opens a region per iteration */
+  def opensIterations(loop: While)(using ctx: FunContext): Boolean =
+    ctx.iterations.exists(_.opensRegions(loop))
 
   //----------------------------------------------------------------------------
   // Instructions
@@ -894,10 +951,12 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
         val labelEnd = freshLabel("labeled.end")
         assert(!ctx.localReturnTargets.contains(target), s"Duplicate local return label: $target")
         ctx.localReturnTargets(target) = labelEnd
+        ctx.labelDepths(target) = ctx.loops.size
         try
           compile(body)
         finally
           ctx.localReturnTargets.remove(target)
+          ctx.labelDepths.remove(target)
 
         label(labelEnd)
         V.Void
@@ -909,6 +968,9 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
         else
           assert(value.tpe.isVoidType && value.isEmpty,
             s"LLVM backend expects empty VoidType payload for local labeled return, found ${value.show}")
+
+          // leave the iteration regions between the return and its label
+          leaveLoops(ctx.loops.size - ctx.labelDepths(target))
           terminate(s"br label %${ctx.localReturnTargets(target)}")
 
         V.Void
@@ -965,6 +1027,11 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
       emit(s"store ${coerce(rhs, "ptr").text}, ptr $holder")
 
     else if sym.isLocal || !sym.isFunction then
+      // the value must live as long as the home of the variable
+      if ctx.loops.nonEmpty && isHeapSlot(sym.tpe.widen) then
+        val home = ctx.iterations.flatMap(_.home(sym))
+        if !home.exists(_ `eq` ctx.loops.head.loop) then require(rhs, home)
+
       val slot = localSlot(sym)
       emit(s"store ${coerce(rhs, slot.ty).text}, ptr ${slot.name}")
 
@@ -1012,14 +1079,73 @@ class CodeGen(runtime: LLVMRuntime, regionFunctions: Set[Symbol], policy: CodeGe
     val labelBody = freshLabel("while.body")
     val labelEnd = freshLabel("while.end")
 
-    label(labelCond)
-    val cond = coerce(compile(whileDo.cond), "i1")
-    terminate(s"br ${cond.text}, label %$labelBody, label %$labelEnd")
+    if opensIterations(whileDo) then
+      // The iterations of a run of the loop share a region. It opens at the
+      // end of the first iteration that reaches the bound of bytes, and then
+      // closes and reopens at the end of every iteration that reaches it
+      // again. It closes on every exit. See "Iteration regions" in GC.md.
+      val labelExit = freshLabel("while.exit")
+      val labelCycle = freshLabel("while.cycle")
+      val labelReopen = freshLabel("while.reopen")
+      ctx.tmpCount += 1
+      val n = ctx.tmpCount
+      val running = RunningLoop(whileDo, s"%iter.level.$n", s"%iter.open.$n")
+      val nextSlot = s"%iter.next.$n"
+      ctx.allocas ++= s"  ${running.levelSlot} = alloca i32, align 4\n"
+      ctx.allocas ++= s"  ${running.openSlot} = alloca i1, align 1\n"
+      ctx.allocas ++= s"  $nextSlot = alloca i64, align 8\n"
 
-    label(labelBody)
-    compile(whileDo.body)
-    if !ctx.terminated then
-      checkLoop(whileDo, labelCond)
+      def setNext(): Unit =
+        val next = callFun(runtime.Regions_loopNext, Nil)
+        emit(s"store ${next.text}, ptr $nextSlot")
+
+      // before the region opens, the iterations run in the current region
+      val level = callFun(runtime.Regions_level, Nil)
+      emit(s"store ${level.text}, ptr ${running.levelSlot}")
+      emit(s"store i1 false, ptr ${running.openSlot}")
+      setNext()
+
+      label(labelCond)
+      ctx.loops = running :: ctx.loops
+      try
+        val cond = coerce(compile(whileDo.cond), "i1")
+        terminate(s"br ${cond.text}, label %$labelBody, label %$labelExit")
+
+        label(labelBody)
+        compile(whileDo.body)
+      finally
+        ctx.loops = ctx.loops.tail
+
+      if !ctx.terminated then
+        // the end of an iteration: one load and one compare unless the bound is reached
+        val req = callFun(runtime.Regions_requested, Nil)
+        val next = assign("i64", s"load i64, ptr $nextSlot")
+        val due = assign("i1", s"icmp sge ${req.text}, ${next.v}")
+        terminate(s"br ${due.text}, label %$labelCycle, label %$labelCond")
+
+        label(labelCycle)
+        leaveIfOpen(running)
+        checkLoop(whileDo, labelReopen)
+
+        label(labelReopen)
+        val level = callFun(runtime.Regions_enterLoop, Nil)
+        emit(s"store ${level.text}, ptr ${running.levelSlot}")
+        emit(s"store i1 true, ptr ${running.openSlot}")
+        setNext()
+        terminate(s"br label %$labelCond")
+
+      label(labelExit)
+      leaveIfOpen(running)
+
+    else
+      label(labelCond)
+      val cond = coerce(compile(whileDo.cond), "i1")
+      terminate(s"br ${cond.text}, label %$labelBody, label %$labelEnd")
+
+      label(labelBody)
+      compile(whileDo.body)
+      if !ctx.terminated then
+        checkLoop(whileDo, labelCond)
 
     label(labelEnd)
     V.Void
@@ -1433,6 +1559,9 @@ object CodeGen:
   /** A stack slot of a local variable */
   case class Slot(name: String, ty: String)
 
+  /** A running loop with iteration regions: the slot of the level its iterations run at, and the slot telling whether it opened its region */
+  case class RunningLoop(loop: While, levelSlot: String, openSlot: String)
+
   /** The functions that open a region besides those named by `--region`
    *
    *  - None: no other function
@@ -1468,6 +1597,18 @@ object CodeGen:
 
     /** The heap references held in registers while later operands are computed */
     var held = 0
+
+    /** The loops with iteration regions and the homes of variables, in a function that opens a region */
+    var iterations: Option[IterationRegions] = None
+
+    /** The running loops with iteration regions, innermost first */
+    var loops: List[RunningLoop] = Nil
+
+    /** The number of open iteration regions at each label */
+    val labelDepths = mutable.Map.empty[Symbol, Int]
+
+  /** The slot of the level of the function's region, returned by `Regions.enter` */
+  val LevelSlot = "%region.level"
 
   /** The slot of `next` of the collecting loops: `requested` when the next collection is due */
   val NextSlot = "%loop.next"

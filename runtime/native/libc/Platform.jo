@@ -122,8 +122,9 @@ private class State
   // objects allocated and freed, objects allocated directly in the runtime
   // region, objects promoted there by a store, a trace and a return, the
   // outcomes of closing a region, the enters skipped at the level limit, the
-  // objects whose `req` the traces of closing regions lowered, and the loop
-  // collections with the objects their marks visited and they freed
+  // objects whose `req` the traces of closing regions lowered, the iteration
+  // regions opened, and the loop collections with the objects their marks
+  // visited and they freed
   var memStats: Bool = false
   var allocs: Long = 0
   var freed: Long = 0
@@ -137,6 +138,7 @@ private class State
   var collects: Long = 0
   var skips: Long = 0
   var traced: Long = 0
+  var iterations: Long = 0
   var loopCollects: Long = 0
   var loopMarked: Long = 0
   var loopFreed: Long = 0

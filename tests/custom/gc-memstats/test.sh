@@ -23,7 +23,7 @@ echo "  - Building with --mem-profile"
 JO_MEMSTATS=1 "$DIR/app.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 diff "$DIR/actual.out" "$DIR/expect.check" || fail "unexpected output"
 grep -q '^jo-mem summary peak-rss-kb=[0-9]* allocated=' "$DIR/actual.err" || fail "no summary"
-grep -q '^jo-mem loops collect=[0-9]* marked=[0-9]* freed=[0-9]*$' "$DIR/actual.err" || fail "no loops line"
+grep -q '^jo-mem loops iteration-regions=[0-9]* collect=[0-9]* marked=[0-9]* freed=[0-9]*$' "$DIR/actual.err" || fail "no loops line"
 awk '/^jo-mem region / && /fun=memapp.accumulate .* caller=memapp.main$/ { split($3, a, "="); if (a[2] >= 4960) found = 1 } END { exit !found }' "$DIR/actual.err" || fail "no region row for accumulate"
 grep -q '^jo-mem region objects=[0-9]* fun=jo\.Iterator\$fold at=.* caller=memapp\.main$' "$DIR/actual.err" || fail "no region row for fold"
 awk '/^jo-mem to-runtime / { split($3, a, "="); if (a[1] == "direct" && a[2] < 100) found = 1 } END { exit !found }' "$DIR/actual.err" || fail "direct allocations in the runtime region"
@@ -79,7 +79,7 @@ echo "  - Building server.jo with --mem-profile"
 JO_MEMSTATS=1 "$DIR/server.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 [ "$(cat "$DIR/actual.out")" = "299999" ] || fail "unexpected output of server.jo"
 ! grep -q '^jo-mem growth' "$DIR/actual.err" || fail "growth report while the loop collects"
-awk '/^jo-mem loops / { split($5, a, "="); if (a[2] > 250000) found = 1 } END { exit !found }' "$DIR/actual.err" || fail "the loop of main freed too little"
+awk '/^jo-mem loops / { split($6, a, "="); if (a[2] > 250000) found = 1 } END { exit !found }' "$DIR/actual.err" || fail "the loop of main freed too little"
 
 # Growth reports: under `none`, `main` runs in the runtime region, and
 # `handle` promotes a node per call by a store into the state of `main`,
@@ -137,8 +137,8 @@ echo "  - Building direct.jo with --mem-profile"
 "$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" --mem-profile "$DIR/direct.jo" -o "$DIR/direct.run" || exit 1
 JO_MEMSTATS=1 "$DIR/direct.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 [ "$(cat "$DIR/actual.out")" = "519999" ] || fail "unexpected output of direct.jo"
-[ "$(grep -c '^jo-mem growth-region objects=[0-9]* peak-rss-kb=[0-9]* fun=memdirect.main at=.*direct.jo:[0-9]* caller=runtime$' "$DIR/actual.err")" = 3 ] || fail "expected 3 growth-region reports for main"
-[ "$(grep -c '^jo-mem growth' "$DIR/actual.err")" = 3 ] || fail "unexpected growth reports for direct.jo"
+[ "$(grep -c '^jo-mem growth-region objects=[0-9]* peak-rss-kb=[0-9]* fun=memdirect.main at=.*direct.jo:[0-9]* caller=runtime$' "$DIR/actual.err")" = 5 ] || fail "expected 5 growth-region reports for main"
+[ "$(grep -c '^jo-mem growth' "$DIR/actual.err")" = 5 ] || fail "unexpected growth reports for direct.jo"
 awk '/^jo-mem growth-region / { split($3, a, "="); if (a[2] < 63000 || a[2] <= last) bad = 1; last = a[2] } END { exit bad }' "$DIR/actual.err" || fail "growth-region counts do not grow"
 awk '/^jo-mem summary/ { exit } /^jo-mem hint region: / { n++ } END { exit !(n == 1) }' "$DIR/actual.err" || fail "expected one region hint in the growth reports"
 awk '/^jo-mem summary/ { s = NR } /^jo-mem growth-region/ { g = NR } END { exit !(g > 0 && g < s) }' "$DIR/actual.err" || fail "growth-region reports after the summary"
@@ -146,7 +146,7 @@ awk '/^jo-mem summary/ { s = NR } /^jo-mem growth-region/ { g = NR } END { exit 
 echo "  - Building direct.jo without --mem-profile"
 "$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" "$DIR/direct.jo" -o "$DIR/direct.run" || exit 1
 JO_MEMSTATS=1 "$DIR/direct.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
-[ "$(grep -c '^jo-mem growth-region objects=[0-9]* peak-rss-kb=[0-9]*$' "$DIR/actual.err")" = 3 ] || fail "expected 3 growth-region reports without names"
+[ "$(grep -c '^jo-mem growth-region objects=[0-9]* peak-rss-kb=[0-9]*$' "$DIR/actual.err")" = 5 ] || fail "expected 5 growth-region reports without names"
 awk '/^jo-mem summary/ { s = 1 } /^jo-mem hint rebuild/ { if (s) after++; else before++ } END { exit !(before == 1 && after == 1) }' "$DIR/actual.err" || fail "expected one rebuild hint in the growth-region reports"
 "$DIR/direct.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 [ ! -s "$DIR/actual.err" ] || fail "growth-region reports without JO_MEMSTATS"
@@ -172,14 +172,15 @@ grep -q '^jo-mem promoted kind=return count=60000 fun=memret\.wrap at=.*ret.jo:[
 [ "$(awk '/^jo-mem summary/ { s = 1 } s && /^jo-mem hint runtime: / { n++ } END { print n }' "$DIR/actual.err")" = 1 ] || fail "expected one runtime hint for returned results"
 
 # Under the default policy, the results go to the region of `main`, whose
-# loop frees them.
+# loop frees them: the region of its iterations closes about every 8 KB, 350
+# times, and frees everything each time.
 echo "  - Building ret.jo with --mem-profile"
 "$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" --mem-profile "$DIR/ret.jo" -o "$DIR/ret.run" || exit 1
 JO_MEMSTATS=1 "$DIR/ret.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 [ "$(cat "$DIR/actual.out")" = "1919970000" ] || fail "unexpected output of ret.jo"
 grep -q '^jo-mem to-runtime direct=[0-9]* store=0 trace=0 return=0$' "$DIR/actual.err" || fail "results returned to the runtime region"
 ! grep -q '^jo-mem promoted kind=return' "$DIR/actual.err" || fail "return row under the default policy"
-awk '/^jo-mem loops / { split($5, a, "="); if (a[2] >= 40000) found = 1 } END { exit !found }' "$DIR/actual.err" || fail "the loop of main did not free the results"
+awk '/^jo-mem closes / { split($3, a, "="); if (a[1] == "free" && a[2] >= 300) found = 1 } END { exit !found }' "$DIR/actual.err" || fail "the loop of main did not free the results"
 
 # A server loop in a region function: `serve` reads each reply only in the
 # iteration that gets it, so its loop frees them.
@@ -188,7 +189,7 @@ echo "  - Building serve.jo with --mem-profile"
 JO_MEMSTATS=1 "$DIR/serve.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 [ "$(cat "$DIR/actual.out")" = "80000000" ] || fail "unexpected output of serve.jo"
 ! grep -q '^jo-mem growth' "$DIR/actual.err" || fail "growth report for serve.jo"
-grep -q '^jo-mem loops collect=[1-9][0-9]* ' "$DIR/actual.err" || fail "no loop collection in serve"
+grep -q '^jo-mem loops iteration-regions=[0-9]* collect=[1-9][0-9]* ' "$DIR/actual.err" || fail "no loop collection in serve"
 
 # Repeated tracing: every level of `build` traces the whole result again, so
 # `traced` in the summary far exceeds `allocated`, the traced row names

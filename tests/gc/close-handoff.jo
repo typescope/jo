@@ -3,7 +3,8 @@ namespace gcclosehandoff
 // The close fast path: when the merge budget refuses a merge, a region whose
 // objects all escape is handed to its parent instead of collected. The
 // array of `fill` holds thousands of boxes, and `round` and `keep` allocate
-// `ballast`, so these parents are over the merge budget.
+// `ballast`, so these parents are over the merge budget. The iterations of
+// the loop of `fill` close their region every 8 KB, and hand it over.
 
 class Box(n: Int)
 
@@ -20,8 +21,9 @@ def ballast(n: Int): Array[Box] =
 def put(buf: Array[Box], i: Int): Unit =
   buf[i] = new Box(i * 3)
 
-// Its region gets the boxes of `put`, required by the region of `fill`, and
-// is handed over in turn
+// Its region gets the boxes of `put`, required by the region of `fill`. It
+// merges into the region of the iterations of the loop of `fill`, which is
+// handed over at its closes
 def step(buf: Array[Box], i: Int): Unit =
   put(buf, i)
   put(buf, i + 1)

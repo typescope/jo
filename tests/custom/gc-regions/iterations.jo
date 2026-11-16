@@ -1,0 +1,20 @@
+namespace memiterations
+
+// One dead object per iteration, 20 million of them. Without regions for the
+// iterations of the loop, and without loop collection, the program needs
+// about 1 GB.
+
+class Box(value: Int)
+
+def churn(n: Int): Int =
+  var total = 0
+  var i = 0
+  while i < n do
+    val b = new Box(i)
+    total = (total + b.value) % 1000003
+    i = i + 1
+  end
+  total
+
+def main(): Unit =
+  println: churn 20000000
