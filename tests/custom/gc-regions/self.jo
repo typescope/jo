@@ -2,7 +2,7 @@ namespace memself
 
 // An entry function that calls itself. It reads a count from `IO.args[0]`,
 // stores it back decremented, and stops at 0. Each call loops and allocates
-// enough to collect.
+// enough to close iteration regions.
 
 class Node(value: Int, next: Option[Node])
 

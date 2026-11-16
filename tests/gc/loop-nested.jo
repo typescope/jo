@@ -1,6 +1,6 @@
 namespace gcloopnested
 
-// Nested collecting loops, an inner loop that does not allocate, and break
+// Nested allocating loops, an inner loop that does not allocate, and break
 // and continue.
 
 class Cell(value: Int)

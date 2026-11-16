@@ -4,7 +4,7 @@ namespace gcloopiterations
 // of an outer iteration assigned in an inner loop, pattern binders in the
 // condition, a return from two loops deep, break and continue, `match` in the
 // body, `for` over a map, and a tail-recursive function. Under
-// `JO_LOOP_COLLECT=all` the region of each loop closes at every iteration.
+// `JO_LOOP_STRESS=1` the region of each loop closes at every iteration.
 
 class Node(value: Int, next: Option[Node])
 

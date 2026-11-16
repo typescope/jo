@@ -1,7 +1,7 @@
 namespace gclooptailrec
 
 // A tail-recursive function building a list. After tail-call elimination it
-// is a loop, which collects the garbage of earlier steps.
+// is a loop, whose iteration regions free the garbage of earlier steps.
 
 class Node(value: Int, next: Option[Node])
 

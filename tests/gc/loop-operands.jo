@@ -2,8 +2,8 @@ namespace gcloopoperands
 
 // Loops inside operands: the second argument of a call, the third argument
 // of a runtime function, and the value of a field assignment. The operands
-// computed before the loop must survive its collections. An indirect call
-// with a loop in its argument is in `loop-indirect.jo`.
+// computed before the loop must survive the closes of its iteration regions.
+// An indirect call with a loop in its argument is in `loop-indirect.jo`.
 
 class Box(value: Int)
 

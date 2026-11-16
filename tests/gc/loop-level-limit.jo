@@ -1,7 +1,7 @@
 namespace gcloopmaxlevel
 
-// A region function with a collecting loop, called past the level limit,
-// where it opens no region and its loop must not collect.
+// A region function with an allocating loop, called past the level limit,
+// where it opens no region, and the iteration regions of its loop skip too.
 
 class Node(value: Int, next: Option[Node])
 

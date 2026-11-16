@@ -22,8 +22,8 @@ import scala.collection.mutable
 class IterationRegions(body: Word, params: Set[Symbol], opens: While => Boolean, runtime: LLVMRuntime)(using Definitions):
   import IterationRegions.*
 
-  /** The loops that open iteration regions, with the enclosing such loop, by identity */
-  private val parents = new java.util.IdentityHashMap[While, Option[While]]
+  /** The loops that open iteration regions, by identity */
+  private val opening = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap[While, java.lang.Boolean])
 
   /** The loops that open iteration regions, inner loops first */
   private val postOrder = new mutable.ArrayBuffer[While]
@@ -53,10 +53,7 @@ class IterationRegions(body: Word, params: Set[Symbol], opens: While => Boolean,
             candidate.remove(sym)
 
   /** Whether a loop opens iteration regions */
-  def opensRegions(loop: While): Boolean = parents.containsKey(loop)
-
-  /** Whether a loop that opens iteration regions is inside another such loop */
-  def isNested(loop: While): Boolean = parents.containsKey(loop) && parents.get(loop).isDefined
+  def opensRegions(loop: While): Boolean = opening.contains(loop)
 
   /** The loop whose iteration region is the home of a variable, `None` for the function */
   def home(sym: Symbol): Option[While] = homes.get(sym)
@@ -73,7 +70,7 @@ class IterationRegions(body: Word, params: Set[Symbol], opens: While => Boolean,
     word match
       case loop @ While(cond, body) =>
         if opens(loop) then
-          parents.put(loop, loops.headOption)
+          opening.add(loop)
           collect(cond, loop :: loops)
           collect(body, loop :: loops)
           postOrder += loop

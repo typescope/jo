@@ -32,15 +32,16 @@ echo "  - Building with LLVM under the default policy"
 (ulimit -v 200000; "$DIR/app.run") > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || fail "default policy"
 
-# Only `main` opens a region, so only the collections of its loop free the
-# garbage of `step`.
+# Only `main` opens a region, so only the iteration regions of its loop free
+# the garbage of `step`.
 echo "  - Building with LLVM with a region for main only"
 "$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" --region-policy none --region gcapp.main "$DIR/app.jo" -o "$DIR/app.run"
 (ulimit -v 200000; "$DIR/app.run") > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || fail "loop of main"
 
-# One large array dropped per iteration: the loop collects at every
-# iteration, so the program stays far below the 300 MB it would need.
+# One large array dropped per iteration: each iteration ends a batch of the
+# iteration regions, so the loop frees every array but the first at the end
+# of its iteration, and the program stays far below the 300 MB it would need.
 echo "  - Building buffer.jo with LLVM"
 "$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" "$DIR/buffer.jo" -o "$DIR/buffer.run"
 (ulimit -v 100000; "$DIR/buffer.run") > "$DIR/actual.out" 2>&1
@@ -48,19 +49,19 @@ echo "  - Building buffer.jo with LLVM"
 
 # The entry function is ordinary: linked under another name and called by
 # other code, and calling itself. Both store into the array of `IO.args`, in
-# the runtime region, and run under `JO_LOOP_COLLECT=all` too.
+# the runtime region, and run under `JO_LOOP_STRESS=1` too.
 echo "  - Building entry.jo with LLVM"
 "$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" --link jo.main=memtest.run "$DIR/entry.jo" -o "$DIR/entry.run"
-for mode in "" all; do
-  JO_LOOP_COLLECT=$mode "$DIR/entry.run" start > "$DIR/actual.out" 2>&1
-  diff "$DIR/actual.out" "$DIR/entry.check" || fail "entry.jo with JO_LOOP_COLLECT=$mode"
+for mode in "" 1; do
+  JO_LOOP_STRESS=$mode "$DIR/entry.run" start > "$DIR/actual.out" 2>&1
+  diff "$DIR/actual.out" "$DIR/entry.check" || fail "entry.jo with JO_LOOP_STRESS=$mode"
 done
 
 echo "  - Building self.jo with LLVM"
 "$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" "$DIR/self.jo" -o "$DIR/self.run"
-for mode in "" all; do
-  JO_LOOP_COLLECT=$mode "$DIR/self.run" 4 > "$DIR/actual.out" 2>&1
-  diff "$DIR/actual.out" "$DIR/self.check" || fail "self.jo with JO_LOOP_COLLECT=$mode"
+for mode in "" 1; do
+  JO_LOOP_STRESS=$mode "$DIR/self.run" 4 > "$DIR/actual.out" 2>&1
+  diff "$DIR/actual.out" "$DIR/self.check" || fail "self.jo with JO_LOOP_STRESS=$mode"
 done
 
 # Functions that return `Unit` keep their regions: `main` opens one. The
@@ -74,9 +75,9 @@ fun_calls() {
 }
 fun_calls "$DIR/unit.run.ll" '@"gcplaceunit.main.' | grep -q 'Regions.enter' || fail "main opens no region"
 fun_calls "$DIR/unit.run.ll" '@"gcplaceunit.units$lambda$apply.' | grep -q 'Regions.clearResult' || fail "the closure does not clear the level"
-for mode in "" all; do
-  JO_LOOP_COLLECT=$mode "$DIR/unit.run" > "$DIR/actual.out" 2>&1
-  diff "$DIR/actual.out" "$GC_DIR/place-unit.jo.check" || fail "place-unit.jo with JO_LOOP_COLLECT=$mode"
+for mode in "" 1; do
+  JO_LOOP_STRESS=$mode "$DIR/unit.run" > "$DIR/actual.out" 2>&1
+  diff "$DIR/actual.out" "$GC_DIR/place-unit.jo.check" || fail "place-unit.jo with JO_LOOP_STRESS=$mode"
 done
 
 # A level passed to a closure that does not take it must not reach a later
@@ -113,11 +114,11 @@ JO_MEMSTATS=1 "$DIR/deep.run" > "$DIR/actual.out" 2> "$DIR/actual.err"
 diff "$DIR/actual.out" "$GC_DIR/close-deep.jo.check" || fail "close-deep.jo"
 awk '/^jo-mem closes / { split($6, a, "="); if (a[1] == "collect" && a[2] > 0) found = 1 } END { exit !found }' "$DIR/actual.err" || fail "close-deep.jo hands over regions over the merge budget"
 
-# Regions for loop iterations: the loop of `churn` frees its garbage without
-# loop collection, in batches of 8 KB. Under `--region-policy none`,
+# Regions for loop iterations: the loop of `churn` frees its garbage in
+# batches of 8 KB. Under `--region-policy none`,
 # `churn` opens no region, so its loop opens none either.
 echo "  - Building iterations.jo with LLVM"
-"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" --no-loop-collect --keep-ll "$DIR/iterations.jo" -o "$DIR/iterations.run" || exit 1
+"$PROJECT_ROOT/bin/jo" compile --llvm --clang "${CLANG:-clang}" --keep-ll "$DIR/iterations.jo" -o "$DIR/iterations.run" || exit 1
 (ulimit -v 100000; JO_MEMSTATS=1 "$DIR/iterations.run") > "$DIR/actual.out" 2> "$DIR/actual.err"
 [ "$(cat "$DIR/actual.out")" = "1830" ] || fail "iterations.jo"
 awk '/^jo-mem loops / { split($3, a, "="); if (a[1] == "iteration-regions" && a[2] > 1000) found = 1 } END { exit !found }' "$DIR/actual.err" || fail "iterations.jo closes too few iteration regions"

@@ -1,8 +1,8 @@
 namespace gcloopindirect
 
 // Loops in a later argument of indirect calls: a lambda and an interface
-// method. The function and the earlier arguments must survive the
-// collections of the loop.
+// method. The function and the earlier arguments must survive the closes of
+// the iteration regions of the loop.
 
 class Box(value: Int)
 

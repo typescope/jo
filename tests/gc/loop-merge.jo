@@ -1,7 +1,7 @@
 namespace gcloopmerge
 
 // A loop calling small region functions whose results merge into the region
-// of the loop, and deep recursion with a collecting loop per level
+// of the loop, and deep recursion with an allocating loop per level
 
 class Node(value: Int, next: Option[Node])
 

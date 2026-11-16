@@ -1,6 +1,6 @@
 namespace gcloopwith
 
-// A `with` around a collecting loop, whose parameter the loop reads, and a
+// A `with` around an allocating loop, whose parameter the loop reads, and a
 // closure created before the loop and called in it.
 
 class Box(value: Int)

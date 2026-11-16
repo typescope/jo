@@ -1,6 +1,6 @@
 namespace gcloopmethod
 
-// A collecting loop in a method and in a lambda body
+// An allocating loop in a method and in a lambda body
 
 class Box(value: Int)
 

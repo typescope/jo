@@ -3,7 +3,7 @@ namespace gcplacebridge
 // A `for` over a range above the shared boxes boxes each element in the
 // bridge of `Iterator[Int].next`, which places the box without a region.
 // Some boxes are kept in a list of `main`, the others are garbage that the
-// loop collects.
+// iteration regions of the loop free.
 
 def main(): Unit =
   var kept: List[Int] = []

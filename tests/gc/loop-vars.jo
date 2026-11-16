@@ -1,6 +1,6 @@
 namespace gcloopvars
 
-// Variables around a collecting loop: one assigned before the loop and read
+// Variables around an allocating loop: one assigned before the loop and read
 // after it, one assigned in the body and read in the next iteration, and one
 // read only before the loop.
 

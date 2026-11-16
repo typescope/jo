@@ -1,8 +1,7 @@
 namespace memiterations
 
 // One dead object per iteration, 20 million of them. Without regions for the
-// iterations of the loop, and without loop collection, the program needs
-// about 1 GB.
+// iterations of the loop, the program needs about 1 GB.
 
 class Box(value: Int)
 

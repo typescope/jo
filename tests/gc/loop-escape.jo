@@ -21,8 +21,8 @@ def length(n: Option[Node]): Int =
   len
 
 // `fill` stores into `holder`, created by the caller, at every iteration. The
-// stored chains escape the region of `fill`. Each collection of the loop
-// moves them to the region of `main`.
+// stored chains escape the region of `fill`. Each close of an iteration
+// region of the loop moves them to the region of `main`.
 def fill(holder: Holder, n: Int): Unit =
   var i = 0
   while i < n do

@@ -1,7 +1,8 @@
 namespace membuffer
 
 // One large array dropped per iteration of a loop in the entry function.
-// Without loop collection the program needs about 300 MB.
+// Without regions for the iterations of the loop, the program needs about
+// 300 MB.
 
 def main(): Unit =
   var total = 0

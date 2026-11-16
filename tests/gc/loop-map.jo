@@ -1,7 +1,8 @@
 namespace gcloopmap
 
 // A `mutable.Map` in the entry function, updated in a loop and then read in
-// full. The loop of `main` frees the values the updates replace.
+// full. The values the updates replace stay in the region of `main` until it
+// returns.
 
 def main(): Unit =
   val m = jo.mutable.Map.empty[Int, String]()

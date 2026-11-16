@@ -10,19 +10,19 @@ options for this.
 
 Loops free memory too:
 
-> At the end of each iteration of a loop, Jo may free memory that the
-> loop's function allocated. It does so when the function has its own
-> memory, once it has allocated 1 MB, and at least as much as the last
-> collection kept, since that collection.
+> A loop in a function that has its own memory frees what its iterations
+> allocated, a bounded amount at a time. The iterations run in batches of
+> about 8 KB of allocations. The end of every batch but the first frees
+> what the batch allocated, except what it assigned to a variable declared
+> outside the loop or stored into an older object. What the first batch
+> allocated stays until the function returns, or until the iteration of an
+> outer loop ends.
 >
-> Jo keeps every object that a variable of the function refers to, if the
-> function may read that variable again: later in the loop, after the loop,
-> or in a loop around it. It also keeps what an object created by a caller
-> refers to.
+> A value replaced in a variable declared outside the loop, or in a field
+> or element of an object created before the loop, stays until that
+> variable's or object's memory is freed, usually when its function
+> returns. In a function that never returns, such values are never freed.
 >
-> Only the memory of the function running the loop is freed. Values stored
-> into a container that a caller created stay until that caller frees them:
-> at the end of an iteration of one of its own loops, or when it returns.
 > Under the default policy every function that can allocate has its own
 > memory. Under `--region-policy none` or `scalar`, name a function with
 > `--region` to give it its own memory and let its loops free it.
@@ -66,8 +66,8 @@ The report starts with these lines. `growth` lines (see
 ```
 jo-mem summary peak-rss-kb=56576 allocated=1000017 freed=0 runtime-region=1000017 skipped-enters=0
 jo-mem to-runtime direct=1000017 store=0 trace=0 return=0
-jo-mem closes free=0 merge=0 collect=0 traced=0
-jo-mem loops collect=0 marked=0 freed=0
+jo-mem closes free=0 handoff=0 merge=0 collect=0 traced=0
+jo-mem loops iteration-regions=0
 ```
 
 - `peak-rss-kb` is the peak RSS. This is the number to lower.
@@ -82,8 +82,8 @@ jo-mem loops collect=0 marked=0 freed=0
 - `closes` counts how regions ended. You rarely need it. `traced` counts the
   objects the region closes traced. Far above `allocated`, it means the same
   objects are traced again and again (see the `traced` hint).
-- `loops` counts the collections at the end of loop iterations, the objects
-  they kept by marking, and the objects they freed.
+- `loops` counts the batches of loop iterations that ran in memory of
+  their own.
 
 The samples below leave out most `hint` lines.
 
@@ -104,7 +104,7 @@ region. Each kind of row comes with a `hint` line.
 | `runtime` | `direct` or `return` is large: code that runs in no region, such as a function that opens none called by the entry function, allocates in the runtime region, or keeps the results of the functions it calls. | Name that function with `--region`, so its loops free their garbage and its callees' results are freed when it returns. |
 | `store` | A value stored into a container of the runtime region stays until exit, even after it is overwritten. | Mutate the fields of the existing object, or store values that need no allocation. Keep the container in a function that has its own memory. |
 | `trace` | A store linked a structure to the runtime region, or `fun` returned it there, and the whole structure moved there. The row names no store. | The `store` rows whose `caller` is the `fun` of the `trace` row name the candidate stores. Fix them one at a time and run again. |
-| `region` | The region of `fun` held many objects at once. Its loops free what no variable read later reaches. | What stays is reached from such a variable or from a container of a caller, or was allocated by a loop that does not collect, in a function that opens no region. Put the loop in the function that owns the container, or stop keeping the objects. |
+| `region` | The region of `fun` held many objects at once. Its loops free what their iterations allocated, except what they assign to a variable declared outside the loop or store into an older object. | What stays is what `fun` allocated outside its loops, the values its loops replaced in such variables and objects, and what its callees returned or stored into its objects. Store values that need no allocation, mutate the fields of the existing object, or move the loop into a function that returns. |
 | `return` | `fun` returned this many results to code in the runtime region. They stay until exit. The `runtime` hint comes with it. | Give the caller its own memory with `--region`. Or avoid a new object per call. |
 | `library` | `fun` of a `store`, `trace` or `region` row is a `jo.*` function. | Change how `caller` uses it, for example a `while` loop in place of `Iterator.fold` over a long input. |
 | `traced` | The traces of closing regions lowered many more objects than were allocated. The likely cause is a recursive function whose result is built in a loop through a variable, or added to a container in a loop through a method like `add`: every level copies the result up to its caller and traces it again. A result built through `Array.tabulate`, `List.map` or `a[i] = f(...)` needs no fix. | Build the result with a loop or an accumulator in one function. Or build with `--region-policy none` and a `--region` for a function that calls the recursive one. |
@@ -135,14 +135,13 @@ def main =
 ```
 
 `main` has its own memory, like any function that can allocate. Its loop
-frees the `Point`s of earlier iterations each time it has allocated about
-1 MB, since no variable read later refers to them:
+frees the `Point`s of each batch of iterations, about every 8 KB:
 
 ```
-jo-mem summary peak-rss-kb=4372 allocated=1000017 freed=1000004 runtime-region=13 skipped-enters=0
+jo-mem summary peak-rss-kb=4520 allocated=1000017 freed=1000004 runtime-region=13 skipped-enters=0
 jo-mem to-runtime direct=13 store=0 trace=0 return=0
-jo-mem closes free=2 merge=0 collect=0 traced=0
-jo-mem loops collect=30 marked=30 freed=983039
+jo-mem closes free=3908 handoff=0 merge=0 collect=0 traced=0
+jo-mem loops iteration-regions=3906
 ```
 
 Under `--region-policy none`, `main` runs in the runtime region instead, and
@@ -151,8 +150,8 @@ every `Point` stays until exit:
 ```
 jo-mem summary peak-rss-kb=56576 allocated=1000017 freed=0 runtime-region=1000017 skipped-enters=0
 jo-mem to-runtime direct=1000017 store=0 trace=0 return=0
-jo-mem closes free=0 merge=0 collect=0 traced=0
-jo-mem loops collect=0 marked=0 freed=0
+jo-mem closes free=0 handoff=0 merge=0 collect=0 traced=0
+jo-mem loops iteration-regions=0
 jo-mem hint runtime: code that runs in no region, such as a function that opens no region called by ...
 ```
 
@@ -184,46 +183,20 @@ def main =
 ```
 
 `stats` belongs to `main`, so each `Point` stored into it moves to the
-memory of `main`. The loop of `main` frees the ones the next call
-overwrote:
-
-```
-jo-mem summary peak-rss-kb=4372 allocated=1000019 freed=1000006 runtime-region=13 skipped-enters=0
-jo-mem to-runtime direct=13 store=0 trace=0 return=0
-jo-mem closes free=2 merge=13393 collect=986607 traced=0
-jo-mem loops collect=30 marked=90 freed=983037
-```
-
-Only the function that created the container frees the overwritten values.
-If the loop moves into a function that `main` calls once, the loop runs in
-the memory of that function, and the `Point`s it stores into `stats` move to
-`main`, which no longer loops:
-
-```jo
-def serve(stats: Stats): Unit =
-  var i = 0
-  while i < 1000000 do
-    handle(stats, i)
-    i = i + 1
-  end
-
-def main =
-  val stats = new Stats(new Point(0, 0))
-  serve(stats)
-  println stats.last.x
-```
+memory of `main`, and stays there after the next call overwrites it, until
+`main` returns:
 
 ```
 jo-mem summary peak-rss-kb=56704 allocated=1000187 freed=1000174 runtime-region=13 skipped-enters=0
 jo-mem to-runtime direct=13 store=0 trace=0 return=0
-jo-mem closes free=6 merge=13485 collect=986516 traced=0
-jo-mem loops collect=30 marked=0 freed=0
-jo-mem region objects=1000060 fun=server.main at=server.jo:19 caller=runtime
+jo-mem closes free=6 handoff=3906 merge=1000000 collect=0 traced=0
+jo-mem loops iteration-regions=3906
+jo-mem region objects=1000060 fun=server.main at=server.jo:12 caller=runtime
 ```
 
-The `region` row names `main`, which holds the values. Keep the loop in the
-function that owns the container, as in the first version, or store the
-numbers instead of a new object:
+The `region` row names `main`, which holds the values. Moving the loop into
+another function does not help: the values go to the memory of the object
+they are stored into. Store the numbers instead of a new object:
 
 ```jo
 class Stats
@@ -235,6 +208,16 @@ def handle(stats: Stats, i: Int): Unit =
   val p = new Point(i, i + 1)
   stats.lastX = p.x
   stats.lastY = p.y
+```
+
+Each `Point` then stays in the memory of `handle`, which frees it when it
+returns:
+
+```
+jo-mem summary peak-rss-kb=4520 allocated=1000018 freed=1000005 runtime-region=13 skipped-enters=0
+jo-mem to-runtime direct=13 store=0 trace=0 return=0
+jo-mem closes free=1000002 handoff=0 merge=0 collect=0 traced=0
+jo-mem loops iteration-regions=3906
 ```
 
 ### Values that reach `main` through an iterator
@@ -255,14 +238,16 @@ def main =
   println total
 ```
 
-Each match goes to the memory of `main`, and the loop of `main` frees them,
-since no variable read later refers to them:
+The iterator was created before the loop, in the memory of `main`. Finding
+the next match stores the boxed value into the iterator, an older object, so
+each match stays in the memory of `main` until `main` returns:
 
 ```
-jo-mem summary peak-rss-kb=4372 allocated=2999003 freed=2998989 runtime-region=14 skipped-enters=0
+jo-mem summary peak-rss-kb=60672 allocated=2999220 freed=2999206 runtime-region=14 skipped-enters=0
 jo-mem to-runtime direct=14 store=0 trace=0 return=0
-jo-mem closes free=3 merge=1514188 collect=1484790 traced=0
-jo-mem loops collect=68 marked=680 freed=1500006
+jo-mem closes free=8 handoff=0 merge=2998978 collect=8768 traced=0
+jo-mem loops iteration-regions=8768
+jo-mem region objects=1499718 fun=evens.main at=evens.jo:3 caller=runtime
 ```
 
 A `while` loop that counts and tests each number with an `if` allocates
@@ -285,10 +270,10 @@ def main =
 ```
 
 ```
-jo-mem summary peak-rss-kb=4372 allocated=17 freed=4 runtime-region=13 skipped-enters=0
+jo-mem summary peak-rss-kb=4520 allocated=17 freed=4 runtime-region=13 skipped-enters=0
 jo-mem to-runtime direct=13 store=0 trace=0 return=0
-jo-mem closes free=2 merge=0 collect=0 traced=0
-jo-mem loops collect=0 marked=0 freed=0
+jo-mem closes free=2 handoff=0 merge=0 collect=0 traced=0
+jo-mem loops iteration-regions=0
 ```
 
 ## Long-running programs
@@ -314,20 +299,20 @@ reports mean the region grows without bound.
 A function can keep objects too. Its region then grows, and the runtime
 region stays small. When a region other than the runtime region reaches
 about 63000 objects, and each time that threshold doubles, the runtime
-prints a `growth-region` line for the largest open region. The `serve`
-version above prints:
+prints a `growth-region` line for the largest open region. The first
+`server` example, under the default policy, prints:
 
 ```
-jo-mem growth-region objects=63427 peak-rss-kb=4992 fun=server.main at=server.jo:19 caller=runtime
+jo-mem growth-region objects=63490 peak-rss-kb=5120 fun=server.main at=server.jo:12 caller=runtime
 ```
 
 Read the line like a `region` row. The first line comes with the `region`
 hint. Repeated lines for the same `fun` mean its region grows without bound.
 
 A growth report is printed at the next return of a region function or the
-next collection of a loop. A loop collects after the bytes it allocated
-doubled, so one line can cover several thresholds. A loop that calls no
-region function and does not collect reports late.
+next end of a batch of loop iterations that ran in memory of their own. A
+loop that calls no region function and runs in no memory of its own reports
+late.
 
 ## Strings built by appends
 
@@ -376,8 +361,8 @@ Its allocations would merge into the caller's region, so RSS would not drop.
 
 ## What the numbers do not mean
 
-- Counts are objects, not bytes. Loops collect by the bytes requested from
-  the allocator, which the report does not show.
+- Counts are objects, not bytes. Loops end their batches by the bytes
+  requested from the allocator, which the report does not show.
 - A `region` row counts in segments of 62 objects, so `objects` can be up to
   61 too high.
 - A row is charged to the innermost region function, `fun`. `caller` is the

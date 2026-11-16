@@ -6,6 +6,19 @@ import sast.Symbols.*
 
 import scala.collection.mutable
 
+/** The direct callee of a call, as CodeGen tells it
+  *
+  * Only a function symbol is a direct callee. A local holding a function is
+  * called indirectly.
+  */
+def directCallee(app: Apply): Option[Symbol] =
+  val sym = app.funSymbol.orElse:
+    app.fun match
+      case Encoded(Ident(sym)) => Some(sym)
+      case _ => None
+
+  sym.filter(_.is(Flags.Fun))
+
 /** The functions that may allocate on the heap
   *
   * A function may allocate if it builds a record, calls the allocator of the

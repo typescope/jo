@@ -2,8 +2,8 @@ namespace memtest
 
 // The entry function is an ordinary function. `run`, linked as the entry
 // with `--link jo.main=memtest.run`, calls `main` twice. Each loops and
-// allocates enough to collect, and stores into the array of `IO.args`, which
-// is in the runtime region.
+// allocates enough to close iteration regions, and stores into the array of
+// `IO.args`, which is in the runtime region.
 
 class Node(value: Int, next: Option[Node])
 
