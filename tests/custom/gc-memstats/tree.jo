@@ -1,0 +1,26 @@
+namespace memtree
+
+// A tree of depth 8 built 200 times. Each node gets its children as
+// arguments of its constructor, from direct calls outside a loop, so every
+// subtree is allocated in the region of `main`: the closes trace nothing.
+// The fix of the `traced` hint for a tree built through `Array.tabulate`.
+
+union Tree = Inner(a: Tree, b: Tree, c: Tree, d: Tree) | Leaf(n: Int)
+
+def build(depth: Int): Tree =
+  if depth == 1 then Leaf(depth)
+  else Inner(build(depth - 1), build(depth - 1), build(depth - 1), build(depth - 1))
+
+def size(t: Tree): Int =
+  match t
+    case Inner(a, b, c, d) => 1 + size(a) + size(b) + size(c) + size(d)
+    case Leaf(_) => 1
+
+def main(): Unit =
+  var total = 0
+  var k = 0
+  while k < 200 do
+    total = total + size(build(8))
+    k = k + 1
+  end
+  println: total

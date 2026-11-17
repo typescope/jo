@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is the implementation of **Jo**, a statically typed functional programming language with advanced type system features. The language is implemented in Scala and includes multiple compilation backends targeting JavaScript, Ruby, Python, and native Linux/x86 code.
+This is the implementation of **Jo**, a statically typed functional programming language with advanced type system features. The language is implemented in Scala and includes multiple compilation backends targeting JavaScript, Ruby, Python, native 32-bit Linux/x86 code, and 64-bit code through LLVM.
 
 ## Language Documentation
 
@@ -26,6 +26,7 @@ Warning: Never re-build the whole project during development. Use the following 
 - **JavaScript only**: `bin/jsc <file.jo>` - Type check and compile code to JavaScript
 - **Ruby only**: `bin/rbc <file.jo>` - Type check and compile code to Ruby
 - **Python only**: `bin/pyc <file.jo>` - Type check and compile code to Python
+- **LLVM only**: `bin/llvmc <file.jo>` - Type check and compile code to a 64-bit executable with clang
 
 ### Main Compiler (after build)
 The `bin/jo` command provides a unified interface to all compilation backends:
@@ -33,6 +34,7 @@ The `bin/jo` command provides a unified interface to all compilation backends:
 - **Interpreter**: `bin/jo run <file.jo>` - Direct interpretation
 - **Build application (native/register)**: `bin/jo compile --reg <file.jo> -o <executable>` - Register machine backend
 - **Build application (native/stack)**: `bin/jo compile --stack <file.jo> -o <executable>` - Stack machine backend
+- **Build application (LLVM)**: `bin/jo compile --llvm <file.jo> -o <executable>` - 64-bit backend, emits LLVM IR and needs clang 15 or newer (`--clang <path>` picks the executable)
 - **Build application (JavaScript)**: `bin/jo compile --js <file.jo> -o <output.js>` - JavaScript backend
 - **Build library**: `bin/jo compile --sast <dir> <file.jo>` - Generate `.sast` files
 - **Use precompiled library**: `bin/jo compile --reg <file.jo> --lib <dir> -o <executable>` - Build with a precompiled library
@@ -72,12 +74,13 @@ The compilation process follows these phases:
 - **Native Stack** (`native/stack/`) - Stack machine based native compilation
 - **Native Register** (`native/register/`) - Register machine based native compilation
 - **Assembly** (`native/Assembly.scala`) - Low-level assembly generation
+- **LLVM** (`llvm/`) - 64-bit native compilation through LLVM IR and clang, see `llvm/DESIGN.md`
 
 #### Runtime Systems
 - **JavaScript Runtime** (`runtime/JS.jo`) - JS-specific runtime functions
 - **Ruby Runtime** (`runtime/Ruby.jo`) - Ruby-specific runtime functions
 - **Python Runtime** (`runtime/Python.jo`) - Python-specific runtime functions
-- **Native Runtime** (`runtime/native/`) - Native runtime including GC and syscalls
+- **Native Runtime** (`runtime/native/`) - Native runtime: `common/` is shared, `linux32/` is the 32-bit raw-syscall layer, `libc/` is the LLVM layer on the C library
 - **Standard Library** (`lib/`) - Core language libraries (Array, Bool, Int, List, etc.)
 
 ### Key Design Patterns

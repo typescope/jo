@@ -1,0 +1,20 @@
+namespace gcplacebridge
+
+// A `for` over a range above the shared boxes boxes each element in the
+// bridge of `Iterator[Int].next`, which places the box without a region.
+// Some boxes are kept in a list of `main`, the others are garbage that the
+// iteration regions of the loop free.
+
+def main(): Unit =
+  var kept: List[Int] = []
+  var total = 0
+  for x in 5000 until 105000 do
+    total = (total + x) % 1000003
+    if x % 1000 == 0 then kept = kept + x
+  end
+
+  var sum = 0
+  for x in kept do sum = sum + x
+  println: total
+  println: kept.size
+  println: sum

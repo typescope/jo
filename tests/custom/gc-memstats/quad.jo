@@ -1,0 +1,35 @@
+namespace memquad
+
+// A recursive function that builds its result in a loop. Placing results
+// misses it, so every level copies the whole list up to its caller and traces
+// it again: the traces lower about 100 times as many objects as `build`
+// allocates.
+
+class Node(value: Int, next: Option[Node])
+
+def build(n: Int): Option[Node] =
+  if n == 0 then None
+  else
+    var acc = build(n - 1)
+    var i = 0
+    while i < 10 do
+      acc = Some(new Node(i, acc))
+      i = i + 1
+    end
+    acc
+
+def size(l: Option[Node]): Int =
+  var t = 0
+  var cur = l
+  var go = true
+  while go do
+    match cur
+      case Some(x) =>
+        t = t + 1
+        cur = x.next
+      case None => go = false
+  end
+  t
+
+def main =
+  println: size(build(300))

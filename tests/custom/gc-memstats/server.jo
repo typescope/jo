@@ -1,0 +1,25 @@
+namespace memsrv
+
+// A server loop: `main` creates the state, and each call of `handle` stores a
+// new node into it. The nodes are promoted to the runtime region by the store,
+// and stay there after they are overwritten, so the runtime region grows
+// without bound while the program runs.
+
+class Node(value: Int, next: Option[Node])
+
+class State(first: Node)
+  var last: Node = first
+end
+
+def handle(st: State, i: Int): Unit =
+  st.last = new Node(i, None)
+
+def main =
+  val st = new State(new Node(0, None))
+  var i = 0
+  while i < 300000 do
+    handle(st, i)
+    i = i + 1
+  end
+
+  println: st.last.value

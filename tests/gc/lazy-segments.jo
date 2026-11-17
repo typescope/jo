@@ -1,0 +1,39 @@
+// options: --region gctest.inner --region gctest.outer --region gctest.nothing
+namespace gctest
+
+// A region gets its first segment on its first object. `outer` allocates
+// nothing before `inner` hands it survivors, more than a segment holds and
+// fewer, and `nothing` never allocates.
+
+class Node(value: Int, next: Option[Node])
+
+def sum(list: Option[Node]): Int =
+  var s = 0
+  var cur = list
+  var done = false
+  while !done do
+    match cur
+      case Some(node) =>
+        s = s + node.value
+        cur = node.next
+      case None => done = true
+  s
+
+def inner(n: Int): Option[Node] =
+  var list: Option[Node] = None
+  var i = 0
+  while i < n do
+    list = Some(new Node(i, list))
+    i = i + 1
+  end
+  list
+
+def outer(n: Int): Option[Node] = inner(n)
+
+def nothing(k: Int): Int = k + 1
+
+def main =
+  println: sum(outer(200))
+  println: sum(outer(30))
+  println: sum(outer(0))
+  println: nothing(41)

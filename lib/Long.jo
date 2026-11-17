@@ -36,13 +36,13 @@ class Long
     ! representable, it pairs with `%` so that `(a / b) * b + a % b == a`.
     !
     ! When the quotient is not representable — division by zero, or the
-    ! overflowing `LONG_MIN / -1` — both `/` and `%` are runtime-dependent.
+    ! overflowing `LONG_MIN / -1` — the behavior of both `/` and `%` is undefined.
   //]
   @intrinsic
   def /(other: Long): Long = ...
 
   //[ Remainder of truncated division; the result takes the sign of the
-    ! dividend. Runtime-dependent when the corresponding quotient is not
+    ! dividend. The behavior is undefined when the corresponding quotient is not
     ! representable (division by zero, or `LONG_MIN / -1`).
   //]
   @intrinsic

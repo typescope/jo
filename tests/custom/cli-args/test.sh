@@ -20,22 +20,12 @@ diff "$DIR/actual.out" "$DIR/expect.check" || {
     exit 1
 }
 
-# Test with register machine (default backend)
-echo "  - Building with register machine"
-bin/jo compile --reg "$DIR/app.jo" -o "$DIR/app.run"
+# Test with LLVM
+echo "  - Building with LLVM"
+bin/jo compile --llvm --clang "${CLANG:-clang}" "$DIR/app.jo" -o "$DIR/app.run"
 "$DIR/app.run" $ARGS > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
-    echo "[error] Register machine test failed for $TEST_NAME"
-    cat "$DIR/actual.out"
-    exit 1
-}
-
-# Test with stack machine
-echo "  - Building with stack machine"
-bin/jo compile --stack "$DIR/app.jo" -o "$DIR/app.run"
-"$DIR/app.run" $ARGS > "$DIR/actual.out" 2>&1
-diff "$DIR/actual.out" "$DIR/expect.check" || {
-    echo "[error] Stack machine test failed for $TEST_NAME"
+    echo "[error] LLVM test failed for $TEST_NAME"
     cat "$DIR/actual.out"
     exit 1
 }

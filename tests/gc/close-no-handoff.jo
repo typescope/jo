@@ -1,0 +1,28 @@
+namespace gcclosenohandoff
+
+// A region that keeps a tree is not handed over: the store promotes only
+// the root, and the children stay at the level of the region. The close
+// must collect and keep them.
+
+class Tree(left: Option[Tree], value: Int, right: Option[Tree])
+
+def leaf(v: Int): Option[Tree] = Some(new Tree(None, v, None))
+
+def put(buf: Array[Option[Tree]], i: Int): Unit =
+  buf[i] = Some(new Tree(leaf(i), i, leaf(i + 1)))
+
+def sum(t: Option[Tree]): Int =
+  match t
+    case Some(node) => sum(node.left) + node.value + sum(node.right)
+    case None => 0
+
+def fill(n: Int): Array[Option[Tree]] =
+  val buf: Array[Option[Tree]] = Array.fill(n, None)
+  for i in 0 until n do put(buf, i)
+  buf
+
+def main(): Unit =
+  val buf = fill(5000)
+  var total = 0
+  for t in buf do total = total + sum(t)
+  println: total

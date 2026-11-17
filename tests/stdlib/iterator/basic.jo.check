@@ -4,6 +4,20 @@
 --- iterator.select ---
 [2, 4]
 []
+[1, 2, 3]
+[bb, dd]
+true
+true
+0
+3
+true
+true
+6
+9
+false
+false
+false
+false
 --- iterator.take ---
 [1, 2]
 []

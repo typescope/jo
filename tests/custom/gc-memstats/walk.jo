@@ -1,0 +1,21 @@
+namespace memwalk
+
+// A recursive string builder. Each `+` that outgrows its buffer copies into
+// a new one, so `walk` leaves old buffers and intermediate strings behind.
+// It opens a region, which frees them when it returns. `build` allocates only
+// its result, through constructors, and opens no region.
+
+union Tree = Node(l: Tree, r: Tree) | Leaf(n: Int)
+
+def build(depth: Int): Tree =
+  if depth == 0 then Leaf(depth)
+  else Node(build(depth - 1), build(depth - 1))
+
+def walk(t: Tree): String =
+  match t
+    case Node(l, r) => "(" + walk(l) + "," + walk(r) + ")"
+    case Leaf(n) => n.toString
+
+def main(): Unit =
+  val t = build 17
+  println: walk(t).size

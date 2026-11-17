@@ -22,10 +22,18 @@ section Bytes
   //[ The number of bytes. //]
   defer def (repr: Repr) size: Int
 
-  //[ The byte at `index`. //]
+  //[ The byte at `index`.
+    !
+    ! `index` must be in `[0, size)`. Out of range, the behavior is undefined,
+    ! but memory safety is preserved.
+  //]
   defer def (repr: Repr) get(index: Int): Byte
 
-  //[ Slice `length` bytes starting at `offset`. //]
+  //[ Slice `length` bytes starting at `offset`.
+    !
+    ! `offset` and `length` must be non-negative, with `offset + length <= size`.
+    ! Out of range, the behavior is undefined, but memory safety is preserved.
+  //]
   defer def (repr: Repr) slice(offset: Int, length: Int): Bytes
 
   //[ These bytes as a base64 string. //]

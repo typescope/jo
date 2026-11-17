@@ -3,6 +3,7 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 import math
+import os
 import random
 import struct
 import subprocess
@@ -57,10 +58,14 @@ def check_backend(backend, directory):
         command = [jo, "eval", "--check-tree", source]
     else:
         output = str(Path(directory) / f"app.{backend}")
-        compiled = run([jo, "compile", f"--{backend}", "--check-tree", source,
+        clang = ["--clang", os.environ.get("CLANG", "clang")] if backend == "llvm" else []
+        compiled = run([jo, "compile", f"--{backend}", "--check-tree", *clang, source,
                         "-o", output])
         assert compiled.returncode == 0, compiled.stdout + compiled.stderr
-        command = [{"js": "node", "python": "python3", "ruby": "ruby"}[backend], output]
+        if backend == "llvm":
+            command = [output]
+        else:
+            command = [{"js": "node", "python": "python3", "ruby": "ruby"}[backend], output]
 
     # Each interpreter invocation has a fixed time budget, so compare in
     # batches rather than making the corpus size depend on machine speed.
@@ -98,9 +103,9 @@ def check_backend(backend, directory):
 
 
 with tempfile.TemporaryDirectory() as directory:
-    with ThreadPoolExecutor(max_workers=4) as pool:
+    with ThreadPoolExecutor(max_workers=5) as pool:
         futures = [pool.submit(check_backend, backend, directory)
-                   for backend in ["eval", "js", "python", "ruby"]]
+                   for backend in ["eval", "js", "python", "ruby", "llvm"]]
         failures = []
         for future in as_completed(futures):
             try:

@@ -1,0 +1,344 @@
+namespace jo.runtime.native
+
+//------------------------------------------------------------------------------
+//
+// String support
+//
+
+// A string is a `Raw`, which holds UTF-8 bytes at `content`. On LLVM,
+// `content` points just past the header of a buffer, as every `Addr` field
+// must.
+//
+// A `Raw` with `capacity == 0` has a fixed buffer: nothing writes to it
+// again. A `Raw` with `capacity > 0` has a growable buffer of `capacity`
+// bytes, followed by an `Int` at `content + capacity`: the number of bytes
+// that some string on the buffer holds, called `used`. Bytes before `used`
+// are never written again, `used` only grows, and every string on the
+// buffer has at most `used` bytes. So `s + t` can write `t` past the end of
+// `s` in place when `s` ends at `used`, and the result shares the buffer
+// with `s`. Other strings on the buffer do not change.
+private[native] type StringRepr = Raw
+
+private[native] class Raw(byteSize: Int, cpCount: Int, content: Addr, capacity: Int)
+
+private[native] section StringOps
+  private def utf8SeqLen(firstByte: Byte): Int =
+    val b = firstByte.toInt & 0xFF
+    if b < 0x80 then 1
+    else if b < 0xE0 then 2
+    else if b < 0xF0 then 3
+    else 4
+
+  def countUtf8CodePoints(content: Addr, byteSize: Int): Int =
+    var cp = 0
+    var off = 0
+    while off < byteSize do
+      val step = utf8SeqLen: readByte(addAddr content off)
+      off = off + step
+      cp = cp + 1
+    end
+    cp
+
+  private def codePointToByteOffset(content: Addr, byteSize: Int, cpIndex: Int): Int =
+    var cp = 0
+    var off = 0
+    while cp < cpIndex && off < byteSize do
+      val step = utf8SeqLen: readByte(addAddr content off)
+      off = off + step
+      cp = cp + 1
+    end
+    off
+
+  // The byte offset of code point `cpIndex` of `r`, counted from the nearer
+  // end. A read near the end, like `s[s.size - 1]` after each append, then
+  // costs no more than a read near the start.
+  private def byteOffset(r: Raw, cpIndex: Int): Int =
+    if r.byteSize == r.cpCount then cpIndex
+    else if cpIndex <= r.cpCount - cpIndex then
+      codePointToByteOffset(r.content, r.byteSize, cpIndex)
+    else
+      // Step back over the continuation bytes `10xxxxxx` of each code point
+      var cp = r.cpCount
+      var off = r.byteSize
+      while cp > cpIndex do
+        off = off - 1
+        while (readByte(addAddr r.content off).toInt & 0xC0) == 0x80 do
+          off = off - 1
+        end
+        cp = cp - 1
+      end
+      off
+
+  private def decodeCodePoint(content: Addr, byteOffset: Int): Char =
+    val b0 = readByte(addAddr content byteOffset).toInt & 0xFF
+    val cp =
+      if b0 < 0x80 then
+        b0
+      else if b0 < 0xE0 then
+        val b1 = readByte(addAddr content (byteOffset + 1)).toInt & 0x3F
+        ((b0 & 0x1F) << 6) | b1
+      else if b0 < 0xF0 then
+        val b1 = readByte(addAddr content (byteOffset + 1)).toInt & 0x3F
+        val b2 = readByte(addAddr content (byteOffset + 2)).toInt & 0x3F
+        ((b0 & 0x0F) << 12) | (b1 << 6) | b2
+      else
+        val b1 = readByte(addAddr content (byteOffset + 1)).toInt & 0x3F
+        val b2 = readByte(addAddr content (byteOffset + 2)).toInt & 0x3F
+        val b3 = readByte(addAddr content (byteOffset + 3)).toInt & 0x3F
+        ((b0 & 0x07) << 18) | (b1 << 12) | (b2 << 6) | b3
+    cp.toChar
+
+  private def copyBytes(dst: Addr, src: Addr, len: Int): Unit =
+    var i = 0
+    while i < len do
+      writeByte(addAddr dst i, readByte(addAddr src i))
+      i = i + 1
+    end
+
+  private def sameBytes(a: Addr, b: Addr, len: Int): Bool =
+    var i = 0
+    while i < len && readByte(addAddr a i) == readByte(addAddr b i) do
+      i = i + 1
+    end
+    i == len
+
+  // Convert a UTF-8 string `[size: Int][bytes]` to a string in place. The
+  // 32-bit backends call it for every string literal. Their static data is
+  // never traced, so the content need not follow a buffer header.
+  def fromByteString(byteArray: Addr): String =
+    val byteSize = readInt: byteArray
+    val contentAddr = addAddr: byteArray, 4
+    val cpCount = countUtf8CodePoints(contentAddr, byteSize)
+
+    cast[String]: Raw(byteSize, cpCount, contentAddr, 0)
+
+  // Copy a UTF-8 string `[size: Int][bytes]` to a new string. The content of
+  // the result points just past a buffer header, so a trace of it is valid.
+  def copyByteString(byteArray: Addr): String =
+    val byteSize = readInt: byteArray
+    val buf = allocBuffer byteSize
+    copyBytes(buf, addAddr(byteArray, 4), byteSize)
+    val cpCount = countUtf8CodePoints(buf, byteSize)
+
+    cast[String]: Raw(byteSize, cpCount, buf, 0)
+
+  // Convert a null-terminated C UTF-8 string pointer to Jo String. On LLVM,
+  // `addr` must point just past a buffer header, like any `Addr` field.
+  def fromCString(addr: Addr): String =
+    var byteSize = 0
+    var cur = addr
+    while (readByte cur) != 0 do
+      byteSize = byteSize + 1
+      cur = addAddr addr byteSize
+    end
+
+    val cpCount = countUtf8CodePoints(addr, byteSize)
+    cast[String]: Raw(byteSize, cpCount, addr, 0)
+
+  def byteSize(repr: String): Int = (cast[Raw] repr).byteSize
+
+  def size(repr: String): Int = (cast[Raw] repr).cpCount
+
+  // Code point `i` of `repr`
+  def get(repr: String, i: Int): Char =
+    if i >= size(repr) || i < 0 then abort "index out of bound"
+    charAt(cast[Raw] repr, i)
+
+  private def charAt(r: Raw, i: Int): Char =
+    if r.byteSize == r.cpCount then
+      (readByte(addAddr r.content i).toInt & 0xFF).toChar
+    else
+      decodeCodePoint(r.content, byteOffset(r, i))
+
+  // The address of the `used` count of a growable buffer
+  private def usedAddr(r: Raw): Addr = addAddr r.content r.capacity
+
+  // The capacity of a new growable buffer of `n` bytes, a multiple of 4 so
+  // that `used` is aligned. A buffer that continues a growable one doubles,
+  // so a loop of appends copies each byte a constant number of times on
+  // average. Any other gets 16 bytes of room. The capacity stays within what
+  // `allocBuffer` accepts, with 4 bytes left for `used`.
+  private def bufferCapacity(n: Int, doubling: Bool): Int =
+    val limit = (2147483647 - contentOffset - 4) / 4 * 4
+    if n > limit then abort "String of \{n} bytes is too large"
+
+    val extra = if doubling then n else 16
+    if extra > limit - n then limit
+    else (n + extra + 3) / 4 * 4
+
+  // Concatenate in place when `lhs` ends at the `used` count of a growable
+  // buffer with room for `rhs`. The bytes of `rhs` lie before `used`, so they
+  // never overlap the bytes written. Otherwise copy both to a new growable
+  // buffer.
+  //
+  // Bytes before `used` are never written again, so no string sees its bytes
+  // change. Buffers hold no pointers, so the writes need no barrier. The new
+  // `Raw` needs none either. The runtime never places a result in an older
+  // region, so the `Raw` is in the current region, and the buffer it shares
+  // is in a region at least as old.
+  //
+  // The byte size of a string is an `Int`. A wrapped sum would allocate too
+  // little, so abort instead. The code point count is at most the byte size,
+  // so it cannot wrap either.
+  def (lhs: String) + (rhs: String): String =
+    val l = cast[Raw] lhs
+    val r = cast[Raw] rhs
+    val lhsN = l.byteSize
+    val rhsN = r.byteSize
+    if lhsN > 2147483647 - rhsN then
+      abort "String of \{lhsN} + \{rhsN} bytes is too large"
+
+    val n = lhsN + rhsN
+    val cpN = l.cpCount + r.cpCount
+    if rhsN == 0 then lhs
+    else if lhsN == 0 then rhs
+    else
+      // Whether `lhs` is the longest string on its growable buffer
+      val tip = l.capacity > 0 && readInt(usedAddr l) == lhsN
+      if tip && rhsN <= l.capacity - lhsN then
+        copyBytes(addAddr(l.content, lhsN), r.content, rhsN)
+        writeInt(usedAddr l, n)
+        cast[String] Raw(n, cpN, l.content, l.capacity)
+      else
+        val capacity = bufferCapacity(n, tip)
+        val buf = allocBuffer (capacity + 4)
+        copyBytes(buf, l.content, lhsN)
+        copyBytes(addAddr(buf, lhsN), r.content, rhsN)
+        writeInt(addAddr(buf, capacity), n)
+        cast[String] Raw(n, cpN, buf, capacity)
+
+  def (lhs: String) == (rhs: String): Bool =
+    val bytesN = byteSize(lhs)
+    if bytesN != byteSize(rhs) || lhs.size != rhs.size then false
+    else if sameRef(lhs, rhs) then true
+    else sameBytes((cast[Raw] lhs).content, (cast[Raw] rhs).content, bytesN)
+
+  def substring(source: String, from: Int, len: Int): String =
+    val cpN = source.size
+    if from < 0 then abort "from should not be negative"
+    if len < 0 then abort "len should not be negative"
+    // `from + len` could wrap, so compare with the room left after `from`
+    if from > cpN || len > cpN - from then abort "substring out of range"
+
+    if len == 0 then ""
+    else
+      val r = cast[Raw] source
+      if len == cpN then cast[String] r
+      else
+        val startByte = byteOffset(r, from)
+        val subByteN = byteOffset(r, from + len) - startByte
+        val buf = allocBuffer subByteN
+        copyBytes(buf, addAddr(r.content, startByte), subByteN)
+        cast[String] Raw(subByteN, len, buf, 0)
+
+  // Compare the bytes of `other` at each code point from `from`. In UTF-8,
+  // equal bytes from a code point boundary are equal code points.
+  def indexOf(source: String, other: String, from: Int): Int =
+    val n = source.size
+    val m = other.size
+    var start = from
+    if start < 0 then start = 0
+    if start > n then start = n
+
+    if m == 0 then start
+    else if m > n - start then -1
+    else
+      val s = cast[Raw] source
+      val o = cast[Raw] other
+      val content = s.content
+      val sN = s.byteSize
+      val oN = o.byteSize
+      val ascii = sN == n
+      var off = if ascii then start else codePointToByteOffset(content, sN, start)
+      var result = -1
+      var i = start
+      while result < 0 && i <= n - m do
+        if oN <= sN - off && sameBytes(addAddr content off, o.content, oN) then
+          result = i
+        else
+          off = off + (if ascii then 1 else utf8SeqLen(readByte(addAddr content off)))
+          i = i + 1
+      end
+      result
+
+  def startsWith(source: String, prefix: String): Bool =
+    val sN = byteSize source
+    val pN = byteSize prefix
+    if prefix.size > source.size || pN > sN then false
+    else sameBytes((cast[Raw] source).content, (cast[Raw] prefix).content, pN)
+
+  def endsWith(source: String, suffix: String): Bool =
+    val sN = byteSize source
+    val xN = byteSize suffix
+    if suffix.size > source.size || xN > sN then false
+    else sameBytes(addAddr((cast[Raw] source).content, sN - xN), (cast[Raw] suffix).content, xN)
+
+  // Change the ASCII letters from `first` to `first + 25` by `delta`. Other
+  // code points keep their bytes, since in UTF-8 every byte of a multi-byte
+  // code point is at least 0x80.
+  private def mapLetters(source: String, first: Int, delta: Int): String =
+    val r = cast[Raw] source
+    val n = r.byteSize
+    if n == 0 then ""
+    else
+      val buf = allocBuffer n
+      var i = 0
+      while i < n do
+        val b = readByte(addAddr r.content i).toInt & 0xFF
+        val c = if b >= first && b <= first + 25 then b + delta else b
+        writeByte(addAddr buf i, c.toByte)
+        i = i + 1
+      end
+      cast[String] Raw(n, r.cpCount, buf, 0)
+
+  def toLower(source: String): String = mapLetters(source, 65, 32)
+
+  def toUpper(source: String): String = mapLetters(source, 97, -32)
+
+  def iterator(source: String): Iterator[Char] =
+    new StringIterator(source)
+
+  //[ The bytes of a string, read in place. Callers must not write to them. //]
+  def bytes(repr: String): Addr = (cast[Raw] repr).content
+end
+
+// `content` points just past the header of the buffer of the string, so it
+// keeps the buffer alive.
+private[native] class StringIterator(source: String)
+  val content: Addr = StringOps.bytes(source)
+  val byteN: Int = StringOps.byteSize(source)
+  var off: Int = 0
+
+  def hasNext: Bool = off < byteN
+
+  def next: Char =
+    if off >= byteN then abort "String iterator exhausted"
+
+    val b0 = readByte(addAddr content off).toInt & 0xFF
+    var cp: Int = -1
+    var step: Int = -1
+    if b0 < 0x80 then
+      cp = b0
+      step = 1
+    else if b0 < 0xE0 then
+      val b1 = readByte(addAddr content (off + 1)).toInt & 0x3F
+      cp = ((b0 & 0x1F) << 6) | b1
+      step = 2
+    else if b0 < 0xF0 then
+      val b1 = readByte(addAddr content (off + 1)).toInt & 0x3F
+      val b2 = readByte(addAddr content (off + 2)).toInt & 0x3F
+      cp = ((b0 & 0x0F) << 12) | (b1 << 6) | b2
+      step = 3
+    else
+      val b1 = readByte(addAddr content (off + 1)).toInt & 0x3F
+      val b2 = readByte(addAddr content (off + 2)).toInt & 0x3F
+      val b3 = readByte(addAddr content (off + 3)).toInt & 0x3F
+      cp = ((b0 & 0x07) << 18) | (b1 << 12) | (b2 << 6) | b3
+      step = 4
+    end
+
+    off = off + step
+    cp.toChar
+
+  view Iterator[Char]
+end

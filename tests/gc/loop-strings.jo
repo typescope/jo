@@ -1,0 +1,23 @@
+namespace gcloopstrings
+
+// Strings appended in a loop. Live and dead strings share growable buffers.
+
+def main(): Unit =
+  var keep = ""
+  var line = "start"
+  var i = 0
+  while i < 100000 do
+    // a dead string on the buffer of `line`
+    val dead = line + "x"
+    line = line + "."
+    if line.size > 60 then
+      keep = keep + line.substring(0, 3)
+      line = "s" + (i % 10).toString
+
+    if dead.size < 0 then println: dead
+    i = i + 1
+  end
+
+  println: keep.size
+  println: keep.substring(0, 12)
+  println: line

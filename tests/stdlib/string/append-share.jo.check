@@ -1,0 +1,33 @@
+--- forks ---
+abccccc!
+abcccccx
+abcccccxx
+abcccccxy
+abcccccx
+9
+10
+é
+ü
+true
+true
+--- literals ---
+lit
+litx
+loop loop0
+loop loop1
+loop loop2
+--- function ---
+fx fy
+fyx fyy
+fyyx fyyy
+fyyyx fyyyy
+--- doubling ---
+2 4
+4 8
+8 16
+16 32
+abababababababababababababababab
+ababababababababababababababababz
+64
+true
+32

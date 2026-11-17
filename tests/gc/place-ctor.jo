@@ -1,0 +1,55 @@
+namespace gcplacector
+
+// A recursive builder through constructors places its result without a
+// region: `chain` and `wrap` open no region at all. `chain` runs at the top,
+// called by `main`, and past the level limit, called by `descend`. `drop`
+// drops the result of `wrap` after reading it.
+
+class Node(value: Int, next: Option[Node])
+
+def chain(n: Int): Option[Node] =
+  if n == 0 then None
+  else Some(new Node(n, chain(n - 1)))
+
+def total(list: Option[Node]): Int =
+  var sum = 0
+  var cur = list
+  var go = true
+  while go do
+    match cur
+      case Some(node) =>
+        sum = sum + node.value
+        cur = node.next
+      case None => go = false
+  end
+  sum
+
+// A region function at every level, past the limit of 32767 levels
+def descend(depth: Int): Option[Node] =
+  if depth == 0 then chain 100
+  else
+    val list = descend(depth - 1)
+    val noise = new Node(depth, None)
+    if noise.value % 10000 == 0 then chain (noise.value / 10000) else list
+
+def wrap(i: Int): Option[Node] = Some(new Node(i, None))
+
+def valueOf(list: Option[Node]): Int =
+  match list
+    case Some(node) => node.value
+    case None => 0
+
+def drop(n: Int): Int =
+  var i = 0
+  var sum = 0
+  while i < n do
+    sum = sum + valueOf(wrap i) % 7
+    i = i + 1
+  end
+  sum
+
+def main(): Unit =
+  println: total(chain 1000)
+  println: total(descend 40000)
+  println: total(descend 35000)
+  println: drop 100000

@@ -1,0 +1,30 @@
+namespace mempick
+
+// A loop stores `choose(new Node(...), new Node(...))` into a slot of the
+// array it returns, a million times. Nothing in the loop is placed, so both
+// nodes go to the region of the iteration of `build`, which frees the node
+// not chosen. The chosen nodes are promoted to the region of `build` by the
+// store and stay there until `build` returns.
+
+class Node(v: Int, pad: Array[Int])
+
+def choose(a: Node, b: Node): Node =
+  if a.v > b.v then a else b
+
+def build(n: Int): Array[Node] =
+  val arr = Array.fill(4, new Node(0, Array.fill(1, 0)))
+  var i = 0
+  while i < n do
+    arr[i % 4] = choose(new Node(i, Array.fill(8, 0)), new Node(0 - i, Array.fill(8, 0)))
+    i = i + 1
+  end
+  arr
+
+def main(): Unit =
+  var total = 0
+  var k = 0
+  while k < 5 do
+    total = total + build(1000000)[0].v
+    k = k + 1
+  end
+  println: total

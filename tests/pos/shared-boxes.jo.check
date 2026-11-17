@@ -1,0 +1,69 @@
+Int -130
+Int -129
+Int -128
+Int -127
+Int -1
+Int 0
+Int 1
+Int 255
+Int 256
+Int 1022
+Int 1023
+Int 1024
+Int 1025
+Int 100000
+Char 0
+Char 65
+Char 255
+Char 256
+Char 20013
+Byte 0
+Byte 127
+Byte 128
+Byte 255
+Bool true
+Bool false
+[-130, -129, -128, -127, -1, 0, 1, 255, 256, 1022, 1023, 1024, 1025, 100000]
+[0, 65, 255, 256, 20013]
+[0, 127, 128, 255]
+[true, false, true]
+[1023, 1023]
+[1024, 1024]
+[1024, 1024]
+[1.5, 1.5]
+true
+true
+true
+true
+true
+false
+true
+true
+true
+false
+true
+false
+count -130 = 2
+count -129 = 2
+count -128 = 2
+count -127 = 2
+count -1 = 2
+count 0 = 2
+count 1 = 2
+count 255 = 2
+count 256 = 2
+count 1022 = 2
+count 1023 = 2
+count 1024 = 2
+count 1025 = 2
+count 100000 = 2
+chars 5
+bytes 4
+flags false true 14
+[-129, 1023, 1024]
+[C, A, B]
+3
+14
+[8, 1025, -129]
+[7, 1024, -128]
+[5, 1023, 1024, -1]

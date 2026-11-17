@@ -1,0 +1,126 @@
+namespace gcloopiterations
+
+// Regions of loop iterations: variables declared outside a loop, a variable
+// of an outer iteration assigned in an inner loop, pattern binders in the
+// condition, a return from two loops deep, break and continue, `match` in the
+// body, `for` over a map, and a tail-recursive function. Under
+// `JO_LOOP_STRESS=1` the region of each loop closes at every iteration.
+
+class Node(value: Int, next: Option[Node])
+
+class Cell(value: Int)
+
+union Lst = Cons(head: Cell, tail: Lst) | Nil
+
+def length(n: Option[Node]): Int =
+  var len = 0
+  var cur = n
+  while cur is Some(node) do
+    len = len + (new Cell(node.value)).value * 0 + 1
+    cur = node.next
+  end
+  len
+
+// A list built through a variable of the function, and a variable homed in
+// the outer iteration assigned in the inner loop
+def nested(n: Int): Int =
+  var total: Lst = Nil
+  var i = 0
+  while i < n do
+    var row: Lst = Nil
+    var j = 0
+    while j < 30 do
+      row = Cons(new Cell(i * j), row)
+      if j % 7 == 6 then total = Cons(new Cell(j), total)
+      j = j + 1
+    end
+    var s = 0
+    var cur = row
+    while cur is Cons(c, t) do
+      s = s + c.value
+      cur = t
+    end
+    total = Cons(new Cell(s % 1000), total)
+    i = i + 1
+  end
+  var sum = 0
+  var cur = total
+  while cur is Cons(c, t) do
+    sum = (sum + c.value) % 1000003
+    cur = t
+  end
+  sum
+
+// A return from two loops deep keeps its result
+def find(n: Int): Cell =
+  var i = 0
+  while i < n do
+    var j = 0
+    while j < n do
+      val c = new Cell(i * 100 + j)
+      if c.value == 4321 then return c
+      j = j + 1
+    end
+    i = i + 1
+  end
+  new Cell(-1)
+
+// break and continue leave the iteration region
+def jumps(n: Int): Int =
+  var last = new Cell(0)
+  var i = 0
+  while true do
+    i = i + 1
+    val c = new Cell(i)
+    if i % 3 == 0 then continue
+    last = c
+    if i > n then break
+  end
+  last.value
+
+// match in the body and a refutable condition
+def matching(n: Int): Int =
+  var acc: Option[Node] = None
+  var i = 0
+  while i < n do
+    val o: Option[Cell] = if i % 2 == 0 then Some(new Cell(i)) else None
+    match o
+      case Some(c) => acc = Some(new Node(c.value, acc))
+      case None => pass
+    i = i + 1
+  end
+  length acc
+
+// for over a map
+def pairs(n: Int): Int =
+  var m = Map.empty[Int, Cell]
+  var i = 0
+  while i < n do
+    m = m.update(i % 50, new Cell(i))
+    i = i + 1
+  end
+  var best = new Cell(0)
+  for k ~ v in m do
+    if v.value + k > best.value then best = new Cell(v.value + k)
+  best.value
+
+// tail recursion
+def walk(n: Int, acc: Lst): Int =
+  if n == 0 then
+    var s = 0
+    var cur = acc
+    while cur is Cons(c, t) do
+      s = s + c.value
+      cur = t
+    end
+    s
+  else walk(n - 1, Cons(new Cell(n), acc))
+
+def main(): Unit =
+  println: length(Some(new Node(1, Some(new Node(2, None)))))
+  println: nested 300
+  println: (find 100).value
+  println: jumps 20000
+  println: matching 3000
+  println: pairs 3000
+  println: walk(20000, Nil)

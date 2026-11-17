@@ -1,0 +1,21 @@
+// A search must not copy the source at each position. Before, the native
+// backends took memory quadratic in the size of the source: 1.3 GB for one
+// search in 40000 characters. The JavaScript backend still indexes code
+// points from the start at each position, so the strings are shorter.
+def main() =
+  val n = 12000
+  val s = "x" * n + "y"
+  println: s.indexOf("y")
+  println: s.indexOf("xy")
+  println: s.indexOf("z")
+  println: s.indexOf("x", n)
+  println: s.indexOf("x", n - 1)
+
+  // Unicode: each "é\u{1F680}" is two code points and six bytes
+  val u = "é\u{1F680}" * 2000 + "tail"
+  println: u.indexOf("tail")
+  println: u.indexOf("\u{1F680}t")
+  println: u.indexOf("é", 3997)
+  println: u.indexOf("é", 3999)
+  println: u.indexOf("\u{1F680}é\u{1F680}", 100)
+  println: u.contains("x")

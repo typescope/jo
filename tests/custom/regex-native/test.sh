@@ -8,22 +8,12 @@ echo "Testing $TEST_NAME"
 
 rm -rf "$DIR/actual.out" "$DIR"/*.run
 
-echo "  - Building with register machine"
-"$PROJECT_ROOT/bin/jo" compile --use-runtime-api native --reg "$DIR/app.jo" \
+echo "  - Building with LLVM"
+"$PROJECT_ROOT/bin/jo" compile --use-runtime-api native --llvm --clang "${CLANG:-clang}" "$DIR/app.jo" \
   -o "$DIR/app.run"
 "$DIR/app.run" > "$DIR/actual.out" 2>&1
 diff "$DIR/actual.out" "$DIR/expect.check" || {
-    echo "[error] Register machine test failed for $TEST_NAME"
-    cat "$DIR/actual.out"
-    exit 1
-}
-
-echo "  - Building with stack machine"
-"$PROJECT_ROOT/bin/jo" compile --use-runtime-api native --stack "$DIR/app.jo" \
-  -o "$DIR/app.run"
-"$DIR/app.run" > "$DIR/actual.out" 2>&1
-diff "$DIR/actual.out" "$DIR/expect.check" || {
-    echo "[error] Stack machine test failed for $TEST_NAME"
+    echo "[error] LLVM test failed for $TEST_NAME"
     cat "$DIR/actual.out"
     exit 1
 }

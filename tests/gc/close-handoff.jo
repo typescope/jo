@@ -1,0 +1,112 @@
+namespace gcclosehandoff
+
+// The close fast path: when the merge budget refuses a merge, a region whose
+// objects all escape is handed to its parent instead of collected. The
+// array of `fill` holds thousands of boxes, and `round` and `keep` allocate
+// `ballast`, so these parents are over the merge budget. The iterations of
+// the loop of `fill` close their region every 8 KB, and hand it over.
+
+class Box(n: Int)
+
+class Cell(value: Int, next: Cell | Int)
+
+// More objects than the 8 segments of the merge budget hold, in the region
+// of the caller
+def ballast(n: Int): Array[Box] =
+  val junk = Array.fill(n, new Box(0))
+  for j in 0 until n do junk[j] = new Box(j)
+  junk
+
+// Its only object is the box it stores into `buf`
+def put(buf: Array[Box], i: Int): Unit =
+  buf[i] = new Box(i * 3)
+
+// Its region gets the boxes of `put`, required by the region of `fill`. It
+// merges into the region of the iterations of the loop of `fill`, which is
+// handed over at its closes
+def step(buf: Array[Box], i: Int): Unit =
+  put(buf, i)
+  put(buf, i + 1)
+
+def fill(n: Int): Array[Box] =
+  val buf = Array.fill(n, new Box(0))
+  var i = 0
+  while i < n do
+    step(buf, i)
+    i = i + 2
+  end
+
+  buf
+
+// Both cells escape `pair`, so its region is handed over. `inner` escapes
+// only to the region of `round`, but `outer` reaches it from the array of
+// `link`. The close of `round` must trace from `outer` and keep `inner`.
+def pair(local: Array[Cell], global: Array[Cell], i: Int): Unit =
+  val inner = new Cell(i, 0)
+  val outer = new Cell(i + 1, inner)
+  local[0] = inner
+  global[i] = outer
+
+def round(global: Array[Cell], i: Int): Unit =
+  val junk = ballast(600)
+  val local = Array.fill(1, new Cell(0, 0))
+  pair(local, global, i)
+
+def link(n: Int): Array[Cell] =
+  val global = Array.fill(n, new Cell(0, 0))
+  for i in 0 until n do round(global, i)
+  global
+
+// The region of `putFirst` is handed to `keep`, whose array `local` holds
+// the box. `keep` then stores the box into an older array. The barrier records
+// the promotion at the box's level, which must be the level of `keep` after
+// the hand-off, or the close of `keep` frees the box.
+def putFirst(local: Array[Box], i: Int): Unit =
+  local[0] = new Box(i)
+
+def keep(global: Array[Box], i: Int): Unit =
+  val junk = ballast(600)
+  val local = Array.fill(2, new Box(0))
+  putFirst(local, i)
+  global[i] = local[0]
+
+def keepAll(n: Int): Array[Box] =
+  val global = Array.fill(n, new Box(0))
+  for i in 0 until n do keep(global, i)
+  global
+
+// Ints above the shared boxes, boxed by the bridge of `Iterator[Int].next`
+// as in Sieve, and kept in a list of the caller
+def bridge(n: Int): List[Int] =
+  var kept: List[Int] = []
+  val last = 5000 + n
+  for x in 5000 until last do
+    if x % 10 == 0 then kept = kept + x
+  end
+
+  kept
+
+def main(): Unit =
+  val buf = fill(5000)
+  var sum = 0
+  for b in buf do sum = sum + b.n
+  println: sum
+
+  val cells = link(500)
+  var total = 0
+  for c in cells do
+    total = total + c.value
+    match c.next
+      case inner: Cell => total = total + inner.value
+      case _ => total = total - 1000000
+  end
+
+  println: total
+
+  var rephys = 0
+  for b in keepAll(500) do rephys = rephys + b.n
+  println: rephys
+
+  var bridged = 0
+  for x in bridge(20000) do bridged = bridged + x
+  println: bridged
