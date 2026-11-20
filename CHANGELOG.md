@@ -4,6 +4,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Python FFI conversions `py.int`, `py.float`, and `py.bool`, plus checked
+  `py.Dynamic.asLong` and `py.Dynamic.asInteger` accessors.
+- `py.Integer` for arbitrary-precision Python arithmetic, comparisons, and
+  bitwise operations. Operators accept Jo `Int` and `Long` without runtime
+  conversion and compile directly to Python operators.
+
+### Compatibility
+
+- The Python compiler and runtime must be updated together for the new
+  intrinsic integer API. The SAST format is unchanged.
+
 ## [0.14.12] - 2026-11-15
 
 ### Fixed

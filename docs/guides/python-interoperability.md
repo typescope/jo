@@ -95,18 +95,101 @@ val b: Bool   = someValue.cast[Bool]
 
 ### Convenience cast shortcuts
 
-`py.Dynamic` provides shorthand methods for the four primitive types:
+`py.Dynamic` provides shorthand methods for primitive values:
 
 ```jo
 val i: Int    = v.asInt
+val l: Long   = v.asLong
+val n: py.Integer = v.asInteger
 val f: Float  = v.asFloat
 val s: String = v.asString
 val b: Bool   = v.asBool
 ```
 
-Each shortcut checks that the value has exactly the corresponding Python type and aborts with a descriptive error if it does not. In particular, `asInt` rejects Python `bool` values even though Python treats `bool` as a subclass of `int`. The generic `cast[T]` remains an unchecked reinterpretation for typed wrappers and other advanced uses.
+Each shortcut checks that the value has exactly the corresponding Python type and aborts with a descriptive error if it does not. `asInt`, `asLong`, and `asInteger` require Python `int` and reject Python `bool` values even though Python treats `bool` as a subclass of `int`. The generic `cast[T]` remains an unchecked reinterpretation for typed wrappers and other advanced uses.
+
+Python uses the same arbitrary-size `int` type for both Jo integer types. Callers must ensure that values passed to `asInt` are in [-2^31, 2^31 - 1], and values passed to `asLong` are in [-2^63, 2^63 - 1]. Both ranges include negative values. These accessors perform no range check or numeric conversion; values outside the target range have undefined behavior. Use `asLong` to receive Python integers beyond the signed 32-bit range.
 
 Use `asString` when you know the value is already a Python `str`. Use `toString` (see below) when you want a human-readable representation of an arbitrary value.
+
+### Python conversions
+
+Use `py.int`, `py.float`, and `py.bool` to convert values with Python's builtins.
+These functions accept any Python object and perform conversions, while the
+`asInt`, `asLong`, `asFloat`, and `asBool` accessors check the existing type.
+
+```jo
+val i: Int = py.int("42").asInt
+val l: Long = py.int("9007199254740993").asLong
+val f: Float = py.float("3.5")
+val b: Bool = py.bool(py.list(1, 2))    // true: nonempty Python list
+```
+
+`py.int(value)` wraps the one-argument form of Python `int()`, including truncation
+toward zero for floats. It returns `py.Integer` to preserve arbitrary-size Python
+integers. Use `.asInt` or `.asLong` only when the result is in the corresponding
+Jo range described above.
+
+`py.float(value)` returns a Jo `Float`. `py.bool(value)` returns a Jo `Bool` using
+Python truthiness: `None`, numeric zero, empty strings, and empty containers are
+false; a nonempty string such as `"false"` is true.
+
+Python exceptions from conversions propagate and can be caught with `py.try`:
+
+```jo
+match py.try(py.int("not a number"))
+  case Ok(value) => println value
+  case Err(e) => println e.typeName    // ValueError
+```
+
+### Arbitrary-size integers
+
+`py.Integer` is a typed interface to Python's arbitrary-size `int`, with no
+additional wrapper object. Create one with `py.int(value)`, or use
+`value.asInteger` to check that a `py.Dynamic` is already exactly a Python `int`.
+The interface and its methods are intrinsic: the Python backend emits operators,
+`float(...)`, and `str(...)` directly, with no calls to Jo method implementations.
+
+```jo
+val n: py.Integer = py.int("18446744073709551616")
+val wide: Long = 4294967296
+println (n + 1)       // 18446744073709551617
+println (n * wide)    // arbitrary-precision multiplication
+println (n << 100)    // shifts have no fixed-width limit
+```
+
+Arithmetic, comparison, bitwise, and shift arguments use the duck type
+`py.IntegerLike = py.Integer :- [py.intToInteger, py.longToInteger]`. This accepts
+`py.Integer` directly and adapts Jo `Int` and `Long` using intrinsics that perform
+no runtime conversion. The receiver must be a `py.Integer`; use `py.int(1) + n`
+when the left operand is a Jo integer. Floats, booleans, strings, and raw
+`py.Dynamic` values are not adapted.
+
+Numeric literals keep Jo's usual typing rules. For literals beyond the signed
+32-bit range, use a `Long` binding as above or construct a `py.Integer` from a
+string.
+
+| Operation | Result | Python behavior |
+|-----------|--------|-----------------|
+| `+`, `-`, `*`, unary `-` | `py.Integer` | Arbitrary precision |
+| `/` | `Float` | True division |
+| `.floorDiv(...)` | `py.Integer` | Division rounded toward negative infinity |
+| `%` | `py.Integer` | Remainder has the sign of the divisor |
+| `<`, `>`, `<=`, `>=`, `==`, `!=` | `Bool` | Integer value comparison |
+| `&`, `\|`, `^`, unary `~` | `py.Integer` | Unbounded two's-complement bitwise operations |
+| `<<`, `>>` | `py.Integer` | Nonnegative shift counts, with no fixed-width limit |
+
+For example, `py.int(-7).floorDiv(2)` is `-4`, and `py.int(-7) % 2` is `1`.
+These follow Python's rules, which differ from Jo `Int` and `Long` division and
+remainder. Division or remainder by zero raises Python `ZeroDivisionError`;
+negative shift counts raise `ValueError`. True division and `.toFloat` can raise
+`OverflowError` for values too large to represent as a float. Catch these with
+`py.try`.
+
+`.asInt` and `.asLong` reinterpret the value within the signed ranges documented
+above; values outside those ranges have undefined behavior. `.toFloat` performs
+Python float conversion, and `.toString` returns a decimal representation without
+a fixed-width limit.
 
 ### String conversion
 
