@@ -110,6 +110,14 @@ private class Counter
   def nextValue: Long =
     evaluations = evaluations + 1
     4294967296
+
+  def nextInteger: py.Integer =
+    evaluations = evaluations + 1
+    py.int(evaluations)
+
+  def nextSmall: Int =
+    evaluations = evaluations + 1
+    evaluations
 end
 
 def testAdapter =
@@ -123,3 +131,8 @@ def testAdapter =
   println py.isIdentical(small, smallValue)
   println (py.int(1) + counter.nextValue)
   println counter.evaluations
+
+  // The right operand needs statements for py.try; evaluate the receiver first.
+  val order = new Counter
+  println (order.nextInteger - (if py.try(order.nextSmall) is Ok(2) then 10 else 0))
+  println order.evaluations

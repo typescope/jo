@@ -12,8 +12,8 @@ cd "$PROJECT_ROOT"
 python3 "$WORK/app.py" > "$WORK/actual.out" 2>&1
 diff -u "$DIR/expect.check" "$WORK/actual.out"
 
-if grep -Eq 'intToInteger|longToInteger' "$WORK/app.py"; then
-  echo "[error] Integer adapter was not erased"
+if grep -Eq 'intToInteger|longToInteger|jo_py_Integer|^import operator( |$)' "$WORK/app.py"; then
+  echo "[error] Integer operation or adapter was not intrinsified"
   exit 1
 fi
 

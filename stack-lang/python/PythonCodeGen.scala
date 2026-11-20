@@ -941,6 +941,9 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
       case Select(qual, name) if qual.tpe.isSubtype(defn.LongType) =>
         compileLongPrimitive(name, qual, args, enforcePurity)
 
+      case Select(qual, name) if qual.tpe.isSubtype(Types.StaticRef(runtime.py_Integer)) =>
+        compilePythonIntegerPrimitive(name, qual, args, enforcePurity)
+
       case Select(qual, name) if qual.tpe.isSubtype(defn.ByteType) =>
         compileBytePrimitive(name, qual, args, enforcePurity)
 
@@ -1137,6 +1140,32 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
       case _ =>
         throw new Exception(s"Unknown Bool method: $name")
+
+  /** Compile arbitrary-precision Python integer operations without wrapper calls. */
+  private def compilePythonIntegerPrimitive(name: String, qual: Word, args: List[Word], enforcePurity: Boolean)(using scope: UniqueName, ctx: Context): (List[P.Stat], P.Expr) =
+    name match
+      case "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&" | "|" | "^" | "<<" | ">>" | "floorDiv" =>
+        val arg :: Nil = args: @unchecked
+        val (stats, qualExpr, argExpr) = compileTwoArgs(qual, arg, enforcePurity)
+        val op = if name == "floorDiv" then "//" else name
+        (stats, P.BinOp(qualExpr, op, argExpr))
+
+      case "~-" | "~~" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        val op = if name == "~-" then "-" else "~"
+        (stats, P.UnaryOp(op, expr))
+
+      case "asInt" | "asLong" =>
+        // Reinterpretation within the documented Jo range requires no conversion.
+        compileExpr(qual, enforcePurity)
+
+      case "toFloat" | "toString" =>
+        val (stats, expr) = compileExpr(qual, enforcePurity)
+        val builtin = if name == "toFloat" then "float" else "str"
+        (stats, P.Call(None, builtin, List(expr)))
+
+      case _ =>
+        throw new Exception(s"Unknown py.Integer method: $name")
 
   /** Reduce an integer expression to signed 32-bit (two's-complement wrap):
     *

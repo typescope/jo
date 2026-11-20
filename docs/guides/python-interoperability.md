@@ -147,6 +147,8 @@ match py.try(py.int("not a number"))
 `py.Integer` is a typed interface to Python's arbitrary-size `int`, with no
 additional wrapper object. Create one with `py.int(value)`, or use
 `value.asInteger` to check that a `py.Dynamic` is already exactly a Python `int`.
+The interface and its methods are intrinsic: the Python backend emits operators,
+`float(...)`, and `str(...)` directly, with no calls to Jo method implementations.
 
 ```jo
 val n: py.Integer = py.int("18446744073709551616")
