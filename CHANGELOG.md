@@ -12,6 +12,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   bitwise operations. Operators accept Jo `Int` and `Long` without runtime
   conversion and compile directly to Python operators.
 
+### Fixed
+
+- Documentation syntax highlighting now recognizes block comments before line
+  comments, handles multiline strings with matching quote delimiters, and
+  distinguishes character literals from stray apostrophes.
+
 ### Compatibility
 
 - The Python compiler and runtime must be updated together for the new
