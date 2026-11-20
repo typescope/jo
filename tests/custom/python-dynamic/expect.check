@@ -43,3 +43,21 @@ py.Dynamic.asString: expected Python str, got int (runtime/python/py.jo:209)
 py.Dynamic.asLong: expected Python int, got str (runtime/python/py.jo:243)
 py.Dynamic.asLong: expected Python int, got float (runtime/python/py.jo:243)
 py.Dynamic.asLong: expected Python int, got bool (runtime/python/py.jo:243)
+--- Python conversions ---
+42
+9007199254740993
+18446744073709551616
+3
+-3
+1
+3.5
+true
+true
+false
+false
+true
+false
+false
+true
+ValueError
+ValueError

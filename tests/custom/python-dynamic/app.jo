@@ -11,6 +11,7 @@ def main =
   testCallWithSplice()
   testCheckedAccessors()
   testLongAccessor()
+  testConversions()
 
 //[ 1. importModule + selectDynamic (attribute read) //]
 def testImportAndSelect =
@@ -188,3 +189,37 @@ def testLongAccessor =
   match py.try(builtins.bool(true).asLong)
     case Ok(_)  => println "asLong unexpectedly accepted bool"
     case Err(e) => println e.message
+
+//[ 12. Conversion helpers follow Python builtin semantics //]
+def testConversions =
+  println "--- Python conversions ---"
+  val parsed: Int = py.int("42").asInt
+  println parsed
+  val wide: Long = py.int("9007199254740993").asLong
+  println wide
+  val huge: py.Dynamic = py.int("18446744073709551616")
+  println huge
+  println py.int(3.9).asInt
+  println py.int(-3.9).asInt
+  println py.int(true).asInt
+
+  val fraction: Float = py.float("3.5")
+  println fraction
+  println (py.float(42) == 42.0)
+
+  val truth: Bool = py.bool("false")
+  println truth
+  println py.bool("")
+  println py.bool(0)
+  println py.bool(-1)
+  println py.bool(py.none)
+  println py.bool(py.list())
+  println py.bool(py.list(0))
+
+  match py.try(py.int("not an int"))
+    case Ok(_)  => println "int unexpectedly accepted invalid text"
+    case Err(e) => println e.typeName
+
+  match py.try(py.float("not a float"))
+    case Ok(_)  => println "float unexpectedly accepted invalid text"
+    case Err(e) => println e.typeName

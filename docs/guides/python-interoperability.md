@@ -111,6 +111,36 @@ Python uses the same arbitrary-size `int` type for both Jo integer types. Caller
 
 Use `asString` when you know the value is already a Python `str`. Use `toString` (see below) when you want a human-readable representation of an arbitrary value.
 
+### Python conversions
+
+Use `py.int`, `py.float`, and `py.bool` to convert values with Python's builtins.
+These functions accept any Python object and perform conversions, while the
+`asInt`, `asLong`, `asFloat`, and `asBool` accessors check the existing type.
+
+```jo
+val i: Int = py.int("42").asInt
+val l: Long = py.int("9007199254740993").asLong
+val f: Float = py.float("3.5")
+val b: Bool = py.bool(py.list(1, 2))    // true: nonempty Python list
+```
+
+`py.int(value)` wraps the one-argument form of Python `int()`, including truncation
+toward zero for floats. It returns `py.Dynamic` to preserve arbitrary-size Python
+integers. Use `.asInt` or `.asLong` only when the result is in the corresponding
+Jo range described above.
+
+`py.float(value)` returns a Jo `Float`. `py.bool(value)` returns a Jo `Bool` using
+Python truthiness: `None`, numeric zero, empty strings, and empty containers are
+false; a nonempty string such as `"false"` is true.
+
+Python exceptions from conversions propagate and can be caught with `py.try`:
+
+```jo
+match py.try(py.int("not a number"))
+  case Ok(value) => println value
+  case Err(e) => println e.typeName    // ValueError
+```
+
 ### String conversion
 
 `py.Dynamic` implements `toString`, which calls Python's `str()` on the value. Because Jo uses `toString` as its standard string-conversion adapter, `py.Dynamic` works transparently in string concatenation and `println`:

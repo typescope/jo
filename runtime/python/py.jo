@@ -426,6 +426,26 @@ def contains(obj: Any, value: Any): Bool = operator.contains(obj, value).asBool
 //[ Convert a Python object to its string representation.   //]
 def str(obj: Any): String = builtins.str(obj).asString
 
+//[ Convert a Python object using the one-argument Python `int()` builtin.
+  !
+  ! Returns a Dynamic to preserve Python's arbitrary-size integers.
+  ! Use `asInt` or `asLong` when the result is within the corresponding Jo range.
+  ! Invalid conversions raise Python exceptions, which can be caught with `py.try`.
+//]
+def int(obj: Any): Dynamic = builtins.int(obj)
+
+//[ Convert a Python object using Python `float()`.
+  !
+  ! Invalid conversions raise Python exceptions, which can be caught with `py.try`.
+//]
+def float(obj: Any): Float = builtins.float(obj).asFloat
+
+//[ Return the truth value of a Python object using Python `bool()`.
+  !
+  ! Follows Python truthiness: None, numeric zero, and empty containers are false.
+//]
+def bool(obj: Any): Bool = builtins.bool(obj).asBool
+
 //[ Read a line of input from stdin, optionally printing `prompt` first.   //]
 def input(prompt: String = ""): String = builtins.input(prompt).asString
 
