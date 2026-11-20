@@ -95,16 +95,19 @@ val b: Bool   = someValue.cast[Bool]
 
 ### Convenience cast shortcuts
 
-`py.Dynamic` provides shorthand methods for the four primitive types:
+`py.Dynamic` provides shorthand methods for primitive values:
 
 ```jo
 val i: Int    = v.asInt
+val l: Long   = v.asLong
 val f: Float  = v.asFloat
 val s: String = v.asString
 val b: Bool   = v.asBool
 ```
 
-Each shortcut checks that the value has exactly the corresponding Python type and aborts with a descriptive error if it does not. In particular, `asInt` rejects Python `bool` values even though Python treats `bool` as a subclass of `int`. The generic `cast[T]` remains an unchecked reinterpretation for typed wrappers and other advanced uses.
+Each shortcut checks that the value has exactly the corresponding Python type and aborts with a descriptive error if it does not. Both `asInt` and `asLong` require Python `int` and reject Python `bool` values even though Python treats `bool` as a subclass of `int`. The generic `cast[T]` remains an unchecked reinterpretation for typed wrappers and other advanced uses.
+
+Python uses the same arbitrary-size `int` type for both Jo integer types. Callers must ensure that values passed to `asInt` are in [-2^31, 2^31 - 1], and values passed to `asLong` are in [-2^63, 2^63 - 1]. Both ranges include negative values. These accessors perform no range check or numeric conversion; values outside the target range have undefined behavior. Use `asLong` to receive Python integers beyond the signed 32-bit range.
 
 Use `asString` when you know the value is already a Python `str`. Use `toString` (see below) when you want a human-readable representation of an arbitrary value.
 

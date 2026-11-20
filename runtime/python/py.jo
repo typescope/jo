@@ -230,6 +230,20 @@ interface Dynamic
       abort("py.Dynamic.asBool: expected Python bool, got " + actual.__name__.cast[String])
     cast[Bool]
 
+  //[ Return this Python value as a Jo Long, aborting unless it is exactly a Python `int`.
+    !
+    ! The value must be in [-2^63, 2^63 - 1], including negative values.
+    ! No range check or numeric conversion is performed; values outside this
+    ! range have undefined behavior.
+  //]
+  def asLong: Long =
+    val actual = builtins.callDynamic("type", this)
+
+    if !py.isIdentical(actual, builtins.int) then
+      abort("py.Dynamic.asLong: expected Python int, got " + actual.__name__.cast[String])
+
+    cast[Long]
+
   //[ Test whether this Python value is Python None.   //]
   def isNone: Bool = py.isNone(this)
 
