@@ -244,6 +244,19 @@ interface Dynamic
 
     cast[Long]
 
+  //[ Return this Python value as an arbitrary-size Integer.
+    !
+    ! Aborts unless the value is exactly a Python `int`, rejecting `bool`.
+    ! No conversion or range restriction is applied.
+  //]
+  def asInteger: Integer =
+    val actual = builtins.callDynamic("type", this)
+
+    if !py.isIdentical(actual, builtins.int) then
+      abort("py.Dynamic.asInteger: expected Python int, got " + actual.__name__.cast[String])
+
+    cast[Integer]
+
   //[ Test whether this Python value is Python None.   //]
   def isNone: Bool = py.isNone(this)
 
@@ -311,6 +324,95 @@ private def builtins: Dynamic = module("builtins")
 
 //[ Python operator module.   //]
 private def operator: Dynamic = module("operator")
+
+//[ An arbitrary-size Python integer, represented directly by Python `int`.
+  !
+  ! Arithmetic and bitwise operations follow Python semantics without a fixed
+  ! bit width. Operator arguments accept Integer, Jo Int, and Jo Long.
+  ! `/` performs true division and returns Float. `floorDiv` rounds down, and
+  ! `%` has the sign of the divisor. Negative shift counts raise ValueError.
+//]
+interface Integer
+  //[ Addition with arbitrary precision.   //]
+  def +(other: IntegerLike): Integer = operator.add(this, other).cast[Integer]
+
+  //[ Subtraction with arbitrary precision.   //]
+  def -(other: IntegerLike): Integer = operator.sub(this, other).cast[Integer]
+
+  //[ Multiplication with arbitrary precision.   //]
+  def *(other: IntegerLike): Integer = operator.mul(this, other).cast[Integer]
+
+  //[ True division. Python may raise OverflowError if the result is too large.   //]
+  def /(other: IntegerLike): Float = operator.truediv(this, other).cast[Float]
+
+  //[ Integer division rounded toward negative infinity.   //]
+  def floorDiv(other: IntegerLike): Integer = operator.floordiv(this, other).cast[Integer]
+
+  //[ Remainder of floor division, with the sign of the divisor.   //]
+  def %(other: IntegerLike): Integer = operator.mod(this, other).cast[Integer]
+
+  //[ True if this value is less than `other`.   //]
+  def <(other: IntegerLike): Bool = operator.lt(this, other).cast[Bool]
+
+  //[ True if this value is greater than `other`.   //]
+  def >(other: IntegerLike): Bool = operator.gt(this, other).cast[Bool]
+
+  //[ True if this value is less than or equal to `other`.   //]
+  def <=(other: IntegerLike): Bool = operator.le(this, other).cast[Bool]
+
+  //[ True if this value is greater than or equal to `other`.   //]
+  def >=(other: IntegerLike): Bool = operator.ge(this, other).cast[Bool]
+
+  //[ True if the integer values are equal.   //]
+  def ==(other: IntegerLike): Bool = operator.eq(this, other).cast[Bool]
+
+  //[ True if the integer values differ.   //]
+  def !=(other: IntegerLike): Bool = operator.ne(this, other).cast[Bool]
+
+  //[ Shift left by a nonnegative count, without a fixed-width limit.   //]
+  def <<(count: IntegerLike): Integer = operator.lshift(this, count).cast[Integer]
+
+  //[ Arithmetic shift right by a nonnegative count.   //]
+  def >>(count: IntegerLike): Integer = operator.rshift(this, count).cast[Integer]
+
+  //[ Bitwise AND, using Python's unbounded two's-complement semantics.   //]
+  def &(other: IntegerLike): Integer = operator.and_(this, other).cast[Integer]
+
+  //[ Bitwise OR, using Python's unbounded two's-complement semantics.   //]
+  def |(other: IntegerLike): Integer = operator.or_(this, other).cast[Integer]
+
+  //[ Bitwise exclusive OR.   //]
+  def ^(other: IntegerLike): Integer = operator.xor(this, other).cast[Integer]
+
+  //[ Bitwise complement.   //]
+  def ~~(): Integer = operator.invert(this).cast[Integer]
+
+  //[ Prefix negation.   //]
+  def ~-(): Integer = operator.neg(this).cast[Integer]
+
+  //[ Read this value as Jo Int. Values outside [-2^31, 2^31 - 1] are undefined.   //]
+  def asInt: Int = py.dynamic(this).cast[Int]
+
+  //[ Read this value as Jo Long. Values outside [-2^63, 2^63 - 1] are undefined.   //]
+  def asLong: Long = py.dynamic(this).cast[Long]
+
+  //[ Convert to Float, raising Python OverflowError if the value is too large.   //]
+  def toFloat: Float = py.float(this)
+
+  //[ The decimal string representation.   //]
+  def toString: String = py.str(this)
+end
+
+//[ An Integer argument that also accepts Jo Int and Long without runtime conversion.   //]
+type IntegerLike = Integer :- [intToInteger, longToInteger]
+
+//[ Reinterpret a Jo Int as a Python Integer without runtime conversion.   //]
+@intrinsic
+def intToInteger(value: Int): Integer = abort "intToInteger: intrinsified by the Python backend"
+
+//[ Reinterpret a Jo Long as a Python Integer without runtime conversion.   //]
+@intrinsic
+def longToInteger(value: Long): Integer = abort "longToInteger: intrinsified by the Python backend"
 
 //[ Python list: mutable sequence.   //]
 interface List
@@ -428,11 +530,11 @@ def str(obj: Any): String = builtins.str(obj).asString
 
 //[ Convert a Python object using the one-argument Python `int()` builtin.
   !
-  ! Returns a Dynamic to preserve Python's arbitrary-size integers.
+  ! Returns an Integer to preserve Python's arbitrary-size integers.
   ! Use `asInt` or `asLong` when the result is within the corresponding Jo range.
   ! Invalid conversions raise Python exceptions, which can be caught with `py.try`.
 //]
-def int(obj: Any): Dynamic = builtins.int(obj)
+def int(obj: Any): Integer = builtins.int(obj).cast[Integer]
 
 //[ Convert a Python object using Python `float()`.
   !

@@ -197,7 +197,7 @@ def testConversions =
   println parsed
   val wide: Long = py.int("9007199254740993").asLong
   println wide
-  val huge: py.Dynamic = py.int("18446744073709551616")
+  val huge: py.Integer = py.int("18446744073709551616")
   println huge
   println py.int(3.9).asInt
   println py.int(-3.9).asInt

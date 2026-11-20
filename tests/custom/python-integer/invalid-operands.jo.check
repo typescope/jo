@@ -1,0 +1,37 @@
+---------- Error at tests/custom/python-integer/invalid-operands.jo:3:16 ---------------
+|   println (n + true)
+|                ^^^^
+|                Expect type IntegerLike, found = Bool
+
+Tried the following adapters:
+  - fun intToInteger: type mismatch  ✗
+  - fun longToInteger: type mismatch  ✗
+
+---------- Error at tests/custom/python-integer/invalid-operands.jo:4:16 ---------------
+|   println (n * 1.5)
+|                ^^^
+|                Expect type IntegerLike, found = Float
+
+Tried the following adapters:
+  - fun intToInteger: type mismatch  ✗
+  - fun longToInteger: type mismatch  ✗
+
+---------- Error at tests/custom/python-integer/invalid-operands.jo:5:17 ---------------
+|   println (n << "2")
+|                 ^^^
+|                 Expect type IntegerLike, found = String
+
+Tried the following adapters:
+  - fun intToInteger: type mismatch  ✗
+  - fun longToInteger: type mismatch  ✗
+
+---------- Error at tests/custom/python-integer/invalid-operands.jo:6:16 ---------------
+|   println (n + py.dynamic(1))
+|                ^^^^^^^^^^^^^
+|                Expect type IntegerLike, found = Dynamic
+
+Tried the following adapters:
+  - fun intToInteger: type mismatch  ✗
+  - fun longToInteger: type mismatch  ✗
+
+4 error(s), 0 warning(s)

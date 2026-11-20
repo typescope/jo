@@ -831,8 +831,8 @@ class PythonCodeGen(runtime: PythonRuntime, rewire: Map[Symbol, Symbol])(using d
 
         // --- py.Dynamic dynamic operations ---
 
-        else if sym == runtime.py_dynamic then
-          // py.dynamic(x) → x  (no-op at runtime; all Python values are already Python objects)
+        else if sym == runtime.py_dynamic || sym == runtime.py_intToInteger || sym == runtime.py_longToInteger then
+          // Dynamic wrapping and Jo integer adapters → x (no runtime conversion).
           val receiver :: Nil = args: @unchecked
           compileExpr(receiver, enforcePurity)
 

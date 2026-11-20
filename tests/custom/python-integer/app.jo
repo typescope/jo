@@ -1,0 +1,125 @@
+def main =
+  testArithmetic()
+  testBitwise()
+  testComparisons()
+  testConversions()
+  testErrors()
+  testAdapter()
+
+def testArithmetic =
+  println "--- arithmetic ---"
+  val n = py.int("18446744073709551616")
+  val wide: Long = 4294967296
+  println (n + 1)
+  println (n - 1)
+  println (n * n)
+  println (n + wide)
+  println (n - wide)
+  println (py.int(3) * wide)
+  val quotient: Float = py.int(7) / 2
+  println quotient
+  println (py.int(-7) / wide)
+  println (py.int(-7).floorDiv(2))
+  println (py.int(7).floorDiv(-2))
+  println (n.floorDiv(wide))
+  println (py.int(-7) % 2)
+  println (py.int(7) % -2)
+  println (py.int(7) % wide)
+
+def testBitwise =
+  println "--- bitwise ---"
+  val n = py.int("18446744073709551616")
+  val count: Long = 100
+  val mask: Long = 255
+  val shifted = py.int(1) << count
+  println shifted
+  println (shifted >> count)
+  println (shifted >> py.int(100))
+  println (py.int(-7) >> 1)
+  println (n & mask)
+  println (n | 5)
+  println (n ^ 1)
+  println (~n)
+  println (-n)
+
+def testComparisons =
+  println "--- comparisons ---"
+  val n = py.int(7)
+  val wide: Long = 4294967296
+  println (n < wide)
+  println (n > 6)
+  println (n <= 7)
+  println (n >= py.int(7))
+  println (n == 7)
+  println (n != 8)
+  println (n == py.int(7))
+  println (n == wide)
+  println (n != py.int(7))
+
+def testConversions =
+  println "--- conversions ---"
+  val i: Int = py.int("42").asInt
+  val max: Long = py.int("9223372036854775807").asLong
+  val min: Long = py.int("-9223372036854775808").asLong
+  println i
+  println max
+  println min
+  println py.int(3).toFloat
+  val raw = py.module("builtins").int("18446744073709551616")
+  val checked: py.Integer = raw.asInteger
+  println (checked + 1)
+  println py.isIdentical(checked, raw)
+
+def testErrors =
+  println "--- errors ---"
+  match py.try(py.dynamic(true).asInteger)
+    case Ok(_) => println "asInteger unexpectedly accepted bool"
+    case Err(e) => println e.message
+
+  match py.try(py.dynamic(1.0).asInteger)
+    case Ok(_) => println "asInteger unexpectedly accepted float"
+    case Err(e) => println e.message
+
+  match py.try(py.dynamic("1").asInteger)
+    case Ok(_) => println "asInteger unexpectedly accepted str"
+    case Err(e) => println e.message
+
+  match py.try(py.int(1) / 0)
+    case Ok(_) => println "division unexpectedly accepted zero"
+    case Err(e) => println e.typeName
+
+  match py.try(py.int(1).floorDiv(0))
+    case Ok(_) => println "floorDiv unexpectedly accepted zero"
+    case Err(e) => println e.typeName
+
+  match py.try(py.int(1) % 0)
+    case Ok(_) => println "remainder unexpectedly accepted zero"
+    case Err(e) => println e.typeName
+
+  match py.try(py.int(1) << -1)
+    case Ok(_) => println "shift unexpectedly accepted negative count"
+    case Err(e) => println e.typeName
+
+  match py.try(py.int(1) >> -1)
+    case Ok(_) => println "shift unexpectedly accepted negative count"
+    case Err(e) => println e.typeName
+
+private class Counter
+  var evaluations: Int = 0
+
+  def nextValue: Long =
+    evaluations = evaluations + 1
+    4294967296
+end
+
+def testAdapter =
+  println "--- adapter ---"
+  val wide: Long = 4294967296
+  val integer: py.IntegerLike = wide
+  val smallValue: Int = 42
+  val small: py.IntegerLike = smallValue
+  val counter = new Counter
+  println py.isIdentical(integer, wide)
+  println py.isIdentical(small, smallValue)
+  println (py.int(1) + counter.nextValue)
+  println counter.evaluations
