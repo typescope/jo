@@ -21,6 +21,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   delimiter counts and recognizes only the supported character escapes.
 - Vim highlighting now prioritizes multiline strings, matches extended comment
   and string delimiters, and handles escaped backslashes and character literals.
+- Emacs highlighting now scans strings, characters, regex literals, and comments
+  in lexical order, matches delimiter counts, and refreshes correctly after edits.
 
 ### Compatibility
 
