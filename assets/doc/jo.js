@@ -43,7 +43,7 @@ hljs.registerLanguage('jo', function(hljs) {
       // A character is one code point or escape, not an open-ended quoted string.
       {
         className: 'string',
-        match: /'(?:\\(?:[bfnrt"'\\]|u\{[0-9a-fA-F]{1,6}\})|[\uD800-\uDBFF][\uDC00-\uDFFF]|[^'\\\r\n])'/
+        match: /'(?:\\[bfnrt'\\]|[\uD800-\uDBFF][\uDC00-\uDFFF]|[^'\\\r\n])'/
       },
 
       // Numbers
