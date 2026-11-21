@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Documentation syntax highlighting now recognizes block comments before line
   comments, handles multiline strings with matching quote delimiters, and
   distinguishes character literals from stray apostrophes.
+- VS Code and Shiki highlighting now matches comment and multiline string
+  delimiter counts and recognizes only the supported character escapes.
 
 ## [0.14.12] - 2026-11-15
 
