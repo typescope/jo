@@ -11,6 +11,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   distinguishes character literals from stray apostrophes.
 - VS Code and Shiki highlighting now matches comment and multiline string
   delimiter counts and recognizes only the supported character escapes.
+- Vim highlighting now prioritizes multiline strings, matches extended comment
+  and string delimiters, and handles escaped backslashes and character literals.
 
 ## [0.14.12] - 2026-11-15
 
