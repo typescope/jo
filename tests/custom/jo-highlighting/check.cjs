@@ -48,10 +48,15 @@ assert.equal(highlight("'unfinished\nnext line"), '&#x27;unfinished\nnext line')
 assert.equal(highlight("'not a character'"), '&#x27;not a character&#x27;');
 
 // Jo characters are complete, single-code-point literals, including escapes.
-for (const literal of ["'a'", "'😀'", String.raw`'\n'`, String.raw`'\''`,
-  String.raw`'\\'`, String.raw`'\u{1F600}'`]) {
+for (const literal of ["'a'", "'😀'", `'"'`, String.raw`'\b'`, String.raw`'\f'`,
+  String.raw`'\n'`, String.raw`'\r'`, String.raw`'\t'`, String.raw`'\''`, String.raw`'\\'`]) {
   assertToken(literal, 'string');
 }
+
+// Unicode escapes are supported in strings, but not in character literals.
+assert.ok(!highlight(String.raw`'\u{1F600}'`).includes('hljs-string'));
+assertToken(String.raw`"\u{1F600}"`, 'string');
+assertToken('"""\n  ' + String.raw`\u{1F600}` + '\n"""', 'string');
 
 assertToken(String.raw`"a \"quoted\" string with // inside"`, 'string');
 
