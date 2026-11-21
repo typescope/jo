@@ -68,79 +68,111 @@
   '("true" "false")
   "Jo constants.")
 
+(defconst jo-character-literal-regexp
+  (rx "'" (or (seq "\\" (any "bfnrt'\\"))
+              (not (any "'\\\r\n"))) "'")
+  "A complete Jo character literal; Unicode escapes are only valid in strings.")
+
+(defconst jo-regex-literal-regexp
+  (rx "`" (group (optional (seq "(?" (one-or-more (any "ims")) ")")))
+      (zero-or-more (or (not (any "`" "\\" "\n"))
+                        (seq "\\" (not (any "\n"))))) "`")
+  "A Jo regex literal with optional flags.")
+
 (defun jo-syntax-propertize-extend-region (start end)
-  "Extend the propertization region to include complete block comments.
-This ensures that when editing a block comment delimiter, the entire
-comment gets re-propertized."
-  nil)  ;; We handle region extension in jo-after-change-function instead
+  "Include complete literals when re-propertizing START through END."
+  (unless (and (= start (point-min)) (= end (point-max)))
+    (cons (point-min) (point-max))))
 
-(defun jo-syntax-propertize (start end)
-  "Apply syntax properties to comments in the region from START to END."
+(defun jo--find-delimiter (regexp delimiter)
+  "Search whole REGEXP matches for DELIMITER and return its start.
+Consuming each full run prevents a longer delimiter from matching as a suffix."
+  (catch 'found
+    (while (re-search-forward regexp nil t)
+      (when (equal (match-string-no-properties 0) delimiter)
+        (throw 'found (match-beginning 0))))
+    (goto-char (point-max))
+    nil))
+
+(defun jo--mark-string (start opening-end closing-start end raw)
+  "Mark a string spanning START to END with generic string fences.
+OPENING-END and CLOSING-START delimit its contents.  RAW disables escapes."
+  (put-text-property start opening-end 'syntax-table (string-to-syntax "."))
+  (put-text-property start (1+ start) 'syntax-table (string-to-syntax "|"))
+  (when closing-start
+    (put-text-property closing-start end 'syntax-table (string-to-syntax "."))
+    (put-text-property closing-start (1+ closing-start)
+                       'syntax-table (string-to-syntax "|")))
+  (when raw
+    (save-excursion
+      (goto-char opening-end)
+      (while (search-forward "\\" (or closing-start end) t)
+        (put-text-property (1- (point)) (point)
+                           'syntax-table (string-to-syntax ".")))))
+  (put-text-property start end 'syntax-multiline t))
+
+(defun jo--scan-string (start delimiter)
+  "Scan a quoted string or regex from START, ending at DELIMITER or newline."
+  (let ((closing nil)
+        (regexp (concat "\\\\.\\|[" delimiter "\n]")))
+    (while (and (not closing) (re-search-forward regexp nil t))
+      (unless (eq (char-after (match-beginning 0)) ?\\)
+        (setq closing (match-beginning 0))))
+    (unless closing (goto-char (point-max)))
+    (jo--mark-string start (1+ start) closing (point) (equal delimiter "`"))))
+
+(defun jo-syntax-propertize (_start _end)
+  "Apply literal and comment syntax properties in lexical order.
+Scanning complete tokens avoids interpreting comment markers inside literals."
   (save-excursion
-    ;; Remove old syntax properties in the entire buffer
-    ;; This is necessary because block comments can span large regions
-    (remove-text-properties (point-min) (point-max) '(syntax-table nil jo-block-comment nil))
-
-    ;; First pass: handle block comments from start of buffer
+    (remove-text-properties (point-min) (point-max)
+                            '(syntax-table nil syntax-multiline nil jo-block-comment nil))
     (goto-char (point-min))
-    (while (re-search-forward "\\(/\\{2,\\}\\)\\[" nil t)
-      (let* ((slash-start (match-beginning 1))
-             (slash-count (- (match-end 1) (match-beginning 1)))
-             (close-regex (concat (regexp-quote (make-string slash-count ?/)) "\\]")))
-        ;; Mark opening as comment start
-        (put-text-property slash-start (1+ slash-start)
-                           'syntax-table (string-to-syntax "!"))
-        ;; Search for matching closer
-        (when (re-search-forward close-regex nil t)
-          ;; Mark closing as comment end
-          (put-text-property (1- (match-end 0)) (match-end 0)
-                             'syntax-table (string-to-syntax "!"))
-          ;; Mark entire block comment region
-          (put-text-property slash-start (match-end 0)
-                             'jo-block-comment t))))
+    (while (re-search-forward "//+\\|\"+\\|'\\|`" nil t)
+      (let* ((start (match-beginning 0))
+             (token (match-string-no-properties 0))
+             (count (length token)))
+        (cond
+         ((eq (aref token 0) ?/)
+          (if (eq (char-after) ?\[)
+              (progn
+                (forward-char 1)
+                (put-text-property start (1+ start)
+                                   'syntax-table (string-to-syntax "!"))
+                (let ((closing (jo--find-delimiter "/\\{2,\\}\\]" (concat token "]"))))
+                  (when closing
+                    (put-text-property (1- (point)) (point)
+                                       'syntax-table (string-to-syntax "!")))
+                  (put-text-property start (point) 'syntax-multiline t)))
+            (put-text-property start (1+ start)
+                               'syntax-table (string-to-syntax "<"))
+            (end-of-line)))
+         ((eq (aref token 0) ?\")
+          (cond
+           ((>= count 3)
+            (let* ((opening-end (point))
+                   (closing (jo--find-delimiter "\"\\{3,\\}" token)))
+              (jo--mark-string start opening-end closing (point) t)))
+           ((= count 2)
+            (jo--mark-string start (1+ start) (1+ start) (point) nil))
+           (t (jo--scan-string start "\""))))
+         ((eq (aref token 0) ?\')
+          (goto-char start)
+          (if (looking-at jo-character-literal-regexp)
+              (let ((end (match-end 0)))
+                (goto-char end)
+                (jo--mark-string start (1+ start) (1- end) end t))
+            (forward-char 1)))
+         (t (jo--scan-string start "`")))))))
 
-    ;; Second pass: handle single-line comments (but skip block comment regions)
-    (goto-char (point-min))
-    (while (re-search-forward "\\(/\\{2,\\}\\)\\([^[]\\|$\\)" nil t)
-      (let ((slash-start (match-beginning 1)))
-        ;; Only apply single-line comment syntax if not inside a block comment
-        (unless (get-text-property slash-start 'jo-block-comment)
-          (put-text-property slash-start (1+ slash-start)
-                             'syntax-table (string-to-syntax "<")))))
-
-    ;; Third pass: handle char literals containing " (e.g. '"' or '\"')
-    ;; Mark the " as punctuation so it isn't treated as a string delimiter
-    (goto-char (point-min))
-    (while (re-search-forward "'\\\\?\"'" nil t)
-      (unless (get-text-property (match-beginning 0) 'jo-block-comment)
-        ;; The " is always the second-to-last character of the match
-        (put-text-property (- (match-end 0) 2) (- (match-end 0) 1)
-                           'syntax-table (string-to-syntax "."))))))
-
-
-(defun jo-after-change-function (beg end old-len)
-  "Force re-propertization when comment delimiters are edited."
-  (save-excursion
-    (save-match-data
-      (goto-char beg)
-      (beginning-of-line)
-      (let ((line-text (buffer-substring-no-properties
-                        (line-beginning-position)
-                        (line-end-position))))
-        ;; Check if line contains comment delimiters
-        (when (string-match-p "//\|\[\|\]" line-text)
-          (message "JO-MODE: Re-propertizing buffer due to edit on line with: %s" line-text)
-          ;; Clear all syntax properties in the buffer
-          (with-silent-modifications
-            (remove-text-properties (point-min) (point-max)
-                                   '(syntax-table nil jo-block-comment nil)))
-          ;; Force syntax-propertize to run on entire buffer
-          (syntax-ppss-flush-cache (point-min))
-          ;; Re-propertize from the beginning of buffer to the end
-          (syntax-propertize (point-max))
-          ;; Force font-lock to refontify the entire buffer
-          (font-lock-flush (point-min) (point-max))
-          (font-lock-ensure (point-min) (point-max)))))))
+(defun jo-match-regex-literal (limit)
+  "Match a regex literal outside other strings and comments before LIMIT."
+  (catch 'found
+    (while (re-search-forward jo-regex-literal-regexp limit t)
+      (unless (save-match-data
+                (let ((state (save-excursion (syntax-ppss (match-beginning 0)))))
+                  (or (nth 3 state) (nth 4 state))))
+        (throw 'found t)))))
 
 (defvar jo-font-lock-keywords
   (list
@@ -178,19 +210,9 @@ comment gets re-propertized."
    `(,(regexp-opt jo-constants 'words) . font-lock-constant-face)
 
    ;; Regex literals: `pattern` and `(?flags)pattern`
-   `(,(rx "`"
-          (group (optional (seq "(?" (one-or-more (any "ims")) ")")))
-          (zero-or-more (or (not (any "`" "\\" "\n"))
-                            (seq "\\" (not (any "\n")))))
-          "`")
+   '(jo-match-regex-literal
      (0 font-lock-string-face t)
      (1 font-lock-builtin-face t t))
-
-   ;; String literals
-   '("\"[^\"\\\\]*\\(?:\\\\.[^\"\\\\]*\\)*\"" . font-lock-string-face)
-
-   ;; Multi-line strings """..."""
-   '("\"\"\"\\(?:[^\"]\\|\"[^\"]\\|\"\"[^\"]\\)*\"\"\"" . font-lock-string-face)
 
    ;; Numbers
    '("\\<[0-9]+\\(?:\\.[0-9]+\\)?\\>" . font-lock-constant-face)
@@ -268,9 +290,6 @@ comment gets re-propertized."
   (setq-local syntax-propertize-function #'jo-syntax-propertize)
   (add-hook 'syntax-propertize-extend-region-functions
             #'jo-syntax-propertize-extend-region nil t)
-
-  ;; Add after-change hook to force re-propertization when delimiters change
-  (add-hook 'after-change-functions #'jo-after-change-function nil t)
 
   ;; Newline ends single-line comments (needed for < syntax in syntax-propertize)
   (modify-syntax-entry ?\n ">" jo-mode-syntax-table)
