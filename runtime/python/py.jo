@@ -230,6 +230,33 @@ interface Dynamic
       abort("py.Dynamic.asBool: expected Python bool, got " + actual.__name__.cast[String])
     cast[Bool]
 
+  //[ Return this Python value as a Jo Long, aborting unless it is exactly a Python `int`.
+    !
+    ! The value must be in [-2^63, 2^63 - 1], including negative values.
+    ! No range check or numeric conversion is performed; values outside this
+    ! range have undefined behavior.
+  //]
+  def asLong: Long =
+    val actual = builtins.callDynamic("type", this)
+
+    if !py.isIdentical(actual, builtins.int) then
+      abort("py.Dynamic.asLong: expected Python int, got " + actual.__name__.cast[String])
+
+    cast[Long]
+
+  //[ Return this Python value as an arbitrary-size Integer.
+    !
+    ! Aborts unless the value is exactly a Python `int`, rejecting `bool`.
+    ! No conversion or range restriction is applied.
+  //]
+  def asInteger: Integer =
+    val actual = builtins.callDynamic("type", this)
+
+    if !py.isIdentical(actual, builtins.int) then
+      abort("py.Dynamic.asInteger: expected Python int, got " + actual.__name__.cast[String])
+
+    cast[Integer]
+
   //[ Test whether this Python value is Python None.   //]
   def isNone: Bool = py.isNone(this)
 
@@ -297,6 +324,119 @@ private def builtins: Dynamic = module("builtins")
 
 //[ Python operator module.   //]
 private def operator: Dynamic = module("operator")
+
+//[ An arbitrary-size Python integer, represented directly by Python `int`.
+  !
+  ! Arithmetic and bitwise operations follow Python semantics without a fixed
+  ! bit width. Operator arguments accept Integer, Jo Int, and Jo Long.
+  ! `/` performs true division and returns Float. `floorDiv` rounds down, and
+  ! `%` has the sign of the divisor. Negative shift counts raise ValueError.
+//]
+@intrinsic
+interface Integer
+  //[ Addition with arbitrary precision.   //]
+  @intrinsic
+  def +(other: IntegerLike): Integer
+
+  //[ Subtraction with arbitrary precision.   //]
+  @intrinsic
+  def -(other: IntegerLike): Integer
+
+  //[ Multiplication with arbitrary precision.   //]
+  @intrinsic
+  def *(other: IntegerLike): Integer
+
+  //[ True division. Python may raise OverflowError if the result is too large.   //]
+  @intrinsic
+  def /(other: IntegerLike): Float
+
+  //[ Integer division rounded toward negative infinity.   //]
+  @intrinsic
+  def floorDiv(other: IntegerLike): Integer
+
+  //[ Remainder of floor division, with the sign of the divisor.   //]
+  @intrinsic
+  def %(other: IntegerLike): Integer
+
+  //[ True if this value is less than `other`.   //]
+  @intrinsic
+  def <(other: IntegerLike): Bool
+
+  //[ True if this value is greater than `other`.   //]
+  @intrinsic
+  def >(other: IntegerLike): Bool
+
+  //[ True if this value is less than or equal to `other`.   //]
+  @intrinsic
+  def <=(other: IntegerLike): Bool
+
+  //[ True if this value is greater than or equal to `other`.   //]
+  @intrinsic
+  def >=(other: IntegerLike): Bool
+
+  //[ True if the integer values are equal.   //]
+  @intrinsic
+  def ==(other: IntegerLike): Bool
+
+  //[ True if the integer values differ.   //]
+  @intrinsic
+  def !=(other: IntegerLike): Bool
+
+  //[ Shift left by a nonnegative count, without a fixed-width limit.   //]
+  @intrinsic
+  def <<(count: IntegerLike): Integer
+
+  //[ Arithmetic shift right by a nonnegative count.   //]
+  @intrinsic
+  def >>(count: IntegerLike): Integer
+
+  //[ Bitwise AND, using Python's unbounded two's-complement semantics.   //]
+  @intrinsic
+  def &(other: IntegerLike): Integer
+
+  //[ Bitwise OR, using Python's unbounded two's-complement semantics.   //]
+  @intrinsic
+  def |(other: IntegerLike): Integer
+
+  //[ Bitwise exclusive OR.   //]
+  @intrinsic
+  def ^(other: IntegerLike): Integer
+
+  //[ Bitwise complement.   //]
+  @intrinsic
+  def ~~(): Integer
+
+  //[ Prefix negation.   //]
+  @intrinsic
+  def ~-(): Integer
+
+  //[ Read this value as Jo Int. Values outside [-2^31, 2^31 - 1] are undefined.   //]
+  @intrinsic
+  def asInt: Int
+
+  //[ Read this value as Jo Long. Values outside [-2^63, 2^63 - 1] are undefined.   //]
+  @intrinsic
+  def asLong: Long
+
+  //[ Convert to Float, raising Python OverflowError if the value is too large.   //]
+  @intrinsic
+  def toFloat: Float
+
+  //[ The decimal string representation.   //]
+  @intrinsic
+  def toString: String
+end
+
+//[ An Integer argument that also accepts Jo Int and Long without runtime conversion.   //]
+type IntegerLike = Integer :- [intToInteger, longToInteger]
+
+//[ Reinterpret a Jo Int as a Python Integer without runtime conversion.   //]
+@intrinsic
+def intToInteger(value: Int): Integer = abort "intToInteger: intrinsified by the Python backend"
+
+//[ Reinterpret a Jo Long as a Python Integer without runtime conversion.   //]
+@intrinsic
+def longToInteger(value: Long): Integer = abort "longToInteger: intrinsified by the Python backend"
 
 //[ Python list: mutable sequence.   //]
 interface List
@@ -411,6 +551,26 @@ def contains(obj: Any, value: Any): Bool = operator.contains(obj, value).asBool
 
 //[ Convert a Python object to its string representation.   //]
 def str(obj: Any): String = builtins.str(obj).asString
+
+//[ Convert a Python object using the one-argument Python `int()` builtin.
+  !
+  ! Returns an Integer to preserve Python's arbitrary-size integers.
+  ! Use `asInt` or `asLong` when the result is within the corresponding Jo range.
+  ! Invalid conversions raise Python exceptions, which can be caught with `py.try`.
+//]
+def int(obj: Any): Integer = builtins.int(obj).cast[Integer]
+
+//[ Convert a Python object using Python `float()`.
+  !
+  ! Invalid conversions raise Python exceptions, which can be caught with `py.try`.
+//]
+def float(obj: Any): Float = builtins.float(obj).asFloat
+
+//[ Return the truth value of a Python object using Python `bool()`.
+  !
+  ! Follows Python truthiness: None, numeric zero, and empty containers are false.
+//]
+def bool(obj: Any): Bool = builtins.bool(obj).asBool
 
 //[ Read a line of input from stdin, optionally printing `prompt` first.   //]
 def input(prompt: String = ""): String = builtins.input(prompt).asString

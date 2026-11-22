@@ -1,0 +1,58 @@
+--- arithmetic ---
+18446744073709551617
+18446744073709551615
+340282366920938463463374607431768211456
+18446744078004518912
+18446744069414584320
+12884901888
+3.5
+-1.6298145055770874e-09
+-4
+-4
+4294967296
+1
+-1
+7
+--- bitwise ---
+1267650600228229401496703205376
+1
+1
+-4
+0
+18446744073709551621
+18446744073709551617
+-18446744073709551617
+-18446744073709551616
+--- comparisons ---
+true
+true
+true
+true
+true
+true
+true
+false
+false
+--- conversions ---
+42
+9223372036854775807
+-9223372036854775808
+3.0
+18446744073709551617
+true
+--- errors ---
+py.Dynamic.asInteger: expected Python int, got bool (runtime/python/py.jo:256)
+py.Dynamic.asInteger: expected Python int, got float (runtime/python/py.jo:256)
+py.Dynamic.asInteger: expected Python int, got str (runtime/python/py.jo:256)
+ZeroDivisionError
+ZeroDivisionError
+ZeroDivisionError
+ValueError
+ValueError
+--- adapter ---
+true
+true
+4294967297
+1
+-9
+2

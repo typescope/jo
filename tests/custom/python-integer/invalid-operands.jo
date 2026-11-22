@@ -1,0 +1,6 @@
+def main =
+  val n = py.int(1)
+  println (n + true)
+  println (n * 1.5)
+  println (n << "2")
+  println (n + py.dynamic(1))

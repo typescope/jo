@@ -10,6 +10,8 @@ def main =
   testCallWithKwarg()
   testCallWithSplice()
   testCheckedAccessors()
+  testLongAccessor()
+  testConversions()
 
 //[ 1. importModule + selectDynamic (attribute read) //]
 def testImportAndSelect =
@@ -162,3 +164,62 @@ def testCheckedAccessors =
   match py.try(builtins.int(1).asString)
     case Ok(_)  => println "asString unexpectedly accepted int"
     case Err(e) => println e.message
+
+//[ 11. Long access preserves integer precision and rejects other Python types //]
+def testLongAccessor =
+  println "--- Long accessor ---"
+  val builtins: py.Dynamic = py.module("builtins")
+
+  for text in ["0", "2147483648", "-2147483649", "9007199254740993", "9223372036854775807", "-9223372036854775808"] do
+    val value: Long = builtins.int(text).asLong
+    println value
+  end
+
+  val wide: Long = builtins.int("4294967296").asLong
+  println (wide >> 32)
+
+  match py.try(builtins.str("42").asLong)
+    case Ok(_)  => println "asLong unexpectedly accepted str"
+    case Err(e) => println e.message
+
+  match py.try(builtins.float(42).asLong)
+    case Ok(_)  => println "asLong unexpectedly accepted float"
+    case Err(e) => println e.message
+
+  match py.try(builtins.bool(true).asLong)
+    case Ok(_)  => println "asLong unexpectedly accepted bool"
+    case Err(e) => println e.message
+
+//[ 12. Conversion helpers follow Python builtin semantics //]
+def testConversions =
+  println "--- Python conversions ---"
+  val parsed: Int = py.int("42").asInt
+  println parsed
+  val wide: Long = py.int("9007199254740993").asLong
+  println wide
+  val huge: py.Integer = py.int("18446744073709551616")
+  println huge
+  println py.int(3.9).asInt
+  println py.int(-3.9).asInt
+  println py.int(true).asInt
+
+  val fraction: Float = py.float("3.5")
+  println fraction
+  println (py.float(42) == 42.0)
+
+  val truth: Bool = py.bool("false")
+  println truth
+  println py.bool("")
+  println py.bool(0)
+  println py.bool(-1)
+  println py.bool(py.none)
+  println py.bool(py.list())
+  println py.bool(py.list(0))
+
+  match py.try(py.int("not an int"))
+    case Ok(_)  => println "int unexpectedly accepted invalid text"
+    case Err(e) => println e.typeName
+
+  match py.try(py.float("not a float"))
+    case Ok(_)  => println "float unexpectedly accepted invalid text"
+    case Err(e) => println e.typeName

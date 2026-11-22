@@ -124,6 +124,7 @@ class PythonRuntime(using defn: Definitions):
   val py_none = py.termMember("none")
 
   val py_Dynamic              = py.typeMember("Dynamic")
+  val py_Integer              = py.typeMember("Integer")
   val py_Dynamic_selectDynamic = py_Dynamic.termMember("selectDynamic")
   val py_Dynamic_updateDynamic = py_Dynamic.termMember("updateDynamic")
   val py_Dynamic_callDynamic   = py_Dynamic.termMember("callDynamic")
@@ -131,6 +132,8 @@ class PythonRuntime(using defn: Definitions):
   val py_Dynamic_setDynamic    = py_Dynamic.termMember("setDynamic")
   val py_Dynamic_cast          = py_Dynamic.termMember("cast")
   val py_dynamic               = py.termMember("dynamic")
+  val py_intToInteger          = py.termMember("intToInteger")
+  val py_longToInteger         = py.termMember("longToInteger")
   val py_module              = py.termMember("module")
   val py_call                = py.termMember("call")
   val py_isNone              = py.termMember("isNone")
