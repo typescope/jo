@@ -4,6 +4,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.14.13] - 2026-11-22
+
 ### Added
 
 - Python FFI conversions `py.int`, `py.float`, and `py.bool`, plus checked
@@ -24,6 +26,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and string delimiters, and handles escaped backslashes and character literals.
 - Emacs highlighting now scans strings, characters, regex literals, and comments
   in lexical order, matches delimiter counts, and refreshes correctly after edits.
+
+### Security
+
+- Python FFI remains gated by `--use-runtime-api python`. No new capabilities
+  or changes to capability checking are introduced.
 
 ### Compatibility
 
