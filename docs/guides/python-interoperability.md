@@ -108,7 +108,7 @@ val b: Bool   = v.asBool
 
 Each shortcut checks that the value has exactly the corresponding Python type and aborts with a descriptive error if it does not. `asInt`, `asLong`, and `asInteger` require Python `int` and reject Python `bool` values even though Python treats `bool` as a subclass of `int`. The generic `cast[T]` remains an unchecked reinterpretation for typed wrappers and other advanced uses.
 
-Python uses the same arbitrary-size `int` type for both Jo integer types. Callers must ensure that values passed to `asInt` are in [-2^31, 2^31 - 1], and values passed to `asLong` are in [-2^63, 2^63 - 1]. Both ranges include negative values. These accessors perform no range check or numeric conversion; values outside the target range have undefined behavior. Use `asLong` to receive Python integers beyond the signed 32-bit range.
+Python uses the same arbitrary-size `int` type for both Jo integer types. Callers must ensure that values passed to `asInt` are in [-2^31, 2^31 - 1], and values passed to `asLong` are in [-2^63, 2^63 - 1]. These accessors perform no range check or numeric conversion; values outside the target range have undefined behavior. Use `asLong` to receive Python integers beyond the signed 32-bit range.
 
 Use `asString` when you know the value is already a Python `str`. Use `toString` (see below) when you want a human-readable representation of an arbitrary value.
 
@@ -161,9 +161,7 @@ println (n << 100)    // shifts have no fixed-width limit
 Arithmetic, comparison, bitwise, and shift arguments use the duck type
 `py.IntegerLike = py.Integer :- [py.intToInteger, py.longToInteger]`. This accepts
 `py.Integer` directly and adapts Jo `Int` and `Long` using intrinsics that perform
-no runtime conversion. The receiver must be a `py.Integer`; use `py.int(1) + n`
-when the left operand is a Jo integer. Floats, booleans, strings, and raw
-`py.Dynamic` values are not adapted.
+no runtime conversion.
 
 Numeric literals keep Jo's usual typing rules. For literals beyond the signed
 32-bit range, use a `Long` binding as above or construct a `py.Integer` from a
