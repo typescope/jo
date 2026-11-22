@@ -11,28 +11,39 @@ hljs.registerLanguage('jo', function(hljs) {
       literal: 'true false None Some Empty'
     },
     contains: [
+      // Block comments take priority over // and match their opening slash count.
+      hljs.END_SAME_AS_BEGIN(hljs.COMMENT(/(\/{2,})\[/, /(?<!\/)(\/{2,})\]/)),
+
       // Line comments
       hljs.COMMENT('//', '$'),
 
-      // Simple block comments for now - just //[ ... //]
-      hljs.COMMENT('//\\[', '//\\]'),
-
-      // Regex literals: #r"..." and #r[flags]"..."
+      // Backtick regex literals, including optional (?flags) and escaped backticks.
       {
         className: 'regexp',
-        begin: '#r(?:\\[[A-Za-z]+\\])?"',
-        end: '"',
+        begin: /`/,
+        end: /`|$/,
         contains: [
           {
-            begin: '\\\\.',
-            className: 'escape'
+            begin: /\\[^\r\n]/
           }
         ]
       },
 
-      // Strings
+      // Raw multiline strings use matching delimiters of three or more quotes.
+      hljs.END_SAME_AS_BEGIN({
+        className: 'string',
+        begin: /("{3,})/,
+        end: /(?<!")("{3,})(?!")/
+      }),
+
+      // Single-line strings
       hljs.QUOTE_STRING_MODE,
-      hljs.APOS_STRING_MODE,
+
+      // A character is one code point or escape, not an open-ended quoted string.
+      {
+        className: 'string',
+        match: /'(?:\\[bfnrt'\\]|[\uD800-\uDBFF][\uDC00-\uDFFF]|[^'\\\r\n])'/
+      },
 
       // Numbers
       hljs.C_NUMBER_MODE,

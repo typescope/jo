@@ -26,7 +26,7 @@
     "block-comment": {
       "name": "comment.block.jo",
       "begin": "(/{2,})\\[",
-      "end": "(/{2,})\\]",
+      "end": "(?<!/)\\1\\]",
       "beginCaptures": {
         "0": { "name": "punctuation.definition.comment.begin.jo" }
       },
@@ -41,12 +41,12 @@
     "triple-quoted-string": {
       "name": "string.quoted.triple.jo",
       "begin": "(\"{3,})",
-      "end": "(\"{3,})",
+      "end": "(?<!\")\\1(?!\")",
       "beginCaptures": {
         "1": { "name": "punctuation.definition.string.begin.jo" }
       },
       "endCaptures": {
-        "1": { "name": "punctuation.definition.string.end.jo" }
+        "0": { "name": "punctuation.definition.string.end.jo" }
       },
       "patterns": [
         { "include": "#string-interpolation" },
@@ -110,7 +110,7 @@
     },
     "char-literal": {
       "name": "constant.character.jo",
-      "match": "'(?:[^'\\\\\\n]|\\\\[nrtbf\\\\\"']|\\\\u\\{[0-9a-fA-F]+\\})'"
+      "match": "'(?:[^'\\\\\\r\\n]|\\\\[nrtbf\\\\'])'"
     },
     "numeric-literals": {
       "patterns": [
