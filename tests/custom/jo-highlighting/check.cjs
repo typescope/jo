@@ -34,6 +34,12 @@ function assertToken(source, scope) {
 assertToken("//[ A reader's note:\n  ! This is still documentation.\n//]", 'comment');
 assertToken("// An author's note with \"quotes\" and //[", 'comment');
 
+// Regex contents cannot start comments or strings, or swallow following code.
+for (const literal of ['`//[a]`', '`(?is)//[a]`', '`"//[a]"`', '`a\\`//[a]`', '`\\\\`']) {
+  assertToken(literal, 'regexp');
+}
+assertToken('`//[a]', 'regexp'); // Recover at the newline while editing a regex.
+
 // Comment delimiters must have the same slash count, without matching a suffix.
 for (const count of [2, 3, 4, 7]) {
   const slashes = '/'.repeat(count);

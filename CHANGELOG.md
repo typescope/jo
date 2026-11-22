@@ -16,7 +16,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Documentation syntax highlighting now recognizes block comments before line
   comments, handles multiline strings with matching quote delimiters, and
-  distinguishes character literals from stray apostrophes.
+  distinguishes character literals from stray apostrophes. Backtick regex
+  literals no longer turn following code into a comment.
 - VS Code and Shiki highlighting now matches comment and multiline string
   delimiter counts and recognizes only the supported character escapes.
 - Vim highlighting now prioritizes multiline strings, matches extended comment

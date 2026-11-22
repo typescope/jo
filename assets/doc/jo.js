@@ -17,15 +17,14 @@ hljs.registerLanguage('jo', function(hljs) {
       // Line comments
       hljs.COMMENT('//', '$'),
 
-      // Regex literals: #r"..." and #r[flags]"..."
+      // Backtick regex literals, including optional (?flags) and escaped backticks.
       {
         className: 'regexp',
-        begin: '#r(?:\\[[A-Za-z]+\\])?"',
-        end: '"',
+        begin: /`/,
+        end: /`|$/,
         contains: [
           {
-            begin: '\\\\.',
-            className: 'escape'
+            begin: /\\[^\r\n]/
           }
         ]
       },
