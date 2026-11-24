@@ -216,18 +216,17 @@ div[class*='language-'] {
   margin-top: 40px;
 }
 
-/* ── Homepage agent framework integrations ──────────────────────────────── */
+/* ── Homepage sections (sandboxing, integrations) ───────────────────────── */
+/* Open sections without a surrounding box: a left-aligned header, then content. */
 .integrations {
-  position: relative;
-  margin: 48px 0 56px;
-  padding: 40px 36px 32px;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 24px;
-  background:
-    radial-gradient(ellipse at 0% 0%, var(--vp-c-brand-soft), transparent 45%),
-    radial-gradient(ellipse at 100% 100%, rgba(14, 116, 144, 0.10), transparent 50%),
-    var(--vp-c-bg);
+  margin: 96px 0 0;
+  padding: 0;
 }
+
+.integrations + .integrations {
+  margin-top: 112px;
+}
+
 
 .vp-doc .integrations-eyebrow {
   display: inline-block;
@@ -255,7 +254,7 @@ div[class*='language-'] {
 
 .vp-doc .integrations-lede {
   max-width: 640px;
-  margin: 12px 0 0;
+  margin: 14px 0 0;
   color: var(--vp-c-text-2);
   font-size: 16px;
   line-height: 1.65;
@@ -265,8 +264,14 @@ div[class*='language-'] {
 .integrations-diagram {
   display: block;
   width: 100%;
+  max-width: 900px;
   height: auto;
-  margin: 28px 0 0;
+  margin: 36px auto 0;
+}
+
+.integrations-diagram.sandboxing-diagram {
+  max-width: 860px;
+  margin-top: 44px;
 }
 
 /* Framework cards */
@@ -274,7 +279,7 @@ div[class*='language-'] {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
-  margin: 28px 0 0;
+  margin: 40px 0 0;
 }
 
 .integration-card {
@@ -384,7 +389,6 @@ div[class*='language-'] {
 
 .vp-doc .integrations-more {
   margin: 24px 0 0;
-  text-align: center;
   font-size: 14px;
 }
 
@@ -406,9 +410,9 @@ div[class*='language-'] {
 }
 
 @media (max-width: 640px) {
-  .integrations {
-    padding: 28px 18px 24px;
-    border-radius: 18px;
+  .integrations,
+  .integrations + .integrations {
+    margin-top: 64px;
   }
 
   .vp-doc .integrations-title {
