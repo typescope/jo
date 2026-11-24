@@ -38,10 +38,10 @@ features:
 ---
 
 <section class="integrations">
-  <p class="integrations-eyebrow">Compile-time sandboxing</p>
-  <h2 class="integrations-title">No Ambient Authority</h2>
+  <p class="integrations-eyebrow">How it works</p>
+  <h2 class="integrations-title">Compile-Time Sandboxing</h2>
   <p class="integrations-lede">Confined code has no ambient authority. Reflection, globals, network, files, type casts and control effects are rejected by the compiler. The capabilities passed in as parameters are the only way out.</p>
-  <img class="integrations-diagram sandboxing-diagram" src="/img/compile-time-sandboxing.svg" width="872" height="482" alt="Compile-time sandboxing = API gating in the language. A confined function has no ambient authority — reflection, globals, network, files, type casts, and control effects are all rejected by the compiler — while its typed parameters, Sales and Mailer, are the only door to the outside world.">
+  <img class="integrations-diagram sandboxing-diagram" src="/img/compile-time-sandboxing.svg" width="872" height="482" alt="No ambient authority. A confined function has no ambient authority — reflection, globals, network, files, type casts, and control effects are all rejected by the compiler — while its typed parameters, Sales and Mailer, are the only door to the outside world.">
   <p class="integrations-more"><a href="/overview/capabilities">How capabilities work <span class="vpi-arrow-right" aria-hidden="true"></span></a></p>
 </section>
 

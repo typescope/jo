@@ -28,7 +28,7 @@ The usual defense is a **runtime sandbox**: a container, VM, or seccomp filter t
 Jo moves the sandbox into the type system. For untrusted code, there is no ambient authority to produce side effects, except through explicitly provided service objects. The compiler proves that a function may only use explicitly granted capabilities, transitively.
 
 <div align="center">
-  <img alt="Compile-time sandboxing = API gating in the language. A confined function has no ambient authority — reflection, globals, network, files, type casts, and control effects are all rejected by the compiler — while its typed parameters are the only door to the outside world." src="./docs/public/img/compile-time-sandboxing.svg" width="100%">
+  <img alt="No ambient authority. A confined function has no ambient authority — reflection, globals, network, files, type casts, and control effects are all rejected by the compiler — while its typed parameters are the only door to the outside world." src="./docs/public/img/compile-time-sandboxing.svg" width="100%">
 </div>
 
 Function parameters (capabilities) are the only door to the outside world.

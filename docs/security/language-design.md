@@ -11,7 +11,7 @@ Jo removes all ambient authorities from the language:
 - **No reflection** — runtime introspection cannot bypass the type system
 - **No control flow effects** — no exceptions, no `setjmp`/`longjmp`, no non-local jumps that could be used as covert channels
 
-<img src="/img/compile-time-sandboxing.svg" alt="Compile-time sandboxing = API gating in the language. A confined function has no ambient authority — reflection, globals, network, files, type casts, and control effects are all rejected by the compiler — while its typed parameters are the only door to the outside world." style="display:block;margin:1.5rem auto;width:100%;height:auto" />
+<img src="/img/compile-time-sandboxing.svg" alt="No ambient authority. A confined function has no ambient authority — reflection, globals, network, files, type casts, and control effects are all rejected by the compiler — while its typed parameters are the only door to the outside world." style="display:block;margin:1.5rem auto;width:100%;height:auto" />
 
 Function parameters (capabilities) are the only door to the outside world.
 

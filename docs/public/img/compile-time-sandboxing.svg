@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -68 872 482" role="img" aria-label="Compile-time sandboxing equals API gating in the language. A confined function with no ambient authority: reflection, globals, network, files, type casts, and control effects are all rejected by the compiler, while the function's typed parameters are the only allowed door to the outside world.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -68 872 482" role="img" aria-label="No ambient authority. A confined function with no ambient authority: reflection, globals, network, files, type casts, and control effects are all rejected by the compiler, while the function's typed parameters are the only allowed door to the outside world.">
   <style>
     /* Transparent background. Colours follow the reader's light or dark preference. */
     @media (prefers-color-scheme: dark) {
@@ -17,11 +17,9 @@
     }
   </style>
 
-  <!-- Equation title -->
-  <text x="450" y="-40" text-anchor="middle" font-family="'IBM Plex Sans', sans-serif" font-size="21" font-weight="600">
-    <tspan fill="#0a7f7f">compile-time sandboxing</tspan><tspan fill="#64748b" dx="10">=</tspan><tspan fill="#0f1720" dx="10">API gating in the language</tspan>
-  </text>
-  <line x1="320" y1="-20" x2="580" y2="-20" stroke="#cbd5e1" stroke-width="1"/>
+  <!-- Title -->
+  <text x="436" y="-40" text-anchor="middle" font-family="'IBM Plex Sans', sans-serif" font-size="21" font-weight="600" fill="#0f1720">No Ambient Authority</text>
+  <line x1="346" y1="-20" x2="526" y2="-20" stroke="#cbd5e1" stroke-width="1"/>
 
   <defs>
     <marker id="cts-arrow-green" viewBox="0 0 12 12" refX="10.5" refY="6" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
