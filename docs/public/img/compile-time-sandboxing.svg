@@ -64,7 +64,7 @@
   <text x="600" y="170" text-anchor="end" font-family="'IBM Plex Sans', sans-serif" font-size="14" font-weight="600" fill="#b45309">Confined function</text>
   <rect x="200" y="180" width="400" height="84" rx="8" fill="#f59e0b" fill-opacity="0.1" stroke="#d97706" stroke-width="1.6" stroke-dasharray="6 4"/>
   <text x="220" y="214" font-family="'IBM Plex Mono', monospace" font-size="14.5">
-    <tspan fill="#0a7f7f">def</tspan><tspan fill="#0f1720"> work(mailer: </tspan><tspan fill="#0a7f7f">Mailer</tspan><tspan fill="#0f1720">, logger: </tspan><tspan fill="#0a7f7f">Logger</tspan><tspan fill="#0f1720">) </tspan><tspan fill="#64748b">=</tspan>
+    <tspan fill="#0a7f7f">def</tspan><tspan fill="#0f1720"> work(sales: </tspan><tspan fill="#0a7f7f">Sales</tspan><tspan fill="#0f1720">, mailer: </tspan><tspan fill="#0a7f7f">Mailer</tspan><tspan fill="#0f1720">) </tspan><tspan fill="#64748b">=</tspan>
   </text>
   <text x="244" y="240" font-family="'IBM Plex Mono', monospace" font-size="14.5" fill="#7b8a9a">...</text>
 
@@ -73,17 +73,17 @@
   <path d="M600,210 C642,186 664,158 690,151" fill="none" stroke="#0a7f7f" stroke-width="2" marker-end="url(#cts-arrow-green)"/>
   <path d="M600,234 C642,256 664,286 690,291" fill="none" stroke="#0a7f7f" stroke-width="2" marker-end="url(#cts-arrow-green)"/>
 
-  <!-- Mailer capability box -->
+  <!-- Sales capability box -->
   <rect x="698" y="118" width="160" height="68" rx="6" fill="#ffffff" stroke="#9fb3c4" stroke-width="1.4"/>
   <rect x="694" y="138" width="8" height="8" fill="#7b8a9a"/>
   <rect x="694" y="160" width="8" height="8" fill="#7b8a9a"/>
   <text x="778" y="148" text-anchor="middle" font-family="'IBM Plex Mono', monospace" font-size="13" fill="#0a7f7f">interface</text>
-  <text x="778" y="170" text-anchor="middle" font-family="'IBM Plex Mono', monospace" font-size="15" fill="#0f1720">Mailer</text>
+  <text x="778" y="170" text-anchor="middle" font-family="'IBM Plex Mono', monospace" font-size="15" fill="#0f1720">Sales</text>
 
-  <!-- Logger capability box -->
+  <!-- Mailer capability box -->
   <rect x="698" y="258" width="160" height="68" rx="6" fill="#ffffff" stroke="#9fb3c4" stroke-width="1.4"/>
   <rect x="694" y="278" width="8" height="8" fill="#7b8a9a"/>
   <rect x="694" y="300" width="8" height="8" fill="#7b8a9a"/>
   <text x="778" y="288" text-anchor="middle" font-family="'IBM Plex Mono', monospace" font-size="13" fill="#0a7f7f">interface</text>
-  <text x="778" y="310" text-anchor="middle" font-family="'IBM Plex Mono', monospace" font-size="15" fill="#0f1720">Logger</text>
+  <text x="778" y="310" text-anchor="middle" font-family="'IBM Plex Mono', monospace" font-size="15" fill="#0f1720">Mailer</text>
 </svg>
