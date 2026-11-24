@@ -38,6 +38,14 @@ features:
 ---
 
 <section class="integrations">
+  <p class="integrations-eyebrow">How it works</p>
+  <h2 class="integrations-title">Compile-Time Sandboxing</h2>
+  <p class="integrations-lede">Confined code has no ambient authority. Reflection, globals, network, files, type casts and control effects are rejected by the compiler. The capabilities passed in as parameters are the only way out.</p>
+  <img class="integrations-diagram" src="/img/compile-time-sandboxing.svg" width="922" height="534" alt="Compile-time sandboxing = API gating in the language. A confined function has no ambient authority — reflection, globals, network, files, type casts, and control effects are all rejected by the compiler — while its typed parameters, Sales and Mailer, are the only door to the outside world.">
+  <p class="integrations-more"><a href="/overview/capabilities">How capabilities work <span class="vpi-arrow-right" aria-hidden="true"></span></a></p>
+</section>
+
+<section class="integrations">
   <p class="integrations-eyebrow">Integrations</p>
   <h2 class="integrations-title">Integrate Jo with Agent Frameworks</h2>
   <p class="integrations-lede">Keep your model, agent loop, and tool calling code. Add one tool that compiles and runs Jo programs, and the compiler confines every generated program before it runs.</p>
