@@ -11,7 +11,7 @@ registers `runCode` and supplies the user ID and database path:
 ```jo
 val home = os.path.abspath(".")
 val userId = os.getenv("JO_USER_ID", "1")
-val runCode = RunCodeTool(os.path.join(home, "sandbox"), approvalDeadline = 610)
+val runCode = RunCodeTool(os.path.join(home, "sandbox"), "guest", approvalDeadline = 610)
 val guestEnv = Map:
   "HARPE_USER_ID" ~ userId
   "HARPE_DB_PATH" ~ os.path.abspath("out/database.db")
