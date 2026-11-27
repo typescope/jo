@@ -81,18 +81,6 @@ With fresh sample data, the output is:
 3
 ```
 
-The two numbers are the total document count and draft count. `All` and
-`Draft == true` describe filters. The trusted implementation adds the current
-user's `owner_id` condition to both queries.
-
-Every generated program must implement `docs.task.main`.
-`receives stdout, db` declares the capabilities it needs: printing and database
-operations. The host supplies both.
-
-Generated code cannot import the trusted runtime or Python bindings, or add
-capabilities to this entry point. For example, `println(py.module("sys").argv)`
-fails to compile. `run_jo` returns the error so the agent can correct its program.
-
 ## 3. Register the tool in your agent
 
 The following is a complete LangChain adapter. Put it in your application's
@@ -142,18 +130,6 @@ Set `OPENAI_API_KEY` in your environment and run `python3 agent.py` from your
 project's root. On fresh sample data, the answer should report **10 documents,
 including 4 drafts**.
 
-To inspect the generated Jo and tool output while developing, print the returned
-messages before extracting the final answer:
-
-```python
-for message in result["messages"]:
-    print(message)
-```
-
-A successful exchange contains an assistant tool call with Jo source, a tool
-message containing the counts, then the assistant's answer. Compilation errors
-appear in the tool messages. The model can call the tool again with corrected code.
-
 The tool schema contains only `code`. The host's closure supplies `user_id`.
 Create the tool for each authenticated user. Do not store the current identity in
 a mutable global or share a user-bound agent between users.
@@ -188,8 +164,6 @@ If compilation succeeds, the bridge executes `task.py` using the current Python
 interpreter, passing the host-selected user ID and database path. It returns stdout
 or a runtime error to LangChain.
 
-Compilation and execution each have a 30-second timeout.
-
 The trusted runtime enforces user scoping for reads and writes. Your application
 is responsible for authentication and its other tools.
 
@@ -199,8 +173,7 @@ See the [integration overview](index.md) and
 ## Further guidance
 
 Give the model the [Jo cheat sheet](../overview/cheat-sheet.md) and
-[standard library reference](../overview/stdlib.md) through agent instructions or
-retrieval when it needs more language guidance.
+[standard library reference](../overview/stdlib.md) as skills.
 
 For API lookup, a read-only tool can run `jo compile --query jo.String`. To query
 the example API from your project root, run
@@ -228,4 +201,4 @@ LangChain's `provider:model` format.
 | `Jo example is not prepared` | Run `bash jo_tools/prepare.sh` from your project root. |
 | `Jo executable not found` | Install Jo and ensure the agent process has `jo` on `PATH`. |
 | Libraries were built by a different Jo version | Run `bash jo_tools/prepare.sh` again after upgrading Jo. |
-| Repeated compilation failures | Inspect tool messages. Check the entry-point name and that Jo guidance is included in system instructions. |
+| Repeated compilation failures | Inspect tool messages. Check the entry-point name and that Jo guidance is provided as skills. |

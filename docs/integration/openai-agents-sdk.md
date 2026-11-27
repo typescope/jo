@@ -207,8 +207,7 @@ See the [two-world architecture](../security/two-worlds.md) for the boundary in 
 ## Further guidance
 
 Give the model the [Jo cheat sheet](../overview/cheat-sheet.md) and
-[standard library reference](../overview/stdlib.md) through agent instructions or
-retrieval when it needs more language guidance.
+[standard library reference](../overview/stdlib.md) as skills.
 
 For API lookup, a read-only tool can run `jo compile --query jo.String`. To query
 the example API from your project root, run
@@ -237,4 +236,4 @@ Set `MODEL` to change the demo's model.
 | `Jo example is not prepared` | Run `bash jo_tools/prepare.sh` from your project root. |
 | `Jo executable not found` | Install Jo and ensure the agent process has `jo` on `PATH`. |
 | Libraries were built by a different Jo version | Run `bash jo_tools/prepare.sh` again after upgrading Jo. |
-| Repeated compilation failures | Inspect the generated code and tool output. Check the entry-point name and that Jo guidance is included in the instructions. |
+| Repeated compilation failures | Inspect the generated code and tool output. Check the entry-point name and that Jo guidance is provided as skills. |

@@ -73,8 +73,7 @@ again to reset the sample data.
 ## Further guidance
 
 Give the model the [Jo cheat sheet](../overview/cheat-sheet.md) and
-[standard library reference](../overview/stdlib.md) through agent instructions or
-retrieval when it needs more language guidance.
+[standard library reference](../overview/stdlib.md) as skills.
 
 For API lookup, a read-only tool can run `jo compile --query jo.String`. To query
 the example API, run `jo compile --query docs.api.DB data/DatabaseAPI.jo`.
