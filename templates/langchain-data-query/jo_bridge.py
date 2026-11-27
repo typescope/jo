@@ -16,14 +16,14 @@ DATABASE = OUT / "database.db"
 
 SYSTEM_PROMPT = f"""You answer questions about the current user's documents.
 For every database question, use run_jo_program. Its input must be a complete Jo program.
-The only entry point is UserTask.analyzeDocuments, with exactly these capabilities:
+The only entry point is docs.task.main, with exactly these capabilities:
 
-namespace UserTask
+namespace docs.task
 import jo.IO.stdout
-import DatabaseAPI.*
-import DatabaseAPI.QueryDSL.*
+import docs.api.*
+import docs.api.QueryDSL.*
 
-def analyzeDocuments(): Unit receives stdout, db =
+def main(): Unit receives stdout, db =
   for doc in db.query(All) do println(doc.title)
 
 Use db for all document operations. Print the answer with println. If compilation
@@ -47,8 +47,8 @@ def run_jo(code: str, user_id: int) -> str:
         source.write_text(code)
         command = [
             shutil.which("jo") or "jo", "compile", "--python",
-            "--link", "jo.main=DatabaseRuntime.platformMain",
-            "--link", "DatabaseAPI.analyzeDocuments=UserTask.analyzeDocuments",
+            "--link", "jo.main=docs.runtime.platformMain",
+            "--link", "docs.api.main=docs.task.main",
             "--lib", str(API), "--link-lib", str(RUNTIME),
             str(source), "-o", str(output),
         ]
