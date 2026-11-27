@@ -1,19 +1,13 @@
 # Integrate Jo with agent frameworks
 
-Add a Jo tool to your agent to run generated Jo programs and return their output.
-Use it when your agent needs to query and process data through an API you control.
+These guides show you how to add Jo to your agent. You'll give the agent a tool
+that compiles and runs the Jo code it writes.
 
 Choose the guide for your framework:
 
 - [OpenAI Agents SDK](openai-agents-sdk.md) — add a function tool and Jo coding instructions to your agent.
 - [LangChain](langchain.md) — add a Jo tool to `create_agent` alongside your existing tools.
 - [Harpe](harpe.md) — configure the built-in `RunCodeTool` with your Jo API module.
-
-The OpenAI and LangChain guides use the same database bridge. Each walks through
-preparing it, checking it without a model call, and adding it to an existing agent.
-
-The sample API supports user-scoped reads, updates, and deletes. You can replace it
-with your own API or narrow it to read-only operations.
 
 ## How it works
 
