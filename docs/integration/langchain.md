@@ -191,8 +191,7 @@ python3 jo_tools/demo.py "List my documents" --user-id 1
 python3 jo_tools/demo.py "List my documents" --user-id 2
 ```
 
-Compare the two users' results. The demo's `MODEL` environment variable accepts
-LangChain's `provider:model` format.
+Compare the two users' results.
 
 ## Troubleshooting
 

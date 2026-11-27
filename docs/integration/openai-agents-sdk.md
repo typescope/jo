@@ -41,9 +41,6 @@ your-project/
 
 Your application imports the bridge. It does not need the standalone demo agent.
 
-Keep `jo_bridge.py`, `data/`, and `out/` together: the bridge resolves paths relative
-to its own file.
-
 Run `prepare.sh` again after changing the Jo API or runtime, or upgrading Jo.
 It also **resets the sample database**, discarding example mutations.
 
@@ -132,15 +129,7 @@ The adapter appends `SYSTEM_PROMPT` to your instructions. It contains the requir
 entry point, a Jo example, the database API source, and guidance to use the tool
 for database questions and correct compilation errors before retrying.
 
-If you use callable instructions, append `SYSTEM_PROMPT` to the text returned by
-your instruction function. An async application can use `await Runner.run(...)`
-with the same agent.
-
-The official [SDK tool guide](https://openai.github.io/openai-agents-python/tools/)
-describes function tools, and the [Agent reference](https://openai.github.io/openai-agents-python/ref/agent/#agents.agent.Agent.clone)
-documents `clone`.
-
-## 4. Understand what the model sends
+## 4. Understand what the model writes
 
 For the draft-count question, a valid `code` argument is this complete program:
 
@@ -163,14 +152,7 @@ The tool result for user 1 on fresh data contains:
 4
 ```
 
-The agent uses this output to answer “You have 4 draft documents.” To inspect the
-exchange, log `code` and the result of `run_jo` inside the tool.
-
-Compiler errors start with `Jo compilation failed:`. For example,
-`db.missingMethod(...)` fails to compile. The agent can correct the call and retry.
-
-Generated code cannot import the trusted runtime or Python bindings. Runtime failures
-start with `Jo program failed:`.
+The agent uses this output to answer “You have 4 draft documents.”
 
 ## 5. Understand the bridge
 
@@ -197,12 +179,10 @@ wires the API's deferred function to the generated program. The compiler checks
 the linked function's signature, including its capabilities.
 
 After successful compilation, the bridge runs `task.py` with the host-selected
-user ID and database path, captures output, and returns it to the agent. Both
-compilation and execution have 30-second timeouts.
+user ID and database path, captures output, and returns it to the agent.
 
 The trusted runtime builds parameterized SQL and adds an `owner_id` condition to
 every database operation.
-See the [two-world architecture](../security/two-worlds.md) for the boundary in detail.
 
 ## Further guidance
 
@@ -227,7 +207,6 @@ python3 jo_tools/demo.py "List my documents" --user-id 2
 ```
 
 User 1's results include “Q4 Budget Report”. User 2's include “Technical Design”.
-Set `MODEL` to change the demo's model.
 
 ## Troubleshooting
 
