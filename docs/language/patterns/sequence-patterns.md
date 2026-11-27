@@ -280,5 +280,5 @@ end
 ## See Also
 
 - [Pattern Forms](pattern-forms.md) - Overview of all pattern forms
-- [Semantics](semantics.md) - Pattern matching semantics
+- [Flow Typing](flow-typing.md) - Flow scope and definite binding rules
 - [Pattern Definitions](../definitions/pattern-definitions.md) - Reusable patterns

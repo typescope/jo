@@ -45,8 +45,8 @@ named-group flow bindings.
 ### [Sequence Patterns](sequence-patterns.md)
 Atom and repeat patterns for matching variable-length lists.
 
-### [Semantics](semantics.md)
-Definite binding rules, flow typing, exhaustiveness, and evaluation order.
+### [Flow Typing](flow-typing.md)
+Flow scope and definite binding rules for pattern variables.
 
 ### [Pattern Definitions](../definitions/pattern-definitions.md)
 Defining reusable, named patterns with parameters.
