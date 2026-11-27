@@ -561,6 +561,5 @@ reported at each use, as for named arguments in calls.
 ## Related documentation
 
 - [Pattern definitions](../language/definitions/pattern-definitions.md)
-- [Pattern matching semantics](../language/patterns/semantics.md)
 - [Class definitions](../language/definitions/class-definitions.md)
 - [Design principles](../language/design-principles.md)

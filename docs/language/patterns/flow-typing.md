@@ -1,25 +1,8 @@
-# Pattern Matching Semantics
+# Flow Typing for Patterns
 
-This document describes the semantic rules that govern pattern matching in Jo.
+This document describes the flow typing rules that govern pattern matching in Jo. The flow typing for expressions is defined in [is-expression](../expressions/is-expression.md).
 
-## Pattern Matching Process
-
-Pattern matching proceeds as follows:
-
-1. **Evaluation:** The scrutinee expression is evaluated once
-2. **Sequential Testing:** Each case pattern is tested in order
-3. **First Match:** The first pattern that succeeds determines which case executes
-4. **Binding Scope:** Variables definitely bound in a pattern are available as term names for the corresponding case body
-5. **Exhaustiveness:** The compiler warns if patterns don't cover all possible values
-
-```jo
-match value
-case pattern1 => body1  // Test first
-case pattern2 => body2  // Test if pattern1 fails
-case pattern3 => body3  // Test if pattern2 fails
-```
-
-## Flow Typing
+## Flow Scope
 
 Each case pattern forms a single flow typing scope.
 
@@ -28,18 +11,19 @@ Pattern matching uses a single flat flow typing scope per case. Nested patterns 
 
 Pattern parameters in pattern definitions are an exception: they are predefined in the flow scope for each case, allowing them to be referenced throughout the pattern body.
 :::
-### Scoping Rules
 
-- The flow typing goes from left to right, inner to outer
-- A pattern variable must be bound at most once in a pattern
+The flow scope follow the following rules:
+
+- The flow typing goes from left to right, inner to outer for complex patterns
+- A pattern variable may be bound at most once in a pattern
 - A definitely bound pattern variable can be used both as term name and pattern name in later patterns
 - It is an error to use a pattern variable if it is not definitely bound
 
-### Definite Binding Rules
+## Definite Binding Rules
 
 A pattern variable is definitely bound at a point in flow typing if it is definitely assigned when previous patterns are successful. The following rules define when a pattern variable is definitely bound:
 
-#### Variable Pattern `x`
+### Variable Pattern `x`
 
 The variable `x` is definitely bound. It is an error if `x` is already definitely bound. It may happen if `x` is a pattern parameter and bound more than once.
 
@@ -48,7 +32,7 @@ match value
 case x => x + 1  // x is definitely bound
 ```
 
-#### Type Pattern `x: T`
+### Type Pattern `x: T`
 
 The variable `x` is definitely bound. It is an error if `x` is already definitely bound.
 
@@ -57,7 +41,7 @@ match value
 case x: Int => x + 1  // x is definitely bound as Int
 ```
 
-#### Bind Pattern `x @ p`
+### Bind Pattern `x @ p`
 
 The variable `x` is definitely bound. It is an error if `x` is already definitely bound. Other variables are definitely bound according to pattern `p`.
 
@@ -69,7 +53,7 @@ case xs @ Cons(head, tail) =>
 end
 ```
 
-#### Apply Pattern `C(p₁, ..., pₙ)`
+### Apply Pattern `C(p₁, ..., pₙ)`
 
 A variable is definitely bound if it is definitely bound in any of the nested patterns `pᵢ`. It is an error if a pattern variable is definitely bound in more than one nested pattern.
 
@@ -85,7 +69,7 @@ match pair
 case Pair(x, x) => ...
 ```
 
-#### Sequence Pattern `[p₁, ..., pₙ]`
+### Sequence Pattern `[p₁, ..., pₙ]`
 
 A variable is definitely bound if it is definitely bound in any of the nested patterns `pᵢ`. It is an error if a pattern variable is definitely bound in more than one nested pattern.
 
@@ -97,7 +81,7 @@ case [first, second, ..rest] =>
 end
 ```
 
-#### Or-Pattern `p₁ | p₂`
+### Or-Pattern `p₁ | p₂`
 
 A variable is definitely bound after the or-pattern if it is bound in all branches.
 
@@ -111,7 +95,7 @@ match result
 case Left(x) | Right(y) => ...
 ```
 
-#### And-Pattern `p₁ & p₂`
+### And-Pattern `p₁ & p₂`
 
 A variable is definitely bound if it is definitely bound in `p₁` or `p₂`. It is an error if a pattern variable is definitely bound in both `p₁` and `p₂`.
 
@@ -123,7 +107,7 @@ case (x, _) & (_, y) => ...
 case Some(x) & Just(x) => ...
 ```
 
-#### Not-Pattern `!p`
+### Not-Pattern `!p`
 
 No variables are bound. Variables bound in the nested pattern `p` are not accessible because the not-pattern succeeds only when `p` fails.
 
@@ -139,7 +123,7 @@ case !(Some(x)) => x  // x not bound when Some(_) doesn't match
 
 **Rationale:** Since a not-pattern succeeds when its nested pattern fails, any variables that would be bound by the nested pattern have no meaningful values to bind.
 
-#### Guard Pattern `if e`
+### Guard Pattern `if e`
 
 No variables are bound.
 
@@ -151,7 +135,7 @@ case x if x > 0 =>
 end
 ```
 
-#### Assignment Pattern `then x = e1, y = e2, ...`
+### Assignment Pattern `then x = e1, y = e2, ...`
 
 The assignment identifiers `x`, `y`, etc. are all definitely bound. These identifiers must reference pattern parameters defined in the pattern definition (not new bindings).
 
@@ -162,7 +146,7 @@ pattern Size[T](n: Int): List[T] =
 end
 ```
 
-#### Literal Pattern
+### Literal Pattern
 
 No variables are bound.
 
@@ -170,101 +154,6 @@ No variables are bound.
 match value
 case 0 => "zero"
 case 1 => "one"
-```
-
-## Type Constraints
-
-- Pattern matching refines types based on successful matches
-- Type patterns perform runtime type tests for type parameters
-- The type system ensures pattern matching is type-safe
-
-```jo
-val value: Int | String = getValue()
-
-match value
-case n: Int =>
-  // n has type Int (refined from Int | String)
-  val doubled = n * 2
-case s: String =>
-  // s has type String (refined from Int | String)
-  val len = s.length
-end
-```
-
-## Exhaustiveness Checking
-
-The compiler checks that all possible values are covered:
-
-```jo
-union Status = Success | Warning | Error
-
-// ✓ OK - all cases covered
-match status: Status
-case Success => ...
-case Warning => ...
-case Error => ...
-
-// ⚠ Warning - non-exhaustive, missing Error
-match status: Status
-case Success => ...
-case Warning => ...
-```
-
-### Wildcard for Non-Exhaustive Matches
-
-Use `_` for a catch-all case:
-
-```jo
-match status
-case Success => ...
-case _ => ...  // Catches Warning and Error
-```
-
-### Exhaustiveness in `for` Loops
-
-A pattern in a `for` loop is also checked for exhaustiveness. A non-exhaustive pattern
-produces a warning. The preferred fix is to use a guard instead:
-
-```jo
-// ⚠ Warning - non-exhaustive pattern
-for Some(x) in optionList do
-  println(x)
-end
-
-// ✓ Better - use guard
-for elem in optionList if elem is Some(x) do
-  println(x)
-end
-```
-
-## Pattern Match Failures
-
-Some patterns can fail at runtime:
-
-```jo
-// Can fail at runtime if pattern doesn't match
-val Point(x, y) = getValue()
-
-// Safe - cover all cases explicitly
-match getValue()
-case Point(x, y) => ...
-case _ => ...
-```
-
-## Evaluation Order
-
-Pattern matching follows left-to-right evaluation:
-
-1. Evaluate scrutinee once
-2. Test patterns sequentially
-3. Evaluate guards in order
-4. Execute first matching case body
-
-```jo
-match compute()  // Evaluated once
-case pattern1 if guard1 => body1  // Test pattern1, then guard1
-case pattern2 if guard2 => body2  // Test if pattern1 failed
-case _ => body3  // Default case
 ```
 
 ## See Also

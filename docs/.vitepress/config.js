@@ -247,7 +247,7 @@ export default defineConfig({
             { text: 'Pattern Forms', link: '/language/patterns/pattern-forms' },
             { text: 'Regex Patterns', link: '/language/patterns/regex-patterns' },
             { text: 'Sequence Patterns', link: '/language/patterns/sequence-patterns' },
-            { text: 'Semantics', link: '/language/patterns/semantics' },
+            { text: 'Flow Typing', link: '/language/patterns/flow-typing' },
           ]
         },
         {
