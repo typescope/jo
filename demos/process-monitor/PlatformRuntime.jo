@@ -8,11 +8,11 @@
   ! with --provide and --internal when the user application is compiled.
 //]
 
-namespace SystemRuntime
+namespace monitor.runtime
 
 import jo.IO.stdout
 import jo.regex.*
-import SystemAPI.*
+import monitor.api.*
 
 //=============== Implementation classes with interface views ==================
 
@@ -50,7 +50,7 @@ class ProcessImpl
   def topByMemory(n: Int): String =
     subprocess.checkOutputShell("ps aux | sort -k4 -rn | head -" + (n + 1))
 
-  view SystemAPI.Process
+  view monitor.api.Process
 end
 
 // System implementation
@@ -114,7 +114,7 @@ class SystemImpl
       val memBytes: Int = subprocess.checkOutput(py.list("sysctl", "-n", "hw.memsize")).trim.toInt
       memBytes / 1024 / 1024
 
-  view SystemAPI.System
+  view monitor.api.System
 end
 
 // Logger implementation
@@ -129,7 +129,7 @@ class LoggerImpl(console: String => Unit)
       print "[DEBUG] "
       println message
 
-  view SystemAPI.Logger
+  view monitor.api.Logger
 end
 
 // Timer implementation: blocking sleep
@@ -137,7 +137,7 @@ class TimerImpl
   def wait(ms: Int): Unit =
     time.sleep(ms / 1000)
 
-  view SystemAPI.Timer
+  view monitor.api.Timer
 end
 
 //[ AlerterImpl
@@ -160,7 +160,7 @@ class AlerterImpl(scriptPath: String)
     if os.path.exists(scriptPath) then
       val _ = subprocess.run(scriptPath, subject, body)
 
-  view SystemAPI.Alerter
+  view monitor.api.Alerter
 end
 
 //=============== Factories ====================================================
@@ -169,14 +169,14 @@ end
 // below can receive it: user code cannot name it.
 param alertScript: String
 
-def Process(): SystemAPI.Process = new ProcessImpl()
+def Process(): monitor.api.Process = new ProcessImpl()
 
-def System(): SystemAPI.System = new SystemImpl()
+def System(): monitor.api.System = new SystemImpl()
 
-def Logger(): SystemAPI.Logger receives stdout = new LoggerImpl(stdout)
+def Logger(): monitor.api.Logger receives stdout = new LoggerImpl(stdout)
 
-def Timer(): SystemAPI.Timer = new TimerImpl()
+def Timer(): monitor.api.Timer = new TimerImpl()
 
-def Alerter(): SystemAPI.Alerter receives alertScript = new AlerterImpl(alertScript)
+def Alerter(): monitor.api.Alerter receives alertScript = new AlerterImpl(alertScript)
 
 def Interval(): Int = os.environ.get("MONITOR_INTERVAL_SECS", "30").toInt

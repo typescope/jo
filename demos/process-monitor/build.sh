@@ -40,13 +40,13 @@ echo "------------------------------------------------------"
 "$PROJECT_ROOT/bin/jo" compile --python \
   --lib "$SCRIPT_DIR/out/api" \
   --link-lib "$SCRIPT_DIR/out/runtime" \
-  --provide SystemAPI.process=SystemRuntime.Process \
-  --provide SystemAPI.system=SystemRuntime.System \
-  --provide SystemAPI.logger=SystemRuntime.Logger \
-  --provide SystemAPI.timer=SystemRuntime.Timer \
-  --provide SystemAPI.alerter=SystemRuntime.Alerter \
-  --provide SystemAPI.interval=SystemRuntime.Interval \
-  --internal 'SystemRuntime.alertScript="./alert.sh"' \
+  --provide monitor.api.process=monitor.runtime.Process \
+  --provide monitor.api.system=monitor.runtime.System \
+  --provide monitor.api.logger=monitor.runtime.Logger \
+  --provide monitor.api.timer=monitor.runtime.Timer \
+  --provide monitor.api.alerter=monitor.runtime.Alerter \
+  --provide monitor.api.interval=monitor.runtime.Interval \
+  --internal 'monitor.runtime.alertScript="./alert.sh"' \
   "$SCRIPT_DIR/UserApp.jo" -o "$SCRIPT_DIR/out/monitor.py"
 echo "✓ UserApp compiled to: out/monitor.py"
 echo ""

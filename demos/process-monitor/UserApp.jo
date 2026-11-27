@@ -2,15 +2,15 @@
 // Periodic CPU and memory health monitor with email alerting
 // Only accesses capabilities provided via context parameters
 
-namespace ProcessMonitor
+namespace monitor.task
 
 import jo.IO.stdout
-import SystemAPI.process
-import SystemAPI.system
-import SystemAPI.logger
-import SystemAPI.timer
-import SystemAPI.alerter
-import SystemAPI.interval
+import monitor.api.process
+import monitor.api.system
+import monitor.api.logger
+import monitor.api.timer
+import monitor.api.alerter
+import monitor.api.interval
 
 // Entry point: shows system info then runs periodic checks
 def main: Unit receives stdout, process, system, logger, timer, alerter, interval =
