@@ -9,10 +9,10 @@
   ! Python backend using sqlite3.
 //]
 
-namespace DatabaseRuntime
+namespace docs.runtime
 
 import jo.IO.stdout
-import DatabaseAPI.*
+import docs.api.*
 
 private def builtins: py.Dynamic = py.module("builtins")
 
@@ -356,7 +356,7 @@ end
   ! Provides listing, reading, and recursive grep.
 //]
 class SkillsImpl(skillsDir: String)
-  view DatabaseAPI.Skills
+  view docs.api.Skills
 
   // Collect all .md files recursively as (skillName, fullPath) pairs
   private def collectFiles(): List[String ~ String] =
@@ -388,7 +388,7 @@ class SkillsImpl(skillsDir: String)
   def list(): List[String] =
     collectFiles().map(pair => pair.fst)
 
-  def read(name: String): DatabaseAPI.ReadResult =
+  def read(name: String): docs.api.ReadResult =
     val sd      = skillsDir
     val joined  = os.path.join(sd, name + ".md")
     val absPath = os.path.abspath(os.path.normpath(joined))
@@ -405,7 +405,7 @@ class SkillsImpl(skillsDir: String)
     else
       NotFound
 
-  def grep(query: String, contextLines: Int, maxHits: Int): List[DatabaseAPI.SearchHit] =
+  def grep(query: String, contextLines: Int, maxHits: Int): List[docs.api.SearchHit] =
     val files = collectFiles()
     val lowerQuery = query.toLower
     var hits: List[SearchHit] = []
@@ -464,7 +464,7 @@ class SecureDB(userId: Int, connection: sqlite3.Connection)
   def deleteById(id: Int): Bool =
     with Impl.connection = connection in Impl.deleteByIdImpl(userId, id)
 
-  view DatabaseAPI.DB
+  view docs.api.DB
 end
 
 //=============== Factories ====================================================
@@ -526,6 +526,6 @@ def SkillsDir(): String receives IO.args, stdout =
 // sqlite3.Row allows accessing columns by name (row["field"])
 def Connection(): sqlite3.Connection receives dbPath = sqlite3.connectRow(dbPath)
 
-def DB(): DatabaseAPI.DB receives userId, connection = new SecureDB(userId, connection)
+def DB(): docs.api.DB receives userId, connection = new SecureDB(userId, connection)
 
-def Skills(): DatabaseAPI.Skills receives skillsDir = new SkillsImpl(skillsDir)
+def Skills(): docs.api.Skills receives skillsDir = new SkillsImpl(skillsDir)

@@ -9,7 +9,7 @@ src = ["DatabaseAPI.jo"]
 kind = "lib"
 platform = "python"
 enable-ffi = true
-src = ["os.jo", "sqlite3.jo", "Runtime.jo"]
+src = ["runtime/"]
 modules = ["api"]
 
 [module.guest]
@@ -19,6 +19,6 @@ src = ["Task.jo"]
 modules = ["api", { id = "runtime", link = true }]
 
 links = [
-  { from = "jo.main", to = "DatabaseRuntime.platformMain" },
-  { from = "DatabaseAPI.analyzeDocuments", to = "UserTask.analyzeDocuments" },
+  { from = "jo.main", to = "docs.runtime.platformMain" },
+  { from = "docs.api.main", to = "docs.task.main" },
 ]

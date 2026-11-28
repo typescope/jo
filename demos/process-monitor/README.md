@@ -80,7 +80,7 @@ class AlerterImpl(scriptPath: String)
     if os.path.exists(scriptPath) then
       val _ = subprocess.run(scriptPath, subject, body)
 
-  view SystemAPI.Alerter
+  view monitor.api.Alerter
 end
 ```
 
@@ -89,8 +89,8 @@ A factory per capability creates the implementations. The script path is a conte
 ```jo
 param alertScript: String
 
-def Logger(): SystemAPI.Logger receives stdout = new LoggerImpl(stdout)
-def Alerter(): SystemAPI.Alerter receives alertScript = new AlerterImpl(alertScript)
+def Logger(): monitor.api.Logger receives stdout = new LoggerImpl(stdout)
+def Alerter(): monitor.api.Alerter receives alertScript = new AlerterImpl(alertScript)
 def Interval(): Int = os.environ.get("MONITOR_INTERVAL_SECS", "30").toInt
 ```
 
@@ -168,18 +168,18 @@ bin/jo compile --sast out/runtime --use-runtime-api python \
 bin/jo compile --python \
   --lib out/api \
   --link-lib out/runtime \
-  --provide SystemAPI.process=SystemRuntime.Process \
-  --provide SystemAPI.system=SystemRuntime.System \
-  --provide SystemAPI.logger=SystemRuntime.Logger \
-  --provide SystemAPI.timer=SystemRuntime.Timer \
-  --provide SystemAPI.alerter=SystemRuntime.Alerter \
-  --provide SystemAPI.interval=SystemRuntime.Interval \
-  --internal 'SystemRuntime.alertScript="./alert.sh"' \
+  --provide monitor.api.process=monitor.runtime.Process \
+  --provide monitor.api.system=monitor.runtime.System \
+  --provide monitor.api.logger=monitor.runtime.Logger \
+  --provide monitor.api.timer=monitor.runtime.Timer \
+  --provide monitor.api.alerter=monitor.runtime.Alerter \
+  --provide monitor.api.interval=monitor.runtime.Interval \
+  --internal 'monitor.runtime.alertScript="./alert.sh"' \
   UserApp.jo \
   -o out/monitor.py
 ```
 
-Each `--provide` binds a context parameter to a factory in the runtime library. The compiler calls the factories before `main`, in dependency order, and runs `main` with the results in scope. The `--internal` binding is visible to the factories only: `main` may not receive `SystemRuntime.alertScript`, and the runtime library is a link library, so user code cannot name it or call a factory directly.
+Each `--provide` binds a context parameter to a factory in the runtime library. The compiler calls the factories before `main`, in dependency order, and runs `main` with the results in scope. The `--internal` binding is visible to the factories only: `main` may not receive `monitor.runtime.alertScript`, and the runtime library is a link library, so user code cannot name it or call a factory directly.
 
 ## Security Properties
 

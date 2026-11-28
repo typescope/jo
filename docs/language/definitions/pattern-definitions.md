@@ -133,5 +133,5 @@ pattern Invalid(x: Int): Option[Int] =
 ## See Also
 
 - [Pattern Forms](../patterns/pattern-forms.md) - Pattern syntax and composition
-- [Pattern Matching Semantics](../patterns/semantics.md) - Binding and exhaustiveness rules
+- [Flow Typing](../patterns/flow-typing.md) - Flow typing rules for patterns
 - [Algebraic Data Types](union-definition.md) - Types designed for pattern matching

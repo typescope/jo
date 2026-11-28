@@ -462,5 +462,5 @@ term expressions. Use parentheses to override. See
 
 ## See Also
 
-- [Semantics](semantics.md) - Pattern matching rules
+- [Flow Typing](flow-typing.md) - Flow scope and definite binding rules
 - [Pattern Definitions](../definitions/pattern-definitions.md) - Reusable patterns

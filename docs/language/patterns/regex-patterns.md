@@ -157,10 +157,10 @@ Examples:
 See:
 
 - [Is Expression](../expressions/is-expression.md)
-- [Pattern Matching Semantics](semantics.md)
+- [Flow Typing for Patterns](flow-typing.md)
 
 ## See Also
 
 - [Is Expression](../expressions/is-expression.md)
 - [Regular Expressions](../expressions/regular-expressions.md) — Literal syntax and supported subset
-- [Pattern Matching Semantics](semantics.md)
+- [Flow Typing for Patterns](flow-typing.md)

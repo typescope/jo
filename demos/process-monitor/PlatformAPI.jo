@@ -2,7 +2,7 @@
 // Platform API using context parameters instead of deferred functions
 // Declares capability types as object interfaces
 
-namespace SystemAPI
+namespace monitor.api
 
 // ============================================
 // Capability Interface Definitions

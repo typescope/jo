@@ -1,4 +1,4 @@
-namespace SystemRuntime
+namespace monitor.runtime
 
 def time: TimeApi = py.module("time").cast[TimeApi]
 

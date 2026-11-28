@@ -10,12 +10,12 @@ import sqlite3
 
 from jo_bridge import run_jo
 
-HEAD = '''namespace UserTask
+HEAD = '''namespace docs.task
 import jo.IO.stdout
-import DatabaseAPI.*
-import DatabaseAPI.QueryDSL.*
+import docs.api.*
+import docs.api.QueryDSL.*
 '''
-PREFIX = HEAD + 'def analyzeDocuments(): Unit receives stdout, db =\n'
+PREFIX = HEAD + 'def main(): Unit receives stdout, db =\n'
 DATABASE = Path('out/database.db')
 
 
@@ -40,9 +40,9 @@ assert run_jo('x' * 50_001, 1) == guard
 # Generated code cannot name the runtime or the FFI, cannot widen the
 # capabilities of the entry point, and must supply the entry point.
 for program in (
-    PREFIX + '  DatabaseRuntime.platformMain()\n',
+    PREFIX + '  docs.runtime.platformMain()\n',
     PREFIX + '  println(py.module("sys").argv.size)\n',
-    HEAD + 'def analyzeDocuments(): Unit receives stdout, db, IO.args =\n  println(IO.args.size)\n',
+    HEAD + 'def main(): Unit receives stdout, db, IO.args =\n  println(IO.args.size)\n',
     HEAD + 'def other(): Unit receives stdout =\n  println("x")\n',
 ):
     result = run_jo(program, 1)

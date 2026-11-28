@@ -7,7 +7,7 @@ enable-ffi = true
 src = ["src/"]
 depth = 2
 
-packages = [{ name = "harpe", version = "0.14" }]
+packages = [{ name = "harpe", version = "0.15" }]
 
 links = [
   { from = "jo.main", to = "data.query.harpe.main" },

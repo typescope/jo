@@ -13,15 +13,14 @@ import harpe.tools.RunCodeTool
 import harpe.turns.TurnResult
 
 def main(): Unit receives stdout =
-  val home = os.path.abspath(".")
-  val data = os.path.abspath("data")
+  val sandbox = os.path.abspath("sandbox")
   val userId = os.getenv("JO_USER_ID", "1")
-  val prompt = File.read("prompts/SYSTEM.md") + "\n" + File.read(os.path.join(data, "DatabaseAPI.jo"))
+  val prompt = File.read("prompts/SYSTEM.md") + "\n" + File.read(os.path.join(sandbox, "DatabaseAPI.jo"))
   val context = new FullContext:
     baseSystem = prompt
     initial = []
 
-  val runCode = RunCodeTool(os.path.join(home, "sandbox"), approvalDeadline = 610)
+  val runCode = RunCodeTool(sandbox, "guest", approvalDeadline = 610)
   val guestEnv = Map:
     "HARPE_USER_ID" ~ userId
     "HARPE_DB_PATH" ~ os.path.abspath("out/database.db")

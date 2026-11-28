@@ -1,4 +1,4 @@
-"""OpenAI Agents SDK agent with one Jo-backed database tool."""
+"""OpenAI Agents SDK demo with one Jo-backed database tool."""
 
 import argparse
 import os

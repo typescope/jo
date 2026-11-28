@@ -1,4 +1,4 @@
-"""LangChain agent with one Jo-backed database tool."""
+"""LangChain demo with one Jo-backed database tool."""
 
 import argparse
 import os

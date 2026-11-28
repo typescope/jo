@@ -39,8 +39,16 @@ echo "  - Checking that the templates share their data files and bridge"
 for file in DatabaseAPI.jo Runtime.jo os.jo sqlite3.jo seed.sql; do
   cmp "$TEMPLATES/langchain-data-query/data/$file" "$TEMPLATES/openai-agents-data-query/data/$file" \
     || fail "openai-agents-data-query/data/$file differs"
-  cmp "$TEMPLATES/langchain-data-query/data/$file" "$TEMPLATES/harpe-data-query/data/$file" \
-    || fail "harpe-data-query/data/$file differs"
+  harpe_file="$TEMPLATES/harpe-data-query/sandbox/runtime/$file"
+
+  if [ "$file" = seed.sql ]; then
+    harpe_file="$TEMPLATES/harpe-data-query/data/$file"
+  elif [ "$file" = DatabaseAPI.jo ]; then
+    harpe_file="$TEMPLATES/harpe-data-query/sandbox/$file"
+  fi
+
+  cmp "$TEMPLATES/langchain-data-query/data/$file" "$harpe_file" \
+    || fail "harpe-data-query/$file differs"
 done
 for file in jo_bridge.py prepare.sh; do
   cmp "$TEMPLATES/langchain-data-query/$file" "$TEMPLATES/openai-agents-data-query/$file" \

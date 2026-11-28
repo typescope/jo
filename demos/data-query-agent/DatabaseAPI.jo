@@ -5,7 +5,7 @@
   ! filter conditions while maintaining row-level security.
 //]
 
-namespace DatabaseAPI
+namespace docs.api
 
 //[ Document class representing a row in the documents table
   !

@@ -8,10 +8,10 @@
   ! Python backend using sqlite3.
 //]
 
-namespace DatabaseRuntime
+namespace docs.runtime
 
 import jo.IO.stdout
-import DatabaseAPI.*
+import docs.api.*
 
 // Helper type to hold SQL and parameters during query building
 class QueryParts(sql: String, params: List[Value])
@@ -384,7 +384,7 @@ class SecureDB(userId: Int, connection: sqlite3.Connection)
   def deleteById(id: Int): Bool =
     with Impl.connection = connection in Impl.deleteByIdImpl(userId, id)
 
-  view DatabaseAPI.DB
+  view docs.api.DB
 end
 
 //[ Main entry point - reads userId (argv[1]) and dbPath (argv[2]) from sys.argv
@@ -438,8 +438,8 @@ def platformMain: Unit receives stdout =
   val secureDb = new SecureDB(userId, connection)
 
   // Provide implementations via context parameters
-  with DatabaseAPI.db = secureDb in
-    DatabaseAPI.analyzeDocuments()
+  with docs.api.db = secureDb in
+    docs.api.main()
 
   // Commit only after the user task finishes. Python's sqlite3 opens a transaction
   // before the first write, so an abort rolls back every write from this run.

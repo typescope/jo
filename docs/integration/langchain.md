@@ -1,88 +1,203 @@
 # LangChain
 
-Add Jo to LangChain with one tool that compiles and runs model-generated Jo programs.
-This example uses the tool to query a user-scoped SQLite database.
+If you have a LangChain agent, you can add a tool that runs Jo code.
+Your agent calls the tool with a Jo program and gets its output back.
 
-## The compile-and-run tool
+We'll use a sample SQLite database of documents. Your application supplies the
+current user's ID. The database runtime uses it to restrict queries, updates, and
+deletes to that user's documents.
 
-The [LangChain example](https://github.com/typescope/jo/blob/main/templates/langchain-data-query/agent.py) gives `create_agent` one tool:
+## 1. Prepare the Jo bridge
 
-```python
-@tool
-def run_jo_program(code: str) -> str:
-    """Compile and run Jo code against this user's document database."""
-    return run_jo(code, args.user_id)
-
-agent = create_agent(
-    model=os.environ.get("MODEL", "openai:gpt-5.6-terra"),
-    tools=[run_jo_program],
-    system_prompt=SYSTEM_PROMPT,
-)
-result = agent.invoke({"messages": [{"role": "user", "content": args.prompt}]})
-```
-
-The model supplies only `code`. The Python host chooses `user_id`, from a CLI flag in
-this example. In a service, derive it from the authenticated request.
-LangChain documents this `@tool` and `create_agent` pattern in its
-[agent guide](https://docs.langchain.com/oss/python/langchain/agents).
-
-## What the Jo bridge does
-
-The [Jo bridge](https://github.com/typescope/jo/blob/main/templates/langchain-data-query/jo_bridge.py)
-implements `run_jo(code, user_id)` behind the tool:
-
-1. Write the model's Jo source to a temporary file.
-2. Run `jo compile --python` against the confined API (`--lib`) and link in the
-   trusted runtime (`--link-lib`). Return compiler errors to the agent so it can
-   revise the source.
-3. Run the compiled Python program in a minimal environment with the host-selected
-   user ID and database path. Return its output or runtime error to the agent.
-
-The generated program can use only the API, the standard library, and the
-capabilities in the entry point's signature. The compiler rejects everything else.
-The trusted runtime adds the current user's `owner_id` condition to database operations.
-
-For more background, see the [integration overview](index.md) and
-[two-world architecture](../security/two-worlds.md).
-
-## Run the example
-
-Install [Jo](../usage/install.md), then create and enter the project:
+You need [Jo](../usage/install.md) on `PATH` and Python 3.10+.
+From your existing Python project's root, with its virtual environment activated:
 
 ```bash
-# Create the project
-jo new --template typescope/jo:langchain-data-query my-agent
-cd my-agent
-
-# Prepare the Jo libraries and sample database
-bash prepare.sh
-
-# Install Python dependencies
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-
-# Run the agent
-export OPENAI_API_KEY="your-api-key"
-python3 agent.py "List my documents" --user-id 1
+jo new --template typescope/jo:langchain-data-query jo_tools
+touch jo_tools/__init__.py
+python3 -m pip install -r jo_tools/requirements.txt
+bash jo_tools/prepare.sh
 ```
 
-Run the same question with `--user-id 2` to compare results. Set `MODEL` to choose
-another model, using LangChain's `provider:model` format. The sample database has
-documents for users 1, 2, and 3. `prepare.sh` compiles the confined
-`data/DatabaseAPI.jo` and trusted `data/Runtime.jo`, then creates a fresh database
-in `out/` from `data/seed.sql`. Run it again to reset any changes made by the agent.
+This adds a Python package alongside your application. Keep these files together:
 
-## For production
+```text
+your-project/
+├── agent.py                    # Your LangChain application
+└── jo_tools/
+    ├── __init__.py
+    ├── demo.py                 # Standalone CLI demo
+    ├── jo_bridge.py            # run_jo() and model instructions
+    ├── prepare.sh              # Build libraries and reset sample database
+    ├── data/
+    │   ├── DatabaseAPI.jo      # API visible to generated code
+    │   ├── Runtime.jo          # Trusted implementation and entry point
+    │   ├── os.jo              # Python environment bindings
+    │   ├── sqlite3.jo          # Python SQLite bindings
+    │   └── seed.sql
+    └── out/                   # Prepared libraries and database
+```
 
-Give the model a Jo coding skill based on the
-[cheat sheet](https://github.com/typescope/jo/blob/main/docs/overview/cheat-sheet.md)
-and [standard library reference](https://github.com/typescope/jo/blob/main/docs/overview/stdlib.md).
-Make that guidance available through agent instructions or retrieval before the model
-writes code. You can also expose `jo compile --query jo.String` as a read-only tool
-for looking up API signatures and documentation. To query the confined API, pass its
-source file, for example `jo compile --query DatabaseAPI.DB data/DatabaseAPI.jo`.
+The template also includes `demo.py` and a README for a standalone demo.
+Your application imports the bridge. It does not need that demo agent.
 
-To reduce Jo's cold-start time, compile it to a native image as described in the
-[install guide](../usage/install.md#pro-tip-native-launcher-for-faster-startup). A
-compilation server offers the best performance. Contact us for support.
+`prepare.sh` builds the confined API and trusted implementation separately, then
+creates `out/database.db`. Running it again resets the sample data.
+
+## 2. Verify the bridge without a model call
+
+Run this from your project's root. It compiles and executes the same Jo program
+twice, with two host-selected identities. No API key is needed for this check.
+
+```bash
+python3 - <<'PY'
+from jo_tools.jo_bridge import run_jo
+
+code = """namespace docs.task
+import jo.IO.stdout
+import docs.api.*
+import docs.api.QueryDSL.*
+
+def main(): Unit receives stdout, db =
+  println: db.count(All)
+  println: db.count(Draft == true)
+"""
+
+for user_id in (1, 2):
+    print(run_jo(code, user_id))
+PY
+```
+
+With fresh sample data, the output is:
+
+```text
+🔒 Running as User ID: 1
+
+10
+4
+🔒 Running as User ID: 2
+
+8
+3
+```
+
+## 3. Register the tool in your agent
+
+The following is a complete LangChain adapter. Put it in your application's
+`agent.py` or adapt the factory to the place where you already construct agents:
+
+```python
+from langchain.agents import create_agent
+from langchain.tools import tool
+
+from jo_tools.jo_bridge import SYSTEM_PROMPT, run_jo
+
+
+def create_document_agent(
+    user_id: int,
+    *,
+    model="openai:gpt-5.6-terra",
+    tools=(),
+    instructions: str | None = "You are a helpful assistant.",
+    **agent_options,
+):
+    @tool
+    def run_jo_program(code: str) -> str:
+        """Compile and run Jo code against the current user's document database."""
+        return run_jo(code, user_id)
+
+    return create_agent(
+        model=model,
+        tools=[*tools, run_jo_program],
+        system_prompt=(instructions or "") + "\n\n" + SYSTEM_PROMPT,
+        **agent_options,
+    )
+
+
+if __name__ == "__main__":
+    # Local demo identity. In a service, use the authenticated request's user ID.
+    agent = create_document_agent(user_id=1)
+    result = agent.invoke({
+        "messages": [{
+            "role": "user",
+            "content": "How many documents do I have, and how many are drafts?",
+        }]
+    })
+    print(result["messages"][-1].content)
+```
+
+Set `OPENAI_API_KEY` in your environment and run `python3 agent.py` from your
+project's root. On fresh sample data, the answer should report **10 documents,
+including 4 drafts**.
+
+The tool schema contains only `code`. The host's closure supplies `user_id`.
+Create the tool for each authenticated user. Do not store the current identity in
+a mutable global or share a user-bound agent between users.
+
+The adapter appends `SYSTEM_PROMPT` from `jo_bridge.py`. It contains the required
+entry point, a Jo example, the database API source, and retry instructions.
+
+## 4. Understand what runs behind the tool
+
+The [bridge implementation](https://github.com/typescope/jo/blob/main/templates/langchain-data-query/jo_bridge.py)
+writes the generated source to a temporary `task.jo` and runs the equivalent of
+this command, with paths resolved from `jo_tools/`:
+
+```bash
+jo compile --python \
+  --lib out/api \
+  --link-lib out/runtime \
+  --link jo.main=docs.runtime.platformMain \
+  --link docs.api.main=docs.task.main \
+  -o task.py \
+  task.jo
+```
+
+| Argument | Purpose |
+| --- | --- |
+| `--lib out/api` | Make the confined API visible when checking generated code. |
+| `--link-lib out/runtime` | Supply the trusted implementation at link time without exposing it to generated code. |
+| `--link jo.main=docs.runtime.platformMain` | Start in the trusted runtime, which opens the database and supplies capabilities. |
+| `--link docs.api.main=docs.task.main` | Connect the API's required entry point to the generated function. |
+
+If compilation succeeds, the bridge executes `task.py` using the current Python
+interpreter, passing the host-selected user ID and database path. It returns stdout
+or a runtime error to LangChain.
+
+The trusted runtime enforces user scoping for reads and writes. Your application
+is responsible for authentication and its other tools.
+
+See the [integration overview](index.md) and
+[two-world architecture](../security/two-worlds.md) for more background.
+
+## Further guidance
+
+Give the model the [Jo cheat sheet](../overview/cheat-sheet.md) and
+[standard library reference](../overview/stdlib.md) as skills.
+
+For API lookup, a read-only tool can run `jo compile --query jo.String`. To query
+the example API from your project root, run
+`jo compile --query docs.api.DB jo_tools/data/DatabaseAPI.jo`.
+
+For faster compiler startup, see the
+[native launcher instructions](../usage/install.md#pro-tip-native-launcher-for-faster-startup).
+
+## Run the standalone demo
+
+With `OPENAI_API_KEY` configured, run the template's CLI agent from your project root:
+
+```bash
+python3 jo_tools/demo.py "List my documents" --user-id 1
+python3 jo_tools/demo.py "List my documents" --user-id 2
+```
+
+Compare the two users' results.
+
+## Troubleshooting
+
+| Symptom | Action |
+| --- | --- |
+| `Jo example is not prepared` | Run `bash jo_tools/prepare.sh` from your project root. |
+| `Jo executable not found` | Install Jo and ensure the agent process has `jo` on `PATH`. |
+| Libraries were built by a different Jo version | Run `bash jo_tools/prepare.sh` again after upgrading Jo. |
+| Repeated compilation failures | Inspect tool messages. Check the entry-point name and that Jo guidance is provided as skills. |

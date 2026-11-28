@@ -1,7 +1,7 @@
-namespace UserTask
+namespace docs.task
 import jo.IO.stdout
-import DatabaseAPI.*
-import DatabaseAPI.QueryDSL.*
+import docs.api.*
+import docs.api.QueryDSL.*
 
 def printDoc(doc: Document): Unit receives stdout =
   println("  [" + doc.id.toString + "] " + doc.title +

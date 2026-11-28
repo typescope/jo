@@ -12,7 +12,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 export OPENAI_API_KEY="your-api-key"
-python3 agent.py "List my documents" --user-id 1
+python3 demo.py "List my documents" --user-id 1
 ```
 
 Run again with `--user-id 2` to see another user's documents. Set `MODEL` to

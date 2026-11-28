@@ -1,17 +1,72 @@
 # Harpe
 
-[Harpe](https://harpe.jo-lang.org/) integrates with Jo through its built-in `RunCodeTool`,
-which compiles and runs model-generated Jo programs. This example uses it to query a
-user-scoped SQLite database.
+[Harpe](https://harpe.jo-lang.org/) includes `RunCodeTool` for compiling and running
+Jo code. This example connects it to a SQLite database scoped to the current user.
+
+## The sandbox
+
+The `sandbox/` directory is a Jo project. Its `jo.toml` defines how to build it:
+
+```text
+sandbox/
+├── jo.toml          # Defines the three modules and their links
+├── DatabaseAPI.jo   # docs.api: API visible to generated code
+├── runtime/
+│   ├── Runtime.jo   # docs.runtime: trusted implementation
+│   ├── os.jo        # Python bindings used by the runtime
+│   └── sqlite3.jo
+├── Task.jo          # Build-time guest placeholder
+└── run.sh           # Launches the compiled guest
+```
+
+The three modules have separate roles:
+
+- `api` exposes `DatabaseAPI.jo` as a pure library for generated code.
+- `runtime` builds the trusted implementation in `runtime/` with Python FFI enabled.
+- `guest` checks `Task.jo` against `api`, then links it with `runtime`.
+
+Here's `sandbox/jo.toml`:
+
+```toml
+jo = "0.14"
+
+[module.api]
+kind = "lib"
+platform = "pure"
+src = ["DatabaseAPI.jo"]
+
+[module.runtime]
+kind = "lib"
+platform = "python"
+enable-ffi = true
+src = ["runtime/"]
+modules = ["api"]
+
+[module.guest]
+kind = "app"
+platform = "python"
+src = ["Task.jo"]
+modules = ["api", { id = "runtime", link = true }]
+
+links = [
+  { from = "jo.main", to = "docs.runtime.platformMain" },
+  { from = "docs.api.main", to = "docs.task.main" },
+]
+```
+
+For more background, see the [integration overview](index.md),
+[two-world architecture](../security/two-worlds.md), and Harpe's
+[sandbox guide](https://harpe.jo-lang.org/concepts/sandbox/).
 
 ## The compile-and-run tool
 
-The [Harpe driver](https://github.com/typescope/jo/blob/main/templates/harpe-data-query/src/Main.jo) gives the model `runCode` and supplies the user ID and database path as trusted per-run configuration:
+The [driver](https://github.com/typescope/jo/blob/main/templates/harpe-data-query/src/Main.jo)
+registers `runCode` and supplies the user ID and database path:
 
 ```jo
-val home = os.path.abspath(".")
+val sandbox = os.path.abspath("sandbox")
 val userId = os.getenv("JO_USER_ID", "1")
-val runCode = RunCodeTool(os.path.join(home, "sandbox"), approvalDeadline = 610)
+val runCode = RunCodeTool(sandbox, "guest", approvalDeadline = 610)
 val guestEnv = Map:
   "HARPE_USER_ID" ~ userId
   "HARPE_DB_PATH" ~ os.path.abspath("out/database.db")
@@ -19,26 +74,22 @@ val guestEnv = Map:
 val tools = runCode.toolset(guestEnv)
 ```
 
-`approvalDeadline` is a watchdog, in seconds, for generated code that waits on a
-[human approval](https://harpe.jo-lang.org/concepts/approvals/). This example does
-not request approvals.
+The `"guest"` argument to `RunCodeTool` selects the application module in
+`sandbox/jo.toml`.
 
-When the model calls `runCode`, `RunCodeTool` compiles its Jo source against the prepared
-guest module and returns compiler errors for revision. On success, the
-[sandbox runner](https://github.com/typescope/jo/blob/main/templates/harpe-data-query/sandbox/run.sh)
-executes the compiled program with the user ID and database path supplied
-by the driver. The generated program can use only `DatabaseAPI.jo`, the standard
-library, and the capabilities in the entry point's signature. The compiler rejects
-everything else.
-The trusted runtime adds the current user's `owner_id` condition to database operations.
-The model controls only the Jo source passed to `runCode`. The CLI environment variable
-stands in for an authenticated identity. In a service, derive the user ID from the
-authenticated request. The host and its other tools remain outside this Jo
-boundary.
+When your agent calls `runCode`:
 
-For more background, see the [integration overview](index.md),
-[two-world architecture](../security/two-worlds.md), and Harpe's
-[sandbox guide](https://harpe.jo-lang.org/concepts/sandbox/).
+1. `RunCodeTool` compiles the program against the prepared guest module. Compiler
+   errors go back to the agent so it can correct the code.
+2. On success, the [sandbox runner](https://github.com/typescope/jo/blob/main/templates/harpe-data-query/sandbox/run.sh)
+   executes the program with the user ID and database path supplied by the driver.
+
+The runtime adds the current user's `owner_id` filter to each database operation.
+The model supplies only Jo code and cannot choose the user identity.
+
+The CLI uses `JO_USER_ID` as a sample identity. In a service, use the authenticated
+request's user ID. Your application remains responsible for authentication and its
+other tools.
 
 ## Run the example
 
@@ -64,21 +115,18 @@ JO_USER_ID=1 MODEL=gpt-5.6-terra jo run
 
 Ask “List my documents.” Run the same question with
 `JO_USER_ID=2 MODEL=gpt-5.6-terra jo run` to compare results. The sample database has
-documents for users 1, 2, and 3. `prepare.sh` copies the confined
-`data/DatabaseAPI.jo`, the trusted `data/Runtime.jo`, and its `os.jo` and `sqlite3.jo`
-bindings into the guest module, builds it, and creates a fresh database in `out/`
-from `data/seed.sql`. Run it again to reset any changes made by the agent.
+documents for users 1, 2, and 3.
 
-## For production
+`prepare.sh` builds the sandbox modules and creates `out/database.db` from
+`data/seed.sql`. Run it again to reset the sample data.
 
-Give the model a Jo coding skill based on the
-[cheat sheet](https://github.com/typescope/jo/blob/main/docs/overview/cheat-sheet.md)
-and [standard library reference](https://github.com/typescope/jo/blob/main/docs/overview/stdlib.md).
-Make that guidance available through agent instructions or retrieval before the model
-writes code. You can also expose `jo compile --query jo.String` as a read-only tool
-for looking up API signatures and documentation. To query the confined API, pass its
-source file, for example `jo compile --query DatabaseAPI.DB data/DatabaseAPI.jo`.
+## Further guidance
 
-To reduce Jo's cold-start time, compile it to a native image as described in the
-[install guide](../usage/install.md#pro-tip-native-launcher-for-faster-startup). A
-compilation server offers the best performance. Contact us for support.
+Give the model the [Jo cheat sheet](../overview/cheat-sheet.md) and
+[standard library reference](../overview/stdlib.md) as skills.
+
+For API lookup, a read-only tool can run `jo compile --query jo.String`. To query
+the example API, run `jo compile --query docs.api.DB sandbox/DatabaseAPI.jo`.
+
+For faster compiler startup, see the
+[native launcher instructions](../usage/install.md#pro-tip-native-launcher-for-faster-startup).

@@ -5,7 +5,7 @@
   ! filter conditions while maintaining row-level security.
 //]
 
-namespace DatabaseAPI
+namespace docs.api
 
 import jo.IO.stdout
 
@@ -236,4 +236,4 @@ end
   !
   ! Receives db capability which provides filtered database access
 //]
-defer def analyzeDocuments(): Unit receives stdout, db
+defer def main(): Unit receives stdout, db

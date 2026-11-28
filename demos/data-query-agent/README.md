@@ -109,10 +109,10 @@ The sample database has three users:
 The LLM generates programs matching this template:
 
 ```jo
-namespace UserTask
+namespace docs.task
 import jo.IO.stdout
-import DatabaseAPI.*
-import DatabaseAPI.QueryDSL.*
+import docs.api.*
+import docs.api.QueryDSL.*
 
 def main: Unit receives stdout, db, skills =
   // LLM-generated query/mutation code here
@@ -124,11 +124,11 @@ Compile command used per query:
 bin/jo compile --python \
   --lib out/api \
   --link-lib out/runtime \
-  --provide DatabaseAPI.db=DatabaseRuntime.DB \
-  --provide DatabaseAPI.skills=DatabaseRuntime.Skills \
-  --internal DatabaseRuntime.userId=DatabaseRuntime.UserId \
-  --internal DatabaseRuntime.dbPath=DatabaseRuntime.DbPath \
-  --internal DatabaseRuntime.skillsDir=DatabaseRuntime.SkillsDir \
-  --internal DatabaseRuntime.connection=DatabaseRuntime.Connection \
+  --provide docs.api.db=docs.runtime.DB \
+  --provide docs.api.skills=docs.runtime.Skills \
+  --internal docs.runtime.userId=docs.runtime.UserId \
+  --internal docs.runtime.dbPath=docs.runtime.DbPath \
+  --internal docs.runtime.skillsDir=docs.runtime.SkillsDir \
+  --internal docs.runtime.connection=docs.runtime.Connection \
   out/task.jo -o out/task.py
 ```

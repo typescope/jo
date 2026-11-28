@@ -8,14 +8,14 @@ a successful tool result. If compilation fails, repair the Jo code and retry.
 Every generated program must use this shape:
 
 ```jo
-namespace UserTask
+namespace docs.task
 import jo.IO.stdout
-import DatabaseAPI.*
-import DatabaseAPI.QueryDSL.*
+import docs.api.*
+import docs.api.QueryDSL.*
 
-def analyzeDocuments(): Unit receives stdout, db =
+def main(): Unit receives stdout, db =
   for doc in db.query(All) do println doc.title
 ```
 
 Use only the `db` capability for documents and `println` for results. The full
-DatabaseAPI source follows after these instructions.
+`docs.api` source follows after these instructions.

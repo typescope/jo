@@ -168,9 +168,9 @@ Use `skills.grep("query")` to search skills for specific topics, or `skills.list
 Example — read a skill and print its content:
 
 ```jo
-namespace UserTask
+namespace docs.task
 import jo.IO.stdout
-import DatabaseAPI.*
+import docs.api.*
 
 def main: Unit receives stdout, db, skills =
   match skills.read("jo-cheat-sheet")
@@ -202,10 +202,10 @@ All queries are automatically scoped to the current user via row-level security.
 Your program **must** follow this exact template:
 
 ```jo
-namespace UserTask
+namespace docs.task
 import jo.IO.stdout
-import DatabaseAPI.*
-import DatabaseAPI.QueryDSL.*
+import docs.api.*
+import docs.api.QueryDSL.*
 
 def main: Unit receives stdout, db, skills =
   // Your code here — use db.query, db.count, db.getById,
@@ -215,7 +215,7 @@ def main: Unit receives stdout, db, skills =
 ```
 
 Key rules:
-- Namespace must be `UserTask`
+- Namespace must be `docs.task`
 - Entry point must be `def main: Unit receives stdout, db, skills`
 - Use `db.*` methods for ALL database operations
 - Use `println` to display results to the user
@@ -262,12 +262,12 @@ def compile_code(code: str) -> tuple[bool, str]:
         "compile", "--python",
         "--lib", os.path.join(OUT_DIR, "api"),
         "--link-lib", os.path.join(OUT_DIR, "runtime"),
-        "--provide", "DatabaseAPI.db=DatabaseRuntime.DB",
-        "--provide", "DatabaseAPI.skills=DatabaseRuntime.Skills",
-        "--internal", "DatabaseRuntime.userId=DatabaseRuntime.UserId",
-        "--internal", "DatabaseRuntime.dbPath=DatabaseRuntime.DbPath",
-        "--internal", "DatabaseRuntime.skillsDir=DatabaseRuntime.SkillsDir",
-        "--internal", "DatabaseRuntime.connection=DatabaseRuntime.Connection",
+        "--provide", "docs.api.db=docs.runtime.DB",
+        "--provide", "docs.api.skills=docs.runtime.Skills",
+        "--internal", "docs.runtime.userId=docs.runtime.UserId",
+        "--internal", "docs.runtime.dbPath=docs.runtime.DbPath",
+        "--internal", "docs.runtime.skillsDir=docs.runtime.SkillsDir",
+        "--internal", "docs.runtime.connection=docs.runtime.Connection",
         TASK_JO,
         "-o", TASK_PY,
     ]

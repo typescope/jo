@@ -38,12 +38,12 @@ echo "Stage 3: Compile Sample LLM generated Jo code"
 "$PROJECT_ROOT/bin/jo" compile --python \
   --lib "$SCRIPT_DIR/out/api" \
   --link-lib "$SCRIPT_DIR/out/runtime" \
-  --provide DatabaseAPI.db=DatabaseRuntime.DB \
-  --provide DatabaseAPI.skills=DatabaseRuntime.Skills \
-  --internal DatabaseRuntime.userId=DatabaseRuntime.UserId \
-  --internal DatabaseRuntime.dbPath=DatabaseRuntime.DbPath \
-  --internal DatabaseRuntime.skillsDir=DatabaseRuntime.SkillsDir \
-  --internal DatabaseRuntime.connection=DatabaseRuntime.Connection \
+  --provide docs.api.db=docs.runtime.DB \
+  --provide docs.api.skills=docs.runtime.Skills \
+  --internal docs.runtime.userId=docs.runtime.UserId \
+  --internal docs.runtime.dbPath=docs.runtime.DbPath \
+  --internal docs.runtime.skillsDir=docs.runtime.SkillsDir \
+  --internal docs.runtime.connection=docs.runtime.Connection \
   "$SCRIPT_DIR/llm_sample.jo" -o "$SCRIPT_DIR/out/llm_sample.py"
 echo "Build complete."
 
