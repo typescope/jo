@@ -9,7 +9,7 @@ src = ["DatabaseAPI.jo"]
 kind = "lib"
 platform = "python"
 enable-ffi = true
-src = ["os.jo", "sqlite3.jo", "Runtime.jo"]
+src = ["runtime/"]
 modules = ["api"]
 
 [module.guest]
