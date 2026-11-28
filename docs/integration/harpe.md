@@ -27,7 +27,7 @@ When your agent calls `runCode`:
    executes the program with the user ID and database path supplied by the driver.
 
 Generated code can use `docs.api`, the standard library, and the capabilities
-declared by `docs.task.main`. It cannot import the trusted runtime.
+declared by `docs.api.main`. It cannot import the trusted runtime.
 
 The runtime adds the current user's `owner_id` filter to each database operation.
 The model supplies only Jo code and cannot choose the user identity.
